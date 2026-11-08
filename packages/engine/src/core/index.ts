@@ -4,7 +4,7 @@ export * from './filters.ts';
 export * from './piano-core.ts';
 export * from './soundboard.ts';
 export * from './util.ts';
-export { BK_MAX, Voice, type StrikeRecord } from './voice.ts';
+export { BK_MAX, Voice, designStringLoss, nominalLossCoeff, type StrikeRecord } from './voice.ts';
 export * from './render.ts';
 export * from './precompute.ts';
 export { DispersionCache, type DesignEntry } from './voice.ts';

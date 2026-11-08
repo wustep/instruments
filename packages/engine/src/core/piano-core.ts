@@ -179,7 +179,7 @@ export class PianoCore {
     const eq = [...this.cal.eq, ...this.design.eq];
     this.eq.set(buildEq(eq, this.calTilt(), this.dry ? 1 : this.params.lid, this.fs));
     // high-frequency board path: gentle high-pass so the modal path owns the lows
-    this.hfEq.set([biquadHighpass(this.cal.hfCross, 0.6, this.fs), biquadHighpass(this.cal.hfCross, 0.6, this.fs)]);
+    this.hfEq.set([biquadHighpass(this.cal.hfCross, 0.6, this.fs)]);
     this.room.configure(this.params.room);
     this.outGain = this.cal.outputGain * this.params.volume;
   }
@@ -288,7 +288,7 @@ export class PianoCore {
         v.held = true;
         v.damperTarget = 0;
         v.damper = Math.min(v.damper, 0.2); // key lifts its damper before the hammer arrives
-        v.strike(ev.velocity, hammerVelocity(ev.velocity, this.cal), this.soft, this.frame & POS_MASK);
+        v.strike(ev.velocity, hammerVelocity(ev.velocity, this.cal, ev.midi), this.soft, this.frame & POS_MASK);
         this.lastStruck = v;
         break;
       }
@@ -642,13 +642,14 @@ export class PianoCore {
       const w2 = v.w2;
       const inv = v.invDen;
       const Yb = v.Y;
+      const Yr = this.cal.hfMobility;
       const beta = v.beta;
       const doPh = phantomOn && v.phGain > 0;
       for (let t = 0; t < Bk; t++) {
         const vsb = w0 * vz0[t] + w1 * vz1[t] + w2 * vz2[t];
         vb[t] = vsb * inv + Yb * al[t];
         const F = al[t] - beta * vsb;
-        const hv = Yb * F;
+        const hv = Yr * F;
         hf0[t] += w0 * hv;
         hf1[t] += w1 * hv;
         hf2[t] += w2 * hv;

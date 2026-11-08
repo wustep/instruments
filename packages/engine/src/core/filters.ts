@@ -60,56 +60,31 @@ export function designLossFilter(
   loopDelay: readonly number[],
   fs: number,
 ): LossDesign {
+  // Exact two-point design (cf. Bank 2000): match partial 1 and a high reference
+  // partial (the highest given), the one-pole shape interpolates in between.
   const n = freqs.length;
-  const target: number[] = new Array(n);
-  const ws: number[] = new Array(n);
-  const wk: number[] = new Array(n);
-  for (let k = 0; k < n; k++) {
-    // ln of loss per round trip: amplitude falls by 1000 over t60 seconds
-    target[k] = (-LN1000 * loopDelay[k]) / (fs * t60[k]);
-    ws[k] = (2 * Math.PI * freqs[k]) / fs;
-    wk[k] = 1 / Math.sqrt(k + 1);
-  }
-  const evalA = (a: number): { err: number; lng: number } => {
-    let num = 0;
-    let den = 0;
-    const h1: number[] = new Array(n);
-    for (let k = 0; k < n; k++) {
-      h1[k] = Math.log(onePoleMag(1, a, ws[k]));
-      num += wk[k] * (target[k] - h1[k]);
-      den += wk[k];
+  const G = (k: number) => Math.exp((-LN1000 * loopDelay[k]) / (fs * t60[k]));
+  const w1 = (2 * Math.PI * freqs[0]) / fs;
+  const G1 = G(0);
+  if (n < 2) return { g: Math.min(1, G1), a: 0 };
+  const kH = n - 1;
+  const wH = (2 * Math.PI * freqs[kH]) / fs;
+  const R = G(kH) / G1; // desired |H(wH)| / |H(w1)|
+  const ratio = (a: number) => Math.sqrt((1 + 2 * a * Math.cos(w1) + a * a) / (1 + 2 * a * Math.cos(wH) + a * a));
+  let a = 0;
+  if (R < 1) {
+    let lo = -0.9999;
+    let hi = 0;
+    for (let it = 0; it < 80; it++) {
+      const mid = 0.5 * (lo + hi);
+      // ratio decreases as a -> -1
+      if (ratio(mid) > R) hi = mid;
+      else lo = mid;
     }
-    let lng = num / den;
-    if (lng > 0) lng = 0; // g <= 1 (passive)
-    let err = 0;
-    for (let k = 0; k < n; k++) {
-      const e = lng + h1[k] - target[k];
-      err += wk[k] * e * e;
-    }
-    return { err, lng };
-  };
-  // coarse grid then golden-section refine on a in (-0.999, 0]
-  let bestA = 0;
-  let best = Infinity;
-  for (let i = 0; i <= 200; i++) {
-    const a = -0.999 * Math.pow(i / 200, 0.5);
-    const { err } = evalA(a);
-    if (err < best) {
-      best = err;
-      bestA = a;
-    }
+    a = 0.5 * (lo + hi);
   }
-  let lo = Math.max(-0.9995, bestA - 0.02);
-  let hi = Math.min(0, bestA + 0.02);
-  const gr = (Math.sqrt(5) - 1) / 2;
-  for (let it = 0; it < 50; it++) {
-    const c = hi - gr * (hi - lo);
-    const d = lo + gr * (hi - lo);
-    if (evalA(c).err < evalA(d).err) hi = d;
-    else lo = c;
-  }
-  const a = (lo + hi) / 2;
-  return { g: Math.exp(evalA(a).lng), a };
+  const g = Math.min(1, (G1 * Math.sqrt(1 + 2 * a * Math.cos(w1) + a * a)) / (1 + a));
+  return { g, a };
 }
 
 /** Unwrapped phase lag (rad) of a 2nd-order allpass with poles ρe^{±jθ}. */

@@ -74,12 +74,13 @@ export class Soundboard {
       // spatial wavenumber grows like sqrt(f) for a bending plate
       this.kappa[k] = 0.8 + 1.6 * Math.sqrt(fk / design.fLow) * (0.7 + 0.6 * rand());
       this.theta[k] = rand() * Math.PI * 2;
+      const zc = cal.board.zoneCoupling ?? [1, 1, 1];
       for (let z = 0; z < NUM_ZONES; z++) {
-        this.phi[k * NUM_ZONES + z] = Math.sin(Math.PI * this.kappa[k] * ZONE_X[z] + this.theta[k]);
+        this.phi[k * NUM_ZONES + z] = zc[z] * Math.sin(Math.PI * this.kappa[k] * ZONE_X[z] + this.theta[k]);
       }
       // close microphones over bass and treble strings see local board motion;
       // the lowest modes radiate less efficiently
-      const eff = (fk * fk) / (fk * fk + 140 * 140);
+      const eff = (fk * fk) / (fk * fk + 70 * 70);
       this.radL[k] = eff * Math.sin(Math.PI * this.kappa[k] * MIC_L + this.theta[k]);
       this.radR[k] = eff * Math.sin(Math.PI * this.kappa[k] * MIC_R + this.theta[k]);
     }

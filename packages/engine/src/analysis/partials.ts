@@ -330,3 +330,78 @@ export function attackTime(x: ArrayLike<number>, fs: number): number {
     }
   return ((b - a) * w) / fs;
 }
+
+export interface SchroederDecay {
+  /** T60 from the early decay (0 → −10 dB of the backward-integrated curve) */
+  t60Early: number;
+  /** T60 from −15 → −35 dB (or the deepest usable span below −15 dB) */
+  t60Late: number;
+  /** usable dynamic range above the noise floor, dB */
+  range: number;
+  /** time (s) at which the integrated curve reaches −10 dB */
+  t10: number;
+}
+
+/**
+ * Robust decay times from a partial's dB envelope by Schroeder backward
+ * integration (ISO 3382 style EDT / T20), with the noise floor subtracted and
+ * the integration truncated where the envelope meets the floor. Beating
+ * between unison strings is averaged out by the integration.
+ */
+export function schroederDecay(t: Float64Array, db: Float64Array): SchroederDecay | null {
+  const n = db.length;
+  if (n < 10) return null;
+  let ip = 0;
+  for (let i = 0; i < Math.min(n, 60); i++) if (db[i] > db[ip]) ip = i;
+  const tail = Array.from(db.slice(Math.floor(n * 0.88))).sort((a, b) => a - b);
+  const floorDb = tail[Math.floor(tail.length / 2)] ?? -300;
+  const floor = Math.pow(10, floorDb / 10);
+  const e = new Float64Array(n);
+  for (let i = 0; i < n; i++) e[i] = Math.max(0, Math.pow(10, db[i] / 10) - floor);
+  // truncation: last index where the (smoothed) envelope is 6 dB above the floor
+  let end = n - 1;
+  const lim = floorDb + 6;
+  for (let i = n - 1; i > ip; i--) {
+    let s = 0;
+    let c = 0;
+    for (let j = Math.max(ip, i - 5); j <= Math.min(n - 1, i + 5); j++) {
+      s += db[j];
+      c++;
+    }
+    if (s / c > lim) {
+      end = i;
+      break;
+    }
+  }
+  if (end - ip < 8) return null;
+  const S = new Float64Array(end + 1);
+  let acc = 0;
+  for (let i = end; i >= ip; i--) {
+    acc += e[i];
+    S[i] = acc;
+  }
+  const s0 = S[ip];
+  if (!(s0 > 0)) return null;
+  const L = (i: number) => 10 * Math.log10(S[i] / s0 + 1e-300);
+  const range = db[ip] - floorDb;
+  const fitSpan = (hi: number, lo: number): number => {
+    let sx = 0, sy = 0, sxx = 0, sxy = 0, c = 0;
+    for (let i = ip; i <= end; i++) {
+      const y = L(i);
+      if (y > hi || y < lo) continue;
+      const x = t[i];
+      sx += x; sy += y; sxx += x * x; sxy += x * y; c++;
+    }
+    if (c < 4) return NaN;
+    const slope = (c * sxy - sx * sy) / (c * sxx - sx * sx);
+    return slope < -1e-6 ? -60 / slope : NaN;
+  };
+  let t10 = NaN;
+  for (let i = ip; i <= end; i++) if (L(i) <= -10) { t10 = t[i] - t[ip]; break; }
+  const usable = Math.min(range - 6, -L(end));
+  const early = fitSpan(-0.5, -10);
+  let late = NaN;
+  if (usable >= 35) late = fitSpan(-15, -35);
+  else if (usable >= 22) late = fitSpan(-12, -usable + 2);
+  return { t60Early: early, t60Late: late, range, t10 };
+}

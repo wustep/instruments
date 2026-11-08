@@ -47,7 +47,7 @@ export function designStringLoss(spec: KeySpec, f0: number, f1: number, B: numbe
   const loop: number[] = [];
   for (let k = 1; k <= 40; k++) {
     const fk = k * f0 * Math.sqrt(1 + B * k * k);
-    if (fk > Math.min(0.45 * fs, 12000)) break;
+    if (fk > Math.min(0.45 * fs, 12000, Math.max(fH, 2.5 * f1))) break;
     freqs.push(fk);
     const df2 = Math.max(0, fk * fk - f1 * f1);
     const su = sigL + c * df2;
@@ -360,7 +360,9 @@ export class Voice {
 
       const leftLen = N >> 1;
       this.leftLen[s] = leftLen;
-      const h = clamp(Math.round(spec.beta * leftLen), 1, Math.max(1, leftLen - 2));
+      // hammer-to-agraffe round trip must be β of the true period (the agraffe side has no
+      // lumped filters), not β of the delay line, which is shortened by the dispersion filter
+      const h = clamp(Math.round((spec.beta * fs) / f1 / 2), 1, Math.max(1, leftLen - 2));
       this.hPos[s] = h;
       this.tapL[s] = leftLen - h;
       this.tapR[s] = leftLen + h;
@@ -371,7 +373,7 @@ export class Voice {
       this.ZSum += st.Z;
 
       if (!light && spec.preparation) {
-        const j = clamp(Math.round(spec.preparation.position * leftLen), 1, leftLen - 1);
+        const j = clamp(Math.round((spec.preparation.position * fs) / f1 / 2), 1, leftLen - 1);
         this.prepTapL[s] = leftLen - j;
         this.prepTapR[s] = leftLen + j;
         this.prepMu[s] = (spec.preparation.mass * fs) / (2 * st.Z);

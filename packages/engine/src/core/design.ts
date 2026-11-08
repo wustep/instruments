@@ -75,6 +75,8 @@ export interface PianoDesign {
   randomDetune: number;
   /** per-key random offset of the whole note (cents, std dev) — e.g. an untuned piano */
   randomKeyDetune: number;
+  /** std dev of the hammer's per-string contact weight (uneven strings / felt wear) */
+  hammerImbalance: number;
   hammerHardness: number;
   hammerMassScale: number;
   decayScale: number;
@@ -113,6 +115,7 @@ const GRAND: PianoDesign = {
   stretch: 1,
   randomDetune: 0.25,
   randomKeyDetune: 0,
+  hammerImbalance: 0.05,
   hammerHardness: 1,
   hammerMassScale: 1,
   decayScale: 1,
@@ -311,11 +314,12 @@ export function stretchTuning(Bs: Float64Array, stretch: number, a4 = 440): Floa
   return out;
 }
 
-/** Hammer velocity (m/s) for MIDI velocity 1..127. */
-export function hammerVelocity(vel: number, cal: Calibration): number {
+/** Hammer velocity (m/s) for MIDI velocity 1..127, including the register voicing trim. */
+export function hammerVelocity(vel: number, cal: Calibration, midi = 60): number {
   const { vMin, vMax, gamma } = cal.velocity;
   const x = Math.pow(clamp((vel - 1) / 126, 0, 1), gamma);
-  return vMin * Math.pow(vMax / vMin, x);
+  const trim = cal.voicing ? Math.pow(10, interp(midi, cal.voicing.midi, cal.voicing.val) / 20) : 1;
+  return vMin * Math.pow(vMax / vMin, x) * trim;
 }
 
 /** Compute per-key specs for a design + params. Pure; safe to call off the audio thread. */
@@ -358,7 +362,7 @@ export function buildKeySpecs(
         f0: fs1 / Math.sqrt(1 + B),
         B,
         Z,
-        weight: clamp(1 + 0.05 * gauss(rand), 0.88, 1.12),
+        weight: clamp(1 + design.hammerImbalance * gauss(rand), 0.5, 1.5),
       });
     }
     const p = bp(cal.hammerP, m);
