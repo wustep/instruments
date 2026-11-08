@@ -12,3 +12,4 @@ export * from './instrument.ts';
 export * from './factory.ts';
 export { BowedCore, BOWED, type BowedParams } from './bowed.ts';
 export { FluteCore, fluteFingering, type FluteParams } from './flute.ts';
+export { TrumpetCore, trumpetFingering, type TrumpetParams } from './brass.ts';

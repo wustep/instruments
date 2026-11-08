@@ -276,7 +276,24 @@ function fluteGlyph(): SVGElement[] {
   return g;
 }
 
+function trumpetGlyph(): SVGElement[] {
+  // side view: mouthpiece left, three valves, the slide loop below, the bell flaring right
+  const g: SVGElement[] = [];
+  g.push(svg('path', { d: 'M3.5 22 H30', class: 'g-thin' }));
+  g.push(svg('path', { d: 'M2 20.6 Q4 21.3 4.6 21.8 V22.2 Q4 22.7 2 23.4 Z', class: 'g-fill' }));
+  g.push(svg('path', { d: 'M15 22 V29 Q15 31 17 31 H31 Q33 31 33 29 V19 H35' }));
+  g.push(svg('path', { d: 'M35 19 C40 19 43 17.5 46 13.5 M35 19.6 C40 19.6 43 21 46 25.5' }));
+  g.push(svg('ellipse', { cx: 46, cy: 19.5, rx: 0.9, ry: 6, class: 'g-thin' }));
+  for (let i = 0; i < 3; i++) {
+    const x = 20 + i * 3.4;
+    g.push(svg('rect', { x: x - 1.1, y: 18, width: 2.2, height: 8.5, rx: 0.8, class: 'g-ebony' }));
+    g.push(svg('circle', { cx: x, cy: 16.4, r: 1, class: 'g-key' }));
+    g.push(svg('path', { d: `M${x - 0.5} 26.5 V${28 + (i === 1 ? 0 : 1.5)} H${x + 0.5} V26.5`, class: 'g-str' }));
+  }
+  return g;
+}
+
 export function glyph(id: InstrumentId): SVGElement {
-  const g = id === 'piano' ? pianoGlyph() : id === 'flute' ? fluteGlyph() : bowedGlyph(id);
+  const g = id === 'piano' ? pianoGlyph() : id === 'flute' ? fluteGlyph() : id === 'trumpet' ? trumpetGlyph() : bowedGlyph(id);
   return svg('svg', { viewBox: '0 0 48 48', class: 'glyph', 'aria-hidden': 'true' }, ...g);
 }

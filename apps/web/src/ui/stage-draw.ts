@@ -651,3 +651,157 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
     }
   }
 }
+
+// ---------------------------------------------------------------- trumpet
+export interface TrumpetState {
+  pScale: AutoScale;
+  env: Float32Array;
+}
+const VALVE_DOWN: Record<string, [boolean, boolean, boolean]> = {
+  open: [false, false, false],
+  '1': [true, false, false],
+  '2': [false, true, false],
+  '3': [false, false, true],
+  '1+2': [true, true, false],
+  '2+3': [false, true, true],
+  '1+3': [true, false, true],
+  '1+2+3': [true, true, true],
+};
+
+/** side view of a B♭ trumpet (mouthpiece left, bell right), and above it the bore unrolled:
+ *  the standing pressure wave between the lips (0) and the bell (1), its envelope, the
+ *  valves that are down and the partial that sounds */
+export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: TrumpetState): void {
+  const portrait = H > W * 1.05;
+  const w = Math.min(W * 0.86, portrait ? W * 0.92 : H * 2.4);
+  const x0 = (W - w) / 2;
+  const u = w / 100; // drawing unit
+  const yAx = portrait ? H * 0.62 : H * 0.6; // leadpipe axis
+  const yBore = portrait ? H * 0.22 : H * 0.19;
+  const meta = fr?.excite?.meta ?? '';
+  const valves = /valves (\S+)/.exec(meta)?.[1] ?? 'open';
+  const down = VALVE_DOWN[valves] ?? VALVE_DOWN.open;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  const brass = (a: number) => rgba(INK.amber, a);
+  // ---- the instrument
+  ctx.strokeStyle = brass(0.75);
+  ctx.lineWidth = Math.max(2, u * 0.9);
+  // mouthpiece and leadpipe
+  ctx.beginPath();
+  ctx.moveTo(x0 + 2 * u, yAx);
+  ctx.lineTo(x0 + 46 * u, yAx);
+  ctx.stroke();
+  ctx.fillStyle = brass(0.6);
+  ctx.beginPath();
+  ctx.moveTo(x0, yAx - 2.2 * u);
+  ctx.quadraticCurveTo(x0 + 3 * u, yAx - 1.4 * u, x0 + 4 * u, yAx - 0.5 * u);
+  ctx.lineTo(x0 + 4 * u, yAx + 0.5 * u);
+  ctx.quadraticCurveTo(x0 + 3 * u, yAx + 1.4 * u, x0, yAx + 2.2 * u);
+  ctx.closePath();
+  ctx.fill();
+  // main tuning slide (loop below) and the bell section returning to the bell
+  ctx.beginPath();
+  ctx.moveTo(x0 + 30 * u, yAx);
+  ctx.lineTo(x0 + 30 * u, yAx + 9 * u);
+  ctx.quadraticCurveTo(x0 + 30 * u, yAx + 12 * u, x0 + 34 * u, yAx + 12 * u);
+  ctx.lineTo(x0 + 56 * u, yAx + 12 * u);
+  ctx.quadraticCurveTo(x0 + 60 * u, yAx + 12 * u, x0 + 60 * u, yAx + 9 * u);
+  ctx.lineTo(x0 + 60 * u, yAx - 6 * u);
+  ctx.stroke();
+  // bell
+  ctx.beginPath();
+  ctx.moveTo(x0 + 60 * u, yAx - 6 * u);
+  ctx.lineTo(x0 + 66 * u, yAx - 6 * u);
+  ctx.bezierCurveTo(x0 + 82 * u, yAx - 6.5 * u, x0 + 92 * u, yAx - 9 * u, x0 + 98 * u, yAx - 15 * u);
+  ctx.moveTo(x0 + 66 * u, yAx - 6 * u);
+  ctx.bezierCurveTo(x0 + 82 * u, yAx - 5.5 * u, x0 + 92 * u, yAx - 3 * u, x0 + 98 * u, yAx + 3 * u);
+  ctx.stroke();
+  ctx.strokeStyle = brass(0.55);
+  ctx.beginPath();
+  ctx.ellipse(x0 + 98 * u, yAx - 6 * u, 1.6 * u, 9 * u, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  // three valves: casings, pistons pressed down for the fingering
+  for (let i = 0; i < 3; i++) {
+    const vx = x0 + (38 + i * 6) * u;
+    ctx.fillStyle = rgba(INK.ebony, 0.9);
+    ctx.strokeStyle = brass(0.75);
+    ctx.lineWidth = Math.max(1.2, u * 0.4);
+    ctx.beginPath();
+    ctx.roundRect(vx - 1.8 * u, yAx - 7 * u, 3.6 * u, 14 * u, 1.2 * u);
+    ctx.fill();
+    ctx.stroke();
+    const dn = down[i];
+    ctx.fillStyle = dn ? rgba(INK.vermilion, 0.95) : rgba(INK.ivory, 0.75);
+    ctx.beginPath();
+    ctx.arc(vx, yAx - (dn ? 8.5 : 11) * u, 1.6 * u, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = rgba(INK.ivory, 0.5);
+    ctx.beginPath();
+    ctx.moveTo(vx, yAx - 7 * u);
+    ctx.lineTo(vx, yAx - (dn ? 8.5 : 11) * u);
+    ctx.stroke();
+    // the valve's extra loop of tubing, lit when it is in the path
+    ctx.strokeStyle = dn ? rgba(INK.vermilion, 0.7) : brass(0.35);
+    ctx.lineWidth = Math.max(1.5, u * 0.6);
+    const loop = [1.6, 1, 2.6][i];
+    ctx.beginPath();
+    ctx.moveTo(vx - 0.9 * u, yAx + 7 * u);
+    ctx.lineTo(vx - 0.9 * u, yAx + 7 * u + loop * 3 * u);
+    ctx.lineTo(vx + 0.9 * u, yAx + 7 * u + loop * 3 * u);
+    ctx.lineTo(vx + 0.9 * u, yAx + 7 * u);
+    ctx.stroke();
+  }
+  // ---- the bore unrolled: lips (left) to bell (right), the standing wave inside
+  const bx0 = x0;
+  const bx1 = x0 + w;
+  const r = Math.max(5, u * 1.1);
+  ctx.strokeStyle = rgba(INK.ivory, 0.35);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(bx0, yBore - r);
+  ctx.lineTo(bx1 - 10 * u, yBore - r);
+  ctx.quadraticCurveTo(bx1 - 3 * u, yBore - r, bx1, yBore - r * 3.2);
+  ctx.moveTo(bx0, yBore + r);
+  ctx.lineTo(bx1 - 10 * u, yBore + r);
+  ctx.quadraticCurveTo(bx1 - 3 * u, yBore + r, bx1, yBore + r * 3.2);
+  ctx.stroke();
+  const focus = fr?.focus ?? null;
+  if (focus && focus.shapes[0]) {
+    const s = focus.shapes[0];
+    let m = 0;
+    for (let i = 0; i < s.length; i++) m = Math.max(m, Math.abs(s[i]));
+    const sc = st.pScale.of(m);
+    if (st.env.length !== s.length) st.env = new Float32Array(s.length);
+    for (let i = 0; i < s.length; i++) st.env[i] = Math.max(Math.abs(s[i]) / sc, st.env[i] * 0.94);
+    const A = Math.min(46, H * 0.1);
+    const X = (i: number) => bx0 + (i / (s.length - 1)) * (bx1 - bx0);
+    for (const sgn of [-1, 1]) {
+      ctx.beginPath();
+      for (let i = 0; i < s.length; i++) {
+        const y = yBore + sgn * (r + 3 + st.env[i] * A);
+        if (i) ctx.lineTo(X(i), y);
+        else ctx.moveTo(X(i), y);
+      }
+      ctx.lineTo(bx1, yBore + sgn * (r + 3));
+      ctx.lineTo(bx0, yBore + sgn * (r + 3));
+      ctx.closePath();
+      ctx.fillStyle = rgba(INK.vermilion, 0.07);
+      ctx.fill();
+      ctx.strokeStyle = rgba(INK.vermilion, 0.45);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    ctx.strokeStyle = rgba(INK.ivory, 0.9);
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    for (let i = 0; i < s.length; i++) {
+      const y = yBore - (s[i] / sc) * (r - 1);
+      if (i) ctx.lineTo(X(i), y);
+      else ctx.moveTo(X(i), y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}

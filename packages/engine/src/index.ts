@@ -11,6 +11,7 @@ export { createPiano, createInstrument, renderOffline, processorUrl, type Piano,
 export { INSTRUMENT_IDS, INSTRUMENT_INFO, type InstrumentId, type ExciteTrace } from './core/instrument.ts';
 export type { BowedParams } from './core/bowed.ts';
 export type { FluteParams } from './core/flute.ts';
+export type { TrumpetParams } from './core/brass.ts';
 export type { KeySummary, Stats, VisualFrame } from './api/messages.ts';
 export {
   DEFAULT_PARAMS,

@@ -24,7 +24,7 @@ test('page loads with the keyboard and no errors', async ({ page }) => {
   // no wordmark on the page; the name lives in the tab title
   await expect(page.locator('.inlay')).toHaveCount(0);
   await expect(page).toHaveTitle('instruments');
-  await expect(page.locator('.instruments .pick')).toHaveCount(5);
+  await expect(page.locator('.instruments .pick')).toHaveCount(6);
   await expect(page.locator('.keyboard .key')).toHaveCount(88);
   await page.waitForTimeout(500);
   expect(errors).toEqual([]);
@@ -243,17 +243,17 @@ test('layout fits the viewport (no horizontal page scroll) and keys respond to t
   expect(notes).toBeGreaterThanOrEqual(1);
 });
 
-test('all five instruments: selectable in the UI and rendered through the worklet at pitch', async ({ page }, info) => {
+test('all six instruments: selectable in the UI and rendered through the worklet at pitch', async ({ page }, info) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await startAudio(page);
-  for (const [label, id] of [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Flute', 'flute'], ['Piano', 'piano']] as const) {
+  for (const [label, id] of [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Flute', 'flute'], ['Trumpet', 'trumpet'], ['Piano', 'piano']] as const) {
     await page.locator('.instruments').getByRole('button', { name: label }).click();
     await page.waitForFunction((x) => (window as any).__piano.piano?.instrument === x, id, { timeout: 15_000 });
     await expect(page.locator('.pick[aria-pressed="true"]')).toHaveAttribute('aria-label', label);
     await expect(page.locator('.knobs .knob').first()).toBeVisible({ visible: info.project.name !== 'phone' });
   }
-  for (const [id, midi] of [['violin', 69], ['viola', 62], ['cello', 48], ['flute', 74]] as const) {
+  for (const [id, midi] of [['violin', 69], ['viola', 62], ['cello', 48], ['flute', 74], ['trumpet', 65]] as const) {
     const out = await page.evaluate(async ([inst, m]) => {
       const { renderOffline } = (window as any).__engine;
       const buf: AudioBuffer = await renderOffline({ instrument: inst, sampleRate: 48000, duration: 1.6, params: { room: 0, vibrato: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: 90 } }] });

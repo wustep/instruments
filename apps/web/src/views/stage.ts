@@ -7,7 +7,7 @@ import { DEFAULT_PARAMS, INSTRUMENT_IDS, INSTRUMENT_INFO, PRESETS, PRESET_IDS, b
 import { cssVar, fitCanvas, fmt, h, type View } from '../ui/dom.ts';
 import type { KeyboardHandle } from '../ui/keyboard.ts';
 import { glyph, knob, type KnobSpec } from '../ui/controls.ts';
-import { AutoScale, INK, ModeField, drawBowed, drawFlute, drawSpectrum, rgba, type BowedGeom } from '../ui/stage-draw.ts';
+import { AutoScale, INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, type BowedGeom } from '../ui/stage-draw.ts';
 import { drawPiano, newPianoState } from '../ui/piano-draw.ts';
 
 const PIANO_KNOBS: KnobSpec[] = [
@@ -32,6 +32,12 @@ const FLUTE_KNOBS: KnobSpec[] = [
   { key: 'embouchure', label: 'Lip–edge distance', short: 'lip', sub: 'jet length: shorter is brighter and sharper', min: 0.6, max: 1.5, step: 0.01, fmt: (v) => `×${fmt(v, 2)}` },
   { key: 'noise', label: 'Breath noise', short: 'noise', sub: 'turbulence of the jet', min: 0, max: 3, step: 0.01, fmt: (v) => fmt(v, 2) },
   { key: 'vibrato', label: 'Vibrato', short: 'vibrato', sub: 'breath pressure modulation', min: 0, max: 0.2, step: 0.005, fmt: (v) => fmt(v, 3) },
+  { key: 'room', label: 'Room', short: 'room', sub: 'close … hall', min: 0, max: 1, step: 0.01, fmt: (v) => fmt(v, 2) },
+];
+const TRUMPET_KNOBS: KnobSpec[] = [
+  { key: 'breath', label: 'Breath pressure', short: 'breath', sub: '× nominal blowing pressure', min: 0.4, max: 1.8, step: 0.01, fmt: (v) => `×${fmt(v, 2)}` },
+  { key: 'lip', label: 'Lip tension', short: 'lips', sub: 'semitones above or below the note; far enough, the next partial speaks', min: -3, max: 3, step: 0.05, fmt: (v) => `${v > 0 ? '+' : ''}${fmt(v, 2)} st` },
+  { key: 'vibrato', label: 'Vibrato', short: 'vibrato', sub: 'lip vibrato depth', min: 0, max: 0.02, step: 0.0005, fmt: (v) => fmt(v * 1000, 1) },
   { key: 'room', label: 'Room', short: 'room', sub: 'close … hall', min: 0, max: 1, step: 0.01, fmt: (v) => fmt(v, 2) },
 ];
 const PRESET_SHORT: Record<string, string> = { grand: 'grand', upright: 'upright', 'honky-tonk': 'honky-tonk', prepared: 'prepared' };
@@ -83,7 +89,10 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
   const el = h('div', { class: 'view stage' }, canvas, top);
 
   // ---------------------------------------------------------------- knobs
-  const knobsFor = (id: InstrumentId) => (INSTRUMENT_INFO[id].family === 'piano' ? PIANO_KNOBS : INSTRUMENT_INFO[id].family === 'bowed' ? BOWED_KNOBS : FLUTE_KNOBS);
+  const knobsFor = (id: InstrumentId) => {
+    const f = INSTRUMENT_INFO[id].family;
+    return f === 'piano' ? PIANO_KNOBS : f === 'bowed' ? BOWED_KNOBS : f === 'brass' ? TRUMPET_KNOBS : FLUTE_KNOBS;
+  };
   let knobEls: { c: KnobSpec; k: ReturnType<typeof knob> }[] = [];
   const currentParams = (): Record<string, number> => ({ ...(inst === 'piano' ? DEFAULT_PARAMS : {}), ...(audio.piano?.params ?? {}) }) as Record<string, number>;
   const buildKnobs = () => {
@@ -134,6 +143,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
   const pianoState = newPianoState();
   const bowedState = { strScale: new AutoScale(2e-6), lvlScale: new AutoScale(1e-6, 0.995) };
   const fluteState = { pScale: new AutoScale(1e-6), jetScale: new AutoScale(1e-9), env: new Float32Array(0) };
+  const trumpetState = { pScale: new AutoScale(1e-6), env: new Float32Array(0) };
   const fields = { piano: new ModeField(208, 100, 2.2, 3), bowed: new ModeField(150, 84, 1.8, 0.6) };
   let bowedGeom: BowedGeom | null = null;
   const specBuf = new Float32Array(4096);
@@ -236,7 +246,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       const si = frame?.strings?.findIndex((s) => s.bowing) ?? -1;
       const name = si >= 0 ? bowedGeom.strings[si].name : (/^(\S+) string/.exec(e.meta)?.[1] ?? '');
       scopeCap.textContent = `${name} string · ${b.changing ? 'bow change' : b.dir > 0 ? 'down-bow' : 'up-bow'} · ${Math.round(100 * b.pos)} % from the frog`;
-    } else scopeCap.textContent = family() === 'wind' ? 'jet' : '';
+    } else scopeCap.textContent = family() === 'wind' ? 'jet' : family() === 'brass' ? `lips · ${e.meta}` : '';
   };
 
   let raf = 0;
@@ -259,6 +269,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       const kind = audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand';
       drawPiano(ctx, w, ih, { keys, kind, keyX: (m) => ({ x: kr.left - sr.left + kb.keyFrac(m).c * kr.width, w: kb.keyFrac(m).w * kr.width }) }, frame, pianoState, fields.piano, now);
     } else if (family() === 'bowed' && bowedGeom) drawBowed(ctx, w, ih, bowedGeom, frame, bowedState, fields.bowed, now);
+    else if (family() === 'brass') drawTrumpet(ctx, w, ih, frame, trumpetState);
     else drawFlute(ctx, w, ih, frame, fluteState);
     ctx.restore();
     // spectrum hairline
