@@ -61,7 +61,8 @@ const median = (xs: number[]) => {
 };
 
 function fig(title: string, sub: string, body: HTMLElement[], caption: string, wide = false): HTMLElement {
-  return h('figure', { class: wide ? 'wide' : '' }, h('h3', {}, title), h('div', { class: 'fig-sub' }, sub), body, h('figcaption', {}, caption));
+  // the explanation lives in the tooltip; the chart speaks for itself
+  return h('figure', { class: wide ? 'wide' : '', title: caption }, h('h3', {}, title), h('div', { class: 'fig-sub' }, sub), body);
 }
 
 const REF_LEGEND = () =>
@@ -109,25 +110,16 @@ function build(d: Data): HTMLElement[] {
       h(
         'div',
         {},
-        h('h2', {}, 'Model against a real piano'),
-        h(
-          'div',
-          { class: 'prose', style: 'margin-top:14px' },
-          h(
-            'p',
-            {},
-            `The reference is the University of Iowa recording of a Steinway model B (2001): ${d.keys.length} keys at pp, mf and ff, two microphones 8″ above the strings, fixed gain. The same analysis runs on the reference files and on dry renders of the model at the same keys (pp, mf, ff → MIDI velocity ${d.velocities.pp}, ${d.velocities.mf}, ${d.velocities.ff}). The recordings are analysed offline and are not part of the instrument.`,
-          ),
-          h('p', {}, 'Numbers are per-register medians where single notes are too idiosyncratic to compare — real pianos vary a lot from one note to the next. The violin, viola, cello and flute are compared with their own recordings further down.'),
-        ),
+        h('h2', {}, 'Piano against a Steinway B'),
+        h('p', { class: 'hint', style: 'margin-top:8px' }, `Iowa MIS recording · ${d.keys.length} keys × pp mf ff · same analysis on both`),
       ),
       h(
         'div',
         { class: 'tiles' },
-        tile(`${fmt(s.tuningRmsCents, 1)} ¢`, 'RMS deviation from the reference piano’s stretch tuning'),
-        tile(`${fmt((Math.pow(10, s.bLog10Rms) - 1) * 100, 0)} %`, 'RMS error of the inharmonicity coefficient B'),
-        tile(`${fmt(s.ltasBandRmsDb, 1)} dB`, 'third-octave spectrum error at mf (bands above the noise floor)'),
-        tile(`${fmt(s.levelErrDb.mf, 1)} dB`, 'per-note loudness error at mf'),
+        tile(`${fmt(s.tuningRmsCents, 1)} ¢`, 'stretch tuning'),
+        tile(`${fmt((Math.pow(10, s.bLog10Rms) - 1) * 100, 0)} %`, 'inharmonicity B'),
+        tile(`${fmt(s.ltasBandRmsDb, 1)} dB`, '⅓-octave spectrum'),
+        tile(`${fmt(s.levelErrDb.mf, 1)} dB`, 'loudness, mf'),
       ),
     ),
   );
@@ -403,7 +395,7 @@ function ensembleSection(e: Ens): HTMLElement {
     insts.map((i) => {
       const s = e.summary[i];
       const b = first[i];
-      return tile(`${fmt(s.harmRmsDb, 1)} dB`, `${label[i]}: harmonic-profile error per note${b?.harmRmsDb !== undefined ? ` (was ${fmt(b.harmRmsDb, 1)})` : ''}; spectrum ${fmt(s.ltasRmsDb, 1)} dB${b?.ltasRmsDb !== undefined ? ` (was ${fmt(b.ltasRmsDb, 1)})` : ''}`);
+      return tile(`${fmt(s.harmRmsDb, 1)} dB`, `${label[i]} harmonics${b?.harmRmsDb !== undefined ? ` · was ${fmt(b.harmRmsDb, 1)}` : ''}`);
     }),
   );
   const fl = e.summary.flute;
@@ -412,14 +404,7 @@ function ensembleSection(e: Ens): HTMLElement {
     'section',
     { class: 'ensemble' },
     h('h2', {}, 'Strings and flute against recordings'),
-    h(
-      'div',
-      { class: 'prose', style: 'margin-top:12px' },
-      h('p', {}, `References: ${e.reference}. Each recording is a chromatic run; it is cut into notes, and only the notes the model plays on the same string are kept (${insts.map((i) => `${e.summary[i].notes} ${i}`).join(', ')}). The model plays the same notes dry at velocity ${e.velocities.pp} / ${e.velocities.mf} / ${e.velocities.ff} for pp / mf / ff — without vibrato where the player used none — and both go through the same analysis of the steady part of the note. “Was” figures are the round-1 model measured the same way.`),
-      fl
-        ? h('p', {}, `Flute even harmonics, recording vs model (even/odd power, dB) by register: ${fl.evenOddRef.map((r, k) => `${fmt(r, 0)} vs ${fmt(fl.evenOddModel[k], 0)}`).join(' · ')}${flb?.evenOddModel ? ` — before round 2 the model sat at ${flb.evenOddModel.map((v) => fmt(v, 0)).join(' / ')}` : ''}. Breath noise: the model is ${fmt(fl.hnrDiffDb, 0)} dB cleaner than the recording${flb?.hnrDiffDb !== undefined ? ` (was ${fmt(flb.hnrDiffDb, 0)} dB)` : ''}.`)
-        : null,
-    ),
+    h('p', { class: 'hint', style: 'margin-top:8px' }, `Iowa MIS anechoic · ${insts.map((i) => `${e.summary[i].notes} ${i}`).join(', ')} notes · same notes, dry, same analysis`),
     tiles,
     figs,
   );
@@ -478,11 +463,7 @@ function listening(d: Data): HTMLElement {
     'section',
     { class: 'shortfalls listen-section' },
     h('h2', {}, 'Listen side by side'),
-    h(
-      'p',
-      { class: 'prose', style: 'margin-top:10px' },
-      'Each pair plays a five-second excerpt of the Iowa recording, then the model rendered on the spot in your browser by the same AudioWorklet that you play (dry, lid open). The excerpts are clearly the recording, not the instrument: they come from the University of Iowa Musical Instrument Samples, whose terms allow use “for any projects, without restrictions”, and they are used only here.',
-    ),
+    h('p', { class: 'hint', style: 'margin-top:8px' }, 'recording excerpt · model rendered now, in your browser'),
     h(
       'div',
       { class: 'ab' },
@@ -494,7 +475,7 @@ function listening(d: Data): HTMLElement {
         return h('div', { class: 'ab-item' }, h('div', { class: 't' }, `${midiName(it.midi)} · ${it.dyn}`), h('div', { class: 'btns' }, rb, mb));
       }),
     ),
-    h('p', { class: 'hint', style: 'margin-top:12px' }, 'Reference: Steinway & Sons model B, University of Iowa Electronic Music Studios, 2001 — theremin.music.uiowa.edu.'),
+    h('p', { class: 'hint', style: 'margin-top:12px' }, 'Steinway B, University of Iowa MIS, 2001'),
   );
 }
 
@@ -505,10 +486,10 @@ function roundsTable(d: Data): HTMLElement {
     'section',
     { class: 'shortfalls' },
     h('h2', {}, 'Calibration rounds'),
-    h('p', { class: 'prose', style: 'margin-top:10px' }, 'Render, analyse, compare, adjust, re-measure. Decay columns are model/recording T60 ratios (1.00 is perfect) for the bass, tenor, middle and treble. Details in docs/CALIBRATION.md.'),
     h(
-      'div',
-      { style: 'overflow-x:auto' },
+      'details',
+      { class: 'data', style: 'overflow-x:auto' },
+      h('summary', {}, 'table'),
       h(
         'table',
         { class: 'rounds' },
@@ -548,14 +529,12 @@ function shortfalls(): HTMLElement {
       h(
         'ul',
         {},
-        h('li', {}, h('strong', {}, 'Bass sustain. '), 'The lowest octave’s aftersound is about two-thirds as long as the recording’s, even with very low string losses. The single-string bass notes have no unison partner to protect a slow mode, and the weakly coupled horizontal polarisation does not change it measurably; the real board’s per-partial admittance is the likely missing piece.'),
-        h('li', {}, h('strong', {}, 'Brightness range. '), 'From pp to ff the model brightens slightly less than the real hammers do. Real felt stiffens with the rate of compression (Stulov’s relaxation model); the model uses a simpler Hunt–Crossley law.'),
-        h('li', {}, h('strong', {}, 'Flute low register. '), 'At mf and ff a real flute’s low notes carry a second harmonic about as strong as the fundamental. The model’s offset jet gets within about 10 dB of that; the pp tone and the upper registers match much more closely.'),
-        h('li', {}, h('strong', {}, 'String bodies. '), 'The violin, viola and cello bodies are modal sketches with each instrument’s signature resonances, and their radiation balance is fitted to the recordings rather than measured, so they sound like a family of instruments rather than these particular ones.'),
-        h('li', {}, h('strong', {}, 'Soundboard. '), 'About 150 modes with plausible density and damping, driven at three bridge zones — not a measured board. It colours individual partials differently from the Steinway; above 3.2 kHz radiation is a smoothed statistical path.'),
-        h('li', {}, h('strong', {}, 'Attack. '), 'There is no key-travel delay (the hammer starts 0.4 mm from the string) and the mechanical noises — key bottoming, damper felt, release thump — are short synthetic force pulses into the soundboard rather than measured action noise.'),
-        h('li', {}, h('strong', {}, 'Phantom partials '), 'come from a simple squared-force model through two longitudinal resonances, not a longitudinal waveguide; their levels are not calibrated against measurements.'),
-        h('li', {}, h('strong', {}, 'Room. '), 'The listening room and lid are a small feedback-delay reverb and a shelf filter, not physics.'),
+        h('li', {}, h('strong', {}, 'Bass aftersound: '), 'about ⅔ as long as the recording’s.'),
+        h('li', {}, h('strong', {}, 'Flute low register: '), 'second harmonic ~10 dB short at mf/ff.'),
+        h('li', {}, h('strong', {}, 'String bodies: '), 'modal sketches; radiation fitted, not measured.'),
+        h('li', {}, h('strong', {}, 'Soundboard: '), '~150 plausible modes, not a measured board.'),
+        h('li', {}, h('strong', {}, 'Action noises: '), 'short synthetic pulses; no key travel.'),
+        h('li', {}, h('strong', {}, 'Room and lid: '), 'audio effects, not physics.'),
       ),
     ),
   );

@@ -3,110 +3,108 @@ import { audio } from './audio.ts';
 import { INSTRUMENT_INFO, type InstrumentId } from '@piano-model/engine';
 import { ComputerKeys, createKeyboard } from './ui/keyboard.ts';
 import { h, type View } from './ui/dom.ts';
-import { playView } from './views/play.ts';
-import { insideView } from './views/inside.ts';
+import { pedal } from './ui/controls.ts';
+import { stageView } from './views/stage.ts';
 import { measureView } from './views/measure.ts';
 import { notesView } from './views/notes.ts';
 
+/** The name on the fallboard and in the title. One constant, so a rename is one line. */
+export const WORDMARK = 'Piano Model';
+
 const app = document.getElementById('app')!;
 const keys = new ComputerKeys();
+const keyboard = createKeyboard();
+
+// ---------------------------------------------------------------- fallboard (above the keys)
+const sustainPedal = pedal('sustain', 'Sustain pedal (hold; Space on a keyboard, CC64 on MIDI)', (v) => audio.sustain(v));
+const softPedal = pedal('soft', 'Una corda (hold; Shift on a keyboard, CC67 on MIDI)', (v) => audio.soft(v));
+const knobSlot = h('div', { class: 'knobs', role: 'group', 'aria-label': 'Physical controls' });
+const knobToggle = h('button', { class: 'knob-toggle', type: 'button', 'aria-label': 'Show the knobs', 'aria-expanded': 'false', title: 'Knobs' }, '◐');
+knobToggle.addEventListener('click', () => {
+  const open = document.documentElement.toggleAttribute('data-knobs');
+  knobToggle.setAttribute('aria-expanded', String(open));
+});
+const fallboard = h(
+  'div',
+  { class: 'fallboard' },
+  h('div', { class: 'pedals' }, sustainPedal.el, softPedal.el),
+  h('a', { class: 'inlay', href: '#/' }, WORDMARK),
+  knobToggle,
+  knobSlot,
+);
+const dock = h('footer', { class: 'dock' }, fallboard, keyboard.el);
+
+// ---------------------------------------------------------------- header: pilot lamp and two quiet links
+const lampText = h('span', { class: 'lamp-text' }, 'tap a key');
+const midiText = h('span', { class: 'midi' });
+const srStatus = h('span', { class: 'sr' }, '');
+const status = h('div', { class: 'status', 'aria-live': 'polite' }, h('i', { class: 'lamp' }), lampText, midiText, srStatus);
+const links = [
+  h('a', { href: '#/measurements', 'data-route': 'measurements' }, 'measurements'),
+  h('a', { href: '#/notes', 'data-route': 'notes' }, 'notes'),
+];
+const backLink = h('a', { class: 'back', href: '#/', 'data-route': 'stage' }, `← ${WORDMARK.toLowerCase()}`);
+const header = h('header', { class: 'top' }, backLink, h('span', { class: 'spacer' }), status, h('nav', { class: 'links', 'aria-label': 'Pages' }, links));
+const main = h('main', { id: 'main' });
+app.append(header, main, dock);
 
 const routes: Record<string, { title: string; make: () => View }> = {
-  play: { title: 'Play', make: () => playView(keys) },
-  inside: { title: 'Look inside', make: () => insideView() },
+  stage: { title: '', make: () => stageView(keyboard, knobSlot) },
   measurements: { title: 'Measurements', make: () => measureView() },
   notes: { title: 'Notes', make: () => notesView() },
 };
-
-const navLinks = Object.entries(routes).map(([id, r]) => h('a', { href: `#/${id}`, 'data-route': id }, r.title));
-const statusAudio = h('span', { class: 'audio-state' }, h('i', { class: 'dot' }), 'tap a key to start');
-document.documentElement.dataset.audio = 'idle';
-const statusLat = h('span', { class: 'hide-sm' }, '');
-const statusMidi = h('span', {}, '');
-const masthead = h(
-  'header',
-  { class: 'masthead' },
-  h('a', { class: 'wordmark', href: '#/play' }, 'Piano Model'),
-  h('nav', { class: 'nav', 'aria-label': 'Sections' }, navLinks),
-  h('div', { class: 'status', 'aria-live': 'polite' }, statusAudio, statusLat, statusMidi),
-);
-const main = h('main', { id: 'main' });
-
-// keyboard dock (persistent across views that want it)
-const keyboard = createKeyboard();
-const sustainBar = h('i');
-const softBar = h('i');
-const octaveInfo = h('span', { class: 'num hide-sm' });
-const instName = h('span', { class: 'pedal-chip' });
-const voiceInfo = h('span', { class: 'num' });
-const dock = h(
-  'footer',
-  { class: 'dock' },
-  h(
-    'div',
-    { class: 'dock-bar' },
-    h('span', { class: 'pedal-chip', title: 'Sustain pedal (CC64, continuous; hold Space)' }, 'sustain', h('span', { class: 'bar' }, sustainBar)),
-    h('span', { class: 'pedal-chip soft-chip', title: 'Una corda (CC67; hold Shift)' }, 'una corda', h('span', { class: 'bar' }, softBar)),
-    instName,
-    h('span', { class: 'spacer' }),
-    octaveInfo,
-    voiceInfo,
-  ),
-  keyboard.el,
-);
-app.append(masthead, main, dock);
+const ALIASES: Record<string, string> = { '': 'stage', play: 'stage', inside: 'stage' };
 
 let current: View | null = null;
 function route(): void {
-  const id = (location.hash.replace(/^#\/?/, '') || 'play').split('?')[0];
-  const r = routes[id] ?? routes.play;
+  const raw = (location.hash.replace(/^#\/?/, '') || '').split('?')[0];
+  const id = ALIASES[raw] ?? (routes[raw] ? raw : 'stage');
+  const r = routes[id];
   current?.unmount?.();
   current = r.make();
   main.replaceChildren(current.el);
   dock.hidden = !current.dock;
-  navLinks.forEach((a) => (a.dataset.route === id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
-  document.title = id === 'play' ? 'Piano Model' : `${r.title} · Piano Model`;
+  document.documentElement.dataset.route = id;
+  links.forEach((a) => (a.dataset.route === id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
+  document.title = r.title ? `${r.title} · ${WORDMARK}` : WORDMARK;
   current.mount?.();
   window.scrollTo(0, 0);
 }
 window.addEventListener('hashchange', route);
 route();
 
-// computer keyboard
+// ---------------------------------------------------------------- computer keyboard
 keys.attach();
-const refreshKeys = () => {
-  keyboard.setLabels(keys.labels());
-  octaveInfo.textContent = `keys C${Math.floor(keys.base / 12) - 1}–  vel ${keys.velocity}`;
-};
-keys.onChange(refreshKeys);
-refreshKeys();
+keys.onChange(() => keyboard.setLabels(keys.labels()));
+keyboard.setLabels(keys.labels());
 requestAnimationFrame(() => keyboard.scrollToMidi(keys.base + 6));
 
-// status line
+// ---------------------------------------------------------------- status
 const fmtLat = () => {
   const l = audio.latencyMs;
-  if (!l) return '';
-  const total = l.base + l.output + l.quantum;
-  return `${audio.ctx!.sampleRate / 1000} kHz · ${total.toFixed(1)} ms out`;
+  if (!l || !audio.ctx) return '';
+  return `${audio.ctx.sampleRate / 1000} kHz · ${(l.base + l.output + l.quantum).toFixed(1)} ms out`;
 };
+const LAMP: Record<string, string> = { idle: 'tap a key', starting: 'warming up', running: '', suspended: 'tap a key', error: 'tap to retry' };
 audio.state.on((s) => {
-  statusAudio.lastChild!.textContent =
-    s === 'running' ? 'sound on' : s === 'starting' ? 'warming up…' : s === 'error' ? 'sound failed · tap to retry' : 'tap a key to start';
-  (statusAudio.firstChild as HTMLElement).classList.toggle('on', s === 'running');
+  lampText.textContent = LAMP[s] ?? '';
+  srStatus.textContent = s === 'running' ? 'sound on' : s === 'starting' ? 'warming up' : s === 'error' ? 'sound failed, tap to retry' : 'tap a key to start';
+  status.title = s === 'running' ? `sound on · ${fmtLat()}${audio.startMs ? ` · started in ${audio.startMs.toFixed(0)} ms` : ''}` : srStatus.textContent;
   document.documentElement.dataset.audio = s;
-  statusLat.textContent = fmtLat();
-  statusLat.title = (() => {
-    const l = audio.latencyMs;
-    return l ? `baseLatency ${l.base.toFixed(1)} ms + outputLatency ${l.output.toFixed(1)} ms + one render quantum ${l.quantum.toFixed(2)} ms` : '';
-  })();
 });
+document.documentElement.dataset.audio = 'idle';
+srStatus.textContent = 'tap a key to start';
 audio.midiStatus.on((m) => {
-  statusMidi.textContent = !m.supported ? 'no Web MIDI' : m.error ? 'MIDI: no access' : m.inputs.length ? `MIDI: ${m.inputs.join(', ')}` : 'no MIDI device';
+  const names = m.inputs.join(', ');
+  midiText.textContent = m.inputs.length ? 'midi' : '';
+  midiText.title = names;
+  midiText.dataset.full = !m.supported ? 'no Web MIDI' : m.error ? 'MIDI: no access' : m.inputs.length ? `MIDI: ${names}` : 'no MIDI device';
+  midiText.setAttribute('aria-label', midiText.dataset.full);
+  status.dataset.midi = midiText.dataset.full;
 });
 audio.stats.on((s) => {
-  sustainBar.style.width = `${s.sustain * 100}%`;
-  softBar.style.width = `${s.soft * 100}%`;
-  voiceInfo.textContent = `${s.voices} notes${s.sympathetic ? ` + ${s.sympathetic} sympathetic` : ''} · dsp ${(s.load * 100).toFixed(0)}%`;
+  sustainPedal.set(s.sustain);
+  softPedal.set(s.soft);
 });
 audio.keysChanged.on((ks) => keyboard.setPrepared(new Set(audio.instrument === 'piano' ? ks.filter((k) => k.preparation).map((k) => k.midi) : [])));
 const BASE: Record<InstrumentId, number> = { piano: 60, violin: 67, viola: 60, cello: 48, flute: 72 };
@@ -114,8 +112,8 @@ const syncInstrument = (id: InstrumentId) => {
   const info = INSTRUMENT_INFO[id];
   keyboard.setRange(info.lo, info.hi);
   keys.setBase(BASE[id]);
-  instName.textContent = info.label.toLowerCase();
-  (dock.querySelector('.soft-chip') as HTMLElement).hidden = id !== 'piano';
+  softPedal.el.hidden = id !== 'piano';
+  document.documentElement.dataset.instrument = id;
   requestAnimationFrame(() => keyboard.scrollToMidi(BASE[id] + 6));
 };
 audio.instrumentChanged.on(syncInstrument);

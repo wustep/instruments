@@ -47,6 +47,11 @@ export interface VisualFrame extends Stats {
   /** the bow (strings): direction (+1 down, −1 up), contact point along the hair 0 (frog)…1 (tip) */
   bow?: { dir: number; pos: number; changing: boolean; speed: number } | null;
   modes: Float32Array;
+  /** piano: per-key level of struck and of sympathetically ringing strings (A0…C8) */
+  levels?: Float32Array;
+  symLevels?: Float32Array;
+  /** bowed: the four strings, low to high */
+  strings?: { open: number; stop: number; level: number; bowing: boolean }[];
   /** sent when the mode set follows the note (flute bore harmonics) */
   modeFreqs?: number[];
 }

@@ -20,8 +20,8 @@ async function startAudio(page: Page) {
 test('page loads with the keyboard and no errors', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
-  await expect(page.locator('.wordmark')).toHaveText('Piano Model');
-  await expect(page.locator('h1')).toContainText('computed, not recorded');
+  await expect(page.locator('.inlay')).toHaveText('Piano Model');
+  await expect(page.locator('.instruments .pick')).toHaveCount(5);
   await expect(page.locator('.keyboard .key')).toHaveCount(88);
   await page.waitForTimeout(500);
   expect(errors).toEqual([]);
@@ -85,7 +85,8 @@ test('offline render through the real worklet: pitch, inharmonicity and partials
   }
 });
 
-test('look inside: live string, hammer, soundboard and spectrum views draw', async ({ page }) => {
+test('the stage: live strings, soundboard, hammer scope and spectrum draw', async ({ page }, info) => {
+  const phone = info.project.name === 'phone';
   const errors = collectErrors(page);
   await page.goto('/#/inside');
   await startAudio(page);
@@ -99,7 +100,7 @@ test('look inside: live string, hammer, soundboard and spectrum views draw', asy
   });
   await page.waitForTimeout(900);
   const painted = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('.panel canvas')).map((c) => {
+    Array.from(document.querySelectorAll('.stage canvas')).filter((c) => (c as HTMLElement).checkVisibility()).map((c) => {
       const cv = c as HTMLCanvasElement;
       const d = cv.getContext('2d')!.getImageData(0, 0, cv.width, cv.height).data;
       let n = 0;
@@ -107,10 +108,12 @@ test('look inside: live string, hammer, soundboard and spectrum views draw', asy
       return n;
     }),
   );
-  expect(painted.length).toBe(4);
+  expect(painted.length).toBe(phone ? 2 : 3); // instrument, spectrum, excitation scope (not on phones)
   for (const n of painted) expect(n).toBeGreaterThan(500);
-  await expect(page.locator('.panel .meta').first()).toContainText('Hz');
-  // a physical control reaches the worklet
+  await expect(page.locator('.r-hz')).toContainText('Hz');
+  if (!phone) await expect(page.locator('.scope-cap')).toContainText('m/s');
+  // a physical control (knob) reaches the worklet; on phones the knobs fold out first
+  if (phone) await page.getByRole('button', { name: 'Show the knobs' }).click();
   const slider = page.getByRole('slider', { name: 'Soundboard damping' });
   await slider.fill('0.9');
   await page.waitForTimeout(200);
@@ -154,9 +157,10 @@ test('Web MIDI: hot-plug, notes, continuous sustain (CC64) and soft pedal (CC67)
     };
   });
   await page.goto('/');
-  await expect(page.locator('.status')).toContainText('no MIDI device');
+  await expect(page.locator('.status')).toHaveAttribute('data-midi', 'no MIDI device');
   await page.evaluate(() => (window as any).__midi.plug());
-  await expect(page.locator('.status')).toContainText('Test Keys');
+  await expect(page.locator('.status')).toHaveAttribute('data-midi', 'MIDI: Test Keys');
+  await expect(page.locator('.status .midi')).toHaveText('midi');
   await startAudio(page);
   await page.evaluate(() => {
     const m = (window as any).__midi;
@@ -176,7 +180,7 @@ test('Web MIDI: hot-plug, notes, continuous sustain (CC64) and soft pedal (CC67)
 
 test('layout fits the viewport (no horizontal page scroll) and keys respond to touch/click', async ({ page }, info) => {
   await page.goto('/');
-  for (const route of ['#/play', '#/inside', '#/measurements', '#/notes']) {
+  for (const route of ['#/', '#/play', '#/measurements', '#/notes']) {
     await page.goto(`/${route}`);
     await page.waitForTimeout(400);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -194,14 +198,15 @@ test('layout fits the viewport (no horizontal page scroll) and keys respond to t
   expect(notes).toBeGreaterThanOrEqual(1);
 });
 
-test('all five instruments: selectable in the UI and rendered through the worklet at pitch', async ({ page }) => {
+test('all five instruments: selectable in the UI and rendered through the worklet at pitch', async ({ page }, info) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await startAudio(page);
   for (const [label, id] of [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Flute', 'flute'], ['Piano', 'piano']] as const) {
     await page.locator('.instruments').getByRole('button', { name: label }).click();
     await page.waitForFunction((x) => (window as any).__piano.piano?.instrument === x, id, { timeout: 15_000 });
-    await expect(page.locator('h1')).toContainText(label.toLowerCase() === 'piano' ? 'piano' : label.toLowerCase());
+    await expect(page.locator('.pick[aria-pressed="true"]')).toHaveAttribute('aria-label', label);
+    await expect(page.locator('.knobs .knob').first()).toBeVisible({ visible: info.project.name !== 'phone' });
   }
   for (const [id, midi] of [['violin', 69], ['viola', 62], ['cello', 48], ['flute', 74]] as const) {
     const out = await page.evaluate(async ([inst, m]) => {
@@ -226,7 +231,8 @@ test('all five instruments: selectable in the UI and rendered through the workle
   expect(errors).toEqual([]);
 });
 
-test('look inside a bowed string: the bow trace shows stick–slip', async ({ page }) => {
+test('a bowed string on the stage: the scope shows stick–slip and the bow', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'the scope is hidden on phones; the stage still draws the bow');
   await page.goto('/#/inside');
   await startAudio(page);
   await page.evaluate(async () => {
@@ -234,11 +240,11 @@ test('look inside a bowed string: the bow trace shows stick–slip', async ({ pa
     (window as any).__piano.noteOn(69, 90, 'keys');
   });
   await page.waitForTimeout(1200);
-  await expect(page.locator('.panel h3').nth(1)).toHaveText('Bow');
-  await expect(page.locator('.panel .meta').nth(1)).toContainText('A string');
-  // the bow has a direction and a contact point along the hair
-  await expect(page.locator('.panel .meta').nth(1)).toContainText(/down-bow|up-bow|bow change/);
-  await expect(page.locator('.panel .meta').nth(1)).toContainText('% from the frog');
+  // the scope caption names the bowed string, the bow's direction and the contact point along the hair
+  const cap = page.locator('.scope-cap');
+  await expect(cap).toContainText('A string');
+  await expect(cap).toContainText(/down-bow|up-bow|bow change/);
+  await expect(cap).toContainText('% from the frog');
   await page.evaluate(async () => (window as any).__piano.setInstrument('piano'));
 });
 
@@ -287,4 +293,17 @@ test('start-up: a first click on a key sounds within 1.5 s; switching to the pia
   });
   expect(switchMs).toBeLessThan(400); // was ~1 s
   expect(errors).toEqual([]);
+});
+
+test('on-screen pedal: holding it sustains, releasing lets go', async ({ page }) => {
+  await page.goto('/');
+  await startAudio(page);
+  const pedal = page.getByRole('button', { name: /Sustain pedal/ });
+  const box = (await pedal.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForFunction(() => (window as any).__piano.lastStats?.sustain > 0.99, null, { timeout: 5000 });
+  await expect(pedal).toHaveAttribute('aria-pressed', 'true');
+  await page.mouse.up();
+  await page.waitForFunction(() => (window as any).__piano.lastStats?.sustain < 0.01, null, { timeout: 5000 });
 });

@@ -15,6 +15,11 @@ export interface KeyboardHandle {
   /** dim keys the current instrument cannot play */
   setRange(lo: number, hi: number): void;
   scrollToMidi(m: number): void;
+  /** the 88-key strip (its bounding box scrolls with the keyboard) */
+  readonly strip: HTMLElement;
+  readonly scroller: HTMLElement;
+  /** key centre and width as fractions of the full 88-key strip */
+  keyFrac(midi: number): { c: number; w: number };
 }
 
 export function createKeyboard(): KeyboardHandle {
@@ -30,6 +35,7 @@ export function createKeyboard(): KeyboardHandle {
   for (let m = LO; m <= HI; m++) if (!isBlack(m)) whites.push(m);
   const W = 100 / whites.length;
   const keyEls = new Map<number, HTMLElement>();
+  const fracs = new Map<number, { c: number; w: number }>();
   let wi = 0;
   for (let m = LO; m <= HI; m++) {
     const el = document.createElement('div');
@@ -39,7 +45,9 @@ export function createKeyboard(): KeyboardHandle {
     if (isBlack(m)) {
       el.style.left = `calc(${wi * W}% - ${W * 0.31}%)`;
       el.style.width = `${W * 0.62}%`;
+      fracs.set(m, { c: (wi * W) / 100, w: (W * 0.62) / 100 });
     } else {
+      fracs.set(m, { c: ((wi + 0.5) * W) / 100, w: W / 100 });
       el.style.left = `${wi * W}%`;
       el.style.width = `${W}%`;
       if (m % 12 === 0) {
@@ -106,6 +114,9 @@ export function createKeyboard(): KeyboardHandle {
 
   return {
     el: scroll,
+    strip: kb,
+    scroller: scroll,
+    keyFrac: (m) => fracs.get(m) ?? { c: 0, w: 0 },
     setLabels(map) {
       keyEls.forEach((el, m) => {
         (el.querySelector('.lbl') as HTMLElement).textContent = map.get(m) ?? '';

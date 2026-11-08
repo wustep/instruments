@@ -50,6 +50,9 @@ export interface VisualState {
   frame: number;
   voices: number;
   sympathetic: number;
+  /** per key (A0…C8): peak level of the struck strings / of the sympathetic (undamped) strings */
+  levels?: Float32Array;
+  symLevels?: Float32Array;
   focus: null | {
     midi: number;
     nStrings: number;
@@ -749,10 +752,21 @@ export class PianoCore {
       };
     }
     this.board.modeAmplitudes(this.modeAmps);
+    // per-key string levels: struck strings and sympathetically ringing ones
+    const levels = new Float32Array(NUM_KEYS);
+    const symLevels = new Float32Array(NUM_KEYS);
+    for (const a of this.active) {
+      const i = a.midi - KEY_LO;
+      if (i < 0 || i >= NUM_KEYS) continue;
+      if (a.light) symLevels[i] = Math.max(symLevels[i], a.level);
+      else levels[i] = Math.max(levels[i], a.level);
+    }
     return {
       frame: this.frame,
       voices: this.activeVoiceCount,
       sympathetic: this.activeSympatheticCount,
+      levels,
+      symLevels,
       focus,
       strike: this.strikeLatest,
       modes: this.modeAmps.slice(),
