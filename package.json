@@ -13,7 +13,9 @@
     "e2e": "pnpm build && playwright test",
     "refs:fetch": "tsx scripts/fetch-references.ts",
     "calibrate": "tsx scripts/calibrate.ts",
-    "demos": "tsx scripts/render-demos.ts"
+    "demos": "tsx scripts/render-demos.ts",
+    "refs:ensemble": "tsx scripts/ensemble-refs.ts",
+    "calibrate:ensemble": "tsx scripts/calibrate-ensemble.ts"
   },
   "devDependencies": {
     "@playwright/test": "1.65.0",
