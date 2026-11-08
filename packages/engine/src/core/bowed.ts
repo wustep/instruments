@@ -95,11 +95,11 @@ const VIOLIN: BowedDesign = {
   stat: { fLo: 600, fHi: 4800, spacing: 45, mass: 0.45, eta: 0.03 },
   bridgeY: 0.02,
   eq: [
-    [2600, 6, 1.4],
+    [2600, 3, 1.4],
     [180, -6, 0.8],
   ],
   bowSpeed: [0.05, 0.45],
-  outputGain: 6,
+  outputGain: 60,
   defaults: { bowPosition: 0.11, bowPressure: 0.32, vibrato: 14, bodyDamping: 1, room: 0.35, volume: 1, sympathetic: true },
   seed: 21,
 };
@@ -126,10 +126,11 @@ const VIOLA: BowedDesign = {
   ],
   stat: { fLo: 520, fHi: 4400, spacing: 40, mass: 0.55, eta: 0.03 },
   eq: [
-    [2100, 5, 1.3],
+    [2100, 3, 1.3],
     [150, -5, 0.8],
   ],
   bowSpeed: [0.05, 0.45],
+  outputGain: 80,
   defaults: { bowPosition: 0.12, bowPressure: 0.32, vibrato: 12, bodyDamping: 1, room: 0.35, volume: 1, sympathetic: true },
   seed: 22,
 };
@@ -156,10 +157,11 @@ const CELLO: BowedDesign = {
   stat: { fLo: 240, fHi: 3600, spacing: 28, mass: 2.2, eta: 0.03 },
   bridgeY: 0.008,
   eq: [
-    [1500, 4, 1.2],
+    [1500, 3, 1.2],
     [70, -4, 0.8],
   ],
   bowSpeed: [0.06, 0.5],
+  outputGain: 24,
   defaults: { bowPosition: 0.12, bowPressure: 0.3, vibrato: 10, bodyDamping: 1, room: 0.32, volume: 1, sympathetic: true },
   seed: 23,
 };
@@ -741,7 +743,7 @@ export class BowedCore implements InstrumentCore {
         or += rr[k] * y;
       }
       this.H = h;
-      const hfv = 0.05 * F;
+      const hfv = 0.003 * F;
       hL[t] = hfv;
       hR[t] = -hfv;
       oL[t] = ol;

@@ -48,7 +48,7 @@ test('the AudioWorklet runs and a note sounds at the right pitch', async ({ page
   expect(r.db).toBeGreaterThan(-70);
   expect(Math.abs(r.hz - 440)).toBeLessThan(6); // analyser resolution ~5.9 Hz
   expect(r.stats.voices).toBeGreaterThanOrEqual(1);
-  expect(r.stats.load).toBeGreaterThan(0);
+  expect(r.stats.load).toBeGreaterThanOrEqual(0); // 1 ms clock in the worklet scope
   expect(r.stats.load).toBeLessThan(0.7);
   test.info().annotations.push({ type: 'latency', description: JSON.stringify(r.lat) });
   expect(errors).toEqual([]);

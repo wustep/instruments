@@ -108,7 +108,7 @@ function build(d: Data): HTMLElement[] {
             {},
             `The reference is the University of Iowa recording of a Steinway model B (2001): ${d.keys.length} keys at pp, mf and ff, two microphones 8″ above the strings, fixed gain. The same analysis runs on the reference files and on dry renders of the model at the same keys (pp, mf, ff → MIDI velocity ${d.velocities.pp}, ${d.velocities.mf}, ${d.velocities.ff}). The recordings are analysed offline and are not part of the instrument.`,
           ),
-          h('p', {}, 'Numbers are per-register medians where single notes are too idiosyncratic to compare — real pianos vary a lot from one note to the next.'),
+          h('p', {}, 'Numbers are per-register medians where single notes are too idiosyncratic to compare — real pianos vary a lot from one note to the next. These measurements cover the piano only; the violin, viola, cello and flute are physically modelled but not yet calibrated against recordings.'),
         ),
       ),
       h(

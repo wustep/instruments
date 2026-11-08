@@ -48,3 +48,20 @@ for (const n of [8, 32, 64]) {
   rows.push(`| ${r.voices} | down | ${r.sym} | ${r.pct.toFixed(1)} | ${((r.pct - base.pct) / Math.max(1, r.voices)).toFixed(2)} |`);
 }
 console.log(rows.join('\n'));
+
+// ---- other instruments (all strings / the bore always computed; body/bore + post included)
+import { renderInstrument } from '../src/core/index.ts';
+const inst: string[] = ['', '| instrument | scene | CPU % of one core |', '|---|---|---:|'];
+for (const [id, notes, label] of [
+  ['violin', [69], 'one bowed note (4 strings + 69-mode body)'],
+  ['violin', [55, 62, 69, 76], 'four-string chord'],
+  ['viola', [48, 55, 62], 'triple stop'],
+  ['cello', [36, 43, 50, 57], 'four-string chord'],
+  ['flute', [74], 'one note'],
+] as const) {
+  const ev = notes.map((m) => ({ time: 0.01, event: { type: 'noteOn' as const, midi: m, velocity: 90 } }));
+  renderInstrument({ sampleRate: fs, instrument: id, events: ev, duration: 0.5 });
+  const r = renderInstrument({ sampleRate: fs, instrument: id, events: ev, duration: seconds });
+  inst.push(`| ${id} | ${label} | ${((r.cpuMs / (seconds * 1000)) * 100).toFixed(1)} |`);
+}
+console.log(inst.join('\n'));

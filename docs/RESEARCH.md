@@ -1,5 +1,7 @@
 # Research notes and design choices
 
+Sections 1–7 cover the piano, which is calibrated against recordings. Sections 8–9 cover the bowed strings and the flute added later, which are physically modelled but not yet calibrated against recordings.
+
 This file summarises the literature the model is built on and the choices made
 for a piano that runs in real time in a browser AudioWorklet. Numbers quoted for
 our implementation are measured; see `docs/CALIBRATION.md` and
@@ -186,6 +188,81 @@ our implementation are measured; see `docs/CALIBRATION.md` and
   labelled excerpts are shipped only for side-by-side listening on the
   measurements page.
 
+## 8. Bowed strings (violin, viola, cello)
+
+* **Strings.** The waveguide machinery is the piano's, at real dimensions:
+  * violin: 328 mm, 44–73 N;
+  * viola: 370 mm, 45–60 N;
+  * cello: 690 mm, 130–165 N.
+  The impedance Z = T/(2 L f) follows from these. A stopping finger shortens the
+  loop through a fractional (Lagrange) read, which also gives vibrato, and adds
+  some damping.
+* **The bow.** The bow is a friction contact at an interior point with a
+  hyperbolic curve, μ(Δv) = μd + (μs − μd)·v0/(v0 + |Δv|), using μs = 0.8,
+  μd = 0.3 and v0 = 0.2 m/s (Smith & Woodhouse 2000). The force on the string is
+  found by intersecting the string's line, f = 2Z(v − vh), with that curve. It
+  keeps the stick or slip branch until that branch ceases to exist: the
+  hysteresis rule of McIntyre, Schumacher & Woodhouse (1983).
+* **What emerges.** Helmholtz motion is not imposed:
+  * the string sticks to the bow for (1 − β) of each period (tested);
+  * the strike-position notch appears (bowing at β = 1/5 suppresses partial 5,
+    tested);
+  * pitch flattening and raucousness appear at high bow force, and surface sound
+    at low force.
+* **Bow force.** It is set as a fraction of Schelleng's (1973) maximum,
+  F_max = 2 Z v_b / (β(μs − μd)). Rosin roughness adds ±4 % to the friction
+  coefficient as low-pass noise.
+* **Body.** All four strings, open ones included, end on one passive bridge
+  junction to a modal body. Its signature modes follow Jansson and Bissinger:
+  A0 air mode ≈ 275 Hz, CBR ≈ 405 Hz, B1− ≈ 465 Hz, B1+ ≈ 540 Hz for the violin.
+  The viola and cello equivalents sit lower: cello A0 ≈ 100 Hz, B1 ≈ 175 / 205 Hz.
+  Statistically spaced modes fill in up to 4–5 kHz.
+* **Sympathetic resonance.** Unbowed strings resonate through the bridge exactly
+  as on the piano. Bowing D5 drives the open D string, tested.
+* **Tuning.** It is compensated for the bridge's reactance in the same way as the
+  piano's.
+* **Radiation.** Mode-weighted pickups, a small high-frequency path and a 2–3 kHz
+  "bridge hill" formant. The long-term spectrum was balanced by measurement:
+  violin strongest at 250–800 Hz, gentle bridge hill, about −10 dB/octave above
+  4 kHz.
+* **Not modelled.**
+  * Torsional waves, bow width and bow-hair compliance.
+  * Bow changes (strokes are one-directional).
+  * The bridge's own rocking dynamics, which are only a formant.
+  * Measured body admittances.
+  * Calibration against recordings: no bowed-string reference analysis was done
+    in this pass.
+
+## 9. Flute
+
+* **Bore and jet.** The bore is a waveguide of an open–open pipe: pressure
+  inverts at both ends, so all harmonics are present. An earlier single-inversion
+  loop sounded like a clarinet, odd harmonics only. The jet is deflected by the
+  acoustic flow at the embouchure. Its deflection is convected to the edge with
+  delay τj = lj / (0.45·Uj), where Uj = √(2p/ρ) (Fletcher & Rossing 1998,
+  ch. 16; Verge et al. 1997). There it splits through a saturating, offset tanh
+  flow law into or out of the pipe.
+* **Strengths.** Jet flow scales with jet speed; deflection sensitivity scales
+  inversely with it. The jet's receptivity is low-pass, Strouhal-limited at
+  ≈ 2.2× the pitch, so it cannot drive high pipe modes. The structure follows
+  Cook's delayed-jet model (STK Flute), re-parameterised physically.
+* **Register selection.** The jet delay as a fraction of the period picks the
+  mode: drive is strongest near half a period. The player's lip distance gives
+  τj ≈ 0.36 of the period at nominal pressure. About 2.5× nominal pressure
+  shortens it enough for the next mode to win: the tone overblows to the
+  octave, tested. Above C♯5 notes are fingered as overblown 2nd (octave) and
+  3rd (twelfth) modes.
+* **Tuning.** The bore delay is solved from the small-signal loop phase. The
+  saturated oscillation then runs up to 28 ¢ sharp, so a measured voicing table
+  (`scripts/tune-flute.ts`, the instrument maker's adjustment) corrects each
+  note to within 0.5 ¢ at 44.1 and 48 kHz.
+* **Not modelled.**
+  * Tone holes, cross-fingerings and the real bore taper, so third-register
+    timbre is idealised.
+  * Turbulent jet structure beyond band-passed noise ∝ Uj².
+  * Even harmonics are weaker than a real flute's (≈ −25 to −33 dB at the
+    octave); the jet's directly radiated flow carries most of them.
+
 ## References
 
 * Abel, J. S., Välimäki, V., & Smith, J. O. (2010). Robust, efficient design of allpass filters for dispersive string sound synthesis. *IEEE Signal Processing Letters*, 17(4), 406–409.
@@ -221,4 +298,12 @@ our implementation are measured; see `docs/CALIBRATION.md` and
 * Van Duyne, S. A., Pierce, J. R., & Smith, J. O. (1994). Traveling wave implementation of a lossless mode-coupling filter and the wave digital hammer. *Proc. ICMC*, Aarhus.
 * Van Duyne, S. A., & Smith, J. O. (1994). A simplified approach to modeling dispersion caused by stiffness in strings and plates. *Proc. ICMC*, Aarhus.
 * Weinreich, G. (1977). Coupled piano strings. *JASA*, 62(6), 1474–1484.
+* Bissinger, G. (2008). Structural acoustics of good and bad violins. *JASA*, 124(3), 1764–1773.
+* Cook, P. R. (1992). A meta-wind-instrument physical model, and a meta-controller for real-time performance control. *Proc. ICMC*, San Jose. (STK Flute.)
+* Jansson, E. V. (2002). *Acoustics for Violin and Guitar Makers.* KTH, Stockholm.
+* McIntyre, M. E., Schumacher, R. T., & Woodhouse, J. (1983). On the oscillations of musical instruments. *JASA*, 74(5), 1325–1345.
+* Schelleng, J. C. (1973). The bowed string and the player. *JASA*, 53(1), 26–41.
+* Smith, J. H., & Woodhouse, J. (2000). The tribology of rosin. *Journal of the Mechanics and Physics of Solids*, 48(8), 1633–1681.
+* Verge, M.-P., Fabre, B., Hirschberg, A., & Wijnands, A. P. J. (1997). Sound production in recorderlike instruments. I. Dimensionless amplitude of the internal acoustic field. *JASA*, 101(5), 2914–2924.
+* Woodhouse, J., & Galluzzo, P. M. (2004). The bowed string as we know it today. *Acta Acustica united with Acustica*, 90(4), 579–589.
 * Zambon, S., Lehtonen, H.-M., & Bank, B. (2008). Simulation of piano sustain-pedal effect by parallel second-order filters. *Proc. DAFx-08*, Espoo.

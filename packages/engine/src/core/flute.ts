@@ -124,7 +124,7 @@ export class FluteCore implements InstrumentCore {
     const fs = this.fs;
     this.eq.set([biquadHighpass(180, 0.7, fs), biquadPeaking(2800, 1.2, 2.5, fs), biquadHighShelf(8000, -4, fs)]);
     this.room.configure(this.params.room);
-    this.gain = 0.025 * this.params.volume;
+    this.gain = 0.007 * this.params.volume;
   }
 
   /** nominal blowing pressure (Pa) by register: players blow harder for higher notes */

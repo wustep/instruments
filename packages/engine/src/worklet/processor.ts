@@ -117,7 +117,9 @@ class InstrumentProcessor extends AudioWorkletProcessor {
     if (!this.quantumMs) this.quantumMs = (1000 * L.length) / sampleRate;
     this.loadAcc += dt;
     this.loadN++;
-    if (this.loadN >= 32) {
+    // Chrome's AudioWorkletGlobalScope has no performance.now(); Date.now() has 1 ms
+    // resolution, so average over ~0.34 s (128 quanta) for a usable meter
+    if (this.loadN >= 128) {
       this.load = this.loadAcc / (this.loadN * this.quantumMs);
       this.loadAcc = 0;
       this.loadN = 0;
