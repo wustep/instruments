@@ -55,7 +55,7 @@ export interface VisualFrame extends Stats {
   /** piano: every sounding string's shape (struck first, then sympathetic) */
   pianoShapes?: PianoShapes;
   /** bowed: the four strings, low to high */
-  strings?: { open: number; stop: number; level: number; bowing: boolean }[];
+  strings?: { open: number; stop: number; stopNow?: number; level: number; bowing: boolean }[];
   /** sent when the mode set follows the note (flute bore harmonics) */
   modeFreqs?: number[];
 }

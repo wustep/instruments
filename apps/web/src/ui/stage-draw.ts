@@ -328,13 +328,28 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
       ctx.lineTo(bridge, strY(i, bridge));
       ctx.stroke();
     }
-    // finger stopping the string
+    // the stopping point: a glowing bar across the string where the finger presses it,
+    // rocking with the engine's vibrato (the rocking drawn 6x larger than life)
     if (s && s.stop < 0.995) {
-      const xf = bridge - s.stop * Ls;
-      ctx.fillStyle = rgba(INK.felt, 0.85);
+      const now = s.stopNow ?? s.stop;
+      const xf = bridge - Ls * s.stop * (1 + 6 * (now / s.stop - 1));
+      const y = strY(i, xf);
+      const hb = Math.max(5, spread(xf) * 0.22);
+      const lit = s.bowing ? 1 : 0.55;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = rgba(INK.amber, 0.22 * lit);
+      ctx.lineWidth = 7;
       ctx.beginPath();
-      ctx.arc(xf, strY(i, xf), 3.2, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(xf, y - hb);
+      ctx.lineTo(xf, y + hb);
+      ctx.stroke();
+      ctx.strokeStyle = rgba(INK.amber, 0.95 * lit);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(xf, y - hb);
+      ctx.lineTo(xf, y + hb);
+      ctx.stroke();
+      ctx.lineCap = 'butt';
     }
     void sd;
   });

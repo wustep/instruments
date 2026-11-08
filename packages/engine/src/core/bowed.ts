@@ -1012,7 +1012,11 @@ export class BowedCore implements InstrumentCore {
       excite,
       bow: { dir: this.bow.dir, pos: this.bow.pos / this.design.bowLength, changing: this.bow.changing, speed: s.vSigned },
       // all four strings: open note, sounding length (fraction of the open string), level, bowed
-      strings: this.strings.map((x) => ({ open: x.def.open, stop: x.fOpen / et(Math.max(x.midi < 0 ? x.def.open : x.midi, x.def.open)), level: x.level, bowing: x.bowing })),
+      strings: this.strings.map((x) => {
+        const stop = x.fOpen / et(Math.max(x.midi < 0 ? x.def.open : x.midi, x.def.open));
+        // where the finger is right now: the loop's current length (vibrato, bend) over the note's
+        return { open: x.def.open, stop, stopNow: stop * (x.D / (x.D0 || x.D)), level: x.level, bowing: x.bowing };
+      }),
       modes: amps,
       sustain: this.sustain,
       soft: this.soft,
