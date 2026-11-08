@@ -9,7 +9,7 @@ import { measureView } from './views/measure.ts';
 import { notesView } from './views/notes.ts';
 
 /** The name on the fallboard and in the title. One constant, so a rename is one line. */
-export const WORDMARK = 'Piano Model';
+export const WORDMARK = 'instruments';
 
 const app = document.getElementById('app')!;
 const keys = new ComputerKeys();

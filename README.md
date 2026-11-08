@@ -1,4 +1,4 @@
-# Piano Model
+# instruments
 
 Five acoustic instruments, physically modelled and computed in real time in the
 browser: a **piano**, a **violin**, a **viola**, a **cello** and a **flute**.
