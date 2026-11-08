@@ -1253,3 +1253,35 @@ figure[title] {
   padding: 1px 6px;
   cursor: pointer;
 }
+
+/* ------------------------------------------------------------ room and lid grips */
+.grip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  width: 14px;
+  height: 28px;
+  border-radius: 7px;
+  cursor: ew-resize;
+  touch-action: none;
+  background: linear-gradient(180deg, rgba(242, 166, 70, 0.15), rgba(242, 166, 70, 0.05));
+  border: 1px solid rgba(242, 166, 70, 0.35);
+  transition: background 0.15s, border-color 0.15s;
+}
+.grip::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 8px;
+  width: 2px;
+  height: 10px;
+  border-left: 1px solid rgba(236, 226, 206, 0.45);
+  border-right: 1px solid rgba(236, 226, 206, 0.45);
+}
+.grip:hover,
+.grip.dragging,
+.grip:focus-visible {
+  background: rgba(242, 166, 70, 0.3);
+  border-color: rgba(242, 166, 70, 0.8);
+}

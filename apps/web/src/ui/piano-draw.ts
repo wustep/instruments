@@ -12,6 +12,8 @@ export interface PianoGeom {
   /** x (CSS px, stage coordinates) of a key's centre, and its width (may lie off-screen) */
   keyX: (midi: number) => { x: number; w: number };
   kind: 'grand' | 'upright';
+  /** lid opening 0 (closed) … 1 (fully open) */
+  lid?: number;
 }
 
 export interface PianoState {
@@ -32,6 +34,10 @@ export interface PianoState {
   damper: Float32Array;
   shift: number;
   lastStrike: Map<number, number>;
+  /** set while drawing: where sound leaves the instrument, the case, and the lid's free edge */
+  src: { x: number; y: number };
+  caseBox: { x0: number; x1: number; y0: number; y1: number };
+  lidEdge: { x: number; y: number } | null;
 }
 
 export const newPianoState = (): PianoState => ({
@@ -48,6 +54,9 @@ export const newPianoState = (): PianoState => ({
   damper: new Float32Array(88),
   shift: 0,
   lastStrike: new Map(),
+  src: { x: 0, y: 0 },
+  caseBox: { x0: 0, x1: 0, y0: 0, y1: 0 },
+  lidEdge: null,
 });
 
 interface Pt {
@@ -313,6 +322,32 @@ export function drawPiano(ctx: CanvasRenderingContext2D, W: number, H: number, g
     const sx = shift * Math.min(2.4, p.w * 0.13);
     felt(ctx, p.x + sx, ys, p.w * (0.55 + 0.2 * h), 4 + 3 * h, flash);
   }
+  // ---- the lid: hinged along the straight (bass) side, it rises towards the viewer
+  // and so is seen foreshortened; closed, it covers the strings
+  const yTopCase = yEnd(pts[0]) - 16;
+  st.caseBox = { x0: xL, x1: xR, y0: yTopCase, y1: yKey };
+  st.src = { x: xL + (xR - xL) * 0.42, y: (yTopCase + yKey) / 2 + 20 };
+  const lidOpen = Math.min(1, Math.max(0, g.lid ?? 1));
+  const phi = lidOpen * (Math.PI / 2.4);
+  const cphi = Math.cos(phi);
+  ctx.save();
+  ctx.translate(xL, 0);
+  ctx.scale(cphi, 1);
+  ctx.translate(-xL, 0);
+  ctx.fillStyle = rgba(INK.ebony, 0.22 + 0.5 * (1 - lidOpen));
+  ctx.fill(outline);
+  ctx.restore();
+  // the lid's edge, catching the light, and its prop stick when it stands open
+  const edgeX = xL + (xR - xL) * cphi;
+  ctx.strokeStyle = rgba(INK.ivory, 0.25 + 0.3 * lidOpen);
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(xL, yTopCase);
+  ctx.lineTo(xL, yKey);
+  ctx.moveTo(edgeX, yTopCase + (yKey - yTopCase) * 0.25);
+  ctx.lineTo(edgeX, yKey - 6);
+  ctx.stroke();
+  st.lidEdge = { x: edgeX, y: yTopCase + (yKey - yTopCase) * 0.55 };
   // ---- every sounding string, then the last struck note's unisons in detail
   const focus = fr?.focus ?? null;
   drawAllShapes(ctx, fr, new Map(pts.map((p) => [p.midi, p])), (p) => [p.x, yCap, p.x, yEnd(p)], st, W, focus?.midi ?? -1);
@@ -462,6 +497,9 @@ function drawUpright(ctx: CanvasRenderingContext2D, W: number, H: number, g: Pia
       ctx.stroke();
     }
   }
+  st.src = { x: (xL + xR) / 2, y: (yTop + yBot) / 2 };
+  st.caseBox = { x0: xL, x1: xR, y0: yTop, y1: yBot };
+  st.lidEdge = null;
   // ---- every sounding string, then the last struck note's unisons in detail
   const focus = fr?.focus ?? null;
   drawAllShapes(ctx, fr, new Map(pts.map((p) => [p.midi, p])), ends, st, W, focus?.midi ?? -1);

@@ -9,6 +9,7 @@ import type { KeyboardHandle } from '../ui/keyboard.ts';
 import { glyph, knob, type KnobSpec } from '../ui/controls.ts';
 import { AutoScale, INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, type BowedGeom } from '../ui/stage-draw.ts';
 import { drawPiano, newPianoState } from '../ui/piano-draw.ts';
+import { drawRoom, newRoomState, roomRect } from '../ui/room-draw.ts';
 
 const PIANO_KNOBS: KnobSpec[] = [
   { key: 'hammerHardness', label: 'Hammer hardness', short: 'hammer', sub: 'felt stiffness K in F = K·xᵖ', min: 0.25, max: 4, step: 0.01, log: true, fmt: (v) => `×${fmt(v, 2)}` },
@@ -16,8 +17,6 @@ const PIANO_KNOBS: KnobSpec[] = [
   { key: 'unisonDetune', label: 'Unison detune', short: 'detune', sub: 'spread of the 2–3 strings of a note', min: 0, max: 30, step: 0.1, fmt: (v) => `${fmt(v, 1)} ¢` },
   { key: 'soundboardDamping', label: 'Soundboard damping', short: 'board', sub: 'loss of the soundboard modes', min: 0.25, max: 5, step: 0.01, log: true, fmt: (v) => `×${fmt(v, 2)}` },
   { key: 'sustain', label: 'String decay', short: 'decay', sub: 'intrinsic string losses', min: 0.3, max: 2.5, step: 0.01, log: true, fmt: (v) => `×${fmt(v, 2)}` },
-  { key: 'lid', label: 'Lid', short: 'lid', sub: 'closed … open', min: 0, max: 1, step: 0.01, fmt: (v) => (v < 0.05 ? 'closed' : v > 0.95 ? 'open' : fmt(v, 2)) },
-  { key: 'room', label: 'Room', short: 'room', sub: 'close microphones … hall', min: 0, max: 1, step: 0.01, fmt: (v) => fmt(v, 2) },
 ];
 const BOWED_KNOBS: KnobSpec[] = [
   { key: 'bowPosition', label: 'Bow position', short: 'contact', sub: 'distance from the bridge β: sul ponticello … sul tasto', min: 0.04, max: 0.25, step: 0.005, fmt: (v) => `β ${fmt(v, 3)}` },
@@ -25,20 +24,17 @@ const BOWED_KNOBS: KnobSpec[] = [
   { key: 'vibrato', label: 'Vibrato', short: 'vibrato', sub: 'finger rocking depth, cents', min: 0, max: 40, step: 0.5, fmt: (v) => `${fmt(v, 0)} ¢` },
   { key: 'bodyDamping', label: 'Body damping', short: 'body', sub: 'loss of the wood and air modes', min: 0.25, max: 4, step: 0.01, log: true, fmt: (v) => `×${fmt(v, 2)}` },
   { key: 'bowChangeTime', label: 'Bow change', short: 'change', sub: 'time to reverse the bow: seamless … laboured', min: 0.02, max: 0.25, step: 0.005, log: true, fmt: (v) => `${fmt(v * 1000, 0)} ms` },
-  { key: 'room', label: 'Room', short: 'room', sub: 'close … hall', min: 0, max: 1, step: 0.01, fmt: (v) => fmt(v, 2) },
 ];
 const FLUTE_KNOBS: KnobSpec[] = [
   { key: 'breath', label: 'Breath pressure', short: 'breath', sub: '× nominal; past about ×2 the tube overblows', min: 0.4, max: 2.6, step: 0.01, fmt: (v) => `×${fmt(v, 2)}` },
   { key: 'embouchure', label: 'Lip–edge distance', short: 'lip', sub: 'jet length: shorter is brighter and sharper', min: 0.6, max: 1.5, step: 0.01, fmt: (v) => `×${fmt(v, 2)}` },
   { key: 'noise', label: 'Breath noise', short: 'noise', sub: 'turbulence of the jet', min: 0, max: 3, step: 0.01, fmt: (v) => fmt(v, 2) },
   { key: 'vibrato', label: 'Vibrato', short: 'vibrato', sub: 'breath pressure modulation', min: 0, max: 0.2, step: 0.005, fmt: (v) => fmt(v, 3) },
-  { key: 'room', label: 'Room', short: 'room', sub: 'close … hall', min: 0, max: 1, step: 0.01, fmt: (v) => fmt(v, 2) },
 ];
 const TRUMPET_KNOBS: KnobSpec[] = [
   { key: 'breath', label: 'Breath pressure', short: 'breath', sub: '× nominal blowing pressure', min: 0.4, max: 1.8, step: 0.01, fmt: (v) => `×${fmt(v, 2)}` },
   { key: 'lip', label: 'Lip tension', short: 'lips', sub: 'semitones above or below the note; far enough, the next partial speaks', min: -3, max: 3, step: 0.05, fmt: (v) => `${v > 0 ? '+' : ''}${fmt(v, 2)} st` },
   { key: 'vibrato', label: 'Vibrato', short: 'vibrato', sub: 'lip vibrato depth', min: 0, max: 0.02, step: 0.0005, fmt: (v) => fmt(v * 1000, 1) },
-  { key: 'room', label: 'Room', short: 'room', sub: 'close … hall', min: 0, max: 1, step: 0.01, fmt: (v) => fmt(v, 2) },
 ];
 const PRESET_SHORT: Record<string, string> = { grand: 'grand', upright: 'upright', 'honky-tonk': 'honky-tonk', prepared: 'prepared' };
 /** presets offered on the stage; 'honky-tonk' and 'prepared' still exist in the engine
@@ -86,7 +82,54 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
   const scope = h('div', { class: 'scope' }, scopeCv, scopeCap);
   const top = h('div', { class: 'stage-top' }, picker, readout, h('div', { class: 'spec-wrap' }, specCv), scope);
   const canvas = h('canvas', { class: 'stage-cv', role: 'img', 'aria-label': 'The instrument, moving as the simulation computes it' });
-  const el = h('div', { class: 'view stage' }, canvas, top);
+  // direct manipulation: drag the room's edge (reverb) and the grand's lid
+  const grip = (name: string, title: string) => h('div', { class: `grip grip-${name}`, role: 'slider', tabindex: '0', 'aria-label': name === 'room' ? 'Room' : 'Lid', 'aria-valuemin': '0', 'aria-valuemax': '1', title });
+  const gripRoom = grip('room', 'Room: drag the edge (small room … hall)');
+  const gripLid = grip('lid', 'Lid: drag its edge (closed … open)');
+  const el = h('div', { class: 'view stage' }, canvas, top, gripRoom, gripLid);
+  const paramOf = (k: string, d: number) => {
+    const v = (audio.piano?.params as Record<string, unknown> | undefined)?.[k];
+    return typeof v === 'number' ? v : d;
+  };
+  const roomVal = () => paramOf('room', 0.3);
+  const lidVal = () => paramOf('lid', 1);
+  const setRoom = (v: number) => audio.setParams({ room: Math.round(Math.min(1, Math.max(0, v)) * 100) / 100 });
+  const setLid = (v: number) => audio.setParams({ lid: Math.round(Math.min(1, Math.max(0, v)) * 100) / 100 });
+  const dragGrip = (g: HTMLElement, onMove: (x: number, y: number) => void, step: (d: number) => void) => {
+    g.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      g.setPointerCapture(e.pointerId);
+      g.classList.add('dragging');
+    });
+    g.addEventListener('pointermove', (e) => {
+      if (!g.hasPointerCapture(e.pointerId)) return;
+      const r = canvas.getBoundingClientRect();
+      onMove(e.clientX - r.left, e.clientY - r.top);
+    });
+    const end = () => g.classList.remove('dragging');
+    g.addEventListener('pointerup', end);
+    g.addEventListener('pointercancel', end);
+    g.addEventListener('keydown', (e) => {
+      const d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 0.05 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -0.05 : 0;
+      if (!d) return;
+      e.preventDefault();
+      e.stopPropagation();
+      step(d);
+    });
+  };
+  // the room: its right edge's distance from the centre sets the size (0.55 + 0.45·room)
+  dragGrip(gripRoom, (x) => {
+    const W = canvas.clientWidth;
+    const size = (2 * Math.abs(x - W / 2) + 12) / W;
+    setRoom((size - 0.55) / 0.45);
+  }, (d) => setRoom(roomVal() + d));
+  // the lid: hinged on the bass side; its free edge's projected distance is cos(angle)
+  dragGrip(gripLid, (x) => {
+    const b = pianoState.caseBox;
+    const c = Math.min(1, Math.max(0, (x - b.x0) / Math.max(1, b.x1 - b.x0)));
+    setLid(Math.acos(c) / (Math.PI / 2.4));
+  }, (d) => setLid(lidVal() + d));
 
   // ---------------------------------------------------------------- knobs
   const knobsFor = (id: InstrumentId) => {
@@ -144,6 +187,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
   const bowedState = { strScale: new AutoScale(2e-6), lvlScale: new AutoScale(1e-6, 0.995) };
   const fluteState = { pScale: new AutoScale(1e-6), jetScale: new AutoScale(1e-9), env: new Float32Array(0) };
   const trumpetState = { pScale: new AutoScale(1e-6), env: new Float32Array(0) };
+  const roomState = newRoomState();
+  const tdBuf = new Float32Array(2048);
   const fields = { piano: new ModeField(208, 100, 2.2, 3), bowed: new ModeField(150, 84, 1.8, 0.6) };
   let bowedGeom: BowedGeom | null = null;
   const specBuf = new Float32Array(4096);
@@ -267,11 +312,32 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       pianoState.soft = audio.lastStats?.soft ?? audio.softValue;
       const keys = audio.piano && audio.piano.instrument === 'piano' && audio.piano.keys.length ? audio.piano.keys : keysFallback;
       const kind = audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand';
-      drawPiano(ctx, w, ih, { keys, kind, keyX: (m) => ({ x: kr.left - sr.left + kb.keyFrac(m).c * kr.width, w: kb.keyFrac(m).w * kr.width }) }, frame, pianoState, fields.piano, now);
+      drawPiano(ctx, w, ih, { keys, kind, lid: lidVal(), keyX: (m) => ({ x: kr.left - sr.left + kb.keyFrac(m).c * kr.width, w: kb.keyFrac(m).w * kr.width }) }, frame, pianoState, fields.piano, now);
     } else if (family() === 'bowed' && bowedGeom) drawBowed(ctx, w, ih, bowedGeom, frame, bowedState, fields.bowed, now);
     else if (family() === 'brass') drawTrumpet(ctx, w, ih, frame, trumpetState);
     else drawFlute(ctx, w, ih, frame, fluteState);
+    // the room: wavefronts from the instrument, reflections, the lid's throw
+    let rms = 0;
+    if (audio.analyser) {
+      audio.analyser.getFloatTimeDomainData(tdBuf);
+      let s2 = 0;
+      for (let i = 0; i < tdBuf.length; i++) s2 += tdBuf[i] * tdBuf[i];
+      rms = Math.sqrt(s2 / tdBuf.length);
+    }
+    const fam = family();
+    const grand = fam === 'piano' && !(audio.preset === 'upright' || audio.preset === 'honky-tonk');
+    const src = fam === 'piano' ? pianoState.src : fam === 'bowed' ? { x: w * 0.62, y: ih / 2 } : fam === 'brass' ? { x: w * 0.85, y: ih * 0.55 } : { x: w * 0.5, y: ih * 0.45 };
+    const rg = drawRoom(ctx, w, ih, roomState, src, roomVal(), rms, now, grand ? { open: lidVal(), dir: -Math.PI / 4 } : null);
     ctx.restore();
+    // place the grips (stage coordinates: the instrument area starts below the top band)
+    gripRoom.style.transform = `translate(${rg.x1 - 7}px, ${topH + (rg.y0 + rg.y1) / 2 - 14}px)`;
+    gripRoom.setAttribute('aria-valuenow', String(roomVal()));
+    const le = grand ? pianoState.lidEdge : null;
+    gripLid.hidden = !le;
+    if (le) {
+      gripLid.style.transform = `translate(${le.x - 7}px, ${topH + le.y - 14}px)`;
+      gripLid.setAttribute('aria-valuenow', String(lidVal()));
+    }
     // spectrum hairline
     const sp = fitCanvas(specCv);
     sp.ctx.clearRect(0, 0, sp.w, sp.h);

@@ -540,3 +540,31 @@ test('piano stage: several held notes all vibrate at once (one shape per soundin
   });
   expect(n).toBe(5);
 });
+
+test('room and lid are dragged on the stage (and work from the keyboard)', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'dragging is checked on desktop');
+  await page.goto('/');
+  await startAudio(page);
+  await page.waitForTimeout(300);
+  const p = (k: string) => page.evaluate((key) => (window as any).__piano.piano.params[key], k);
+  const room0 = await p('room');
+  const grip = page.locator('.grip-room');
+  const b = (await grip.boundingBox())!;
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + 120, b.y + b.height / 2, { steps: 6 });
+  await page.mouse.up();
+  expect(await p('room')).toBeGreaterThan(room0 + 0.05);
+  // the lid: dragging its free edge towards the curved side closes it
+  const lid = page.locator('.grip-lid');
+  const lb = (await lid.boundingBox())!;
+  await page.mouse.move(lb.x + lb.width / 2, lb.y + lb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(lb.x + 500, lb.y + lb.height / 2, { steps: 8 });
+  await page.mouse.up();
+  expect(await p('lid')).toBeLessThan(0.8);
+  await lid.focus();
+  const before = await p('lid');
+  await page.keyboard.press('ArrowUp');
+  expect(await p('lid')).toBeGreaterThan(before);
+});
