@@ -90,105 +90,276 @@ class Allpass {
   }
 }
 
-/** 8-line FDN reverb with Hadamard feedback and frequency-dependent decay (Jot & Chaigne 1991). */
+/**
+ * The listening room (round 3): a hall heard from a few metres away.
+ *
+ * Early reflections come from an image-source model of a shoebox room (Allen &
+ * Berkley 1979): the six first-order and eighteen second-order images, each with its
+ * own delay to each of two microphones 0.3 m apart, 1/r spreading, wall reflection
+ * loss and more high-frequency absorption per bounce. The late reverberation is a
+ * 16-line feedback delay network (Jot & Chaigne 1991) with a Hadamard mixing matrix,
+ * input diffusion, slow delay modulation against metallic ringing, and a per-line
+ * absorption filter that gives the bass a longer and the treble a shorter decay, as
+ * in a real hall. It is still the listener's side, not part of the instrument.
+ */
 export class Room {
+  private fs: number;
+  // ---- early reflections (mono source, stereo microphones)
+  private erBuf: Float64Array;
+  private erI = 0;
+  /** early reflections: integer delays and gains per microphone, split by reflection order */
+  private erD1L = new Int32Array(0);
+  private erD1R = new Int32Array(0);
+  private erG1L = new Float64Array(0);
+  private erG1R = new Float64Array(0);
+  private erD2L = new Int32Array(0);
+  private erD2R = new Int32Array(0);
+  private erG2L = new Float64Array(0);
+  private erG2R = new Float64Array(0);
+  private erLp = new Float64Array(4); // [order1 L, order1 R, order2 L, order2 R]
+  private erK = [0, 0];
+  // ---- late FDN
+  private static readonly N = 16;
   private lines: Float64Array[] = [];
-  private idx = new Int32Array(8);
-  private lp = new Float64Array(8);
-  private g = new Float64Array(8);
-  private damp = new Float64Array(8);
+  private wi = new Int32Array(16);
+  private len = new Float64Array(16);
+  private gMid = new Float64Array(16);
+  /** low-shelf gain minus one (bass decays longer) */
+  private shelfK1 = new Float64Array(16);
+  private hfP = new Float64Array(16);
+  private lpLow = new Float64Array(16);
+  private lpHi = new Float64Array(16);
+  private lowA: number;
+  private modPh = new Float64Array(16);
+  private modRate = new Float64Array(16);
+  private o = new Float64Array(16);
   private pre: Float64Array;
   private preI = 0;
   private preLen = 1;
-  private inAp: Allpass[] = [];
-  private fs: number;
-  private o = new Float64Array(8);
-  constructor(fs: number) {
-    this.fs = fs;
-    this.pre = new Float64Array(Math.ceil(0.05 * fs));
-    const base = [29.7, 37.1, 41.1, 43.7, 53.9, 59.3, 67.1, 73.3];
-    for (let i = 0; i < 8; i++) this.lines.push(new Float64Array(Math.ceil((base[i] * 1.6 * fs) / 1000) + 2));
-    this.inAp = [new Allpass(Math.round(0.0047 * fs), 0.6), new Allpass(Math.round(0.0071 * fs), 0.55)];
-    this.configure(0.25);
-  }
+  private dBuf: Float64Array[] = [];
+  private dIdx = new Int32Array(6);
+  private dG = new Float64Array(6);
+  private erMix = 0.5;
+  private lateG = 1.95;
   size = 1;
   t60 = 1.5;
-  private lens = new Int32Array(8);
+  constructor(fs: number) {
+    this.fs = fs;
+    this.erBuf = new Float64Array(Math.ceil(0.16 * fs) + 4);
+    for (let i = 0; i < Room.N; i++) {
+      this.lines.push(new Float64Array(Math.ceil((BASE_MS[i] * 1.05 * fs) / 1000) + 32));
+      this.modPh[i] = (i * 2.399) % (2 * Math.PI);
+      this.modRate[i] = (2 * Math.PI * (0.13 + 0.061 * ((i * 7) % 16))) / fs;
+    }
+    this.pre = new Float64Array(Math.ceil(0.06 * fs));
+    this.dBuf = [1.07, 1.73, 2.69, 3.91, 5.63, 7.97].map((ms) => new Float64Array(Math.round((ms * fs) / 1000)));
+    this.dG.set([0.75, 0.72, 0.7, 0.66, 0.62, 0.58]);
+    this.lowA = Math.exp((-2 * Math.PI * 260) / fs);
+    this.configure(0.25);
+  }
+
   configure(room: number): void {
     const fs = this.fs;
     this.size = 0.55 + 0.45 * room;
     this.t60 = 0.7 + 1.7 * room;
-    const base = [29.7, 37.1, 41.1, 43.7, 53.9, 59.3, 67.1, 73.3];
-    for (let i = 0; i < 8; i++) {
-      const len = Math.min(this.lines[i].length - 1, Math.round((base[i] * this.size * fs) / 1000));
-      this.lens[i] = len;
-      const sec = len / fs;
-      // gain for t60 at low frequencies; extra HF absorption via one-pole
-      this.g[i] = Math.pow(10, (-3 * sec) / this.t60);
-      const gHigh = Math.pow(10, (-3 * sec) / (this.t60 * 0.35));
-      // one-pole such that DC gain 1 and Nyquist gain gHigh/g
-      const r = gHigh / this.g[i];
-      this.damp[i] = (1 - r) / (1 + r);
+    // hall-like decay: bass ratio ~1.2, 4 kHz ~0.7 and 8 kHz ~0.5 of the mid value
+    const tLow = this.t60 * 1.2;
+    const tNyq = this.t60 * 0.3;
+    for (let i = 0; i < Room.N; i++) {
+      const L = Math.min(this.lines[i].length - 24, (BASE_MS[i] * this.size * fs) / 1000);
+      this.len[i] = L;
+      const sec = L / fs;
+      const gm = Math.pow(10, (-3 * sec) / this.t60);
+      const gl = Math.pow(10, (-3 * sec) / tLow);
+      const gh = Math.pow(10, (-3 * sec) / tNyq);
+      this.gMid[i] = gm;
+      this.shelfK1[i] = gl / gm - 1;
+      const r = gh / gm;
+      this.hfP[i] = (1 - r) / (1 + r);
+      void r;
     }
-    this.preLen = Math.max(1, Math.round((0.008 + 0.012 * room) * fs));
+    this.preLen = Math.max(1, Math.min(this.pre.length - 1, Math.round((0.012 + 0.02 * room) * fs)));
+    // ---- image sources: a shoebox hall, source on the stage, microphones a few metres out
+    const Lx = 26 * this.size;
+    const Ly = 18 * this.size;
+    const Lz = 11 * this.size;
+    const src = [Lx * 0.5, Ly * 0.22, 1.2];
+    // a near-coincident pair of cardioids 0.6 m apart, angled ±50° to the stage
+    const micL = [Lx * 0.5 - 0.3, Ly * 0.22 + 3.2, 1.6];
+    const micR = [Lx * 0.5 + 0.3, Ly * 0.22 + 3.2, 1.6];
+    const axL = [-Math.sin(0.87), -Math.cos(0.87), 0];
+    const axR = [Math.sin(0.87), -Math.cos(0.87), 0];
+    const dist = (a: number[], b: number[]) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    const cardioid = (mic: number[], ax: number[], p: number[]) => {
+      const v = [p[0] - mic[0], p[1] - mic[1], p[2] - mic[2]];
+      const n = Math.hypot(v[0], v[1], v[2]) || 1;
+      return 0.5 + (0.5 * (v[0] * ax[0] + v[1] * ax[1] + v[2] * ax[2])) / n;
+    };
+    const d0 = dist(src, micL);
+    const g0 = cardioid(micL, axL, src);
+    const Rw = 0.88; // pressure reflection coefficient of the walls
+    const c = 343;
+    const t1: number[][] = [];
+    const t2: number[][] = [];
+    const img = (k: number, L: number, s: number) => (k % 2 === 0 ? k * L + s : (k + 1) * L - s);
+    const maxD = this.erBuf.length - 2;
+    for (let nx = -2; nx <= 2; nx++)
+      for (let ny = -2; ny <= 2; ny++)
+        for (let nz = -2; nz <= 2; nz++) {
+          const order = Math.abs(nx) + Math.abs(ny) + Math.abs(nz);
+          if (order === 0 || order > 2) continue;
+          const p = [img(nx, Lx, src[0]), img(ny, Ly, src[1]), img(nz, Lz, src[2])];
+          const dl = Math.round(((dist(p, micL) - d0) / c) * fs);
+          const dr = Math.round(((dist(p, micR) - d0) / c) * fs);
+          if (dl <= 0 || dr <= 0 || dl > maxD || dr > maxD) continue;
+          const g = Math.pow(Rw, order) / g0;
+          (order === 1 ? t1 : t2).push([dl, dr, (g * cardioid(micL, axL, p) * d0) / dist(p, micL), (g * cardioid(micR, axR, p) * d0) / dist(p, micR)]);
+        }
+    this.erD1L = Int32Array.from(t1.map((t) => t[0]));
+    this.erD1R = Int32Array.from(t1.map((t) => t[1]));
+    this.erG1L = Float64Array.from(t1.map((t) => t[2]));
+    this.erG1R = Float64Array.from(t1.map((t) => t[3]));
+    this.erD2L = Int32Array.from(t2.map((t) => t[0]));
+    this.erD2R = Int32Array.from(t2.map((t) => t[1]));
+    this.erG2L = Float64Array.from(t2.map((t) => t[2]));
+    this.erG2R = Float64Array.from(t2.map((t) => t[3]));
+    // more HF absorption per bounce (walls + air)
+    this.erK = [Math.exp((-2 * Math.PI * 7000) / fs), Math.exp((-2 * Math.PI * 4200) / fs)];
+    this.erMix = 1.1;
   }
+
   reset(): void {
     for (const l of this.lines) l.fill(0);
-    this.lp.fill(0);
+    this.lpLow.fill(0);
+    this.lpHi.fill(0);
     this.pre.fill(0);
-    for (const a of this.inAp) a.reset();
+    this.erBuf.fill(0);
+    this.erLp.fill(0);
+    for (const d of this.dBuf) d.fill(0);
   }
-  /** Adds wet signal into L/R (in place). */
+
+  /** Adds the room's sound (early reflections and late reverberation) into L/R, in place. */
   process(L: Float64Array, R: Float64Array, len: number, send: number, wet: number): void {
     if (wet <= 0 && send <= 0) return;
+    const N = Room.N;
     const o = this.o;
+    for (let i = 0; i < N; i++) {
+      if (Math.abs(this.lpHi[i]) < 1e-25) this.lpHi[i] = 0;
+      if (Math.abs(this.lpLow[i]) < 1e-25) this.lpLow[i] = 0;
+    }
     const lines = this.lines;
+    const erBuf = this.erBuf;
+    const eN = erBuf.length;
+    const d1L = this.erD1L, d1R = this.erD1R, g1L = this.erG1L, g1R = this.erG1R;
+    const d2L = this.erD2L, d2R = this.erD2R, g2L = this.erG2L, g2R = this.erG2R;
+    const [k1, k2] = this.erK;
+    const lowA = this.lowA;
+    // delay modulation: ±0.17 ms, a different slow rate per line; updated once per block
+    const dl = new Float64Array(N);
+    for (let i = 0; i < N; i++) {
+      this.modPh[i] += this.modRate[i] * len;
+      dl[i] = this.len[i] + 8 * Math.sin(this.modPh[i]);
+    }
+    const lateG = this.lateG;
+    const wi = this.wi, gMid = this.gMid, lpLow = this.lpLow, lpHi = this.lpHi, hfP = this.hfP;
+    const shelfK1 = this.shelfK1, dBuf = this.dBuf, dIdx = this.dIdx, dG = this.dG;
+    const erG = this.erMix;
     for (let t = 0; t < len; t++) {
-      // predelay
       const x = (L[t] + R[t]) * 0.5 * send;
+      // ---- early reflections
+      erBuf[this.erI] = x;
+      const w = this.erI;
+      let e1L = 0, e1R = 0, e2L = 0, e2R = 0;
+      for (let j = 0; j < d1L.length; j++) {
+        let a = w - d1L[j];
+        if (a < 0) a += eN;
+        let b = w - d1R[j];
+        if (b < 0) b += eN;
+        e1L += g1L[j] * erBuf[a];
+        e1R += g1R[j] * erBuf[b];
+      }
+      for (let j = 0; j < d2L.length; j++) {
+        let a = w - d2L[j];
+        if (a < 0) a += eN;
+        let b = w - d2R[j];
+        if (b < 0) b += eN;
+        e2L += g2L[j] * erBuf[a];
+        e2R += g2R[j] * erBuf[b];
+      }
+      this.erI = this.erI + 1 === eN ? 0 : this.erI + 1;
+      const lp = this.erLp;
+      lp[0] = e1L + k1 * (lp[0] - e1L);
+      lp[1] = e1R + k1 * (lp[1] - e1R);
+      lp[2] = e2L + k2 * (lp[2] - e2L);
+      lp[3] = e2R + k2 * (lp[3] - e2R);
+      const erL = lp[0] + lp[2];
+      const erR = lp[1] + lp[3];
+      // ---- late: predelay, input diffusion
       const pre = this.pre;
       const pi = this.preI;
-      const d = pre[(pi - this.preLen + pre.length) % pre.length];
-      pre[pi] = x;
+      let ri = pi - this.preLen;
+      if (ri < 0) ri += pre.length;
+      let d = pre[ri];
+      pre[pi] = x + 0.3 * (erL + erR);
       this.preI = pi + 1 === pre.length ? 0 : pi + 1;
-      let inp = this.inAp[0].tick(d);
-      inp = this.inAp[1].tick(inp);
-      // read lines, absorb
-      for (let i = 0; i < 8; i++) {
-        const line = lines[i];
-        let ri = this.idx[i] - this.lens[i];
-        if (ri < 0) ri += line.length;
-        const v = line[ri] * this.g[i];
-        const lpv = v + this.damp[i] * (this.lp[i] - v);
-        this.lp[i] = Math.abs(lpv) < 1e-25 ? 0 : lpv;
-        o[i] = lpv;
+      for (let k = 0; k < 6; k++) {
+        const buf = dBuf[k];
+        const ii = dIdx[k];
+        const g = dG[k];
+        const z = buf[ii];
+        const v = d + g * z;
+        buf[ii] = v;
+        dIdx[k] = ii + 1 === buf.length ? 0 : ii + 1;
+        d = z - g * v;
       }
-      const outL = (o[0] + o[2] - o[4] + o[6]) * 0.5;
-      const outR = (o[1] - o[3] + o[5] + o[7]) * 0.5;
-      // Hadamard 8 (fast Walsh–Hadamard), normalised, in place in `o`
-      const a0 = o[0] + o[1], a1 = o[0] - o[1], a2 = o[2] + o[3], a3 = o[2] - o[3];
-      const a4 = o[4] + o[5], a5 = o[4] - o[5], a6 = o[6] + o[7], a7 = o[6] - o[7];
-      const b0 = a0 + a2, b1 = a1 + a3, b2 = a0 - a2, b3 = a1 - a3;
-      const b4 = a4 + a6, b5 = a5 + a7, b6 = a4 - a6, b7 = a5 - a7;
-      const k = 0.3535533905932738;
-      o[0] = (b0 + b4) * k;
-      o[1] = (b1 + b5) * k;
-      o[2] = (b2 + b6) * k;
-      o[3] = (b3 + b7) * k;
-      o[4] = (b0 - b4) * k;
-      o[5] = (b1 - b5) * k;
-      o[6] = (b2 - b6) * k;
-      o[7] = (b3 - b7) * k;
-      for (let i = 0; i < 8; i++) {
+      // read lines (modulated, interpolated), absorb
+      for (let i = 0; i < N; i++) {
         const line = lines[i];
-        line[this.idx[i]] = o[i] + (i & 1 ? -inp : inp);
-        this.idx[i] = this.idx[i] + 1 === line.length ? 0 : this.idx[i] + 1;
+        const ln = line.length;
+        let p = wi[i] - dl[i];
+        if (p < 0) p += ln;
+        const i0 = p | 0;
+        const fr = p - i0;
+        const a0 = line[i0];
+        let v = (a0 + fr * (line[i0 + 1 < ln ? i0 + 1 : 0] - a0)) * gMid[i];
+        // low shelf: longer bass decay
+        const lo = v + lowA * (lpLow[i] - v);
+        lpLow[i] = lo;
+        v += shelfK1[i] * lo;
+        // one-pole high-frequency absorption
+        const hp = hfP[i];
+        const hv = v + hp * (lpHi[i] - v);
+        lpHi[i] = hv;
+        o[i] = hv;
       }
-      L[t] += wet * outL;
-      R[t] += wet * outR;
+      // decorrelated stereo taps
+      const outL = (o[0] - o[1] + o[2] + o[3] - o[4] + o[5] - o[6] + o[7] + o[8] + o[9] - o[10] - o[11] + o[12] - o[13] + o[14] - o[15]) * 0.25;
+      const outR = (o[0] + o[1] - o[2] + o[3] + o[4] - o[5] - o[6] - o[7] + o[8] - o[9] + o[10] - o[11] - o[12] - o[13] + o[14] + o[15]) * 0.25;
+      // 16-point fast Walsh–Hadamard (normalised by 1/4 when written back)
+      hadamard16(o);
+      for (let i = 0; i < N; i++) {
+        const line = lines[i];
+        const w0 = wi[i];
+        line[w0] = o[i] * 0.25 + (i & 1 ? -d : d) * 0.5;
+        wi[i] = w0 + 1 === line.length ? 0 : w0 + 1;
+      }
+      L[t] += wet * (erG * erL + lateG * outL);
+      R[t] += wet * (erG * erR + lateG * outR);
     }
   }
 }
+function hadamard16(o: Float64Array): void {
+  for (let h = 1; h < 16; h <<= 1)
+    for (let i = 0; i < 16; i += h << 1)
+      for (let j = i; j < i + h; j++) {
+        const a = o[j];
+        const b = o[j + h];
+        o[j] = a + b;
+        o[j + h] = a - b;
+      }
+}
+// late-line delays (ms at size 1): mutually incommensurate, 31–98 ms
+const BASE_MS = [31.3, 34.7, 37.9, 41.3, 44.9, 47.3, 51.1, 53.9, 58.7, 62.3, 67.1, 71.9, 76.7, 82.3, 89.9, 97.7];
 
 /** Short allpass diffusion for the high-frequency board path (decorrelated L/R). */
 export class Diffuser {

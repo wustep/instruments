@@ -1700,5 +1700,123 @@
    "ltasBandRmsDb": 4.639350065226251,
    "gainOffsetDb": -0.7752204342763847
   }
+ },
+ {
+  "label": "R11 re-measured (round 3: model rendered as long as the analysed recording)",
+  "date": "2026-11-08T19:46:51.028Z",
+  "summary": {
+   "tuningRmsCents": 4.1000695860134355,
+   "refPitchOffsetCents": 4.8749723401856935,
+   "bLog10Rms": 0.06844445408527554,
+   "bMedianRatio": 0.9628167807780948,
+   "t60EarlyLog2Rms": 1.2067175967212165,
+   "t60LateLog2Rms": 0.8034614623969656,
+   "t60EarlyP1MedianRatio": 0.9153361287062208,
+   "t60LateP1MedianRatio": 1.033301354896235,
+   "levelErrDb": {
+    "pp": 8.337179721186697,
+    "mf": 4.675903723048432,
+    "ff": 5.421567615518801
+   },
+   "levelBiasDb": {
+    "pp": -0.6623952067520662,
+    "mf": 0.20686859738556507,
+    "ff": -0.08064363607089575
+   },
+   "spectralShapeRmsDb": {
+    "pp": 8.443203024849032,
+    "mf": 8.9813394584137,
+    "ff": 9.735099703498518
+   },
+   "centroidRatio": {
+    "pp": 1.4566718690459628,
+    "mf": 1.2478657854549895,
+    "ff": 1.46944791823501
+   },
+   "brightnessContrastErr": {
+    "rmsDbPerPartial": 2.126326954317166,
+    "biasDbPerPartial": -0.4030423922482642
+   },
+   "decayByRegister": {
+    "A0-B1": {
+     "early": 1.01,
+     "late": 0.79
+    },
+    "C2-B3": {
+     "early": 1.15,
+     "late": 1.28
+    },
+    "C4-B5": {
+     "early": 0.93,
+     "late": 1.11
+    },
+    "C6-C8": {
+     "early": 0.9,
+     "late": 1.03
+    }
+   },
+   "attackDiffMs": 1.9954648526077108,
+   "ltasBandRmsDb": 4.639350065226251,
+   "gainOffsetDb": -0.7752204342763847
+  }
+ },
+ {
+  "label": "R12 round 3: two decay-only refits with matched analysis length",
+  "date": "2026-11-08T19:47:33.375Z",
+  "summary": {
+   "tuningRmsCents": 4.053359500966119,
+   "refPitchOffsetCents": 4.8749723401856935,
+   "bLog10Rms": 0.0691527118409225,
+   "bMedianRatio": 0.9742929645293301,
+   "t60EarlyLog2Rms": 1.1993967759455844,
+   "t60LateLog2Rms": 0.7804164931355053,
+   "t60EarlyP1MedianRatio": 0.9203274036731082,
+   "t60LateP1MedianRatio": 1.0319343886004209,
+   "levelErrDb": {
+    "pp": 8.340213182109487,
+    "mf": 4.670027495687711,
+    "ff": 5.42139091884856
+   },
+   "levelBiasDb": {
+    "pp": -0.6428848586547815,
+    "mf": 0.2855585452572882,
+    "ff": -0.07599894209556624
+   },
+   "spectralShapeRmsDb": {
+    "pp": 8.44454797059944,
+    "mf": 8.964040444771623,
+    "ff": 9.736876112682559
+   },
+   "centroidRatio": {
+    "pp": 1.4562887741031258,
+    "mf": 1.2469128650649732,
+    "ff": 1.4693687854950097
+   },
+   "brightnessContrastErr": {
+    "rmsDbPerPartial": 2.1262366101247556,
+    "biasDbPerPartial": -0.4030270432835019
+   },
+   "decayByRegister": {
+    "A0-B1": {
+     "early": 1,
+     "late": 0.79
+    },
+    "C2-B3": {
+     "early": 0.99,
+     "late": 1.21
+    },
+    "C4-B5": {
+     "early": 0.99,
+     "late": 1.02
+    },
+    "C6-C8": {
+     "early": 0.9,
+     "late": 1
+    }
+   },
+   "attackDiffMs": 1.9954648526077108,
+   "ltasBandRmsDb": 4.638671870391866,
+   "gainOffsetDb": 0.003628655061525876
+  }
  }
 ]

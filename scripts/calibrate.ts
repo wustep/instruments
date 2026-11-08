@@ -11,7 +11,7 @@ import { cpus } from 'node:os';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { analyzeNote, decodeWav, type NoteAnalysis } from '../packages/engine/src/analysis/index.ts';
 import { BASE_CALIBRATION, DEFAULT_CALIBRATION, PRESETS, buildKeySpecs, DEFAULT_PARAMS, referenceB, renderNote, type Calibration } from '../packages/engine/src/core/index.ts';
-import { CACHE, DYNAMICS, REF_KEYS, available, wavPath, type Dyn } from './references.ts';
+import { CACHE, DYNAMICS, REF_KEYS, available, wavPath, wavSeconds, type Dyn } from './references.ts';
 
 export const DYN_VEL: Record<Dyn, number> = { pp: 30, mf: 70, ff: 112 };
 const ROOT = join(import.meta.dirname, '..');
@@ -122,8 +122,13 @@ async function main(): Promise<void> {
   for (const m of keys)
     for (const d of DYNAMICS) {
       if (quick && d !== 'mf') continue;
-      // render long enough for the decay fits of the reference register
-      const dur = m < 48 ? 22 : m < 72 ? 18 : m < 90 ? 12 : 8;
+      // like with like (round 3): render exactly as long as the part of the recording
+      // that is analysed (analyzeNote reads at most 30 s). The decay fit estimates a
+      // noise floor from the last 12 % of what it is given; on a dry render that
+      // "floor" is the still-decaying note, so a shorter render biased long decays
+      // short (bass aftersound read ×0.67 at 22 s, ×0.79 at 30 s).
+      const refLen = wavSeconds(wavPath(m, available(m, d) ? d : 'ff'));
+      const dur = Number.isFinite(refLen) && !process.env.OLD_DUR ? Math.min(30, refLen) : m < 48 ? 22 : m < 72 ? 18 : m < 90 ? 12 : 8;
       modelJobs.push({ kind: 'model', midi: m, dyn: d, cal, dur });
     }
   const model = await pool(modelJobs);

@@ -3,7 +3,7 @@
 // 2001 (two Neumann KM 84 mics 8" above the bass and treble strings, 16-bit/44.1 kHz,
 // input gain fixed across dynamics). Terms: "may be downloaded and used for any
 // projects, without restrictions" — https://theremin.music.uiowa.edu/MIS.html
-import { existsSync, mkdirSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const CACHE = join(import.meta.dirname, '..', '.cache', 'iowa');
@@ -30,4 +30,28 @@ export const wavPath = (m: number, d: Dyn) => join(CACHE, 'wav', `Piano.${d}.${i
 
 export function ensureDirs(): void {
   for (const d of ['aiff', 'wav']) if (!existsSync(join(CACHE, d))) mkdirSync(join(CACHE, d), { recursive: true });
+}
+
+/** Length of a reference recording in seconds, from its WAV header (NaN if missing). */
+export function wavSeconds(path: string): number {
+  if (!existsSync(path)) return NaN;
+  const fd = openSync(path, 'r');
+  const b = Buffer.alloc(8192);
+  const n = readSync(fd, b, 0, b.length, 0);
+  closeSync(fd);
+  let o = 12;
+  let nch = 1;
+  let sr = 44100;
+  let bits = 16;
+  while (o + 8 <= n) {
+    const id = b.toString('latin1', o, o + 4);
+    const len = b.readUInt32LE(o + 4);
+    if (id === 'fmt ') {
+      nch = b.readUInt16LE(o + 10);
+      sr = b.readUInt32LE(o + 12);
+      bits = b.readUInt16LE(o + 22);
+    } else if (id === 'data') return len / (sr * nch * (bits / 8));
+    o += 8 + len + (len & 1);
+  }
+  return NaN;
 }
