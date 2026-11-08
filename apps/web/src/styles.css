@@ -1218,3 +1218,38 @@ figure[title] {
     inset 0 0 0 1px rgba(242, 166, 70, 0.55),
     inset 0 0 80px rgba(242, 166, 70, 0.12);
 }
+
+/* ------------------------------------------------------------ ?debug start-up log */
+.diag {
+  position: fixed;
+  z-index: 50;
+  left: 8px;
+  top: 44px;
+  width: min(560px, calc(100vw - 16px));
+  max-height: 46vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(8, 7, 6, 0.92);
+  border: 1px solid var(--rule-2);
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-2);
+}
+.diag pre {
+  margin: 0;
+  padding: 6px 8px 8px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.diag button {
+  align-self: flex-end;
+  margin: 4px 6px 0;
+  border: 1px solid var(--rule-2);
+  background: none;
+  color: var(--amber);
+  font-size: 10px;
+  padding: 1px 6px;
+  cursor: pointer;
+}

@@ -1,4 +1,6 @@
 import './styles.css';
+import { diag, diagEnvironment, diagPanel } from './diag.ts';
+diagEnvironment();
 import { audio } from './audio.ts';
 import { INSTRUMENT_INFO, midiName, type InstrumentId } from '@piano-model/engine';
 import { ComputerKeys, createKeyboard } from './ui/keyboard.ts';
@@ -112,7 +114,7 @@ audio.state.on((s) => {
   document.documentElement.dataset.audio = s;
 });
 // tapping the lamp itself retries (also when the page has no keyboard)
-status.addEventListener('click', () => audio.unlock());
+status.addEventListener('click', () => audio.unlock('lamp'));
 document.documentElement.dataset.audio = 'idle';
 srStatus.textContent = 'tap a key to start';
 // a small MIDI socket that lights up while a device is connected and flickers with
@@ -152,8 +154,11 @@ void audio.initMidi();
 
 // Any gesture starts audio. Desktop browsers accept pointerdown/keydown, phones only
 // pointerup/touchend/click, and iOS may interrupt a running context: keep listening.
-const unlock = () => audio.unlock();
-for (const t of ['pointerdown', 'pointerup', 'touchend', 'keydown', 'click'] as const) window.addEventListener(t, unlock, { capture: true, passive: true });
+for (const t of ['pointerdown', 'pointerup', 'touchend', 'keydown', 'click'] as const) window.addEventListener(t, (e) => audio.unlock(`${t}${(e as PointerEvent).pointerType ? ` (${(e as PointerEvent).pointerType})` : ''}`), { capture: true, passive: true });
+// ?debug: the start-up log, live, in a corner
+const diagEl = diagPanel();
+if (diagEl) document.body.append(diagEl);
+diag('page ready');
 
 // expose small handles for automated tests (Playwright)
 import { renderOffline } from '@piano-model/engine';

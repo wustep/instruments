@@ -470,3 +470,15 @@ test('drop a .mid file: it plays on the current instrument, pauses, stops; a new
   await player.getByRole('button', { name: 'Stop' }).click();
   expect(errors).toEqual([]);
 });
+
+test('?debug shows the start-up log, step by step, ending in ready', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'desktop covers the diagnostics');
+  await page.goto('/?debug');
+  await expect(page.locator('.diag pre')).toContainText('environment');
+  await clickKey(page);
+  const log = page.locator('.diag pre');
+  for (const step of ['start (attempt 1)', 'AudioContext created', 'worklet module: loaded', 'worklet node: created', 'worklet: ready', 'first stats']) await expect(log).toContainText(step, { timeout: 8000 });
+  // without ?debug nothing is shown
+  await page.goto('/');
+  await expect(page.locator('.diag')).toHaveCount(0);
+});

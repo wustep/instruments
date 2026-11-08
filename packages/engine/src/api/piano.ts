@@ -30,6 +30,8 @@ export interface PianoOptions {
    * on the audio thread.
    */
   designs?: DesignEntry[] | null;
+  /** start-up progress, for diagnostics: (step, detail) */
+  onStep?: (step: string, detail?: unknown) => void;
 }
 
 export interface Piano {
@@ -99,19 +101,31 @@ const val = (v: number | boolean): number => (typeof v === 'boolean' ? (v ? 1 : 
 
 export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}): Promise<Piano> {
   const url = opts.processorUrl ?? processorUrl;
+  const step = opts.onStep ?? (() => undefined);
+  const tm = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  let t = tm();
+  step('worklet module: loading', url.split('/').pop());
   try {
-    await ensureModule(ctx, url);
+    // a worklet script request that stalls (network, a login wall) must not wait forever
+    await Promise.race([ensureModule(ctx, url), new Promise<never>((_, rej) => setTimeout(() => rej(new Error('no answer within 8 s')), 8000))]);
   } catch (err) {
     loaded.delete(ctx);
+    step('worklet module: FAILED', String((err as Error)?.message ?? err));
     throw new Error(`the sound engine (${url.split('/').pop()}) did not load: ${String((err as Error)?.message ?? err)}`);
   }
+  step('worklet module: loaded', `${Math.round(tm() - t)} ms`);
   const preset = opts.preset && PRESETS[opts.preset] ? opts.preset : 'grand';
   const instrument: InstrumentId = opts.instrument && INSTRUMENT_INFO[opts.instrument] ? opts.instrument : 'piano';
   const fs = ctx.sampleRate;
   // design keys the worklet already holds: later redesigns only send what is missing
   const sent = new Set<string>();
   let designs = opts.designs ?? null;
-  if (!designs?.length && instrument === 'piano') designs = await computeDesigns(preset, opts.params ?? {}, fs, { yieldEvery: 4 });
+  if (!designs?.length && instrument === 'piano') {
+    t = tm();
+    step('filter designs: computing in the page', `${fs} Hz`);
+    designs = await computeDesigns(preset, opts.params ?? {}, fs, { yieldEvery: 4 });
+    step('filter designs: computed', `${designs.length} in ${Math.round(tm() - t)} ms`);
+  }
   for (const e of designs ?? []) sent.add(e.key);
   const node = new AudioWorkletNode(ctx, 'piano-model', {
     numberOfInputs: 0,
@@ -127,6 +141,8 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
       events: (opts.events ?? []).map((e) => ({ frame: Math.round(e.time * fs), event: e.event })),
     },
   });
+  step('worklet node: created', `context ${ctx.state}`);
+  t = tm();
   const output = ctx.createGain();
   node.connect(output);
 
@@ -192,7 +208,11 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
       }
     };
   });
-  await ready;
+  await ready.catch((err) => {
+    step('worklet: FAILED before ready', String((err as Error)?.message ?? err));
+    throw err;
+  });
+  step('worklet: ready', `instrument built in ${Math.round(state.initMs)} ms (audio thread); ${Math.round(tm() - t)} ms after the node`);
   started = true;
 
   const send = (m: ToProcessor) => node.port.postMessage(m);

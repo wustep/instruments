@@ -3,6 +3,7 @@
 
 import { createInstrument, INSTRUMENT_INFO, processorUrl, type DesignEntry, type InstrumentId, type Piano, type Stats, type KeySummary } from '@piano-model/engine';
 import designUrls from 'virtual:piano-designs';
+import { diag } from './diag.ts';
 
 // Fetch the start-up material as soon as the page loads, before anyone touches a
 // key: the piano's precomputed filter designs and the worklet script.
@@ -15,12 +16,20 @@ export const fetchDesigns = (fs: number): Promise<DesignEntry[] | null> => {
     // deployment) falls back to designing in the page instead of waiting forever
     const ac = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timer = setTimeout(() => ac?.abort(), 2500);
+    const tf = performance.now();
     p = url
       ? fetch(url, { signal: ac?.signal, credentials: 'same-origin' })
-          .then((r) => (r.ok ? (r.json() as Promise<DesignEntry[]>) : (console.warn(`filter designs: HTTP ${r.status} for ${url}; designing them here instead`), null)))
-          .catch((e) => (console.warn('filter designs unavailable, designing them here instead:', e), null))
+          .then((r) => {
+            diag(`filter designs ${fs} Hz: HTTP ${r.status}${r.redirected ? ' (redirected)' : ''}`, `${Math.round(performance.now() - tf)} ms, ${r.headers.get('content-type') ?? '?'}`);
+            return r.ok ? (r.json() as Promise<DesignEntry[]>) : (console.warn(`filter designs: HTTP ${r.status} for ${url}; designing them here instead`), null);
+          })
+          .catch((e) => {
+            diag(`filter designs ${fs} Hz: FAILED`, String((e as Error)?.message ?? e));
+            console.warn('filter designs unavailable, designing them here instead:', e);
+            return null;
+          })
           .finally(() => clearTimeout(timer))
-      : Promise.resolve(null);
+      : (diag(`filter designs ${fs} Hz: none shipped for this rate`), Promise.resolve(null));
     // a failed fetch is not cached: the next start tries again
     void p.then((d) => {
       if (!d) designFetch.delete(fs);
@@ -31,7 +40,10 @@ export const fetchDesigns = (fs: number): Promise<DesignEntry[] | null> => {
 };
 if (typeof window !== 'undefined') {
   for (const fs of Object.keys(designUrls)) void fetchDesigns(Number(fs));
-  void fetch(processorUrl).catch(() => undefined);
+  const tp = performance.now();
+  void fetch(processorUrl)
+    .then((r) => diag(`worklet script prefetch: HTTP ${r.status}${r.redirected ? ' (redirected)' : ''}`, `${Math.round(performance.now() - tp)} ms, ${r.headers.get('content-type') ?? '?'}`))
+    .catch((e) => diag('worklet script prefetch: FAILED', String((e as Error)?.message ?? e)));
 }
 
 type Listener<T> = (v: T) => void;
@@ -130,7 +142,8 @@ class AudioApp {
    * touchend). Mobile browsers only count pointer*up* / touchend as a gesture, and
    * iOS can interrupt a running context, so this keeps trying until sound runs.
    */
-  unlock(): void {
+  unlock(reason = 'gesture'): void {
+    if (this.status !== 'running') diag(`gesture: ${reason}`, `status ${this.status}, context ${this.ctx?.state ?? 'none'}`);
     if (!this.ctx || this.status === 'error') {
       void this.start().catch(() => undefined);
       return;
@@ -161,6 +174,7 @@ class AudioApp {
       return this.starting;
     }
     const attempt = ++this.attempt;
+    diag(`start (attempt ${attempt})`);
     const live = () => attempt === this.attempt;
     this.error = '';
     this.setStatus('starting');
@@ -172,6 +186,7 @@ class AudioApp {
       if (session) {
         try {
           session.type = 'playback';
+          diag('audioSession.type = playback');
         } catch {
           /* older Safari */
         }
@@ -186,17 +201,24 @@ class AudioApp {
         ctx = new AudioContext({ latencyHint: 'interactive' });
       }
       this.ctx = ctx;
+      diag('AudioContext created', { state: ctx.state, sampleRate: ctx.sampleRate, baseLatency: ctx.baseLatency });
       // Resume immediately inside the gesture; the worklet loads meanwhile.
-      void ctx.resume().catch(() => undefined);
+      ctx.onstatechange = () => diag(`context ${ctx.state}`);
+      void ctx.resume().then(
+        () => diag('context.resume() resolved', ctx.state),
+        (e) => diag('context.resume() REJECTED', String((e as Error)?.message ?? e)),
+      );
       // never hang silently: after 3 s say what is happening and what to do
       watchdog = window.setTimeout(() => {
         if (!live() || this.piano) return;
         this.error = ctx.state !== 'running' ? 'the browser has not let sound start yet: tap or press a key' : 'still starting: tap to try again';
+        diag('STALLED after 3 s', `context ${ctx.state}`);
         this.setStatus('stalled');
       }, 3000);
       const designs = await fetchDesigns(ctx.sampleRate);
       if (!live()) return;
-      const piano = await withTimeout(createInstrument(ctx, { instrument: this.instrument, preset: this.preset, designs, processorUrl }), 15000, 'the sound engine did not answer within 15 s');
+      diag('filter designs', designs ? `${designs.length} shipped for ${ctx.sampleRate} Hz` : `none for ${ctx.sampleRate} Hz: designing in the page`);
+      const piano = await withTimeout(createInstrument(ctx, { instrument: this.instrument, preset: this.preset, designs, processorUrl, onStep: (st, d) => diag(st, d) }), 15000, 'the sound engine did not answer within 15 s');
       if (!live()) {
         piano.dispose();
         return;
@@ -204,6 +226,7 @@ class AudioApp {
       window.clearTimeout(watchdog);
       this.piano = piano;
       this.startMs = performance.now() - t0;
+      diag('ready', `${Math.round(this.startMs)} ms after start, context ${ctx.state}`);
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 8192;
       analyser.smoothingTimeConstant = 0.6;
@@ -222,7 +245,15 @@ class AudioApp {
       });
       // never await resume(): without a gesture it can stay pending (iOS); the next
       // gesture's unlock() resumes and onstatechange reports it
-      ctx.onstatechange = () => this.setStatus(ctx.state === 'running' ? 'running' : 'suspended');
+      ctx.onstatechange = () => {
+        diag(`context ${ctx.state}`);
+        this.setStatus(ctx.state === 'running' ? 'running' : 'suspended');
+      };
+      let firstStats = true;
+      piano.onStats(() => {
+        if (firstStats) diag('audio thread: first stats (sound is running)', `context ${ctx.state}`);
+        firstStats = false;
+      });
       this.error = '';
       this.setStatus(ctx.state === 'running' ? 'running' : 'suspended');
       this.keysChanged.emit(piano.keys);
@@ -237,6 +268,7 @@ class AudioApp {
       // never leave a failed start cached: the next gesture (or one automatic retry) tries again
       this.error = String((err as Error)?.message ?? err);
       console.warn('audio start failed:', err);
+      diag('START FAILED', this.error);
       void this.ctx?.close().catch(() => undefined);
       this.ctx = null;
       this.piano = null;
