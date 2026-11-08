@@ -57,6 +57,31 @@ export interface PianoShapes {
   shapes: Float32Array;
 }
 
+/** one key's action and strings, for the single-key action view (PianoCore.watchMidi) */
+export interface WatchKey {
+  midi: number;
+  /** the key is held down */
+  held: boolean;
+  /** its strings are sounding */
+  active: boolean;
+  /** damper contact: 0 lifted … 1 resting on the strings (live, including the pedals) */
+  damper: number;
+  hasDamper: boolean;
+  /** the hammer is in flight or touching the strings right now */
+  hammerActive: boolean;
+  hammerContact: boolean;
+  /** the latest completed strike of this key (velocity, force and felt compression over time) */
+  strike: StrikeRecord | null;
+  hammerMass: number;
+  /** strike point as a fraction of the speaking length, and that length (m) */
+  beta: number;
+  lengthM: number;
+  nStrings: number;
+  /** the first string's displacement, agraffe → bridge (m), and its peak level */
+  shape: Float32Array;
+  level: number;
+}
+
 export interface VisualState {
   frame: number;
   voices: number;
@@ -68,6 +93,7 @@ export interface VisualState {
   symLevels?: Float32Array;
   /** every sounding string's displacement (first string of each voice, `points` samples, agraffe → bridge) */
   pianoShapes?: PianoShapes;
+  watch?: WatchKey | null;
   focus: null | {
     midi: number;
     nStrings: number;
@@ -143,6 +169,8 @@ export class PianoCore {
   private hx1 = new Float64Array(RING);
   private hx2 = new Float64Array(RING);
   private knockSeed = 0x9e3779b9;
+  /** the key the single-key action view is watching (−1: none) */
+  watchMidi = -1;
   /** the stage's reference for sympathetic levels: the loudest struck displacement, recently */
   private visRef = 0;
   private visFrame = 0;
@@ -883,6 +911,7 @@ export class PianoCore {
       symLevels,
       pianoShapes,
       focus,
+      watch: this.watchState(),
       strike: this.strikeLatest,
       modes: this.modeAmps.slice(),
       sustain: this.sustain,
@@ -893,6 +922,34 @@ export class PianoCore {
 
   get modeFrequencies(): Float64Array {
     return this.board.freq;
+  }
+
+  private watchState(): WatchKey | null {
+    const i = this.watchMidi - KEY_LO;
+    if (i < 0 || i >= NUM_KEYS) return null;
+    const v = this.voices[i];
+    const spec = this.specs[i];
+    const shape = new Float32Array(64);
+    if (v.active) v.shape(0, this.frame & POS_MASK, shape);
+    // an idle key's damper rests where the key and pedals put it
+    const free = !spec.hasDamper || v.held || v.sostenuto;
+    const damper = v.active ? v.damper : free ? 0 : this.damperContact(spec.midi);
+    return {
+      midi: spec.midi,
+      held: v.held,
+      active: v.active,
+      damper,
+      hasDamper: spec.hasDamper,
+      hammerActive: v.hActive,
+      hammerContact: v.hContact,
+      strike: v.lastStrike,
+      hammerMass: spec.hammer.mass,
+      beta: spec.beta,
+      lengthM: spec.L,
+      nStrings: spec.nStrings,
+      shape,
+      level: v.active ? v.level : 0,
+    };
   }
 
   keySummary(): KeySummary[] {

@@ -1,6 +1,6 @@
 // Message protocol between the main thread and the AudioWorklet processor.
 
-import type { PianoEvent, PianoShapes, VisualState } from '../core/piano-core.ts';
+import type { PianoEvent, PianoShapes, VisualState, WatchKey } from '../core/piano-core.ts';
 import type { DesignEntry, StrikeRecord } from '../core/voice.ts';
 import type { ExciteTrace, InstrumentId } from '../core/instrument.ts';
 
@@ -13,6 +13,8 @@ export type ToProcessor =
   | { type: 'instrument'; instrument: InstrumentId; preset?: string; params?: Record<string, unknown>; designs?: DesignEntry[] }
   | { type: 'vis'; enabled: boolean }
   | { type: 'maxVoices'; value: number }
+  /** piano: stream one key's action and strings in the visual frames (−1: stop) */
+  | { type: 'watch'; midi: number }
   | { type: 'designs'; entries: DesignEntry[] }
   | { type: 'panic' }
   /** drop every event scheduled for the future (a paused file player) */
@@ -56,6 +58,8 @@ export interface VisualFrame extends Stats {
   symLevels?: Float32Array;
   /** flute: breath pressure (0..1) and the breath vibrato's current deviation */
   breath?: { pressure: number; vib: number };
+  /** piano: the watched key's action and strings (see `watchKey`) */
+  watch?: WatchKey | null;
   /** piano: every sounding string's shape (struck first, then sympathetic) */
   pianoShapes?: PianoShapes;
   /** bowed: the four strings, low to high */

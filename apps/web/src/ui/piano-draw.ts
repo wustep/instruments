@@ -38,6 +38,26 @@ export interface PianoState {
   src: { x: number; y: number };
   caseBox: { x0: number; x1: number; y0: number; y1: number };
   lidEdge: { x: number; y: number } | null;
+  /** each visible key's strings as drawn (for clicking a note's strings) */
+  hits: { midi: number; x0: number; y0: number; x1: number; y1: number; w: number }[];
+}
+
+/** the key whose strings are nearest (x, y) in stage coordinates, if close enough */
+export function stringAt(st: PianoState, x: number, y: number): number | null {
+  let best: number | null = null;
+  let bd = Infinity;
+  for (const h of st.hits) {
+    const dx = h.x1 - h.x0;
+    const dy = h.y1 - h.y0;
+    const L2 = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((x - h.x0) * dx + (y - h.y0) * dy) / L2));
+    const d = Math.hypot(x - (h.x0 + t * dx), y - (h.y0 + t * dy));
+    if (d < Math.max(6, h.w * 0.6) && d < bd) {
+      bd = d;
+      best = h.midi;
+    }
+  }
+  return best;
 }
 
 export const newPianoState = (): PianoState => ({
@@ -57,6 +77,7 @@ export const newPianoState = (): PianoState => ({
   src: { x: 0, y: 0 },
   caseBox: { x0: 0, x1: 0, y0: 0, y1: 0 },
   lidEdge: null,
+  hits: [],
 });
 
 interface Pt {
@@ -291,8 +312,10 @@ export function drawPiano(ctx: CanvasRenderingContext2D, W: number, H: number, g
   // ---- strings, tuning pins, agraffes / capo bar
   const lv2 = levelsOf(fr, st);
   const shift = st.shift;
+  st.hits = [];
   for (const p of pts) {
     if (p.x < -p.w || p.x > W + p.w) continue;
+    st.hits.push({ midi: p.midi, x0: p.x, y0: yCap, x1: p.x, y1: yEnd(p), w: p.w });
     const n = p.k.nStrings;
     const sp = Math.min(2.4, p.w * 0.13);
     for (let j = 0; j < n; j++) {
@@ -469,11 +492,13 @@ function drawUpright(ctx: CanvasRenderingContext2D, W: number, H: number, g: Pia
   // ---- strings (tenor/treble first, the crossing bass over them), pins, pressure bar
   const lv2 = levelsOf(fr, st);
   const order = [...pts.filter((p) => !p.wound), ...bass];
+  st.hits = [];
   for (const p of order) {
     if (p.x < -p.w * 4 || p.x > W + p.w * 4) continue;
     const n = p.k.nStrings;
     const sp = Math.min(2.4, p.w * 0.13);
     const [x0, y0, x1, y1] = ends(p);
+    st.hits.push({ midi: p.midi, x0, y0, x1, y1, w: p.w });
     for (let j = 0; j < n; j++) {
       const o = (j - (n - 1) / 2) * sp;
       strokeString(ctx, x0 + o, y0, x1 + o, y1, p.wound, lv2.l(p.i), lv2.s(p.i));

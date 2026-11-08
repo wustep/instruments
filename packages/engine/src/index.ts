@@ -21,7 +21,7 @@ export {
   type PianoParams,
   type Preparation,
 } from './core/design.ts';
-export type { PianoEvent, VisualState } from './core/piano-core.ts';
+export type { PianoEvent, VisualState, WatchKey } from './core/piano-core.ts';
 export type { StrikeRecord, DesignEntry } from './core/voice.ts';
 export { computeDesigns } from './core/precompute.ts';
 export { midiName, nameToMidi, midiToEtHz } from './core/util.ts';

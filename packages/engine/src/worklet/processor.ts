@@ -131,6 +131,9 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       case 'vis':
         this.vis = m.enabled;
         break;
+      case 'watch':
+        if (this.core.id === 'piano') (this.core as unknown as PianoCore).watchMidi = m.midi;
+        break;
       case 'maxVoices':
         this.baseMaxVoices = m.value;
         this.core.maxVoices = m.value;
@@ -240,6 +243,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       levels: (v as { levels?: Float32Array }).levels,
       symLevels: (v as { symLevels?: Float32Array }).symLevels,
       pianoShapes: (v as { pianoShapes?: never }).pianoShapes,
+      watch: (v as { watch?: never }).watch,
       breath: (v as { breath?: never }).breath,
       strings: (v as { strings?: never }).strings,
       modeFreqs: core.id === 'flute' ? Array.from(core.modeFrequencies) : undefined,

@@ -71,6 +71,8 @@ export interface Piano {
   /** pitch bend in semitones (strings and flute) */
   bend(semitones: number, time?: number): void;
   setMaxVoices(n: number): void;
+  /** piano: stream this key's action and strings in the visual frames (null: stop) */
+  watchKey(midi: number | null): void;
   /** subscribe to ~30 Hz stats (load, voice counts, pedals) */
   onStats(cb: (s: Stats) => void): () => void;
   /** subscribe to ~30 Hz visual frames (string shapes, hammer force, modes); enables them */
@@ -308,6 +310,7 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
         });
       }),
     setMaxVoices: (n) => send({ type: 'maxVoices', value: n }),
+    watchKey: (midi) => send({ type: 'watch', midi: midi ?? -1 }),
     onStats: (cb) => {
       statsSubs.add(cb);
       return () => statsSubs.delete(cb);

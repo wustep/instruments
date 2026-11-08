@@ -9,12 +9,28 @@ export function installTips(): void {
   document.body.append(tip);
   let cur: HTMLElement | null = null;
   let timer = 0;
+  const pointer = { x: 0, y: 0 };
+  document.addEventListener('pointermove', (e) => {
+    pointer.x = e.clientX;
+    pointer.y = e.clientY;
+    // an element that names its parts sets data-tip as the pointer moves over them
+    const f = (e.target as Element | null)?.closest?.('[data-tip-follow]') as HTMLElement | null;
+    if (!f || e.pointerType === 'touch') return;
+    if (!f.dataset.tip) {
+      if (cur === f) tip.hidden = true;
+    } else if (cur !== f) show(f, false);
+    else place(f);
+  }, true);
   const place = (el: HTMLElement) => {
     const t = el.dataset.tip;
-    if (!t || !el.isConnected) return hide();
+    if (!t || !el.isConnected) {
+      tip.hidden = true;
+      return;
+    }
     tip.textContent = t;
     tip.hidden = false;
-    const r = el.getBoundingClientRect();
+    // a large element naming its parts (data-tip-follow): the name sits by the pointer
+    const r = el.hasAttribute('data-tip-follow') ? new DOMRect(pointer.x - 1, pointer.y - 8, 2, 2) : el.getBoundingClientRect();
     const tw = tip.offsetWidth;
     const th = tip.offsetHeight;
     const x = Math.min(window.innerWidth - tw - 6, Math.max(6, r.left + r.width / 2 - tw / 2));

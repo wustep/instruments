@@ -6,9 +6,10 @@ import { audio } from '../audio.ts';
 import { DEFAULT_PARAMS, INSTRUMENT_IDS, INSTRUMENT_INFO, PRESETS, PRESET_IDS, bowedGeometry, midiName, pianoKeySummary, type InstrumentId, type KeySummary, type VisualFrame } from '@piano-model/engine';
 import { cssVar, fitCanvas, fmt, h, type View } from '../ui/dom.ts';
 import type { KeyboardHandle } from '../ui/keyboard.ts';
+import { openActionView } from '../ui/action-view.ts';
 import { glyph, knob, type KnobSpec } from '../ui/controls.ts';
 import { AutoScale, INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, type BowedGeom } from '../ui/stage-draw.ts';
-import { drawPiano, newPianoState } from '../ui/piano-draw.ts';
+import { drawPiano, newPianoState, stringAt } from '../ui/piano-draw.ts';
 import { drawRoom, newRoomState, roomRect } from '../ui/room-draw.ts';
 
 const PIANO_KNOBS: KnobSpec[] = [
@@ -97,6 +98,31 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     g.setAttribute('aria-valuetext', text);
   };
   const el = h('div', { class: 'view stage' }, canvas, top, gripRoom, gripLid);
+  // click a note's strings on the piano: that key's action, close up
+  let action: { close: () => void } | null = null;
+  let downAt: { x: number; y: number } | null = null;
+  canvas.addEventListener('pointerdown', (e) => {
+    downAt = { x: e.clientX, y: e.clientY };
+  });
+  canvas.addEventListener('pointerup', (e) => {
+    if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6 || family() !== 'piano') return;
+    downAt = null;
+    const r = canvas.getBoundingClientRect();
+    const topH = top.getBoundingClientRect().height;
+    const m = stringAt(pianoState, e.clientX - r.left, e.clientY - r.top - topH);
+    if (m !== null) openAction(m);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (family() !== 'piano') return;
+    const r = canvas.getBoundingClientRect();
+    const hit = stringAt(pianoState, e.clientX - r.left, e.clientY - r.top - top.getBoundingClientRect().height);
+    canvas.style.cursor = hit !== null ? 'zoom-in' : '';
+  });
+  const openAction = (m: number) => {
+    action?.close();
+    const kind = audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand';
+    action = openActionView({ midi: m, kind, host: el, latest: () => frame, onClose: () => (action = null) });
+  };
   const paramOf = (k: string, d: number) => {
     const v = (audio.piano?.params as Record<string, unknown> | undefined)?.[k];
     return typeof v === 'number' ? v : d;
@@ -377,6 +403,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       attach();
       unsubs.push(audio.state.on(() => attach()));
       unsubs.push(audio.instrumentChanged.on(applyInstrument));
+      unsubs.push(audio.instrumentChanged.on(() => action?.close()));
       unsubs.push(
         audio.notes.on((n) => {
           if (!n.on) return;
@@ -392,6 +419,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       raf = requestAnimationFrame(loop);
     },
     unmount() {
+      action?.close();
       cancelAnimationFrame(raf);
       unsubVis?.();
       unsubVis = null;

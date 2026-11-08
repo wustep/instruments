@@ -684,3 +684,62 @@ test('icon-only stage controls say what they are: a short tooltip and an accessi
     await expect(tip, sel).toHaveText(text);
   }
 });
+
+test('click a note’s strings: that key’s action opens, plays from its own telemetry, and closes', async ({ page }, info) => {
+  await page.goto('/');
+  await startAudio(page);
+  await page.waitForTimeout(400);
+  const openAt = async (midi: number, frac: number) => {
+    const k = page.locator(`.key[data-midi="${midi}"]`);
+    await k.scrollIntoViewIfNeeded();
+    const kb = (await k.boundingBox())!;
+    const cv = (await page.locator('.stage-cv').boundingBox())!;
+    if (info.project.name === 'phone') await page.touchscreen.tap(kb.x + kb.width / 2, cv.y + cv.height * frac);
+    else await page.mouse.click(kb.x + kb.width / 2, cv.y + cv.height * frac);
+  };
+  await openAt(48, 0.8);
+  const panel = page.locator('.av-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel).toHaveAttribute('aria-label', /^C3: the grand action$/);
+  // the engine streams this key's action: its damper, strike record and string
+  const watch = await page.evaluate(
+    () =>
+      new Promise<any>((resolve) => {
+        const p = (window as any).__piano.piano;
+        const off = p.onVisual((v: any) => {
+          if (v.watch?.strike) {
+            off();
+            resolve({ midi: v.watch.midi, damper: v.watch.damper, vH: v.watch.strike.vHammer, n: v.watch.strike.force.length, shape: v.watch.shape.length });
+          }
+        });
+        (window as any).__piano.noteOn(48, 96, 'keys');
+        setTimeout(() => (window as any).__piano.noteOff(48, 'keys'), 400);
+      }),
+  );
+  expect(watch.midi).toBe(48);
+  expect(watch.vH).toBeGreaterThan(0.5);
+  expect(watch.n).toBeGreaterThan(10);
+  expect(watch.shape).toBe(64);
+  // the strike is replayed in slow motion
+  await expect(page.locator('.av-speed')).toHaveText(/^×1\/\d+$/);
+  // pressing the drawn key plays the note
+  const cvb = (await page.locator('.av-cv').boundingBox())!;
+  if (info.project.name !== 'phone') {
+    await page.mouse.move(cvb.x + cvb.width * 0.2, cvb.y + cvb.height * 0.8);
+    await page.mouse.down();
+    await expect(page.locator('.key[data-midi="48"]')).toHaveClass(/down/);
+    await page.mouse.up();
+    await page.keyboard.press('Escape');
+  } else {
+    await page.locator('.av-close').tap();
+  }
+  await expect(panel).toHaveCount(0);
+  // the upright has its own action
+  await page.evaluate(() => (window as any).__piano.setPreset('upright'));
+  await page.locator('.presets button', { hasText: 'upright' }).click();
+  await page.waitForTimeout(300);
+  await openAt(48, 0.55);
+  await expect(panel).toHaveAttribute('aria-label', /upright action/);
+  await page.locator('.av-close').click();
+  await expect(panel).toHaveCount(0);
+});
