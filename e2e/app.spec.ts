@@ -501,3 +501,15 @@ test('?debug shows the start-up log, step by step, ending in ready', async ({ pa
   await page.goto('/');
   await expect(page.locator('.diag')).toHaveCount(0);
 });
+
+test('piano presets on the stage: grand and upright only (honky-tonk and prepared are hidden)', async ({ page }) => {
+  await page.goto('/');
+  const presets = page.locator('.presets button');
+  await expect(presets).toHaveText(['grand', 'upright']);
+  await startAudio(page);
+  await presets.filter({ hasText: 'upright' }).click();
+  await page.waitForFunction(() => (window as any).__piano.piano?.preset === 'upright', null, { timeout: 10_000 });
+  await expect(presets.filter({ hasText: 'upright' })).toHaveAttribute('aria-pressed', 'true');
+  await presets.filter({ hasText: 'grand' }).click();
+  await page.waitForFunction(() => (window as any).__piano.piano?.preset === 'grand', null, { timeout: 10_000 });
+});

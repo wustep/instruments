@@ -35,6 +35,9 @@ const FLUTE_KNOBS: KnobSpec[] = [
   { key: 'room', label: 'Room', short: 'room', sub: 'close … hall', min: 0, max: 1, step: 0.01, fmt: (v) => fmt(v, 2) },
 ];
 const PRESET_SHORT: Record<string, string> = { grand: 'grand', upright: 'upright', 'honky-tonk': 'honky-tonk', prepared: 'prepared' };
+/** presets offered on the stage; 'honky-tonk' and 'prepared' still exist in the engine
+ *  (PRESETS) and come back by adding them here */
+const VISIBLE_PRESETS = ['grand', 'upright'];
 
 export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
   let inst: InstrumentId = audio.instrument;
@@ -46,7 +49,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     b.prepend(glyph(id) as unknown as HTMLElement);
     return b;
   });
-  const presetBtns = PRESET_IDS.map((id) =>
+  const shownPresets = PRESET_IDS.filter((id) => VISIBLE_PRESETS.includes(id));
+  const presetBtns = shownPresets.map((id) =>
     h(
       'button',
       {
@@ -55,7 +59,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
         'aria-pressed': String(audio.preset === id),
         onclick: async () => {
           await audio.setPreset(id);
-          presetBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(PRESET_IDS[i] === id)));
+          presetBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(shownPresets[i] === id)));
           keysFallback = pianoKeySummary(id);
           if (audio.piano) syncKnobs(audio.piano.params as unknown as Record<string, number>);
         },
