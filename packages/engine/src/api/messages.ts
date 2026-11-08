@@ -1,6 +1,6 @@
 // Message protocol between the main thread and the AudioWorklet processor.
 
-import type { PianoEvent, VisualState } from '../core/piano-core.ts';
+import type { PianoEvent, PianoShapes, VisualState } from '../core/piano-core.ts';
 import type { DesignEntry, StrikeRecord } from '../core/voice.ts';
 import type { ExciteTrace, InstrumentId } from '../core/instrument.ts';
 
@@ -52,6 +52,8 @@ export interface VisualFrame extends Stats {
   /** piano: per-key level of struck and of sympathetically ringing strings (A0…C8) */
   levels?: Float32Array;
   symLevels?: Float32Array;
+  /** piano: every sounding string's shape (struck first, then sympathetic) */
+  pianoShapes?: PianoShapes;
   /** bowed: the four strings, low to high */
   strings?: { open: number; stop: number; level: number; bowing: boolean }[];
   /** sent when the mode set follows the note (flute bore harmonics) */

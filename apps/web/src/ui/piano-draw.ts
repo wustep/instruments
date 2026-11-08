@@ -25,6 +25,8 @@ export interface PianoState {
   soft: number;
   strScale: AutoScale;
   lvlScale: AutoScale;
+  /** running scale for all sounding strings' shapes together (so quieter ones look smaller) */
+  allScale: AutoScale;
   /** smoothed hammer height (0 rest … 1 at the string) and damper lift per key (A0…C8) */
   hammer: Float32Array;
   damper: Float32Array;
@@ -41,6 +43,7 @@ export const newPianoState = (): PianoState => ({
   soft: 0,
   strScale: new AutoScale(2e-6),
   lvlScale: new AutoScale(1e-6, 0.995),
+  allScale: new AutoScale(2e-6, 0.99),
   hammer: new Float32Array(88),
   damper: new Float32Array(88),
   shift: 0,
@@ -134,6 +137,42 @@ function drawFocus(ctx: CanvasRenderingContext2D, focus: NonNullable<VisualFrame
       ctx.stroke();
     }
   });
+}
+
+
+/** every sounding string at once: struck strings vermilion, sympathetic ones amber and
+ *  (being quieter) smaller; all on one scale, so a decaying note visibly settles */
+function drawAllShapes(ctx: CanvasRenderingContext2D, fr: VisualFrame | null, byMidi: Map<number, Pt>, ends: (p: Pt) => [number, number, number, number], st: PianoState, W: number, skip: number): void {
+  const ps = fr?.pianoShapes;
+  if (!ps || !ps.midi.length) return;
+  const P = ps.points;
+  let mx = 0;
+  for (let i = 0; i < ps.shapes.length; i++) mx = Math.max(mx, Math.abs(ps.shapes[i]));
+  const scale = st.allScale.of(mx);
+  for (let j = 0; j < ps.midi.length; j++) {
+    const m = ps.midi[j];
+    if (m === skip && !ps.light[j]) continue;
+    const p = byMidi.get(m);
+    if (!p || p.x < -p.w || p.x > W + p.w) continue;
+    const amp = Math.max(8, p.w * 1.5) / scale;
+    const [x0, y0, x1, y1] = ends(p);
+    const len = Math.hypot(x1 - x0, y1 - y0) || 1;
+    const nx = -(y1 - y0) / len;
+    const ny = (x1 - x0) / len;
+    const sym = ps.light[j] === 1;
+    ctx.strokeStyle = sym ? rgba(INK.amber, 0.7) : rgba(INK.vermilion, 0.85);
+    ctx.lineWidth = sym ? 0.9 : 1.2;
+    ctx.beginPath();
+    for (let i = 0; i < P; i++) {
+      const f = i / (P - 1);
+      const d = ps.shapes[j * P + i] * amp;
+      const x = x0 + (x1 - x0) * f + nx * d;
+      const y = y0 + (y1 - y0) * f + ny * d;
+      if (i) ctx.lineTo(x, y);
+      else ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+  }
 }
 
 function felt(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, glow: number): void {
@@ -274,8 +313,9 @@ export function drawPiano(ctx: CanvasRenderingContext2D, W: number, H: number, g
     const sx = shift * Math.min(2.4, p.w * 0.13);
     felt(ctx, p.x + sx, ys, p.w * (0.55 + 0.2 * h), 4 + 3 * h, flash);
   }
-  // ---- the last struck note's strings, live
+  // ---- every sounding string, then the last struck note's unisons in detail
   const focus = fr?.focus ?? null;
+  drawAllShapes(ctx, fr, new Map(pts.map((p) => [p.midi, p])), (p) => [p.x, yCap, p.x, yEnd(p)], st, W, focus?.midi ?? -1);
   if (focus) {
     const p = pts.find((q) => q.midi === focus.midi);
     if (p) {
@@ -422,8 +462,9 @@ function drawUpright(ctx: CanvasRenderingContext2D, W: number, H: number, g: Pia
       ctx.stroke();
     }
   }
-  // ---- the last struck note's strings, live
+  // ---- every sounding string, then the last struck note's unisons in detail
   const focus = fr?.focus ?? null;
+  drawAllShapes(ctx, fr, new Map(pts.map((p) => [p.midi, p])), ends, st, W, focus?.midi ?? -1);
   if (focus) {
     const p = pts.find((q) => q.midi === focus.midi);
     if (p) {

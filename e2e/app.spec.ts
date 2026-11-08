@@ -513,3 +513,30 @@ test('piano presets on the stage: grand and upright only (honky-tonk and prepare
   await presets.filter({ hasText: 'grand' }).click();
   await page.waitForFunction(() => (window as any).__piano.piano?.preset === 'grand', null, { timeout: 10_000 });
 });
+
+test('piano stage: several held notes all vibrate at once (one shape per sounding string)', async ({ page }) => {
+  await page.goto('/');
+  await startAudio(page);
+  const n = await page.evaluate(async () => {
+    const a = (window as any).__piano;
+    a.sustain(1);
+    for (const m of [48, 55, 60, 64, 67]) a.noteOn(m, 96, 'keys');
+    let best = 0;
+    const off = a.piano.onVisual((v: any) => {
+      const ps = v.pianoShapes;
+      if (!ps) return;
+      const seen = new Set<number>();
+      for (let j = 0; j < ps.midi.length; j++) {
+        if (ps.light[j]) continue;
+        let mx = 0;
+        for (let i = 0; i < ps.points; i++) mx = Math.max(mx, Math.abs(ps.shapes[j * ps.points + i]));
+        if (mx > 0) seen.add(ps.midi[j]);
+      }
+      best = Math.max(best, [48, 55, 60, 64, 67].filter((m) => seen.has(m)).length);
+    });
+    await new Promise((r) => setTimeout(r, 600));
+    off();
+    return best;
+  });
+  expect(n).toBe(5);
+});

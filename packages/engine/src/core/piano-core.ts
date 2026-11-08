@@ -48,6 +48,15 @@ export interface CoreOptions {
   designs?: DesignEntry[];
 }
 
+export interface PianoShapes {
+  points: number;
+  midi: Int16Array;
+  /** 1 = a sympathetic (undamped, not struck) string */
+  light: Uint8Array;
+  level: Float32Array;
+  shapes: Float32Array;
+}
+
 export interface VisualState {
   frame: number;
   voices: number;
@@ -55,6 +64,8 @@ export interface VisualState {
   /** per key (A0…C8): peak level of the struck strings / of the sympathetic (undamped) strings */
   levels?: Float32Array;
   symLevels?: Float32Array;
+  /** every sounding string's displacement (first string of each voice, `points` samples, agraffe → bridge) */
+  pianoShapes?: PianoShapes;
   focus: null | {
     midi: number;
     nStrings: number;
@@ -803,12 +814,26 @@ export class PianoCore {
       if (a.light) symLevels[i] = Math.max(symLevels[i], a.level);
       else levels[i] = Math.max(levels[i], a.level);
     }
+    // every sounding string's shape, compactly (first string of each voice, 24 points),
+    // struck strings first, so the stage can show them all moving at once
+    const P = 24;
+    const act = [...this.active].filter((a) => a.level > 1e-7).sort((a, b) => Number(a.light) - Number(b.light) || b.level - a.level).slice(0, 96);
+    const pianoShapes = { points: P, midi: new Int16Array(act.length), light: new Uint8Array(act.length), level: new Float32Array(act.length), shapes: new Float32Array(act.length * P) };
+    const tmp = new Float32Array(P);
+    act.forEach((a, j) => {
+      a.shape(0, this.frame & POS_MASK, tmp);
+      pianoShapes.shapes.set(tmp, j * P);
+      pianoShapes.midi[j] = a.midi;
+      pianoShapes.light[j] = a.light ? 1 : 0;
+      pianoShapes.level[j] = a.level;
+    });
     return {
       frame: this.frame,
       voices: this.activeVoiceCount,
       sympathetic: this.activeSympatheticCount,
       levels,
       symLevels,
+      pianoShapes,
       focus,
       strike: this.strikeLatest,
       modes: this.modeAmps.slice(),
