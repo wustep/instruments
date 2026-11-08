@@ -1,7 +1,7 @@
-// App-level audio: AudioContext lifecycle, the piano, and input routing
+// App-level audio: AudioContext lifecycle, the instrument, and input routing
 // (Web MIDI with hot-plug, computer keyboard, on-screen keyboard).
 
-import { createPiano, type Piano, type PianoParams, type Stats, type KeySummary } from '@piano-model/engine';
+import { createInstrument, INSTRUMENT_INFO, type InstrumentId, type Piano, type Stats, type KeySummary } from '@piano-model/engine';
 
 type Listener<T> = (v: T) => void;
 
@@ -29,17 +29,29 @@ export interface MidiStatus {
   error?: string;
 }
 
+const STORE_KEY = 'piano-model.instrument';
+const readStored = (): InstrumentId => {
+  try {
+    const v = localStorage.getItem(STORE_KEY) as InstrumentId | null;
+    return v && INSTRUMENT_INFO[v] ? v : 'piano';
+  } catch {
+    return 'piano';
+  }
+};
+
 class AudioApp {
   ctx: AudioContext | null = null;
   piano: Piano | null = null;
   analyser: AnalyserNode | null = null;
   starting: Promise<void> | null = null;
   preset = 'grand';
+  instrument: InstrumentId = readStored();
   readonly notes = new Emitter<NoteEvent>();
   readonly stats = new Emitter<Stats>();
   readonly state = new Emitter<'idle' | 'starting' | 'running' | 'suspended'>();
   readonly midiStatus = new Emitter<MidiStatus>();
   readonly keysChanged = new Emitter<KeySummary[]>();
+  readonly instrumentChanged = new Emitter<InstrumentId>();
   midi: MidiStatus = { supported: typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator, inputs: [] };
   /** keys currently held by any source */
   readonly down = new Map<number, Set<string>>();
@@ -60,7 +72,7 @@ class AudioApp {
       this.ctx = ctx;
       // Resume immediately inside the gesture; the worklet loads meanwhile.
       void ctx.resume();
-      const piano = await createPiano(ctx, { preset: this.preset });
+      const piano = await createInstrument(ctx, { instrument: this.instrument, preset: this.preset });
       this.piano = piano;
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 8192;
@@ -132,13 +144,33 @@ class AudioApp {
   sostenuto(v: number): void {
     this.piano?.sostenuto(v);
   }
+  control(cc: number, v: number): void {
+    this.piano?.control(cc, v);
+  }
 
   async setPreset(id: string): Promise<void> {
     this.preset = id;
     if (this.piano) await this.piano.setPreset(id);
   }
 
-  setParams(p: Partial<PianoParams>): void {
+  async setInstrument(id: InstrumentId): Promise<void> {
+    if (!INSTRUMENT_INFO[id]) return;
+    this.instrument = id;
+    try {
+      localStorage.setItem(STORE_KEY, id);
+    } catch {
+      /* private mode */
+    }
+    for (const m of [...this.down.keys()]) this.notes.emit({ midi: m, velocity: 0, on: false, source: 'keys' });
+    this.down.clear();
+    if (this.piano) {
+      await this.piano.setInstrument(id);
+      this.keysChanged.emit(this.piano.keys);
+    }
+    this.instrumentChanged.emit(id);
+  }
+
+  setParams(p: Record<string, unknown>): void {
     this.piano?.setParams(p);
   }
 
@@ -180,6 +212,7 @@ class AudioApp {
       if (d1 === 64) this.sustain(d2 / 127);
       else if (d1 === 67) this.soft(d2 / 127);
       else if (d1 === 66) this.sostenuto(d2 / 127);
+      else if (d1 === 1 || d1 === 2 || d1 === 11) this.control(d1, d2 / 127);
       else if (d1 === 123 || d1 === 120) this.piano?.allNotesOff();
     }
   }

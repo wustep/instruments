@@ -1,5 +1,6 @@
 import './styles.css';
 import { audio } from './audio.ts';
+import { INSTRUMENT_INFO, type InstrumentId } from '@piano-model/engine';
 import { ComputerKeys, createKeyboard } from './ui/keyboard.ts';
 import { h, type View } from './ui/dom.ts';
 import { playView } from './views/play.ts';
@@ -35,6 +36,7 @@ const keyboard = createKeyboard();
 const sustainBar = h('i');
 const softBar = h('i');
 const octaveInfo = h('span', { class: 'num hide-sm' });
+const instName = h('span', { class: 'pedal-chip' });
 const voiceInfo = h('span', { class: 'num' });
 const dock = h(
   'footer',
@@ -43,7 +45,8 @@ const dock = h(
     'div',
     { class: 'dock-bar' },
     h('span', { class: 'pedal-chip', title: 'Sustain pedal (CC64, continuous; hold Space)' }, 'sustain', h('span', { class: 'bar' }, sustainBar)),
-    h('span', { class: 'pedal-chip', title: 'Una corda (CC67; hold Shift)' }, 'una corda', h('span', { class: 'bar' }, softBar)),
+    h('span', { class: 'pedal-chip soft-chip', title: 'Una corda (CC67; hold Shift)' }, 'una corda', h('span', { class: 'bar' }, softBar)),
+    instName,
     h('span', { class: 'spacer' }),
     octaveInfo,
     voiceInfo,
@@ -102,7 +105,18 @@ audio.stats.on((s) => {
   softBar.style.width = `${s.soft * 100}%`;
   voiceInfo.textContent = `${s.voices} notes${s.sympathetic ? ` + ${s.sympathetic} sympathetic` : ''} · dsp ${(s.load * 100).toFixed(0)}%`;
 });
-audio.keysChanged.on((ks) => keyboard.setPrepared(new Set(ks.filter((k) => k.preparation).map((k) => k.midi))));
+audio.keysChanged.on((ks) => keyboard.setPrepared(new Set(audio.instrument === 'piano' ? ks.filter((k) => k.preparation).map((k) => k.midi) : [])));
+const BASE: Record<InstrumentId, number> = { piano: 60, violin: 67, viola: 60, cello: 48, flute: 72 };
+const syncInstrument = (id: InstrumentId) => {
+  const info = INSTRUMENT_INFO[id];
+  keyboard.setRange(info.lo, info.hi);
+  keys.setBase(BASE[id]);
+  instName.textContent = info.label.toLowerCase();
+  (dock.querySelector('.soft-chip') as HTMLElement).hidden = id !== 'piano';
+  requestAnimationFrame(() => keyboard.scrollToMidi(BASE[id] + 6));
+};
+audio.instrumentChanged.on(syncInstrument);
+syncInstrument(audio.instrument);
 void audio.initMidi();
 
 // first gesture anywhere starts audio

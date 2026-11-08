@@ -21,6 +21,7 @@ import { biquadHighpass } from './filters.ts';
 import { BiquadChain, Diffuser, Limiter, Room, buildEq } from './post.ts';
 import { Soundboard } from './soundboard.ts';
 import { clamp } from './util.ts';
+import type { KeySummary } from '../api/messages.ts';
 import { BK_MAX, type DesignEntry, DispersionCache, type StrikeRecord, Voice } from './voice.ts';
 
 export type PianoEvent =
@@ -29,7 +30,8 @@ export type PianoEvent =
   | { type: 'sustain'; value: number }
   | { type: 'soft'; value: number }
   | { type: 'sostenuto'; value: number }
-  | { type: 'allNotesOff' };
+  | { type: 'allNotesOff' }
+  | { type: 'control'; cc: number; value: number };
 
 export interface CoreOptions {
   sampleRate: number;
@@ -80,6 +82,7 @@ function smoothstep(a: number, b: number, x: number): number {
 }
 
 export class PianoCore {
+  readonly id = 'piano' as const;
   readonly fs: number;
   design: PianoDesign;
   params: PianoParams;
@@ -319,6 +322,8 @@ export class PianoCore {
       case 'allNotesOff':
         for (const v of this.voices) v.held = false;
         this.sustain = 0;
+        break;
+      default:
         break;
     }
   }
@@ -759,6 +764,18 @@ export class PianoCore {
 
   get modeFrequencies(): Float64Array {
     return this.board.freq;
+  }
+
+  keySummary(): KeySummary[] {
+    return this.specs.map((s) => ({
+      midi: s.midi,
+      f1: s.f1,
+      B: s.B,
+      nStrings: s.nStrings,
+      lengthM: s.L,
+      hasDamper: s.hasDamper,
+      preparation: s.preparation ? (s.preparation.label ?? 'object') : null,
+    }));
   }
 }
 

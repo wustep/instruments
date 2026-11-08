@@ -12,6 +12,8 @@ export interface KeyboardHandle {
   el: HTMLElement;
   setLabels(map: Map<number, string>): void;
   setPrepared(midis: Set<number>): void;
+  /** dim keys the current instrument cannot play */
+  setRange(lo: number, hi: number): void;
   scrollToMidi(m: number): void;
 }
 
@@ -112,6 +114,9 @@ export function createKeyboard(): KeyboardHandle {
     setPrepared(midis) {
       keyEls.forEach((el, m) => el.classList.toggle('prep', midis.has(m)));
     },
+    setRange(lo, hi) {
+      keyEls.forEach((el, m) => el.classList.toggle('out', m < lo || m > hi));
+    },
     scrollToMidi(m) {
       const el = keyEls.get(m);
       if (!el) return;
@@ -126,6 +131,10 @@ export function createKeyboard(): KeyboardHandle {
 export class ComputerKeys {
   base = 60;
   velocity = 84;
+  setBase(m: number): void {
+    this.base = Math.min(96, Math.max(24, m));
+    this.changed();
+  }
   private held = new Map<string, number>();
   private listeners = new Set<() => void>();
   private static readonly MAP: Record<string, number> = {

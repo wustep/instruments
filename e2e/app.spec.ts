@@ -190,3 +190,48 @@ test('layout fits the viewport (no horizontal page scroll) and keys respond to t
   const notes = await page.evaluate(() => (window as any).__piano.lastStats?.voices ?? 0);
   expect(notes).toBeGreaterThanOrEqual(1);
 });
+
+test('all five instruments: selectable in the UI and rendered through the worklet at pitch', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await startAudio(page);
+  for (const [label, id] of [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Flute', 'flute'], ['Piano', 'piano']] as const) {
+    await page.locator('.instruments').getByRole('button', { name: label }).click();
+    await page.waitForFunction((x) => (window as any).__piano.piano?.instrument === x, id, { timeout: 15_000 });
+    await expect(page.locator('h1')).toContainText(label.toLowerCase() === 'piano' ? 'piano' : label.toLowerCase());
+  }
+  for (const [id, midi] of [['violin', 69], ['viola', 62], ['cello', 48], ['flute', 74]] as const) {
+    const out = await page.evaluate(async ([inst, m]) => {
+      const { renderOffline } = (window as any).__engine;
+      const buf: AudioBuffer = await renderOffline({ instrument: inst, sampleRate: 48000, duration: 1.6, params: { room: 0, vibrato: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: 90 } }] });
+      const x = buf.getChannelData(0);
+      // autocorrelation pitch over 0.9–1.4 s
+      const fs = 48000, f = 440 * 2 ** ((m - 69) / 12), s0 = Math.round(0.9 * fs), W = Math.round(0.4 * fs);
+      const ac = (lag: number) => { let s = 0; for (let i = 0; i < W; i++) s += x[s0 + i] * x[s0 + i + lag]; return s; };
+      let best = -Infinity, bl = 0;
+      for (let lag = Math.floor(fs / (f * 1.05)); lag <= Math.ceil(fs / (f * 0.95)); lag++) { const v = ac(lag); if (v > best) { best = v; bl = lag; } }
+      const a = ac(bl - 1), b = ac(bl), c = ac(bl + 1);
+      const fm = fs / (bl + (0.5 * (a - c)) / (a - 2 * b + c));
+      let peak = 0;
+      for (let i = 0; i < x.length; i++) peak = Math.max(peak, Math.abs(x[i]));
+      return { cents: 1200 * Math.log2(fm / f), peak };
+    }, [id, midi] as const);
+    expect(out.peak, id).toBeGreaterThan(0.02);
+    expect(out.peak, id).toBeLessThanOrEqual(1);
+    expect(Math.abs(out.cents), id).toBeLessThan(6);
+  }
+  expect(errors).toEqual([]);
+});
+
+test('look inside a bowed string: the bow trace shows stick–slip', async ({ page }) => {
+  await page.goto('/#/inside');
+  await startAudio(page);
+  await page.evaluate(async () => {
+    await (window as any).__piano.setInstrument('violin');
+    (window as any).__piano.noteOn(69, 90, 'keys');
+  });
+  await page.waitForTimeout(1200);
+  await expect(page.locator('.panel h3').nth(1)).toHaveText('Bow');
+  await expect(page.locator('.panel .meta').nth(1)).toContainText('A string');
+  await page.evaluate(async () => (window as any).__piano.setInstrument('piano'));
+});

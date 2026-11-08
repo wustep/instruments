@@ -1,6 +1,8 @@
 // Offline rendering with the pure DSP core (Node, tests, calibration, demos).
 
 import { type CoreOptions, PianoCore, type PianoEvent } from './piano-core.ts';
+import { createCore, type InstrumentOptions } from './factory.ts';
+import type { InstrumentCore } from './instrument.ts';
 
 export interface TimedEvent {
   /** seconds from the start of the render */
@@ -53,4 +55,28 @@ export function renderNote(
   events.push({ time: 0.01, event: { type: 'noteOn', midi, velocity } });
   if (opts.release !== undefined) events.push({ time: opts.release, event: { type: 'noteOff', midi } });
   return renderCore({ sampleRate: 48000, ...opts, events, duration });
+}
+
+/** Offline render of any instrument (piano, violin, viola, cello, flute) with the pure DSP core. */
+export function renderInstrument(
+  opts: InstrumentOptions & { events: TimedEvent[]; duration: number; quantum?: number },
+): { left: Float32Array; right: Float32Array; sampleRate: number; core: InstrumentCore; cpuMs: number } {
+  const core = createCore(opts);
+  const fs = core.fs;
+  const n = Math.ceil(opts.duration * fs);
+  const left = new Float32Array(n);
+  const right = new Float32Array(n);
+  const base = core.frame;
+  for (const e of opts.events) core.schedule(e.event, base + Math.round(e.time * fs));
+  const q = opts.quantum ?? 128;
+  const bl = new Float32Array(q);
+  const br = new Float32Array(q);
+  const t0 = performance.now();
+  for (let i = 0; i < n; i += q) {
+    const len = Math.min(q, n - i);
+    core.process(bl, br, len);
+    left.set(len === q ? bl : bl.subarray(0, len), i);
+    right.set(len === q ? br : br.subarray(0, len), i);
+  }
+  return { left, right, sampleRate: fs, core, cpuMs: performance.now() - t0 };
 }

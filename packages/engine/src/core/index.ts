@@ -8,3 +8,7 @@ export { BK_MAX, Voice, designStringLoss, nominalLossCoeff, type StrikeRecord } 
 export * from './render.ts';
 export * from './precompute.ts';
 export { DispersionCache, type DesignEntry } from './voice.ts';
+export * from './instrument.ts';
+export * from './factory.ts';
+export { BowedCore, BOWED, type BowedParams } from './bowed.ts';
+export { FluteCore, fluteFingering, type FluteParams } from './flute.ts';

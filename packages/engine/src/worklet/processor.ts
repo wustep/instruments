@@ -1,9 +1,10 @@
-// AudioWorklet host for the piano DSP core. All synthesis happens here, on the
-// audio rendering thread; the main thread only sends control messages.
+// AudioWorklet host for the instrument DSP cores. All synthesis happens here, on
+// the audio rendering thread; the main thread only sends control messages.
 
-import { PianoCore, type PianoEvent } from '../core/piano-core.ts';
-import type { PianoParams } from '../core/design.ts';
-import type { ToProcessor, FromProcessor, KeySummary } from '../api/messages.ts';
+import { createCore, type AnyParams } from '../core/factory.ts';
+import type { InstrumentCore, InstrumentId } from '../core/instrument.ts';
+import type { PianoCore } from '../core/piano-core.ts';
+import type { ToProcessor, FromProcessor } from '../api/messages.ts';
 
 declare const sampleRate: number;
 declare const currentFrame: number;
@@ -19,16 +20,19 @@ const clock: () => number =
     : () => Date.now();
 
 interface ProcOptions {
+  instrument?: InstrumentId;
   preset?: string;
-  params?: Partial<PianoParams>;
+  params?: AnyParams;
   maxVoices?: number;
   /** pre-scheduled events (frames relative to the start), for offline renders */
-  events?: { frame: number; event: PianoEvent }[];
+  events?: { frame: number; event: unknown }[];
   adaptive?: boolean;
 }
 
-class PianoProcessor extends AudioWorkletProcessor {
-  private core: PianoCore;
+type Core = InstrumentCore & { process: (L: Float32Array, R: Float32Array, n: number) => void };
+
+class InstrumentProcessor extends AudioWorkletProcessor {
+  private core: Core;
   private vis = false;
   private visInterval: number;
   private visCount = 0;
@@ -38,7 +42,6 @@ class PianoProcessor extends AudioWorkletProcessor {
   private quantumMs = 0;
   private adaptive: boolean;
   private baseMaxVoices: number;
-  private overloadBlocks = 0;
   private lastStrikeSerial = 0;
   private frameOffset = 0;
 
@@ -46,30 +49,18 @@ class PianoProcessor extends AudioWorkletProcessor {
     super();
     const o = options.processorOptions ?? {};
     const t0 = clock();
-    this.core = new PianoCore({ sampleRate, preset: o.preset, params: o.params, maxVoices: o.maxVoices ?? 64 });
+    this.core = createCore({ sampleRate, instrument: o.instrument, preset: o.preset, params: o.params, maxVoices: o.maxVoices ?? 64 }) as Core;
     const initMs = clock() - t0;
     this.baseMaxVoices = this.core.maxVoices;
     this.adaptive = o.adaptive !== false;
     for (const e of o.events ?? []) this.core.schedule(e.event, e.frame);
     this.visInterval = Math.max(1, Math.round(sampleRate / 128 / 30));
     this.port.onmessage = (e: MessageEvent<ToProcessor>) => this.onMessage(e.data);
-    this.post({ type: 'ready', sampleRate, initMs, modeFreqs: Array.from(this.core.modeFrequencies), keys: this.keySummary() });
+    this.post({ type: 'ready', sampleRate, initMs, instrument: this.core.id, params: this.core.params as Record<string, unknown>, modeFreqs: Array.from(this.core.modeFrequencies), keys: this.core.keySummary() });
   }
 
-  private keySummary(): KeySummary[] {
-    return this.core.specs.map((s) => ({
-      midi: s.midi,
-      f1: s.f1,
-      B: s.B,
-      nStrings: s.nStrings,
-      lengthM: s.L,
-      hasDamper: s.hasDamper,
-      preparation: s.preparation ? s.preparation.label ?? 'object' : null,
-    }));
-  }
-
-  private post(m: FromProcessor, transfer?: Transferable[]): void {
-    this.port.postMessage(m, transfer ?? []);
+  private post(m: FromProcessor): void {
+    this.port.postMessage(m);
   }
 
   private onMessage(m: ToProcessor): void {
@@ -80,13 +71,23 @@ class PianoProcessor extends AudioWorkletProcessor {
         break;
       }
       case 'params':
-        this.core.setParams(m.params);
-        this.post({ type: 'keys', keys: this.keySummary() });
+        this.core.setParams(m.params as Record<string, unknown>);
+        if (this.core.id === 'piano') this.post({ type: 'keys', keys: this.core.keySummary() });
         break;
       case 'preset':
-        this.core.setPreset(m.preset);
-        this.post({ type: 'preset', preset: m.preset, params: this.core.params, modeFreqs: Array.from(this.core.modeFrequencies), keys: this.keySummary() });
+        if (this.core.id === 'piano') {
+          (this.core as unknown as PianoCore).setPreset(m.preset);
+          this.post({ type: 'preset', instrument: 'piano', preset: m.preset, params: this.core.params as Record<string, unknown>, modeFreqs: Array.from(this.core.modeFrequencies), keys: this.core.keySummary() });
+        }
         break;
+      case 'instrument': {
+        this.core.allSoundOff();
+        const frame = this.core.frame;
+        this.core = createCore({ sampleRate, instrument: m.instrument, preset: m.preset, params: m.params, maxVoices: this.baseMaxVoices }) as Core;
+        this.core.frame = frame;
+        this.post({ type: 'preset', instrument: this.core.id, preset: m.preset ?? '', params: this.core.params as Record<string, unknown>, modeFreqs: Array.from(this.core.modeFrequencies), keys: this.core.keySummary() });
+        break;
+      }
       case 'vis':
         this.vis = m.enabled;
         break;
@@ -95,7 +96,7 @@ class PianoProcessor extends AudioWorkletProcessor {
         this.core.maxVoices = m.value;
         break;
       case 'designs':
-        this.core.dispCache.put(m.entries);
+        if (this.core.id === 'piano') (this.core as unknown as PianoCore).dispCache.put(m.entries);
         break;
       case 'panic':
         this.core.allSoundOff();
@@ -134,7 +135,6 @@ class PianoProcessor extends AudioWorkletProcessor {
     if (!this.adaptive) return;
     const core = this.core;
     if (this.load > 0.7) {
-      this.overloadBlocks++;
       if (core.sympatheticAllowed) core.sympatheticAllowed = false;
       else if (core.maxVoices > 12) core.maxVoices = Math.max(12, Math.floor(core.maxVoices * 0.8));
     } else if (this.load < 0.35) {
@@ -145,35 +145,39 @@ class PianoProcessor extends AudioWorkletProcessor {
 
   private postStats(): void {
     const core = this.core;
+    const base = {
+      instrument: core.id,
+      load: this.load,
+      voices: core.activeVoiceCount,
+      sympathetic: core.activeSympatheticCount,
+      maxVoices: core.maxVoices,
+      sustain: core.sustain,
+      soft: core.soft,
+    };
     if (!this.vis) {
-      this.post({
-        type: 'stats',
-        load: this.load,
-        voices: core.activeVoiceCount,
-        sympathetic: core.activeSympatheticCount,
-        maxVoices: core.maxVoices,
-        sustain: core.sustain,
-        soft: core.soft,
-      });
+      this.post({ type: 'stats', ...base });
       return;
     }
-    const v = core.getVisual(192);
+    const v = core.getVisual(192) as {
+      gainReduction: number;
+      focus: never;
+      strike: { serial: number } | null;
+      excite?: never;
+      modes: Float32Array;
+    };
     const strike = v.strike && v.strike.serial !== this.lastStrikeSerial ? v.strike : null;
     if (strike) this.lastStrikeSerial = strike.serial;
     this.post({
       type: 'visual',
-      load: this.load,
-      voices: v.voices,
-      sympathetic: v.sympathetic,
-      maxVoices: core.maxVoices,
-      sustain: v.sustain,
-      soft: v.soft,
+      ...base,
       gainReduction: v.gainReduction,
       focus: v.focus,
-      strike,
+      strike: strike as never,
+      excite: v.excite ?? null,
       modes: v.modes,
+      modeFreqs: core.id === 'flute' ? Array.from(core.modeFrequencies) : undefined,
     });
   }
 }
 
-registerProcessor('piano-model', PianoProcessor);
+registerProcessor('piano-model', InstrumentProcessor);
