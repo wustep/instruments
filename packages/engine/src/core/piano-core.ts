@@ -21,7 +21,7 @@ import { biquadHighpass } from './filters.ts';
 import { BiquadChain, Diffuser, Limiter, Room, buildEq } from './post.ts';
 import { Soundboard } from './soundboard.ts';
 import { clamp } from './util.ts';
-import { BK_MAX, DispersionCache, type StrikeRecord, Voice } from './voice.ts';
+import { BK_MAX, type DesignEntry, DispersionCache, type StrikeRecord, Voice } from './voice.ts';
 
 export type PianoEvent =
   | { type: 'noteOn'; midi: number; velocity: number }
@@ -40,6 +40,8 @@ export interface CoreOptions {
   maxVoices?: number;
   /** disable the room/lid/limiter (used for calibration against close-miked references) */
   dry?: boolean;
+  /** precomputed dispersion designs (from computeDesigns) to skip start-up design work */
+  designs?: DesignEntry[];
 }
 
 export interface VisualState {
@@ -129,6 +131,7 @@ export class PianoCore {
 
   constructor(opts: CoreOptions) {
     this.fs = opts.sampleRate;
+    if (opts.designs) this.dispCache.put(opts.designs);
     this.cal = opts.calibration ?? DEFAULT_CALIBRATION;
     this.design = PRESETS[opts.preset ?? 'grand'] ?? PRESETS.grand;
     this.params = { ...DEFAULT_PARAMS, ...this.design.defaults, ...opts.params };
@@ -146,7 +149,7 @@ export class PianoCore {
 
   // ---------------------------------------------------------------- setup
 
-  private dispCache = new DispersionCache();
+  readonly dispCache = new DispersionCache();
   private mobility = (w: number, zw: readonly number[]): [number, number] => this.board.mobility(w, zw);
 
   private configureVoice(v: Voice, i: number): void {

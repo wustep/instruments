@@ -16,6 +16,7 @@
 import { type KeySpec } from './design.ts';
 import {
   type Dispersion2,
+  type LossDesign,
   cascadeLag,
   designDispersion2,
   designLossFilter,
@@ -30,11 +31,75 @@ const MAX_DISP = 64;
 /** Bridge admittance seen by a key at angular frequency w (rad/sample): [re, im] in s/kg. */
 export type BridgeMobility = (w: number, zoneW: readonly number[]) => [number, number];
 
+/** Loss-filter designs (undamped, damped) for one string from the key's decay targets. */
+export function designStringLoss(spec: KeySpec, f0: number, f1: number, B: number, fs: number): { lu: LossDesign; ld: LossDesign } {
+  const sigL = LN1000 / spec.t60Low;
+  const sigH = LN1000 / spec.t60High;
+  const fH = spec.t60HighHz;
+  const c = fH > 1.5 * f1 ? Math.max(0, (sigH - sigL) / (fH * fH - f1 * f1)) : (0.6 * sigL) / (f1 * f1);
+  const dSigL = LN1000 / spec.damperLow;
+  const dSigH = LN1000 / spec.damperHigh;
+  const dF = 2000;
+  const dc = dF > 1.5 * f1 ? Math.max(0, (dSigH - dSigL) / (dF * dF - f1 * f1)) : 0;
+  const freqs: number[] = [];
+  const t60u: number[] = [];
+  const t60d: number[] = [];
+  const loop: number[] = [];
+  for (let k = 1; k <= 40; k++) {
+    const fk = k * f0 * Math.sqrt(1 + B * k * k);
+    if (fk > Math.min(0.45 * fs, 12000)) break;
+    freqs.push(fk);
+    const df2 = Math.max(0, fk * fk - f1 * f1);
+    const su = sigL + c * df2;
+    const sd = su + (spec.hasDamper ? dSigL + dc * df2 : 0);
+    t60u.push(LN1000 / su);
+    t60d.push(LN1000 / sd);
+    loop.push((k * fs) / fk);
+  }
+  if (freqs.length === 0) {
+    freqs.push(f1);
+    t60u.push(spec.t60Low);
+    t60d.push(spec.damperLow);
+    loop.push(fs / f1);
+  }
+  const lu = designLossFilter(freqs, t60u, loop, fs);
+  const ld = spec.hasDamper ? designLossFilter(freqs, t60d, loop, fs) : lu;
+  return { lu, ld };
+}
+
+/** Loss coefficient of the nominal (undetuned) string, rounded — the dispersion design input. */
+export function nominalLossCoeff(spec: KeySpec, fs: number): number {
+  return Math.round(designStringLoss(spec, spec.f0, spec.f1, spec.B, fs).lu.a * 1000) / 1000;
+}
+
+export interface DesignEntry {
+  key: string;
+  d: Dispersion2;
+}
+
 /** Dispersion designs are shared by all strings of a key; cache them across rebuilds. */
 export class DispersionCache {
   private map = new Map<string, Dispersion2>();
+  static keyOf(spec: KeySpec, fs: number, light: boolean, lossA: number): string {
+    return `${spec.midi}|${spec.B.toPrecision(7)}|${fs}|${light ? 1 : 0}|${lossA.toFixed(3)}`;
+  }
+  has(key: string): boolean {
+    return this.map.has(key);
+  }
+  put(entries: DesignEntry[]): void {
+    for (const e of entries) this.map.set(e.key, e.d);
+    // bound memory: keep the most recent ~600 designs
+    if (this.map.size > 600) {
+      const drop = this.map.size - 600;
+      let i = 0;
+      for (const k of this.map.keys()) {
+        if (i++ >= drop) break;
+        this.map.delete(k);
+      }
+    }
+  }
   get(spec: KeySpec, fs: number, light: boolean, lossA: number): Dispersion2 {
-    const key = `${spec.midi}|${spec.B.toPrecision(7)}|${fs}|${light ? 1 : 0}|${lossA.toFixed(3)}`;
+    const key = DispersionCache.keyOf(spec, fs, light, lossA);
     let d = this.map.get(key);
     if (!d) {
       const m = spec.midi;
@@ -230,43 +295,14 @@ export class Voice {
       : spec.strings;
     this.n = strings.length;
     this.ZSum = 0;
+    const nominalLossA = nominalLossCoeff(spec, fs);
     for (let s = 0; s < this.n; s++) {
       const st = strings[s];
       const f1 = st.f1;
       const f0 = st.f0;
       const B = st.B;
-      // ---- loss filter: per-partial decay targets
-      const sigL = LN1000 / spec.t60Low;
-      const sigH = LN1000 / spec.t60High;
-      const fH = spec.t60HighHz;
-      const c = fH > 1.5 * f1 ? Math.max(0, (sigH - sigL) / (fH * fH - f1 * f1)) : (0.6 * sigL) / (f1 * f1);
-      const dSigL = LN1000 / spec.damperLow;
-      const dSigH = LN1000 / spec.damperHigh;
-      const dF = 2000;
-      const dc = dF > 1.5 * f1 ? Math.max(0, (dSigH - dSigL) / (dF * dF - f1 * f1)) : 0;
-      const freqs: number[] = [];
-      const t60u: number[] = [];
-      const t60d: number[] = [];
-      const loop: number[] = [];
-      for (let k = 1; k <= 40; k++) {
-        const fk = k * f0 * Math.sqrt(1 + B * k * k);
-        if (fk > Math.min(0.45 * fs, 12000)) break;
-        freqs.push(fk);
-        const df2 = Math.max(0, fk * fk - f1 * f1);
-        const su = sigL + c * df2;
-        const sd = su + (spec.hasDamper ? dSigL + dc * df2 : 0);
-        t60u.push(LN1000 / su);
-        t60d.push(LN1000 / sd);
-        loop.push((k * fs) / fk);
-      }
-      if (freqs.length === 0) {
-        freqs.push(f1);
-        t60u.push(spec.t60Low);
-        t60d.push(spec.damperLow);
-        loop.push(fs / f1);
-      }
-      const lu = designLossFilter(freqs, t60u, loop, fs);
-      const ld = spec.hasDamper ? designLossFilter(freqs, t60d, loop, fs) : lu;
+      // ---- loss filters (undamped and fully damped) from per-partial decay targets
+      const { lu, ld } = designStringLoss(spec, f0, f1, B, fs);
       this.lgU[s] = Math.log(lu.g);
       this.aU[s] = lu.a;
       this.lgD[s] = Math.log(ld.g);
@@ -274,7 +310,7 @@ export class Voice {
 
       // ---- dispersion (designed once per key on the nominal string)
       const lossA = lu.a;
-      const disp = cache.get(spec, fs, light, Math.round(lossA * 1000) / 1000);
+      const disp = cache.get(spec, fs, light, nominalLossA);
       const S = disp.a1.length;
       this.dispS[s] = S;
       for (let j = 0; j < S; j++) {

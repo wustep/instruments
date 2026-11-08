@@ -69,5 +69,5 @@ export const DEFAULT_CALIBRATION: Calibration = {
   hfCross: 1200,
   phantom: 1.0,
   tilt: [60, 900],
-  outputGain: 1.0,
+  outputGain: 160,
 };
