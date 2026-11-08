@@ -79,7 +79,8 @@ function contrastSlope(pp: NoteAnalysis | null, ff: NoteAnalysis | null, refPp?:
     const a = pp.levels.find((x) => x.k === k);
     const b = ff.levels.find((x) => x.k === k);
     const gate = (refPp ?? pp).levels.find((x) => x.k === k);
-    if (!a || !b || !gate || gate.db < -98) continue;
+    // levels below −98 dB are "partial not found" on either side (round 2: gate both)
+    if (!a || !b || !gate || gate.db < -98 || a.db < -98 || b.db < -98) continue;
     xs.push(k);
     ys.push(b.db - a.db);
   }
@@ -327,7 +328,7 @@ async function main(): Promise<void> {
     log.push({ label: args[li + 1], date: new Date().toISOString(), summary });
     writeFileSync(logPath, JSON.stringify(log, null, 1) + '\n');
   }
-  if (fit) doFit(keys, get, rows, decayPairs, bandDiff, summary);
+  if (fit) doFit(keys, get, rows, decayPairs, bandDiff, summary, args.includes('--decay-only'));
 }
 
 type Getter = (kind: 'ref' | 'model', m: number, d: Dyn) => NoteAnalysis | null;
@@ -340,6 +341,7 @@ function doFit(
   decayPairs: { m: number; k: number; which: 'early' | 'late'; ref: number; model: number }[],
   bandDiff: number[],
   summary: { levelBiasDb: Record<Dyn, number>; gainOffsetDb: number },
+  decayOnly = false,
 ): void {
   const cur: Partial<Calibration> = existsSync(FIT_PATH) ? JSON.parse(readFileSync(FIT_PATH, 'utf8')) : {};
   const cal = DEFAULT_CALIBRATION;
@@ -361,8 +363,13 @@ function doFit(
 
   // 2. decay targets: ratio corrections at breakpoints, interpolated from nearby keys
   // bounded corrections: at most ×2 per iteration, physical clamps on the result
-  const corr = (which: 'early' | 'late', ks: number[], m0: number, width = 8) => {
-    const ps = decayPairs.filter((p) => p.which === which && ks.includes(p.k) && Math.abs(p.m - m0) <= width && Number.isFinite(p.ref) && Number.isFinite(p.model) && p.ref < 120 && p.model < 120);
+  // bridge segments: unichords and bichords on the bass bridge, then the treble bridge.
+  // Admittance breakpoints only learn from keys on their own segment (round 2: the old
+  // ±8-key windows let treble-bridge keys drive the last bass-bridge breakpoint).
+  const g = PRESETS.grand;
+  const segOf = (m: number) => (m <= g.unichordTop ? 0 : m < g.bassBreak ? 1 : 2);
+  const corr = (which: 'early' | 'late', ks: number[], m0: number, width = 8, sameSeg = false) => {
+    const ps = decayPairs.filter((p) => p.which === which && ks.includes(p.k) && Math.abs(p.m - m0) <= width && (!sameSeg || segOf(p.m) === segOf(m0)) && Number.isFinite(p.ref) && Number.isFinite(p.model) && p.ref < 120 && p.model < 120);
     if (ps.length < 2) return 1;
     const c = Math.pow(2, step * median(ps.map((p) => Math.log2(p.ref / p.model))));
     return Math.min(2, Math.max(0.5, c));
@@ -371,17 +378,33 @@ function doFit(
   next.t60Low = clampB({ midi: cal.t60Low.midi, val: cal.t60Low.midi.map((m, i) => cal.t60Low.val[i] * corr('late', [1, 2], m)) }, 1, 120);
   next.t60High = clampB({ midi: cal.t60High.midi, val: cal.t60High.midi.map((m, i) => cal.t60High.val[i] * corr('late', [3, 4], m)) }, 0.2, 30);
   // bridge admittance controls the prompt decay: decay rate ∝ Y, so Y *= model/ref
-  next.bridgeY = clampB({ midi: cal.bridgeY.midi, val: cal.bridgeY.midi.map((m, i) => cal.bridgeY.val[i] / corr('early', [1, 2], m)) }, 1e-5, 2e-3);
+  next.bridgeY = clampB({ midi: cal.bridgeY.midi, val: cal.bridgeY.midi.map((m, i) => cal.bridgeY.val[i] / corr('early', [1, 2, 3], m, 12, true)) }, 1e-5, 2e-3);
+  if (decayOnly) {
+    // decay levers only (+ the global level the board coupling changes); leave the voicing,
+    // felt, EQ, velocity range and B where they are
+    next.B = cur.B ?? cal.B;
+    next.outputGain = +(cal.outputGain * Math.pow(10, summary.gainOffsetDb / 20)).toPrecision(4);
+    writeFileSync(FIT_PATH, JSON.stringify(next, null, 2) + '\n');
+    console.log(`updated ${FIT_PATH} (decay levers only)`);
+    return;
+  }
 
   // 3. output EQ from the third-octave difference (smoothed, clamped)
   const bands = [31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000];
   const prevEq = new Map((cal.eq ?? []).map(([fq, g]) => [fq, g]));
   const eq: [number, number, number][] = [];
+  const upd: [number, number][] = [];
   for (let b = 3; b < bands.length - 1; b += 2) {
     const d = [bandDiff[b - 1], bandDiff[b], bandDiff[b + 1]].filter(Number.isFinite);
     if (!d.length) continue;
-    const g = Math.max(-12, Math.min(12, (prevEq.get(bands[b]) ?? 0) + step * median(d)));
-    eq.push([bands[b], +g.toFixed(2), 1.4]);
+    upd.push([bands[b], step * median(d)]);
+  }
+  // the EQ shapes the spectrum only: its mean update is removed (the output gain owns the
+  // overall level), otherwise EQ and gain drift against each other into the clamps
+  const meanUpd = upd.length ? upd.reduce((s, [, u]) => s + u, 0) / upd.length : 0;
+  for (const [fq, u] of upd) {
+    const g = Math.max(-12, Math.min(12, (prevEq.get(fq) ?? 0) + u - meanUpd));
+    eq.push([fq, +g.toFixed(2), 1.4]);
   }
   next.eq = eq;
   next.outputGain = +(cal.outputGain * Math.pow(10, summary.gainOffsetDb / 20)).toPrecision(4);

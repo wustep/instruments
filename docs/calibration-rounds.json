@@ -1641,5 +1641,64 @@
    "ltasBandRmsDb": 4.541425746777738,
    "gainOffsetDb": -1.7105642286396971
   }
+ },
+ {
+  "label": "R11 round 2: bridge-aware decay fit, 500 Hz unison beat cap",
+  "date": "2026-11-08T08:16:24.474Z",
+  "summary": {
+   "tuningRmsCents": 4.1000695860134355,
+   "refPitchOffsetCents": 4.8749723401856935,
+   "bLog10Rms": 0.06844445408527554,
+   "bMedianRatio": 0.9628167807780948,
+   "t60EarlyLog2Rms": 1.2102062826235296,
+   "t60LateLog2Rms": 0.8197767041240243,
+   "t60EarlyP1MedianRatio": 0.9157507578995795,
+   "t60LateP1MedianRatio": 0.9857579255198109,
+   "levelErrDb": {
+    "pp": 8.337179721186697,
+    "mf": 4.675903723048432,
+    "ff": 5.421567615518801
+   },
+   "levelBiasDb": {
+    "pp": -0.6623952067520662,
+    "mf": 0.20686859738556507,
+    "ff": -0.08064363607089575
+   },
+   "spectralShapeRmsDb": {
+    "pp": 8.443203024849032,
+    "mf": 8.9813394584137,
+    "ff": 9.735099703498518
+   },
+   "centroidRatio": {
+    "pp": 1.4566718690459628,
+    "mf": 1.2478657854549895,
+    "ff": 1.46944791823501
+   },
+   "brightnessContrastErr": {
+    "rmsDbPerPartial": 2.126326954317166,
+    "biasDbPerPartial": -0.4030423922482642
+   },
+   "decayByRegister": {
+    "A0-B1": {
+     "early": 1,
+     "late": 0.67
+    },
+    "C2-B3": {
+     "early": 1.14,
+     "late": 0.95
+    },
+    "C4-B5": {
+     "early": 0.93,
+     "late": 1.11
+    },
+    "C6-C8": {
+     "early": 0.9,
+     "late": 1.03
+    }
+   },
+   "attackDiffMs": 1.9954648526077108,
+   "ltasBandRmsDb": 4.639350065226251,
+   "gainOffsetDb": -0.7752204342763847
+  }
  }
 ]

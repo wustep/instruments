@@ -73,6 +73,10 @@ export interface PianoDesign {
   stretch: number;
   /** per-string random mistuning (cents, std dev) */
   randomDetune: number;
+  /** Unison mistuning is heard (and tuned) as a beat rate: above this partial-1 frequency
+   *  the cents spread shrinks as cap/f1 so the beat rate stays at most what it is here.
+   *  Infinity = constant cents (a piano left out of tune). */
+  unisonBeatCapHz: number;
   /** per-key random offset of the whole note (cents, std dev) — e.g. an untuned piano */
   randomKeyDetune: number;
   /** std dev of the hammer's per-string contact weight (uneven strings / felt wear) */
@@ -114,6 +118,7 @@ const GRAND: PianoDesign = {
   damperTop: 88,
   stretch: 1,
   randomDetune: 0.25,
+  unisonBeatCapHz: 500,
   randomKeyDetune: 0,
   hammerImbalance: 0.05,
   hammerHardness: 1,
@@ -158,6 +163,7 @@ const HONKY: PianoDesign = {
   label: 'Honky-tonk',
   description: 'A tired upright: unisons far apart, hard worn hammers, loose tuning.',
   randomDetune: 3.5,
+  unisonBeatCapHz: Infinity,
   randomKeyDetune: 4,
   stretch: 0.6,
   hammerHardness: 2.8,
@@ -355,11 +361,13 @@ export function buildKeySpecs(
     const f1 = f1s[i] * Math.pow(2, keyOffset / 1200);
     const f0 = f1 / Math.sqrt(1 + B);
     const Z = T / (2 * L * f0);
-    const spread = params.unisonDetune;
+    // tuners set unisons by their beat rate: hold it constant in Hz above the cap
+    const beatScale = Math.min(1, design.unisonBeatCapHz / f1);
+    const spread = params.unisonDetune * beatScale;
     const pattern = nStrings === 3 ? [-0.5, 0.12, 0.5] : nStrings === 2 ? [-0.5, 0.5] : [0];
     const strings: StringSpec[] = [];
     for (let s = 0; s < nStrings; s++) {
-      const c = pattern[s] * spread + design.randomDetune * gauss(rand);
+      const c = pattern[s] * spread + design.randomDetune * beatScale * gauss(rand);
       const fs1 = f1 * Math.pow(2, c / 1200);
       strings.push({
         f1: fs1,

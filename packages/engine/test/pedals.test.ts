@@ -29,7 +29,9 @@ describe('dampers', () => {
       return rmsDb(r.x, 1.2, 1.5);
     };
     const ps = [0, 0.2, 0.3, 0.4, 0.5, 0.7, 1];
-    const ls = ps.map(level);
+    // monotonic in the audible range: below −100 dB (fully damped residue, ~30 dB under
+    // 16-bit silence) the order of numerical leftovers is meaningless
+    const ls = ps.map(level).map((l) => Math.max(l, -100));
     for (let i = 1; i < ls.length; i++) expect(ls[i]).toBeGreaterThanOrEqual(ls[i - 1] - 0.5);
     const at = (p: number) => ls[ps.indexOf(p)];
     // a usable half-pedal range: 40 % travel is clearly between no pedal and full pedal
