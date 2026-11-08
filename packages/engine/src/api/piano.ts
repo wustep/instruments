@@ -70,6 +70,8 @@ export interface Piano {
   /** subscribe to ~30 Hz visual frames (string shapes, hammer force, modes); enables them */
   onVisual(cb: (v: VisualFrame) => void): () => void;
   onKeys(cb: (k: KeySummary[]) => void): () => void;
+  /** errors reported by the audio thread after start-up (e.g. an instrument that cannot be built) */
+  onError(cb: (message: string) => void): () => void;
   connect(dest: AudioNode): void;
   disconnect(): void;
   dispose(): void;
@@ -92,7 +94,13 @@ function ensureModule(ctx: BaseAudioContext, url: string): Promise<void> {
 const val = (v: number | boolean): number => (typeof v === 'boolean' ? (v ? 1 : 0) : v);
 
 export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}): Promise<Piano> {
-  await ensureModule(ctx, opts.processorUrl ?? processorUrl);
+  const url = opts.processorUrl ?? processorUrl;
+  try {
+    await ensureModule(ctx, url);
+  } catch (err) {
+    loaded.delete(ctx);
+    throw new Error(`the sound engine (${url.split('/').pop()}) did not load: ${String((err as Error)?.message ?? err)}`);
+  }
   const preset = opts.preset && PRESETS[opts.preset] ? opts.preset : 'grand';
   const instrument: InstrumentId = opts.instrument && INSTRUMENT_INFO[opts.instrument] ? opts.instrument : 'piano';
   const fs = ctx.sampleRate;
@@ -121,6 +129,8 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
   const statsSubs = new Set<(s: Stats) => void>();
   const visSubs = new Set<(v: VisualFrame) => void>();
   const keySubs = new Set<(k: KeySummary[]) => void>();
+  const errorSubs = new Set<(m: string) => void>();
+  let started = false;
   let presetWaiter: (() => void) | null = null;
 
   const state = {
@@ -132,10 +142,20 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
     initMs: 0,
   };
 
-  const ready = new Promise<void>((resolve) => {
+  const ready = new Promise<void>((resolve, reject) => {
+    // a constructor that throws, or a processor that crashes later, must not leave
+    // the caller waiting for 'ready' forever
+    node.onprocessorerror = (ev: Event) => reject(new Error(`the sound engine crashed while starting${(ev as ErrorEvent).message ? `: ${(ev as ErrorEvent).message}` : ''}`));
     node.port.onmessage = (e: MessageEvent<FromProcessor>) => {
       const m = e.data;
       switch (m.type) {
+        case 'error':
+          if (!started) reject(new Error(m.message));
+          errorSubs.forEach((cb) => cb(m.message));
+          // unblock a pending instrument/preset switch
+          presetWaiter?.();
+          presetWaiter = null;
+          break;
         case 'ready':
           state.keys = m.keys;
           state.modeFrequencies = m.modeFreqs;
@@ -169,6 +189,7 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
     };
   });
   await ready;
+  started = true;
 
   const send = (m: ToProcessor) => node.port.postMessage(m);
   // Filter redesigns (inharmonicity, decay, preset) are computed here, off the audio
@@ -269,6 +290,10 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
     onKeys: (cb) => {
       keySubs.add(cb);
       return () => keySubs.delete(cb);
+    },
+    onError: (cb) => {
+      errorSubs.add(cb);
+      return () => errorSubs.delete(cb);
     },
     connect: (dest) => output.connect(dest),
     disconnect: () => output.disconnect(),

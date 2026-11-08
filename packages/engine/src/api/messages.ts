@@ -57,6 +57,7 @@ export interface VisualFrame extends Stats {
 }
 
 export type FromProcessor =
+  | { type: 'error'; message: string }
   | { type: 'ready'; sampleRate: number; initMs: number; instrument: InstrumentId; params: Record<string, unknown>; modeFreqs: number[]; keys: KeySummary[] }
   | { type: 'keys'; keys: KeySummary[] }
   | { type: 'preset'; instrument: InstrumentId; preset: string; params: Record<string, unknown>; modeFreqs: number[]; keys: KeySummary[] }

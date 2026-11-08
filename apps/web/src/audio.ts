@@ -11,11 +11,20 @@ export const fetchDesigns = (fs: number): Promise<DesignEntry[] | null> => {
   let p = designFetch.get(fs);
   if (!p) {
     const url = designUrls[fs];
+    // bounded: a stalled or redirected request (e.g. an expired login on a protected
+    // deployment) falls back to designing in the page instead of waiting forever
+    const ac = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = setTimeout(() => ac?.abort(), 2500);
     p = url
-      ? fetch(url)
-          .then((r) => (r.ok ? (r.json() as Promise<DesignEntry[]>) : null))
-          .catch(() => null)
+      ? fetch(url, { signal: ac?.signal, credentials: 'same-origin' })
+          .then((r) => (r.ok ? (r.json() as Promise<DesignEntry[]>) : (console.warn(`filter designs: HTTP ${r.status} for ${url}; designing them here instead`), null)))
+          .catch((e) => (console.warn('filter designs unavailable, designing them here instead:', e), null))
+          .finally(() => clearTimeout(timer))
       : Promise.resolve(null);
+    // a failed fetch is not cached: the next start tries again
+    void p.then((d) => {
+      if (!d) designFetch.delete(fs);
+    });
     designFetch.set(fs, p);
   }
   return p;
@@ -26,6 +35,21 @@ if (typeof window !== 'undefined') {
 }
 
 type Listener<T> = (v: T) => void;
+
+const withTimeout = <T,>(p: Promise<T>, ms: number, message: string): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(message)), ms);
+    p.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
 
 class Emitter<T> {
   private subs = new Set<Listener<T>>();
@@ -70,7 +94,7 @@ class AudioApp {
   instrument: InstrumentId = readStored();
   readonly notes = new Emitter<NoteEvent>();
   readonly stats = new Emitter<Stats>();
-  readonly state = new Emitter<'idle' | 'starting' | 'running' | 'suspended' | 'error'>();
+  readonly state = new Emitter<AudioApp['status']>();
   readonly midiStatus = new Emitter<MidiStatus>();
   readonly keysChanged = new Emitter<KeySummary[]>();
   readonly instrumentChanged = new Emitter<InstrumentId>();
@@ -80,8 +104,12 @@ class AudioApp {
   sustainValue = 0;
   softValue = 0;
   lastStats: Stats | null = null;
-  status: 'idle' | 'starting' | 'running' | 'suspended' | 'error' = 'idle';
+  /** 'stalled': still not ready after a few seconds (shown, with what to do) */
+  status: 'idle' | 'starting' | 'stalled' | 'running' | 'suspended' | 'error' = 'idle';
+  /** what went wrong, or why it is slow (shown to the user) */
   error = '';
+  private attempt = 0;
+  private autoRetried = false;
   /** wall-clock ms from start() to the instrument being ready (shown in the status line) */
   startMs = 0;
   /** input that arrived before the instrument was ready, replayed in order */
@@ -101,11 +129,27 @@ class AudioApp {
    * iOS can interrupt a running context, so this keeps trying until sound runs.
    */
   unlock(): void {
-    if (!this.ctx) {
+    if (!this.ctx || this.status === 'error') {
       void this.start().catch(() => undefined);
       return;
     }
-    if (this.ctx.state !== 'running') void this.ctx.resume().catch(() => undefined);
+    if (this.ctx.state !== 'running') {
+      void this.ctx.resume().catch(() => undefined);
+      return;
+    }
+    // running but stuck: a tap starts over with a fresh context
+    if (this.status === 'stalled') this.restart();
+  }
+
+  /** Abandon the current start attempt (keeping queued input) and start again. */
+  restart(): void {
+    this.attempt++;
+    const old = this.ctx;
+    this.ctx = null;
+    this.piano = null;
+    this.starting = null;
+    void old?.close().catch(() => undefined);
+    void this.start().catch(() => undefined);
   }
 
   /** Start audio (must be called from a user gesture the first time). */
@@ -114,8 +158,12 @@ class AudioApp {
       if (this.ctx && this.ctx.state !== 'running') void this.ctx.resume().catch(() => undefined);
       return this.starting;
     }
+    const attempt = ++this.attempt;
+    const live = () => attempt === this.attempt;
+    this.error = '';
     this.setStatus('starting');
     const t0 = performance.now();
+    let watchdog = 0;
     this.starting = (async () => {
       // iOS: play through the silent switch, like a music app (Safari 17+)
       const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
@@ -126,12 +174,32 @@ class AudioApp {
           /* older Safari */
         }
       }
-      const ctx = new AudioContext({ latencyHint: 'interactive' });
+      // ask for 48 kHz: the precomputed filter designs exist for 44.1 and 48 kHz, and
+      // audio interfaces (88.2–192 kHz) or Bluetooth headsets (16–24 kHz) would otherwise
+      // make the page design them itself; the browser resamples to the device
+      let ctx: AudioContext;
+      try {
+        ctx = new AudioContext({ latencyHint: 'interactive', sampleRate: 48000 });
+      } catch {
+        ctx = new AudioContext({ latencyHint: 'interactive' });
+      }
       this.ctx = ctx;
       // Resume immediately inside the gesture; the worklet loads meanwhile.
       void ctx.resume().catch(() => undefined);
+      // never hang silently: after 3 s say what is happening and what to do
+      watchdog = window.setTimeout(() => {
+        if (!live() || this.piano) return;
+        this.error = ctx.state !== 'running' ? 'the browser has not let sound start yet: tap or press a key' : 'still starting: tap to try again';
+        this.setStatus('stalled');
+      }, 3000);
       const designs = await fetchDesigns(ctx.sampleRate);
-      const piano = await createInstrument(ctx, { instrument: this.instrument, preset: this.preset, designs, processorUrl });
+      if (!live()) return;
+      const piano = await withTimeout(createInstrument(ctx, { instrument: this.instrument, preset: this.preset, designs, processorUrl }), 15000, 'the sound engine did not answer within 15 s');
+      if (!live()) {
+        piano.dispose();
+        return;
+      }
+      window.clearTimeout(watchdog);
       this.piano = piano;
       this.startMs = performance.now() - t0;
       const analyser = ctx.createAnalyser();
@@ -145,9 +213,15 @@ class AudioApp {
         this.stats.emit(s);
       });
       piano.onKeys((k) => this.keysChanged.emit(k));
+      piano.onError((m) => {
+        console.warn('audio thread:', m);
+        this.error = m;
+        this.setStatus('error');
+      });
       // never await resume(): without a gesture it can stay pending (iOS); the next
       // gesture's unlock() resumes and onstatechange reports it
       ctx.onstatechange = () => this.setStatus(ctx.state === 'running' ? 'running' : 'suspended');
+      this.error = '';
       this.setStatus(ctx.state === 'running' ? 'running' : 'suspended');
       this.keysChanged.emit(piano.keys);
       if (this.sustainValue) piano.sustain(this.sustainValue);
@@ -156,16 +230,22 @@ class AudioApp {
       this.queue = [];
       for (const fn of q) fn(piano);
     })().catch((err: unknown) => {
-      // never leave a failed start cached: the next gesture tries again
+      window.clearTimeout(watchdog);
+      if (!live()) return;
+      // never leave a failed start cached: the next gesture (or one automatic retry) tries again
       this.error = String((err as Error)?.message ?? err);
       console.warn('audio start failed:', err);
       void this.ctx?.close().catch(() => undefined);
       this.ctx = null;
       this.piano = null;
       this.starting = null;
-      this.queue = [];
       this.setStatus('error');
-      throw err;
+      if (!this.autoRetried) {
+        this.autoRetried = true;
+        window.setTimeout(() => {
+          if (this.status === 'error' && live()) void this.start().catch(() => undefined);
+        }, 400);
+      }
     });
     return this.starting;
   }

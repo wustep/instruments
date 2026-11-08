@@ -146,6 +146,13 @@ button {
 }
 .lamp-text {
   color: var(--accent);
+  max-width: min(60vw, 520px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.status {
+  cursor: pointer;
 }
 .midi {
   color: var(--amber);

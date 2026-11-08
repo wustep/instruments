@@ -47,6 +47,8 @@ class InstrumentProcessor extends AudioWorkletProcessor {
   private baseMaxVoices: number;
   private lastStrikeSerial = 0;
   private frameOffset = 0;
+  /** the instrument could not be built; output silence */
+  private failed = false;
   /** every filter design received from the main thread, reused when the piano is (re)created */
   private designs = new Map<string, DesignEntry>();
 
@@ -67,14 +69,25 @@ class InstrumentProcessor extends AudioWorkletProcessor {
     super();
     const o = options.processorOptions ?? {};
     const t0 = clock();
-    this.storeDesigns(o.designs);
-    this.core = createCore({ sampleRate, instrument: o.instrument, preset: o.preset, params: o.params, maxVoices: o.maxVoices ?? 64, designs: o.designs }) as Core;
+    this.port.onmessage = (e: MessageEvent<ToProcessor>) => this.onMessage(e.data);
+    try {
+      this.storeDesigns(o.designs);
+      this.core = createCore({ sampleRate, instrument: o.instrument, preset: o.preset, params: o.params, maxVoices: o.maxVoices ?? 64, designs: o.designs }) as Core;
+    } catch (err) {
+      // never fail silently: tell the main thread why, then output silence
+      this.failed = true;
+      this.post({ type: 'error', message: `the ${o.instrument ?? 'piano'} could not be built at ${sampleRate} Hz: ${String((err as Error)?.message ?? err)}` });
+      this.core = null as unknown as Core;
+      this.baseMaxVoices = 0;
+      this.adaptive = false;
+      this.visInterval = 1;
+      return;
+    }
     const initMs = clock() - t0;
     this.baseMaxVoices = this.core.maxVoices;
     this.adaptive = o.adaptive !== false;
     for (const e of o.events ?? []) this.core.schedule(e.event, e.frame);
     this.visInterval = Math.max(1, Math.round(sampleRate / 128 / 30));
-    this.port.onmessage = (e: MessageEvent<ToProcessor>) => this.onMessage(e.data);
     this.post({ type: 'ready', sampleRate, initMs, instrument: this.core.id, params: this.core.params as Record<string, unknown>, modeFreqs: Array.from(this.core.modeFrequencies), keys: this.core.keySummary() });
   }
 
@@ -83,6 +96,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
   }
 
   private onMessage(m: ToProcessor): void {
+    if (this.failed) return;
     switch (m.type) {
       case 'event': {
         const frame = m.time === undefined ? undefined : Math.round(m.time * sampleRate) - this.frameOffset;
@@ -103,7 +117,12 @@ class InstrumentProcessor extends AudioWorkletProcessor {
         this.core.allSoundOff();
         const frame = this.core.frame;
         this.storeDesigns(m.designs);
-        this.core = createCore({ sampleRate, instrument: m.instrument, preset: m.preset, params: m.params, maxVoices: this.baseMaxVoices, designs: m.instrument === 'piano' ? [...this.designs.values()] : undefined }) as Core;
+        try {
+          this.core = createCore({ sampleRate, instrument: m.instrument, preset: m.preset, params: m.params, maxVoices: this.baseMaxVoices, designs: m.instrument === 'piano' ? [...this.designs.values()] : undefined }) as Core;
+        } catch (err) {
+          this.post({ type: 'error', message: `the ${m.instrument} could not be built at ${sampleRate} Hz: ${String((err as Error)?.message ?? err)}` });
+          break;
+        }
         this.core.frame = frame;
         this.post({ type: 'preset', instrument: this.core.id, preset: m.preset ?? '', params: this.core.params as Record<string, unknown>, modeFreqs: Array.from(this.core.modeFrequencies), keys: this.core.keySummary() });
         break;
@@ -128,6 +147,10 @@ class InstrumentProcessor extends AudioWorkletProcessor {
   process(_inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
     const out = outputs[0];
     if (!out || out.length === 0) return true;
+    if (this.failed) {
+      for (const c of out) c.fill(0);
+      return true;
+    }
     const L = out[0];
     const R = out[1] ?? out[0];
     this.frameOffset = currentFrame - this.core.frame;

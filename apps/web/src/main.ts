@@ -85,13 +85,18 @@ const fmtLat = () => {
   if (!l || !audio.ctx) return '';
   return `${audio.ctx.sampleRate / 1000} kHz · ${(l.base + l.output + l.quantum).toFixed(1)} ms out`;
 };
-const LAMP: Record<string, string> = { idle: 'tap a key', starting: 'warming up', running: '', suspended: 'tap a key', error: 'tap to retry' };
+// the lamp never sits on "warming up" silently: after 3 s it says what is going on and
+// what to do; a failure shows the actual reason (shortened here, in full on hover)
+const LAMP: Record<string, string> = { idle: 'tap a key', starting: 'warming up', running: '', suspended: 'tap a key' };
 audio.state.on((s) => {
-  lampText.textContent = LAMP[s] ?? '';
-  srStatus.textContent = s === 'running' ? 'sound on' : s === 'starting' ? 'warming up' : s === 'error' ? 'sound failed, tap to retry' : 'tap a key to start';
+  const short = (m: string) => (m.length > 64 ? `${m.slice(0, 62)}…` : m);
+  lampText.textContent = s === 'error' ? `no sound: ${short(audio.error)} · tap to retry` : s === 'stalled' ? audio.error : (LAMP[s] ?? '');
+  srStatus.textContent = s === 'running' ? 'sound on' : s === 'starting' ? 'warming up' : s === 'error' ? `sound failed: ${audio.error}. Tap to retry.` : s === 'stalled' ? audio.error : 'tap a key to start';
   status.title = s === 'running' ? `sound on · ${fmtLat()}${audio.startMs ? ` · started in ${audio.startMs.toFixed(0)} ms` : ''}` : srStatus.textContent;
   document.documentElement.dataset.audio = s;
 });
+// tapping the lamp itself retries (also when the page has no keyboard)
+status.addEventListener('click', () => audio.unlock());
 document.documentElement.dataset.audio = 'idle';
 srStatus.textContent = 'tap a key to start';
 audio.midiStatus.on((m) => {

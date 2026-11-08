@@ -307,3 +307,64 @@ test('on-screen pedal: holding it sustains, releasing lets go', async ({ page })
   await page.mouse.up();
   await page.waitForFunction(() => (window as any).__piano.lastStats?.sustain < 0.01, null, { timeout: 5000 });
 });
+
+// ---------------------------------------------------------------- start-up never hangs silently
+const forceRate = (rate: number) => () => {
+  const AC = window.AudioContext;
+  // a device the browser cannot (or will not) resample from: every context runs at `rate`
+  (window as any).AudioContext = class extends AC {
+    constructor(o: AudioContextOptions = {}) {
+      super({ ...o, sampleRate: (window as any).__rate });
+    }
+  };
+  (window as any).__rate = 0;
+};
+async function clickKey(page: Page) {
+  const key = page.locator('.key[data-midi="60"]');
+  await key.scrollIntoViewIfNeeded();
+  const box = (await key.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.85);
+}
+
+test('start-up at odd sample rates (96 kHz interface, 22.05 kHz headset) still reaches sound', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'desktop covers the start-up paths');
+  for (const rate of [96000, 22050]) {
+    await page.addInitScript(forceRate(rate));
+    await page.addInitScript((r) => ((window as any).__rate = r), rate);
+    await page.goto('/');
+    await clickKey(page);
+    await page.waitForFunction(() => (window as any).__piano?.status === 'running', null, { timeout: 8000 });
+    expect(await page.evaluate(() => (window as any).__piano.ctx.sampleRate)).toBe(rate);
+  }
+});
+
+test('start-up: a stalled or refused designs file falls back; a crashing engine says why and retries', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'desktop covers the start-up paths');
+  // designs never answer: the page designs them itself after a 2.5 s timeout
+  await page.route('**/designs/**', () => undefined);
+  await page.goto('/');
+  await clickKey(page);
+  await page.waitForFunction(() => (window as any).__piano?.status === 'running', null, { timeout: 8000 });
+  await page.unroute('**/designs/**');
+  // designs refused (an expired login on a protected deployment answers 401)
+  const p2 = await page.context().newPage();
+  await p2.route('**/designs/**', (r) => r.fulfill({ status: 401, body: 'Unauthorized' }));
+  await p2.goto('/');
+  await clickKey(p2);
+  await p2.waitForFunction(() => (window as any).__piano?.status === 'running', null, { timeout: 8000 });
+  // the worklet's constructor throws: the lamp shows the reason and offers a retry, no silent hang
+  const p3 = await page.context().newPage();
+  await p3.addInitScript(() => {
+    // worklet module requests are not routable, so swap the module itself
+    const body = "registerProcessor('piano-model', class extends AudioWorkletProcessor { constructor() { super(); throw new Error('test crash'); } process() { return true; } });";
+    const url = URL.createObjectURL(new Blob([body], { type: 'text/javascript' }));
+    const orig = AudioWorklet.prototype.addModule;
+    AudioWorklet.prototype.addModule = function () {
+      return orig.call(this, url);
+    };
+  });
+  await p3.goto('/');
+  await clickKey(p3);
+  await expect(p3.locator('.lamp-text')).toContainText('tap to retry', { timeout: 6000 });
+  await expect(p3.locator('.lamp-text')).toContainText('crashed');
+});

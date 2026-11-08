@@ -1,6 +1,8 @@
 // Time-to-first-sound as a visitor experiences it: real Chrome, no autoplay flag,
 // a real click on a key, then wall-clock until the output carries sound.
-//   node scripts/startup.mjs [url] [--runs 3] [--cpu 4] [--instrument violin]
+//   node scripts/startup.mjs [url] [--runs 3] [--cpu 4] [--instrument violin] [--rate 96000]
+// --rate forces every AudioContext to that sample rate (an audio interface at 96 kHz,
+// a Bluetooth headset at 16/24 kHz) unless the page asks for one itself.
 import { chromium, webkit, devices } from '@playwright/test';
 
 const args = process.argv.slice(2);
@@ -20,8 +22,24 @@ for (let r = 0; r < runs; r++) {
   await ctx.addInitScript((inst) => {
     try { localStorage.setItem('piano-model.instrument', inst); } catch {}
   }, instrument);
+  const rate = Number(opt('--rate', '0'));
+  if (rate)
+    await ctx.addInitScript((r) => {
+      const AC = window.AudioContext;
+      // the "device" runs at r; a page that asks for a rate still gets what it asks for
+      window.AudioContext = class extends AC {
+        constructor(o = {}) {
+          super({ ...o, sampleRate: o.sampleRate ?? r });
+        }
+      };
+    }, rate);
   const page = await ctx.newPage();
   const errors = [];
+  const fetches = [];
+  page.on('response', (r) => {
+    const u = new URL(r.url());
+    if (/designs|processor/.test(u.pathname)) fetches.push(`${u.pathname.split('/').pop()} ${r.status()}`);
+  });
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   if (cpu > 1 && engine !== 'webkit') {
@@ -72,8 +90,9 @@ for (let r = 0; r < runs; r++) {
   }
   if (!touch) await page.mouse.up();
   const initMs = await page.evaluate(() => window.__piano?.piano?.initMs ?? null);
+  const state = await page.evaluate(() => ({ status: window.__piano?.status, rate: window.__piano?.ctx?.sampleRate, lamp: document.querySelector('.status')?.textContent }));
   const rel = (x) => (x ? Math.round(x - t.clickAt) : null);
-  const row = { loadMs, running: rel(t.running), ready: rel(t.ready), firstSound: rel(t.sound), workletInitMs: initMs, errors: errors.slice(0, 3) };
+  const row = { loadMs, running: rel(t.running), ready: rel(t.ready), firstSound: rel(t.sound), workletInitMs: initMs, ...state, fetches, errors: errors.slice(0, 3) };
   results.push(row);
   console.log(JSON.stringify(row));
   await ctx.close();
