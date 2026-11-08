@@ -231,6 +231,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       levels: (v as { levels?: Float32Array }).levels,
       symLevels: (v as { symLevels?: Float32Array }).symLevels,
       pianoShapes: (v as { pianoShapes?: never }).pianoShapes,
+      breath: (v as { breath?: never }).breath,
       strings: (v as { strings?: never }).strings,
       modeFreqs: core.id === 'flute' ? Array.from(core.modeFrequencies) : undefined,
     });

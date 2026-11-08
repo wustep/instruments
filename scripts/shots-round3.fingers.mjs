@@ -12,3 +12,8 @@ export default [
   ['desktop-cello-vibrato', { route: '', action: play('cello', [[50, 96]], 30), wait: 1600 }],
   ['phone-viola', { route: '', device: 'phone', action: play('viola', [[60, 96]], 20), wait: 1600 }],
 ];
+export const flute = [
+  ['desktop-flute-low', { route: '', action: play('flute', [[62, 90]], 0.12), wait: 1500 }],
+  ['desktop-flute-high', { route: '', action: play('flute', [[81, 90]], 0.12), wait: 1500 }],
+  ['phone-flute', { route: '', device: 'phone', action: play('flute', [[67, 90]], 0.12), wait: 1500 }],
+];

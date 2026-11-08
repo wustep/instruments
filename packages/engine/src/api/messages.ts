@@ -52,6 +52,8 @@ export interface VisualFrame extends Stats {
   /** piano: per-key level of struck and of sympathetically ringing strings (A0…C8) */
   levels?: Float32Array;
   symLevels?: Float32Array;
+  /** flute: breath pressure (0..1) and the breath vibrato's current deviation */
+  breath?: { pressure: number; vib: number };
   /** piano: every sounding string's shape (struck first, then sympathetic) */
   pianoShapes?: PianoShapes;
   /** bowed: the four strings, low to high */

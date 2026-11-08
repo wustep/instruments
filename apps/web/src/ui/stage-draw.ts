@@ -489,20 +489,28 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
   const focus = fr?.focus ?? null;
   const Lsound = focus ? focus.lengthM : tubeFor(60);
   const end = emb + Lsound;
-  // tone holes: open beyond the sounding end, closed (covered) before it
+  // tone holes for the fingering: covered (filled rings) up to the sounding end, open
+  // beyond it; while the breath vibrato runs, the covered rings pulse with it
+  const br = fr?.breath;
+  const vibNow = br ? br.vib : 0;
+  const blow = br ? br.pressure : 0;
   for (let m = 61; m <= 73; m++) {
     const at = emb + tubeFor(m) + 0.006;
     if (at > full - 0.005) continue;
     const open = at >= end - 0.004;
+    const rr = r * 0.55 * (open ? 1 : 1 + 2.5 * vibNow);
     ctx.beginPath();
-    ctx.arc(X(at), c - r * 0.15, r * 0.55, 0, Math.PI * 2);
+    ctx.arc(X(at), c - r * 0.15, Math.max(1, rr), 0, Math.PI * 2);
     if (open) {
       ctx.strokeStyle = rgba(INK.ivory, 0.55);
       ctx.lineWidth = 1.2;
       ctx.stroke();
     } else {
-      ctx.fillStyle = rgba(INK.ivory, 0.75);
+      ctx.fillStyle = rgba(INK.amber, Math.min(1, 0.55 + 0.35 * blow + 3 * vibNow));
       ctx.fill();
+      ctx.strokeStyle = rgba(INK.amber, 0.25 * blow);
+      ctx.lineWidth = 4;
+      ctx.stroke();
     }
   }
   // the standing pressure wave inside the bore (embouchure → sounding end)
@@ -561,11 +569,11 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
     ctx.stroke();
     ctx.setLineDash([]);
   }
-  // lip plate, embouchure hole and the jet
+  // lip plate, embouchure hole and the jet (the embouchure moves gently with the vibrato)
   ctx.strokeStyle = rgba(INK.ivory, 0.5);
   ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.ellipse(X(emb), c, r * 1.6, r * 1.25, 0, 0, Math.PI * 2);
+  ctx.ellipse(X(emb), c + vibNow * r * 4, r * 1.6, r * 1.25, 0, 0, Math.PI * 2);
   ctx.stroke();
   ctx.fillStyle = rgba(INK.ebony, 1);
   ctx.beginPath();
@@ -583,8 +591,9 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
     for (let i = 0; i < tr.length; i++) m = Math.max(m, Math.abs(tr[i]));
     const sc2 = st.jetScale.of(m);
     const n = Math.min(48, tr.length);
-    ctx.strokeStyle = rgba(INK.steel, 0.9);
-    ctx.lineWidth = 2;
+    // the air stream: thicker and brighter as the breath (and its vibrato) pushes
+    ctx.strokeStyle = rgba(INK.steel, Math.min(1, 0.55 + 0.4 * blow + 3 * vibNow));
+    ctx.lineWidth = 1.2 + 1.6 * blow * (1 + 4 * vibNow);
     ctx.beginPath();
     for (let i = 0; i < n; i++) {
       const f = i / (n - 1);

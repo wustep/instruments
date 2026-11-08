@@ -119,6 +119,8 @@ export class FluteCore implements InstrumentCore {
   private tongueN = 0;
   private tongueLen = 1;
   private attackBoost = 0;
+  /** the breath vibrato's current deviation (fraction of the pressure), for the stage */
+  private vibNow = 0;
   private vibPhase = 0;
   private expression = 1;
   /** pitch bend as a factor on the bore delay */
@@ -389,6 +391,7 @@ export class FluteCore implements InstrumentCore {
     const age = (this.frame - this.noteStart) / fs;
     this.vibPhase += 2 * Math.PI * 5.0 * dt;
     const vib = 1 + P.vibrato * clamp((age - 0.3) / 0.4, 0, 1) * Math.sin(this.vibPhase);
+    this.vibNow = vib - 1;
     // velocity: mostly loudness (jet flow amplitude), a little blowing pressure
     const V = FLUTE_VOICE;
     const v01 = this.velocity / 127;
@@ -575,6 +578,7 @@ export class FluteCore implements InstrumentCore {
       },
       strike: null,
       excite,
+      breath: { pressure: this.pressure, vib: this.vibNow },
       modes: this.modeAmps.slice(),
       sustain: this.sustain,
       soft: this.soft,
