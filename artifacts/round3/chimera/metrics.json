@@ -1,0 +1,38 @@
+{
+ "room-drag-piano": {
+  "before": 9.502626866377689,
+  "after": -0.9471355532046815
+ },
+ "room-drag-violin": {
+  "before": 7.692201149682219,
+  "after": -0.009540907599124182
+ },
+ "room-drag-flute": {
+  "before": 17.852806561752832,
+  "after": 1.9372713274455435
+ },
+ "room-drag-trumpet": {
+  "before": 5.190915287265483,
+  "after": 0.5993944734399008
+ },
+ "lid-drag-piano": {
+  "before": -0.6530842889482145,
+  "after": -0.6871063453730955
+ },
+ "blocksize-violin": {
+  "before": 5.266194225788439,
+  "after": 0
+ },
+ "blocksize-trumpet": {
+  "before": 4.174110101694481,
+  "after": 0
+ },
+ "blocksize-flute": {
+  "before": 1.1879138609443771,
+  "after": 0
+ },
+ "blocksize-piano": {
+  "before": 0.01573070078186234,
+  "after": 0
+ }
+}

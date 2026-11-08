@@ -162,9 +162,19 @@ class InstrumentProcessor extends AudioWorkletProcessor {
     }
     const L = out[0];
     const R = out[1] ?? out[0];
-    this.frameOffset = currentFrame - this.core.frame;
+    // the core may have rendered a little ahead of what it hands out (Pump)
+    this.frameOffset = currentFrame - ((this.core as { outputFrame?: number }).outputFrame ?? this.core.frame);
     const t0 = clock();
-    this.core.process(L, R, L.length);
+    try {
+      this.core.process(L, R, L.length);
+    } catch (err) {
+      // latch: one message saying why, then silence (a throwing process() would otherwise go
+      // quiet with nothing on screen, or throw again on every quantum)
+      this.failed = true;
+      for (const c of out) c.fill(0);
+      this.post({ type: 'error', message: `the sound engine stopped: ${String((err as Error)?.message ?? err)}` });
+      return true;
+    }
     const dt = clock() - t0;
     if (out.length > 2) for (let c = 2; c < out.length; c++) out[c].fill(0);
     if (!this.quantumMs) this.quantumMs = (1000 * L.length) / sampleRate;

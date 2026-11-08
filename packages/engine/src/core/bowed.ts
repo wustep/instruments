@@ -12,6 +12,7 @@
 // sympathetically. Radiation: modal velocities to two microphones + a high-
 // frequency path, the bridge-hill formant, a small room.
 
+import { Pump } from './pump.ts';
 import { type ExciteTrace, type InstrumentCore, type InstrumentId } from './instrument.ts';
 import type { KeySummary } from '../api/messages.ts';
 import type { PianoEvent } from './piano-core.ts';
@@ -315,6 +316,7 @@ export class BowedCore implements InstrumentCore {
   /** pitch bend, semitones */
   private bend = 0;
   private focus = 0;
+  private pump = new Pump(64);
   private oL = new Float64Array(128);
   private oR = new Float64Array(128);
   private hL = new Float64Array(128);
@@ -730,21 +732,27 @@ export class BowedCore implements InstrumentCore {
 
   // ------------------------------------------------------------ audio
 
+  /** Render `frames` samples into outL/outR. Internal blocks (≤ 64, cut at events) do not depend
+   *  on `frames` (see Pump). */
   process(outL: Float32Array | Float64Array, outR: Float32Array | Float64Array, frames: number): void {
-    let done = 0;
-    while (done < frames) {
+    this.pump.pull(outL, outR, frames, (L, R) => {
       const q = this.queue;
       while (q.length && q[0].frame <= this.frame) this.apply(q.shift()!.ev);
-      let n = Math.min(64, frames - done);
+      let n = 64;
       if (q.length) n = Math.max(1, Math.min(n, q[0].frame - this.frame));
       this.control(n);
       this.render(n);
       for (let t = 0; t < n; t++) {
-        outL[done + t] = this.oL[t];
-        outR[done + t] = this.oR[t];
+        L[t] = this.oL[t];
+        R[t] = this.oR[t];
       }
-      done += n;
-    }
+      return n;
+    });
+  }
+
+  /** the frame now leaving process() (the core has rendered up to `frame`) */
+  get outputFrame(): number {
+    return this.frame - this.pump.pending;
   }
 
   /** control-rate updates: bow envelopes, vibrato, finger lifts */

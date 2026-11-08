@@ -108,12 +108,20 @@ export class Room {
   private erBuf: Float64Array;
   private erI = 0;
   /** early reflections: integer delays and gains per microphone, split by reflection order */
-  private erD1L = new Int32Array(0);
-  private erD1R = new Int32Array(0);
+  private erD1L = new Float64Array(0);
+  private erD1R = new Float64Array(0);
   private erG1L = new Float64Array(0);
   private erG1R = new Float64Array(0);
-  private erD2L = new Int32Array(0);
-  private erD2R = new Int32Array(0);
+  private erD2L = new Float64Array(0);
+  private erD2R = new Float64Array(0);
+  /** where the reflections' delays, the late lines and the predelay are heading: a change of
+   *  room glides there (~80 ms), so dragging the room's edge moves the reflections instead of
+   *  jumping them (each jump of a delay is a click) */
+  private erT: Float64Array[] = [];
+  private lenT = new Float64Array(16);
+  private preT = 1;
+  private wetNow = -1;
+  private glide = 0;
   private erG2L = new Float64Array(0);
   private erG2R = new Float64Array(0);
   private erLp = new Float64Array(4); // [order1 L, order1 R, order2 L, order2 R]
@@ -135,7 +143,7 @@ export class Room {
   private o = new Float64Array(16);
   private pre: Float64Array;
   private preI = 0;
-  private preLen = 1;
+  private preLen = 1.0;
   private dBuf: Float64Array[] = [];
   private dIdx = new Int32Array(6);
   private dG = new Float64Array(6);
@@ -167,7 +175,8 @@ export class Room {
     const tNyq = this.t60 * 0.3;
     for (let i = 0; i < Room.N; i++) {
       const L = Math.min(this.lines[i].length - 24, (BASE_MS[i] * this.size * fs) / 1000);
-      this.len[i] = L;
+      this.lenT[i] = L;
+      if (!this.len[i]) this.len[i] = L;
       const sec = L / fs;
       const gm = Math.pow(10, (-3 * sec) / this.t60);
       const gl = Math.pow(10, (-3 * sec) / tLow);
@@ -178,7 +187,8 @@ export class Room {
       this.hfP[i] = (1 - r) / (1 + r);
       void r;
     }
-    this.preLen = Math.max(1, Math.min(this.pre.length - 1, Math.round((0.012 + 0.02 * room) * fs)));
+    this.preT = Math.max(1, Math.min(this.pre.length - 2, (0.012 + 0.02 * room) * fs));
+    if (this.preLen <= 1) this.preLen = this.preT;
     // ---- image sources: a shoebox hall, source on the stage, microphones a few metres out
     const Lx = 26 * this.size;
     const Ly = 18 * this.size;
@@ -215,12 +225,18 @@ export class Room {
           const g = Math.pow(Rw, order) / g0;
           (order === 1 ? t1 : t2).push([dl, dr, (g * cardioid(micL, axL, p) * d0) / dist(p, micL), (g * cardioid(micR, axR, p) * d0) / dist(p, micR)]);
         }
-    this.erD1L = Int32Array.from(t1.map((t) => t[0]));
-    this.erD1R = Int32Array.from(t1.map((t) => t[1]));
+    const targets = [t1.map((t) => t[0]), t1.map((t) => t[1]), t2.map((t) => t[0]), t2.map((t) => t[1])].map((a) => Float64Array.from(a));
+    // the same image sources whatever the size: glide; otherwise (first time) start there
+    const same = this.erT.length === 4 && this.erT.every((a, i) => a.length === targets[i].length);
+    this.erT = targets;
+    if (!same) {
+      this.erD1L = Float64Array.from(targets[0]);
+      this.erD1R = Float64Array.from(targets[1]);
+      this.erD2L = Float64Array.from(targets[2]);
+      this.erD2R = Float64Array.from(targets[3]);
+    }
     this.erG1L = Float64Array.from(t1.map((t) => t[2]));
     this.erG1R = Float64Array.from(t1.map((t) => t[3]));
-    this.erD2L = Int32Array.from(t2.map((t) => t[0]));
-    this.erD2R = Int32Array.from(t2.map((t) => t[1]));
     this.erG2L = Float64Array.from(t2.map((t) => t[2]));
     this.erG2R = Float64Array.from(t2.map((t) => t[3]));
     // more HF absorption per bounce (walls + air)
@@ -250,8 +266,34 @@ export class Room {
     const lines = this.lines;
     const erBuf = this.erBuf;
     const eN = erBuf.length;
+    // glide towards a new room (~80 ms): delays move, never jump
+    if (!this.glide) this.glide = 1 / (0.08 * this.fs);
+    const kg = 1 - Math.exp(-len * this.glide);
+    const cur = [this.erD1L, this.erD1R, this.erD2L, this.erD2R];
+    for (let a = 0; a < 4; a++) {
+      const c = cur[a];
+      const tg = this.erT[a];
+      for (let j = 0; j < c.length; j++) c[j] += (tg[j] - c[j]) * kg;
+    }
+    for (let i = 0; i < N; i++) this.len[i] += (this.lenT[i] - this.len[i]) * kg;
+    this.preLen += (this.preT - this.preLen) * kg;
+    if (this.wetNow < 0) this.wetNow = wet;
+    const wet0 = this.wetNow;
+    this.wetNow += (wet - this.wetNow) * kg;
+    const wStep = (this.wetNow - wet0) / Math.max(1, len);
+    let wetT = wet0;
     const d1L = this.erD1L, d1R = this.erD1R, g1L = this.erG1L, g1R = this.erG1R;
     const d2L = this.erD2L, d2R = this.erD2R, g2L = this.erG2L, g2R = this.erG2R;
+    const tap = (buf: Float64Array, w: number, d: number): number => {
+      let p = w - d;
+      if (p < 0) p += eN;
+      let i0 = p | 0;
+      // w − d a hair below 0 plus eN can round to exactly eN
+      if (i0 >= eN) i0 -= eN;
+      const fr = p - i0;
+      const a0 = buf[i0];
+      return a0 + fr * (buf[i0 + 1 < eN ? i0 + 1 : 0] - a0);
+    };
     const [k1, k2] = this.erK;
     const lowA = this.lowA;
     // delay modulation: ±0.17 ms, a different slow rate per line; updated once per block
@@ -271,20 +313,12 @@ export class Room {
       const w = this.erI;
       let e1L = 0, e1R = 0, e2L = 0, e2R = 0;
       for (let j = 0; j < d1L.length; j++) {
-        let a = w - d1L[j];
-        if (a < 0) a += eN;
-        let b = w - d1R[j];
-        if (b < 0) b += eN;
-        e1L += g1L[j] * erBuf[a];
-        e1R += g1R[j] * erBuf[b];
+        e1L += g1L[j] * tap(erBuf, w, d1L[j]);
+        e1R += g1R[j] * tap(erBuf, w, d1R[j]);
       }
       for (let j = 0; j < d2L.length; j++) {
-        let a = w - d2L[j];
-        if (a < 0) a += eN;
-        let b = w - d2R[j];
-        if (b < 0) b += eN;
-        e2L += g2L[j] * erBuf[a];
-        e2R += g2R[j] * erBuf[b];
+        e2L += g2L[j] * tap(erBuf, w, d2L[j]);
+        e2R += g2R[j] * tap(erBuf, w, d2R[j]);
       }
       this.erI = this.erI + 1 === eN ? 0 : this.erI + 1;
       const lp = this.erLp;
@@ -297,9 +331,12 @@ export class Room {
       // ---- late: predelay, input diffusion
       const pre = this.pre;
       const pi = this.preI;
-      let ri = pi - this.preLen;
-      if (ri < 0) ri += pre.length;
-      let d = pre[ri];
+      let rp = pi - this.preLen;
+      if (rp < 0) rp += pre.length;
+      let r0 = rp | 0;
+      if (r0 >= pre.length) r0 -= pre.length;
+      const rf = rp - r0;
+      let d = pre[r0] + rf * (pre[r0 + 1 < pre.length ? r0 + 1 : 0] - pre[r0]);
       pre[pi] = x + 0.3 * (erL + erR);
       this.preI = pi + 1 === pre.length ? 0 : pi + 1;
       for (let k = 0; k < 6; k++) {
@@ -318,7 +355,8 @@ export class Room {
         const ln = line.length;
         let p = wi[i] - dl[i];
         if (p < 0) p += ln;
-        const i0 = p | 0;
+        let i0 = p | 0;
+        if (i0 >= ln) i0 -= ln;
         const fr = p - i0;
         const a0 = line[i0];
         let v = (a0 + fr * (line[i0 + 1 < ln ? i0 + 1 : 0] - a0)) * gMid[i];
@@ -343,8 +381,9 @@ export class Room {
         line[w0] = o[i] * 0.25 + (i & 1 ? -d : d) * 0.5;
         wi[i] = w0 + 1 === line.length ? 0 : w0 + 1;
       }
-      L[t] += wet * (erG * erL + lateG * outL);
-      R[t] += wet * (erG * erR + lateG * outR);
+      wetT += wStep;
+      L[t] += wetT * (erG * erL + lateG * outL);
+      R[t] += wetT * (erG * erR + lateG * outR);
     }
   }
 }

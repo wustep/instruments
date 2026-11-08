@@ -4,6 +4,7 @@
 // runs identically in the AudioWorklet, in Node for tests/calibration, and in
 // OfflineAudioContext renders.
 
+import { Pump } from './pump.ts';
 import { DEFAULT_CALIBRATION, type Calibration } from './calibration.ts';
 import {
   DEFAULT_PARAMS,
@@ -169,6 +170,11 @@ export class PianoCore {
   private hx1 = new Float64Array(RING);
   private hx2 = new Float64Array(RING);
   private knockSeed = 0x9e3779b9;
+  private pump = new Pump(BK_MAX);
+  /** the frame now leaving process() (the core has rendered up to `frame`) */
+  get outputFrame(): number {
+    return this.frame - this.pump.pending;
+  }
   /** the key the single-key action view is watching (−1: none) */
   watchMidi = -1;
   /** the stage's reference for sympathetic levels: the loudest struck displacement, recently */
@@ -581,12 +587,12 @@ export class PianoCore {
 
   /** Render `frames` samples into outL/outR (overwrites). */
   process(outL: Float32Array | Float64Array, outR: Float32Array | Float64Array, frames: number): void {
-    let done = 0;
-    while (done < frames) {
+    // internal blocks never depend on the host's (see Pump)
+    this.pump.pull(outL, outR, frames, (outL2, outR2) => {
       // events due now
       const q = this.queue;
       while (q.length && q[0].frame <= this.frame) this.apply(q.shift()!.ev);
-      let Bk = Math.min(BK_MAX, frames - done);
+      let Bk = BK_MAX;
       if (q.length) Bk = Math.min(Bk, q[0].frame - this.frame);
       // the block's real length first: the control update (damper ramps, ages) steps by it.
       // It used to step by the length before the voices' limits, ~29 samples while ~10 were
@@ -608,11 +614,11 @@ export class PianoCore {
       const L = this.oL;
       const R = this.oR;
       for (let t = 0; t < Bk; t++) {
-        outL[done + t] = L[t];
-        outR[done + t] = R[t];
+        outL2[t] = L[t];
+        outR2[t] = R[t];
       }
-      done += Bk;
-    }
+      return Bk;
+    });
   }
 
   private block(Bk: number): void {

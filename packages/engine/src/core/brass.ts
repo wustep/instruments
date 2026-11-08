@@ -6,6 +6,7 @@
 // lengthen the bore; the lip tension picks which partial of it sounds, as on the real
 // instrument. The bell reflects the lows and radiates the highs.
 
+import { Pump } from './pump.ts';
 import type { KeySummary } from '../api/messages.ts';
 import type { ExciteTrace, InstrumentCore } from './instrument.ts';
 import { BiquadChain, Limiter, Room } from './post.ts';
@@ -93,6 +94,7 @@ export class TrumpetCore implements InstrumentCore {
   private eq = new BiquadChain();
   private room: Room;
   private limiter: Limiter;
+  private pump = new Pump(64);
   private oL = new Float64Array(128);
   private oR = new Float64Array(128);
   private prevOut = 0;
@@ -223,20 +225,26 @@ export class TrumpetCore implements InstrumentCore {
     return this.modeFreqs;
   }
 
+  /** Render `frames` samples into outL/outR. Internal blocks (≤ 64, cut at events) do not depend
+   *  on `frames` (see Pump). */
   process(outL: Float32Array | Float64Array, outR: Float32Array | Float64Array, frames: number): void {
-    let done = 0;
-    while (done < frames) {
+    this.pump.pull(outL, outR, frames, (L, R) => {
       const q = this.queue;
       while (q.length && q[0].frame <= this.frame) this.apply(q.shift()!.ev);
-      let n = Math.min(64, frames - done);
+      let n = 64;
       if (q.length) n = Math.max(1, Math.min(n, q[0].frame - this.frame));
       this.render(n);
       for (let t = 0; t < n; t++) {
-        outL[done + t] = this.oL[t];
-        outR[done + t] = this.oR[t];
+        L[t] = this.oL[t];
+        R[t] = this.oR[t];
       }
-      done += n;
-    }
+      return n;
+    });
+  }
+
+  /** the frame now leaving process() (the core has rendered up to `frame`) */
+  get outputFrame(): number {
+    return this.frame - this.pump.pending;
   }
 
   private render(n: number): void {
@@ -255,7 +263,8 @@ export class TrumpetCore implements InstrumentCore {
     // the lips follow the note (with the player's tension offset and vibrato)
     // the lips buzz a little below the note: the bore mode just above them takes over
     const lipTarget = this.lipFTarget * Math.pow(2, (P.lip - LIP_BELOW) / 12) * vib / this.bendFactor;
-    this.lipF += (lipTarget - this.lipF) * 0.2;
+    // (a time constant, not a per-block fraction: the glide must not depend on block length)
+    this.lipF += (lipTarget - this.lipF) * (1 - Math.exp(-dt / 0.006));
     const r = 0.997;
     const th = (2 * Math.PI * this.lipF) / fs;
     const a1 = -2 * r * Math.cos(th);
