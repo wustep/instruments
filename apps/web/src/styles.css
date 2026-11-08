@@ -228,24 +228,54 @@ main {
   color: var(--ink);
 }
 .glyph {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.3;
+  stroke-width: 1.1;
   stroke-linejoin: round;
   stroke-linecap: round;
+  overflow: visible;
+}
+.glyph .g-body {
+  fill: rgba(58, 42, 28, 0.55);
+}
+.glyph .g-thin {
+  stroke-width: 0.6;
+  opacity: 0.8;
 }
 .glyph .g-str {
+  stroke-width: 0.35;
+  opacity: 0.75;
+}
+.glyph .g-ebony {
+  fill: #0b0907;
+  stroke-width: 0.5;
+}
+.glyph .g-bridge {
+  stroke-width: 0.9;
+  stroke: #cdb592;
+}
+.glyph .g-steel {
+  stroke: #96b6d2;
   stroke-width: 0.6;
-  opacity: 0.7;
 }
-.glyph .g-tube {
-  stroke-width: 3.2;
+.glyph .g-fill {
+  fill: currentColor;
+  stroke: none;
+  opacity: 0.8;
 }
-.glyph .g-hole {
-  fill: var(--ground);
-  stroke-width: 0.8;
+.glyph .g-keys {
+  fill: rgba(239, 231, 214, 0.18);
+  stroke-width: 0.6;
+}
+.glyph .g-tube-body {
+  fill: rgba(150, 182, 210, 0.16);
+  stroke-width: 0.7;
+}
+.glyph .g-key {
+  fill: #0e0d0b;
+  stroke-width: 0.5;
 }
 .pick[aria-pressed='true'] .glyph {
   stroke: var(--amber);
