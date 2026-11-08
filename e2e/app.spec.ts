@@ -370,3 +370,28 @@ test('start-up: a stalled or refused designs file falls back; a crashing engine 
   await expect(p3.locator('.lamp-text')).toContainText('tap to retry', { timeout: 6000 });
   await expect(p3.locator('.lamp-text')).toContainText('crashed');
 });
+
+test('octave control: buttons and Z/X/−/= shift the keys, within each instrument’s range', async ({ page }) => {
+  await page.goto('/');
+  await startAudio(page);
+  const label = page.locator('.oct-label');
+  await expect(label).toHaveText('C4');
+  await page.keyboard.press('x');
+  await expect(label).toHaveText('C5');
+  await page.keyboard.press('Minus');
+  await expect(label).toHaveText('C4');
+  await page.getByRole('button', { name: 'Octave down' }).click();
+  await expect(label).toHaveText('C3');
+  // the computer keys now play an octave lower
+  await page.keyboard.down('KeyA');
+  await expect(page.locator('.key[data-midi="48"]')).toHaveClass(/down/);
+  await page.keyboard.up('KeyA');
+  // violin: G3 is its lowest string, so the keys stop an octave below
+  await page.evaluate(() => (window as any).__piano.setInstrument('violin'));
+  await expect(label).toHaveText('G4');
+  for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Octave down' }).click();
+  await expect(label).toHaveText('G2');
+  await page.getByRole('button', { name: 'Octave up' }).click();
+  await expect(label).toHaveText('G3');
+  await page.evaluate(() => (window as any).__piano.setInstrument('piano'));
+});

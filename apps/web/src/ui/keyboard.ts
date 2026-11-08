@@ -14,7 +14,7 @@ export interface KeyboardHandle {
   setPrepared(midis: Set<number>): void;
   /** dim keys the current instrument cannot play */
   setRange(lo: number, hi: number): void;
-  scrollToMidi(m: number): void;
+  scrollToMidi(m: number, smooth?: boolean): void;
   /** the 88-key strip (its bounding box scrolls with the keyboard) */
   readonly strip: HTMLElement;
   readonly scroller: HTMLElement;
@@ -128,12 +128,12 @@ export function createKeyboard(): KeyboardHandle {
     setRange(lo, hi) {
       keyEls.forEach((el, m) => el.classList.toggle('out', m < lo || m > hi));
     },
-    scrollToMidi(m) {
+    scrollToMidi(m, smooth = false) {
       const el = keyEls.get(m);
       if (!el) return;
       const r = el.getBoundingClientRect();
       const sr = scroll.getBoundingClientRect();
-      scroll.scrollLeft += r.left - sr.left - sr.width / 2 + r.width / 2;
+      scroll.scrollTo({ left: scroll.scrollLeft + r.left - sr.left - sr.width / 2 + r.width / 2, behavior: smooth ? 'smooth' : 'auto' });
     },
   };
 }
@@ -142,8 +142,25 @@ export function createKeyboard(): KeyboardHandle {
 export class ComputerKeys {
   base = 60;
   velocity = 84;
+  /** playable range of the current instrument: the 18 mapped keys must reach into it */
+  private lo = 21;
+  private hi = 108;
+  private clampBase(m: number): number {
+    return Math.min(Math.min(96, this.hi - 5), Math.max(Math.max(21, this.lo - 12), m));
+  }
   setBase(m: number): void {
-    this.base = Math.min(96, Math.max(24, m));
+    this.base = this.clampBase(m);
+    this.changed();
+  }
+  setRange(lo: number, hi: number): void {
+    this.lo = lo;
+    this.hi = hi;
+  }
+  /** Octave up (+1) or down (−1), kept within the instrument's range. */
+  octave(d: number): void {
+    const next = this.clampBase(this.base + 12 * d);
+    if (next === this.base || Math.abs(next - this.base) !== 12) return;
+    this.base = next;
     this.changed();
   }
   private held = new Map<string, number>();
@@ -190,8 +207,8 @@ export class ComputerKeys {
       if (e.code in ComputerKeys.MAP) e.preventDefault();
       return;
     }
-    if (e.code === 'KeyZ') return this.shift(-12);
-    if (e.code === 'KeyX') return this.shift(12);
+    if (e.code === 'KeyZ' || e.code === 'Minus' || e.code === 'NumpadSubtract') return this.octave(-1);
+    if (e.code === 'KeyX' || e.code === 'Equal' || e.code === 'NumpadAdd') return this.octave(1);
     if (e.code === 'KeyC') return this.vel(-12);
     if (e.code === 'KeyV') return this.vel(12);
     const off = ComputerKeys.MAP[e.code];
@@ -220,10 +237,6 @@ export class ComputerKeys {
     this.held.clear();
     audio.sustain(0);
     audio.soft(0);
-  }
-  private shift(d: number): void {
-    this.base = Math.min(96, Math.max(24, this.base + d));
-    this.changed();
   }
   private vel(d: number): void {
     this.velocity = Math.min(127, Math.max(10, this.velocity + d));

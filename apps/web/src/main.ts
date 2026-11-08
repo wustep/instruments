@@ -1,6 +1,6 @@
 import './styles.css';
 import { audio } from './audio.ts';
-import { INSTRUMENT_INFO, type InstrumentId } from '@piano-model/engine';
+import { INSTRUMENT_INFO, midiName, type InstrumentId } from '@piano-model/engine';
 import { ComputerKeys, createKeyboard } from './ui/keyboard.ts';
 import { h, type View } from './ui/dom.ts';
 import { pedal } from './ui/controls.ts';
@@ -24,10 +24,16 @@ knobToggle.addEventListener('click', () => {
   const open = document.documentElement.toggleAttribute('data-knobs');
   knobToggle.setAttribute('aria-expanded', String(open));
 });
+// octave: shifts the computer keys (Z/X or −/=) and brings the on-screen keys along
+const octDown = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave down', title: 'Octave down (Z or −)', onclick: () => keys.octave(-1) }, '‹');
+const octUp = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave up', title: 'Octave up (X or =)', onclick: () => keys.octave(1) }, '›');
+const octLabel = h('span', { class: 'oct-label', 'aria-live': 'polite' });
+const octave = h('div', { class: 'octave', role: 'group', 'aria-label': 'Octave' }, octDown, octLabel, octUp);
 const fallboard = h(
   'div',
   { class: 'fallboard' },
   h('div', { class: 'pedals' }, sustainPedal.el, softPedal.el),
+  octave,
   knobToggle,
   knobSlot,
 );
@@ -74,8 +80,16 @@ route();
 
 // ---------------------------------------------------------------- computer keyboard
 keys.attach();
-keys.onChange(() => keyboard.setLabels(keys.labels()));
-keyboard.setLabels(keys.labels());
+let lastBase = keys.base;
+const syncOctave = () => {
+  keyboard.setLabels(keys.labels());
+  octLabel.textContent = midiName(keys.base);
+  octLabel.title = `computer keys start at ${midiName(keys.base)}`;
+  if (keys.base !== lastBase) keyboard.scrollToMidi(keys.base + 6, true);
+  lastBase = keys.base;
+};
+keys.onChange(syncOctave);
+syncOctave();
 requestAnimationFrame(() => keyboard.scrollToMidi(keys.base + 6));
 
 // ---------------------------------------------------------------- status
@@ -115,6 +129,7 @@ const BASE: Record<InstrumentId, number> = { piano: 60, violin: 67, viola: 60, c
 const syncInstrument = (id: InstrumentId) => {
   const info = INSTRUMENT_INFO[id];
   keyboard.setRange(info.lo, info.hi);
+  keys.setRange(info.lo, info.hi);
   keys.setBase(BASE[id]);
   softPedal.el.hidden = id !== 'piano';
   document.documentElement.dataset.instrument = id;

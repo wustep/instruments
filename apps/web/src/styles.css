@@ -1071,3 +1071,33 @@ figure[title] {
   font-size: 15px;
   padding: 2px 6px 2px 0;
 }
+
+/* ------------------------------------------------------------ octave */
+.octave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--mono);
+}
+.oct-btn {
+  width: 26px;
+  height: 30px;
+  border: 1px solid #3a3226;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #2a241c, #17130f);
+  color: var(--brass);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 0 #000;
+}
+.oct-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #000;
+}
+.oct-label {
+  min-width: 30px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-2);
+}
