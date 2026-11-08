@@ -696,8 +696,8 @@ export class Voice {
     const e = this.damper;
     if (Math.abs(e - this.damperApplied) < 1e-4) return;
     this.damperApplied = e;
-    // contact pressure -> damping: light touch damps much less (quadratic)
-    const k = e * e;
+    // contact pressure -> damping: a light touch damps much less (cubic)
+    const k = e * e * e;
     for (let s = 0; s < this.n; s++) {
       const lg = this.lgU[s] + (this.lgD[s] - this.lgU[s]) * k;
       const a = this.aU[s] + (this.aD[s] - this.aU[s]) * k;

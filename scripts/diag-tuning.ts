@@ -5,7 +5,7 @@ const rigid = process.argv.includes('--rigid');
 const cal = rigid
   ? { ...DEFAULT_CALIBRATION, board: { ...DEFAULT_CALIBRATION.board, modalMass: 1e7 }, bridgeY: { midi: [21, 108], val: [1e-7, 1e-7] } }
   : DEFAULT_CALIBRATION;
-for (const midi of [21, 33, 45, 60, 72, 84, 96, 108]) {
+for (const midi of (process.env.KEYS ?? "21,33,45,60,72,84,96,108").split(",").map(Number)) {
   const r = renderNote(midi, 80, 2.5, { dry: true, calibration: cal, params: { unisonDetune: 0, sympathetic: false, phantom: false } });
   const v = r.core.voices[midi - 21];
   const spec = r.core.specs[midi - 21];

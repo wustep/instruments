@@ -383,8 +383,10 @@ export class PianoCore {
 
   private damperContact(midi: number): number {
     const x = (midi - KEY_LO) / (KEY_HI - KEY_LO);
-    const p0 = 0.16 + 0.08 * (1 - x);
-    const p1 = 0.5 + 0.08 * (1 - x);
+    // dampers start to lift at ~20 % of pedal travel and clear the strings at ~60 %;
+    // the heavier bass dampers need a little more travel
+    const p0 = 0.14 + 0.08 * (1 - x);
+    const p1 = 0.56 + 0.08 * (1 - x);
     return 1 - smoothstep(p0, p1, this.sustain);
   }
 
