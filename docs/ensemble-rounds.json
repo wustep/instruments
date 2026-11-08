@@ -1030,7 +1030,7 @@
   }
  },
  {
-  "label": "R2-5 final: strings radiation/speed/HF loss fitted (matched vibrato, HNR, pitch terms); bow force kept; levels re-normalised",
+  "label": "R2-5: strings radiation/speed/HF loss fitted (matched vibrato, HNR, pitch terms); bow force kept; levels re-normalised [superseded: bow speeds up to 1.5 m/s changed bow every 0.6 s at ff]",
   "date": "2026-11-08T09:04:07.898Z",
   "summary": {
    "violin": {
@@ -1182,6 +1182,212 @@
      "refShare": 0.82
     },
     "pitchCentsRms": 3.69
+   },
+   "flute": {
+    "notes": 109,
+    "harmRmsDb": 7.08,
+    "ltasRmsDb": 4.51,
+    "ltasRmsDbByDyn": {
+     "pp": 6.32,
+     "mf": 3.93,
+     "ff": 6.42
+    },
+    "centroidRatio": 0.97,
+    "centroidRatioByDyn": {
+     "pp": 1.09,
+     "mf": 0.92,
+     "ff": 0.79
+    },
+    "evenOddErrDb": -5.16,
+    "evenOddErrByRegister": [
+     -8.58,
+     -3.33,
+     -2.93
+    ],
+    "evenOddRef": [
+     -3.64,
+     -11.71,
+     -18.81
+    ],
+    "evenOddModel": [
+     -11.73,
+     -14.13,
+     -20.36
+    ],
+    "registerCuts": [
+     71,
+     84
+    ],
+    "hnrDiffDb": 5.28,
+    "attackRatio": 1.67,
+    "dynSpreadDb": {
+     "ref": 12.55,
+     "model": 10.49
+    },
+    "vibrato": {
+     "refRate": 4.05,
+     "refDepth": 3.7,
+     "modelRate": 0,
+     "modelDepth": 0.71,
+     "refShare": 0.04
+    },
+    "pitchCentsRms": 0.92
+   }
+  }
+ },
+ {
+  "label": "R2-6 final: louder = bow nearer the bridge (Schelleng), bow speed capped; strings fitted (matched vibrato); levels re-normalised",
+  "date": "2026-11-08T09:19:36.921Z",
+  "summary": {
+   "violin": {
+    "notes": 78,
+    "harmRmsDb": 11.81,
+    "ltasRmsDb": 14.57,
+    "ltasRmsDbByDyn": {
+     "pp": 10.42,
+     "mf": 12.22,
+     "ff": 15.28
+    },
+    "centroidRatio": 0.7,
+    "centroidRatioByDyn": {
+     "pp": 1.39,
+     "mf": 0.81,
+     "ff": 0.59
+    },
+    "evenOddErrDb": -1.27,
+    "evenOddErrByRegister": [
+     3.89,
+     -1.09,
+     -6.05
+    ],
+    "evenOddRef": [
+     -0.57,
+     -2.19,
+     -3.12
+    ],
+    "evenOddModel": [
+     2.83,
+     -3.1,
+     -10.18
+    ],
+    "registerCuts": [
+     65,
+     74
+    ],
+    "hnrDiffDb": -1.69,
+    "attackRatio": 0.24,
+    "dynSpreadDb": {
+     "ref": 19.14,
+     "model": 17.14
+    },
+    "vibrato": {
+     "refRate": 5.7,
+     "refDepth": 6.61,
+     "modelRate": 5.55,
+     "modelDepth": 13.67,
+     "refShare": 0.22
+    },
+    "pitchCentsRms": 2.53
+   },
+   "viola": {
+    "notes": 77,
+    "harmRmsDb": 11.09,
+    "ltasRmsDb": 10.97,
+    "ltasRmsDbByDyn": {
+     "pp": 9.82,
+     "mf": 7.83,
+     "ff": 11.81
+    },
+    "centroidRatio": 0.85,
+    "centroidRatioByDyn": {
+     "pp": 1.19,
+     "mf": 0.85,
+     "ff": 0.64
+    },
+    "evenOddErrDb": -2.86,
+    "evenOddErrByRegister": [
+     0.01,
+     0.94,
+     -7.55
+    ],
+    "evenOddRef": [
+     0.55,
+     -0.9,
+     -1.51
+    ],
+    "evenOddModel": [
+     0.66,
+     -0.55,
+     -9.82
+    ],
+    "registerCuts": [
+     56,
+     67
+    ],
+    "hnrDiffDb": -1.69,
+    "attackRatio": 0.42,
+    "dynSpreadDb": {
+     "ref": 9.86,
+     "model": 10.9
+    },
+    "vibrato": {
+     "refRate": 3.4,
+     "refDepth": 7.28,
+     "modelRate": 5.4,
+     "modelDepth": 9.36,
+     "refShare": 0.06
+    },
+    "pitchCentsRms": 1.67
+   },
+   "cello": {
+    "notes": 67,
+    "harmRmsDb": 11.55,
+    "ltasRmsDb": 17,
+    "ltasRmsDbByDyn": {
+     "pp": 12.37,
+     "mf": 14.64,
+     "ff": 17.84
+    },
+    "centroidRatio": 0.73,
+    "centroidRatioByDyn": {
+     "pp": 1.3,
+     "mf": 0.81,
+     "ff": 0.51
+    },
+    "evenOddErrDb": 1.08,
+    "evenOddErrByRegister": [
+     2.73,
+     1.41,
+     -2.76
+    ],
+    "evenOddRef": [
+     -0.17,
+     -3.08,
+     -4.81
+    ],
+    "evenOddModel": [
+     2.21,
+     -3.42,
+     -5.86
+    ],
+    "registerCuts": [
+     43,
+     56
+    ],
+    "hnrDiffDb": -3.86,
+    "attackRatio": 0.86,
+    "dynSpreadDb": {
+     "ref": 12.48,
+     "model": 12.38
+    },
+    "vibrato": {
+     "refRate": 5.4,
+     "refDepth": 16.81,
+     "modelRate": 5.25,
+     "modelDepth": 17.36,
+     "refShare": 0.81
+    },
+    "pitchCentsRms": 4.25
    },
    "flute": {
     "notes": 109,

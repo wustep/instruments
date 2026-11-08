@@ -2,7 +2,7 @@
 // bore): pitch, physically emergent behaviour, stability, resonance.
 import { describe, expect, it } from 'vitest';
 import { BowedCore, FluteCore, renderInstrument, type InstrumentId } from '../src/core/index.ts';
-import { spectrum, peakIn } from '../src/analysis/index.ts';
+import { analyzeSustained, spectrum, peakIn } from '../src/analysis/index.ts';
 
 const FS = 48000;
 const cents = (a: number, b: number) => 1200 * Math.log2(a / b);
@@ -59,7 +59,10 @@ describe('bowed strings', () => {
       for (const m of notes) {
         const r = play(inst, [m], 1.5, { vibrato: 0 });
         expect(finite(r.left), `${inst} m${m}`).toBe(true);
-        expect(Math.abs(pitchCents(r.left, et(m))), `${inst} m${m}`).toBeLessThan(m > 84 || inst === 'viola' && m > 76 ? 8 : 5);
+        // pitch from the harmonic series (sub-cent on synthetic tests, sustained.test.ts):
+        // time-domain autocorrelation over a ~27-sample period (A6) is biased by several cents
+        const cents = analyzeSustained(r.left, FS, { start: Math.round(0.6 * FS), end: r.left.length }, m).cents;
+        expect(Math.abs(cents), `${inst} m${m}`).toBeLessThan(m > 84 || inst === 'viola' && m > 76 ? 8 : 5);
       }
     });
   }

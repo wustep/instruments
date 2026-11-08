@@ -17,8 +17,8 @@
    ]
   ],
   "bowSpeed": [
-   0.0267,
-   1.5
+   0.03,
+   0.4
   ],
   "forceDyn": [
    1,
@@ -28,7 +28,11 @@
    9,
    3.9
   ],
-  "outputGain": 33
+  "outputGain": 43.7,
+  "betaDyn": [
+   1.25,
+   0.6
+  ]
  },
  "viola": {
   "hf": [
@@ -59,7 +63,11 @@
    10,
    3.57
   ],
-  "outputGain": 60.5
+  "outputGain": 45.5,
+  "betaDyn": [
+   1.1,
+   0.85
+  ]
  },
  "cello": {
   "hf": [
@@ -90,6 +98,10 @@
    14,
    3.94
   ],
-  "outputGain": 26.5
+  "outputGain": 34.3,
+  "betaDyn": [
+   1.15,
+   0.75
+  ]
  }
 }

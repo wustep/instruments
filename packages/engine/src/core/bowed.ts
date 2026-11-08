@@ -78,9 +78,12 @@ interface BowedDesign {
   /** high-frequency radiation: statistical body mobility above the modal range, as a gain on
    *  the bridge force and its high-pass corner (Hz) */
   hf: [number, number];
-  /** bow-force multiplier on bowPressure at pp and at ff (linear in velocity): players lean
-   *  in harder, relative to Schelleng's maximum, as they play louder */
+  /** bow-force multiplier on bowPressure at pp and at ff (linear in velocity) */
   forceDyn: [number, number];
+  /** bow-position multiplier at pp and at ff: players play louder mainly by moving the bow
+   *  towards the bridge (Schelleng), which raises the Helmholtz amplitude ∝ v/β and, at a
+   *  fixed fraction of the maximum force, the force itself */
+  betaDyn: [number, number];
   outputGain: number;
   defaults: Partial<BowedParams>;
   seed: number;
@@ -115,8 +118,10 @@ const VIOLIN: BowedDesign = {
   bowLength: 0.64,
   hf: [0.003, 2500],
   forceDyn: [1, 1],
+  betaDyn: [1, 1],
   outputGain: 60,
-  defaults: { bowPosition: 0.11, bowPressure: 0.32, vibrato: 14, bodyDamping: 1, room: 0.35, volume: 1, sympathetic: true },
+  // bowPosition: β at velocity 80 (round 2: louder notes move the bow towards the bridge)
+  defaults: { bowPosition: 0.093, bowPressure: 0.32, vibrato: 14, bodyDamping: 1, room: 0.35, volume: 1, sympathetic: true },
   seed: 21,
 };
 
@@ -149,8 +154,9 @@ const VIOLA: BowedDesign = {
   bowLength: 0.64,
   hf: [0.003, 2500],
   forceDyn: [1, 1],
+  betaDyn: [1, 1],
   outputGain: 80,
-  defaults: { bowPosition: 0.12, bowPressure: 0.32, vibrato: 12, bodyDamping: 1, room: 0.35, volume: 1, sympathetic: true },
+  defaults: { bowPosition: 0.113, bowPressure: 0.32, vibrato: 12, bodyDamping: 1, room: 0.35, volume: 1, sympathetic: true },
   seed: 22,
 };
 
@@ -183,9 +189,10 @@ const CELLO: BowedDesign = {
   bowLength: 0.6,
   hf: [0.003, 2500],
   forceDyn: [1, 1],
+  betaDyn: [1, 1],
   outputGain: 24,
   // vibrato: the Iowa cellist's median (17 ¢ at 5.4 Hz as analysed), round 2
-  defaults: { bowPosition: 0.12, bowPressure: 0.3, vibrato: 20, bodyDamping: 1, room: 0.32, volume: 1, sympathetic: true },
+  defaults: { bowPosition: 0.108, bowPressure: 0.3, vibrato: 20, bodyDamping: 1, room: 0.32, volume: 1, sympathetic: true },
   seed: 23,
 };
 
@@ -194,6 +201,8 @@ export const BOWED: Record<string, BowedDesign> = { violin: VIOLIN, viola: VIOLA
 // (scripts/fit-strings.ts); absent keys keep the literature values above
 for (const [id, fit] of Object.entries(bowedFit as unknown as Record<string, Partial<BowedDesign>>)) if (BOWED[id]) Object.assign(BOWED[id], fit);
 
+/** velocity (0..1 of 1..127) at which bowPosition is the actual β: MIDI 80 */
+const X_REF = 79 / 126;
 const MU_S = 0.8;
 const MU_D = 0.3;
 const V0 = 0.2;
@@ -224,8 +233,9 @@ class BowedString {
   /** signed bow speed and force used by the friction solve this control block */
   vSigned = 0;
   fScale = 1;
-  /** velocity-dependent force multiplier of the current note */
+  /** velocity-dependent force and bow-position multipliers of the current note */
   forceDyn = 1;
+  betaDyn = 1;
   fBow = 0;
   fBowTarget = 0;
   stick = true;
@@ -478,7 +488,10 @@ export class BowedCore implements InstrumentCore {
     const x = clamp((velocity - 1) / 126, 0, 1);
     const v = vlo * Math.pow(vhi / vlo, x) * this.expression;
     s.vBowTarget = v;
-    s.beta = clamp(this.params.bowPosition, 0.03, 0.3);
+    // normalised to 1 at velocity 80, so bowPosition is the bow's β at that velocity
+    const [bp, bf] = this.design.betaDyn;
+    s.betaDyn = (bp + (bf - bp) * x) / (bp + (bf - bp) * X_REF);
+    s.beta = clamp(this.params.bowPosition * s.betaDyn, 0.03, 0.3);
     // Schelleng's maximum bow force for this speed/position; play a fraction of it
     const fMax = (2 * s.Z * v) / (s.beta * (MU_S - MU_D));
     const [fp, ff] = this.design.forceDyn;
@@ -633,7 +646,7 @@ export class BowedCore implements InstrumentCore {
     if (this.params.bowPosition !== old.bowPosition || this.params.bowPressure !== old.bowPressure) {
       for (const s of this.strings) if (s.bowing) {
         const ratio = s.vBowTarget;
-        s.beta = clamp(this.params.bowPosition, 0.03, 0.3);
+        s.beta = clamp(this.params.bowPosition * s.betaDyn, 0.03, 0.3);
         s.fBowTarget = clamp(this.params.bowPressure * s.forceDyn, 0.02, 1.2) * ((2 * s.Z * ratio) / (s.beta * (MU_S - MU_D)));
       }
     }
@@ -947,7 +960,7 @@ export class BowedCore implements InstrumentCore {
       trace2: tv,
       trace2Label: 'string velocity under the bow',
       caption: 'Friction force of the bow on the string over the last few periods. The string sticks to the bow (flat parts), then slips back once per period: Helmholtz motion, emerging from the friction law. The bar is the bow from frog to tip, with the contact point moving along it; when the hair runs out (or on each new détaché note) the bow reverses, and the stick–slip re-forms the other way round.',
-      meta: `${s.def.name} string · ${this.bow.changing ? 'bow change' : this.bow.dir > 0 ? 'down-bow' : 'up-bow'} ${(Math.abs(s.vSigned) * 100).toFixed(0)} cm/s · ${s.fBow.toFixed(2)} N · β ${s.beta.toFixed(2)} · ${Math.round((100 * this.bow.pos) / this.design.bowLength)} % from the frog`,
+      meta: `${s.def.name} string · ${this.bow.changing ? 'bow change' : this.bow.dir > 0 ? 'down-bow' : 'up-bow'} ${(Math.abs(s.vSigned) * 100).toFixed(0)} cm/s · ${s.fBow.toFixed(2)} N · β ${s.beta.toFixed(3)} · ${Math.round((100 * this.bow.pos) / this.design.bowLength)} % from the frog`,
     };
     return {
       frame: this.frame,

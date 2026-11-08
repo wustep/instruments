@@ -271,13 +271,13 @@ the matched method.
 
 | instrument | harmonic err dB | spectrum err dB | centroid ratio | HNR diff dB | pp→ff spread dB | even/odd err dB | pitch ¢ RMS | attack ratio |
 |---|---|---|---|---|---|---|---|---|
-| violin | 12.08 → **11.39** | 17.45 → **14.74** | 0.65 → **0.76** | +4.35 → **−1.62** | 12.49 → **20.67** (rec. 19.14) | −2.03 → −1.18 | 2.58 → 2.58 | 0.25 → 0.20 |
-| viola | 11.06 → 10.89 | 14.17 → **10.73** | 0.63 → **0.91** | +1.83 → −1.93 | 11.24 → **8.15** (rec. 9.86) | −3.58 → −3.28 | 2.12 → 1.65 | 0.31 → 0.49 |
-| cello | 13.14 → 13.00 | 20.82 → **16.16** | 0.60 → **0.70** | −0.85 → *−5.24* | 11.62 → 10.87 (rec. 12.48) | +0.32 → +0.52 | 2.78 → *3.69* | 0.72 → 0.94 |
+| violin | 12.08 → **11.81** | 17.45 → **14.57** | 0.65 → **0.70** | +4.35 → **−1.69** | 12.49 → **17.14** (rec. 19.14) | −2.03 → −1.27 | 2.58 → 2.53 | 0.25 → 0.24 |
+| viola | 11.06 → 11.09 | 14.17 → **10.97** | 0.63 → **0.85** | +1.83 → −1.69 | 11.24 → 10.90 (rec. 9.86) | −3.58 → **−2.86** | 2.12 → 1.67 | 0.31 → 0.42 |
+| cello | 13.14 → **11.55** | 20.82 → **17.00** | 0.60 → **0.73** | −0.85 → *−3.86* | 11.62 → **12.38** (rec. 12.48) | +0.32 → +1.08 | 2.78 → *4.25* | 0.72 → 0.86 |
 | flute | 8.74 → **7.08** | 8.15 → **4.51** | 0.91 → **0.97** | +21.63 → **+5.28** | 5.14 → **10.49** (rec. 12.55) | −15.1 → **−5.16** | 0.82 → 0.92 | 0.92 → *1.67* |
 
-Before = round-1 engine and after = R2-5 final, both measured with the
-matched method. Italics mark regressions.
+Before = round-1 engine (6812c18) and after = R2-6 final, both measured with
+the matched method. Bold marks improvements; italics mark regressions.
 
 ### Flute
 
@@ -336,7 +336,25 @@ The loss combines:
 
 It uses three notes per group, with matched vibrato.
 
-A fitted bow-force-versus-dynamic map was **rejected**. Values below 1 made
+**Dynamics now come from the bow position, not runaway bow speed.** The
+first fits reached the recordings' pp→ff spread with bow speeds up to
+1.5 m/s. That is three times round 1's, and with 64 cm of hair it forced a bow
+change every 0.6 s on a sustained ff note, so the motion never settled. The
+Look-inside view showed several slips per period. The Iowa players held 7 s
+ff notes, which caps their speed near 0.1 m/s.
+
+Players play louder mostly by moving the bow towards the bridge with more
+weight (Schelleng), so velocity now also scales the bow position:
+- violin: ×1.25 at pp to ×0.6 at ff;
+- viola: ×1.1 to ×0.85;
+- cello: ×1.15 to ×0.75.
+
+At a fixed fraction of Schelleng's maximum force this raises the force too.
+Bow speed is capped at 0.4 m/s (violin), 0.33 m/s (viola) and 0.34 m/s
+(cello). The stick fraction of the string under the bow now equals 1 − β
+(Helmholtz motion) at every analysed note and velocity, including 127.
+
+A fitted bow-force-versus-dynamic map was **rejected** as well. Values below 1 made
 high positions on the E string (A6, above any analysed note) fall under the
 minimum bow force: a breathy "surface sound" with the B1− body mode louder
 than the fundamental. The bow force stays a fixed fraction of Schelleng's
@@ -344,7 +362,7 @@ maximum. Output gains were re-normalised so each instrument keeps its round-1
 median mf level (ensemble balance).
 
 The cello default vibrato is now 20 ¢. The cellist's measured median is
-17 ¢ at 5.4 Hz, and the model now measures 16 ¢ at 5.25 Hz (8 ¢ before). The
+17 ¢ at 5.4 Hz, and the model now measures 17.4 ¢ at 5.25 Hz (8 ¢ before). The
 Iowa violinist and violist used vibrato on only 22 % and 6 % of notes, so their
 musical defaults are kept.
 
@@ -353,5 +371,11 @@ musical defaults are kept.
   plus a single statistical path cannot follow the measured bridge-hill and
   air-radiation detail.
 - **Harmonic profiles:** within about 11–13 dB per note.
-- **Cello noise and pitch:** the cello is now 5 dB noisier than its recording
-  between harmonics (it was within 1 dB), and its pitch scatter rose to 3.7 ¢.
+- **Cello noise and pitch:** the cello is now 4 dB noisier than its recording
+  between harmonics (it was within 1 dB), and its pitch scatter rose to 4.3 ¢.
+- **Viola harmonic profiles:** unchanged (11.06 → 11.09 dB).
+- **Integer bow contact point.** The bow contact point is a whole-sample tap,
+  `round(β·P/2)`. A 0.2 % change of β can flip it on some notes and move their
+  level by dB: a normalisation that left β within 0.3 % moved the viola's
+  median mf level by 2.7 dB before re-normalisation. A fractional
+  (interpolated) bow junction would remove this sensitivity.
