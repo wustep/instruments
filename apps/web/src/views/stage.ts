@@ -7,7 +7,8 @@ import { DEFAULT_PARAMS, INSTRUMENT_IDS, INSTRUMENT_INFO, PRESETS, PRESET_IDS, b
 import { cssVar, fitCanvas, fmt, h, type View } from '../ui/dom.ts';
 import type { KeyboardHandle } from '../ui/keyboard.ts';
 import { glyph, knob, type KnobSpec } from '../ui/controls.ts';
-import { AutoScale, INK, ModeField, drawBowed, drawFlute, drawPiano, drawSpectrum, rgba, type BowedGeom } from '../ui/stage-draw.ts';
+import { AutoScale, INK, ModeField, drawBowed, drawFlute, drawSpectrum, rgba, type BowedGeom } from '../ui/stage-draw.ts';
+import { drawPiano, newPianoState } from '../ui/piano-draw.ts';
 
 const PIANO_KNOBS: KnobSpec[] = [
   { key: 'hammerHardness', label: 'Hammer hardness', short: 'hammer', sub: 'felt stiffness K in F = K·xᵖ', min: 0.25, max: 4, step: 0.01, log: true, fmt: (v) => `×${fmt(v, 2)}` },
@@ -126,7 +127,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
   let strike: VisualFrame['strike'] = null;
   let lastFocus: VisualFrame['focus'] = null;
   let keysFallback: KeySummary[] = pianoKeySummary(audio.preset);
-  const pianoState = { maxL: 0, strikes: new Map<number, number>(), down: new Set<number>(), sustain: 0, strScale: new AutoScale(2e-6), lvlScale: new AutoScale(1e-6, 0.995) };
+  const pianoState = newPianoState();
   const bowedState = { strScale: new AutoScale(2e-6), lvlScale: new AutoScale(1e-6, 0.995) };
   const fluteState = { pScale: new AutoScale(1e-6), jetScale: new AutoScale(1e-9), env: new Float32Array(0) };
   const fields = { piano: new ModeField(208, 100, 2.2, 3), bowed: new ModeField(150, 84, 1.8, 0.6) };
@@ -249,8 +250,10 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       const kr = kb.strip.getBoundingClientRect();
       pianoState.down = new Set(audio.down.keys());
       pianoState.sustain = audio.lastStats?.sustain ?? audio.sustainValue;
+      pianoState.soft = audio.lastStats?.soft ?? audio.softValue;
       const keys = audio.piano && audio.piano.instrument === 'piano' && audio.piano.keys.length ? audio.piano.keys : keysFallback;
-      drawPiano(ctx, w, ih, { keys, keyX: (m) => ({ x: kr.left - sr.left + kb.keyFrac(m).c * kr.width, w: kb.keyFrac(m).w * kr.width }) }, frame, pianoState, fields.piano, now);
+      const kind = audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand';
+      drawPiano(ctx, w, ih, { keys, kind, keyX: (m) => ({ x: kr.left - sr.left + kb.keyFrac(m).c * kr.width, w: kb.keyFrac(m).w * kr.width }) }, frame, pianoState, fields.piano, now);
     } else if (family() === 'bowed' && bowedGeom) drawBowed(ctx, w, ih, bowedGeom, frame, bowedState, fields.bowed, now);
     else drawFlute(ctx, w, ih, frame, fluteState);
     ctx.restore();
@@ -272,10 +275,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     syncKnobs(audio.piano.params as unknown as Record<string, number>);
     unsubVis = audio.piano.onVisual((v) => {
       frame = v;
-      if (v.strike) {
-        strike = v.strike;
-        pianoState.strikes.set(v.strike.midi, performance.now() - 8);
-      }
+      if (v.strike) strike = v.strike;
     });
   };
   const unsubs: (() => void)[] = [];
@@ -290,6 +290,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
         audio.notes.on((n) => {
           if (!n.on) return;
           pianoState.strikes.set(n.midi, performance.now());
+          pianoState.vels.set(n.midi, n.velocity);
           noteEl.textContent = midiName(n.midi);
           const k = audio.piano?.keys.find((x) => x.midi === n.midi);
           hzEl.textContent = k ? `${fmt(k.f1, 1)} Hz` : '';
