@@ -1,0 +1,12 @@
+{
+  "name": "@piano-model/engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Physically modeled acoustic piano: waveguide strings, nonlinear felt hammers, coupled modal soundboard. AudioWorklet + offline renderer.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./core": "./src/core/index.ts",
+    "./analysis": "./src/analysis/index.ts"
+  }
+}

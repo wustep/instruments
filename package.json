@@ -1,0 +1,26 @@
+{
+  "name": "piano-model",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.6",
+  "scripts": {
+    "dev": "pnpm --filter @piano-model/web dev",
+    "build": "pnpm --filter @piano-model/web build",
+    "preview": "pnpm --filter @piano-model/web preview",
+    "test": "vitest run",
+    "bench": "tsx packages/engine/bench/voices.ts",
+    "typecheck": "tsc -p packages/engine && tsc -p apps/web",
+    "e2e": "playwright test",
+    "refs:fetch": "tsx scripts/fetch-references.ts",
+    "calibrate": "tsx scripts/calibrate.ts",
+    "demos": "tsx scripts/render-demos.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "@types/node": "^24.0.0",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vite": "8.3.6",
+    "vitest": "5.1.0"
+  }
+}
