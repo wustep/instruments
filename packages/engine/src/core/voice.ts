@@ -142,39 +142,47 @@ export class Voice {
   readonly light: boolean;
   spec!: KeySpec;
   fs = 48000;
+  /** total waveguides: nV vertical (struck) + optional horizontal twins */
   n = 0;
+  /** vertically polarised (hammer-struck) strings; indices [0, nV) */
+  nV = 0;
+  /** bridge coupling ratio per waveguide (1 vertical, κ horizontal) and c·Z */
+  cpl = new Float64Array(6);
+  cZ = new Float64Array(6);
+  /** hammer force fraction reaching the horizontal polarisation */
+  polExcite = 0;
 
   bufs: Float64Array[] = [];
-  masks = new Int32Array(3);
-  N = new Int32Array(3);
-  leftLen = new Int32Array(3);
-  hPos = new Int32Array(3);
-  tapL = new Int32Array(3);
-  tapR = new Int32Array(3);
-  Z = new Float64Array(3);
-  h2Z = new Float64Array(3);
-  hT4Z = new Float64Array(3);
+  masks = new Int32Array(6);
+  N = new Int32Array(6);
+  leftLen = new Int32Array(6);
+  hPos = new Int32Array(6);
+  tapL = new Int32Array(6);
+  tapR = new Int32Array(6);
+  Z = new Float64Array(6);
+  h2Z = new Float64Array(6);
+  hT4Z = new Float64Array(6);
 
-  thA = new Float64Array(3);
-  thX = new Float64Array(3);
-  thY = new Float64Array(3);
+  thA = new Float64Array(6);
+  thX = new Float64Array(6);
+  thY = new Float64Array(6);
   /** biquad allpass sections per string, coefficients [a1,a2]* and states [s1,s2]* */
-  dispS = new Int32Array(3);
+  dispS = new Int32Array(6);
   dispC: Float64Array[] = [];
   dispState: Float64Array[] = [];
   /** tuning compensation for bridge reactance at partial 1 (samples of delay) */
-  bridgeComp = new Float64Array(3);
-  lossB0 = new Float64Array(3);
-  lossA1 = new Float64Array(3);
-  lossY = new Float64Array(3);
-  lgU = new Float64Array(3);
-  aU = new Float64Array(3);
-  lgD = new Float64Array(3);
-  aD = new Float64Array(3);
+  bridgeComp = new Float64Array(6);
+  lossB0 = new Float64Array(6);
+  lossA1 = new Float64Array(6);
+  lossY = new Float64Array(6);
+  lgU = new Float64Array(6);
+  aU = new Float64Array(6);
+  lgD = new Float64Array(6);
+  aD = new Float64Array(6);
   /** dispersion fit quality, cents RMS per string (for tests/diagnostics) */
-  dispRms = new Float64Array(3);
-  dispMax = new Float64Array(3);
-  dispK = new Int32Array(3);
+  dispRms = new Float64Array(6);
+  dispMax = new Float64Array(6);
+  dispK = new Int32Array(6);
 
   vin: Float64Array[] = [];
   /** Σ Z·vin per sample; reused as α after the junction pass */
@@ -221,18 +229,18 @@ export class Voice {
   hLam = 0.3;
   hC1 = 0;
   hC2 = 0;
-  hW = new Float64Array(3);
-  hF = new Float64Array(3);
-  hYs = new Float64Array(3);
-  hVs = new Float64Array(3);
-  private hq = new Float64Array(3);
-  private hX = new Float64Array(3);
-  private hVv = new Float64Array(3);
-  private hIL = new Int32Array(3);
-  private hIR = new Int32Array(3);
-  private hr = new Float64Array(3);
-  private hu = new Float64Array(3);
-  private hd = new Float64Array(3);
+  hW = new Float64Array(6);
+  hF = new Float64Array(6);
+  hYs = new Float64Array(6);
+  hVs = new Float64Array(6);
+  private hq = new Float64Array(6);
+  private hX = new Float64Array(6);
+  private hVv = new Float64Array(6);
+  private hIL = new Int32Array(6);
+  private hIR = new Int32Array(6);
+  private hr = new Float64Array(6);
+  private hu = new Float64Array(6);
+  private hd = new Float64Array(6);
   hRecF = new Float32Array(HAMMER_REC);
   hRecX = new Float32Array(HAMMER_REC);
   hRecLen = 0;
@@ -244,11 +252,11 @@ export class Voice {
 
   // preparation (point mass + dashpot), per string
   prep = false;
-  prepTapL = new Int32Array(3);
-  prepTapR = new Int32Array(3);
-  prepMu = new Float64Array(3);
-  prepRho = new Float64Array(3);
-  prepV = new Float64Array(3);
+  prepTapL = new Int32Array(6);
+  prepTapR = new Int32Array(6);
+  prepMu = new Float64Array(6);
+  prepRho = new Float64Array(6);
+  prepV = new Float64Array(6);
   prepPos = 0;
 
   // damper / release noise injected at the hammer tap
@@ -270,7 +278,7 @@ export class Voice {
     this.midi = midi;
     this.light = light;
     this.rng = mulberry32(midi * 2654435761 + (light ? 17 : 0));
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 6; i++) {
       this.vin.push(new Float64Array(BK_MAX));
       this.dispC.push(new Float64Array(2 * MAX_DISP));
       this.dispState.push(new Float64Array(2 * MAX_DISP));
@@ -293,11 +301,27 @@ export class Voice {
           },
         ]
       : spec.strings;
-    this.n = strings.length;
+    const nV = strings.length;
+    this.nV = nV;
+    const kappa = light ? 0 : spec.polKappa;
+    // second (horizontal) polarisation: same string, weakly coupled to the bridge, slightly
+    // different effective termination -> tiny frequency offset (Weinreich 1977)
+    const all = kappa > 0
+      ? [...strings, ...strings.map((st, i) => {
+          const f1h = st.f1 * Math.pow(2, ((i % 2 ? -1 : 1) * spec.polDetune) / 1200);
+          return { ...st, f1: f1h, f0: f1h / Math.sqrt(1 + st.B) };
+        })]
+      : strings;
+    this.n = all.length;
+    this.polExcite = kappa > 0 ? spec.polExcite : 0;
     this.ZSum = 0;
+    const zsV = strings.reduce((a, x) => a + x.Z, 0);
     const nominalLossA = nominalLossCoeff(spec, fs);
     for (let s = 0; s < this.n; s++) {
-      const st = strings[s];
+      const st = all[s];
+      const c = s < nV ? 1 : kappa;
+      this.cpl[s] = c;
+      this.cZ[s] = c * st.Z;
       const f1 = st.f1;
       const f0 = st.f0;
       const B = st.B;
@@ -328,7 +352,8 @@ export class Voice {
       if (mobility) {
         // relative loop-delay change from the bridge reactance at the first partials,
         // averaged (bass pitch is heard on partials 2–6, treble on partial 1)
-        const zs = light ? st.Z : spec.strings.reduce((a, x) => a + x.Z, 0);
+        // in-phase mode of the vertical strings; a horizontal twin sees the bridge through c²
+        const zs = (light ? st.Z : zsV) * c * c;
         let num = 0;
         let den = 0;
         for (let k = 1; k <= 6; k++) {
@@ -369,8 +394,8 @@ export class Voice {
       this.Z[s] = st.Z;
       this.h2Z[s] = 1 / (2 * st.Z);
       this.hT4Z[s] = 1 / (4 * st.Z * fs);
-      this.hW[s] = st.weight;
-      this.ZSum += st.Z;
+      if (s < nV) this.hW[s] = st.weight;
+      this.ZSum += c * c * st.Z;
 
       if (!light && spec.preparation) {
         const j = clamp(Math.round((spec.preparation.position * fs) / f1 / 2), 1, leftLen - 1);
@@ -399,7 +424,7 @@ export class Voice {
 
     // phantom partials: (F/T)^2 -> resonances at longitudinal modes
     const EA = 2.5e5;
-    this.phCoef = (0.5 * EA) / (spec.T * spec.T * this.n);
+    this.phCoef = (0.5 * EA) / (spec.T * spec.T * this.nV);
     this.phGain = light ? 0 : spec.phantomGain;
     const setBp = (o: number, f: number, q: number) => {
       const w = (2 * Math.PI * Math.min(f, 0.45 * fs)) / fs;
@@ -472,7 +497,8 @@ export class Voice {
     this.hT = 0;
     this.hFs = 0;
     let ysMean = 0;
-    for (let s = 0; s < this.n; s++) {
+    const nV = this.nV;
+    for (let s = 0; s < nV; s++) {
       const ys = this.displacementAt(s, this.hPos[s], pos);
       this.hYs[s] = ys;
       ysMean += ys;
@@ -481,11 +507,11 @@ export class Voice {
       this.hF[s] = 0;
       const base = this.spec.strings[s]?.weight ?? 1;
       let w = base;
-      if (this.n === 3 && s === 2) w *= 1 - unaCorda;
-      if (this.n === 2 && s === 1) w *= 1 - 0.3 * unaCorda;
+      if (nV === 3 && s === 2) w *= 1 - unaCorda;
+      if (nV === 2 && s === 1) w *= 1 - 0.3 * unaCorda;
       this.hW[s] = w;
     }
-    ysMean /= this.n;
+    ysMean /= nV;
     this.hY = ysMean - HAMMER_GAP;
     this.hV = vHammer;
     this.hKeff = this.hK * (1 - 0.3 * unaCorda);
@@ -495,7 +521,7 @@ export class Voice {
   }
 
   private hammerStep(p: number): void {
-    const n = this.n;
+    const n = this.nV;
     const T = 1 / this.fs;
     const c1 = this.hC1;
     const c2 = this.hC2;
@@ -591,6 +617,15 @@ export class Voice {
         const buf = this.bufs[i];
         buf[this.hIL[i]] += fi;
         buf[this.hIR[i]] -= fi;
+        // the felt also pushes a little sideways: excite the horizontal twin
+        if (this.polExcite > 0) {
+          const j = i + n;
+          const fj = this.polExcite * F[i] * this.h2Z[j];
+          const bj = this.bufs[j];
+          const mj = this.masks[j];
+          bj[(p - this.tapL[j]) & mj] += fj;
+          bj[(p - this.tapR[j]) & mj] -= fj;
+        }
       }
     }
     if (Fs > 0) {
@@ -680,7 +715,7 @@ export class Voice {
         const f = this.noiseAmp * this.noiseLp;
         this.noiseAmp *= this.noiseDecay;
         if (this.noiseAmp < 1e-9) this.noiseAmp = 0;
-        for (let s = 0; s < n; s++) {
+        for (let s = 0; s < this.nV; s++) {
           const buf = this.bufs[s];
           const mask = this.masks[s];
           const fi = f * this.h2Z[s] * (s === 0 ? 1 : 0.5);
@@ -725,7 +760,7 @@ export class Voice {
       const la = this.lossA1[s];
       let ly = this.lossY[s];
       const vin = this.vin[s];
-      const Z = this.Z[s];
+      const Z = this.cZ[s];
       for (let t = 0; t < Bk; t++) {
         const u = -buf[(pos + t - N) & mask];
         const th = tha * (u - thy) + thx;
@@ -762,12 +797,14 @@ export class Voice {
       const buf = this.bufs[s];
       const mask = this.masks[s];
       const vin = this.vin[s];
+      const c = this.cpl[s];
       if (gs === 0 && g === 1) {
-        for (let t = 0; t < Bk; t++) buf[(pos + t) & mask] = vb[t] - vin[t];
+        if (c === 1) for (let t = 0; t < Bk; t++) buf[(pos + t) & mask] = vb[t] - vin[t];
+        else for (let t = 0; t < Bk; t++) buf[(pos + t) & mask] = c * vb[t] - vin[t];
       } else {
         let gg = g;
         for (let t = 0; t < Bk; t++) {
-          buf[(pos + t) & mask] = (vb[t] - vin[t]) * gg;
+          buf[(pos + t) & mask] = (c * vb[t] - vin[t]) * gg;
           gg -= gs;
           if (gg < 0) gg = 0;
         }

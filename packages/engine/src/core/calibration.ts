@@ -54,6 +54,9 @@ export interface Calibration {
   tilt: [number, number];
   /** Output gain from board velocity (m/s) to full scale. */
   outputGain: number;
+  /** Second (horizontal) polarisation: bridge coupling ratio κ by register (0 = off),
+   *  fraction of hammer force reaching it, and its detuning (cents). */
+  polarization: { kappa: Breakpoints; excite: number; detune: number };
 }
 
 /** Literature starting point; calibration-fit.json (written by scripts/calibrate.ts --fit) overrides it. */
@@ -79,6 +82,7 @@ export const BASE_CALIBRATION: Calibration = {
   hfCross: 700,
   phantom: 1.0,
   tilt: [35, 900],
+  polarization: { kappa: { midi: [21, 72, 84, 85, 108], val: [0.32, 0.32, 0.25, 0, 0] }, excite: 0.2, detune: 0.3 },
   outputGain: 160,
 };
 

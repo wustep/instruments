@@ -107,3 +107,37 @@ within a few cents.
 * **Brightness:** the model brightens less from pp to ff than the Steinway, by
   ≈ 0.8 dB per partial. The felt exponent is near its plausible upper bound in the
   bass. Velocity-dependent felt stiffness (Stulov's relaxation) would help.
+
+## Round 2 (horizontal polarisation)
+
+Round 1 left the tenor's prompt decay ×2.6 too slow while its aftersound was
+right. One bridge admittance per register cannot set both slopes. Each struck
+string now has a horizontal twin waveguide:
+- coupled to the bridge through a transformer ratio κ = 0.32 (0.25 at C6, none
+  above), so it loses energy to the board about 10× more slowly;
+- excited by 20 % of the hammer force (the felt never pushes perfectly
+  vertically);
+- detuned by ±0.3 ¢.
+
+It is the mechanism Weinreich (1977) identified alongside unison coupling, and
+the only source of double decay for the bass unichords. Sweeps
+(`scripts/sweep.ts pol`) showed it was the first lever to move the tenor without
+breaking the other registers; three bounded fit iterations followed.
+
+| # | change | tuning ¢ RMS | B log₁₀ RMS | T60 early model/ref (A0–B1, C2–B3, C4–B5, C6–C8) | T60 late model/ref | level err dB pp/mf/ff | ⅓-oct err dB |
+|---|---|---|---|---|---|---|---|
+| R9 | round-1 final | 4.1 | 0.070 | 1.16, 2.57, 1.22, 0.66 | 0.68, 0.93, 1.18, 1.21 | 9.4 / 5.2 / 5.2 | 4.4 |
+| R10 | polarisation κ 0.32, fit iteration 3 | **3.8** | **0.063** | **1.14, 2.17, 0.81, 0.60** | **0.68, 0.95, 1.35, 0.98** | **8.0 / 4.4 / 5.2** | **4.5** |
+
+Net effect:
+* The tenor's prompt-decay error fell from ×2.57 to ×2.17.
+* The middle register is now slightly fast early (×0.81) and long late (×1.35)
+  instead of the reverse.
+* The bass aftersound is unchanged at ×0.68. Its loss is dominated by the
+  soundboard modes near the bass bridge.
+
+The piano work stops here for this pass (see the README's limitations). Next steps
+would be:
+* zone-specific modal damping instead of a single loss-factor curve;
+* a measured, per-key bridge admittance;
+* a velocity-dependent felt law (Stulov) for the brightness range.

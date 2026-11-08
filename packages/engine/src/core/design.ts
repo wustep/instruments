@@ -252,6 +252,10 @@ export interface KeySpec {
   longFreq: number;
   phantomGain: number;
   preparation: Preparation | null;
+  /** horizontal polarisation: bridge coupling ratio (0 = not modelled), hammer share, detune ¢ */
+  polKappa: number;
+  polExcite: number;
+  polDetune: number;
 }
 
 const bp = (b: Breakpoints, m: number): number => interp(m, b.midi, b.val);
@@ -405,6 +409,9 @@ export function buildKeySpecs(
       longFreq,
       phantomGain,
       preparation: design.preparations.find((pr) => pr.midi === m) ?? null,
+      polKappa: cal.polarization ? Math.max(0, bp(cal.polarization.kappa, m)) : 0,
+      polExcite: cal.polarization?.excite ?? 0,
+      polDetune: cal.polarization?.detune ?? 0,
     });
   }
   return specs;

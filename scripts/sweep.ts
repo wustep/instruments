@@ -29,6 +29,13 @@ if (!isMainThread) {
   const cases: Case[] =
     arg === 'board'
       ? [mk('base', {}), mk('mass x2', { board: { ...C.board, modalMass: C.board.modalMass * 2 } }), mk('mass x4', { board: { ...C.board, modalMass: C.board.modalMass * 4 } })]
+      : arg === 'pol'
+        ? [
+            mk('no polarisation', { polarization: { ...C.polarization, kappa: { midi: [21, 108], val: [0, 0] } } }),
+            mk('k.25 e.12', {}),
+            mk('k.15 e.25', { polarization: { kappa: { midi: [21, 72, 84, 85, 108], val: [0.15, 0.15, 0.12, 0, 0] }, excite: 0.25, detune: 0.3 } }),
+            mk('k.35 e.2 bY x2', { polarization: { kappa: { midi: [21, 72, 84, 85, 108], val: [0.35, 0.35, 0.25, 0, 0] }, excite: 0.2, detune: 0.3 }, bridgeY: scale(C.bridgeY, 2) }),
+          ]
       : arg === 'zones'
         ? [
             mk('zones 1,1,1', {}),

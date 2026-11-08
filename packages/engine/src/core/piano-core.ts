@@ -726,14 +726,14 @@ export class PianoCore {
     const v = this.lastStruck && this.lastStruck.active ? this.lastStruck : null;
     if (v) {
       const shapes: Float32Array[] = [];
-      for (let s = 0; s < v.n; s++) {
+      for (let s = 0; s < v.nV; s++) {
         const a = new Float32Array(points);
         v.shape(s, this.frame & POS_MASK, a);
         shapes.push(a);
       }
       focus = {
         midi: v.midi,
-        nStrings: v.n,
+        nStrings: v.nV,
         shapes,
         hammerAt: v.spec.beta,
         prepAt: v.prep ? v.prepPos : -1,

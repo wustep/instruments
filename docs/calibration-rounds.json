@@ -1464,5 +1464,182 @@
    "ltasBandRmsDb": 4.397162012128907,
    "gainOffsetDb": -0.42454819612760986
   }
+ },
+ {
+  "label": "R10 round 2: horizontal polarisation (κ 0.32, hammer share 0.2), fit iteration 1",
+  "date": "2026-11-08T06:17:14.129Z",
+  "summary": {
+   "tuningRmsCents": 4.067164249491778,
+   "refPitchOffsetCents": 4.8749723401856935,
+   "bLog10Rms": 0.06696794558455661,
+   "bMedianRatio": 0.9769659768856973,
+   "t60EarlyLog2Rms": 1.7068925751318818,
+   "t60LateLog2Rms": 0.6695753871021828,
+   "t60EarlyP1MedianRatio": 0.7544188967661956,
+   "t60LateP1MedianRatio": 1.0931714854582792,
+   "levelErrDb": {
+    "pp": 8.665438327001086,
+    "mf": 4.765802628691219,
+    "ff": 4.795325276013751
+   },
+   "levelBiasDb": {
+    "pp": 1.479648970158891,
+    "mf": 1.7418448848038537,
+    "ff": 2.556377318082081
+   },
+   "spectralShapeRmsDb": {
+    "pp": 8.349222791722967,
+    "mf": 8.189058359165443,
+    "ff": 8.705386239404792
+   },
+   "centroidRatio": {
+    "pp": 1.3427131564046655,
+    "mf": 1.2519554167790998,
+    "ff": 1.444723528411702
+   },
+   "brightnessContrastErr": {
+    "rmsDbPerPartial": 7.822705095453551,
+    "biasDbPerPartial": 0.28316891462461613
+   },
+   "decayByRegister": {
+    "A0-B1": {
+     "early": 1.12,
+     "late": 0.67
+    },
+    "C2-B3": {
+     "early": 2.08,
+     "late": 0.94
+    },
+    "C4-B5": {
+     "early": 0.88,
+     "late": 1.42
+    },
+    "C6-C8": {
+     "early": 0.6,
+     "late": 0.98
+    }
+   },
+   "attackDiffMs": 1.9954648526077037,
+   "ltasBandRmsDb": 3.9905824478282423,
+   "gainOffsetDb": 4.535441897915376
+  }
+ },
+ {
+  "label": "R10 round 2: horizontal polarisation (κ 0.32, hammer share 0.2), fit iteration 2",
+  "date": "2026-11-08T06:18:38.209Z",
+  "summary": {
+   "tuningRmsCents": 3.8260402801603726,
+   "refPitchOffsetCents": 4.8749723401856935,
+   "bLog10Rms": 0.06369016958456516,
+   "bMedianRatio": 0.9876795738206702,
+   "t60EarlyLog2Rms": 1.7060513996109912,
+   "t60LateLog2Rms": 0.6691510406931854,
+   "t60EarlyP1MedianRatio": 0.8392434250131668,
+   "t60LateP1MedianRatio": 1.0483578667128588,
+   "levelErrDb": {
+    "pp": 8.074978719067282,
+    "mf": 4.42566888212736,
+    "ff": 4.814014598986436
+   },
+   "levelBiasDb": {
+    "pp": 0.4359957826566756,
+    "mf": 0.15542017466609082,
+    "ff": 0.6905409913621945
+   },
+   "spectralShapeRmsDb": {
+    "pp": 9.3490621422274,
+    "mf": 8.028863406797615,
+    "ff": 9.248285090938936
+   },
+   "centroidRatio": {
+    "pp": 1.3397807067937106,
+    "mf": 1.1713642759772989,
+    "ff": 1.363119833683522
+   },
+   "brightnessContrastErr": {
+    "rmsDbPerPartial": 14.581320267875704,
+    "biasDbPerPartial": 0.4299987525716811
+   },
+   "decayByRegister": {
+    "A0-B1": {
+     "early": 1.13,
+     "late": 0.68
+    },
+    "C2-B3": {
+     "early": 2.14,
+     "late": 0.95
+    },
+    "C4-B5": {
+     "early": 0.83,
+     "late": 1.38
+    },
+    "C6-C8": {
+     "early": 0.65,
+     "late": 1.22
+    }
+   },
+   "attackDiffMs": 1.9954648526077108,
+   "ltasBandRmsDb": 4.490146779074752,
+   "gainOffsetDb": 0.8940068658768965
+  }
+ },
+ {
+  "label": "R10 round 2: horizontal polarisation (κ 0.32, hammer share 0.2), fit iteration 3",
+  "date": "2026-11-08T06:20:08.772Z",
+  "summary": {
+   "tuningRmsCents": 3.792038760441633,
+   "refPitchOffsetCents": 4.8749723401856935,
+   "bLog10Rms": 0.062736585365371,
+   "bMedianRatio": 0.9879267558372047,
+   "t60EarlyLog2Rms": 1.7217791953018993,
+   "t60LateLog2Rms": 0.669021618911707,
+   "t60EarlyP1MedianRatio": 0.7623461545268719,
+   "t60LateP1MedianRatio": 1.037460704661902,
+   "levelErrDb": {
+    "pp": 8.003961522822323,
+    "mf": 4.399201270668515,
+    "ff": 5.226688467613832
+   },
+   "levelBiasDb": {
+    "pp": -0.16515961622729947,
+    "mf": 0.012098438863503702,
+    "ff": -0.30949731206056796
+   },
+   "spectralShapeRmsDb": {
+    "pp": 8.956174687926847,
+    "mf": 8.20366263158062,
+    "ff": 9.681871995368159
+   },
+   "centroidRatio": {
+    "pp": 1.4598157486763277,
+    "mf": 1.2182356344091412,
+    "ff": 1.461347516767449
+   },
+   "brightnessContrastErr": {
+    "rmsDbPerPartial": 4.28418114033568,
+    "biasDbPerPartial": 0.4588995395651603
+   },
+   "decayByRegister": {
+    "A0-B1": {
+     "early": 1.14,
+     "late": 0.68
+    },
+    "C2-B3": {
+     "early": 2.17,
+     "late": 0.95
+    },
+    "C4-B5": {
+     "early": 0.81,
+     "late": 1.35
+    },
+    "C6-C8": {
+     "early": 0.6,
+     "late": 0.98
+    }
+   },
+   "attackDiffMs": 1.9954648526077094,
+   "ltasBandRmsDb": 4.541425746777738,
+   "gainOffsetDb": -1.7105642286396971
+  }
  }
 ]
