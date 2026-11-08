@@ -1423,3 +1423,116 @@ figure[title] {
 .stage-3d:active {
   cursor: grabbing;
 }
+
+/* ------------------------------------------------------------ notes: the long read */
+.notes .toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 4px 0 28px;
+}
+.notes .toc button {
+  font: 400 12px/1.4 var(--mono);
+  color: var(--ink-2);
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(236, 226, 206, 0.18);
+  padding: 2px 0;
+  cursor: pointer;
+}
+.notes .toc button:hover,
+.notes .toc button:focus-visible {
+  color: var(--ink);
+  border-color: rgba(242, 166, 70, 0.8);
+  outline: none;
+}
+.notes section {
+  scroll-margin-top: 24px;
+}
+.notes h2.sec {
+  font: italic 400 30px/1.15 var(--serif);
+  color: var(--ink);
+  margin: 52px 0 14px;
+}
+.notes h3 {
+  font: 500 12px/1.4 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  color: rgba(242, 166, 70, 0.9);
+  margin: 28px 0 8px;
+}
+.notes .prose ul {
+  padding-left: 1.1em;
+  margin: 0 0 1em;
+}
+.notes .prose li {
+  margin-bottom: 0.55em;
+}
+.notes .eq {
+  font: 400 14px/1.6 var(--mono);
+  color: var(--ink);
+  margin: 10px 0 16px;
+  padding: 10px 14px;
+  border-left: 2px solid rgba(242, 166, 70, 0.55);
+  background: rgba(236, 226, 206, 0.035);
+  overflow-x: auto;
+}
+.notes .eq div + div {
+  color: var(--muted);
+  font-size: 12px;
+}
+.notes .tbl {
+  margin: 12px 0 20px;
+  overflow-x: auto;
+}
+.notes table {
+  border-collapse: collapse;
+  font: 400 12.5px/1.45 var(--mono);
+  color: var(--ink-2);
+  min-width: 100%;
+}
+.notes th,
+.notes td {
+  text-align: left;
+  padding: 5px 10px 5px 0;
+  border-bottom: 1px solid rgba(236, 226, 206, 0.08);
+  vertical-align: top;
+}
+.notes th {
+  color: var(--muted);
+  font-weight: 500;
+}
+.notes figure.diagram {
+  margin: 14px 0 22px;
+  color: rgba(236, 226, 206, 0.6);
+}
+.notes figure.diagram svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.notes figure.diagram .lbl {
+  font: 400 11px var(--mono);
+}
+.notes figure.diagram .hot {
+  stroke: rgb(255, 94, 56);
+}
+.notes figure.diagram .warm {
+  stroke: rgb(242, 166, 70);
+}
+.notes figcaption {
+  font: italic 400 14px/1.45 var(--serif);
+  color: var(--muted);
+  margin-top: 6px;
+}
+.notes .refs-title {
+  margin-top: 48px;
+}
+@media (max-width: 600px) {
+  .notes h2.sec {
+    font-size: 25px;
+  }
+  .notes .eq {
+    font-size: 12.5px;
+  }
+}

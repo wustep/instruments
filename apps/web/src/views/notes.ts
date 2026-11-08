@@ -9,8 +9,14 @@ const eq = (...lines: string[]) => h('div', { class: 'eq', role: 'math' }, lines
 const ul = (...items: (Kid | Kid[])[]) => h('ul', {}, items.map((i) => h('li', {}, ...(Array.isArray(i) ? i : [i]))));
 const em = (s: string) => h('em', {}, s);
 const code = (s: string) => h('code', {}, s);
-const table = (head: string[], rows: (string | number)[][]) =>
-  h('div', { class: 'tbl' }, h('table', {}, h('thead', {}, h('tr', {}, head.map((c) => h('th', {}, c)))), h('tbody', {}, rows.map((r) => h('tr', {}, r.map((c) => h('td', {}, String(c))))))));
+const h3 = (s: string) => h('h3', {}, s);
+const table = (head: string[], rows: (string | number)[][], note?: string) =>
+  h(
+    'div',
+    { class: 'tbl' },
+    h('table', {}, h('thead', {}, h('tr', {}, head.map((c) => h('th', {}, c)))), h('tbody', {}, rows.map((r) => h('tr', {}, r.map((c) => h('td', {}, String(c))))))),
+    note ? h('div', { class: 'hint' }, note) : '',
+  );
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 function svg(viewBox: string, label: string, inner: string): HTMLElement {
@@ -24,6 +30,7 @@ function svg(viewBox: string, label: string, inner: string): HTMLElement {
   fig.appendChild(h('figcaption', {}, label));
   return fig;
 }
+const T = (x: number, y: number, s: string) => `<text x="${x}" y="${y}">${s}</text>`;
 
 const waveguide = () =>
   svg(
@@ -36,18 +43,17 @@ const waveguide = () =>
       <rect x="490" y="30" width="120" height="96" rx="6" stroke-dasharray="3 3"/>
       <path d="M470 77 H490"/>
     </g>
-    <g fill="currentColor" font-family="IBM Plex Mono, monospace" font-size="11">
-      <text x="200" y="34">→ wave towards the bridge</text><text x="200" y="132">← reflected wave</text>
-      <text x="6" y="80">agraffe</text><text x="436" y="148">bridge</text>
-      <text x="500" y="56">soundboard</text><text x="500" y="72">~150 modes</text><text x="500" y="88">(all strings</text><text x="500" y="104">share them)</text>
-      <text x="95" y="158">hammer at β·L</text>
+    <g fill="currentColor" class="lbl">
+      ${T(200, 34, '→ wave towards the bridge')}${T(200, 132, '← reflected wave')}
+      ${T(6, 80, 'agraffe')}${T(436, 148, 'bridge')}
+      ${T(500, 56, 'soundboard')}${T(500, 72, '~150 modes')}${T(500, 88, '(all strings')}${T(500, 104, 'share them)')}
+      ${T(95, 158, 'hammer at β·L')}
+      ${T(150, 82, 'dispersion all-passes · loss filter · fractional delay')}
     </g>
-    <path d="M110 150 V118" stroke="#ff5e38" stroke-width="2"/>
-    <text x="252" y="82" font-family="IBM Plex Mono, monospace" font-size="10" fill="currentColor">dispersion all-passes · loss filter · fractional delay</text>`,
+    <path d="M110 150 V118" class="hot" stroke-width="2"/>`,
   );
 
 const friction = () => {
-  // μ(Δv) = μd + (μs − μd)·v0/(v0 + |Δv|), μs 0.8, μd 0.3, v0 0.2 m/s
   const pts: string[] = [];
   for (let i = 0; i <= 120; i++) {
     const dv = -1.2 + (2.4 * i) / 120;
@@ -55,20 +61,35 @@ const friction = () => {
     const mu = Math.sign(dv) * (0.3 + 0.5 * (0.2 / (0.2 + Math.abs(dv))));
     pts.push(`${(40 + (i / 120) * 520).toFixed(1)},${(85 - mu * 90).toFixed(1)}`);
   }
-  const left = pts.filter((_, i) => i < 60).join(' ');
-  const right = pts.filter((_, i) => i >= 60).join(' ');
   return svg(
     '0 0 600 170',
-    'The bow’s friction: while the string sticks the force can be anything up to μs·F (vertical line); once it slips, friction falls towards μd as the slip speed grows.',
-    `<g stroke="currentColor" fill="none" stroke-width="1"><path d="M30 85 H570 M300 10 V160" opacity=".35"/></g>
-     <polyline points="${left}" fill="none" stroke="#f2a646" stroke-width="2"/>
-     <polyline points="${right}" fill="none" stroke="#f2a646" stroke-width="2"/>
-     <path d="M300 13 V157" stroke="#ff5e38" stroke-width="3"/>
-     <g fill="currentColor" font-family="IBM Plex Mono, monospace" font-size="11">
-       <text x="306" y="22">stick: |f| ≤ μs·F</text><text x="430" y="70">slip → μd</text><text x="470" y="100">slip speed Δv</text><text x="40" y="22">friction f / F</text>
-     </g>`,
+    'The bow’s friction: while the string sticks, the force can be anything up to μs·F (the vertical line); once it slips, friction falls towards μd as the slip speed grows.',
+    `<g stroke="currentColor" fill="none" stroke-width="1" opacity=".35"><path d="M30 85 H570 M300 10 V160"/></g>
+     <polyline points="${pts.slice(0, 60).join(' ')}" fill="none" class="warm" stroke-width="2"/>
+     <polyline points="${pts.slice(60).join(' ')}" fill="none" class="warm" stroke-width="2"/>
+     <path d="M300 13 V157" class="hot" stroke-width="3"/>
+     <g fill="currentColor" class="lbl">${T(306, 22, 'stick: |f| ≤ μs·F')}${T(430, 70, 'slip → μd')}${T(470, 100, 'slip speed Δv')}${T(40, 22, 'friction f / F')}</g>`,
   );
 };
+
+const brass = () =>
+  svg(
+    '0 0 640 150',
+    'The trumpet: the lips as a valve driven by the mouth and mouthpiece pressures, the bore as a loop whose round trip sets the harmonic series, and the bell radiating the highs (∝ f² below its cutoff) while reflecting the lows.',
+    `<g fill="none" stroke="currentColor" stroke-width="1.3">
+      <ellipse cx="60" cy="58" rx="16" ry="9"/><ellipse cx="60" cy="92" rx="16" ry="9"/>
+      <path d="M86 66 H440 M86 84 H440"/>
+      <path d="M440 66 C500 66 540 40 590 20 M440 84 C500 84 540 110 590 130"/>
+      <ellipse cx="592" cy="75" rx="8" ry="56"/>
+      <path d="M150 104 C250 130 360 130 430 104" stroke-dasharray="3 4"/>
+    </g>
+    <path d="M100 75 C140 60 180 90 220 75 S300 60 340 75 S400 90 430 75" fill="none" class="hot" stroke-width="1.6"/>
+    <g fill="currentColor" class="lbl">
+      ${T(20, 30, 'lips (mass–spring valve)')}${T(150, 50, 'bore: its round trip sets the harmonics')}
+      ${T(468, 146, 'bell: ∝ f² below 1.4 kHz')}${T(240, 124, 'reflected lows')}
+      ${T(20, 146, 'flow ∝ opening² · breath + turbulence')}
+    </g>`,
+  );
 
 interface Sec {
   id: string;
@@ -82,136 +103,144 @@ export function notesView(): View {
       id: 'overview',
       title: 'What this is',
       body: [
-        p('Six acoustic instruments — piano, violin, viola, cello, flute and trumpet — computed as physics, sample by sample, in your browser. No recorded sound is ever played as the instrument. Each is a small set of coupled physical parts: a string or an air column that carries waves, something that drives it (a felt hammer, a bow, a jet of breath, buzzing lips), and something that radiates (a soundboard, a wooden body, an open end, a bell), heard in a modelled room.'),
-        p('Everything runs in an AudioWorklet written in TypeScript. The same DSP core runs in Node for tests, calibration and offline rendering, so every number on these pages comes from the code you are hearing.'),
+        p('Six acoustic instruments — piano (grand and upright), violin, viola, cello, flute and trumpet — computed as physics, sample by sample, in your browser. No recorded sound is ever played as the instrument. Each is a small set of coupled physical parts: something that carries waves (a string, an air column), something that drives it (a felt hammer, a bow, a jet of breath, buzzing lips) and something that radiates (a soundboard, a wooden body, an open end, a bell), heard in a modelled room.'),
+        p('Everything runs in an AudioWorklet written in TypeScript. The same DSP core runs in Node for the tests, calibration and offline renders, so every number on this page comes from the code you are hearing. What moves on the stage — strings, hammers, bows, holes, valves, wavefronts — is drawn from the same simulation, live.'),
       ],
     },
     {
       id: 'piano',
       title: 'Piano',
       body: [
-        h('h3', {}, 'Strings: travelling waves'),
-        p('Each string is a digital waveguide: the solution of the wave equation is two waves travelling in opposite directions, stored in a delay loop whose length is the round trip from the agraffe to the bridge (Smith 1992). Losses, stiffness and the exact tuning are lumped into small filters in that loop.'),
+        h3('Strings: travelling waves'),
+        p('Each string is a digital waveguide: the wave equation’s solution as two waves travelling in opposite directions, held in a delay loop whose length is the round trip from the agraffe to the bridge (Smith 1992). Losses, stiffness and exact tuning are lumped into small filters in that loop.'),
         waveguide(),
         p('Piano wire is stiff, so its partials are not harmonic. Partial ', em('k'), ' of a string with inharmonicity ', em('B'), ' sits at'),
         eq('f_k = k · f₀ · √(1 + B·k²)'),
-        p('which makes the upper partials progressively sharp — the slightly metallic, bell-like quality of a piano. A cascade of second-order all-pass filters, designed per key (after Abel, Välimäki & Smith 2010), gives the loop exactly this frequency-dependent delay: the first 120 partials land within about 0.3 ¢ of the formula. A fractional (Thiran) delay sets partial 1 to the stretched tuning measured on the reference piano.'),
-        p('Losses grow with frequency. Each string’s loop has a one-pole filter fitted to target decay rates:'),
+        p('— the upper partials progressively sharp, the slightly metallic, bell-like quality of a piano. A cascade of second-order all-pass filters designed per string (after Abel, Välimäki & Smith 2010) gives the loop exactly this frequency-dependent delay: the first 120 partials land within about 0.3 ¢ of the formula. A fractional (Thiran) delay sets partial 1 to the stretched tuning measured on the reference piano. Losses grow with frequency; each loop has a one-pole filter fitted to target decay rates:'),
         eq('σ(f) = σ₁ + c · (f² − f₁²),   T₆₀(f) = ln 1000 / σ(f)', 'σ₁ from T₆₀ at partial 1, c from T₆₀ at 3 kHz (both per register, calibrated)'),
-        h('h3', {}, 'Two or three strings per note'),
-        p('Most notes have two or three strings, tuned a fraction of a cent apart (tuners hear this as a slow beat, so above the middle the spread is held as a beat rate rather than a fixed number of cents). Struck together they push the bridge in phase and give energy away quickly; as they drift apart, part of the motion stops reaching the bridge and rings on — the piano’s two-stage decay (Weinreich 1977). Each string also has a second, horizontal polarisation, weakly coupled to the bridge.'),
-        p('Since round 3 each string of a unison has its own stiffness, ±2 % around the key’s: real wires and tensions differ. Without it the strings were exact copies, and their beating swept a perfectly regular comb through the upper partials — a flanger that read as “robotic”. With it, the high partials detune by different amounts (∝ k²·ΔB) and the beating becomes irregular, as on a real piano.'),
-        h('h3', {}, 'Hammer'),
+        h3('Two or three strings per note'),
+        p('Most notes have two or three strings, tuned a fraction of a cent apart. Struck together they push the bridge in phase and give energy away quickly; as they drift apart, part of the motion no longer reaches the bridge and rings on — the piano’s two-stage decay (Weinreich 1977). Each string also has a horizontal polarisation, weakly coupled to the bridge. Each string of a unison has its own stiffness (±2 %), as real wires and tensions differ: identical copies beat in a perfectly regular comb through the upper partials, a flanger that read as “robotic”.'),
+        h3('Hammer'),
         p('The hammer is a mass on a felt spring that stiffens as it is squashed and pushes back harder while compressing than while releasing (Hunt & Crossley; Stulov):'),
         eq('F = K · xᵖ · (1 + λ·ẋ)', 'x: felt compression, p ≈ 2.8–4 (fitted per register), λ: hysteresis'),
-        p('It is solved implicitly every sample together with the strings it touches. A soft blow is a long, gentle contact (round, dark tone); a hard one is short and sharp and excites the upper partials — loud notes are brighter by physics, not by a filter. Key velocity maps to hammer speeds of about 0.5–5.7 m/s.'),
-        h('h3', {}, 'Bridge, soundboard and sympathetic strings'),
-        p('All strings end on bridges over about 150 soundboard modes, each a damped resonator with its own frequency and mode shape at three bridge zones. The board’s motion is solved jointly with every string touching it, so the board pushes back: with the pedal down, striking C3 makes C4, G4 and C5 ring quietly on their own (on the stage, those strings move in amber). Above ~700 Hz, where real boards are too dense to model mode by mode, the radiated sound is the bridge force times a mobility, diffused.'),
-        h('h3', {}, 'Dampers, pedals and the action'),
+        p('It is solved implicitly every sample with the strings it touches. A soft blow is a long, gentle contact (round, dark tone); a hard one is short and excites the upper partials — loud notes are brighter by physics, not by a filter. Key velocity maps to hammer speeds of about 0.5–5.7 m/s.'),
+        h3('Bridge, soundboard and sympathetic strings'),
+        p('All strings end on bridges over about 150 soundboard modes, each a damped resonator with its own frequency and mode shape at three bridge zones, solved jointly with every string touching it, so the board pushes back: with the pedal down, striking C2 makes C3, G3 and C1 ring on their own. On the stage they glow amber exactly as much as they really move — their displacement against the loudest struck string’s, a few percent at most. The undamped treble (F6 up on the grand, G6 on the upright) stays dark under a bass note, where it moves at about −70 dB.'),
+        p('Above ~700 Hz, where a real board is too dense to model mode by mode, the radiated sound is the bridge force times a mobility, given the board’s high-frequency response: a direct part plus a short, smooth, noise-like decay (exponentially decaying velvet noise, T₆₀ 30 ms; Järveläinen & Karjalainen; Alary et al.). Until this round that response was a chain of short all-pass filters, and every key-down — the most impulsive moment of a note — rang through them as a 40 ms metallic flutter at fixed periods. That was the “robotic” sound at the start of each note. The Steinway has no such ringing, and now neither does the model: its high-frequency tail after the attack matches the recording within 2 dB, held-out notes included.'),
+        h3('Dampers, pedals and the action'),
         ul(
-          'Dampers press on gradually when a key is released, with their own decay targets; the sustain pedal lifts them continuously, so half-pedalling works. The top keys, as on a grand, have no dampers.',
-          'Una corda shifts the hammer off one string of three (and onto softer felt); sostenuto holds the dampers that are up.',
-          'The key and action knock is a short force on the frame and board: a 1.6 ms thud plus, since round 3, a 4 ms tick of contact noise, different on every strike, that also reaches the high-frequency path (the attack used to be far too clean above 6 kHz).',
+          'Dampers press on gradually when a key is released; the sustain pedal lifts them continuously, so half-pedalling works. Una corda shifts the hammer off one string of three (and onto softer felt); sostenuto holds the dampers that are up.',
+          'The key and action knock is a short force on the frame and board: a 1.6 ms thud and a 4 ms tick of contact noise, different on every strike, fitted to the attack’s 6–12 kHz burst on 24 Steinway notes (half held out).',
+          'When the felt lands on a vibrating string it adds a little noise. This round it was found far too loud (0.8× the string’s own level): the string’s loop turned it into a 200 ms pitched buzz at every key release, louder than the note above 1 kHz. It is now 40 dB quieter and 8 ms long, and the dampers close at their real rate — they had been stepping three times too fast because the control update counted samples that were never rendered.',
           'In the bass, the strings’ longitudinal motion adds “phantom” partials through two longitudinal resonances.',
         ),
+        h3('One key, close up'),
+        p('Click a note’s strings on the stage to see its action: the key on its balance rail, capstan, wippen, jack and let-off button (escapement), the hammer’s flight and check, the damper, and the string vibrating with its real shape, struck at β. The grand has double escapement — a repetition lever holds the hammer up so the note repeats before the key is fully up. The upright has a single escapement, a hammer that swings back into a vertical string, catcher, backcheck and bridle tape. Each strike replays in slow motion from that key’s own record: the hammer’s speed, the felt’s contact force and compression over time, and the rebound that follows from them (m·Δv = ∫F dt). The engine launches the hammer at its strike speed, so the travel before the strike is reconstructed from that speed, not simulated.'),
       ],
     },
     {
       id: 'strings',
       title: 'Violin, viola, cello',
       body: [
-        p('The same strings-and-bridge machinery, bowed instead of struck. The bow grips the string by friction until the string’s pull exceeds it, slips back, and is caught again — once per period. Nobody tells the string to do this; the Helmholtz motion (a corner circulating along the string) emerges from the friction law (McIntyre, Schumacher & Woodhouse 1983).'),
+        p('The same strings-and-bridge machinery, bowed instead of struck. The bow grips the string by friction until the string’s pull exceeds it, slips back, and is caught again, once per period; the Helmholtz motion — a corner circulating along the string — emerges from the friction law (McIntyre, Schumacher & Woodhouse 1983).'),
         friction(),
         eq('μ(Δv) = μd + (μs − μd) · v₀ / (v₀ + |Δv|),   μs = 0.8, μd = 0.3, v₀ = 0.2 m/s', 'stick while |2Z·(v_bow − v_string)| ≤ μs·F, otherwise solve the slip on the curve'),
-        p('Whether the bow can hold Helmholtz motion depends on the force, the bow speed and the distance β from the bridge. Schelleng’s maximum is'),
+        p('Whether the bow holds Helmholtz motion depends on the force, the bow speed and the distance β from the bridge. Schelleng’s maximum is'),
         eq('F_max = 2Z · v_bow / (β · (μs − μd))'),
-        p('Players get louder mostly by moving the bow towards the bridge rather than by pressing harder; the model does the same, so louder notes are both brighter and stay in Helmholtz motion. The bow speed is capped at realistic values (0.33–0.4 m/s).'),
-        h('h3', {}, 'One bow, with a length'),
-        p('There is one bow, with a length and a contact point along the hair. Each détaché note takes the other direction (down-bow, up-bow); slurs and chords continue the stroke; when the hair runs out the bow changes on its own: a ~70 ms cosine reversal through zero speed with a slight weight dip, after which the stick–slip re-forms the other way round.'),
-        h('h3', {}, 'Fingers, vibrato and the body'),
-        p('A stopped note shortens the string’s loop. Vibrato rocks that length (the recorded cellist: about 17 ¢ at 5.4 Hz); the loop is read at a fractional position at the bridge. Since round 3 the bow’s taps sit on the note’s nominal loop rather than the gliding one: following the glide made them jump by a whole sample a dozen times per vibrato cycle, each a click between the harmonics (the cello was 3.9 dB noisier than its recording; now 0.2 dB).'),
-        p('All four strings stand on one bridge over a modal body: the air resonance A0 and the wood modes B1− and B1+ low down, statistically spaced modes above, and a high-frequency path for what radiates above the modal range. Open strings are driven back by the body and ring sympathetically.'),
+        p('Players get louder mostly by moving the bow towards the bridge rather than pressing harder; the model does the same, so louder notes are brighter and stay in Helmholtz motion. There is one bow with a length and a contact point along the hair: détaché notes alternate down-bow and up-bow, slurs continue the stroke, and when the hair runs out the bow changes on its own (a ~70 ms reversal through zero speed).'),
+        p('A stopped note shortens the string’s loop; vibrato rocks that length and the loop is read at a fractional position (the bow’s taps follow the nominal loop, so vibrato makes no clicks). All four strings stand on one bridge over a modal body — the air resonance A0, the wood modes B1− and B1+, statistically spaced modes above. Open strings ring sympathetically.'),
+        p('Each bowed string plays one note. Hold more notes than the strings can play (two on the G string, five on four strings) and the newest takes the string that has been playing longest; release it and the string returns to a key still held. The keyboard lights only the notes the engine is really sounding — a held key that has lost its string stays pressed but dark.'),
       ],
     },
     {
       id: 'flute',
       title: 'Flute',
       body: [
-        p('A thin jet of breath crosses the embouchure hole and hits the far edge. Sound in the tube deflects the jet at the lip; the deflection rides the jet to the edge, where it sends air into or out of the tube. The time the ride takes decides which resonance of the tube is fed:'),
-        eq('U_j = √(2p / ρ),   τ_j = l_j / (0.45 · U_j)', 'blow harder: faster jet, shorter delay, brighter tone, slightly sharper — and eventually the tube leaps to its next mode (overblowing)'),
-        p('The jet is aimed slightly off the edge, so it splits unevenly and makes even harmonics; vortices shed at the edge limit the amplitude before the jet saturates; and both openings radiate as small pulsating spheres, so the sound is the rate of change of the air flowing in and out of them (monopole radiation). Fingering shortens the tube (there are no individual tone holes in the model); the upper registers are overblown modes of the same fingering.'),
-        p('Round 3 added the tongue: when it releases the breath, the jet’s front sweeps across the edge once — a coherent push that seeds the tube — and the jet is briefly sharper. Before, the oscillation grew from turbulence alone and notes took ~4× too long to speak in the middle and upper registers.'),
+        p('A thin jet of breath crosses the embouchure hole and hits the far edge. Sound in the tube deflects the jet at the lip; the deflection rides the jet to the edge and sends air into or out of the tube. The ride time decides which resonance is fed:'),
+        eq('U_j = √(2p / ρ),   τ_j = l_j / (0.45 · U_j)', 'blow harder: faster jet, shorter delay, brighter, slightly sharper — and eventually the next mode (overblowing)'),
+        p('The jet is aimed slightly off the edge, so it splits unevenly and makes even harmonics; vortices shed at the edge limit the amplitude; both openings radiate as small pulsating spheres. Fingering shortens the tube (there are no individual tone holes in the model). The tongue’s release sweeps the jet across the edge once — a coherent push that seeds the tube — so notes speak as fast as a real flute’s (attack ×1.14 of the recordings; it was ×1.67). The flute is monophonic: the last key held sounds, and releasing it returns to the previous one.'),
       ],
     },
     {
       id: 'trumpet',
       title: 'Trumpet',
       body: [
-        p('The player’s lips are a valve: a small mass on a spring, tuned near the note, pushed open by the mouth pressure and closed again by the pressure in the mouthpiece. Air through the opening drives a bore; the bore’s round trip sets its harmonic series; and the lips lock to the bore mode just above their own resonance (Cook 1991; STK’s Brass, with real valve fingerings):'),
-        eq('ÿ + (ω_lip/Q)·ẏ + ω_lip²·y ∝ p_mouth − p_bore', 'opening h = h₀(p_mouth) + y,   flow ∝ h²   (louder ⇒ more of the cycle saturates ⇒ brighter)'),
-        p('The B♭ trumpet’s open tube plays partials 2, 3, 4, 5, 6, 8 … of B♭2. The three valves add tubing — 2 semitones (1st), 1 (2nd), 3 (3rd) — and the lip tension picks which partial of the lengthened tube sounds. Each note uses the standard fingering (fewest valves, then lowest partial):'),
-        table(
-          ['concert note', 'valves', 'partial'],
-          [
-            ['E3', '1+2+3', 2],
-            ['G3', '1+2', 2],
-            ['A3', '2', 2],
-            ['B♭3', 'open', 2],
-            ['D4', '1+2', 3],
-            ['F4', 'open', 3],
-            ['B♭4', 'open', 4],
-            ['D5', 'open', 5],
-            ['F5', 'open', 6],
-            ['B♭5', 'open', 8],
-          ],
+        p('The lips are a valve: a small mass on a spring, tuned just below the note, pushed open by the mouth pressure and pulled shut by the pressure in the mouthpiece. Air through the opening drives the bore; the bore’s round trip sets its harmonic series, and the lips lock to the bore mode just above their own resonance (Cook 1991). Real B♭ fingerings choose the tube length: the three valves add 2, 1 and 3 semitones of tubing, and the lip tension picks the partial (2, 3, 4, 5, 6, 8 of the lengthened tube).'),
+        brass(),
+        eq('ÿ + (ω_lip/Q)·ẏ + ω_lip²·y ∝ p_mouth − p_bore', 'opening h = h₀(p_mouth) + y,   flow ∝ h² · (breath + turbulence)'),
+        p('This round the trumpet was measured against the Iowa trumpet for the first time — 105 notes, pp to ff, E3 to E♭6 — and found to sound like a different instrument. Its fundamental was the strongest harmonic (in the recording the third is, with the first 5–11 dB below), it was half as bright, 8 dB short of even harmonics (clarinet-like), 17 dB too pure, and too narrow in dynamics. Three changes, each judged against held-out notes, fixed most of it:'),
+        ul(
+          ['The ', em('bell'), ' radiates ∝ f² below its cutoff (a two-pole high-pass at 1.4 kHz on the radiated pressure): a small opening radiates the lows poorly and reflects them back into the bore; above the cutoff the highs leave. The judge’s score went from 12.9 to 7.2 (spectrum error 14.9 → 3.2 dB, brightness 0.54 → 0.93 of the recording’s, even/odd −8 → −1.4 dB, dynamics 6 → 9 dB).'],
+          'Turbulence where the air squeezes through the lips: noise in the flow, proportional to it, resonated by the bore (score 7.2 → 4.1; noise now within 1 dB of the recording’s).',
+          'Its level, matched to the recordings as the other instruments are (4.1 → 3.3).',
         ),
-        p('The lips pull the playing frequency above the bore’s mode — by up to a semitone in the low register — so a measured table lengthens the bore and lowers the lips per note: the model now plays within ±6 ¢ at pp and ±2 ¢ at ff, its pitch rising slightly with dynamics as on real brass. The trumpet is new this round and has not yet been compared with recordings.'),
+        p('Eleven other attempts — a tongue release, lower pianissimo pressure, a dynamic brightness tilt, a harmonic cut-off tied to the pitch — were measured too and rejected: none beat the judge. The trumpet plays within ±6 ¢ at pp and ±2 ¢ at ff (2.7 ¢ RMS against the recordings). On the stage its standing wave glows inside the tube along the real wrap, the lips buzz with the engine’s own opening, and the valve slides light up when the air goes through them.'),
       ],
     },
     {
       id: 'room',
       title: 'The room',
       body: [
-        p('Everything is heard a few metres away in a modelled hall. Early reflections come from an image-source model of a shoebox room (Allen & Berkley 1979): the six first-order and eighteen second-order mirror images of the source, each with its own delay to each of two cardioid microphones 0.6 m apart, 1/r spreading, wall loss and more high-frequency absorption per bounce. The late reverberation is a 16-line feedback delay network (Jot & Chaigne 1991) with Hadamard mixing, input diffusion, slow delay modulation against metallic ringing, and per-line filters that give the bass a longer decay and the treble a shorter one, as in a real hall:'),
+        p('Everything is heard a few metres away in a modelled hall. Early reflections come from an image-source model of a shoebox room (Allen & Berkley 1979): the first- and second-order mirror images of the source, each with its own delay to each of two cardioid microphones 0.6 m apart, 1/r spreading, wall loss and more high-frequency absorption per bounce. The late reverberation is a 16-line feedback delay network (Jot & Chaigne 1991) with Hadamard mixing, slow delay modulation, and per-line filters that give the bass a longer and the treble a shorter decay:'),
         eq('T₆₀(mid) = 0.7 + 1.7·room  s,   T₆₀(low) ≈ 1.2×,   T₆₀(8 kHz) ≈ 0.5×'),
-        p('Measured from its impulse response, the tail is now diffuse (fine-structure roughness 6.5–6.7 dB, against 5.6 dB for ideal noise and 8.9 dB for the round-2 room), echo density builds within 62–90 ms (was 130–216 ms), and its loudness relative to the dry sound is unchanged. On the stage the wavefronts and their reflections follow these numbers; drag the room’s edge to change it, and the grand’s lid to throw more or less of the sound towards the room.'),
+        p('Dragging the room’s edge on the stage changes the room continuously, and its delays now glide (~80 ms, read at fractional positions) instead of jumping: every jump was a click, up to 18 dB above the sound on a drag. The grand’s lid is dragged the same way; closing it removes up to 11 dB above 1.8 kHz from the direct sound and dims the wavefronts it throws.'),
+      ],
+    },
+    {
+      id: 'stage',
+      title: 'The stage',
+      body: [
+        p('The stage draws the engine’s own state, about 30 times a second: every sounding string’s shape (each voice’s, not just the last note’s), the hammers and dampers, the soundboard’s or body’s modes as a Chladni-like field, the bow and its contact point, each string’s stopping point rocking with the vibrato, the flute’s covered and open holes pulsing with the breath vibrato, the trumpet’s pistons, lips and the standing wave in its bore, and wavefronts leaving the instrument and returning from the walls, fading with the room’s T₆₀. Keys light only for notes the engine is really sounding.'),
+        p('The same frames drive a 3D view (the 3d button; drag to turn, pinch or scroll to zoom): raw WebGL2 with three tiny programs — glowing line ribbons, translucent fills, and plates shaded by the live mode amplitudes, Σ aₖ·sin(mₖπu)·sin(nₖπv). It costs under a millisecond of CPU per frame; phones draw at reduced resolution and a lighter scene; without WebGL2 the button never appears.'),
       ],
     },
     {
       id: 'calibration',
       title: 'Calibration: measured against real instruments',
       body: [
-        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B (2001), and anechoic violin, viola, cello and flute — used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
-        h('h3', {}, 'Like with like'),
-        p('Three corrections this round made the comparisons fairer:'),
+        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, flute and trumpet — used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
+        h3('Like with like, and a judge'),
         ul(
-          'Each model note is rendered exactly as long as the part of the recording that is analysed. The decay fit takes its noise floor from the last stretch of what it is given; on a short dry render that “floor” was the still-decaying note, which made long decays look short (the piano’s bass aftersound read ×0.67 at 22 s, ×0.79 at the recording’s 30 s).',
-          'Model vibrato matches the recording: none where the player used none.',
-          'With vibrato, a note’s pitch is the centre of its fine pitch track. The median of long-frame spectral peaks was pulled towards the louder side of the swing (the cello read 4.25 ¢ scatter; 2.47 ¢ measured fairly).',
+          'Each model note is rendered exactly as long as the part of the recording that is analysed, with vibrato only where the player used it; a note’s pitch with vibrato is the centre of its fine pitch track.',
+          ['Since this round a change is kept only with a verdict from a judge. Each per-note error is measured in units of the recording’s own note-to-note variation; notes alternate between a fit half and a ', em('held-out'), ' half; and the verdict — BETTER, WORSE or NO CLEAR CHANGE — comes from the held-out half, with guards so that one measure cannot be traded for another.'],
         ),
-        h('h3', {}, 'Where it stands'),
+        h3('Where it stands'),
         table(
-          ['piano (Steinway B)', 'now', 'round 2'],
+          ['piano (Steinway B)', 'now', 'round 2*'],
           [
             ['stretch tuning, ¢ RMS', '3.86', '4.10'],
             ['inharmonicity B, log₁₀ RMS', '0.064', '0.068'],
-            ['prompt T60 model/recording: A0–B1 / C2–B3 / C4–B5 / C6–C8', '1.00 / 1.04 / 0.97 / 0.76', '1.01 / 1.15 / 0.93 / 0.90 *'],
-            ['late T60 model/recording', '0.79 / 1.27 / 1.03 / 1.12', '0.79 / 1.28 / 1.11 / 1.03 *'],
+            ['prompt T60 model/recording: A0–B1 / C2–B3 / C4–B5 / C6–C8', '1.00 / 1.04 / 0.97 / 0.76', '1.01 / 1.15 / 0.93 / 0.90'],
+            ['late T60 model/recording', '0.79 / 1.27 / 1.03 / 1.12', '0.79 / 1.28 / 1.11 / 1.03'],
             ['⅓-octave spectrum at mf, dB', '4.63', '4.64'],
             ['loudness per note, dB (pp / mf / ff)', '8.4 / 4.7 / 5.5', '8.3 / 4.7 / 5.4'],
           ],
+          '* round 2 re-measured with this round’s method.',
         ),
-        p(h('span', { class: 'hint' }, '* round 2 re-measured with this round’s method.')),
         table(
-          ['strings & flute (Iowa, anechoic)', 'harmonic error dB', 'spectrum dB', 'noise vs recording dB', 'attack ×', 'pitch ¢'],
+          ['Iowa, anechoic', 'harmonic error dB', 'spectrum dB', 'brightness ×', 'noise vs recording dB', 'attack ×', 'pitch ¢'],
           [
-            ['violin', '11.7', '14.6', '+0.3', '0.26', '2.2'],
-            ['viola', '11.2', '11.0', '−1.0', '0.45', '1.6'],
-            ['cello', '11.2', '15.5', '−0.2', '1.18', '3.1'],
-            ['flute', '7.1', '4.7', '+5.4', '1.14', '1.0'],
+            ['violin', '11.7', '14.6', '0.70', '+0.3', '0.26', '2.2'],
+            ['viola', '11.2', '11.0', '0.84', '−1.0', '0.45', '1.6'],
+            ['cello', '11.2', '15.5', '0.60', '−0.2', '1.18', '3.1'],
+            ['flute', '7.1', '4.7', '0.97', '+5.4', '1.14', '1.0'],
+            ['trumpet', '4.2', '3.3', '0.93', '+0.8', '1.43', '2.7'],
           ],
         ),
-        p('Full histories are in the repository: ', code('docs/calibration-rounds.json'), ', ', code('docs/ensemble-rounds.json'), ', and the Measurements page charts the details.'),
+        p('Full histories are in the repository (', code('docs/calibration-rounds.json'), ', ', code('docs/ensemble-rounds.json'), ', ', code('artifacts/round3/'), '), and the Measurements page charts the details.'),
+      ],
+    },
+    {
+      id: 'engineering',
+      title: 'Engineering',
+      body: [
+        ul(
+          ['Start-up. The piano’s filter designs (one per string) are computed when the site is built and shipped as data, so building the instrument costs the audio thread about 10 ms instead of ~0.4 s. The worklet is loaded from a Blob URL where possible. The engine counts as started when the audio context runs and the audio thread reports — not on a round-trip message that some WebKit builds hold back. One AudioContext serves the page, and a failed start is retried only from your next tap or key. Open the page with ', code('?debug'), ' to see every step.'],
+          'The host’s block size never changes the sound: each instrument renders its own blocks (cut only at events) and hands samples out as the browser asks, so the output is identical sample for sample at 128, 37 or 500 frames per call.',
+          'The audio thread never fails silently: an error while building or playing posts one message and goes quiet, and the page says why. The worklet bundle is checked at build time to parse in Safari 14.1, the first WebKit with AudioWorklet.',
+          'Golden snapshots (each instrument’s loudness envelope and spectrum) catch any change to the sound a refactor did not intend; the processor itself is tested in Node inside a fake AudioWorkletGlobalScope.',
+          'A MIDI file’s keys and progress line follow what you hear, not what has been computed: they use the output timestamp, which matters over Bluetooth (150–250 ms).',
+        ),
       ],
     },
     {
@@ -219,11 +248,11 @@ export function notesView(): View {
       title: 'Known limitations',
       body: [
         ul(
-          ['Piano: the lowest octave’s aftersound is about ', em('×0.8'), ' of the recording’s; its string-loss breakpoints are at their limits and a one-pole loss filter cannot hold the low partials’ long decay. The top octave’s prompt decay is ×0.76 since the unisons got individual stiffness. The treble knock (0.3–1 kHz) is about 10 dB weaker than the Steinway’s. The soundboard modes are plausible, not measured.'],
-          'Strings: the spectra are 11–15 dB RMS from the recordings, and loud notes are too dark (ff centroid well below the recording’s); the bodies are modal sketches whose radiation is fitted, not measured. No torsional waves, no finite bow width.',
-          'Flute: the low register’s second harmonic at mf/ff is still several dB short of the real H2 ≈ H1; the model is about 5 dB cleaner (less breath noise) than the recording. No individual tone holes.',
-          'Trumpet: not yet compared with recordings; the bore is an ideal harmonic loop (no mouthpiece or bell impedance curve), no mutes.',
-          'The room is a plausible hall, not a measured one, and costs about 0.8 % of one CPU core (the round-2 room cost 0.2 %).',
+          ['Piano: the lowest octave’s aftersound is ', em('×0.8'), ' of the recording’s (a one-pole loss filter cannot hold the low partials’ long decay); the top octave’s prompt decay is ×0.76; the middle register’s 3–6 kHz content falls away faster after the attack than the Steinway’s. The soundboard modes are plausible, not measured. A key’s travel before the hammer leaves is not simulated.'],
+          'Strings: spectra are 11–15 dB RMS from the recordings and loud notes too dark; the bodies are modal sketches, fitted, not measured; no torsional waves or finite bow width. The bowed string is a chaotic self-oscillator, so its exact waveform depends on the smallest timing detail (its spectrum does not).',
+          'Flute: the low register’s second harmonic at mf/ff is several dB short; about 5 dB less breath noise than the recording; no individual tone holes.',
+          'Trumpet: at pianissimo its upper harmonics are 7–20 dB too strong in the middle and high registers (a real pp is nearly sinusoidal: the lips never close); the high register is a little short of second harmonic; attacks are 1.4× slow on the median; the bore is an ideal loop with no mouthpiece or bell impedance curve; no mutes.',
+          'The room is a plausible hall, not a measured one. The 3D view is schematic where the engine has no geometry (cases, the trumpet’s wrap); the action view’s levers have the right sequence and ratios, not exact shapes.',
         ),
       ],
     },
@@ -232,11 +261,10 @@ export function notesView(): View {
       title: 'Design decisions',
       body: [
         ul(
-          'Waveguides and modal bodies rather than finite-difference grids: they give exact tuning and dispersion at a cost that allows all 88 keys and their sympathetic strings in real time in JavaScript.',
-          'TypeScript, not WebAssembly: measured fast enough (a struck note costs about a quarter of a percent of one core on an Apple M5 Pro), and the same code runs in Node for tests and calibration.',
-          'The piano’s filter designs (one per string) are computed when the site is built and shipped as data, so starting the instrument costs the audio thread about 10 ms instead of ~0.4 s (several seconds on a slow machine).',
-          'Measured, not tuned by ear: every calibration change is kept only if the numbers against the recordings improve, and regressions are reported.',
-          'The stage draws the engine’s own state — string shapes, levels, the bow, the bore’s pressure, the board’s modes — so what you see is what is being computed.',
+          'Waveguides and modal bodies rather than finite-difference grids: exact tuning and dispersion at a cost that allows all 88 keys and their sympathetic strings in real time in JavaScript.',
+          'TypeScript, not WebAssembly: fast enough (a struck note costs about a quarter of a percent of one core), and the same code runs in Node for tests and calibration.',
+          'Measured, not tuned by ear: every change is judged against recordings with held-out notes, regressions are reported, and audible changes ship with before/after audio.',
+          'The stage is nearly wordless; the reading is here. Everything moving on it is the simulation’s own state.',
         ),
       ],
     },
@@ -253,7 +281,7 @@ export function notesView(): View {
     h('h2', {}, 'How it works'),
     toc,
     h('div', { class: 'prose note-body' }, secs.map((s) => h('section', { id: `n-${s.id}` }, h('h2', { class: 'sec' }, s.title), ...s.body))),
-    h('h3', { style: 'margin-top:40px' }, 'Sources'),
+    h('h3', { class: 'refs-title' }, 'Sources'),
     h(
       'ol',
       { class: 'refs' },
@@ -269,11 +297,13 @@ export function notesView(): View {
         'K. Ege, X. Boutillon & M. Rébillat, “Vibroacoustics of the piano soundboard,” JSV 332(5), 2013',
         'A. Askenfelt & E. V. Jansson, “From touch to string vibrations,” JASA 88(1), 1990',
         'B. Bank & L. Sujbert, “Generation of longitudinal vibrations in piano strings,” JASA 117(4), 2005',
+        'H. Järveläinen & M. Karjalainen, “Reverberation modeling using velvet noise,” AES 30th Conf., 2007; J. Alary, A. Politis & V. Välimäki, “Velvet-noise decorrelator,” DAFx 2017',
         'M. E. McIntyre, R. T. Schumacher & J. Woodhouse, “On the oscillations of musical instruments,” JASA 74(5), 1983; J. Woodhouse, Acta Acustica 89, 2003',
         'J. C. Schelleng, “The bowed string and the player,” JASA 53(1), 1973',
         'N. H. Fletcher & T. D. Rossing, The Physics of Musical Instruments, 2nd ed., Springer 1998',
         'B. Fabre, A. Hirschberg & A. P. J. Wijnands, Acta Acustica 82, 1996; R. Auvray, B. Fabre & P.-Y. Lagrée, JASA 131(4), 2012',
         'P. R. Cook, “TBone: an interactive waveguide brass instrument synthesis workbench,” ICMC 1991; the Synthesis ToolKit (STK), Brass',
+        'A. H. Benade, Fundamentals of Musical Acoustics, Oxford 1976 (the bell’s cutoff, spectral enrichment)',
         'J. B. Allen & D. A. Berkley, “Image method for efficiently simulating small-room acoustics,” JASA 65(4), 1979',
         'J.-M. Jot & A. Chaigne, “Digital delay networks for designing artificial reverberators,” AES 90th Convention, 1991',
         'University of Iowa Musical Instrument Samples (analysis only; never played as the instrument)',
