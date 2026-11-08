@@ -137,8 +137,15 @@ export class MidiPlayer {
     if (this.idx >= ev.length && this.pos > this.song.duration + 1) this.stop();
   }
 
+  /** the song position being heard (the progress line, and where a pause resumes) */
+  private heardPos(): number {
+    if (!this.playing || !audio.ctx) return this.pos;
+    return Math.max(this.pos0, Math.min(this.pos, this.pos0 + (audio.audibleTime() - this.t0)));
+  }
+
   pause(): void {
     if (!this.playing) return;
+    this.pos = this.heardPos();
     this.playing = false;
     window.clearInterval(this.timer);
     cancelAnimationFrame(this.raf);
@@ -170,7 +177,7 @@ export class MidiPlayer {
   }
 
   private paint(): void {
-    const f = this.song && this.song.duration > 0 ? Math.min(1, this.pos / this.song.duration) : 0;
+    const f = this.song && this.song.duration > 0 ? Math.min(1, this.heardPos() / this.song.duration) : 0;
     this.fill.style.transform = `scaleX(${f})`;
     this.bar.setAttribute('aria-valuenow', String(Math.round(f * 100)));
   }

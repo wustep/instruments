@@ -15,7 +15,8 @@ import { pathToFileURL } from 'node:url';
 /** renderer: this checkout's engine, or another one (--engine) for before/after baselines */
 let RENDER = renderInstrument;
 export async function useEngine(path?: string): Promise<void> {
-  if (path) RENDER = (await import(pathToFileURL(path).href)).renderInstrument;
+  RENDER = path ? (await import(pathToFileURL(path).href)).renderInstrument : renderInstrument;
+  ENGINE = path; // the worker pool renders with it too
 }
 import { ENS_DYN, referenceNotes, type Dyn, type EnsInstrument, type RefNote } from './ensemble-refs.ts';
 
@@ -87,7 +88,7 @@ const r2 = (x: number) => (Number.isFinite(x) ? +x.toFixed(2) : null);
 
 const HARM_K = 12;
 /** RMS over harmonics of the level difference (each relative to its strongest harmonic). */
-function harmErr(m: SustainedAnalysis, r: SustainedAnalysis): number {
+export function harmErr(m: SustainedAnalysis, r: SustainedAnalysis): number {
   const d: number[] = [];
   for (let k = 0; k < HARM_K; k++) {
     if (!(r.harm[k] > -45) || !Number.isFinite(m.harm[k])) continue;

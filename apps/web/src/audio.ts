@@ -1,6 +1,7 @@
 // App-level audio: AudioContext lifecycle, the instrument, and input routing
 // (Web MIDI with hot-plug, computer keyboard, on-screen keyboard).
 
+import { audibleTime, type ClockSource } from './clock.ts';
 import { createInstrument, INSTRUMENT_INFO, processorUrl, type DesignEntry, type InstrumentId, type Piano, type Stats, type KeySummary } from '@piano-model/engine';
 import designUrls from 'virtual:piano-designs';
 import { diag } from './diag.ts';
@@ -333,6 +334,11 @@ class AudioApp {
     this.state.emit(s);
   }
 
+  /** the context time being heard now (output latency included; see clock.ts) */
+  audibleTime(): number {
+    return this.ctx ? audibleTime(this.ctx as unknown as ClockSource, performance.now()) : 0;
+  }
+
   get latencyMs(): { base: number; output: number; quantum: number } | null {
     const c = this.ctx;
     if (!c) return null;
@@ -403,11 +409,12 @@ class AudioApp {
     const p = this.piano;
     const ctx = this.ctx;
     if (!p || !ctx) return;
+    // the keys on screen follow what is heard: the moment `at` reaches the speakers
     const later = (fn: () => void) => {
       const id = window.setTimeout(() => {
         this.fileTimers.delete(id);
         fn();
-      }, Math.max(0, (at - ctx.currentTime) * 1000));
+      }, Math.max(0, (at - this.audibleTime()) * 1000));
       this.fileTimers.add(id);
     };
     if (e.kind === 'on') {
