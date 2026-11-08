@@ -201,7 +201,7 @@ export function notesView(): View {
             ['loudness per note, dB (pp / mf / ff)', '8.4 / 4.7 / 5.5', '8.3 / 4.7 / 5.4'],
           ],
         ),
-        p({ toString: () => '' } as unknown as string, h('span', { class: 'hint' }, '* round 2 re-measured with this round’s method.')),
+        p(h('span', { class: 'hint' }, '* round 2 re-measured with this round’s method.')),
         table(
           ['strings & flute (Iowa, anechoic)', 'harmonic error dB', 'spectrum dB', 'noise vs recording dB', 'attack ×', 'pitch ¢'],
           [

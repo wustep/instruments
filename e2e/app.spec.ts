@@ -751,3 +751,75 @@ test('click a note’s strings: that key’s action opens, plays from its own te
   await page.locator('.av-close').click();
   await expect(panel).toHaveCount(0);
 });
+
+test('3D stage: every instrument draws in WebGL2 from live frames; orbit and zoom; 2D without WebGL2', async ({ page }, info) => {
+  await page.goto('/');
+  await startAudio(page);
+  const btn = page.locator('.dim-toggle');
+  await expect(btn).toBeVisible();
+  await btn.click();
+  await expect(btn).toHaveAttribute('aria-pressed', 'true');
+  const cv = page.locator('.stage-3d');
+  await expect(cv).toBeVisible();
+  await page.evaluate(() => ((window as any).__stage3d.probe = true));
+  const stats = () => page.evaluate(() => ({ ...(window as any).__stage3d.stats }));
+  for (const [inst, note] of [['piano', 60], ['violin', 72], ['viola', 60], ['cello', 50], ['flute', 74], ['trumpet', 67]] as const) {
+    await page.evaluate(async ([i, m]) => {
+      await (window as any).__piano.setInstrument(i);
+      (window as any).__piano.noteOn(m, 96, 'keys');
+    }, [inst, note] as const);
+    await page.waitForTimeout(500);
+    const s = await stats();
+    expect(s.vertices, inst).toBeGreaterThan(200);
+    // pixels actually drawn (not a blank canvas)
+    const lit = (await stats()).lit;
+    expect(lit, inst).toBeGreaterThan(0); // (a flute is a thin line on a 40×24 sample grid)
+    await page.evaluate((m) => (window as any).__piano.noteOff(m, 'keys'), note);
+  }
+  // the upright too
+  await page.evaluate(async () => {
+    await (window as any).__piano.setInstrument('piano');
+    (window as any).__stage3d.probe = true;
+    await (window as any).__piano.setPreset('upright');
+  });
+  await page.locator('.presets button', { hasText: 'upright' }).click();
+  await page.waitForTimeout(300);
+  expect((await stats()).vertices).toBeGreaterThan(200);
+  // budget: a frame's scene + draw stays small
+  expect((await stats()).ms).toBeLessThan(info.project.name === 'phone' ? 16 : 12);
+  // orbit: dragging changes the picture
+  const b = (await cv.boundingBox())!;
+  // a checksum of the drawn pixels, with the sound stopped so only the camera changes it
+  await page.evaluate(() => (window as any).__piano.allNotesOff?.());
+  await page.waitForTimeout(300);
+  const snap = async () => (await stats()).sum;
+  if (info.project.name !== 'phone') {
+    const before = await snap();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width / 2 + 160, b.y + b.height / 2 + 40, { steps: 6 });
+    await page.mouse.up();
+    await page.mouse.wheel(0, -300);
+    await page.waitForTimeout(100);
+    expect(await snap()).not.toBe(before);
+  }
+  // back to 2D
+  await btn.click();
+  await expect(cv).toBeHidden();
+});
+
+test('without WebGL2 there is no 3D toggle and the 2D stage works', async ({ page }) => {
+  await page.addInitScript(() => {
+    const orig = HTMLCanvasElement.prototype.getContext;
+    (HTMLCanvasElement.prototype as any).getContext = function (type: string, ...rest: unknown[]) {
+      if (type === 'webgl2') return null;
+      return orig.call(this, type as never, ...(rest as []));
+    };
+    localStorage.setItem('piano-model.3d', '1');
+  });
+  await page.goto('/');
+  await startAudio(page);
+  await expect(page.locator('.dim-toggle')).toBeHidden();
+  await expect(page.locator('.stage-3d')).toHaveCount(0);
+  await expect(page.locator('.stage-cv')).toBeVisible();
+});

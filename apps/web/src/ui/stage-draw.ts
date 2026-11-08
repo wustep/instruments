@@ -149,7 +149,7 @@ const BODY: [number, number][] = [
   [0, 0], [0.012, 0.13], [0.04, 0.19], [0.1, 0.228], [0.19, 0.236], [0.28, 0.215], [0.35, 0.17], [0.4, 0.155],
   [0.47, 0.152], [0.55, 0.168], [0.62, 0.24], [0.7, 0.278], [0.79, 0.292], [0.88, 0.27], [0.95, 0.2], [0.985, 0.12], [1, 0],
 ];
-const bodyHalf = (u: number): number => {
+export const bodyHalf = (u: number): number => {
   for (let i = 1; i < BODY.length; i++)
     if (u <= BODY[i][0]) {
       const [u0, w0] = BODY[i - 1];
@@ -446,7 +446,7 @@ export interface FluteState {
 }
 const et = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 /** sounding tube length for a written note (open–open, end-corrected), m */
-const tubeFor = (m: number) => 343 / (2 * et(m)) - 0.03;
+export const tubeFor = (m: number) => 343 / (2 * et(m)) - 0.03;
 
 export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: FluteState): void {
   const vertical = H > W * 1.05;
@@ -681,7 +681,7 @@ export interface TrumpetState {
   pScale: AutoScale;
   env: Float32Array;
 }
-const VALVE_DOWN: Record<string, [boolean, boolean, boolean]> = {
+export const VALVE_DOWN: Record<string, [boolean, boolean, boolean]> = {
   open: [false, false, false],
   '1': [true, false, false],
   '2': [false, true, false],

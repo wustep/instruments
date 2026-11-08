@@ -1387,3 +1387,39 @@ figure[title] {
     border-radius: 12px 12px 0 0;
   }
 }
+
+/* ------------------------------------------------------------ 3D stage */
+.picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dim-toggle {
+  font: 500 11px/1 var(--mono);
+  letter-spacing: 0.06em;
+  color: var(--ink-2, #c9bfab);
+  background: transparent;
+  border: 1px solid rgba(236, 226, 206, 0.18);
+  border-radius: 4px;
+  padding: 3px 7px;
+  cursor: pointer;
+}
+.dim-toggle[aria-pressed='true'] {
+  color: var(--ground, #0e0d0b);
+  background: rgba(236, 226, 206, 0.82);
+  border-color: transparent;
+}
+.dim-toggle:focus-visible {
+  outline: 1px solid rgba(242, 166, 70, 0.8);
+}
+.stage-3d {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  z-index: 2;
+  cursor: grab;
+  touch-action: none;
+}
+.stage-3d:active {
+  cursor: grabbing;
+}

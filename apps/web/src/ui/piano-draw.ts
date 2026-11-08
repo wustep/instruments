@@ -80,7 +80,7 @@ export const newPianoState = (): PianoState => ({
   hits: [],
 });
 
-interface Pt {
+export interface Pt {
   midi: number;
   i: number;
   x: number;
@@ -93,7 +93,7 @@ interface Pt {
 /** advance the action: hammers jump to the string when struck, rebound with the key's
  *  velocity, are caught by the backcheck while the key is held; dampers follow the key
  *  and the sustain pedal (half-pedal lifts them part way) */
-function stepAction(pts: Pt[], st: PianoState): void {
+export function stepAction(pts: Pt[], st: PianoState): void {
   st.shift += (st.soft - st.shift) * 0.25;
   for (const p of pts) {
     const t = st.strikes.get(p.midi);

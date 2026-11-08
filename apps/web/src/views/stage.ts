@@ -7,6 +7,7 @@ import { DEFAULT_PARAMS, INSTRUMENT_IDS, INSTRUMENT_INFO, PRESETS, PRESET_IDS, b
 import { cssVar, fitCanvas, fmt, h, type View } from '../ui/dom.ts';
 import type { KeyboardHandle } from '../ui/keyboard.ts';
 import { openActionView } from '../ui/action-view.ts';
+import { createStage3D, webgl2Available, type Stage3D } from '../ui/gl/stage3d.ts';
 import { glyph, knob, type KnobSpec } from '../ui/controls.ts';
 import { AutoScale, INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, type BowedGeom } from '../ui/stage-draw.ts';
 import { drawPiano, newPianoState, stringAt } from '../ui/piano-draw.ts';
@@ -71,7 +72,17 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     ),
   );
   const presets = h('div', { class: 'presets', role: 'group', 'aria-label': 'Piano' }, presetBtns);
-  const picker = h('div', { class: 'picker' }, h('div', { class: 'instruments', role: 'group', 'aria-label': 'Instrument' }, instBtns), presets);
+  // 2D / 3D: only offered where WebGL2 runs (elsewhere the 2D stage simply stays)
+  const has3d = webgl2Available();
+  let want3d = false;
+  try {
+    want3d = has3d && localStorage.getItem('piano-model.3d') === '1';
+  } catch {
+    /* storage blocked */
+  }
+  const dimBtn = h('button', { class: 'dim-toggle', type: 'button', 'aria-pressed': String(want3d), 'aria-label': '3D view', 'data-tip': '3D · drag to turn, pinch to zoom' }, '3d');
+  dimBtn.hidden = !has3d;
+  const picker = h('div', { class: 'picker' }, h('div', { class: 'instruments', role: 'group', 'aria-label': 'Instrument' }, instBtns), h('div', { class: 'picker-row' }, presets, dimBtn));
 
   // ---------------------------------------------------------------- readout, spectrum, scope
   const noteEl = h('div', { class: 'r-note' }, '');
@@ -98,6 +109,28 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     g.setAttribute('aria-valuetext', text);
   };
   const el = h('div', { class: 'view stage' }, canvas, top, gripRoom, gripLid);
+  let s3: Stage3D | null = null;
+  const set3d = (on: boolean) => {
+    want3d = on && has3d;
+    dimBtn.setAttribute('aria-pressed', String(want3d));
+    try {
+      localStorage.setItem('piano-model.3d', want3d ? '1' : '0');
+    } catch {
+      /* storage blocked */
+    }
+    if (want3d && !s3) {
+      s3 = createStage3D(el);
+      if (!s3) {
+        // WebGL2 said yes and then failed: stay in 2D
+        want3d = false;
+        dimBtn.hidden = true;
+      }
+    }
+    if (s3) s3.el.hidden = !want3d;
+    el.classList.toggle('is-3d', want3d);
+    (window as unknown as { __stage3d?: Stage3D | null }).__stage3d = want3d ? s3 : null;
+  };
+  dimBtn.addEventListener('click', () => set3d(!want3d));
   // click a note's strings on the piano: that key's action, close up
   let action: { close: () => void } | null = null;
   let downAt: { x: number; y: number } | null = null;
@@ -340,7 +373,10 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     if (frame?.focus) lastFocus = frame.focus;
     ctx.save();
     ctx.translate(0, topH);
-    if (family() === 'piano') {
+    const in3d = want3d && !!s3;
+    if (in3d) {
+      // the 3D stage draws the instrument and the room; the 2D canvas keeps only the top band
+    } else if (family() === 'piano') {
       const sr = canvas.getBoundingClientRect();
       const kr = kb.strip.getBoundingClientRect();
       pianoState.down = new Set(audio.down.keys());
@@ -363,12 +399,32 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     const fam = family();
     const grand = fam === 'piano' && !(audio.preset === 'upright' || audio.preset === 'honky-tonk');
     const src = fam === 'piano' ? pianoState.src : fam === 'bowed' ? { x: w * 0.62, y: ih / 2 } : fam === 'brass' ? { x: w * 0.85, y: ih * 0.55 } : { x: w * 0.5, y: ih * 0.45 };
-    const rg = drawRoom(ctx, w, ih, roomState, src, roomVal(), rms, now, grand ? { open: lidVal(), dir: -Math.PI / 4 } : null);
+    const rg = in3d ? { x0: 0, y0: 0, x1: 0, y1: 0 } : drawRoom(ctx, w, ih, roomState, src, roomVal(), rms, now, grand ? { open: lidVal(), dir: -Math.PI / 4 } : null);
     ctx.restore();
+    if (in3d && s3) {
+      pianoState.down = new Set(audio.down.keys());
+      pianoState.sustain = audio.lastStats?.sustain ?? audio.sustainValue;
+      pianoState.soft = audio.lastStats?.soft ?? audio.softValue;
+      const keys = audio.piano && audio.piano.instrument === 'piano' && audio.piano.keys.length ? audio.piano.keys : keysFallback;
+      s3.frame(now, topH, {
+        fr: frame,
+        family: fam as 'piano' | 'bowed' | 'wind' | 'brass',
+        kind: grand ? 'grand' : 'upright',
+        keys,
+        piano: pianoState,
+        bowed: bowedGeom,
+        lid: lidVal(),
+        room: roomVal(),
+        rms,
+        down: (m) => audio.down.has(m),
+        sounding: (m) => audio.isSounding(m),
+      });
+    }
+    gripRoom.hidden = in3d;
     // place the grips (stage coordinates: the instrument area starts below the top band)
     gripRoom.style.transform = `translate(${rg.x1 - 7}px, ${topH + (rg.y0 + rg.y1) / 2 - 14}px)`;
     label(gripRoom, roomVal(), roomText(roomVal()));
-    const le = grand ? pianoState.lidEdge : null;
+    const le = grand && !in3d ? pianoState.lidEdge : null;
     gripLid.hidden = !le;
     if (le) {
       gripLid.style.transform = `translate(${le.x - 7}px, ${topH + le.y - 14}px)`;
@@ -415,11 +471,14 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
         }),
       );
       applyInstrument(audio.instrument);
+      if (want3d) set3d(true);
       document.body.style.setProperty('--ground', cssVar('--ground'));
       raf = requestAnimationFrame(loop);
     },
     unmount() {
       action?.close();
+      s3?.dispose();
+      s3 = null;
       cancelAnimationFrame(raf);
       unsubVis?.();
       unsubVis = null;
