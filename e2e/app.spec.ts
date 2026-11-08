@@ -568,3 +568,79 @@ test('room and lid are dragged on the stage (and work from the keyboard)', async
   await page.keyboard.press('ArrowUp');
   expect(await p('lid')).toBeGreaterThan(before);
 });
+
+test('keys light only the notes the engine really sounds: flute, trumpet, violin, from every input', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'computer keys and MIDI are desktop inputs');
+  await page.addInitScript(() => {
+    const inputs = new Map<string, any>();
+    const access: any = { inputs, outputs: new Map(), onstatechange: null, sysexEnabled: false };
+    (navigator as any).requestMIDIAccess = async () => access;
+    (window as any).__midi = {
+      plug() {
+        const input = { id: 'fake', name: 'Test Keys', state: 'connected', onmidimessage: null as any };
+        inputs.set('fake', input);
+        access.onstatechange?.({ port: input });
+      },
+      send(bytes: number[]) {
+        inputs.get('fake').onmidimessage?.({ data: new Uint8Array(bytes) });
+      },
+    };
+  });
+  await page.goto('/');
+  await page.evaluate(() => (window as any).__midi.plug());
+  await startAudio(page);
+  const key = (m: number) => page.locator(`.key[data-midi="${m}"]`);
+  const lit = async (on: number[], ghost: number[]) => {
+    for (const m of on) await expect(key(m), `m${m} sounding`).toHaveClass(/sounding/);
+    for (const m of ghost) {
+      await expect(key(m), `m${m} held`).toHaveClass(/down/);
+      await expect(key(m), `m${m} not sounding`).not.toHaveClass(/sounding/);
+    }
+  };
+  // flute, computer keys (A = C5, D = E5): the last held key sounds; releasing it returns
+  await page.evaluate(() => (window as any).__piano.setInstrument('flute'));
+  await page.keyboard.down('KeyA');
+  await lit([72], []);
+  await page.keyboard.down('KeyD');
+  await lit([76], [72]);
+  await page.keyboard.up('KeyD');
+  await lit([72], []);
+  await page.keyboard.up('KeyA');
+  await expect(key(72)).not.toHaveClass(/sounding/);
+  // trumpet, MIDI
+  await page.evaluate(() => (window as any).__piano.setInstrument('trumpet'));
+  await page.evaluate(() => (window as any).__midi.send([0x90, 60, 90]));
+  await page.evaluate(() => (window as any).__midi.send([0x90, 64, 90]));
+  await lit([64], [60]);
+  await page.evaluate(() => (window as any).__midi.send([0x80, 64, 0]));
+  await lit([60], []);
+  await page.evaluate(() => (window as any).__midi.send([0x80, 60, 0]));
+  await expect(key(60)).not.toHaveClass(/sounding/);
+  // violin: G3 and A3 can only be played on the G string. G3 held on screen (mouse), A3 from
+  // MIDI takes the string; releasing A3 gives it back
+  await page.evaluate(() => (window as any).__piano.setInstrument('violin'));
+  const g3 = key(55);
+  await g3.scrollIntoViewIfNeeded();
+  const b = (await g3.boundingBox())!;
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height * 0.9);
+  await page.mouse.down();
+  await lit([55], []);
+  await page.evaluate(() => (window as any).__midi.send([0x90, 57, 90]));
+  await lit([57], [55]);
+  await page.evaluate(() => (window as any).__midi.send([0x80, 57, 0]));
+  await lit([55], []);
+  await page.mouse.up();
+  await expect(key(55)).not.toHaveClass(/sounding/);
+  // five notes on four strings: the fifth (G5, playable on all four) takes the string that has
+  // been playing longest (G3's); releasing it gives that string back
+  await page.evaluate(async () => {
+    for (const m of [55, 62, 69, 76, 79]) {
+      (window as any).__piano.noteOn(m, 90, 'keys');
+      await new Promise((r) => setTimeout(r, 40));
+    }
+  });
+  await lit([62, 69, 76, 79], [55]);
+  await expect(page.locator('.key.sounding')).toHaveCount(4);
+  await page.evaluate(() => (window as any).__piano.noteOff(79, 'keys'));
+  await lit([55, 62, 69, 76], []);
+});

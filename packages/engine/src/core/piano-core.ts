@@ -412,6 +412,13 @@ export class PianoCore {
     for (const v of this.active) if (!v.light) n++;
     return n;
   }
+  /** keys whose struck strings are sounding and still held (a stolen voice is not) */
+  sounding(): number[] {
+    const out: number[] = [];
+    for (const v of this.active) if (!v.light && !v.stolen && v.held) out.push(v.midi);
+    return out;
+  }
+
   get activeSympatheticCount(): number {
     let n = 0;
     for (const v of this.active) if (v.light) n++;

@@ -1,7 +1,7 @@
 // 88-key on-screen keyboard with multi-touch, glissando and touch velocity
 // (strike nearer the front edge of a key to play louder).
 
-import { audio } from '../audio.ts';
+import { audio, SOUNDING_GRACE_MS } from '../audio.ts';
 import { midiName } from '@piano-model/engine';
 
 const isBlack = (m: number) => [1, 3, 6, 8, 10].includes(m % 12);
@@ -106,10 +106,26 @@ export function createKeyboard(): KeyboardHandle {
   kb.addEventListener('lostpointercapture', end);
   kb.addEventListener('contextmenu', (e) => e.preventDefault());
 
-  audio.notes.on((n) => {
-    const el = keyEls.get(n.midi);
+  // a key is pressed ('down') by any source; it glows ('sounding') only while the engine says its
+  // note really sounds. A held key a monophonic instrument (or a busy string) has moved on from
+  // stays pressed but dark, and lights again when the engine returns to it.
+  const lit = new Set<number>();
+  const paint = (m: number) => {
+    const el = keyEls.get(m);
     if (!el) return;
-    el.classList.toggle('down', audio.down.has(n.midi));
+    const s = audio.isSounding(m);
+    el.classList.toggle('down', audio.down.has(m));
+    el.classList.toggle('sounding', s);
+    if (s) lit.add(m);
+    else lit.delete(m);
+  };
+  audio.notes.on((n) => {
+    paint(n.midi);
+    // if the engine never takes it up, it goes dark when the grace period ends
+    if (n.on) window.setTimeout(() => paint(n.midi), SOUNDING_GRACE_MS + 10);
+  });
+  audio.soundingChanged.on(() => {
+    for (const m of [...lit, ...audio.sounding, ...audio.down.keys()]) paint(m);
   });
 
   return {

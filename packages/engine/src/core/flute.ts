@@ -342,6 +342,12 @@ export class FluteCore implements InstrumentCore {
     if (this.params.room !== old.room || this.params.volume !== old.volume) this.updatePost();
   }
 
+  /** the one note actually sounding (a monophonic instrument: the last held key wins and a
+   *  release returns to the previous held one), or none */
+  sounding(): number[] {
+    return this.pTarget > 0 ? [this.note] : [];
+  }
+
   allSoundOff(): void {
     this.bore.fill(0);
     this.jet.fill(0);

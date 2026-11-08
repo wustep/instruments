@@ -97,6 +97,9 @@ const readStored = (): InstrumentId => {
   }
 };
 
+/** see AudioApp.isSounding */
+export const SOUNDING_GRACE_MS = 60;
+
 class AudioApp {
   ctx: AudioContext | null = null;
   piano: Piano | null = null;
@@ -115,6 +118,14 @@ class AudioApp {
   midi: MidiStatus = { supported: typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator, inputs: [] };
   /** keys currently held by any source */
   readonly down = new Map<number, Set<string>>();
+  /** the notes the engine reports as actually sounding (its own allocation: one note on the
+   *  flute and trumpet, one per string on the violin family, the piano's unstolen keys) */
+  readonly sounding = new Set<number>();
+  /** false until the engine has reported (then pressed keys are taken as sounding) */
+  soundingKnown = false;
+  readonly soundingChanged = new Emitter<void>();
+  /** when each key was last pressed: it counts as sounding until the engine has had time to say */
+  private pressedAt = new Map<number, number>();
   sustainValue = 0;
   softValue = 0;
   lastStats: Stats | null = null;
@@ -238,6 +249,12 @@ class AudioApp {
         this.stats.emit(s);
       });
       piano.onKeys((k) => this.keysChanged.emit(k));
+      piano.onSounding((notes) => {
+        this.sounding.clear();
+        for (const n of notes) this.sounding.add(n);
+        this.soundingKnown = true;
+        this.soundingChanged.emit();
+      });
       piano.onError((m) => {
         console.warn('audio thread:', m);
         this.error = m;
@@ -272,6 +289,7 @@ class AudioApp {
       void this.ctx?.close().catch(() => undefined);
       this.ctx = null;
       this.piano = null;
+      this.soundingKnown = false;
       this.starting = null;
       this.setStatus('error');
       if (!this.autoRetried) {
@@ -307,8 +325,18 @@ class AudioApp {
       this.down.set(midi, set);
     }
     set.add(source);
+    this.pressedAt.set(midi, performance.now());
     this.send((p) => p.noteOn(midi, velocity));
     this.notes.emit({ midi, velocity, on: true, source });
+  }
+
+  /** Is this key's note really sounding? The engine's word; a key pressed in the last 60 ms
+   *  counts until the engine has had a chance to answer (it does within a few ms). */
+  isSounding(midi: number): boolean {
+    if (!this.soundingKnown || !this.piano) return this.down.has(midi);
+    if (this.sounding.has(midi)) return true;
+    const t = this.pressedAt.get(midi);
+    return this.down.has(midi) && t !== undefined && performance.now() - t < SOUNDING_GRACE_MS;
   }
 
   noteOff(midi: number, source: NoteEvent['source']): void {
@@ -374,6 +402,7 @@ class AudioApp {
   private markFile(midi: number, velocity: number, on: boolean): void {
     let set = this.down.get(midi);
     if (on) {
+      this.pressedAt.set(midi, performance.now());
       if (!set) this.down.set(midi, (set = new Set()));
       set.add('file');
     } else if (set) {

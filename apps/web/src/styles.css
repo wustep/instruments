@@ -574,13 +574,21 @@ main {
   z-index: 2;
   transition: transform 0.04s, box-shadow 0.04s;
 }
+/* pressed (any source) */
 .key.down.white {
   transform: translateY(2px);
-  box-shadow: inset 0 -2px 0 #cbbfa8, inset 0 0 24px rgba(255, 94, 56, 0.35), 0 0 0 #000;
+  box-shadow: inset 0 -2px 0 #cbbfa8, inset 0 0 24px rgba(255, 94, 56, 0.06), 0 0 0 #000;
   background: linear-gradient(180deg, #cfc4ad 0%, #efe4cf 12%, #f2e6d0 100%);
 }
 .key.down.black {
   transform: translateY(2px);
+  box-shadow: inset 0 -2px 0 #000, inset 0 0 14px rgba(255, 94, 56, 0.1);
+}
+/* its note really sounds (the engine's allocation): the glow */
+.key.sounding.white {
+  box-shadow: inset 0 -2px 0 #cbbfa8, inset 0 0 24px rgba(255, 94, 56, 0.35), 0 0 0 #000;
+}
+.key.sounding.black {
   box-shadow: inset 0 -2px 0 #000, inset 0 0 14px rgba(255, 94, 56, 0.55);
 }
 .key.out.white {

@@ -49,4 +49,7 @@ export interface InstrumentCore {
   allSoundOff(): void;
   getVisual(points?: number): unknown;
   keySummary(): KeySummary[];
+  /** the notes actually sounding now, by the instrument's own allocation (monophonic instruments
+   *  give one; bowed strings one per string; the piano its held, unstolen keys) */
+  sounding(): number[];
 }

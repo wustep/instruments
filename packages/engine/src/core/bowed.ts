@@ -251,6 +251,10 @@ class BowedString {
   // note
   midi = -1;
   held = false;
+  /** keys still held that this string played before the current note took it (oldest first),
+   *  with their velocities: releasing the current note gives the string back to the last one */
+  displaced: { midi: number; velocity: number }[] = [];
+  velocity = 80;
   releasedAt = 0;
   startedAt = 0;
   vibPhase = 0;
@@ -529,6 +533,9 @@ export class BowedCore implements InstrumentCore {
         if (ev.velocity <= 0) return this.apply({ type: 'noteOff', midi: ev.midi });
         const s = this.pickString(ev.midi);
         if (!s) return;
+        for (const t of this.strings) t.displaced = t.displaced.filter((d) => d.midi !== ev.midi);
+        if (s.bowing && s.held && s.midi !== ev.midi) s.displaced.push({ midi: s.midi, velocity: s.velocity });
+        s.velocity = ev.velocity;
         const legato = s.bowing;
         this.setStopped(s, ev.midi, !legato && s.level < 1e-4);
         if (!legato) {
@@ -546,7 +553,17 @@ export class BowedCore implements InstrumentCore {
         break;
       }
       case 'noteOff': {
+        for (const s of this.strings) s.displaced = s.displaced.filter((d) => d.midi !== ev.midi);
         for (const s of this.strings) if (s.midi === ev.midi && s.bowing && s.held) {
+          // a key still held that this note displaced gets its string back (the finger moves
+          // back, the bow keeps going), as the flute and trumpet return to the last held note
+          const back = s.displaced.pop();
+          if (back) {
+            this.setStopped(s, back.midi, false);
+            s.velocity = back.velocity;
+            this.bowTargets(s, back.velocity);
+            continue;
+          }
           s.held = false;
           if (this.sustain < 0.5) this.lift(s);
         }
@@ -569,7 +586,10 @@ export class BowedCore implements InstrumentCore {
         this.bend = clamp(ev.value, -12, 12);
         break;
       case 'allNotesOff':
-        for (const s of this.strings) this.lift(s);
+        for (const s of this.strings) {
+          s.displaced = [];
+          this.lift(s);
+        }
         break;
     }
   }
@@ -673,8 +693,16 @@ export class BowedCore implements InstrumentCore {
     }
   }
 
+  /** the notes actually sounding: one per bowed string (held, or kept by the pedal) */
+  sounding(): number[] {
+    const out: number[] = [];
+    for (const s of this.strings) if (s.bowing && s.midi >= 0 && !out.includes(s.midi)) out.push(s.midi);
+    return out;
+  }
+
   allSoundOff(): void {
     for (const s of this.strings) {
+      s.displaced = [];
       s.buf.fill(0);
       s.ly = 0;
       s.bowing = false;

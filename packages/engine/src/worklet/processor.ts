@@ -39,6 +39,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
   private vis = false;
   private visInterval: number;
   private visCount = 0;
+  private lastSounding: number[] = [];
   private loadAcc = 0;
   private loadN = 0;
   private load = 0;
@@ -173,6 +174,14 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       this.loadAcc = 0;
       this.loadN = 0;
       this.adapt();
+    }
+    // which notes really sound (the keyboard lights those): posted as soon as it changes
+    const snd = this.core.sounding();
+    let same = snd.length === this.lastSounding.length;
+    for (let i = 0; same && i < snd.length; i++) same = snd[i] === this.lastSounding[i];
+    if (!same) {
+      this.lastSounding = snd;
+      this.post({ type: 'sounding', notes: snd });
     }
     if (++this.visCount >= this.visInterval) {
       this.visCount = 0;

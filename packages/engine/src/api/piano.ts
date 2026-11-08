@@ -78,6 +78,9 @@ export interface Piano {
   onKeys(cb: (k: KeySummary[]) => void): () => void;
   /** errors reported by the audio thread after start-up (e.g. an instrument that cannot be built) */
   onError(cb: (message: string) => void): () => void;
+  /** the notes actually sounding (engine allocation: one for the flute and trumpet, one per bowed
+   *  string, the piano's held unstolen keys), whenever that changes */
+  onSounding(cb: (notes: number[]) => void): () => void;
   connect(dest: AudioNode): void;
   disconnect(): void;
   dispose(): void;
@@ -148,6 +151,7 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
 
   const statsSubs = new Set<(s: Stats) => void>();
   const visSubs = new Set<(v: VisualFrame) => void>();
+  const soundingSubs = new Set<(notes: number[]) => void>();
   const keySubs = new Set<(k: KeySummary[]) => void>();
   const errorSubs = new Set<(m: string) => void>();
   let started = false;
@@ -204,6 +208,9 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
         case 'visual':
           statsSubs.forEach((cb) => cb(m));
           visSubs.forEach((cb) => cb(m));
+          break;
+        case 'sounding':
+          soundingSubs.forEach((cb) => cb(m.notes));
           break;
       }
     };
@@ -320,6 +327,10 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
     onError: (cb) => {
       errorSubs.add(cb);
       return () => errorSubs.delete(cb);
+    },
+    onSounding: (cb) => {
+      soundingSubs.add(cb);
+      return () => soundingSubs.delete(cb);
     },
     connect: (dest) => output.connect(dest),
     disconnect: () => output.disconnect(),

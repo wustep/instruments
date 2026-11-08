@@ -66,6 +66,8 @@ export interface VisualFrame extends Stats {
 
 export type FromProcessor =
   | { type: 'error'; message: string }
+  /** the notes actually sounding, by the instrument's own allocation; posted when it changes */
+  | { type: 'sounding'; notes: number[] }
   | { type: 'ready'; sampleRate: number; initMs: number; instrument: InstrumentId; params: Record<string, unknown>; modeFreqs: number[]; keys: KeySummary[] }
   | { type: 'keys'; keys: KeySummary[] }
   | { type: 'preset'; instrument: InstrumentId; preset: string; params: Record<string, unknown>; modeFreqs: number[]; keys: KeySummary[] }
