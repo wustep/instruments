@@ -58,6 +58,8 @@ export interface Piano {
   allNotesOff(time?: number): void;
   /** stop all sound immediately */
   panic(): void;
+  /** forget every event scheduled for the future (notes, pedals) */
+  clearScheduled(): void;
   setParams(p: Record<string, unknown>): void;
   setPreset(id: string): Promise<void>;
   /** switch the instrument hosted by this node (silences it); resolves when ready */
@@ -239,6 +241,7 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
     sostenuto: (v, time) => ev({ type: 'sostenuto', value: val(v) }, time),
     allNotesOff: (time) => ev({ type: 'allNotesOff' }, time),
     panic: () => send({ type: 'panic' }),
+    clearScheduled: () => send({ type: 'clearScheduled' }),
     setParams: (p) => {
       state.params = { ...state.params, ...p };
       const redesign = state.instrument === 'piano' && NEEDS_DESIGN.some((k) => k in p);

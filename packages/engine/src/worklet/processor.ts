@@ -141,6 +141,11 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       case 'panic':
         this.core.allSoundOff();
         break;
+      case 'clearScheduled': {
+        const q = (this.core as unknown as { queue?: unknown[] }).queue;
+        if (q) q.length = 0;
+        break;
+      }
     }
   }
 

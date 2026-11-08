@@ -14,7 +14,9 @@ export type ToProcessor =
   | { type: 'vis'; enabled: boolean }
   | { type: 'maxVoices'; value: number }
   | { type: 'designs'; entries: DesignEntry[] }
-  | { type: 'panic' };
+  | { type: 'panic' }
+  /** drop every event scheduled for the future (a paused file player) */
+  | { type: 'clearScheduled' };
 
 export interface KeySummary {
   midi: number;

@@ -66,7 +66,7 @@ export interface NoteEvent {
   midi: number;
   velocity: number;
   on: boolean;
-  source: 'mouse' | 'keys' | 'midi';
+  source: 'mouse' | 'keys' | 'midi' | 'file';
 }
 
 export interface MidiStatus {
@@ -307,6 +307,63 @@ class AudioApp {
     if (this.piano) this.piano.control(cc, v);
     else this.queue.push((p) => p.control(cc, v));
   }
+  // ------------------------------------------------------------- file playback
+  private fileTimers = new Set<number>();
+  /**
+   * An event from a MIDI file, sample-accurate at AudioContext time `at`; the keys on
+   * screen follow at (about) the same moment.
+   */
+  scheduleFileEvent(e: { kind: 'on' | 'off' | 'pedal'; midi?: number; vel?: number; cc?: number; value?: number }, at: number): void {
+    const p = this.piano;
+    const ctx = this.ctx;
+    if (!p || !ctx) return;
+    const later = (fn: () => void) => {
+      const id = window.setTimeout(() => {
+        this.fileTimers.delete(id);
+        fn();
+      }, Math.max(0, (at - ctx.currentTime) * 1000));
+      this.fileTimers.add(id);
+    };
+    if (e.kind === 'on') {
+      p.noteOn(e.midi!, e.vel!, at);
+      later(() => this.markFile(e.midi!, e.vel!, true));
+    } else if (e.kind === 'off') {
+      p.noteOff(e.midi!, at);
+      later(() => this.markFile(e.midi!, 0, false));
+    } else if (e.cc === 64) {
+      p.sustain(e.value!, at);
+      later(() => (this.sustainValue = e.value!));
+    } else if (e.cc === 66) p.sostenuto(e.value!, at);
+    else if (e.cc === 67) {
+      p.softPedal(e.value!, at);
+      later(() => (this.softValue = e.value!));
+    }
+  }
+  private markFile(midi: number, velocity: number, on: boolean): void {
+    let set = this.down.get(midi);
+    if (on) {
+      if (!set) this.down.set(midi, (set = new Set()));
+      set.add('file');
+    } else if (set) {
+      set.delete('file');
+      if (!set.size) this.down.delete(midi);
+    }
+    this.notes.emit({ midi, velocity, on, source: 'file' });
+  }
+  /** Stop a file: forget what is scheduled, lift its notes and pedals. */
+  stopFile(): void {
+    for (const id of this.fileTimers) window.clearTimeout(id);
+    this.fileTimers.clear();
+    this.piano?.clearScheduled();
+    for (const [m, set] of [...this.down]) if (set.has('file')) {
+      this.piano?.noteOff(m);
+      this.markFile(m, 0, false);
+    }
+    this.sustain(0);
+    this.soft(0);
+    this.sostenuto(0);
+  }
+
   /** pitch bend, semitones (strings, flute) */
   bend(semitones: number): void {
     if (this.piano) this.piano.bend(semitones);

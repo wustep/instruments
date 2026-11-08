@@ -4,6 +4,7 @@ import { INSTRUMENT_INFO, midiName, type InstrumentId } from '@piano-model/engin
 import { ComputerKeys, createKeyboard } from './ui/keyboard.ts';
 import { h, type View } from './ui/dom.ts';
 import { pedal } from './ui/controls.ts';
+import { MidiPlayer } from './ui/player.ts';
 import { stageView } from './views/stage.ts';
 import { measureView } from './views/measure.ts';
 import { notesView } from './views/notes.ts';
@@ -51,7 +52,9 @@ const links = [
 const backLink = h('a', { class: 'back', href: '#/', 'data-route': 'stage', 'aria-label': 'back to the instruments', title: 'back to the instruments' }, '←');
 const header = h('header', { class: 'top' }, backLink, h('span', { class: 'spacer' }), status, h('nav', { class: 'links', 'aria-label': 'Pages' }, links));
 const main = h('main', { id: 'main' });
-app.append(header, main, dock);
+// drop a .mid file anywhere to hear it on the current instrument
+const player = new MidiPlayer();
+app.append(header, main, player.el, dock);
 
 const routes: Record<string, { title: string; make: () => View }> = {
   stage: { title: '', make: () => stageView(keyboard, knobSlot) },
@@ -156,3 +159,4 @@ for (const t of ['pointerdown', 'pointerup', 'touchend', 'keydown', 'click'] as 
 import { renderOffline } from '@piano-model/engine';
 (window as unknown as { __piano: typeof audio; __engine: unknown }).__piano = audio;
 (window as unknown as { __engine: unknown }).__engine = { renderOffline };
+(window as unknown as { __player: MidiPlayer }).__player = player;

@@ -2,6 +2,7 @@
 // through the worklet with spectral checks, the live views, MIDI input, phone layout.
 import { test, expect, type Page } from '@playwright/test';
 import { analyzePartials } from '../packages/engine/src/analysis/index.ts';
+import { smf } from '../apps/web/test/smf.ts';
 
 const collectErrors = (page: Page) => {
   const errors: string[] = [];
@@ -424,4 +425,48 @@ test('octave control: buttons and Z/X/−/= shift the keys, within each instrume
   await page.getByRole('button', { name: 'Octave up' }).click();
   await expect(label).toHaveText('G3');
   await page.evaluate(() => (window as any).__piano.setInstrument('piano'));
+});
+
+test('drop a .mid file: it plays on the current instrument, pauses, stops; a new file replaces it', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'files are dropped on desktops');
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await startAudio(page);
+  const drop = async (bytes: number[], name: string) =>
+    page.evaluate(
+      ([b, n]) => {
+        const dt = new DataTransfer();
+        dt.items.add(new File([new Uint8Array(b as number[])], n as string, { type: 'audio/midi' }));
+        window.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt }));
+        window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, cancelable: true }));
+      },
+      [bytes, name] as const,
+    );
+  // a C major arpeggio, 8th notes at 120 bpm, sustained, then a held chord (5 s)
+  const notes: [number, ...number[]][] = [[0, 0xb0, 64, 127]];
+  for (let i = 0; i < 16; i++) notes.push([0, 0x90, [60, 64, 67, 72][i % 4], 80], [240, 0x80, [60, 64, 67, 72][i % 4], 0]);
+  notes.push([0, 0x90, 48, 90], [3840, 0x80, 48, 0], [0, 0xb0, 64, 0]);
+  await drop(Array.from(smf(480, [notes])), 'arpeggio.mid');
+  const player = page.locator('.player');
+  await expect(player).toBeVisible();
+  await expect(player.getByRole('button', { name: 'Pause' })).toBeVisible();
+  await expect(page.locator('.key.down')).not.toHaveCount(0, { timeout: 2000 });
+  await page.waitForTimeout(600);
+  expect(Number(await page.locator('.pl-bar').getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+  // pause: everything lifts, nothing more is scheduled
+  await player.getByRole('button', { name: 'Pause' }).click();
+  await expect(page.locator('.key.down')).toHaveCount(0);
+  await page.waitForTimeout(400);
+  await expect(page.locator('.key.down')).toHaveCount(0);
+  // play again from where it was, then stop
+  await player.getByRole('button', { name: 'Play' }).click();
+  await expect(page.locator('.key.down')).not.toHaveCount(0, { timeout: 2000 });
+  await player.getByRole('button', { name: 'Stop' }).click();
+  await expect(page.locator('.pl-bar')).toHaveAttribute('aria-valuenow', '0');
+  // dropping another file replaces the first and plays it (a single long D3)
+  await drop(Array.from(smf(480, [[[0, 0x90, 50, 90], [1920, 0x80, 50, 0]]])), 'd.mid');
+  await expect(page.locator('.key[data-midi="50"]')).toHaveClass(/down/, { timeout: 2000 });
+  await expect(page.locator('.key[data-midi="60"]')).not.toHaveClass(/down/);
+  await player.getByRole('button', { name: 'Stop' }).click();
+  expect(errors).toEqual([]);
 });

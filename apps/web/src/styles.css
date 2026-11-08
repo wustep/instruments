@@ -1121,3 +1121,70 @@ figure[title] {
   background: var(--amber);
   box-shadow: 0 0 8px rgba(242, 166, 70, 0.9);
 }
+
+/* ------------------------------------------------------------ MIDI file player: icons and a hairline */
+.player {
+  position: fixed;
+  z-index: 5;
+  left: 50%;
+  bottom: calc(var(--fall-h) + var(--kbd-h) + 18px);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 8px;
+  border-radius: 6px;
+  background: rgba(14, 13, 11, 0.55);
+  backdrop-filter: blur(6px);
+}
+:root:not([data-route='stage']) .player {
+  display: none;
+}
+.pl-btns {
+  display: flex;
+  gap: 6px;
+}
+.pl-btn {
+  width: 30px;
+  height: 30px;
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.pl-btn:hover {
+  color: var(--amber);
+}
+.pl-btn svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+.pl-bar {
+  position: relative;
+  width: 180px;
+  height: 2px;
+  background: rgba(236, 226, 206, 0.16);
+  cursor: pointer;
+  touch-action: none;
+}
+.pl-bar::before {
+  content: '';
+  position: absolute;
+  inset: -8px 0;
+}
+.pl-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--amber);
+  transform-origin: left;
+  transform: scaleX(0);
+}
+/* a file is being dragged over the page */
+:root[data-drop] .stage {
+  box-shadow:
+    inset 0 0 0 1px rgba(242, 166, 70, 0.55),
+    inset 0 0 80px rgba(242, 166, 70, 0.12);
+}
