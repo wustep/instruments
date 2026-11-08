@@ -32,6 +32,10 @@ export interface BowedParams {
   volume: number;
   /** compute resonance of the strings that are not bowed */
   sympathetic: boolean;
+  /** bow changes: alternate down/up-bow per détaché note and change bow when the hair runs out */
+  bowChanges: boolean;
+  /** duration of a bow change (speed reversal), s */
+  bowChangeTime: number;
 }
 
 interface StringDef {
@@ -68,6 +72,8 @@ interface BowedDesign {
   eq: [number, number, number][];
   /** bow speed range (m/s) mapped from MIDI velocity */
   bowSpeed: [number, number];
+  /** usable hair length of the bow, m */
+  bowLength: number;
   outputGain: number;
   defaults: Partial<BowedParams>;
   seed: number;
@@ -99,6 +105,7 @@ const VIOLIN: BowedDesign = {
     [180, -6, 0.8],
   ],
   bowSpeed: [0.05, 0.45],
+  bowLength: 0.64,
   outputGain: 60,
   defaults: { bowPosition: 0.11, bowPressure: 0.32, vibrato: 14, bodyDamping: 1, room: 0.35, volume: 1, sympathetic: true },
   seed: 21,
@@ -130,6 +137,7 @@ const VIOLA: BowedDesign = {
     [150, -5, 0.8],
   ],
   bowSpeed: [0.05, 0.45],
+  bowLength: 0.64,
   outputGain: 80,
   defaults: { bowPosition: 0.12, bowPressure: 0.32, vibrato: 12, bodyDamping: 1, room: 0.35, volume: 1, sympathetic: true },
   seed: 22,
@@ -161,6 +169,7 @@ const CELLO: BowedDesign = {
     [70, -4, 0.8],
   ],
   bowSpeed: [0.06, 0.5],
+  bowLength: 0.6,
   outputGain: 24,
   defaults: { bowPosition: 0.12, bowPressure: 0.3, vibrato: 10, bodyDamping: 1, room: 0.32, volume: 1, sympathetic: true },
   seed: 23,
@@ -192,8 +201,12 @@ class BowedString {
   ly = 0;
   // bow
   bowing = false;
+  /** bow speed magnitude (m/s); the signed speed is vBow · bow direction profile */
   vBow = 0;
   vBowTarget = 0;
+  /** signed bow speed and force used by the friction solve this control block */
+  vSigned = 0;
+  fScale = 1;
   fBow = 0;
   fBowTarget = 0;
   stick = true;
@@ -264,6 +277,9 @@ export class BowedCore implements InstrumentCore {
   private hL = new Float64Array(128);
   private hR = new Float64Array(128);
   private gain = 1;
+  /** The bow, shared by all strings as on the instrument: direction (+1 down-bow, −1 up-bow),
+   *  position along the hair from the frog (m), and an in-progress change. */
+  readonly bow = { dir: 1, pos: 0, changing: false, t: 0, from: 1, changes: 0, lastStroke: -1e12, auto: 0 };
   private vinS = new Float64Array(4);
   private peakS = new Float64Array(4);
   private onS = new Uint8Array(4);
@@ -281,6 +297,8 @@ export class BowedCore implements InstrumentCore {
       room: 0.35,
       volume: 1,
       sympathetic: true,
+      bowChanges: true,
+      bowChangeTime: 0.07,
       ...this.design.defaults,
       ...opts.params,
     };
@@ -468,6 +486,7 @@ export class BowedCore implements InstrumentCore {
         if (!legato) {
           s.stick = true;
           s.vBow = 0;
+          this.newStroke();
         }
         s.bowing = true;
         s.held = true;
@@ -499,6 +518,73 @@ export class BowedCore implements InstrumentCore {
       case 'allNotesOff':
         for (const s of this.strings) this.lift(s);
         break;
+    }
+  }
+
+  /** A détaché note (the bow was not moving) takes a new stroke: the bow alternates direction,
+   *  unless too little hair is left that way, as a player distributes the bow. Notes that
+   *  overlap one already bowed (slurs, chords, double stops) continue its stroke. */
+  private newStroke(): void {
+    const b = this.bow;
+    if (!this.params.bowChanges) {
+      b.dir = 1;
+      b.pos = 0;
+      return;
+    }
+    if (this.strings.some((q) => q.bowing)) return;
+    const first = b.lastStroke < -1e11;
+    b.lastStroke = this.frame;
+    b.changing = false;
+    const L = this.design.bowLength;
+    if (first) {
+      b.dir = 1;
+      b.pos = 0.05 * L;
+      return;
+    }
+    const nd = -b.dir;
+    const left = (d: number) => (d > 0 ? L - b.pos : b.pos);
+    b.dir = left(nd) >= 0.1 * L || left(nd) >= left(b.dir) ? nd : b.dir;
+  }
+
+  /** Control-rate bow motion: position along the hair, automatic changes, reversal profile. */
+  private bowControl(dt: number): void {
+    const b = this.bow;
+    const P = this.params;
+    let vmax = 0;
+    for (const s of this.strings) if (s.bowing && s.vBow > vmax) vmax = s.vBow;
+    let sgn = b.dir;
+    let fsc = 1;
+    if (P.bowChanges) {
+      const T = Math.max(0.02, P.bowChangeTime);
+      const L = this.design.bowLength;
+      if (!b.changing && vmax > 0) {
+        // change when the remaining hair is about what the deceleration needs (+2 cm)
+        const left = b.dir > 0 ? L - b.pos : b.pos;
+        if (left < (vmax * T) / Math.PI + 0.02) {
+          b.changing = true;
+          b.t = 0;
+          b.from = b.dir;
+          b.changes++;
+          b.auto++;
+        }
+      }
+      if (b.changing) {
+        b.t += dt;
+        const x = Math.min(1, b.t / T);
+        // speed reverses smoothly through zero; the player eases the weight a little at the turn
+        sgn = b.from * Math.cos(Math.PI * x);
+        fsc = 1 - 0.18 * Math.sin(Math.PI * x);
+        if (x >= 1) {
+          b.changing = false;
+          b.dir = -b.from;
+          sgn = b.dir;
+        }
+      }
+      b.pos = clamp(b.pos + sgn * vmax * dt, 0, L);
+    }
+    for (const s of this.strings) {
+      s.vSigned = s.vBow * sgn;
+      s.fScale = fsc;
     }
   }
 
@@ -605,6 +691,7 @@ export class BowedCore implements InstrumentCore {
       }
       s.Dtarget = s.D0 * Math.pow(2, -cents / 1200);
     }
+    this.bowControl(dt);
   }
 
   private render(n: number): void {
@@ -660,9 +747,9 @@ export class BowedCore implements InstrumentCore {
           // rosin noise roughens the friction curve slightly
           this.noise(s);
           const muScale = 1 + 0.04 * s.noiseLp;
-          const fb = s.fBow * muScale;
+          const fb = s.fBow * s.fScale * muScale;
           const twoZ = 2 * s.Z;
-          const dh = s.vBow - vh;
+          const dh = s.vSigned - vh;
           let f: number;
           const fStick = twoZ * dh;
           if (s.stick && Math.abs(fStick) <= MU_S * fb) {
@@ -837,8 +924,8 @@ export class BowedCore implements InstrumentCore {
       trace: tf,
       trace2: tv,
       trace2Label: 'string velocity under the bow',
-      caption: 'Friction force of the bow on the string over the last few periods. The string sticks to the bow (flat parts), then slips back once per period: Helmholtz motion, emerging from the friction law.',
-      meta: `${s.def.name} string · bow ${(s.vBow * 100).toFixed(0)} cm/s · ${s.fBow.toFixed(2)} N · β ${s.beta.toFixed(2)}`,
+      caption: 'Friction force of the bow on the string over the last few periods. The string sticks to the bow (flat parts), then slips back once per period: Helmholtz motion, emerging from the friction law. The bar is the bow from frog to tip, with the contact point moving along it; when the hair runs out (or on each new détaché note) the bow reverses, and the stick–slip re-forms the other way round.',
+      meta: `${s.def.name} string · ${this.bow.changing ? 'bow change' : this.bow.dir > 0 ? 'down-bow' : 'up-bow'} ${(Math.abs(s.vSigned) * 100).toFixed(0)} cm/s · ${s.fBow.toFixed(2)} N · β ${s.beta.toFixed(2)} · ${Math.round((100 * this.bow.pos) / this.design.bowLength)} % from the frog`,
     };
     return {
       frame: this.frame,
@@ -857,6 +944,7 @@ export class BowedCore implements InstrumentCore {
       },
       strike: null,
       excite,
+      bow: { dir: this.bow.dir, pos: this.bow.pos / this.design.bowLength, changing: this.bow.changing, speed: s.vSigned },
       modes: amps,
       sustain: this.sustain,
       soft: this.soft,

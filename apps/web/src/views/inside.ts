@@ -28,6 +28,7 @@ const BOWED_CONTROLS: Ctl[] = [
   { key: 'bowPressure', label: 'Bow force', sub: 'fraction of Schelleng’s maximum: airy … raucous', min: 0.05, max: 1.1, step: 0.01, log: true, fmt: (v) => fmt(v, 2) },
   { key: 'vibrato', label: 'Vibrato', sub: 'finger rocking depth, cents', min: 0, max: 40, step: 0.5, fmt: (v) => `${fmt(v, 0)} ¢` },
   { key: 'bodyDamping', label: 'Body damping', sub: 'loss of the wood and air modes', min: 0.25, max: 4, step: 0.01, log: true, fmt: (v) => `×${fmt(v, 2)}` },
+  { key: 'bowChangeTime', label: 'Bow change', sub: 'time to reverse the bow: seamless … laboured', min: 0.02, max: 0.25, step: 0.005, log: true, fmt: (v) => `${fmt(v * 1000, 0)} ms` },
   { key: 'room', label: 'Room', sub: 'close … hall', min: 0, max: 1, step: 0.01, fmt: (v) => fmt(v, 2) },
 ];
 
@@ -309,6 +310,33 @@ export function insideView(): View {
       ctx.fillStyle = c.muted;
       ctx.fillText(label, pad + 2, pad / 2 + r * rh + 10);
     });
+    // the bow: frog (left) to tip (right), contact point and direction of travel
+    const b = frame?.bow;
+    if (b) {
+      const y = hh - 5;
+      const x0 = pad;
+      const x1 = w - pad;
+      ctx.strokeStyle = c.rule2;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x0, y);
+      ctx.lineTo(x1, y);
+      ctx.stroke();
+      const x = x0 + (x1 - x0) * Math.min(1, Math.max(0, b.pos));
+      ctx.fillStyle = c.accent;
+      ctx.beginPath();
+      if (b.changing || Math.abs(b.speed) < 1e-3) ctx.arc(x, y, 3, 0, Math.PI * 2);
+      else {
+        const d = b.speed > 0 ? 1 : -1;
+        ctx.moveTo(x + 6 * d, y);
+        ctx.lineTo(x - 4 * d, y - 4);
+        ctx.lineTo(x - 4 * d, y + 4);
+      }
+      ctx.fill();
+      ctx.fillStyle = c.muted;
+      ctx.fillText('frog', x0, y - 5);
+      ctx.fillText('tip', x1 - 16, y - 5);
+    }
     pHammer.meta.textContent = e.meta;
   }
 

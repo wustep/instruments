@@ -44,6 +44,8 @@ export interface VisualFrame extends Stats {
   strike: StrikeRecord | null;
   /** bow / jet trace for strings and flute */
   excite: ExciteTrace | null;
+  /** the bow (strings): direction (+1 down, −1 up), contact point along the hair 0 (frog)…1 (tip) */
+  bow?: { dir: number; pos: number; changing: boolean; speed: number } | null;
   modes: Float32Array;
   /** sent when the mode set follows the note (flute bore harmonics) */
   modeFreqs?: number[];

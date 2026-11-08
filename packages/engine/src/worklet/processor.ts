@@ -165,6 +165,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       focus: never;
       strike: { serial: number } | null;
       excite?: never;
+      bow?: never;
       modes: Float32Array;
     };
     const strike = v.strike && v.strike.serial !== this.lastStrikeSerial ? v.strike : null;
@@ -176,6 +177,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       focus: v.focus,
       strike: strike as never,
       excite: v.excite ?? null,
+      bow: v.bow ?? null,
       modes: v.modes,
       modeFreqs: core.id === 'flute' ? Array.from(core.modeFrequencies) : undefined,
     });

@@ -410,5 +410,211 @@
     "pitchCentsRms": 0.86
    }
   }
+ },
+ {
+  "label": "R2-4 bow direction changes",
+  "date": "2026-11-08T08:34:40.417Z",
+  "summary": {
+   "violin": {
+    "notes": 79,
+    "harmRmsDb": 12.27,
+    "ltasRmsDb": 16.97,
+    "ltasRmsDbByDyn": {
+     "pp": 15.2,
+     "mf": 15.44,
+     "ff": 17.48
+    },
+    "centroidRatio": 0.63,
+    "centroidRatioByDyn": {
+     "pp": 0.91,
+     "mf": 0.67,
+     "ff": 0.53
+    },
+    "evenOddErrDb": -2.05,
+    "evenOddErrByRegister": [
+     2.95,
+     -0.74,
+     -7.3
+    ],
+    "evenOddRef": [
+     -0.57,
+     -2.19,
+     -3.12
+    ],
+    "evenOddModel": [
+     3.61,
+     -2.41,
+     -11.39
+    ],
+    "registerCuts": [
+     65,
+     74
+    ],
+    "hnrDiffDb": 0.33,
+    "attackRatio": 0.3,
+    "dynSpreadDb": {
+     "ref": 19.14,
+     "model": 11.65
+    },
+    "vibrato": {
+     "refRate": 5.7,
+     "refDepth": 6.61,
+     "modelRate": 5.55,
+     "modelDepth": 13.67,
+     "refShare": 0.22
+    },
+    "pitchCentsRms": 2.63
+   },
+   "viola": {
+    "notes": 78,
+    "harmRmsDb": 10.34,
+    "ltasRmsDb": 13.53,
+    "ltasRmsDbByDyn": {
+     "pp": 13.66,
+     "mf": 11.63,
+     "ff": 13.4
+    },
+    "centroidRatio": 0.64,
+    "centroidRatioByDyn": {
+     "pp": 0.64,
+     "mf": 0.6,
+     "ff": 0.52
+    },
+    "evenOddErrDb": -3.01,
+    "evenOddErrByRegister": [
+     0.04,
+     1.42,
+     -9.22
+    ],
+    "evenOddRef": [
+     1.19,
+     -1.13,
+     -1.47
+    ],
+    "evenOddModel": [
+     0.22,
+     0.31,
+     -12.09
+    ],
+    "registerCuts": [
+     57,
+     68
+    ],
+    "hnrDiffDb": -4.04,
+    "attackRatio": 0.3,
+    "dynSpreadDb": {
+     "ref": 9.86,
+     "model": 11.03
+    },
+    "vibrato": {
+     "refRate": 3.4,
+     "refDepth": 7.28,
+     "modelRate": 5.4,
+     "modelDepth": 10.89,
+     "refShare": 0.06
+    },
+    "pitchCentsRms": 2.97
+   },
+   "cello": {
+    "notes": 64,
+    "harmRmsDb": 13,
+    "ltasRmsDb": 19.37,
+    "ltasRmsDbByDyn": {
+     "pp": 18.06,
+     "mf": 20.94,
+     "ff": 18.75
+    },
+    "centroidRatio": 0.57,
+    "centroidRatioByDyn": {
+     "pp": 0.89,
+     "mf": 0.55,
+     "ff": 0.52
+    },
+    "evenOddErrDb": -0.33,
+    "evenOddErrByRegister": [
+     2.14,
+     1.43,
+     -2.8
+    ],
+    "evenOddRef": [
+     -0.17,
+     -2.49,
+     -4.17
+    ],
+    "evenOddModel": [
+     1.96,
+     -1.69,
+     -6.11
+    ],
+    "registerCuts": [
+     43,
+     55
+    ],
+    "hnrDiffDb": -2.29,
+    "attackRatio": 0.67,
+    "dynSpreadDb": {
+     "ref": 12.86,
+     "model": 9.95
+    },
+    "vibrato": {
+     "refRate": 5.4,
+     "refDepth": 16.95,
+     "modelRate": 5.25,
+     "modelDepth": 8.03,
+     "refShare": 0.8
+    },
+    "pitchCentsRms": 2.86
+   },
+   "flute": {
+    "notes": 109,
+    "harmRmsDb": 7.03,
+    "ltasRmsDb": 4.49,
+    "ltasRmsDbByDyn": {
+     "pp": 6.34,
+     "mf": 3.93,
+     "ff": 6.4
+    },
+    "centroidRatio": 0.98,
+    "centroidRatioByDyn": {
+     "pp": 1.09,
+     "mf": 0.92,
+     "ff": 0.8
+    },
+    "evenOddErrDb": -5.15,
+    "evenOddErrByRegister": [
+     -8.58,
+     -3.32,
+     -2.92
+    ],
+    "evenOddRef": [
+     -3.64,
+     -11.71,
+     -18.81
+    ],
+    "evenOddModel": [
+     -11.74,
+     -14.15,
+     -20.37
+    ],
+    "registerCuts": [
+     71,
+     84
+    ],
+    "hnrDiffDb": 5.28,
+    "attackRatio": 1.67,
+    "dynSpreadDb": {
+     "ref": 12.55,
+     "model": 10.5
+    },
+    "vibrato": {
+     "refRate": 4.05,
+     "refDepth": 3.7,
+     "modelRate": 0,
+     "modelDepth": 0.71,
+     "refShare": 0.04
+    },
+    "pitchCentsRms": 0.86
+   }
+  }
  }
 ]
