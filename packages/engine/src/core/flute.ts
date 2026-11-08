@@ -42,6 +42,10 @@ const R_EMB = 0.96;
 
 /** Voicing of the jet, labium and radiation. Round 2 fitted these to the Iowa MIS flute
  *  (non-vibrato, pp/mf/ff) with scripts/fit-flute.ts; see docs/CALIBRATION.md. */
+/** tongued onset (round 3): the jet's one-off push, and its transient extra gain,
+ *  fitted to the Iowa flute's 10-90 % attack times (model x1.67 slower before, x1.14 now) */
+const TONGUE_PUSH = 1;
+const ATTACK_BOOST = 4;
 export const FLUTE_VOICE = {
   /** small-signal jet gain (loop gain of the jet path at small amplitude) */
   jetGain: 0.115,
@@ -110,6 +114,11 @@ export class FluteCore implements InstrumentCore {
   private pTarget = 0;
   private attackTau = 0.04;
   private chiff = 0;
+  /** the tongue's release: one coherent deflection of the jet (amplitude, samples left) */
+  private tongueAmp = 0;
+  private tongueN = 0;
+  private tongueLen = 1;
+  private attackBoost = 0;
   private vibPhase = 0;
   private expression = 1;
   /** pitch bend as a factor on the bore delay */
@@ -283,6 +292,13 @@ export class FluteCore implements InstrumentCore {
         this.pTarget = 1;
         this.attackTau = legato ? 0.015 : 0.06 - 0.035 * (ev.velocity / 127);
         this.chiff = legato ? 0.3 : 0.6 + 0.8 * (ev.velocity / 127);
+        // tonguing: when the tongue lets the breath go, the jet's front sweeps across the
+        // edge once, a coherent push that seeds the tube's resonance (without it the
+        // oscillation grew from turbulence alone and spoke ~4x slower than a real flute)
+        this.tongueAmp = TONGUE_PUSH * (legato ? 0.3 : 0.5 + 0.5 * (ev.velocity / 127));
+        this.tongueLen = Math.max(4, Math.round((0.5 * this.fs) / et(m)));
+        this.tongueN = this.tongueLen;
+        this.attackBoost = legato ? 0 : ATTACK_BOOST * (0.6 + 0.4 * (ev.velocity / 127));
         if (!legato) this.vibPhase = 0;
         this.noteStart = this.frame;
         break;
@@ -366,6 +382,7 @@ export class FluteCore implements InstrumentCore {
     const dt = n / fs;
     const P = this.params;
     // breath envelope and vibrato (control rate)
+    const sinceOn = (this.frame - this.noteStart) / fs;
     const k = 1 - Math.exp(-dt / (this.pTarget > this.pressure ? this.attackTau : 0.035));
     this.pressure += (this.pTarget - this.pressure) * k;
     if (this.pressure < 1e-5 && this.pTarget === 0) this.pressure = 0;
@@ -388,7 +405,9 @@ export class FluteCore implements InstrumentCore {
     const turb = V.noise * P.noise * (Uj * Uj) / 400 * (this.pressure > 0 ? 1 : 0);
     const off = this.off;
     const tOff = this.tanhOff;
-    const jk = this.jetK;
+    // right after a tongued onset the jet is sharper and better aimed: a transient extra
+    // small-signal gain (decaying over ~60 ms) lets the tube speak as fast as a real flute
+    const jk = this.jetK * (1 + this.attackBoost * Math.exp(-sinceOn / 0.06));
     const vortex = V.vortex;
     const dqScale = fs / (2 * Math.PI * 1000);
     this.chiff *= Math.exp(-dt / 0.035);
@@ -424,7 +443,12 @@ export class FluteCore implements InstrumentCore {
       const noise = nz * (turb + 0.12 * this.chiff * drive);
       // jet: deflected by the acoustic flow at the embouchure (more easily when slow),
       // the deflection convected to the edge; flow into the pipe ∝ jet speed
-      this.jetLpY = (1 - this.jetLpA) * (0.5 * y + noise) + this.jetLpA * this.jetLpY;
+      let tng = 0;
+      if (this.tongueN > 0) {
+        tng = this.tongueAmp * Math.sin((Math.PI * (this.tongueLen - this.tongueN)) / this.tongueLen);
+        this.tongueN--;
+      }
+      this.jetLpY = (1 - this.jetLpA) * (0.5 * y + noise + tng) + this.jetLpA * this.jetLpY;
       const jIn = this.jetLpY;
       this.jet[w & mask] = jIn;
       const jd = this.jetD;
