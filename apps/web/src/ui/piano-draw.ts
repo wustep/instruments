@@ -91,14 +91,21 @@ function stepAction(pts: Pt[], st: PianoState): void {
   }
 }
 
+/** struck strings: √level on an auto scale, so a decaying note stays visible while it sounds.
+ *  Sympathetic strings: their real displacement relative to the loudest struck string, linear
+ *  (the engine's `symLevels`), so they glow only when they really move. Under a bass note the
+ *  undamped treble moves at about −70 dB and stays dark; a pedalled octave builds to −10 dB. */
 function levelsOf(fr: VisualFrame | null, st: PianoState): { l: (i: number) => number; s: (i: number) => number } {
   const levels = fr?.levels;
   const sym = fr?.symLevels;
   let mx = 0;
-  if (levels) for (let i = 0; i < levels.length; i++) mx = Math.max(mx, levels[i], sym ? sym[i] : 0);
+  if (levels) for (let i = 0; i < levels.length; i++) mx = Math.max(mx, levels[i]);
   const norm = st.lvlScale.of(mx);
-  return { l: (i) => (levels ? Math.sqrt(levels[i] / norm) : 0), s: (i) => (sym ? Math.sqrt(sym[i] / norm) : 0) };
+  return { l: (i) => (levels ? Math.sqrt(levels[i] / norm) : 0), s: (i) => (sym ? Math.min(1, sym[i]) : 0) };
 }
+
+/** below this relative displacement (−30 dB) a sympathetic string is not drawn as moving */
+const SYM_VISIBLE = 0.03;
 
 /** a string's static line plus its live glow */
 function strokeString(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, wound: boolean, l: number, s: number): void {
@@ -108,9 +115,10 @@ function strokeString(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1:
   ctx.moveTo(x0, y0);
   ctx.lineTo(x1, y1);
   ctx.stroke();
-  if (l > 0.02 || s > 0.02) {
-    ctx.strokeStyle = l >= s ? rgba(INK.vermilion, 0.15 + 0.85 * l) : rgba(INK.amber, 0.2 + 0.8 * s);
-    ctx.lineWidth = 1 + 1.6 * Math.max(l, s);
+  if (l > 0.02 || s > SYM_VISIBLE) {
+    // sympathetic glow is kept faint: at most 0.55 alpha even when it moves like a struck string
+    ctx.strokeStyle = l >= s ? rgba(INK.vermilion, 0.15 + 0.85 * l) : rgba(INK.amber, 0.08 + 0.47 * s);
+    ctx.lineWidth = l >= s ? 1 + 1.6 * l : 0.9 + 0.9 * s;
     ctx.beginPath();
     ctx.moveTo(x0, y0);
     ctx.lineTo(x1, y1);
@@ -169,7 +177,15 @@ function drawAllShapes(ctx: CanvasRenderingContext2D, fr: VisualFrame | null, by
     const nx = -(y1 - y0) / len;
     const ny = (x1 - x0) / len;
     const sym = ps.light[j] === 1;
-    ctx.strokeStyle = sym ? rgba(INK.amber, 0.7) : rgba(INK.vermilion, 0.85);
+    let alpha = 0.85;
+    if (sym) {
+      // as faint as the string's real motion, relative to the loudest struck string (the
+      // engine's reference, which remembers a released chord for a second or two)
+      const rel = fr?.symLevels?.[m - 21] ?? 0;
+      if (rel < SYM_VISIBLE) continue;
+      alpha = Math.min(0.55, 0.1 + 0.6 * rel);
+    }
+    ctx.strokeStyle = sym ? rgba(INK.amber, alpha) : rgba(INK.vermilion, alpha);
     ctx.lineWidth = sym ? 0.9 : 1.2;
     ctx.beginPath();
     for (let i = 0; i < P; i++) {

@@ -26,6 +26,8 @@ import {
 import { LN1000, clamp, mulberry32, nextPow2 } from './util.ts';
 
 export const BK_MAX = 32;
+/** shared scratch for shape() (the stage asks for every sounding string, every frame) */
+let shapeScratch = new Float32Array(2048);
 const MAX_DISP = 64;
 
 /** Bridge admittance seen by a key at angular frequency w (rad/sample): [re, im] in s/kg. */
@@ -210,6 +212,8 @@ export class Voice {
   damperTarget = 1;
   damperApplied = -1;
   level = 0;
+  /** the stage's recent peak displacement of this voice (see PianoCore.getVisual) */
+  visPeak = 0;
   /** samples since activation */
   age = 0;
   fade = 1;
@@ -462,6 +466,7 @@ export class Voice {
     this.hContact = false;
     this.noiseAmp = 0;
     this.level = 0;
+    this.visPeak = 0;
     this.age = 0;
     this.fade = 1;
     this.fadeStep = 0;
@@ -830,7 +835,8 @@ export class Voice {
     const pts = out.length;
     let y = 0;
     let j = 0;
-    const raw = new Float32Array(L + 1);
+    if (shapeScratch.length < L + 1) shapeScratch = new Float32Array(L + 1 + 256);
+    const raw = shapeScratch;
     raw[0] = 0;
     for (let i = 0; i < L; i++) {
       y += buf[(pos - 1 - (L - i)) & mask] + buf[(pos - 1 - (L + i)) & mask];

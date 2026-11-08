@@ -49,8 +49,10 @@ export interface VisualFrame extends Stats {
   /** the bow (strings): direction (+1 down, −1 up), contact point along the hair 0 (frog)…1 (tip) */
   bow?: { dir: number; pos: number; changing: boolean; speed: number } | null;
   modes: Float32Array;
-  /** piano: per-key level of struck and of sympathetically ringing strings (A0…C8) */
+  /** piano: per-key level of the struck strings (A0…C8) */
   levels?: Float32Array;
+  /** piano: per-key displacement of sympathetically ringing strings, relative to the loudest
+   *  struck string's (linear; ~0.001 for an undamped treble string under a bass note) */
   symLevels?: Float32Array;
   /** flute: breath pressure (0..1) and the breath vibrato's current deviation */
   breath?: { pressure: number; vib: number };

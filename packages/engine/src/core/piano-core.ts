@@ -61,8 +61,10 @@ export interface VisualState {
   frame: number;
   voices: number;
   sympathetic: number;
-  /** per key (A0…C8): peak level of the struck strings / of the sympathetic (undamped) strings */
+  /** per key (A0…C8): peak level of the struck strings */
   levels?: Float32Array;
+  /** per key: sympathetic (undamped, unstruck) strings' displacement relative to the loudest
+   *  struck string's (recent reference, 1.5 s memory); linear, so faint strings stay faint */
   symLevels?: Float32Array;
   /** every sounding string's displacement (first string of each voice, `points` samples, agraffe → bridge) */
   pianoShapes?: PianoShapes;
@@ -141,6 +143,9 @@ export class PianoCore {
   private hx1 = new Float64Array(RING);
   private hx2 = new Float64Array(RING);
   private knockSeed = 0x9e3779b9;
+  /** the stage's reference for sympathetic levels: the loudest struck displacement, recently */
+  private visRef = 0;
+  private visFrame = 0;
   private fext1 = new Float64Array(RING);
   private fext2 = new Float64Array(RING);
   private Bm = new Float64Array(9);
@@ -807,27 +812,51 @@ export class PianoCore {
       };
     }
     this.board.modeAmplitudes(this.modeAmps);
-    // per-key string levels: struck strings and sympathetically ringing ones
+    // per-key string levels. Struck strings: the peak of the wave leaving the string at the
+    // bridge. Sympathetic strings: their real vibration, as displacement relative to the loudest
+    // struck string's (recent, so a ringing pedal chord keeps its reference). The bridge wave is
+    // no measure of a light string's own motion: an undamped C8 passes the board's broadband
+    // motion straight through, so its wave peak read +12 dB over a struck A1 whose displacement
+    // it matches only at −70 dB.
     const levels = new Float32Array(NUM_KEYS);
     const symLevels = new Float32Array(NUM_KEYS);
-    for (const a of this.active) {
+    const P = 24;
+    const act = this.active.filter((a) => a.level > 1e-7);
+    const shapes = new Float32Array(act.length * P);
+    const disp = new Float32Array(act.length);
+    let struckMax = 0;
+    const dt = Math.max(0, this.frame - this.visFrame) / this.fs;
+    this.visFrame = this.frame;
+    // a snapshot catches each string somewhere in its swing; its recent peak (held ~0.2 s at the
+    // stage's frame rate) is the amplitude
+    const hold = Math.exp(-dt / 0.2);
+    act.forEach((a, j) => {
+      const sh = shapes.subarray(j * P, (j + 1) * P);
+      a.shape(0, this.frame & POS_MASK, sh);
+      let mx = 0;
+      for (let i = 0; i < P; i++) mx = Math.max(mx, Math.abs(sh[i]));
+      a.visPeak = Math.max(mx, a.visPeak * hold);
+      disp[j] = a.visPeak;
+      if (!a.light && a.visPeak > struckMax) struckMax = a.visPeak;
+    });
+    this.visRef = Math.max(struckMax, this.visRef * Math.exp(-dt / 1.5));
+    const ref = Math.max(this.visRef, 1e-12);
+    act.forEach((a, j) => {
       const i = a.midi - KEY_LO;
-      if (i < 0 || i >= NUM_KEYS) continue;
-      if (a.light) symLevels[i] = Math.max(symLevels[i], a.level);
+      if (i < 0 || i >= NUM_KEYS) return;
+      if (a.light) symLevels[i] = Math.max(symLevels[i], disp[j] / ref);
       else levels[i] = Math.max(levels[i], a.level);
-    }
+    });
     // every sounding string's shape, compactly (first string of each voice, 24 points),
     // struck strings first, so the stage can show them all moving at once
-    const P = 24;
-    const act = [...this.active].filter((a) => a.level > 1e-7).sort((a, b) => Number(a.light) - Number(b.light) || b.level - a.level).slice(0, 96);
-    const pianoShapes = { points: P, midi: new Int16Array(act.length), light: new Uint8Array(act.length), level: new Float32Array(act.length), shapes: new Float32Array(act.length * P) };
-    const tmp = new Float32Array(P);
-    act.forEach((a, j) => {
-      a.shape(0, this.frame & POS_MASK, tmp);
-      pianoShapes.shapes.set(tmp, j * P);
-      pianoShapes.midi[j] = a.midi;
-      pianoShapes.light[j] = a.light ? 1 : 0;
-      pianoShapes.level[j] = a.level;
+    const order = act.map((_, j) => j).sort((x, y) => Number(act[x].light) - Number(act[y].light) || disp[y] - disp[x]).slice(0, 96);
+    const pianoShapes = { points: P, midi: new Int16Array(order.length), light: new Uint8Array(order.length), level: new Float32Array(order.length), shapes: new Float32Array(order.length * P) };
+    order.forEach((j, k) => {
+      const a = act[j];
+      pianoShapes.shapes.set(shapes.subarray(j * P, (j + 1) * P), k * P);
+      pianoShapes.midi[k] = a.midi;
+      pianoShapes.light[k] = a.light ? 1 : 0;
+      pianoShapes.level[k] = a.level;
     });
     return {
       frame: this.frame,
