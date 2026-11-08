@@ -37,14 +37,43 @@ const RHO = 1.2;
 const C_AIR = 343;
 const BUF = 1 << 13;
 const TRACE = 2048;
-const TANH_OFF = Math.tanh(0.8);
-/** small-signal jet gain and nominal jet delay / period */
-const JET_GAIN = 0.22;
 /** pressure reflection at the embouchure hole (open end) */
 const R_EMB = 0.96;
-const OFF = 0.8;
-const JET_RATIO = 0.36;
-const JET_K = (2 * JET_GAIN) / (1 - Math.tanh(0.8) ** 2);
+
+/** Voicing of the jet, labium and radiation. Round 2 fitted these to the Iowa MIS flute
+ *  (non-vibrato, pp/mf/ff) with scripts/fit-flute.ts; see docs/CALIBRATION.md. */
+export const FLUTE_VOICE = {
+  /** small-signal jet gain (loop gain of the jet path at small amplitude) */
+  jetGain: 0.115,
+  /** extra jet gain reached at C7, ramped in from E6: players narrow the lip opening for
+   *  the top notes, which raises the jet's receptivity where the bore losses are highest */
+  jetGainTop: 1.5,
+  /** jet centreline offset from the labium in jet half-widths y0/b, at C4 and at C7:
+   *  an offset jet splits asymmetrically, which is what makes even harmonics */
+  offset: [1.02, 0.0657] as [number, number],
+  /** vortex shedding at the labium: a loss ∝ v|v| that limits the amplitude before the jet
+   *  saturates fully (Fabre et al. 1996; Auvray et al. 2012) */
+  vortex: 0.00449,
+  /** jet convection delay / period at the nominal blowing pressure */
+  jetRatio: 0.36,
+  /** Strouhal-limited jet receptivity: one-pole corner at this multiple of the pitch */
+  jetLp: 3.2,
+  /** radiation, as d/dt of the volume flows (unity at 1 kHz): open foot, embouchure jet; plus
+   *  an optional undifferentiated jet-flow term (0 = purely monopole radiation) */
+  radFoot: 1.25,
+  radFlow: 0,
+  radDflow: 7.88,
+  /** turbulence noise into the jet, and radiated directly */
+  noise: 0.0467,
+  noiseOut: 0.926,
+  /** dynamics: jet flow scale and blowing pressure from MIDI velocity (v01 = vel/127) */
+  driveLo: 0.0913,
+  driveHi: 0.849,
+  driveCurve: 1.48,
+  pressLo: 0.84,
+  pressHi: 0.886,
+};
+
 const et = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
 /** Fingering: which pipe mode sounds note m, and the pipe's fundamental. */
@@ -144,13 +173,19 @@ export class FluteCore implements InstrumentCore {
     // the next pipe mode takes over (overblowing)
     const pNom = this.nominalPressure(m);
     const UjNom = Math.sqrt((2 * pNom) / RHO);
-    this.lj = (JET_RATIO / et(m)) * 0.45 * UjNom;
+    const V = FLUTE_VOICE;
+    this.lj = (V.jetRatio / et(m)) * 0.45 * UjNom;
+    // jet offset voiced across the compass; small-signal gain kept independent of it
+    this.off = V.offset[0] + (V.offset[1] - V.offset[0]) * clamp((m - 60) / 36, 0, 1);
+    this.tanhOff = Math.tanh(this.off);
+    this.jetGainNote = V.jetGain * (1 + (V.jetGainTop - 1) * clamp((m - 88) / 8, 0, 1));
+    this.jetK = (2 * this.jetGainNote) / (1 - this.tanhOff * this.tanhOff);
     this.mode = mode;
     this.fTarget = et(m);
     this.boreNominal = (mode * fs) / et(m);
     // jet receptivity falls off above a Strouhal-limited frequency (the player's lip
     // distance tracks the note): one-pole low-pass at ~2.2x the sounding pitch
-    this.jetLpA = Math.exp((-2 * Math.PI * 2.2 * et(m)) / fs);
+    this.jetLpA = Math.exp((-2 * Math.PI * V.jetLp * et(m)) / fs);
     const tauNom = (fs * this.lj) / (0.45 * UjNom);
     this.Dnom = this.boreDelayFor(tauNom) * this.tuningCorrection(m);
     this.Dtarget = this.Dnom;
@@ -162,6 +197,11 @@ export class FluteCore implements InstrumentCore {
     for (let k = 0; k < 16; k++) this.modeFreqs[k] = (k + 1) * fb;
   }
   private fTarget = 440;
+  private off = 0.8;
+  private tanhOff = Math.tanh(0.8);
+  private jetK = 1;
+  private jetGainNote = 0.2;
+  private qPrev = 0;
   private jetLpA = 0.9;
   private jetLpY = 0;
   private boreNominal = 100;
@@ -197,8 +237,8 @@ export class FluteCore implements InstrumentCore {
     // g·L·e^{-jωτ}
     const er = Math.cos(w * tau);
     const ei = -Math.sin(w * tau);
-    const jr = JET_GAIN * (Lr * er - Li * ei);
-    const ji2 = JET_GAIN * (Lr * ei + Li * er);
+    const jr = this.jetGainNote * (Lr * er - Li * ei);
+    const ji2 = this.jetGainNote * (Lr * ei + Li * er);
     const gr = R_EMB - jr;
     const gi = -ji2;
     const ph = phH + Math.atan2(gi, gr);
@@ -326,9 +366,10 @@ export class FluteCore implements InstrumentCore {
     this.vibPhase += 2 * Math.PI * 5.0 * dt;
     const vib = 1 + P.vibrato * clamp((age - 0.3) / 0.4, 0, 1) * Math.sin(this.vibPhase);
     // velocity: mostly loudness (jet flow amplitude), a little blowing pressure
+    const V = FLUTE_VOICE;
     const v01 = this.velocity / 127;
-    const velScale = 0.35 + 0.8 * v01;
-    const pBlow = this.nominalPressure(this.note) * this.pressure * vib * P.breath * (0.88 + 0.16 * v01) * this.expression;
+    const velScale = V.driveLo + (V.driveHi - V.driveLo) * Math.pow(v01, V.driveCurve);
+    const pBlow = this.nominalPressure(this.note) * this.pressure * vib * P.breath * (V.pressLo + (V.pressHi - V.pressLo) * v01) * this.expression;
     const Uj = Math.sqrt((2 * Math.max(pBlow, 1)) / RHO);
     this.Uj = Uj;
     const ljEff = this.lj * P.embouchure;
@@ -337,7 +378,12 @@ export class FluteCore implements InstrumentCore {
     this.Dtarget = this.Dnom + 0.75 * (this.boreDelayFor(this.jetDTarget) * this.tuningCorrection(this.note) - this.Dnom);
     // normalised drive (flow) and turbulence ∝ Uj²
     const drive = this.pressure * vib * velScale * this.expression * Math.min(1.6, P.breath);
-    const turb = 0.035 * P.noise * (Uj * Uj) / 400 * (this.pressure > 0 ? 1 : 0);
+    const turb = V.noise * P.noise * (Uj * Uj) / 400 * (this.pressure > 0 ? 1 : 0);
+    const off = this.off;
+    const tOff = this.tanhOff;
+    const jk = this.jetK;
+    const vortex = V.vortex;
+    const dqScale = fs / (2 * Math.PI * 1000);
     this.chiff *= Math.exp(-dt / 0.035);
     const u = Math.max(0, drive);
     const bp = this.noiseBp;
@@ -380,16 +426,19 @@ export class FluteCore implements InstrumentCore {
       const jDel = this.jet[(w - ji) & mask] * (1 - jf) + this.jet[(w - ji - 1) & mask] * jf;
       // jet splitting at the edge: saturating flow law, offset edge -> even harmonics;
       // small-signal gain JET_GAIN (independent of jet speed above threshold)
-      const q = u * (Math.tanh((JET_K * jDel) / (u + 0.06) + OFF) - TANH_OFF);
-      const into = q - R_EMB * y;
+      const q = u * (Math.tanh((jk * jDel) / (u + 0.06) + off) - tOff);
+      // vortex shedding at the labium: a resistance growing with the acoustic flow, i.e. a
+      // reflection that weakens with amplitude (passive: never above R_EMB)
+      const into = q - (R_EMB / (1 + vortex * Math.abs(y))) * y;
       this.bore[w & mask] = into;
-      // radiation from the open end (high-passed transmitted wave) + embouchure
-      const rad = r - this.outHpX + 0.995 * this.outHp;
+      // radiation: both openings are small monopoles, so the far-field pressure is the time
+      // derivative of their volume flows (Rayleigh): the open foot (the wave leaving the
+      // bore) and the embouchure (the jet's own asymmetric flow, which carries the evens)
+      const dr = r - this.outHpX;
       this.outHpX = r;
-      this.outHp = rad;
-      // the embouchure hole radiates too: the jet's own (asymmetric) flow carries the
-      // even harmonics; the open foot radiates the high-passed pipe wave
-      const out = rad + 2.2 * q + 0.25 * noise;
+      const dq = q - this.qPrev;
+      this.qPrev = q;
+      const out = dqScale * (V.radFoot * dr + V.radDflow * dq) + V.radFlow * q + V.noiseOut * noise;
       oL[t] = out;
       oR[t] = 0.9 * out + 0.4 * q;
       this.trQ[this.trI] = q;
