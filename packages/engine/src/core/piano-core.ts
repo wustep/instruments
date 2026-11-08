@@ -91,9 +91,10 @@ const POS_MASK = 0x3fffffff;
 const LEVEL_OFF = 2e-6;
 /** live make-up gain over the reference-matched calibration level */
 const PLAYBACK_GAIN_DB = 6;
-/** action knock: the noisy contact tick's share of the knock (fitted to the attack's
- *  6-12 kHz burst over the sustain in the Iowa Steinway: A2 +4, C#6 0, C#4 ff -7 dB) */
-const KNOCK_TICK = 0.6;
+/** action knock: the noisy contact tick's share of the knock, fitted to the attack's 6-12 kHz
+ *  burst over the sustain in the Iowa Steinway (24 notes A1-C#7 at mf and ff, half held out:
+ *  mean error -0.7 dB held out). It was 0.6 while the HF path's allpass chain smeared it. */
+const KNOCK_TICK = 0.3;
 
 function smoothstep(a: number, b: number, x: number): number {
   const t = clamp((x - a) / (b - a), 0, 1);
@@ -506,7 +507,8 @@ export class PianoCore {
     // key bottoming on the keybed / action knock, into the frame & board:
     // a 1.6 ms thud plus (round 3) a short tick of felt-and-wood contact noise that is
     // different on every strike and also reaches the high-frequency board path (the
-    // thud alone had no energy above the board's modes, so every attack was too clean)
+    // thud alone had no energy above the board's modes, so every attack was too clean).
+    // Math.imul: a plain multiply of two 32-bit numbers loses the low bits in a double.
     const amp = 0.35 * Math.pow(vh, 1.5);
     const fs = this.fs;
     const len = Math.round(0.0016 * fs);
@@ -520,9 +522,9 @@ export class PianoCore {
     }
     const tl = Math.round(0.004 * fs);
     const tau = 0.0005 * fs;
-    let sd = (this.knockSeed = (this.knockSeed * 1664525 + 1013904223) >>> 0);
+    let sd = (this.knockSeed = (Math.imul(this.knockSeed, 1664525) + 1013904223) >>> 0);
     for (let t = 0; t < tl; t++) {
-      sd = (sd * 1103515245 + 12345) >>> 0;
+      sd = (Math.imul(sd, 1103515245) + 12345) >>> 0;
       const n = (sd / 4294967296) * 2 - 1;
       const f = KNOCK_TICK * amp * n * Math.exp(-t / tau);
       const idx = (start + t) & RMASK;

@@ -361,28 +361,66 @@ function hadamard16(o: Float64Array): void {
 // late-line delays (ms at size 1): mutually incommensurate, 31–98 ms
 const BASE_MS = [31.3, 34.7, 37.9, 41.3, 44.9, 47.3, 51.1, 53.9, 58.7, 62.3, 67.1, 71.9, 76.7, 82.3, 89.9, 97.7];
 
-/** Short allpass diffusion for the high-frequency board path (decorrelated L/R). */
+/**
+ * The high-frequency board path's diffusion (decorrelated L/R): the board above its modal range is a
+ * dense field of heavily damped modes, so its response to a force at the bridge is a direct part
+ * plus a short, smooth, noise-like decay. Modelled as exponentially decaying velvet noise (sparse
+ * random ±1 taps, ~2500 per second, Järveläinen & Karjalainen 2007; Alary et al. 2017), energy-
+ * normalised like an allpass. Until round 3 this was a chain of four Schroeder allpasses: on every
+ * impulsive input (the hammer's strike and the action's contact tick) each recirculated at its own
+ * fixed period, a 40 ms metallic ring at key-down.
+ */
 export class Diffuser {
-  private l: Allpass[];
-  private r: Allpass[];
-  constructor(fs: number) {
-    const ms = (x: number) => Math.round((x * fs) / 1000);
-    this.l = [new Allpass(ms(1.13), 0.62), new Allpass(ms(2.71), 0.58), new Allpass(ms(4.03), 0.55), new Allpass(ms(6.67), 0.5)];
-    this.r = [new Allpass(ms(1.37), 0.62), new Allpass(ms(2.29), 0.58), new Allpass(ms(4.61), 0.55), new Allpass(ms(7.19), 0.5)];
+  private ring: Float64Array[];
+  private mask: number;
+  private w = 0;
+  private taps: { d: Int32Array; g: Float64Array }[];
+  constructor(fs: number, t60 = 0.03, density = 2500, direct = 0.6) {
+    const len = Math.ceil(t60 * fs);
+    let n = 1;
+    while (n < len + 4096) n *= 2;
+    this.mask = n - 1;
+    this.ring = [new Float64Array(n), new Float64Array(n)];
+    const tau = t60 / Math.log(1000);
+    this.taps = [0x51ed27, 0x2f6b1d].map((seed) => {
+      let s = seed >>> 0;
+      const rnd = () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
+      const grid = fs / density;
+      const d: number[] = [0];
+      const g: number[] = [direct];
+      for (let m = 1; m * grid < len; m++) {
+        const pos = Math.round(m * grid + rnd() * (grid - 1));
+        d.push(pos);
+        g.push((rnd() < 0.5 ? -1 : 1) * Math.exp(-pos / fs / tau));
+      }
+      // the tail carries 1 - direct² of the energy
+      let e = 0;
+      for (let i = 1; i < g.length; i++) e += g[i] * g[i];
+      const k = Math.sqrt((1 - direct * direct) / e);
+      for (let i = 1; i < g.length; i++) g[i] *= k;
+      return { d: Int32Array.from(d), g: Float64Array.from(g) };
+    });
   }
   process(L: Float64Array, R: Float64Array, len: number): void {
-    for (let t = 0; t < len; t++) {
-      let x = L[t];
-      for (const a of this.l) x = a.tick(x);
-      L[t] = x;
-      let y = R[t];
-      for (const a of this.r) y = a.tick(y);
-      R[t] = y;
+    const mask = this.mask;
+    const w = this.w;
+    for (let c = 0; c < 2; c++) {
+      const x = c === 0 ? L : R;
+      const ring = this.ring[c];
+      for (let t = 0; t < len; t++) ring[(w + t) & mask] = x[t];
+      const { d, g } = this.taps[c];
+      for (let t = 0; t < len; t++) x[t] = 0;
+      for (let i = 0; i < d.length; i++) {
+        const gi = g[i];
+        const o = w - d[i];
+        for (let t = 0; t < len; t++) x[t] += gi * ring[(o + t) & mask];
+      }
     }
+    this.w = (w + len) & mask;
   }
   reset(): void {
-    for (const a of this.l) a.reset();
-    for (const a of this.r) a.reset();
+    this.ring[0].fill(0);
+    this.ring[1].fill(0);
   }
 }
 
