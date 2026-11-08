@@ -1028,3 +1028,18 @@ details.data .scroll {
   font-size: 13.5px;
   color: var(--muted);
 }
+
+/* ------------------------------------------------------------ strings & flute measurements */
+.ensemble {
+  margin-top: 72px;
+  padding-top: 28px;
+  border-top: 1px solid var(--rule);
+}
+.ensemble .tiles {
+  margin-top: 24px;
+}
+.ens-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 4px 14px;
+}

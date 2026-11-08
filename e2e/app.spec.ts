@@ -125,6 +125,9 @@ test('measurements: charts render and the A/B model renders in the browser', asy
   await expect(page.locator('figure svg').first()).toBeVisible({ timeout: 15_000 });
   expect(await page.locator('figure svg').count()).toBeGreaterThanOrEqual(10);
   await expect(page.getByText('Where it falls short')).toBeVisible();
+  // round 2: strings and flute compared with their own recordings
+  await expect(page.getByRole('heading', { name: 'Strings and flute against recordings' })).toBeVisible({ timeout: 15_000 });
+  expect(await page.locator('.ensemble figure svg').count()).toBeGreaterThanOrEqual(8);
   const btn = page.locator('.ab-item').filter({ hasText: 'C#4' }).getByRole('button', { name: 'model' });
   await btn.click();
   await expect(btn).toHaveClass(/playing/, { timeout: 20_000 });
@@ -233,5 +236,8 @@ test('look inside a bowed string: the bow trace shows stick–slip', async ({ pa
   await page.waitForTimeout(1200);
   await expect(page.locator('.panel h3').nth(1)).toHaveText('Bow');
   await expect(page.locator('.panel .meta').nth(1)).toContainText('A string');
+  // the bow has a direction and a contact point along the hair
+  await expect(page.locator('.panel .meta').nth(1)).toContainText(/down-bow|up-bow|bow change/);
+  await expect(page.locator('.panel .meta').nth(1)).toContainText('% from the frog');
   await page.evaluate(async () => (window as any).__piano.setInstrument('piano'));
 });

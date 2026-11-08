@@ -18,6 +18,7 @@ import type { PianoEvent } from './piano-core.ts';
 import { designLossFilter, onePolePhaseDelay, biquadHighpass, biquadPeaking, biquadHighShelf } from './filters.ts';
 import { BiquadChain, Limiter, Room } from './post.ts';
 import { LN1000, clamp, gauss, mulberry32, nextPow2 } from './util.ts';
+import bowedFit from './bowed-fit.json';
 
 export interface BowedParams {
   /** bow–bridge distance as a fraction of the vibrating length (sul ponticello ≈ 0.04, sul tasto ≈ 0.2) */
@@ -74,6 +75,12 @@ interface BowedDesign {
   bowSpeed: [number, number];
   /** usable hair length of the bow, m */
   bowLength: number;
+  /** high-frequency radiation: statistical body mobility above the modal range, as a gain on
+   *  the bridge force and its high-pass corner (Hz) */
+  hf: [number, number];
+  /** bow-force multiplier on bowPressure at pp and at ff (linear in velocity): players lean
+   *  in harder, relative to Schelleng's maximum, as they play louder */
+  forceDyn: [number, number];
   outputGain: number;
   defaults: Partial<BowedParams>;
   seed: number;
@@ -106,6 +113,8 @@ const VIOLIN: BowedDesign = {
   ],
   bowSpeed: [0.05, 0.45],
   bowLength: 0.64,
+  hf: [0.003, 2500],
+  forceDyn: [1, 1],
   outputGain: 60,
   defaults: { bowPosition: 0.11, bowPressure: 0.32, vibrato: 14, bodyDamping: 1, room: 0.35, volume: 1, sympathetic: true },
   seed: 21,
@@ -138,6 +147,8 @@ const VIOLA: BowedDesign = {
   ],
   bowSpeed: [0.05, 0.45],
   bowLength: 0.64,
+  hf: [0.003, 2500],
+  forceDyn: [1, 1],
   outputGain: 80,
   defaults: { bowPosition: 0.12, bowPressure: 0.32, vibrato: 12, bodyDamping: 1, room: 0.35, volume: 1, sympathetic: true },
   seed: 22,
@@ -170,12 +181,18 @@ const CELLO: BowedDesign = {
   ],
   bowSpeed: [0.06, 0.5],
   bowLength: 0.6,
+  hf: [0.003, 2500],
+  forceDyn: [1, 1],
   outputGain: 24,
-  defaults: { bowPosition: 0.12, bowPressure: 0.3, vibrato: 10, bodyDamping: 1, room: 0.32, volume: 1, sympathetic: true },
+  // vibrato: the Iowa cellist's median (17 ¢ at 5.4 Hz as analysed), round 2
+  defaults: { bowPosition: 0.12, bowPressure: 0.3, vibrato: 20, bodyDamping: 1, room: 0.32, volume: 1, sympathetic: true },
   seed: 23,
 };
 
 export const BOWED: Record<string, BowedDesign> = { violin: VIOLIN, viola: VIOLA, cello: CELLO };
+// round 2: radiation balance, dynamics and string HF loss fitted to the Iowa MIS recordings
+// (scripts/fit-strings.ts); absent keys keep the literature values above
+for (const [id, fit] of Object.entries(bowedFit as unknown as Record<string, Partial<BowedDesign>>)) if (BOWED[id]) Object.assign(BOWED[id], fit);
 
 const MU_S = 0.8;
 const MU_D = 0.3;
@@ -207,6 +224,8 @@ class BowedString {
   /** signed bow speed and force used by the friction solve this control block */
   vSigned = 0;
   fScale = 1;
+  /** velocity-dependent force multiplier of the current note */
+  forceDyn = 1;
   fBow = 0;
   fBowTarget = 0;
   stick = true;
@@ -385,7 +404,7 @@ export class BowedCore implements InstrumentCore {
   private updatePost(): void {
     const fs = this.fs;
     this.eq.set([biquadHighpass(this.design.strings[0].open < 40 ? 40 : 70, 0.7, fs), ...this.design.eq.map(([f, g, q]) => biquadPeaking(f, q, g, fs)), biquadHighShelf(7000, -3, fs)]);
-    this.hfHp.set([biquadHighpass(2500, 0.7, fs)]);
+    this.hfHp.set([biquadHighpass(this.design.hf[1], 0.7, fs)]);
     this.room.configure(this.params.room);
     this.gain = this.design.outputGain * this.params.volume;
   }
@@ -462,7 +481,9 @@ export class BowedCore implements InstrumentCore {
     s.beta = clamp(this.params.bowPosition, 0.03, 0.3);
     // Schelleng's maximum bow force for this speed/position; play a fraction of it
     const fMax = (2 * s.Z * v) / (s.beta * (MU_S - MU_D));
-    s.fBowTarget = clamp(this.params.bowPressure, 0.02, 1.2) * fMax;
+    const [fp, ff] = this.design.forceDyn;
+    s.forceDyn = fp + (ff - fp) * x;
+    s.fBowTarget = clamp(this.params.bowPressure * s.forceDyn, 0.02, 1.2) * fMax;
   }
 
   // ------------------------------------------------------------ events
@@ -613,7 +634,7 @@ export class BowedCore implements InstrumentCore {
       for (const s of this.strings) if (s.bowing) {
         const ratio = s.vBowTarget;
         s.beta = clamp(this.params.bowPosition, 0.03, 0.3);
-        s.fBowTarget = clamp(this.params.bowPressure, 0.02, 1.2) * ((2 * s.Z * ratio) / (s.beta * (MU_S - MU_D)));
+        s.fBowTarget = clamp(this.params.bowPressure * s.forceDyn, 0.02, 1.2) * ((2 * s.Z * ratio) / (s.beta * (MU_S - MU_D)));
       }
     }
   }
@@ -699,6 +720,7 @@ export class BowedCore implements InstrumentCore {
     const ns = strs.length;
     const sym = this.params.sympathetic && this.sympatheticAllowed;
     const Yt = this.Y0 + this.design.bridgeY;
+    const hfG = this.design.hf[0];
     let ZS = 0;
     for (const s of strs) ZS += s.Z;
     const oL = this.oL;
@@ -830,7 +852,7 @@ export class BowedCore implements InstrumentCore {
         or += rr[k] * y;
       }
       this.H = h;
-      const hfv = 0.003 * F;
+      const hfv = hfG * F;
       hL[t] = hfv;
       hR[t] = -hfv;
       oL[t] = ol;

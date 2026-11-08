@@ -141,3 +141,217 @@ would be:
 * zone-specific modal damping instead of a single loss-factor curve;
 * a measured, per-key bridge admittance;
 * a velocity-dependent felt law (Stulov) for the brightness range.
+
+## Round 2 (2026-11): bridge-aware decay fit, unison beat rate
+
+The round-2 audit (`pnpm calibrate --table`, 41 s) found the tenor's prompt
+decay error ×2.17 concentrated on the **bass-bridge bichords C♯2–A2**:
+- their partials 2–4 had almost no prompt decay (model EDT 46–75 s, reference 1–8 s);
+- the fit had driven the bass-bridge admittance down to 6.6e-5 s/kg;
+- its ±8-key windows straddled the bass/treble bridge break, so keys on the
+  treble bridge were steering the last bass-bridge breakpoint.
+
+Separately, the treble breakpoints sat at the 1e-5 floor while the top octave
+still decayed ×0.6 too fast, so something other than the bridge was draining
+it.
+
+Sweeps (`scripts/sweep2.ts`, a JSON list of calibration/design patches, per-key
+and register medians) showed:
+
+* **Bichords (C♯2–A2):** the prompt decay follows the bridge admittance while
+  the aftersound barely moves (Weinreich: the anti-phase unison mode is
+  protected).
+* **Unichords (A0–F♯1):** both slopes scale with the admittance, and the weakly
+  coupled horizontal polarisation (κ 0.12–0.32) changes nothing measurable.
+* **Treble (C6–C8):**
+  * with the unisons tuned exactly, the register median is ×0.94 / ×0.99 —
+    the model's fast "prompt decay" up there was **unison beating** at 2–3 Hz;
+  * the cause is a constant cents spread: 1 ¢ at 4 kHz is 2.3 Hz;
+  * tuners set unisons by beat rate, so the spread is now scaled by
+    `min(1, 500 Hz / f₁)`, which keeps the outer strings within about 0.3 Hz
+    (`PianoDesign.unisonBeatCapHz`; the honky-tonk preset keeps a constant
+    cents spread).
+
+Fit changes:
+* **Admittance breakpoints by bridge segment.** They are now
+  21/30 (unichords), 31/45 (bass-bridge bichords) and 46…108 (treble bridge).
+  Each learns only from keys on its own segment, using partials 1–3.
+* **Zero-mean EQ updates.** An EQ update moving every band one way is the
+  output gain's job; without this, EQ and gain drifted into the ±12 dB clamps
+  within three iterations.
+* **`--decay-only` mode.** It updates only the string losses, the bridge
+  admittance and the global gain.
+* **Contrast metric.** The pp→ff contrast slope now skips partials not found
+  (< −98 dB) on either side, not just on the reference side. One C♯1 outlier
+  had read −51 dB/partial. The baseline value is identical under both
+  definitions (4.27 vs 4.28).
+
+Iterations: four decay-only fits, then one full fit. The state reported is
+the one measured after those five; two further full fits oscillated
+(±0.5 dB in level and spectrum on noisy single-performance targets) and were
+not kept.
+
+| # | change | tuning ¢ RMS | B log₁₀ RMS | T60 early model/ref (A0–B1, C2–B3, C4–B5, C6–C8) | T60 late model/ref | per-partial log₂ RMS early / late | level err dB pp/mf/ff | ⅓-oct err dB | brightness contrast err dB/partial (bias) |
+|---|---|---|---|---|---|---|---|---|---|
+| R10 | round-1/2 final (baseline, 6812c18) | 3.79 | 0.063 | 1.14, 2.17, 0.81, 0.60 | 0.68, 0.95, 1.35, 0.98 | 1.72 / 0.67 | 8.0 / 4.4 / 5.2 | 4.54 | 4.28 (+0.46) |
+| R11 | bridge-segment fit, 500 Hz beat cap (7e05885) | 4.10 | 0.068 | **1.00, 1.14, 0.93, 0.90** | **0.67, 0.95, 1.11, 1.03** | **1.21** / 0.82 | 8.3 / 4.7 / 5.4 | 4.64 | **2.13 (−0.40)** |
+
+**What improved:**
+* every register's prompt decay is now within ×0.90–1.14;
+* the tenor gained most (×2.17 → ×1.14) and the top octave went from ×0.60 to ×0.90;
+* the per-partial early-decay error fell by 30 %;
+* the brightness-contrast error halved.
+
+**What got slightly worse:**
+* tuning, by 0.3 ¢ (the mid-register partial-1 frequencies moved about 2 ¢
+  with the changed unison coupling);
+* the per-partial late-decay spread;
+* level at mf and ff, by 0.2–0.3 dB.
+
+**What is unchanged:** the bass aftersound (×0.67).
+
+The felt-relaxation (Stulov) item on the round-2 plan was not implemented:
+after this fit the remaining pp→ff contrast bias is −0.4 dB/partial, smaller
+than the per-note scatter of the reference.
+
+## Strings and flute against recordings (round 2)
+
+**Reference.** University of Iowa MIS pre-2012 sets, recorded in an anechoic
+chamber with a Neumann KM 84 at about 5 ft, 16/44.1 mono:
+- violin;
+- viola (1996);
+- cello (Stradivarius 1736, 2001);
+- flute, non-vibrato (2000).
+
+All are at pp, mf and ff. `scripts/ensemble-refs.ts` downloads 56 files on
+demand into `.cache/iowa-ens` (gitignored, ~500 MB) and segments each
+chromatic run into notes (envelope gate plus harmonic-sum pitch
+identification). It keeps only the notes the model plays on the same string
+(first position), giving 333 notes:
+- violin 79;
+- viola 78;
+- cello 64;
+- flute 109 (C4–C7).
+
+The recordings are analysed, never played or shipped.
+
+**Analysis.** `analyzeSustained`, unit-tested on synthetic signals, works on
+the steady part of each note (25 %…85 %). It measures:
+- the harmonic band levels H1–H16 (median over frames), relative to the
+  strongest;
+- the even/odd power ratio, k ≤ 10;
+- the harmonic-to-noise ratio (±0.15 f₀ around each harmonic vs the
+  inter-harmonic bands, k ≤ 8);
+- the third-octave long-term spectrum and centroid;
+- the 10–90 % attack;
+- vibrato rate and depth from a 10 ms f₀ track;
+- RMS level.
+
+`scripts/calibrate-ensemble.ts` renders the same notes with the model:
+- dry, at 44.1 kHz;
+- velocity 30 / 70 / 112 for pp / mf / ff;
+- held 2.6 s;
+- **without vibrato where the player used none**.
+
+It then analyses both sides identically and logs to
+`docs/ensemble-rounds.json`. Matching the vibrato matters: model vibrato on a
+non-vibrato reference moves the measured HNR by 4–12 dB and the harmonic
+levels by up to 10 dB. The rounds before R2-5 were measured without it and are
+labelled so; the baseline was re-measured on the round-1 engine (6812c18) with
+the matched method.
+
+**Metrics:**
+- **Harmonic-profile error:** the median over notes of the per-note RMS of the
+  H1–H12 difference, using harmonics within 45 dB of the strongest.
+- **Spectrum:** the RMS of the third-octave difference between pooled,
+  normalised long-term spectra (100 Hz–10 kHz, bands within 45 dB of the
+  reference peak).
+- **Even/odd and HNR:** median differences, model minus recording.
+- **Dynamic spread:** median ff minus median pp level.
+
+| instrument | harmonic err dB | spectrum err dB | centroid ratio | HNR diff dB | pp→ff spread dB | even/odd err dB | pitch ¢ RMS | attack ratio |
+|---|---|---|---|---|---|---|---|---|
+| violin | 12.08 → **11.39** | 17.45 → **14.74** | 0.65 → **0.76** | +4.35 → **−1.62** | 12.49 → **20.67** (rec. 19.14) | −2.03 → −1.18 | 2.58 → 2.58 | 0.25 → 0.20 |
+| viola | 11.06 → 10.89 | 14.17 → **10.73** | 0.63 → **0.91** | +1.83 → −1.93 | 11.24 → **8.15** (rec. 9.86) | −3.58 → −3.28 | 2.12 → 1.65 | 0.31 → 0.49 |
+| cello | 13.14 → 13.00 | 20.82 → **16.16** | 0.60 → **0.70** | −0.85 → *−5.24* | 11.62 → 10.87 (rec. 12.48) | +0.32 → +0.52 | 2.78 → *3.69* | 0.72 → 0.94 |
+| flute | 8.74 → **7.08** | 8.15 → **4.51** | 0.91 → **0.97** | +21.63 → **+5.28** | 5.14 → **10.49** (rec. 12.55) | −15.1 → **−5.16** | 0.82 → 0.92 | 0.92 → *1.67* |
+
+Before = round-1 engine and after = R2-5 final, both measured with the
+matched method. Italics mark regressions.
+
+### Flute
+
+The jet saturated into a near-square wave at about 50 % duty cycle, so the
+offset made almost no even harmonics: the model's even/odd balance was −30 dB,
+against −4…−19 dB in the recordings. Changes:
+- **Vortex-shedding loss.** A passive loss at the labium: the reflection
+  R/(1 + γ|y|) weakens with amplitude.
+- **Monopole radiation.** Both openings radiate as the time derivative of
+  their volume flow.
+- **Explicit voicing.** `FLUTE_VOICE` holds the jet gain, the jet offset by
+  register, the vortex loss, the jet receptivity, the radiation, the breath
+  noise and the velocity→flow/pressure map (pressure may only rise with
+  loudness).
+
+`scripts/fit-flute.ts` fits these parameters with a (1+λ) evolution strategy
+to per-register × per-dynamic medians:
+- H1–H8;
+- even/odd balance;
+- HNR;
+- level spread and register balance.
+
+Penalties enforce pitch (±35 ¢ before the tuning table) and the octave
+overblow at 2.5× breath. The top notes then needed a lip-opening gain ramp
+(×1.5 at C7). The tuning table was re-measured, and all 37 notes are within
+1.2 ¢ at 44.1 and 48 kHz.
+
+The even/odd balance by register (C4–B4, C5–B5, C6–C7) was −30 / −28 / −22 dB
+in the model, and is now −12 / −14 / −20 dB. The recordings measure −4 / −12 /
+−19 dB.
+
+**Remaining gap.** At mf and ff in the low register the recording's H2 is
+about as strong as H1, and the model stays about 10 dB short. The attack also
+got slower (×1.7), set by the oscillation's lower small-signal gain rather
+than the breath envelope.
+
+### Violin, viola, cello
+
+The bodies' radiation was missing above the modal range: model spectra fell
+20–40 dB below the recordings above about 3 kHz. The low-string fundamentals
+were also about 10 dB weak.
+
+`scripts/fit-strings.ts` fits each instrument with the same evolution strategy.
+The parameters are:
+- the statistical high-frequency body path (gain and corner);
+- the bridge-hill formant and low shelf gains;
+- the bow-speed range across velocity;
+- the string loss at 3 kHz.
+
+The loss combines:
+- the per-dynamic long-term spectrum;
+- harmonic profiles by register and dynamic;
+- the pp→ff spread;
+- HNR deficit and pitch, both added after a first fit made the violin
+  scratchy (HNR 17 dB at ff against the recording's 36 dB).
+
+It uses three notes per group, with matched vibrato.
+
+A fitted bow-force-versus-dynamic map was **rejected**. Values below 1 made
+high positions on the E string (A6, above any analysed note) fall under the
+minimum bow force: a breathy "surface sound" with the B1− body mode louder
+than the fundamental. The bow force stays a fixed fraction of Schelleng's
+maximum. Output gains were re-normalised so each instrument keeps its round-1
+median mf level (ensemble balance).
+
+The cello default vibrato is now 20 ¢. The cellist's measured median is
+17 ¢ at 5.4 Hz, and the model now measures 16 ¢ at 5.25 Hz (8 ¢ before). The
+Iowa violinist and violist used vibrato on only 22 % and 6 % of notes, so their
+musical defaults are kept.
+
+**Remaining gaps:**
+- **Spectral balance:** still 11–16 dB RMS. Above about 4 kHz the modal bodies
+  plus a single statistical path cannot follow the measured bridge-hill and
+  air-radiation detail.
+- **Harmonic profiles:** within about 11–13 dB per note.
+- **Cello noise and pitch:** the cello is now 5 dB noisier than its recording
+  between harmonics (it was within 1 dB), and its pitch scatter rose to 3.7 ¢.

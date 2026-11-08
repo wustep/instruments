@@ -84,6 +84,15 @@ export function measureView(): View {
     }
     status.remove();
     root.append(...build(d));
+    try {
+      const e: Ens = await (await fetch('/data/ensemble.json')).json();
+      const at = root.querySelector('.listen-section');
+      const sec = ensembleSection(e);
+      if (at) root.insertBefore(sec, at);
+      else root.append(sec);
+    } catch {
+      /* strings/flute data optional */
+    }
   })();
   return { el: root, dock: false };
 }
@@ -108,7 +117,7 @@ function build(d: Data): HTMLElement[] {
             {},
             `The reference is the University of Iowa recording of a Steinway model B (2001): ${d.keys.length} keys at pp, mf and ff, two microphones 8″ above the strings, fixed gain. The same analysis runs on the reference files and on dry renders of the model at the same keys (pp, mf, ff → MIDI velocity ${d.velocities.pp}, ${d.velocities.mf}, ${d.velocities.ff}). The recordings are analysed offline and are not part of the instrument.`,
           ),
-          h('p', {}, 'Numbers are per-register medians where single notes are too idiosyncratic to compare — real pianos vary a lot from one note to the next. These measurements cover the piano only; the violin, viola, cello and flute are physically modelled but not yet calibrated against recordings.'),
+          h('p', {}, 'Numbers are per-register medians where single notes are too idiosyncratic to compare — real pianos vary a lot from one note to the next. The violin, viola, cello and flute are compared with their own recordings further down.'),
         ),
       ),
       h(
@@ -179,7 +188,7 @@ function build(d: Data): HTMLElement[] {
         'Decay of the first partial',
         'T60 at mf, log scale; double decay from coupled unison strings',
         [REF_LEGEND(), mk('e'), mk('l')],
-        `Median model/recording ratio over partials 1–3 by register — ${reg}. The tenor's prompt decay is still too slow and the bass aftersound too short; per-note scatter in the recording itself is a factor of ten.`,
+        `Median model/recording ratio over partials 1–3 by register — ${reg}. Round 2 fixed the tenor (×2.2 too slow before) by fitting the bridge admittance per bridge segment, and the top octave (×0.6 too fast) by keeping treble unisons within a beat rate a tuner would accept. The bass aftersound is still about two-thirds as long as the recording's; per-note scatter in the recording itself is a factor of ten.`,
         true,
       ),
     );
@@ -204,7 +213,7 @@ function build(d: Data): HTMLElement[] {
         'Partial levels across dynamics',
         'levels 60–160 ms after the attack, dB re full scale (one global gain), recording points below −100 dB are noise and omitted',
         [REF_LEGEND(), grid],
-        `The nonlinear felt makes loud notes brighter: upper partials gain more than the fundamental from pp to ff. The model reproduces the direction and much of the size, but brightens about ${fmt(-d.summary.brightnessContrastErr.biasDbPerPartial, 1)} dB per partial less than the Steinway. Individual partials also differ by soundboard colouration — the model's board is plausible, not this board.`,
+        `The nonlinear felt makes loud notes brighter: upper partials gain more than the fundamental from pp to ff. The model reproduces the direction and most of the size: it brightens ${fmt(Math.abs(d.summary.brightnessContrastErr.biasDbPerPartial), 1)} dB per partial ${d.summary.brightnessContrastErr.biasDbPerPartial < 0 ? 'less' : 'more'} than the Steinway (median; ${fmt(d.summary.brightnessContrastErr.rmsDbPerPartial, 1)} dB RMS over keys). Individual partials also differ by soundboard colouration — the model's board is plausible, not this board.`,
         true,
       ),
     );
@@ -283,6 +292,138 @@ function build(d: Data): HTMLElement[] {
   return out;
 }
 
+interface EnsSummary {
+  notes: number;
+  harmRmsDb: number;
+  ltasRmsDb: number;
+  centroidRatio: number;
+  evenOddRef: number[];
+  evenOddModel: number[];
+  registerCuts: number[];
+  hnrDiffDb: number;
+  dynSpreadDb: { ref: number; model: number };
+  ltas: { ref: number[]; model: number[] };
+  harm: Record<Dyn, { ref: (number | null)[]; model: (number | null)[]; n: number }[]>;
+}
+interface Ens {
+  generated: string;
+  reference: string;
+  velocities: Record<Dyn, number>;
+  thirdOct: number[];
+  summary: Record<string, EnsSummary>;
+  rounds: { label: string; summary: Record<string, Partial<EnsSummary>> }[];
+}
+
+function ensembleSection(e: Ens): HTMLElement {
+  const insts = ['violin', 'viola', 'cello', 'flute'].filter((i) => e.summary[i]);
+  const label: Record<string, string> = { violin: 'Violin', viola: 'Viola', cello: 'Cello', flute: 'Flute' };
+  // the baseline measured the same way (vibrato matched to each recorded note)
+  const first = (e.rounds.find((r) => /baseline/.test(r.label) && /matched/.test(r.label)) ?? e.rounds[0])?.summary ?? {};
+  const lx = (f: number) => Math.log2(f / 1000);
+  const fName = (x: number) => {
+    const f = 1000 * Math.pow(2, x);
+    return f >= 1000 ? `${+(f / 1000).toFixed(1)} kHz` : `${Math.round(f)} Hz`;
+  };
+  const leg = () =>
+    legend([
+      { name: 'recording', color: 'ref', kind: 'dot' },
+      { name: 'model', color: 'model', kind: 'line' },
+    ]);
+  const figs = h('div', { class: 'figs' });
+  // long-term spectra
+  {
+    const grid = h('div', { class: 'ens-grid' });
+    for (const i of insts) {
+      const s = e.summary[i];
+      const pts = (a: number[]) => e.thirdOct.map((f, b) => ({ x: lx(f), y: f >= 63 && f <= 12500 ? a[b] : NaN }));
+      grid.append(
+        chart({
+          title: `${label[i]} · ${fmt(s.ltasRmsDb, 1)} dB RMS`,
+          x: { label: 'frequency', min: lx(55), max: lx(14000), ticks: [lx(100), lx(300), lx(1000), lx(3000), lx(10000)], fmt: fName },
+          y: { label: 'dB', min: -60, max: 0, ticks: [-60, -40, -20, 0], fmt: (v) => String(v) },
+          series: [
+            { name: 'recording', color: 'ref', kind: 'dots', points: pts(s.ltas.ref), fmt: (v) => `${fmt(v, 1)} dB` },
+            { name: 'model', color: 'model', kind: 'line', points: pts(s.ltas.model), fmt: (v) => `${fmt(v, 1)} dB` },
+          ],
+          xName: fName,
+          width: 300,
+          height: 200,
+        }),
+      );
+    }
+    figs.append(
+      fig(
+        'Long-term spectrum',
+        'third-octave level of the steady part, all notes and dynamics, normalised to 0 dB total (100 Hz–10 kHz)',
+        [leg(), grid],
+        'Where the sound’s energy sits. The bodies’ radiation balance — the bridge hill, the high-frequency radiation the modal body cannot carry, the weak radiation of the lowest notes — and the flute’s monopole radiation are fitted to these curves; the source spectra (Helmholtz motion, the jet) are not.',
+        true,
+      ),
+    );
+  }
+  // harmonic profiles at mf by register
+  {
+    const grid = h('div', { class: 'ens-grid' });
+    for (const i of insts) {
+      const s = e.summary[i];
+      ['low', 'middle', 'high'].forEach((name, r) => {
+        const g = s.harm.mf[r];
+        if (!g || !g.n) return;
+        const pts = (a: (number | null)[]) => a.slice(0, 12).map((y, k) => ({ x: k + 1, y: y === null ? NaN : y }));
+        grid.append(
+          chart({
+            title: `${label[i]} · ${name} · mf`,
+            x: { label: 'harmonic', min: 0, max: 13, ticks: [1, 4, 8, 12], fmt: (v) => String(v) },
+            y: { label: 'dB', min: -50, max: 3, ticks: [-45, -30, -15, 0], fmt: (v) => String(v) },
+            series: [
+              { name: 'recording', color: 'ref', kind: 'dots', points: pts(g.ref), fmt: (v) => `${fmt(v, 0)} dB` },
+              { name: 'model', color: 'model', kind: 'line+dots', points: pts(g.model), fmt: (v) => `${fmt(v, 0)} dB` },
+            ],
+            xName: (x) => `harmonic ${x}`,
+            width: 300,
+            height: 180,
+          }),
+        );
+      });
+    }
+    figs.append(
+      fig(
+        'Harmonic profiles',
+        'steady-state harmonic levels relative to the strongest, power average over the register’s notes at mf',
+        [leg(), grid],
+        'Violin-family registers are thirds of the notes analysed on each instrument (first position on each string, as the model plays them); flute registers are its three octaves. The flute’s low register shows its strong even harmonics.',
+        true,
+      ),
+    );
+  }
+  const tiles = h(
+    'div',
+    { class: 'tiles' },
+    insts.map((i) => {
+      const s = e.summary[i];
+      const b = first[i];
+      return tile(`${fmt(s.harmRmsDb, 1)} dB`, `${label[i]}: harmonic-profile error per note${b?.harmRmsDb !== undefined ? ` (was ${fmt(b.harmRmsDb, 1)})` : ''}; spectrum ${fmt(s.ltasRmsDb, 1)} dB${b?.ltasRmsDb !== undefined ? ` (was ${fmt(b.ltasRmsDb, 1)})` : ''}`);
+    }),
+  );
+  const fl = e.summary.flute;
+  const flb = first.flute as EnsSummary | undefined;
+  return h(
+    'section',
+    { class: 'ensemble' },
+    h('h2', {}, 'Strings and flute against recordings'),
+    h(
+      'div',
+      { class: 'prose', style: 'margin-top:12px' },
+      h('p', {}, `References: ${e.reference}. Each recording is a chromatic run; it is cut into notes, and only the notes the model plays on the same string are kept (${insts.map((i) => `${e.summary[i].notes} ${i}`).join(', ')}). The model plays the same notes dry at velocity ${e.velocities.pp} / ${e.velocities.mf} / ${e.velocities.ff} for pp / mf / ff — without vibrato where the player used none — and both go through the same analysis of the steady part of the note. “Was” figures are the round-1 model measured the same way.`),
+      fl
+        ? h('p', {}, `Flute even harmonics, recording vs model (even/odd power, dB) by register: ${fl.evenOddRef.map((r, k) => `${fmt(r, 0)} vs ${fmt(fl.evenOddModel[k], 0)}`).join(' · ')}${flb?.evenOddModel ? ` — before round 2 the model sat at ${flb.evenOddModel.map((v) => fmt(v, 0)).join(' / ')}` : ''}. Breath noise: the model is ${fmt(fl.hnrDiffDb, 0)} dB cleaner than the recording${flb?.hnrDiffDb !== undefined ? ` (was ${fmt(flb.hnrDiffDb, 0)} dB)` : ''}.`)
+        : null,
+    ),
+    tiles,
+    figs,
+  );
+}
+
 function tile(v: string, s: string): HTMLElement {
   return h('div', { class: 'tile' }, h('div', { class: 'v' }, v), h('div', { class: 's' }, s));
 }
@@ -333,7 +474,7 @@ function listening(d: Data): HTMLElement {
   };
   return h(
     'section',
-    { class: 'shortfalls' },
+    { class: 'shortfalls listen-section' },
     h('h2', {}, 'Listen side by side'),
     h(
       'p',
@@ -405,9 +546,10 @@ function shortfalls(): HTMLElement {
       h(
         'ul',
         {},
-        h('li', {}, h('strong', {}, 'Tenor decay. '), 'Notes from C2 to B3 lose their first 10 dB about 2.5 times more slowly than the Steinway, while their aftersound is close. One bridge parameter per register cannot fix both slopes; the missing mechanism is most likely the second (horizontal) polarisation of each string, which the model omits for cost.'),
-        h('li', {}, h('strong', {}, 'Bass sustain. '), 'The lowest octave’s aftersound is about two-thirds as long as the recording’s even with very low string losses — the bass bridge still drains too much energy into the soundboard.'),
-        h('li', {}, h('strong', {}, 'Brightness range. '), 'From pp to ff the model brightens less than the real hammers do. Real felt stiffens with the rate of compression (Stulov’s relaxation model); the model uses a simpler Hunt–Crossley law.'),
+        h('li', {}, h('strong', {}, 'Bass sustain. '), 'The lowest octave’s aftersound is about two-thirds as long as the recording’s, even with very low string losses. The single-string bass notes have no unison partner to protect a slow mode, and the weakly coupled horizontal polarisation does not change it measurably; the real board’s per-partial admittance is the likely missing piece.'),
+        h('li', {}, h('strong', {}, 'Brightness range. '), 'From pp to ff the model brightens slightly less than the real hammers do. Real felt stiffens with the rate of compression (Stulov’s relaxation model); the model uses a simpler Hunt–Crossley law.'),
+        h('li', {}, h('strong', {}, 'Flute low register. '), 'At mf and ff a real flute’s low notes carry a second harmonic about as strong as the fundamental. The model’s offset jet gets within about 10 dB of that; the pp tone and the upper registers match much more closely.'),
+        h('li', {}, h('strong', {}, 'String bodies. '), 'The violin, viola and cello bodies are modal sketches with each instrument’s signature resonances, and their radiation balance is fitted to the recordings rather than measured, so they sound like a family of instruments rather than these particular ones.'),
         h('li', {}, h('strong', {}, 'Soundboard. '), 'About 150 modes with plausible density and damping, driven at three bridge zones — not a measured board. It colours individual partials differently from the Steinway; above 3.2 kHz radiation is a smoothed statistical path.'),
         h('li', {}, h('strong', {}, 'Attack. '), 'There is no key-travel delay (the hammer starts 0.4 mm from the string) and the mechanical noises — key bottoming, damper felt, release thump — are short synthetic force pulses into the soundboard rather than measured action noise.'),
         h('li', {}, h('strong', {}, 'Phantom partials '), 'come from a simple squared-force model through two longitudinal resonances, not a longitudinal waveguide; their levels are not calibrated against measurements.'),

@@ -10,6 +10,13 @@ import { join } from 'node:path';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { analyzeSustained, segmentNotes, THIRD_OCT, type SustainedAnalysis } from '../packages/engine/src/analysis/index.ts';
 import { renderInstrument } from '../packages/engine/src/core/index.ts';
+import { pathToFileURL } from 'node:url';
+
+/** renderer: this checkout's engine, or another one (--engine) for before/after baselines */
+let RENDER = renderInstrument;
+export async function useEngine(path?: string): Promise<void> {
+  if (path) RENDER = (await import(pathToFileURL(path).href)).renderInstrument;
+}
 import { ENS_DYN, referenceNotes, type Dyn, type EnsInstrument, type RefNote } from './ensemble-refs.ts';
 
 export const DYN_VEL: Record<Dyn, number> = { pp: 30, mf: 70, ff: 112 };
@@ -28,7 +35,7 @@ interface Job {
 
 /** Render one held note and analyse it exactly as the reference notes are analysed. */
 export function modelNote(j: Job): SustainedAnalysis | null {
-  const r = renderInstrument({
+  const r = RENDER({
     sampleRate: FS,
     instrument: j.instrument,
     dry: true,
@@ -56,7 +63,7 @@ async function pool(jobs: Job[]): Promise<(SustainedAnalysis | null)[]> {
     chunks.map(
       (c) =>
         new Promise<void>((resolve, reject) => {
-          const w = new Worker(new URL(import.meta.url), { workerData: c, execArgv: ['--import', 'tsx'] });
+          const w = new Worker(new URL(import.meta.url), { workerData: { ensembleJobs: c, engine: ENGINE }, execArgv: ['--import', 'tsx'] });
           w.on('message', (m: { i: number; a: SustainedAnalysis | null }[]) => {
             for (const x of m) out[x.i] = x.a;
             resolve();
@@ -173,14 +180,20 @@ export function summarise(pairs: Pair[], instrument: EnsInstrument) {
   };
 }
 
+/** Like with like: where the player used no vibrato (none detected), neither does the model. */
+export const matchedParams = (r: { vibRate: number }, extra?: Record<string, unknown>) => (r.vibRate > 0 ? { ...extra } : { ...extra, vibrato: 0 });
+
 export async function compareAll(opts: { only?: EnsInstrument[]; params?: Partial<Record<EnsInstrument, Record<string, unknown>>> } = {}) {
   const refs = (await referenceNotes()).filter((r) => !opts.only || opts.only.includes(r.instrument));
-  const models = await pool(refs.map((r) => ({ instrument: r.instrument, dyn: r.dyn, midi: r.midi, params: opts.params?.[r.instrument] })));
+  const models = await pool(refs.map((r) => ({ instrument: r.instrument, dyn: r.dyn, midi: r.midi, params: matchedParams(r, opts.params?.[r.instrument]) })));
   return refs.map((ref, i) => ({ ref, model: models[i] }));
 }
 
+let ENGINE: string | undefined;
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
+  if (args.includes('--engine')) ENGINE = args[args.indexOf('--engine') + 1];
   const oi = args.indexOf('--only');
   const only = oi >= 0 ? (args[oi + 1].split(',') as EnsInstrument[]) : undefined;
   const t0 = performance.now();
@@ -199,7 +212,7 @@ async function main(): Promise<void> {
   }
   console.log(JSON.stringify(brief, null, 1));
   console.log(`(${((performance.now() - t0) / 1000).toFixed(1)} s)`);
-  if (!only) {
+  if (!only && !ENGINE) {
     const log = existsSync(LOG) ? JSON.parse(readFileSync(LOG, 'utf8')) : [];
     writeFileSync(
       OUT,
@@ -222,8 +235,10 @@ async function main(): Promise<void> {
   }
 }
 
-if (!isMainThread) {
-  const jobs = workerData as { i: number; j: Job }[];
+// worker branch only for workers spawned by this file (other scripts import modelNote)
+if (!isMainThread && (workerData as { ensembleJobs?: unknown })?.ensembleJobs) {
+  await useEngine((workerData as { engine?: string }).engine);
+  const jobs = (workerData as { ensembleJobs: { i: number; j: Job }[] }).ensembleJobs;
   parentPort!.postMessage(jobs.map(({ i, j }) => ({ i, a: modelNote(j) })));
 } else if (import.meta.url === `file://${process.argv[1]}`) {
   await main();
