@@ -157,6 +157,12 @@ test('Web MIDI: hot-plug, notes, continuous sustain (CC64) and soft pedal (CC67)
       send(bytes: number[]) {
         inputs.get('fake').onmidimessage?.({ data: new Uint8Array(bytes) });
       },
+      unplug() {
+        const input = inputs.get('fake');
+        input.state = 'disconnected';
+        inputs.delete('fake');
+        access.onstatechange?.({ port: input });
+      },
     };
   });
   await page.goto('/');
@@ -197,6 +203,12 @@ test('Web MIDI: hot-plug, notes, continuous sustain (CC64) and soft pedal (CC67)
     await (window as any).__piano.setInstrument('piano');
   });
   await expect(page.locator('.status .midi')).toHaveAttribute('title', 'MIDI: Test Keys');
+  // unplugging a device mid-note releases what it held (it can no longer send note-offs)
+  await page.evaluate(() => (window as any).__midi.send([0x90, 64, 90]));
+  await expect(page.locator('.key[data-midi="64"]')).toHaveClass(/down/);
+  await page.evaluate(() => (window as any).__midi.unplug());
+  await expect(page.locator('.key[data-midi="64"]')).not.toHaveClass(/down/);
+  await expect(page.locator('.status .midi')).toBeHidden();
 });
 
 test('without Web MIDI (Safari) the page works and shows no MIDI indicator', async ({ page }) => {

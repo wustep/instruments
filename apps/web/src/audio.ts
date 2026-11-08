@@ -438,10 +438,16 @@ class AudioApp {
       const access = await navigator.requestMIDIAccess({ sysex: false });
       const attach = () => {
         const names: string[] = [];
+        const live = new Set<string>();
         access.inputs.forEach((input) => {
-          if (input.state === 'connected') names.push(input.name ?? 'MIDI input');
-          input.onmidimessage = (e) => this.onMidi(e.data);
+          if (input.state === 'connected') {
+            names.push(input.name ?? 'MIDI input');
+            live.add(input.id);
+          }
+          input.onmidimessage = (e) => this.onMidi(e.data, input.id);
         });
+        // a device that went away cannot send its note-offs: release what it held
+        for (const id of [...this.midiHeld.keys()]) if (!live.has(id)) this.releaseDevice(id);
         this.midi = { supported: true, inputs: names };
         this.midiStatus.emit(this.midi);
       };
@@ -454,13 +460,33 @@ class AudioApp {
     }
   }
 
+  /** notes held (and whether pedals/bend were moved) per MIDI input, for unplugging */
+  private midiHeld = new Map<string, { notes: Set<number>; touched: boolean }>();
+  private releaseDevice(id: string): void {
+    const h = this.midiHeld.get(id);
+    this.midiHeld.delete(id);
+    if (!h) return;
+    for (const m of h.notes) this.noteOff(m, 'midi');
+    if (h.touched) {
+      this.sustain(0);
+      this.soft(0);
+      this.sostenuto(0);
+      this.bend(0);
+    }
+  }
+
   /** pitch-bend range of incoming MIDI, semitones */
   bendRange = 2;
-  private onMidi(data: Uint8Array | null): void {
+  private onMidi(data: Uint8Array | null, from = 'midi'): void {
     if (!data || data.length < 2) return;
     const st = data[0] & 0xf0;
     const d1 = data[1];
     const d2 = data[2] ?? 0;
+    let held = this.midiHeld.get(from);
+    if (!held) this.midiHeld.set(from, (held = { notes: new Set(), touched: false }));
+    if (st === 0x90 && d2 > 0) held.notes.add(d1);
+    else if (st === 0x80 || st === 0x90) held.notes.delete(d1);
+    else if (st === 0xb0 || st === 0xe0) held.touched = true;
     if (st >= 0x80 && st <= 0xe0) this.midiActivity.emit();
     if (!this.piano && (st === 0x90 || st === 0xb0)) void this.start();
     if (st === 0x90 && d2 > 0) this.noteOn(d1, d2, 'midi');

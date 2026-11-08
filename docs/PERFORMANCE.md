@@ -72,9 +72,37 @@ thread has a budget of 100 %.
 
 ## Start-up
 
-* **Piano:** designing all 88 keys' dispersion and loss filters in the worklet
-  constructor takes about 0.35–0.6 s, before any sound.
+Measured with `node scripts/startup.mjs <url>` (real Chrome, a real click on a key,
+no autoplay flag; median of 3; Apple M5 Pro):
+
+| | before round 3 (e292022) | now |
+|---|---|---|
+| click → first sound, Chrome | 482 ms | ~205 ms |
+| click → first sound, Chrome with the JIT off (a slow-machine stand-in) | 7840 ms | ~310 ms |
+| click → first sound, WebKit | 589 ms | ~185 ms |
+| piano built on the audio thread (`initMs`) | ~430 ms | ~11 ms |
+| switching back to the piano | ~1000 ms | ~12 ms |
+
+* **Filter designs are precomputed at build time.** The dispersion and loss
+  designs for every string of the default grand are computed by a Vite plugin
+  for 44.1 and 48 kHz and shipped as content-hashed JSON (about 60 kB gzipped
+  each, one design per unison string since round 3). The page prefetches them
+  with the worklet script, and the worklet builds the piano in about 10 ms.
+* **The AudioContext asks for 48 kHz**, so audio interfaces at 88.2–192 kHz and
+  Bluetooth headsets at 16–24 kHz still get the shipped designs. Any other rate
+  is designed in the page, in slices, never on the audio thread.
+* **Every step is bounded:**
+  * the designs fetch times out after 2.5 s and falls back;
+  * the worklet module load after 8 s;
+  * the whole start after 15 s;
+  * a worklet constructor that throws is reported.
+* **The 3 s watchdog.** After 3 s without sound, the status lamp says why and
+  what to do. A failure shows its reason, retries once by itself, and a tap
+  starts over.
+* **`?debug` start-up log.** Opening the page with `?debug` shows every
+  start-up step with timings, HTTP statuses and errors, and has a copy button.
 * **Live parameter changes** (string stiffness, string decay, preset) are
   redesigned on the main thread, spread across frames, and handed to the
-  worklet's cache. The audio thread never stalls.
+  worklet, which keeps every design it has been sent. The audio thread never
+  stalls.
 * **The other instruments** start instantly.
