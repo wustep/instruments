@@ -7,6 +7,7 @@ import { ComputerKeys, createKeyboard } from './ui/keyboard.ts';
 import { h, type View } from './ui/dom.ts';
 import { pedal } from './ui/controls.ts';
 import { MidiPlayer } from './ui/player.ts';
+import { installTips } from './ui/tip.ts';
 import { stageView } from './views/stage.ts';
 import { measureView } from './views/measure.ts';
 import { notesView } from './views/notes.ts';
@@ -22,14 +23,14 @@ const keyboard = createKeyboard();
 const sustainPedal = pedal('sustain', 'Sustain pedal (hold; Space on a keyboard, CC64 on MIDI)', (v) => audio.sustain(v));
 const softPedal = pedal('soft', 'Una corda (hold; Shift on a keyboard, CC67 on MIDI)', (v) => audio.soft(v));
 const knobSlot = h('div', { class: 'knobs', role: 'group', 'aria-label': 'Physical controls' });
-const knobToggle = h('button', { class: 'knob-toggle', type: 'button', 'aria-label': 'Show the knobs', 'aria-expanded': 'false', title: 'Knobs' }, '◐');
+const knobToggle = h('button', { class: 'knob-toggle', type: 'button', 'aria-label': 'Show the knobs', 'aria-expanded': 'false', 'data-tip': 'knobs' }, '◐');
 knobToggle.addEventListener('click', () => {
   const open = document.documentElement.toggleAttribute('data-knobs');
   knobToggle.setAttribute('aria-expanded', String(open));
 });
 // octave: shifts the computer keys (Z/X or −/=) and brings the on-screen keys along
-const octDown = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave down', title: 'Octave down (Z or −)', onclick: () => keys.octave(-1) }, '‹');
-const octUp = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave up', title: 'Octave up (X or =)', onclick: () => keys.octave(1) }, '›');
+const octDown = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave down', 'data-tip': 'octave down · Z', onclick: () => keys.octave(-1) }, '‹');
+const octUp = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave up', 'data-tip': 'octave up · X', onclick: () => keys.octave(1) }, '›');
 const octLabel = h('span', { class: 'oct-label', 'aria-live': 'polite' });
 const octave = h('div', { class: 'octave', role: 'group', 'aria-label': 'Octave' }, octDown, octLabel, octUp);
 const fallboard = h(
@@ -51,7 +52,7 @@ const links = [
   h('a', { href: '#/measurements', 'data-route': 'measurements' }, 'measurements'),
   h('a', { href: '#/notes', 'data-route': 'notes' }, 'notes'),
 ];
-const backLink = h('a', { class: 'back', href: '#/', 'data-route': 'stage', 'aria-label': 'back to the instruments', title: 'back to the instruments' }, '←');
+const backLink = h('a', { class: 'back', href: '#/', 'data-route': 'stage', 'aria-label': 'back to the instruments', 'data-tip': 'back' }, '←');
 const header = h('header', { class: 'top' }, backLink, h('span', { class: 'spacer' }), status, h('nav', { class: 'links', 'aria-label': 'Pages' }, links));
 const main = h('main', { id: 'main' });
 // drop a .mid file anywhere to hear it on the current instrument
@@ -89,7 +90,8 @@ let lastBase = keys.base;
 const syncOctave = () => {
   keyboard.setLabels(keys.labels());
   octLabel.textContent = midiName(keys.base);
-  octLabel.title = `computer keys start at ${midiName(keys.base)}`;
+  octLabel.dataset.tip = `computer keys from ${midiName(keys.base)}`;
+  octLabel.setAttribute('aria-label', `computer keys start at ${midiName(keys.base)}`);
   if (keys.base !== lastBase) keyboard.scrollToMidi(keys.base + 6, true);
   lastBase = keys.base;
 };
@@ -164,6 +166,7 @@ diag('page ready');
 
 // expose small handles for automated tests (Playwright)
 import { renderOffline } from '@piano-model/engine';
+installTips();
 (window as unknown as { __piano: typeof audio; __engine: unknown }).__piano = audio;
 (window as unknown as { __engine: unknown }).__engine = { renderOffline };
 (window as unknown as { __player: MidiPlayer }).__player = player;

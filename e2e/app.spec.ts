@@ -644,3 +644,43 @@ test('keys light only the notes the engine really sounds: flute, trumpet, violin
   await page.evaluate(() => (window as any).__piano.noteOff(79, 'keys'));
   await lit([55, 62, 69, 76], []);
 });
+
+test('icon-only stage controls say what they are: a short tooltip and an accessible name', async ({ page }, info) => {
+  await page.goto('/');
+  await startAudio(page);
+  await page.waitForTimeout(300);
+  const tip = page.locator('.tip');
+  // no tooltip and no new words until asked
+  await expect(tip).toBeHidden();
+  const room = page.locator('.grip-room');
+  const lid = page.locator('.grip-lid');
+  await expect(room).toHaveAttribute('aria-label', /Reverb/);
+  await expect(lid).toHaveAttribute('aria-label', /lid/i);
+  await expect(room).toHaveAttribute('aria-valuetext', /^reverb · \d\.\d s$/);
+  await expect(lid).toHaveAttribute('aria-valuetext', /^lid · (closed|\d+ % open)$/);
+  if (info.project.name === 'phone') {
+    // touch has no hover: the tooltip shows while a grip is held
+    const b = (await room.boundingBox())!;
+    await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+    await expect(tip).toHaveText(/^reverb · \d\.\d s$/);
+    return;
+  }
+  await lid.hover();
+  await expect(tip).toHaveText(/^lid · (closed|\d+ % open)$/);
+  // keyboard focus shows it at once and it follows the value
+  await room.focus();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Shift+Tab');
+  await expect(tip).toHaveText(/^reverb · \d\.\d s$/);
+  const t0 = await tip.textContent();
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  await expect(tip).not.toHaveText(t0!);
+  // the other icon-only controls
+  for (const [sel, text] of [['.oct-btn >> nth=0', 'octave down · Z'], ['.oct-btn >> nth=1', 'octave up · X'], ['.knob-toggle', 'knobs']] as const) {
+    const el = page.locator(sel);
+    if (!(await el.isVisible())) continue;
+    await el.hover();
+    await expect(tip, sel).toHaveText(text);
+  }
+});

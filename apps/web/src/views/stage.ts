@@ -83,9 +83,19 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
   const top = h('div', { class: 'stage-top' }, picker, readout, h('div', { class: 'spec-wrap' }, specCv), scope);
   const canvas = h('canvas', { class: 'stage-cv', role: 'img', 'aria-label': 'The instrument, moving as the simulation computes it' });
   // direct manipulation: drag the room's edge (reverb) and the grand's lid
-  const grip = (name: string, title: string) => h('div', { class: `grip grip-${name}`, role: 'slider', tabindex: '0', 'aria-label': name === 'room' ? 'Room' : 'Lid', 'aria-valuemin': '0', 'aria-valuemax': '1', title });
-  const gripRoom = grip('room', 'Room: drag the edge (small room … hall)');
-  const gripLid = grip('lid', 'Lid: drag its edge (closed … open)');
+  // (no visible labels: a short tooltip on hover, focus and drag says what each one is)
+  const grip = (name: string, label: string) => h('div', { class: `grip grip-${name}`, role: 'slider', tabindex: '0', 'aria-label': label, 'aria-valuemin': '0', 'aria-valuemax': '1' });
+  const gripRoom = grip('room', 'Reverb: room size and decay time');
+  const gripLid = grip('lid', 'Piano lid: how far open');
+  /** the room parameter as heard: the hall's reverberation time (mid frequencies) */
+  const roomText = (v: number) => `reverb · ${(0.7 + 1.7 * v).toFixed(1)} s`;
+  const lidText = (v: number) => (v < 0.02 ? 'lid · closed' : `lid · ${Math.round(v * 100)} % open`);
+  const label = (g: HTMLElement, v: number, text: string) => {
+    if (g.dataset.tip === text) return;
+    g.dataset.tip = text;
+    g.setAttribute('aria-valuenow', String(v));
+    g.setAttribute('aria-valuetext', text);
+  };
   const el = h('div', { class: 'view stage' }, canvas, top, gripRoom, gripLid);
   const paramOf = (k: string, d: number) => {
     const v = (audio.piano?.params as Record<string, unknown> | undefined)?.[k];
@@ -157,7 +167,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       {
         class: 'k-reset',
         type: 'button',
-        title: 'Reset the knobs',
+        'data-tip': 'reset knobs',
         'aria-label': 'Reset the knobs',
         onclick: async () => {
           await audio.setInstrument(inst);
@@ -331,12 +341,12 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     ctx.restore();
     // place the grips (stage coordinates: the instrument area starts below the top band)
     gripRoom.style.transform = `translate(${rg.x1 - 7}px, ${topH + (rg.y0 + rg.y1) / 2 - 14}px)`;
-    gripRoom.setAttribute('aria-valuenow', String(roomVal()));
+    label(gripRoom, roomVal(), roomText(roomVal()));
     const le = grand ? pianoState.lidEdge : null;
     gripLid.hidden = !le;
     if (le) {
       gripLid.style.transform = `translate(${le.x - 7}px, ${topH + le.y - 14}px)`;
-      gripLid.setAttribute('aria-valuenow', String(lidVal()));
+      label(gripLid, lidVal(), lidText(lidVal()));
     }
     // spectrum hairline
     const sp = fitCanvas(specCv);
