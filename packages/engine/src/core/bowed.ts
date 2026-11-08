@@ -238,6 +238,10 @@ class BowedString {
   betaDyn = 1;
   fBow = 0;
   fBowTarget = 0;
+  /** bow force the note asks for, before the live pressure controller (CC1/CC2/CC11) */
+  fBase = 0;
+  /** Schelleng's maximum force for the current speed and contact point */
+  fMax = 1;
   stick = true;
   slipSign = 1;
   beta = 0.11;
@@ -300,6 +304,10 @@ export class BowedCore implements InstrumentCore {
   private rng: () => number;
   private expression = 1;
   private modwheel = -1;
+  /** live bow-pressure controller: mod wheel / breath / expression (1 = as the note asked) */
+  private pressureCC = 1;
+  /** pitch bend, semitones */
+  private bend = 0;
   private focus = 0;
   private oL = new Float64Array(128);
   private oR = new Float64Array(128);
@@ -496,7 +504,9 @@ export class BowedCore implements InstrumentCore {
     const fMax = (2 * s.Z * v) / (s.beta * (MU_S - MU_D));
     const [fp, ff] = this.design.forceDyn;
     s.forceDyn = fp + (ff - fp) * x;
-    s.fBowTarget = clamp(this.params.bowPressure * s.forceDyn, 0.02, 1.2) * fMax;
+    s.fMax = fMax;
+    s.fBase = clamp(this.params.bowPressure * s.forceDyn, 0.02, 1.2) * fMax;
+    s.fBowTarget = Math.min(1.3 * fMax, s.fBase * this.pressureCC);
   }
 
   // ------------------------------------------------------------ events
@@ -546,8 +556,13 @@ export class BowedCore implements InstrumentCore {
         this.soft = clamp(ev.value, 0, 1);
         break;
       case 'control':
-        if (ev.cc === 11 || ev.cc === 2) this.expression = 0.35 + 0.9 * clamp(ev.value, 0, 1);
-        if (ev.cc === 1) this.modwheel = clamp(ev.value, 0, 1);
+        // mod wheel, breath controller and expression press the bow into the string
+        // (×0.3 … ×1.5 of the force the note asked for, capped above Schelleng's maximum)
+        if (ev.cc === 1 || ev.cc === 2 || ev.cc === 11) this.pressureCC = 0.3 + 1.2 * clamp(ev.value, 0, 1);
+        break;
+      case 'bend':
+        // the finger slides: every stopped or bowed string follows
+        this.bend = clamp(ev.value, -12, 12);
         break;
       case 'allNotesOff':
         for (const s of this.strings) this.lift(s);
@@ -647,7 +662,9 @@ export class BowedCore implements InstrumentCore {
       for (const s of this.strings) if (s.bowing) {
         const ratio = s.vBowTarget;
         s.beta = clamp(this.params.bowPosition * s.betaDyn, 0.03, 0.3);
-        s.fBowTarget = clamp(this.params.bowPressure * s.forceDyn, 0.02, 1.2) * ((2 * s.Z * ratio) / (s.beta * (MU_S - MU_D)));
+        s.fMax = (2 * s.Z * ratio) / (s.beta * (MU_S - MU_D));
+        s.fBase = clamp(this.params.bowPressure * s.forceDyn, 0.02, 1.2) * s.fMax;
+        s.fBowTarget = Math.min(1.3 * s.fMax, s.fBase * this.pressureCC);
       }
     }
   }
@@ -723,7 +740,10 @@ export class BowedCore implements InstrumentCore {
       if (!s.bowing && s.midi !== s.def.open && (this.frame - s.releasedAt) / fs > 0.3) {
         this.setStopped(s, s.def.open, false);
       }
-      s.Dtarget = s.D0 * Math.pow(2, -cents / 1200);
+      // the live pressure controller follows the bow while it is on the string
+      if (s.bowing && s.fBase > 0) s.fBowTarget = Math.min(1.3 * s.fMax, s.fBase * this.pressureCC);
+      const bendC = s.bowing || s.midi !== s.def.open ? 100 * this.bend : 0;
+      s.Dtarget = s.D0 * Math.pow(2, -(cents + bendC) / 1200);
     }
     this.bowControl(dt);
   }

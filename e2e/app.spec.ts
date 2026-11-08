@@ -178,6 +178,36 @@ test('Web MIDI: hot-plug, notes, continuous sustain (CC64) and soft pedal (CC67)
   await expect(page.locator('.key[data-midi="60"]')).toHaveClass(/down/);
   await page.evaluate(() => (window as any).__midi.send([0x80, 60, 0]));
   await expect(page.locator('.key[data-midi="60"]')).not.toHaveClass(/down/);
+  // strings: pitch bend, mod wheel (bow pressure), aftertouch (vibrato) reach the instrument
+  await page.evaluate(async () => {
+    await (window as any).__piano.setInstrument('violin');
+    const m = (window as any).__midi;
+    m.send([0x90, 69, 100]);
+    m.send([0xe0, 0x00, 0x60]); // bend up
+    m.send([0xb0, 1, 120]); // mod wheel: press the bow
+    m.send([0xd0, 90]); // aftertouch: vibrato
+  });
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => (window as any).__piano.piano.params.vibrato)).toBeGreaterThan(20);
+  await page.evaluate(async () => {
+    const m = (window as any).__midi;
+    m.send([0x80, 69, 0]);
+    m.send([0xe0, 0x00, 0x40]); // centre
+    await (window as any).__piano.setInstrument('piano');
+  });
+  await expect(page.locator('.status .midi')).toHaveAttribute('title', 'MIDI: Test Keys');
+});
+
+test('without Web MIDI (Safari) the page works and shows no MIDI indicator', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.addInitScript(() => {
+    delete (Navigator.prototype as any).requestMIDIAccess;
+  });
+  await page.goto('/');
+  await expect(page.locator('.status')).toHaveAttribute('data-midi', 'no Web MIDI');
+  await expect(page.locator('.status .midi')).toBeHidden();
+  await startAudio(page);
+  expect(errors).toEqual([]);
 });
 
 test('layout fits the viewport (no horizontal page scroll) and keys respond to touch/click', async ({ page }, info) => {

@@ -98,6 +98,8 @@ class AudioApp {
   readonly midiStatus = new Emitter<MidiStatus>();
   readonly keysChanged = new Emitter<KeySummary[]>();
   readonly instrumentChanged = new Emitter<InstrumentId>();
+  /** fires on every incoming MIDI message (for an activity light) */
+  readonly midiActivity = new Emitter<void>();
   midi: MidiStatus = { supported: typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator, inputs: [] };
   /** keys currently held by any source */
   readonly down = new Map<number, Set<string>>();
@@ -305,6 +307,11 @@ class AudioApp {
     if (this.piano) this.piano.control(cc, v);
     else this.queue.push((p) => p.control(cc, v));
   }
+  /** pitch bend, semitones (strings, flute) */
+  bend(semitones: number): void {
+    if (this.piano) this.piano.bend(semitones);
+    else this.queue.push((p) => p.bend(semitones));
+  }
 
   async setPreset(id: string): Promise<void> {
     this.preset = id;
@@ -358,20 +365,33 @@ class AudioApp {
     }
   }
 
+  /** pitch-bend range of incoming MIDI, semitones */
+  bendRange = 2;
   private onMidi(data: Uint8Array | null): void {
     if (!data || data.length < 2) return;
     const st = data[0] & 0xf0;
     const d1 = data[1];
     const d2 = data[2] ?? 0;
+    if (st >= 0x80 && st <= 0xe0) this.midiActivity.emit();
     if (!this.piano && (st === 0x90 || st === 0xb0)) void this.start();
     if (st === 0x90 && d2 > 0) this.noteOn(d1, d2, 'midi');
     else if (st === 0x80 || (st === 0x90 && d2 === 0)) this.noteOff(d1, 'midi');
     else if (st === 0xb0) {
+      // CC64 sustain (continuous, half-pedal), CC67 una corda, CC66 sostenuto;
+      // CC1 mod wheel / CC2 breath / CC11 expression: bow pressure or breath
       if (d1 === 64) this.sustain(d2 / 127);
       else if (d1 === 67) this.soft(d2 / 127);
       else if (d1 === 66) this.sostenuto(d2 / 127);
       else if (d1 === 1 || d1 === 2 || d1 === 11) this.control(d1, d2 / 127);
       else if (d1 === 123 || d1 === 120) this.piano?.allNotesOff();
+    } else if (st === 0xe0) {
+      // 14-bit pitch bend, centre 8192
+      this.bend((((d2 << 7) | d1) - 8192) / 8192 * this.bendRange);
+    } else if (st === 0xd0) {
+      // channel aftertouch: vibrato depth (strings: cents, flute: breath modulation)
+      const v = d1 / 127;
+      if (this.instrument === 'flute') this.setParams({ vibrato: 0.15 * v });
+      else if (this.instrument !== 'piano') this.setParams({ vibrato: 35 * v });
     }
   }
 }

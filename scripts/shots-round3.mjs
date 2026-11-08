@@ -18,10 +18,11 @@ const VIEW = {
 };
 const words = {};
 
-async function shot(name, { route = '', device = 'desktop', instrument = 'piano', notes = [], pedal = false, full = false, wait = 1400, action = null }) {
+async function shot(name, { route = '', device = 'desktop', instrument = 'piano', notes = [], pedal = false, full = false, wait = 1400, action = null, init = null }) {
   if (ONLY && !ONLY.includes(name)) return;
   const ctx = await browser.newContext(VIEW[device]);
   await ctx.addInitScript((inst) => localStorage.setItem('piano-model.instrument', inst), instrument);
+  if (init) await ctx.addInitScript(init);
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
@@ -69,7 +70,7 @@ const SETS = {
     ['phone-measurements', { route: 'measurements', device: 'phone', wait: 2000 }],
   ],
 };
-const set = SETS[PREFIX] ?? (await import(join(import.meta.dirname, 'shots-round3.sets.mjs'))).default;
+const set = SETS[PREFIX] ?? (await import(join(import.meta.dirname, process.env.SET ?? 'shots-round3.sets.mjs'))).default;
 for (const [name, o] of set) await shot(name, o);
 writeFileSync(join(OUT, `${PREFIX}-words.json`), JSON.stringify(words, null, 1) + '\n');
 await browser.close();

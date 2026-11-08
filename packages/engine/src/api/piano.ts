@@ -62,8 +62,10 @@ export interface Piano {
   setPreset(id: string): Promise<void>;
   /** switch the instrument hosted by this node (silences it); resolves when ready */
   setInstrument(id: InstrumentId): Promise<void>;
-  /** continuous controller: 1 = vibrato, 11 / 2 = expression / breath (strings, flute) */
+  /** continuous controller (0..1): 1 / 2 / 11 = bow pressure (strings) or breath (flute) */
   control(cc: number, value: number, time?: number): void;
+  /** pitch bend in semitones (strings and flute) */
+  bend(semitones: number, time?: number): void;
   setMaxVoices(n: number): void;
   /** subscribe to ~30 Hz stats (load, voice counts, pedals) */
   onStats(cb: (s: Stats) => void): () => void;
@@ -264,6 +266,7 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
         else go();
       }),
     control: (cc, value, time) => ev({ type: 'control', cc, value }, time),
+    bend: (semitones, time) => ev({ type: 'bend', value: semitones }, time),
     setPreset: (id) =>
       new Promise<void>((resolve) => {
         const d = PRESETS[id];

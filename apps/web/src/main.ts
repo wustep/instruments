@@ -112,10 +112,18 @@ audio.state.on((s) => {
 status.addEventListener('click', () => audio.unlock());
 document.documentElement.dataset.audio = 'idle';
 srStatus.textContent = 'tap a key to start';
+// a small MIDI socket that lights up while a device is connected and flickers with
+// incoming messages; hidden where the browser has no Web MIDI (Safari)
+audio.midiActivity.on(() => {
+  midiText.classList.add('blink');
+  window.clearTimeout((midiText as HTMLElement & { _t?: number })._t);
+  (midiText as HTMLElement & { _t?: number })._t = window.setTimeout(() => midiText.classList.remove('blink'), 80);
+});
 audio.midiStatus.on((m) => {
   const names = m.inputs.join(', ');
   midiText.textContent = m.inputs.length ? 'midi' : '';
-  midiText.title = names;
+  midiText.title = names ? `MIDI: ${names}` : '';
+  midiText.hidden = !m.inputs.length;
   midiText.dataset.full = !m.supported ? 'no Web MIDI' : m.error ? 'MIDI: no access' : m.inputs.length ? `MIDI: ${names}` : 'no MIDI device';
   midiText.setAttribute('aria-label', midiText.dataset.full);
   status.dataset.midi = midiText.dataset.full;

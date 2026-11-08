@@ -1101,3 +1101,23 @@ figure[title] {
   font-size: 11px;
   color: var(--ink-2);
 }
+
+/* ------------------------------------------------------------ MIDI socket */
+.midi {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--amber);
+}
+.midi::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid var(--amber);
+  box-shadow: 0 0 0 2px rgba(242, 166, 70, 0.15);
+}
+.midi.blink::before {
+  background: var(--amber);
+  box-shadow: 0 0 8px rgba(242, 166, 70, 0.9);
+}

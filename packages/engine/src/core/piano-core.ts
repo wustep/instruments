@@ -31,7 +31,9 @@ export type PianoEvent =
   | { type: 'soft'; value: number }
   | { type: 'sostenuto'; value: number }
   | { type: 'allNotesOff' }
-  | { type: 'control'; cc: number; value: number };
+  | { type: 'control'; cc: number; value: number }
+  /** pitch bend in semitones (strings and flute; a struck piano string cannot bend) */
+  | { type: 'bend'; value: number };
 
 export interface CoreOptions {
   sampleRate: number;

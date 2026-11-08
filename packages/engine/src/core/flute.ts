@@ -112,6 +112,8 @@ export class FluteCore implements InstrumentCore {
   private chiff = 0;
   private vibPhase = 0;
   private expression = 1;
+  /** pitch bend as a factor on the bore delay */
+  private bendFactor = 1;
   private note = -1;
   private held: number[] = [];
   private velocity = 80;
@@ -299,8 +301,12 @@ export class FluteCore implements InstrumentCore {
         if (this.sustain < 0.5 && !this.held.length) this.pTarget = 0;
         break;
       case 'control':
-        if (ev.cc === 2 || ev.cc === 11) this.expression = 0.4 + 0.8 * clamp(ev.value, 0, 1);
-        if (ev.cc === 1) this.params = { ...this.params, vibrato: 0.15 * clamp(ev.value, 0, 1) };
+        // mod wheel, breath controller and expression all blow: breath pressure
+        if (ev.cc === 1 || ev.cc === 2 || ev.cc === 11) this.expression = 0.4 + 0.8 * clamp(ev.value, 0, 1);
+        break;
+      case 'bend':
+        // the player rolls the flute in/out and lips the pitch: the tube's effective length
+        this.bendFactor = Math.pow(2, -clamp(ev.value, -12, 12) / 12);
         break;
       case 'allNotesOff':
         this.held = [];
@@ -376,7 +382,7 @@ export class FluteCore implements InstrumentCore {
     const ljEff = this.lj * P.embouchure;
     this.jetDTarget = clamp((fs * ljEff) / (0.45 * Math.max(Uj, 4)), 2, BUF / 2);
     // players "lip" the pitch back as they blow harder; compensate 75 % of the drift
-    this.Dtarget = this.Dnom + 0.75 * (this.boreDelayFor(this.jetDTarget) * this.tuningCorrection(this.note) - this.Dnom);
+    this.Dtarget = (this.Dnom + 0.75 * (this.boreDelayFor(this.jetDTarget) * this.tuningCorrection(this.note) - this.Dnom)) * this.bendFactor;
     // normalised drive (flow) and turbulence ∝ Uj²
     const drive = this.pressure * vib * velScale * this.expression * Math.min(1.6, P.breath);
     const turb = V.noise * P.noise * (Uj * Uj) / 400 * (this.pressure > 0 ? 1 : 0);
