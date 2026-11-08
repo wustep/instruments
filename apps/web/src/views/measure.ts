@@ -318,7 +318,7 @@ function ensembleSection(e: Ens): HTMLElement {
   const insts = ['violin', 'viola', 'cello', 'flute'].filter((i) => e.summary[i]);
   const label: Record<string, string> = { violin: 'Violin', viola: 'Viola', cello: 'Cello', flute: 'Flute' };
   // the baseline measured the same way (vibrato matched to each recorded note)
-  const first = (e.rounds.find((r) => /baseline/.test(r.label) && /matched/.test(r.label)) ?? e.rounds[0])?.summary ?? {};
+  const first = (e.rounds.find((r) => /re-measured with matched vibrato/.test(r.label)) ?? e.rounds[0])?.summary ?? {};
   const lx = (f: number) => Math.log2(f / 1000);
   const fName = (x: number) => {
     const f = 1000 * Math.pow(2, x);

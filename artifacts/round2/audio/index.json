@@ -1,0 +1,52 @@
+[
+ {
+  "file": "piano-tenor-notes.mp3",
+  "caption": "Piano: F2, A2, C3, E3 at mf, each held 3 s — the tenor’s fast first decay into a long aftersound (round 2 fixed a ×2.2 too-slow prompt decay here)",
+  "seconds": 13.5
+ },
+ {
+  "file": "piano-treble-notes.mp3",
+  "caption": "Piano: C6, E6, G6, C7 at mf, held 2.4 s each — treble unisons kept within a tuner’s beat rate, decaying like the recording instead of collapsing in a beat",
+  "seconds": 10.8
+ },
+ {
+  "file": "piano-chorale.mp3",
+  "caption": "Piano: an eight-chord chorale in C minor with legato pedalling — tenor and bass voicing where the decay changes matter most",
+  "seconds": 16
+ },
+ {
+  "file": "violin-long-tones-bow-changes.mp3",
+  "caption": "Violin: D4 forte for 8 s, then A4 for 6 s — the bow runs out of hair and changes direction automatically (cosine reversal, ~70 ms); listen for the turns",
+  "seconds": 15.2
+ },
+ {
+  "file": "violin-detache.mp3",
+  "caption": "Violin: a détaché melody in G — each new note takes the other bow direction (down, up, down…), slurred pairs stay in one bow",
+  "seconds": 8.2
+ },
+ {
+  "file": "viola-melody.mp3",
+  "caption": "Viola: a slow melody on the C and G strings, long notes with bow changes",
+  "seconds": 12.6
+ },
+ {
+  "file": "cello-long-tones.mp3",
+  "caption": "Cello: C2 and G2 held forte, then an arpeggio up to C4 — bow changes on the long notes, open strings ringing sympathetically",
+  "seconds": 14.5
+ },
+ {
+  "file": "flute-low-register.mp3",
+  "caption": "Flute: a low-register phrase at mf (C4–G4) — the strong second harmonic of a real flute’s low notes, from the offset jet and monopole radiation",
+  "seconds": 10.4
+ },
+ {
+  "file": "flute-dynamics.mp3",
+  "caption": "Flute: G4, G5, G6 each played pp, mf, ff — the tone fills out with the jet as it does on a real flute (fitted to the Iowa recordings)",
+  "seconds": 13
+ },
+ {
+  "file": "ensemble-chorale.mp3",
+  "caption": "All five instruments: an original chorale in G for flute, violin, viola, cello and piano (each rendered separately and summed)",
+  "seconds": 17
+ }
+]

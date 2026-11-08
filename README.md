@@ -6,9 +6,9 @@ No samples are ever played as the sound. Every note is a simulation of felt
 hammers, bows and air jets driving strings and tubes, which in turn drive a
 soundboard or body.
 
-**Production URL (planned):** https://piano-model-wustep.vercel.app. Vercel
-deployment is handled separately and was **not verified live** at handoff: the
-Vercel project lookup returned 404. `vercel.json` makes this a static build
+**Production URL (planned):** https://piano-model-wustep.vercel.app. `main` is
+linked to a Vercel production deployment, which is checked separately; this
+README does not claim it is live. `vercel.json` makes this a static build
 (`pnpm build` → `apps/web/dist`).
 
 ## What you can do
@@ -39,7 +39,10 @@ Vercel project lookup returned 404. `vercel.json` makes this a static build
 * **Measurements.** The piano is compared with a recorded Steinway model B on
   inharmonicity, stretch tuning, decay, spectra across dynamics, loudness and
   spectral balance. You can listen side by side; the model is rendered live in
-  your browser. A candid list of where it falls short is included.
+  your browser. The violin, viola, cello and flute are compared with anechoic
+  recordings of real ones (harmonic profiles, long-term spectra, even
+  harmonics, noise, dynamics). A candid list of where it falls short is
+  included.
 
 ## How it works, in plain words
 
@@ -62,6 +65,10 @@ Vercel project lookup returned 404. `vercel.json` makes this a static build
   * **Bowing.** The bow grips each string by friction (a stick–slip law) until it
     slips. Once per period it catches again, and the classic Helmholtz motion
     emerges without being programmed.
+  * **Bow changes.** There is one bow, with a length. Each detached note goes
+    the other way (down-bow, up-bow), and long notes change bow when the hair
+    runs out. At the turn the bow slows through zero and the stick–slip
+    re-forms in the opposite direction.
   * **Body.** Fingers shorten the strings, with vibrato. All four strings stand on
     one bridge over a modal body with each instrument's signature air and wood
     resonances, so open strings ring sympathetically.
@@ -71,6 +78,10 @@ Vercel project lookup returned 404. `vercel.json` makes this a static build
   * **Overblowing.** Blowing harder makes the jet faster: the tone brightens,
     pitch rises slightly, and eventually the tube overblows to its octave, which
     is how the upper registers work.
+  * **Tone.** The jet is aimed slightly off the edge, so it splits unevenly and
+    makes even harmonics. Vortices shed at the edge limit the amplitude before
+    the jet saturates, and both openings radiate as monopoles: the sound is the
+    rate of change of their air flow.
 * **Where it runs.** Everything runs in an AudioWorklet written in TypeScript; no
   WASM was needed, as measured below. The DSP core has no Web Audio dependency,
   so the same code runs in Node for tests, calibration and offline rendering.
@@ -87,36 +98,59 @@ CPU and latency: [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
 | **Hammer** | nonlinear Hunt–Crossley felt (power law + hysteresis), implicit Newton solve, una corda shift | no key-travel delay, no shank flexibility |
 | **Soundboard** | ≈150-mode passive modal board at three bridge zones, coupled to every undamped string, giving sympathetic resonance | modes are plausible rather than measured; above ~3 kHz a smoothed path; the bass aftersound is still short |
 | **Dampers / pedals** | continuous damper contact with half-pedal, undamped top keys, sostenuto, pitched damper noise | key and action noises are short synthetic pulses |
-| **Bowed strings** | stick–slip friction with hysteresis, Helmholtz motion, bow position/force/speed (Schelleng), stopped strings with vibrato, four strings on one bridge, modal body with A0/B1 modes, sympathetic open strings | no torsional waves, bow width, bow changes or bridge dynamics (a formant instead); bodies are not measured; **not calibrated against recordings** |
-| **Flute** | jet-drive feedback with jet delay from blowing pressure, overblowing, Strouhal-limited jet, turbulence noise, open–open bore | no tone holes or bore taper; weak even harmonics; per-note tuning uses a measured voicing table; **not calibrated against recordings** |
+| **Bowed strings** | stick–slip friction with hysteresis, Helmholtz motion, bow position/force/speed (Schelleng), one shared bow with length, direction and automatic bow changes, stopped strings with vibrato, four strings on one bridge, modal body with A0/B1 modes, sympathetic open strings | no torsional waves, bow width or bridge dynamics; bodies are modal sketches whose radiation balance (bridge hill, HF path, low shelf), dynamics and HF string loss are **fitted to Iowa MIS recordings**, not measured |
+| **Flute** | jet-drive feedback with jet delay from blowing pressure, overblowing, Strouhal-limited jet, offset jet (even harmonics), vortex-shedding amplitude limit, monopole radiation, turbulence noise, open–open bore; voicing **fitted to Iowa MIS recordings** | no tone holes or bore taper; low-register H2 at mf/ff still ~10 dB short of a real flute; per-note tuning uses a measured voicing table |
 | **Listener** | close "microphones" from mode shapes | lid shelf, small FDN room, safety limiter (audio effects, not physics) |
 
 ## Realism, candidly
 
-* **Piano.** Against a Steinway B recording:
-  * stretch tuning is within ≈ 4 ¢ RMS and inharmonicity within ≈ 15 % RMS;
-  * from C4 to B5, decay times are within about ×1.4 of the recording, but the top octave's first decay is too fast (×0.6);
-  * the spectral balance is within ≈ 4.5 dB per third-octave band;
-  * loudness is within ≈ 4–8 dB per note.
+* **Piano.** Against a Steinway B recording (round 2, `docs/CALIBRATION.md`):
+  * stretch tuning is within ≈ 4 ¢ RMS and inharmonicity within ≈ 17 % RMS;
+  * prompt decay is within ×0.90–1.14 of the recording in every register, and the aftersound within ×0.95–1.11 above B1;
+  * the spectral balance is within ≈ 4.6 dB per third-octave band;
+  * loudness is within ≈ 5–8 dB per note;
+  * the pp→ff brightening is within 0.4 dB per partial (median).
 
-  The biggest audible gaps:
-  * the tenor's (C2–B3) first decay is about twice as slow as the real piano's;
-  * the lowest octave's sustain is about two-thirds as long;
-  * loud notes brighten less than real felt makes them.
+  The biggest remaining audible gap: the lowest octave's aftersound is about
+  two-thirds as long as the recording's.
 
-  It sounds like a convincing, slightly "clean" grand: closer than classic
-  synthesis, short of a high-end commercial modelled piano.
-* **Strings.** They have genuine bowed attacks, transients and pressure/position
-  response. The timbre is plausible violin-family, but the bodies are generic and
-  bow changes are not modelled, so long passages sound "synthetic-ensemble"
-  rather than like a specific instrument.
-* **Flute.** The flute is breathy and responsive and overblows naturally. It is
-  purer than a real flute, with weaker octave harmonics.
+  It sounds like a convincing grand: closer than classic synthesis, short of a
+  high-end commercial modelled piano.
+* **Strings.** Against anechoic Iowa MIS recordings (333 notes with the flute;
+  round-1 → round-2 numbers in `docs/CALIBRATION.md`):
+  * third-octave spectral error: violin 17.5 → 14.6 dB, viola 14.2 → 11.0 dB,
+    cello 20.8 → 17.0 dB;
+  * the pp→ff level spread is now close to the recordings'.
+
+  They have genuine bowed attacks, bow changes, transients and
+  pressure/position response, and play louder the way players do: closer to
+  the bridge. The biggest gaps:
+  * above about 4 kHz the modelled bodies still radiate far less than the real
+    instruments;
+  * the cello is a few dB noisier between harmonics than its recording.
+* **Flute.** Even harmonics, breath noise, dynamics and register balance are
+  fitted to the Iowa flute:
+  * the spectral error went from 8.2 to 4.5 dB;
+  * the even/odd balance error by register went from −26 / −16 / −4 dB to
+    −9 / −3 / −3 dB.
+
+  The low register at mf/ff is still about 10 dB short of a real flute's
+  second harmonic, and notes speak a little slowly.
 
 ## Demos and screenshots (for handoff)
 
-All rendered by the models; see [`artifacts/README.md`](artifacts/README.md) for
-captions.
+All rendered by the models.
+
+**Round 2.** Captions, before/after pairs and measurements are in
+[`artifacts/round2/README.md`](artifacts/round2/README.md).
+* **Audio:** `artifacts/round2/audio/*.mp3` — piano tenor and treble notes,
+  piano chorale, violin long tones with bow changes, violin détaché, viola,
+  cello, flute low register and dynamics, and an ensemble chorale.
+* **Before/after:** `artifacts/round2/before/*.mp3` are the same scores
+  rendered by the round-1 engine.
+* **Screenshots:** `artifacts/round2/shots/*.png`.
+
+**Round 1.** See [`artifacts/README.md`](artifacts/README.md).
 
 * Audio, WAV (48 kHz/16-bit) plus MP3: `artifacts/audio/`
   * piano: `piano-c-major-chord-pp.wav`, `piano-c-major-chord-ff.wav`,
@@ -141,14 +175,18 @@ pnpm install
 pnpm dev                      # http://localhost:5199
 pnpm build && pnpm preview    # static build in apps/web/dist (Vercel: vercel.json)
 
-pnpm test                     # 44 DSP unit tests (vitest), ~2.5 min
+pnpm test                     # 52 DSP/analysis unit tests (vitest), ~2.2 min
 pnpm e2e                      # builds, then 18 Playwright tests (desktop + phone) in installed Chrome
 pnpm bench                    # CPU per voice / instrument
 
 pnpm refs:fetch               # download Iowa reference notes into .cache/ (gitignored, ~650 MB)
-pnpm calibrate [--fit]        # measure (and fit) the piano against them
-npx tsx scripts/render-demos.ts   # re-render artifacts/audio
-node scripts/screenshots.mjs      # re-capture artifacts/shots (needs `pnpm preview --port 4199`)
+pnpm calibrate [--fit] [--decay-only]   # measure (and fit) the piano against them
+pnpm refs:ensemble            # download + segment Iowa violin/viola/cello/flute runs (.cache/iowa-ens, ~500 MB)
+pnpm calibrate:ensemble       # strings and flute vs those recordings [--engine <other checkout> for baselines]
+npx tsx scripts/fit-flute.ts  # fit the flute voicing; scripts/fit-strings.ts <violin|viola|cello> for the bodies
+npx tsx scripts/render-demos.ts   # re-render artifacts/audio (round 1)
+npx tsx scripts/render-round2.ts  # round-2 MP3 demos into artifacts/round2/audio
+node scripts/screenshots.mjs      # re-capture artifacts/shots (ROUND=2 → artifacts/round2/shots; needs `pnpm preview --port 4199`)
 ```
 
 ## Using the engine elsewhere
@@ -175,22 +213,26 @@ inst.control(11, 0.8);                       // expression
 * **Reference data.** Calibration used every 4th key of one piano recorded at
   three dynamics. Single-note decay comparisons are dominated by the recorded
   instrument's own idiosyncrasies, so register medians are reported.
-* **Other instruments.** The strings and flute were built and verified by
-  physics tests (pitch, emergent Helmholtz motion, overblowing, sympathetic
-  resonance), not by comparison with recordings.
+* **Other instruments.** The strings and flute are compared with one player per
+  instrument (Iowa MIS, first-position notes only, pp/mf/ff), and only their
+  radiation, dynamics and flute voicing are fitted. Bodies and the flute bore
+  are not measured.
+* **Bow contact point.** The bow touches the string at a whole-sample tap, so
+  small changes of bow position can move a note's level by a dB or two.
 * **Phones.** On phones, the worklet sheds sympathetic strings and polyphony
   under load.
 
 ## Status
 
-The latest pass is local only: commits after `bb9a39f` have not been pushed or
-deployed, and nothing external was created. Pushing and deployment wait on
-upstream authorisation.
+Round 2 (`93b5649` … this commit) is pushed to `main`, which is linked to a
+Vercel production deployment. Whether that deployment is live is checked
+separately and is not claimed here.
 
 ## Credits
 
 * **Reference recordings:** University of Iowa Musical Instrument Samples
-  (Steinway B, 2001), used for analysis. The six short labelled excerpts on the
+  (Steinway B, 2001; violin; viola, 1996; cello, 2001; flute, 2000), used for
+  analysis only. The six short labelled excerpts on the
   measurements page are used under the MIS terms ("used for any projects,
   without restrictions").
 * **Fonts:** Newsreader, IBM Plex Sans, IBM Plex Mono (SIL OFL), self-hosted.
