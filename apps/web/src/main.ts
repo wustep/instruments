@@ -114,5 +114,7 @@ const kick = () => {
 window.addEventListener('pointerdown', kick);
 window.addEventListener('keydown', kick);
 
-// expose a tiny handle for automated tests
-(window as unknown as { __piano: typeof audio }).__piano = audio;
+// expose small handles for automated tests (Playwright)
+import { renderOffline } from '@piano-model/engine';
+(window as unknown as { __piano: typeof audio; __engine: unknown }).__piano = audio;
+(window as unknown as { __engine: unknown }).__engine = { renderOffline };

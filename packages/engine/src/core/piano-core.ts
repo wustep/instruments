@@ -71,6 +71,8 @@ const RING = 8192;
 const RMASK = RING - 1;
 const POS_MASK = 0x3fffffff;
 const LEVEL_OFF = 2e-6;
+/** live make-up gain over the reference-matched calibration level */
+const PLAYBACK_GAIN_DB = 6;
 
 function smoothstep(a: number, b: number, x: number): number {
   const t = clamp((x - a) / (b - a), 0, 1);
@@ -181,7 +183,9 @@ export class PianoCore {
     // high-frequency board path: gentle high-pass so the modal path owns the lows
     this.hfEq.set([biquadHighpass(this.cal.hfCross, 0.6, this.fs)]);
     this.room.configure(this.params.room);
-    this.outGain = this.cal.outputGain * this.params.volume;
+    // calibration renders (dry) match the reference recording's level; live playback adds
+    // make-up gain (the limiter catches loud chords)
+    this.outGain = this.cal.outputGain * this.params.volume * (this.dry ? 1 : Math.pow(10, PLAYBACK_GAIN_DB / 20));
   }
 
   private calTilt(): [number, number] {

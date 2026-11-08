@@ -1,0 +1,6 @@
+Reference excerpts (5 s, mono MP3) cut from the University of Iowa Musical Instrument Samples:
+Steinway & Sons model B, recorded November 2001 by the University of Iowa Electronic Music Studios
+(https://theremin.music.uiowa.edu/MISpiano.html). The MIS page states the recordings "may be
+downloaded and used for any projects, without restrictions".
+They are provided only for side-by-side listening on the measurements page and are NOT used by
+the piano model, which synthesizes every sound.

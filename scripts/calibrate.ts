@@ -272,6 +272,8 @@ async function main(): Promise<void> {
       a && {
         f1: a.f1,
         B: a.B,
+        np: a.partials.length,
+        fitc: +a.fitCents.toFixed(2),
         decays: a.decays.slice(0, 8).map((d) => ({ k: d.k, f: Math.round(d.f), e: fin(d.t60Early), l: fin(d.t60Late), knee: fin(d.knee) })),
         levels: a.levels.slice(0, 24).map((x) => +x.db.toFixed(1)),
         rmsDb: +a.rmsDb.toFixed(1),
@@ -281,8 +283,26 @@ async function main(): Promise<void> {
         ltas: a.ltas.map((x) => +x.toFixed(1)),
         floor: a.floor.map((x) => +x.toFixed(1)),
       };
+    // hammer contact (model) across the compass, and target curves for all 88 keys
+    const hammer = [] as { midi: number; pp: number; mf: number; ff: number; peakFf: number }[];
+    for (let m = 21; m <= 108; m += 3) {
+      const st = (vel: number) => {
+        const r = renderNote(m, vel, 0.06, { sampleRate: 44100, dry: true, params: { sympathetic: false } });
+        return r.core.voices[m - 21].lastStrike;
+      };
+      const a = st(DYN_VEL.pp);
+      const b = st(DYN_VEL.mf);
+      const c = st(DYN_VEL.ff);
+      hammer.push({ midi: m, pp: +((a?.duration ?? 0) * 1000).toFixed(2), mf: +((b?.duration ?? 0) * 1000).toFixed(2), ff: +((c?.duration ?? 0) * 1000).toFixed(2), peakFf: +(c?.peak ?? 0).toFixed(1) });
+    }
+    const curves = specs.map((sp) => ({ midi: sp.midi, B: sp.B, cents: +cents(sp.f1, et(sp.midi)).toFixed(2) }));
+    const roundsPath = join(ROOT, 'docs/calibration-rounds.json');
+    const rounds = existsSync(roundsPath) ? JSON.parse(readFileSync(roundsPath, 'utf8')) : [];
     const data = {
       generated: new Date().toISOString(),
+      hammer,
+      curves,
+      rounds: rounds.map((r: { label: string; summary: unknown }) => ({ label: r.label, summary: r.summary })),
       reference: 'University of Iowa MIS — Steinway model B (2001), pp/mf/ff',
       velocities: DYN_VEL,
       gainOffsetDb: gainOff,
