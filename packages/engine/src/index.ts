@@ -7,7 +7,7 @@
 //
 // The DSP core (PianoCore, renderCore) has no Web Audio dependency and runs in Node.
 
-export { createPiano, createInstrument, renderOffline, type Piano, type PianoOptions } from './api/piano.ts';
+export { createPiano, createInstrument, renderOffline, processorUrl, type Piano, type PianoOptions } from './api/piano.ts';
 export { INSTRUMENT_IDS, INSTRUMENT_INFO, type InstrumentId, type ExciteTrace } from './core/instrument.ts';
 export type { BowedParams } from './core/bowed.ts';
 export type { FluteParams } from './core/flute.ts';
@@ -21,5 +21,6 @@ export {
   type Preparation,
 } from './core/design.ts';
 export type { PianoEvent, VisualState } from './core/piano-core.ts';
-export type { StrikeRecord } from './core/voice.ts';
+export type { StrikeRecord, DesignEntry } from './core/voice.ts';
+export { computeDesigns } from './core/precompute.ts';
 export { midiName, nameToMidi, midiToEtHz } from './core/util.ts';

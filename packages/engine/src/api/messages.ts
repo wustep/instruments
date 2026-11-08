@@ -10,7 +10,7 @@ export type ToProcessor =
   | { type: 'event'; event: InstrumentEvent; time?: number }
   | { type: 'params'; params: Record<string, unknown> }
   | { type: 'preset'; preset: string }
-  | { type: 'instrument'; instrument: InstrumentId; preset?: string; params?: Record<string, unknown> }
+  | { type: 'instrument'; instrument: InstrumentId; preset?: string; params?: Record<string, unknown>; designs?: DesignEntry[] }
   | { type: 'vis'; enabled: boolean }
   | { type: 'maxVoices'; value: number }
   | { type: 'designs'; entries: DesignEntry[] }

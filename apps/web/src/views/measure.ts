@@ -3,6 +3,7 @@
 
 import { midiName, renderOffline } from '@piano-model/engine';
 import { chart, dataTable, legend, type Series } from '../ui/chart.ts';
+import { fetchDesigns } from '../audio.ts';
 import { fmt, fmtSci, h, type View } from '../ui/dom.ts';
 
 type Dyn = 'pp' | 'mf' | 'ff';
@@ -460,6 +461,7 @@ function listening(d: Data): HTMLElement {
       duration: 5,
       params: { room: 0, lid: 1 },
       events: [{ time: 0.05, event: { type: 'noteOn', midi, velocity: d.velocities[dyn] } }],
+      designs: await fetchDesigns(44100),
     });
     btn.textContent = 'model';
     ctx ??= new AudioContext();

@@ -20,12 +20,15 @@ export async function computeDesigns(
   let n = 0;
   for (const spec of specs) {
     const la = nominalLossCoeff(spec, fs);
+    let worked = false;
     for (const light of [false, true]) {
       const key = DispersionCache.keyOf(spec, fs, light, la);
       if (opts.skip?.(key)) continue;
       out.push({ key, d: cache.get(spec, fs, light, la) });
+      worked = true;
     }
-    if (opts.yieldEvery && ++n % opts.yieldEvery === 0) await new Promise((r) => setTimeout(r, 0));
+    // yield only after real design work (a fully cached set returns at once)
+    if (worked && opts.yieldEvery && ++n % opts.yieldEvery === 0) await new Promise((r) => setTimeout(r, 0));
   }
   return out;
 }

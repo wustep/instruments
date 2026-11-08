@@ -241,3 +241,50 @@ test('look inside a bowed string: the bow trace shows stick–slip', async ({ pa
   await expect(page.locator('.panel .meta').nth(1)).toContainText('% from the frog');
   await page.evaluate(async () => (window as any).__piano.setInstrument('piano'));
 });
+
+test('start-up: a first click on a key sounds within 1.5 s; switching to the piano is quick', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await expect(page.locator('.status')).toContainText('tap a key to start');
+  // let the page-load prefetch (designs, worklet) settle, as it would while a visitor looks
+  await page.waitForTimeout(300);
+  await page.evaluate(() => {
+    const w = window as any;
+    w.__t = { click: 0, sound: 0 };
+    const buf = new Float32Array(2048);
+    window.addEventListener('pointerdown', () => (w.__t.click ||= performance.now()), { capture: true });
+    const tick = () => {
+      const a = w.__piano;
+      if (w.__t.click && a?.analyser) {
+        a.analyser.getFloatTimeDomainData(buf);
+        let m = 0;
+        for (let i = 0; i < buf.length; i++) m = Math.max(m, Math.abs(buf[i]));
+        if (m > 1e-3) w.__t.sound = performance.now();
+      }
+      if (!w.__t.sound) setTimeout(tick, 4);
+    };
+    tick();
+  });
+  const key = page.locator('.key[data-midi="60"]');
+  await key.scrollIntoViewIfNeeded();
+  const box = (await key.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.85);
+  await page.waitForFunction(() => (window as any).__t.sound > 0, null, { timeout: 10_000 });
+  const t = await page.evaluate(() => {
+    const w = window as any;
+    return { firstSoundMs: w.__t.sound - w.__t.click, initMs: w.__piano.piano.initMs, startMs: w.__piano.startMs };
+  });
+  test.info().annotations.push({ type: 'startup', description: JSON.stringify(t) });
+  expect(t.firstSoundMs).toBeLessThan(1500); // ~0.2 s on an M-series Mac; was ~0.5 s (7.8 s on a slow JS engine)
+  expect(t.initMs).toBeLessThan(150); // worklet constructor: ~10 ms with shipped designs; was ~430 ms
+  await expect(page.locator('.status')).toContainText('sound on');
+  const switchMs = await page.evaluate(async () => {
+    const a = (window as any).__piano;
+    await a.setInstrument('cello');
+    const t0 = performance.now();
+    await a.setInstrument('piano');
+    return performance.now() - t0;
+  });
+  expect(switchMs).toBeLessThan(400); // was ~1 s
+  expect(errors).toEqual([]);
+});

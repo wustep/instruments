@@ -19,7 +19,8 @@ const routes: Record<string, { title: string; make: () => View }> = {
 };
 
 const navLinks = Object.entries(routes).map(([id, r]) => h('a', { href: `#/${id}`, 'data-route': id }, r.title));
-const statusAudio = h('span', {}, h('i', { class: 'dot' }), 'audio off');
+const statusAudio = h('span', { class: 'audio-state' }, h('i', { class: 'dot' }), 'tap a key to start');
+document.documentElement.dataset.audio = 'idle';
 const statusLat = h('span', { class: 'hide-sm' }, '');
 const statusMidi = h('span', {}, '');
 const masthead = h(
@@ -89,8 +90,10 @@ const fmtLat = () => {
   return `${audio.ctx!.sampleRate / 1000} kHz · ${total.toFixed(1)} ms out`;
 };
 audio.state.on((s) => {
-  statusAudio.lastChild!.textContent = s === 'running' ? 'audio on' : s === 'starting' ? 'starting…' : 'audio off';
+  statusAudio.lastChild!.textContent =
+    s === 'running' ? 'sound on' : s === 'starting' ? 'warming up…' : s === 'error' ? 'sound failed · tap to retry' : 'tap a key to start';
   (statusAudio.firstChild as HTMLElement).classList.toggle('on', s === 'running');
+  document.documentElement.dataset.audio = s;
   statusLat.textContent = fmtLat();
   statusLat.title = (() => {
     const l = audio.latencyMs;
@@ -119,14 +122,10 @@ audio.instrumentChanged.on(syncInstrument);
 syncInstrument(audio.instrument);
 void audio.initMidi();
 
-// first gesture anywhere starts audio
-const kick = () => {
-  void audio.start();
-  window.removeEventListener('pointerdown', kick);
-  window.removeEventListener('keydown', kick);
-};
-window.addEventListener('pointerdown', kick);
-window.addEventListener('keydown', kick);
+// Any gesture starts audio. Desktop browsers accept pointerdown/keydown, phones only
+// pointerup/touchend/click, and iOS may interrupt a running context: keep listening.
+const unlock = () => audio.unlock();
+for (const t of ['pointerdown', 'pointerup', 'touchend', 'keydown', 'click'] as const) window.addEventListener(t, unlock, { capture: true, passive: true });
 
 // expose small handles for automated tests (Playwright)
 import { renderOffline } from '@piano-model/engine';

@@ -80,6 +80,9 @@ export interface DesignEntry {
 /** Dispersion designs are shared by all strings of a key; cache them across rebuilds. */
 export class DispersionCache {
   private map = new Map<string, Dispersion2>();
+  get size(): number {
+    return this.map.size;
+  }
   static keyOf(spec: KeySpec, fs: number, light: boolean, lossA: number): string {
     return `${spec.midi}|${spec.B.toPrecision(7)}|${fs}|${light ? 1 : 0}|${lossA.toFixed(3)}`;
   }

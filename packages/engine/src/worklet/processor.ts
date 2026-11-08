@@ -5,6 +5,7 @@ import { createCore, type AnyParams } from '../core/factory.ts';
 import type { InstrumentCore, InstrumentId } from '../core/instrument.ts';
 import type { PianoCore } from '../core/piano-core.ts';
 import type { ToProcessor, FromProcessor } from '../api/messages.ts';
+import type { DesignEntry } from '../core/voice.ts';
 
 declare const sampleRate: number;
 declare const currentFrame: number;
@@ -27,6 +28,8 @@ interface ProcOptions {
   /** pre-scheduled events (frames relative to the start), for offline renders */
   events?: { frame: number; event: unknown }[];
   adaptive?: boolean;
+  /** precomputed piano filter designs (computeDesigns), so start-up does no design work here */
+  designs?: DesignEntry[];
 }
 
 type Core = InstrumentCore & { process: (L: Float32Array, R: Float32Array, n: number) => void };
@@ -44,12 +47,28 @@ class InstrumentProcessor extends AudioWorkletProcessor {
   private baseMaxVoices: number;
   private lastStrikeSerial = 0;
   private frameOffset = 0;
+  /** every filter design received from the main thread, reused when the piano is (re)created */
+  private designs = new Map<string, DesignEntry>();
+
+  private storeDesigns(entries: DesignEntry[] | undefined): void {
+    if (!entries) return;
+    for (const e of entries) {
+      this.designs.delete(e.key);
+      this.designs.set(e.key, e);
+    }
+    // bounded: about ten full parameter sets
+    for (const k of this.designs.keys()) {
+      if (this.designs.size <= 2000) break;
+      this.designs.delete(k);
+    }
+  }
 
   constructor(options: { processorOptions?: ProcOptions }) {
     super();
     const o = options.processorOptions ?? {};
     const t0 = clock();
-    this.core = createCore({ sampleRate, instrument: o.instrument, preset: o.preset, params: o.params, maxVoices: o.maxVoices ?? 64 }) as Core;
+    this.storeDesigns(o.designs);
+    this.core = createCore({ sampleRate, instrument: o.instrument, preset: o.preset, params: o.params, maxVoices: o.maxVoices ?? 64, designs: o.designs }) as Core;
     const initMs = clock() - t0;
     this.baseMaxVoices = this.core.maxVoices;
     this.adaptive = o.adaptive !== false;
@@ -83,7 +102,8 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       case 'instrument': {
         this.core.allSoundOff();
         const frame = this.core.frame;
-        this.core = createCore({ sampleRate, instrument: m.instrument, preset: m.preset, params: m.params, maxVoices: this.baseMaxVoices }) as Core;
+        this.storeDesigns(m.designs);
+        this.core = createCore({ sampleRate, instrument: m.instrument, preset: m.preset, params: m.params, maxVoices: this.baseMaxVoices, designs: m.instrument === 'piano' ? [...this.designs.values()] : undefined }) as Core;
         this.core.frame = frame;
         this.post({ type: 'preset', instrument: this.core.id, preset: m.preset ?? '', params: this.core.params as Record<string, unknown>, modeFreqs: Array.from(this.core.modeFrequencies), keys: this.core.keySummary() });
         break;
@@ -96,6 +116,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
         this.core.maxVoices = m.value;
         break;
       case 'designs':
+        this.storeDesigns(m.entries);
         if (this.core.id === 'piano') (this.core as unknown as PianoCore).dispCache.put(m.entries);
         break;
       case 'panic':

@@ -6,6 +6,7 @@ import { DEFAULT_PARAMS, PRESETS, type PianoParams } from '../core/design.ts';
 import { computeDesigns } from '../core/precompute.ts';
 import { INSTRUMENT_INFO, type InstrumentId } from '../core/instrument.ts';
 import type { FromProcessor, KeySummary, Stats, ToProcessor, VisualFrame } from './messages.ts';
+import type { DesignEntry } from '../core/voice.ts';
 
 export interface PianoOptions {
   /** which instrument the node hosts: 'piano' (default), 'violin', 'viola', 'cello', 'flute' */
@@ -22,6 +23,13 @@ export interface PianoOptions {
   adaptive?: boolean;
   /** events pre-scheduled at construction (seconds), used by offline rendering */
   events?: { time: number; event: PianoEvent }[];
+  /**
+   * Precomputed piano filter designs for this context's sample rate (computeDesigns,
+   * e.g. shipped as a static file). Without them the piano's designs are computed
+   * here on the main thread, in small slices, before the node is created — never
+   * on the audio thread.
+   */
+  designs?: DesignEntry[] | null;
 }
 
 export interface Piano {
@@ -67,6 +75,9 @@ export interface Piano {
   dispose(): void;
 }
 
+/** URL of the bundled AudioWorklet module (prefetch it to start faster) */
+export { processorUrl };
+
 const loaded = new WeakMap<BaseAudioContext, Promise<void>>();
 
 function ensureModule(ctx: BaseAudioContext, url: string): Promise<void> {
@@ -85,6 +96,11 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
   const preset = opts.preset && PRESETS[opts.preset] ? opts.preset : 'grand';
   const instrument: InstrumentId = opts.instrument && INSTRUMENT_INFO[opts.instrument] ? opts.instrument : 'piano';
   const fs = ctx.sampleRate;
+  // design keys the worklet already holds: later redesigns only send what is missing
+  const sent = new Set<string>();
+  let designs = opts.designs ?? null;
+  if (!designs?.length && instrument === 'piano') designs = await computeDesigns(preset, opts.params ?? {}, fs, { yieldEvery: 4 });
+  for (const e of designs ?? []) sent.add(e.key);
   const node = new AudioWorkletNode(ctx, 'piano-model', {
     numberOfInputs: 0,
     numberOfOutputs: 1,
@@ -95,6 +111,7 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
       params: opts.params,
       maxVoices: opts.maxVoices ?? 64,
       adaptive: opts.adaptive,
+      designs: designs ?? undefined,
       events: (opts.events ?? []).map((e) => ({ frame: Math.round(e.time * fs), event: e.event })),
     },
   });
@@ -157,11 +174,13 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
   // Filter redesigns (inharmonicity, decay, preset) are computed here, off the audio
   // thread, and handed to the worklet before the change is applied.
   let gen = 0;
+  const missingDesigns = (presetId: string, params: Partial<PianoParams>) => computeDesigns(presetId, params, fs, { yieldEvery: 3, skip: (k) => sent.has(k) });
   const withDesigns = async (presetId: string, params: Partial<PianoParams>, then: () => void) => {
     const my = ++gen;
-    const entries = await computeDesigns(presetId, params, fs, { yieldEvery: 3 });
+    const entries = await missingDesigns(presetId, params);
     if (my !== gen) return;
-    send({ type: 'designs', entries });
+    if (entries.length) send({ type: 'designs', entries });
+    for (const e of entries) sent.add(e.key);
     then();
   };
   const NEEDS_DESIGN: (keyof PianoParams)[] = ['stringStiffness', 'sustain'];
@@ -218,7 +237,8 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
           presetWaiter = resolve;
           send({ type: 'instrument', instrument: id, preset: state.preset });
         };
-        // the piano's filter designs are computed here, off the audio thread
+        // the piano's filter designs are computed here, off the audio thread (the
+        // worklet keeps every design it has been sent, so usually nothing is missing)
         if (id === 'piano') void withDesigns(state.preset, { ...DEFAULT_PARAMS, ...PRESETS[state.preset].defaults }, go);
         else go();
       }),
@@ -277,6 +297,7 @@ export async function renderOffline(opts: {
   preset?: string;
   params?: Record<string, unknown>;
   processorUrl?: string;
+  designs?: DesignEntry[] | null;
 }): Promise<AudioBuffer> {
   const sr = opts.sampleRate ?? 48000;
   const octx = new OfflineAudioContext(2, Math.ceil(opts.duration * sr), sr);
@@ -287,6 +308,7 @@ export async function renderOffline(opts: {
     events: opts.events,
     processorUrl: opts.processorUrl,
     adaptive: false,
+    designs: opts.designs,
   });
   piano.connect(octx.destination);
   return octx.startRendering();
