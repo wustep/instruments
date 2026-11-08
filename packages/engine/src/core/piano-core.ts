@@ -553,7 +553,17 @@ export class PianoCore {
       while (q.length && q[0].frame <= this.frame) this.apply(q.shift()!.ev);
       let Bk = Math.min(BK_MAX, frames - done);
       if (q.length) Bk = Math.min(Bk, q[0].frame - this.frame);
+      // the block's real length first: the control update (damper ramps, ages) steps by it.
+      // It used to step by the length before the voices' limits, ~29 samples while ~10 were
+      // rendered (an undamped treble string's loop is short), so every damper closed ~3x
+      // faster than its time constant.
+      for (const v of this.active) {
+        const m = v.maxBlock();
+        if (m < Bk) Bk = m;
+      }
+      if (Bk < 1) Bk = 1;
       this.controlUpdate(Bk);
+      // a sympathetic string it just woke may need a shorter block still
       for (const v of this.active) {
         const m = v.maxBlock();
         if (m < Bk) Bk = m;

@@ -26,6 +26,11 @@ import {
 import { LN1000, clamp, mulberry32, nextPow2 } from './util.ts';
 
 export const BK_MAX = 32;
+/** damper felt landing: force noise relative to the string's level, and its decay (s).
+ *  Chosen so that 10-90 ms after release no band above 1 kHz is more than ~3 dB over the
+ *  note just before it (A1, A2, C#4, C#5 at mf); it was 0.8 and 0.03 (up to +45 dB). */
+const DAMPER_NOISE = 0.008;
+const DAMPER_NOISE_TAU = 0.008;
 /** shared scratch for shape() (the stage asks for every sounding string, every frame) */
 let shapeScratch = new Float32Array(2048);
 const MAX_DISP = 64;
@@ -268,6 +273,7 @@ export class Voice {
 
   // damper / release noise injected at the hammer tap
   noiseAmp = 0;
+  noiseEnd = 1e-9;
   noiseDecay = 0.999;
   noiseLp = 0;
   private rng: () => number;
@@ -688,12 +694,16 @@ export class Voice {
     };
   }
 
-  /** Release noise: felt landing on a vibrating string (pitched through the string itself). */
+  /** Release noise: felt landing on a vibrating string (pitched through the string itself).
+   *  Kept small and short: until round 3b it was 0.8·level with a 30 ms decay, and the string's
+   *  loop turned it into a 200 ms pitched buzz louder than the note above 1 kHz. It ends at a
+   *  relative level, so the voice's short-block limit (noise at the hammer tap) ends with it. */
   startDamperNoise(): void {
     const amp = this.level;
     if (amp < 1e-5) return;
-    this.noiseAmp = 0.8 * amp * this.ZSum;
-    this.noiseDecay = Math.exp(-1 / (0.03 * this.fs));
+    this.noiseAmp = DAMPER_NOISE * amp * this.ZSum;
+    this.noiseEnd = this.noiseAmp * 1e-3;
+    this.noiseDecay = Math.exp(-1 / (DAMPER_NOISE_TAU * this.fs));
   }
 
   prePass(pos: number, Bk: number): void {
@@ -723,7 +733,7 @@ export class Voice {
         this.noiseLp += 0.25 * (white - this.noiseLp);
         const f = this.noiseAmp * this.noiseLp;
         this.noiseAmp *= this.noiseDecay;
-        if (this.noiseAmp < 1e-9) this.noiseAmp = 0;
+        if (this.noiseAmp < this.noiseEnd) this.noiseAmp = 0;
         for (let s = 0; s < this.nV; s++) {
           const buf = this.bufs[s];
           const mask = this.masks[s];
