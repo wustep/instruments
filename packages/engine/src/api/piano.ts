@@ -32,6 +32,14 @@ export interface PianoOptions {
   designs?: DesignEntry[] | null;
   /** start-up progress, for diagnostics: (step, detail) */
   onStep?: (step: string, detail?: unknown) => void;
+  /**
+   * Wait for the processor's 'ready' message before resolving (default true). With false the
+   * instrument is returned as soon as the node exists: input sent meanwhile queues on its port,
+   * `keys` and `params` fill in when `ready` settles, and a failure arrives through onError.
+   * (Some WebKit embeddings do not run a processor's constructor until the context renders, so a
+   * start that waits on it can stall where nothing is wrong.)
+   */
+  waitReady?: boolean;
 }
 
 export interface Piano {
@@ -49,6 +57,8 @@ export interface Piano {
   readonly params: PianoParams & Record<string, unknown>;
   /** ms the processor spent designing filters at start-up */
   readonly initMs: number;
+  /** settles when the processor has built the instrument (see PianoOptions.waitReady) */
+  readonly ready: Promise<void>;
   noteOn(midi: number, velocity?: number, time?: number): void;
   noteOff(midi: number, time?: number): void;
   /** CC64, continuous 0..1 (half-pedalling supported) */
@@ -93,10 +103,37 @@ export { processorUrl };
 
 const loaded = new WeakMap<BaseAudioContext, Promise<void>>();
 
-function ensureModule(ctx: BaseAudioContext, url: string): Promise<void> {
+/**
+ * Load the worklet module once per context. Where Blob URLs work, the script is fetched here and
+ * handed to addModule() as a Blob: the worklet's own loader then never touches the network (an
+ * embedded WebKit may route or block that request differently from the page's fetch), and a
+ * failed fetch is reported as such. Anything that goes wrong falls back to the plain URL.
+ */
+function ensureModule(ctx: BaseAudioContext, url: string, step: (s: string, d?: string) => void): Promise<void> {
   let p = loaded.get(ctx);
   if (!p) {
-    p = ctx.audioWorklet.addModule(url);
+    const viaUrl = () => {
+      step('worklet module: loading from its URL');
+      return ctx.audioWorklet.addModule(url);
+    };
+    const canBlob = typeof Blob !== 'undefined' && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function' && typeof fetch === 'function';
+    p = !canBlob
+      ? viaUrl()
+      : (async () => {
+          let blobUrl = '';
+          try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            blobUrl = URL.createObjectURL(new Blob([await res.text()], { type: 'text/javascript' }));
+            await ctx.audioWorklet.addModule(blobUrl);
+            step('worklet module: loaded from a Blob URL');
+          } catch (err) {
+            step('worklet module: Blob route failed, trying the URL', String((err as Error)?.message ?? err));
+            await viaUrl();
+          } finally {
+            if (blobUrl) URL.revokeObjectURL(blobUrl);
+          }
+        })();
     loaded.set(ctx, p);
   }
   return p;
@@ -112,7 +149,7 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
   step('worklet module: loading', url.split('/').pop());
   try {
     // a worklet script request that stalls (network, a login wall) must not wait forever
-    await Promise.race([ensureModule(ctx, url), new Promise<never>((_, rej) => setTimeout(() => rej(new Error('no answer within 8 s')), 8000))]);
+    await Promise.race([ensureModule(ctx, url, step), new Promise<never>((_, rej) => setTimeout(() => rej(new Error('no answer within 8 s')), 8000))]);
   } catch (err) {
     loaded.delete(ctx);
     step('worklet module: FAILED', String((err as Error)?.message ?? err));
@@ -171,7 +208,12 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
   const ready = new Promise<void>((resolve, reject) => {
     // a constructor that throws, or a processor that crashes later, must not leave
     // the caller waiting for 'ready' forever
-    node.onprocessorerror = (ev: Event) => reject(new Error(`the sound engine crashed while starting${(ev as ErrorEvent).message ? `: ${(ev as ErrorEvent).message}` : ''}`));
+    node.onprocessorerror = (ev: Event) => {
+      const why = (ev as ErrorEvent).message ? `: ${(ev as ErrorEvent).message}` : '';
+      if (!started) reject(new Error(`the sound engine crashed while starting${why}`));
+      // after start-up a crash would otherwise be silence and nothing on screen
+      else errorSubs.forEach((cb) => cb(`the sound engine stopped${why}`));
+    };
     node.port.onmessage = (e: MessageEvent<FromProcessor>) => {
       const m = e.data;
       switch (m.type) {
@@ -217,12 +259,21 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
       }
     };
   });
-  await ready.catch((err) => {
-    step('worklet: FAILED before ready', String((err as Error)?.message ?? err));
-    throw err;
-  });
-  step('worklet: ready', `instrument built in ${Math.round(state.initMs)} ms (audio thread); ${Math.round(tm() - t)} ms after the node`);
-  started = true;
+  const settled = ready.then(
+    () => {
+      step('worklet: ready', `instrument built in ${Math.round(state.initMs)} ms (audio thread); ${Math.round(tm() - t)} ms after the node`);
+      started = true;
+    },
+    (err: unknown) => {
+      step('worklet: FAILED before ready', String((err as Error)?.message ?? err));
+      started = true;
+      // nobody awaits it when waitReady is false: report it like a later crash
+      if (opts.waitReady === false) errorSubs.forEach((cb) => cb(String((err as Error)?.message ?? err)));
+      throw err;
+    },
+  );
+  if (opts.waitReady === false) settled.catch(() => undefined);
+  else await settled;
 
   const send = (m: ToProcessor) => node.port.postMessage(m);
   // Filter redesigns (inharmonicity, decay, preset) are computed here, off the audio
@@ -245,6 +296,7 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
     node,
     output,
     sampleRate: fs,
+    ready: settled,
     get keys() {
       return state.keys;
     },

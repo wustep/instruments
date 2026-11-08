@@ -12,9 +12,12 @@ function finiteAndBounded(x: Float32Array, bound = 50): void {
 
 describe('stability', () => {
   it('every key at velocity 1 and 127 renders finite, bounded audio', () => {
+    // one instrument for all of them (building one designs every string's filters: ~0.5 s)
+    const core = new PianoCore({ sampleRate: FS, dry: true });
     for (let m = KEY_LO; m <= KEY_HI; m++) {
       for (const vel of [1, 127]) {
-        const r = render([on(0.005, m, vel)], 0.35);
+        core.allSoundOff();
+        const r = render([on(0.005, m, vel)], 0.35, {}, core);
         finiteAndBounded(r.x);
       }
     }

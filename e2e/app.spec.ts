@@ -79,6 +79,7 @@ test('offline render through the real worklet: pitch, inharmonicity and partials
       // the instrument's own per-key summary (stretched tuning and B)
       const a = (window as any).__piano;
       if (!a.piano) await a.start();
+      await a.piano.ready; // the engine is up before it has reported its keys
       return a.piano.keys.find((k: any) => k.midi === m);
     }, midi);
     const pa = analyzePartials(Float32Array.from(out.x), 48000, target.f1, { Bguess: target.B, startSec: 0.1, lenSec: 1.6 });
@@ -412,6 +413,13 @@ test('start-up: a stalled or refused designs file falls back; a crashing engine 
   await clickKey(p3);
   await expect(p3.locator('.lamp-text')).toContainText('tap to retry', { timeout: 6000 });
   await expect(p3.locator('.lamp-text')).toContainText('crashed');
+  // no retry on a timer (outside a gesture); a tap retries, on the same AudioContext
+  await p3.waitForTimeout(800);
+  expect(await p3.evaluate(() => (window as any).__diag.lines.filter((l: any) => l.step.startsWith('start (attempt')).length)).toBe(1);
+  await p3.evaluate(() => ((window as any).__ctx0 = (window as any).__piano.ctx));
+  await clickKey(p3);
+  await p3.waitForFunction(() => (window as any).__diag.lines.some((l: any) => l.step === 'AudioContext reused'));
+  expect(await p3.evaluate(() => (window as any).__piano.ctx === (window as any).__ctx0)).toBe(true);
 });
 
 test('octave control: buttons and Z/X/−/= shift the keys, within each instrument’s range', async ({ page }) => {

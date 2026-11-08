@@ -51,7 +51,9 @@ function pianoDesigns(): Plugin {
 
 export default defineConfig({
   plugins: [pianoDesigns()],
-  build: { target: 'es2022', sourcemap: false },
+  // Safari 14.1 is the first WebKit with AudioWorklet; the worklet bundle is lowered to what it
+  // parses, and `pnpm build` checks that (scripts/check-worklet-syntax.mjs)
+  build: { target: ['es2020', 'safari14'], sourcemap: false },
   worker: { format: 'es' },
   server: { port: 5199, strictPort: false },
   preview: { port: 4199 },
