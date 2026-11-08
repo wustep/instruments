@@ -680,6 +680,8 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
 export interface TrumpetState {
   pScale: AutoScale;
   env: Float32Array;
+  /** where the sound leaves (the bell's mouth), set while drawing */
+  src?: { x: number; y: number };
 }
 export const VALVE_DOWN: Record<string, [boolean, boolean, boolean]> = {
   open: [false, false, false],
@@ -692,140 +694,180 @@ export const VALVE_DOWN: Record<string, [boolean, boolean, boolean]> = {
   '1+2+3': [true, true, true],
 };
 
-/** side view of a B♭ trumpet (mouthpiece left, bell right), and above it the bore unrolled:
- *  the standing pressure wave between the lips (0) and the bell (1), its envelope, the
- *  valves that are down and the partial that sounds */
+/** side view of a B♭ trumpet in the stage's line art (mouthpiece left, bell right): thin tube walls
+ *  along the real wrap, the bore's standing pressure wave glowing inside the tube from the lips to
+ *  the bell, the lips buzzing at the mouthpiece (their opening from the engine), the pistons the
+ *  fingering presses, the valve slides lighting when the air goes through them, and the bell as the
+ *  source of the room's wavefronts (st.src) */
 export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: TrumpetState): void {
   const portrait = H > W * 1.05;
-  const w = Math.min(W * 0.86, portrait ? W * 0.92 : H * 2.4);
+  const w = Math.min(W * 0.88, portrait ? W * 0.94 : H * 2.3);
+  const u = w / 100; // drawing units
   const x0 = (W - w) / 2;
-  const u = w / 100; // drawing unit
-  const yAx = portrait ? H * 0.62 : H * 0.6; // leadpipe axis
-  const yBore = portrait ? H * 0.22 : H * 0.19;
+  const yAx = H * (portrait ? 0.5 : 0.5);
+  const P = (x: number, y: number): [number, number] => [x0 + x * u, yAx + y * u];
   const meta = fr?.excite?.meta ?? '';
   const valves = /valves (\S+)/.exec(meta)?.[1] ?? 'open';
   const down = VALVE_DOWN[valves] ?? VALVE_DOWN.open;
+  const vx = [42, 50, 58];
+  // the air's path, mouthpiece → leadpipe → each valve (down through its slide if pressed) →
+  // the main slide loop below → back up to the bell; one polyline, so the wave can run along it
+  const path: [number, number][] = [];
+  const seg = (a: [number, number], b: [number, number], n: number) => {
+    for (let i = path.length ? 1 : 0; i <= n; i++) path.push([a[0] + ((b[0] - a[0]) * i) / n, a[1] + ((b[1] - a[1]) * i) / n]);
+  };
+  const arc = (cx: number, cy: number, r: number, a0: number, a1: number, n: number) => {
+    for (let i = 1; i <= n; i++) {
+      const a = a0 + ((a1 - a0) * i) / n;
+      path.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    }
+  };
+  seg([4, 0], [vx[0] - 2, 0], 16);
+  for (let k = 0; k < 3; k++) {
+    const x = vx[k];
+    if (down[k]) {
+      // pressed: the air turns down through the valve's slide and back
+      const depth = [9, 5, 13][k];
+      seg(path[path.length - 1], [x, 0], 2);
+      seg([x, 0], [x, depth], 4);
+      arc(x + 1.6, depth, 1.6, Math.PI, 0, 5);
+      seg([x + 3.2, depth], [x + 3.2, 0], 4);
+    } else seg(path[path.length - 1], [x + 3.2, 0], 3);
+  }
+  // main tuning slide: down, back towards the player, round, and forward to the bell section
+  seg(path[path.length - 1], [64, 0], 2);
+  arc(64, 9, 9, -Math.PI / 2, Math.PI / 2, 10);
+  seg([64, 18], [30, 18], 10);
+  arc(30, 9, 9, Math.PI / 2, (3 * Math.PI) / 2, 10);
+  seg([30, 0], [30, -10], 3);
+  seg([30, -10], [74, -10], 12);
+  // the bell section flares from x = 74 to 96
+  const bellLen = 22;
+  for (let i = 1; i <= 12; i++) path.push([74 + (bellLen * i) / 12, -10]);
+  const n = path.length;
+  const radius = (i: number) => {
+    const x = path[i][0];
+    if (i < n - 12) return 0.9;
+    const t = (x - 74) / bellLen;
+    return 0.9 + 8.5 * Math.pow(t, 3);
+  };
+  // tube walls: a pale wide stroke with the ground punched through it
   ctx.save();
-  ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  const brass = (a: number) => rgba(INK.amber, a);
-  // ---- the instrument
-  ctx.strokeStyle = brass(0.75);
-  ctx.lineWidth = Math.max(2, u * 0.9);
-  // mouthpiece and leadpipe
-  ctx.beginPath();
-  ctx.moveTo(x0 + 2 * u, yAx);
-  ctx.lineTo(x0 + 46 * u, yAx);
-  ctx.stroke();
-  ctx.fillStyle = brass(0.6);
-  ctx.beginPath();
-  ctx.moveTo(x0, yAx - 2.2 * u);
-  ctx.quadraticCurveTo(x0 + 3 * u, yAx - 1.4 * u, x0 + 4 * u, yAx - 0.5 * u);
-  ctx.lineTo(x0 + 4 * u, yAx + 0.5 * u);
-  ctx.quadraticCurveTo(x0 + 3 * u, yAx + 1.4 * u, x0, yAx + 2.2 * u);
-  ctx.closePath();
-  ctx.fill();
-  // main tuning slide (loop below) and the bell section returning to the bell
-  ctx.beginPath();
-  ctx.moveTo(x0 + 30 * u, yAx);
-  ctx.lineTo(x0 + 30 * u, yAx + 9 * u);
-  ctx.quadraticCurveTo(x0 + 30 * u, yAx + 12 * u, x0 + 34 * u, yAx + 12 * u);
-  ctx.lineTo(x0 + 56 * u, yAx + 12 * u);
-  ctx.quadraticCurveTo(x0 + 60 * u, yAx + 12 * u, x0 + 60 * u, yAx + 9 * u);
-  ctx.lineTo(x0 + 60 * u, yAx - 6 * u);
-  ctx.stroke();
-  // bell
-  ctx.beginPath();
-  ctx.moveTo(x0 + 60 * u, yAx - 6 * u);
-  ctx.lineTo(x0 + 66 * u, yAx - 6 * u);
-  ctx.bezierCurveTo(x0 + 82 * u, yAx - 6.5 * u, x0 + 92 * u, yAx - 9 * u, x0 + 98 * u, yAx - 15 * u);
-  ctx.moveTo(x0 + 66 * u, yAx - 6 * u);
-  ctx.bezierCurveTo(x0 + 82 * u, yAx - 5.5 * u, x0 + 92 * u, yAx - 3 * u, x0 + 98 * u, yAx + 3 * u);
-  ctx.stroke();
-  ctx.strokeStyle = brass(0.55);
-  ctx.beginPath();
-  ctx.ellipse(x0 + 98 * u, yAx - 6 * u, 1.6 * u, 9 * u, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  // three valves: casings, pistons pressed down for the fingering
-  for (let i = 0; i < 3; i++) {
-    const vx = x0 + (38 + i * 6) * u;
-    ctx.fillStyle = rgba(INK.ebony, 0.9);
-    ctx.strokeStyle = brass(0.75);
-    ctx.lineWidth = Math.max(1.2, u * 0.4);
+  ctx.lineCap = 'round';
+  const main = new Path2D();
+  path.slice(0, n - 12).forEach(([x, y], i) => (i ? main.lineTo(...P(x, y)) : main.moveTo(...P(x, y))));
+  ctx.strokeStyle = rgba(INK.amber, 0.55);
+  ctx.lineWidth = 2 * 0.9 * u + 2;
+  ctx.stroke(main);
+  ctx.strokeStyle = INK.ground;
+  ctx.lineWidth = 2 * 0.9 * u - 0.6;
+  ctx.stroke(main);
+  // slides of valves not in use, faint (the air bypasses them)
+  for (let k = 0; k < 3; k++) {
+    if (down[k]) continue;
+    const x = vx[k];
+    const depth = [9, 5, 13][k];
+    ctx.strokeStyle = rgba(INK.amber, 0.14);
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(vx - 1.8 * u, yAx - 7 * u, 3.6 * u, 14 * u, 1.2 * u);
-    ctx.fill();
-    ctx.stroke();
-    const dn = down[i];
-    ctx.fillStyle = dn ? rgba(INK.vermilion, 0.95) : rgba(INK.ivory, 0.75);
-    ctx.beginPath();
-    ctx.arc(vx, yAx - (dn ? 8.5 : 11) * u, 1.6 * u, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = rgba(INK.ivory, 0.5);
-    ctx.beginPath();
-    ctx.moveTo(vx, yAx - 7 * u);
-    ctx.lineTo(vx, yAx - (dn ? 8.5 : 11) * u);
-    ctx.stroke();
-    // the valve's extra loop of tubing, lit when it is in the path
-    ctx.strokeStyle = dn ? rgba(INK.vermilion, 0.7) : brass(0.35);
-    ctx.lineWidth = Math.max(1.5, u * 0.6);
-    const loop = [1.6, 1, 2.6][i];
-    ctx.beginPath();
-    ctx.moveTo(vx - 0.9 * u, yAx + 7 * u);
-    ctx.lineTo(vx - 0.9 * u, yAx + 7 * u + loop * 3 * u);
-    ctx.lineTo(vx + 0.9 * u, yAx + 7 * u + loop * 3 * u);
-    ctx.lineTo(vx + 0.9 * u, yAx + 7 * u);
+    ctx.moveTo(...P(x, 1));
+    ctx.lineTo(...P(x, depth));
+    ctx.arc(...P(x + 1.6, depth), 1.6 * u, Math.PI, 0, true);
+    ctx.lineTo(...P(x + 3.2, 1));
     ctx.stroke();
   }
-  // ---- the bore unrolled: lips (left) to bell (right), the standing wave inside
-  const bx0 = x0;
-  const bx1 = x0 + w;
-  const r = Math.max(5, u * 1.1);
-  ctx.strokeStyle = rgba(INK.ivory, 0.35);
-  ctx.lineWidth = 1;
+  // the bell: two flaring walls and the rim
+  for (const sgn of [-1, 1]) {
+    ctx.beginPath();
+    for (let i = n - 13; i < n; i++) {
+      const [x, y] = path[i];
+      const q = P(x, y + sgn * radius(i));
+      if (i === n - 13) ctx.moveTo(...q);
+      else ctx.lineTo(...q);
+    }
+    ctx.strokeStyle = rgba(INK.amber, 0.6);
+    ctx.lineWidth = 1.3;
+    ctx.stroke();
+  }
+  const rim = P(96, -10);
   ctx.beginPath();
-  ctx.moveTo(bx0, yBore - r);
-  ctx.lineTo(bx1 - 10 * u, yBore - r);
-  ctx.quadraticCurveTo(bx1 - 3 * u, yBore - r, bx1, yBore - r * 3.2);
-  ctx.moveTo(bx0, yBore + r);
-  ctx.lineTo(bx1 - 10 * u, yBore + r);
-  ctx.quadraticCurveTo(bx1 - 3 * u, yBore + r, bx1, yBore + r * 3.2);
+  ctx.ellipse(rim[0], rim[1], 1.6 * u, radius(n - 1) * u, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = rgba(INK.amber, 0.7);
+  ctx.lineWidth = 1.3;
   ctx.stroke();
+  st.src = { x: rim[0] + 2 * u, y: rim[1] };
+  // the standing pressure wave inside the bore, lips → bell (the engine's own, slowly enveloped)
   const focus = fr?.focus ?? null;
   if (focus && focus.shapes[0]) {
     const s = focus.shapes[0];
     let m = 0;
     for (let i = 0; i < s.length; i++) m = Math.max(m, Math.abs(s[i]));
     const sc = st.pScale.of(m);
-    if (st.env.length !== s.length) st.env = new Float32Array(s.length);
-    for (let i = 0; i < s.length; i++) st.env[i] = Math.max(Math.abs(s[i]) / sc, st.env[i] * 0.94);
-    const A = Math.min(46, H * 0.1);
-    const X = (i: number) => bx0 + (i / (s.length - 1)) * (bx1 - bx0);
-    for (const sgn of [-1, 1]) {
+    if (st.env.length !== n) st.env = new Float32Array(n);
+    // a smoothed amplitude, so the standing wave's nodes stay dark and its antinodes glow
+    let em = 0;
+    for (let i = 0; i < n; i++) {
+      const v = s[Math.min(s.length - 1, Math.round((i / (n - 1)) * (s.length - 1)))] / sc;
+      st.env[i] = 0.82 * st.env[i] + 0.18 * Math.abs(v);
+      em = Math.max(em, st.env[i]);
+    }
+    ctx.lineCap = 'butt';
+    for (let i = 1; i < n; i++) {
+      const e = em > 0 ? st.env[i] / em : 0;
+      if (e < 0.06) continue;
+      ctx.strokeStyle = rgba(INK.vermilion, 0.08 + 0.5 * e * e);
+      ctx.lineWidth = Math.max(1, Math.min(1.4 * u, 0.9 * u * (0.3 + 0.9 * e)));
       ctx.beginPath();
-      for (let i = 0; i < s.length; i++) {
-        const y = yBore + sgn * (r + 3 + st.env[i] * A);
-        if (i) ctx.lineTo(X(i), y);
-        else ctx.moveTo(X(i), y);
-      }
-      ctx.lineTo(bx1, yBore + sgn * (r + 3));
-      ctx.lineTo(bx0, yBore + sgn * (r + 3));
-      ctx.closePath();
-      ctx.fillStyle = rgba(INK.vermilion, 0.07);
-      ctx.fill();
-      ctx.strokeStyle = rgba(INK.vermilion, 0.45);
-      ctx.lineWidth = 1;
+      ctx.moveTo(...P(path[i - 1][0], path[i - 1][1]));
+      ctx.lineTo(...P(path[i][0], path[i][1]));
       ctx.stroke();
     }
-    ctx.strokeStyle = rgba(INK.ivory, 0.9);
-    ctx.lineWidth = 1.3;
+  }
+  // valve casings and pistons (pressed: down, lit)
+  vx.forEach((x, k) => {
+    const d = down[k] ? 2.2 : 0;
+    const c = P(x + 1.6, -3);
+    ctx.strokeStyle = rgba(INK.ivory, 0.35);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(c[0] - 1.6 * u, c[1] - 4 * u, 3.2 * u, 12 * u);
+    ctx.strokeStyle = down[k] ? rgba(INK.vermilion, 0.9) : rgba(INK.ivory, 0.55);
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
-    for (let i = 0; i < s.length; i++) {
-      const y = yBore - (s[i] / sc) * (r - 1);
-      if (i) ctx.lineTo(X(i), y);
-      else ctx.moveTo(X(i), y);
-    }
+    ctx.moveTo(c[0], c[1] - 4 * u + d * u);
+    ctx.lineTo(c[0], c[1] - 9 * u + d * u);
     ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(c[0], c[1] - 9.5 * u + d * u, 2 * u, 0.7 * u, 0, 0, Math.PI * 2);
+    ctx.fillStyle = down[k] ? rgba(INK.vermilion, 0.75) : rgba(INK.ivory, 0.25);
+    ctx.fill();
+  });
+  // mouthpiece and the lips: the gap is the engine's lip opening (its recent range), the buzz is
+  // drawn slowed (the real one is hundreds of times a second)
+  const mp = P(2.5, 0);
+  ctx.strokeStyle = rgba(INK.ivory, 0.55);
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(...P(4, -0.9));
+  ctx.lineTo(...P(1.2, -2.6));
+  ctx.moveTo(...P(4, 0.9));
+  ctx.lineTo(...P(1.2, 2.6));
+  ctx.stroke();
+  const tr = fr?.excite?.trace;
+  let lo = 1;
+  let hi = 0;
+  if (tr) for (let i = 0; i < tr.length; i += 8) {
+    lo = Math.min(lo, tr[i]);
+    hi = Math.max(hi, tr[i]);
+  }
+  const swing = tr ? Math.max(0, hi - lo) : 0;
+  const t = performance.now() / 1000;
+  const gap = (0.25 + 1.6 * swing * (0.5 + 0.5 * Math.sin(t * 2 * Math.PI * 6))) * u;
+  for (const sgn of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(mp[0] - 1.6 * u, mp[1] + sgn * (gap / 2 + 0.9 * u), 1.4 * u, 0.9 * u, 0, 0, Math.PI * 2);
+    ctx.fillStyle = swing > 0.02 ? rgba(INK.vermilion, 0.35 + 0.5 * Math.min(1, swing * 2)) : rgba(INK.felt, 0.4);
+    ctx.fill();
   }
   ctx.restore();
 }

@@ -15,7 +15,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { join } from 'node:path';
 import { analyzeSustained, decodeWav, identifyNote, segmentNotes, type SustainedAnalysis } from '../packages/engine/src/analysis/index.ts';
 
-export type EnsInstrument = 'violin' | 'viola' | 'cello' | 'flute';
+export type EnsInstrument = 'violin' | 'viola' | 'cello' | 'flute' | 'trumpet';
 export type Dyn = 'pp' | 'mf' | 'ff';
 export const ENS_DYN: Dyn[] = ['pp', 'mf', 'ff'];
 export const ENS_CACHE = join(import.meta.dirname, '..', '.cache', 'iowa-ens');
@@ -85,6 +85,15 @@ export const REF_FILES: RefFile[] = [
   ] as [Dyn, string][]).map(([dyn, tag]) => {
     const file = `Flute.nonvib.${dyn}.${tag}.aiff`;
     return { instrument: 'flute' as const, dyn, file, url: `${BASE}/Woodwinds/flute/${file}`, range: rangeOf(tag), use: [60, 96] as [number, number] };
+  }),
+  // B♭ trumpet, non-vibrato (round 3b), the model's range E3–D6
+  ...([
+    ['pp', 'E3B3'], ['pp', 'C4B4'], ['pp', 'C5B5'], ['pp', 'C6Eb6'],
+    ['mf', 'E3B3'], ['mf', 'C4B4'], ['mf', 'C5B5'], ['mf', 'C6D6'],
+    ['ff', 'E3B3'], ['ff', 'C4B4'], ['ff', 'C5B5'], ['ff', 'C6Eb6'],
+  ] as [Dyn, string][]).map(([dyn, tag]) => {
+    const file = `Trumpet.novib.${dyn}.${tag}.aiff`;
+    return { instrument: 'trumpet' as const, dyn, file, url: `${BASE}/Brass/Bbtrumpet/${file}`, range: rangeOf(tag), use: [52, 86] as [number, number] };
   }),
 ];
 

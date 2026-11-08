@@ -199,7 +199,7 @@ async function main(): Promise<void> {
   const only = oi >= 0 ? (args[oi + 1].split(',') as EnsInstrument[]) : undefined;
   const t0 = performance.now();
   const pairs = await compareAll({ only });
-  const insts = (['violin', 'viola', 'cello', 'flute'] as EnsInstrument[]).filter((i) => !only || only.includes(i));
+  const insts = (['violin', 'viola', 'cello', 'flute', 'trumpet'] as EnsInstrument[]).filter((i) => !only || only.includes(i));
   const summary = Object.fromEntries(insts.map((i) => [i, summarise(pairs, i)]));
   const brief = Object.fromEntries(Object.entries(summary).map(([k, v]) => {
     const { ltas: _l, harm: _h, ...rest } = v;

@@ -10,7 +10,7 @@ import { Pump } from './pump.ts';
 import type { KeySummary } from '../api/messages.ts';
 import type { ExciteTrace, InstrumentCore } from './instrument.ts';
 import { BiquadChain, Limiter, Room } from './post.ts';
-import { biquadHighpass, biquadPeaking, biquadHighShelf } from './filters.ts';
+import { biquadHighpass, biquadLowpass, biquadPeaking, biquadHighShelf } from './filters.ts';
 import type { PianoEvent } from './piano-core.ts';
 import { clamp } from './util.ts';
 import tuning from './brass-tuning.json';
@@ -39,6 +39,27 @@ const VALVES = ['open', '2', '1', '1+2', '2+3', '1+3', '1+2+3'];
 const LIP_GAIN = 0.025;
 const LIP_BELOW = 0.3;
 const LIP_OPEN = 0.5;
+/** the bell: below its cutoff it radiates ∝ f² (a small opening, ka < 1) and reflects the rest;
+ *  above, the highs leave. Round 3b: a second-order high-pass at the cutoff. Before it the model's
+ *  fundamental dominated (Iowa trumpet: the 3rd harmonic does, the 1st is 5–11 dB below it) */
+const RAD_FC = 1400;
+/** turbulence where the air squeezes through the lips: noise in the flow, ∝ the flow (round 3b:
+ *  the model was 16 dB cleaner than the Iowa trumpet's harmonics-to-noise ratio) */
+const BREATH_NOISE = 0.016;
+/** the tongue's release: the lips start from this displacement, not from rest (0: none) */
+const TONGUE_KICK = 0;
+/** dynamic brightness: output low-pass 18 kHz at ff falling as exp(−k·(0.93 − p)) towards pp (0: off) */
+const TILT_K = 0;
+/** spectral enrichment: a two-pole low-pass at N·f0, N growing with the blowing pressure (0: off) */
+const ENRICH_N = 0;
+/** tuning experiments only (scripts/trumpet-iter.ts): knobs from TPT='{"kick":0.3}' or globalThis.__tpt */
+const knobs = (): Record<string, number> => {
+  const g = (globalThis as { __tpt?: Record<string, number> }).__tpt;
+  if (g) return g;
+  const env = typeof process !== 'undefined' ? process.env?.TPT : undefined;
+  return env ? (JSON.parse(env) as Record<string, number>) : {};
+};
+let KNOBS: Record<string, number> | null = null;
 /** tube length of the open B♭ trumpet, m */
 const L_OPEN = 1.48;
 
@@ -82,6 +103,21 @@ export class TrumpetCore implements InstrumentCore {
   private dcX = 0;
   private dcY = 0;
   private lp = 0;
+  private radLp = 0;
+  private tilt = 0;
+  private ex1 = 0;
+  private ex2 = 0;
+  private ey1 = 0;
+  private ey2 = 0;
+  private enC = [1, 0, 0, 0, 0];
+  private enFc = 0;
+  private rx1 = 0;
+  private rx2 = 0;
+  private ry1 = 0;
+  private ry2 = 0;
+  private radC = [1, 0, 0, 0, 0];
+  private radFcSet = 0;
+  private nzSeed = 12345;
   private pressure = 0;
   private pTarget = 0;
   private attackTau = 0.02;
@@ -106,7 +142,9 @@ export class TrumpetCore implements InstrumentCore {
   private histI = 0;
   private modeAmps = new Float32Array(16);
   private modeFreqs = new Float64Array(16);
-  private gain = 0.9;
+  /** output level, matched to the Iowa trumpet's (as the other instruments are to theirs): the
+   *  bell's high-pass (round 3b) took 5.7 dB off the fundamental-heavy level it had */
+  private gain = 0.9 * Math.pow(10, 5.7 / 20);
   private noteStart = 0;
 
   constructor(opts: { sampleRate: number; params?: Partial<TrumpetParams>; dry?: boolean }) {
@@ -161,7 +199,10 @@ export class TrumpetCore implements InstrumentCore {
         this.setNote(m, !legato && this.level < 1e-3);
         this.pTarget = 1;
         // tongued attacks are quick; louder ones quicker
-        this.attackTau = legato ? 0.01 : 0.03 - 0.02 * (ev.velocity / 127);
+        const XA = (globalThis as { __tpt?: Record<string, number> }).__tpt ?? (KNOBS ??= knobs());
+        this.attackTau = (legato ? 0.01 : 0.03 - 0.02 * (ev.velocity / 127)) * (XA.att ?? 1);
+        // the tongue releases the lips: they start from a kick, not from rest
+        if (!legato) this.y1 = (XA.kick ?? TONGUE_KICK) * (0.5 + 0.5 * (ev.velocity / 127));
         if (!legato) {
           this.vibPhase = 0;
           this.noteStart = this.frame;
@@ -248,6 +289,7 @@ export class TrumpetCore implements InstrumentCore {
   }
 
   private render(n: number): void {
+    const X = (globalThis as { __tpt?: Record<string, number> }).__tpt ?? (KNOBS ??= knobs());
     const fs = this.fs;
     const dt = n / fs;
     const P = this.params;
@@ -259,7 +301,8 @@ export class TrumpetCore implements InstrumentCore {
     const vib = 1 + P.vibrato * clamp((age - 0.35) / 0.4, 0, 1) * Math.sin(this.vibPhase);
     const v01 = this.velocity / 127;
     // mouth pressure (normalised): louder notes blow harder
-    const pMouth = this.pressure * P.breath * this.expression * (0.42 + 0.58 * v01);
+    const pLo = X.pLo ?? 0.42;
+    const pMouth = this.pressure * P.breath * this.expression * (pLo + (1 - pLo) * v01);
     // the lips follow the note (with the player's tension offset and vibrato)
     // the lips buzz a little below the note: the bore mode just above them takes over
     const lipTarget = this.lipFTarget * Math.pow(2, (P.lip - LIP_BELOW) / 12) * vib / this.bendFactor;
@@ -270,9 +313,30 @@ export class TrumpetCore implements InstrumentCore {
     const a1 = -2 * r * Math.cos(th);
     const a2 = r * r;
     // peak gain LIP_GAIN/(1 - r) at every pitch
-    const b0 = LIP_GAIN * 2 * Math.sin(th);
+    const b0 = LIP_GAIN * (X.gain ?? 1) * 2 * Math.sin(th);
     // bell loss in the loop: higher notes lose a little more at the bell
-    const lpA = 0.12 + 0.18 * clamp((this.lipF - 200) / 800, 0, 1);
+    const lpA = X.bell ? Math.exp((-2 * Math.PI * (X.bellFc ?? 1500)) / fs) : 0.12 + 0.18 * clamp((this.lipF - 200) / 800, 0, 1);
+    const hpA = Math.exp((-2 * Math.PI * (X.bellFc ?? 1500)) / fs);
+    const nz = X.noise ?? BREATH_NOISE;
+    // dynamic brightness: the bore's nonlinear steepening brightens loud playing; soft playing
+    // has none (the cutoff falls as the blowing pressure does)
+    const bN = pMouth / Math.max(1e-6, P.breath * this.expression);
+    const nN = (X.lpN ?? ENRICH_N) > 0 ? (X.lpN ?? ENRICH_N) * Math.exp((X.lpK ?? 4) * (bN - 0.557)) : 0;
+    if (nN > 0) {
+      const fc = Math.min(0.45 * fs, nN * this.lipF);
+      if (Math.abs(fc - this.enFc) > 1) {
+        this.enFc = fc;
+        const lp = biquadLowpass(fc, 0.707, fs);
+        this.enC = [lp[0], lp[1], lp[2], lp[3], lp[4]];
+      }
+    }
+    const kT = X.tiltK ?? TILT_K;
+    const tiltA = kT > 0 ? Math.exp((-2 * Math.PI * Math.min(0.45 * fs, 18000 * Math.exp(-kT * Math.max(0, 0.93 - pMouth / Math.max(1e-6, P.breath * this.expression))))) / fs) : 0;
+    if ((X.rad === undefined || X.rad === 2) && this.radFcSet !== (X.radFc ?? RAD_FC)) {
+      this.radFcSet = X.radFc ?? RAD_FC;
+      const hp = biquadHighpass(this.radFcSet, 0.707, fs);
+      this.radC = [hp[0], hp[1], hp[2], hp[3], hp[4]];
+    }
     const DT = this.Dtarget * this.bendFactor;
     const bore = this.bore;
     const mask = BUF - 1;
@@ -300,10 +364,14 @@ export class TrumpetCore implements InstrumentCore {
       this.y1 = y;
       // lip opening: pushed open by the mouth pressure, buzzing around that; flow grows
       // with the square of the opening (Cook's valve)
-      const h = Math.min(1, Math.max(0, LIP_OPEN * Math.sqrt(Math.max(0, mouth) / 0.3) + y));
+      const h = Math.min(X.hmax ?? 1, Math.max(0, LIP_OPEN * (X.open ?? 1) * Math.sqrt(Math.max(0, mouth) / 0.3) + y));
       const open = h * h;
       // flow through the opening, the rest reflected at the lips
-      const lipOut = open * mouth + (1 - open) * 0.85 * boreOut;
+      let lipOut = open * mouth + (1 - open) * 0.85 * boreOut;
+      if (nz) {
+        this.nzSeed = (Math.imul(this.nzSeed, 1664525) + 1013904223) >>> 0;
+        lipOut += nz * open * mouth * ((this.nzSeed / 4294967296) * 2 - 1);
+      }
       // DC blocker, bell loss
       const x = lipOut - this.dcX + 0.995 * this.dcY;
       this.dcX = lipOut;
@@ -311,8 +379,35 @@ export class TrumpetCore implements InstrumentCore {
       this.lp = (1 - lpA) * x + lpA * this.lp;
       bore[w & mask] = this.lp;
       // radiation from the bell: the highs it does not reflect
-      const out = 0.55 * (boreOut - this.prevOut) * 6 + 0.45 * boreOut;
+      let out: number;
+      if (X.rad === undefined || X.rad === 2) {
+        // second-order high-pass (radiation ∝ f² below the bell's cutoff), plus a little direct
+        const c = this.radC;
+        const yv = c[0] * boreOut + c[1] * this.rx1 + c[2] * this.rx2 - c[3] * this.ry1 - c[4] * this.ry2;
+        this.rx2 = this.rx1;
+        this.rx1 = boreOut;
+        this.ry2 = this.ry1;
+        this.ry1 = yv;
+        out = yv * (X.radHi ?? 2) + (X.radLo ?? 0.05) * boreOut;
+      } else if (X.rad === 1 || X.bell) {
+        this.radLp = (1 - hpA) * boreOut + hpA * this.radLp;
+        out = (boreOut - this.radLp) * (X.radHi ?? 3) + (X.radLo ?? 0.15) * this.radLp;
+      } else out = 0.55 * (boreOut - this.prevOut) * 6 + 0.45 * boreOut;
       this.prevOut = boreOut;
+      if (tiltA > 0) {
+        this.tilt = (1 - tiltA) * out + tiltA * this.tilt;
+        out = this.tilt;
+      }
+      if (nN > 0) {
+        // spectral enrichment: soft playing keeps only the lowest few harmonics (two poles at N·f0)
+        const c = this.enC;
+        const yv = c[0] * out + c[1] * this.ex1 + c[2] * this.ex2 - c[3] * this.ey1 - c[4] * this.ey2;
+        this.ex2 = this.ex1;
+        this.ex1 = out;
+        this.ey2 = this.ey1;
+        this.ey1 = yv;
+        out = yv;
+      }
       oL[t] = out;
       oR[t] = 0.92 * out;
       this.trLip[this.trI] = open;

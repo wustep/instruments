@@ -255,7 +255,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
   const pianoState = newPianoState();
   const bowedState = { strScale: new AutoScale(2e-6), lvlScale: new AutoScale(1e-6, 0.995) };
   const fluteState = { pScale: new AutoScale(1e-6), jetScale: new AutoScale(1e-9), env: new Float32Array(0) };
-  const trumpetState = { pScale: new AutoScale(1e-6), env: new Float32Array(0) };
+  const trumpetState: { pScale: AutoScale; env: Float32Array; src?: { x: number; y: number } } = { pScale: new AutoScale(1e-6), env: new Float32Array(0) };
   const roomState = newRoomState();
   const tdBuf = new Float32Array(2048);
   const fields = { piano: new ModeField(208, 100, 2.2, 3), bowed: new ModeField(150, 84, 1.8, 0.6) };
@@ -398,7 +398,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     }
     const fam = family();
     const grand = fam === 'piano' && !(audio.preset === 'upright' || audio.preset === 'honky-tonk');
-    const src = fam === 'piano' ? pianoState.src : fam === 'bowed' ? { x: w * 0.62, y: ih / 2 } : fam === 'brass' ? { x: w * 0.85, y: ih * 0.55 } : { x: w * 0.5, y: ih * 0.45 };
+    const src = fam === 'piano' ? pianoState.src : fam === 'bowed' ? { x: w * 0.62, y: ih / 2 } : fam === 'brass' ? (trumpetState.src ?? { x: w * 0.85, y: ih * 0.55 }) : { x: w * 0.5, y: ih * 0.45 };
     const rg = in3d ? { x0: 0, y0: 0, x1: 0, y1: 0 } : drawRoom(ctx, w, ih, roomState, src, roomVal(), rms, now, grand ? { open: lidVal(), dir: -Math.PI / 4 } : null);
     ctx.restore();
     if (in3d && s3) {
