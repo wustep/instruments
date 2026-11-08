@@ -36,10 +36,13 @@ describe('stability', () => {
           // a loud cluster with the pedal down excites everything: struck strings,
           // sympathetic strings, preparations, soundboard
           const ev = [ped(0, 1), ...[21, 33, 45, 52, 60, 64, 67, 72, 84, 96, 108].map((m, i) => on(0.01 + i * 0.003, m, 127))];
-          const r = render(ev, 3.0, { preset, dry: false, params: { [param]: v } });
-          finiteAndBounded(r.x, 1.0001); // limiter output never exceeds full scale
-          // energy must decay (passive system): last half-second quieter than the first
-          expect(rmsDb(r.x, 2.5, 3.0), `${preset} ${param}=${v}`).toBeLessThan(rmsDb(r.x, 0.05, 0.55) - 3);
+          // physical model alone (no room/limiter): passive, so energy must fall
+          const dry = render(ev, 3.0, { preset, dry: true, params: { [param]: v } });
+          finiteAndBounded(dry.x);
+          expect(rmsDb(dry.x, 2.5, 3.0), `${preset} ${param}=${v}`).toBeLessThan(rmsDb(dry.x, 0.05, 0.55) - 3);
+          // full output chain: finite and never above full scale
+          const live = render(ev, 1.0, { preset, dry: false, params: { [param]: v } });
+          finiteAndBounded(live.x, 1.0001);
         }
       }
     });
