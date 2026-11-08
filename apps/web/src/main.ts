@@ -8,7 +8,7 @@ import { stageView } from './views/stage.ts';
 import { measureView } from './views/measure.ts';
 import { notesView } from './views/notes.ts';
 
-/** The name on the fallboard and in the title. One constant, so a rename is one line. */
+/** The name in the browser tab. Nothing on the page itself names it: the instrument speaks. */
 export const WORDMARK = 'instruments';
 
 const app = document.getElementById('app')!;
@@ -28,7 +28,6 @@ const fallboard = h(
   'div',
   { class: 'fallboard' },
   h('div', { class: 'pedals' }, sustainPedal.el, softPedal.el),
-  h('a', { class: 'inlay', href: '#/' }, WORDMARK),
   knobToggle,
   knobSlot,
 );
@@ -43,7 +42,7 @@ const links = [
   h('a', { href: '#/measurements', 'data-route': 'measurements' }, 'measurements'),
   h('a', { href: '#/notes', 'data-route': 'notes' }, 'notes'),
 ];
-const backLink = h('a', { class: 'back', href: '#/', 'data-route': 'stage' }, `← ${WORDMARK.toLowerCase()}`);
+const backLink = h('a', { class: 'back', href: '#/', 'data-route': 'stage', 'aria-label': 'back to the instruments', title: 'back to the instruments' }, '←');
 const header = h('header', { class: 'top' }, backLink, h('span', { class: 'spacer' }), status, h('nav', { class: 'links', 'aria-label': 'Pages' }, links));
 const main = h('main', { id: 'main' });
 app.append(header, main, dock);

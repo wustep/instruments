@@ -20,7 +20,9 @@ async function startAudio(page: Page) {
 test('page loads with the keyboard and no errors', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
-  await expect(page.locator('.inlay')).toHaveText('instruments');
+  // no wordmark on the page; the name lives in the tab title
+  await expect(page.locator('.inlay')).toHaveCount(0);
+  await expect(page).toHaveTitle('instruments');
   await expect(page.locator('.instruments .pick')).toHaveCount(5);
   await expect(page.locator('.keyboard .key')).toHaveCount(88);
   await page.waitForTimeout(500);
