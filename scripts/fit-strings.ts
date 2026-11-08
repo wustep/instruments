@@ -27,14 +27,14 @@ interface Over { hf: [number, number]; eq: [number, number, number][]; bowSpeed:
 
 const SPACE = [
   { k: 'hfG', lo: 3e-4, hi: 0.3, log: true },
-  { k: 'hfF', lo: 600, hi: 6000, log: true },
-  { k: 'hill', lo: -6, hi: 12 },
+  { k: 'hfF', lo: 600, hi: 10000, log: true },
+  { k: 'hill', lo: -6, hi: 15 },
   { k: 'low', lo: -12, hi: 6 },
   { k: 'vLo', lo: 0.012, hi: 0.1, log: true },
   { k: 'vHi', lo: 0.2, hi: 1.5, log: true },
   { k: 'fPp', lo: 0.4, hi: 1.6, log: true },
   { k: 'fFf', lo: 0.6, hi: 2.6, log: true },
-  { k: 't60H', lo: 0.3, hi: 4, log: true },
+  { k: 't60H', lo: 0.3, hi: 12, log: true },
 ];
 function toOver(inst: Inst, z: number[]): Over {
   const d = BOWED[inst];

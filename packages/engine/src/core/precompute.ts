@@ -21,10 +21,18 @@ export async function computeDesigns(
   for (const spec of specs) {
     const la = nominalLossCoeff(spec, fs);
     let worked = false;
-    for (const light of [false, true]) {
-      const key = DispersionCache.keyOf(spec, fs, light, la);
+    // one design per distinct unison-string stiffness, plus the sympathetic string's
+    const variants: { s: typeof spec; light: boolean }[] = [{ s: spec, light: true }];
+    const seen = new Set<number>();
+    for (const st of spec.strings) {
+      if (seen.has(st.B)) continue;
+      seen.add(st.B);
+      variants.push({ s: st.B === spec.B ? spec : { ...spec, B: st.B, f0: st.f0 }, light: false });
+    }
+    for (const { s: vs, light } of variants) {
+      const key = DispersionCache.keyOf(vs, fs, light, la);
       if (opts.skip?.(key)) continue;
-      out.push({ key, d: cache.get(spec, fs, light, la) });
+      out.push({ key, d: cache.get(vs, fs, light, la) });
       worked = true;
     }
     // yield only after real design work (a fully cached set returns at once)

@@ -91,9 +91,9 @@ export class DispersionCache {
   }
   put(entries: DesignEntry[]): void {
     for (const e of entries) this.map.set(e.key, e.d);
-    // bound memory: keep the most recent ~600 designs
-    if (this.map.size > 600) {
-      const drop = this.map.size - 600;
+    // bound memory: keep the most recent ~1500 designs (about four parameter sets)
+    if (this.map.size > 1500) {
+      const drop = this.map.size - 1500;
       let i = 0;
       for (const k of this.map.keys()) {
         if (i++ >= drop) break;
@@ -335,9 +335,10 @@ export class Voice {
       this.lgD[s] = Math.log(ld.g);
       this.aD[s] = ld.a;
 
-      // ---- dispersion (designed once per key on the nominal string)
+      // ---- dispersion: each unison string with its own stiffness (the sympathetic
+      // "light" string uses the key's nominal one)
       const lossA = lu.a;
-      const disp = cache.get(spec, fs, light, nominalLossA);
+      const disp = cache.get(light || st.B === spec.B ? spec : { ...spec, B: st.B, f0: st.f0 }, fs, light, nominalLossA);
       const S = disp.a1.length;
       this.dispS[s] = S;
       for (let j = 0; j < S; j++) {

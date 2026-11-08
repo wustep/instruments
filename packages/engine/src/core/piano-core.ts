@@ -80,6 +80,9 @@ const POS_MASK = 0x3fffffff;
 const LEVEL_OFF = 2e-6;
 /** live make-up gain over the reference-matched calibration level */
 const PLAYBACK_GAIN_DB = 6;
+/** action knock: the noisy contact tick's share of the knock (fitted to the attack's
+ *  6-12 kHz burst over the sustain in the Iowa Steinway: A2 +4, C#6 0, C#4 ff -7 dB) */
+const KNOCK_TICK = 0.6;
 
 function smoothstep(a: number, b: number, x: number): number {
   const t = clamp((x - a) / (b - a), 0, 1);
@@ -121,6 +124,11 @@ export class PianoCore {
   private hL = new Float64Array(BK_MAX);
   private hR = new Float64Array(BK_MAX);
   private fext0 = new Float64Array(RING);
+  /** action knock into the high-frequency board path (above the modal range) */
+  private hx0 = new Float64Array(RING);
+  private hx1 = new Float64Array(RING);
+  private hx2 = new Float64Array(RING);
+  private knockSeed = 0x9e3779b9;
   private fext1 = new Float64Array(RING);
   private fext2 = new Float64Array(RING);
   private Bm = new Float64Array(9);
@@ -484,16 +492,35 @@ export class PianoCore {
   }
 
   private thump(v: Voice, vh: number): void {
-    // key bottoming on the keybed / action knock: a short force pulse into the frame & board
+    // key bottoming on the keybed / action knock, into the frame & board:
+    // a 1.6 ms thud plus (round 3) a short tick of felt-and-wood contact noise that is
+    // different on every strike and also reaches the high-frequency board path (the
+    // thud alone had no energy above the board's modes, so every attack was too clean)
     const amp = 0.35 * Math.pow(vh, 1.5);
-    const len = Math.round(0.0016 * this.fs);
-    const start = this.frame + BK_MAX + Math.round(0.0008 * this.fs);
+    const fs = this.fs;
+    const len = Math.round(0.0016 * fs);
+    const start = this.frame + BK_MAX + Math.round(0.0008 * fs);
     for (let t = 0; t < len; t++) {
       const f = amp * Math.sin((Math.PI * t) / len);
       const idx = (start + t) & RMASK;
       this.fext0[idx] += f * (0.35 + 0.65 * v.w0);
       this.fext1[idx] += f * (0.35 + 0.65 * v.w1);
       this.fext2[idx] += f * (0.35 + 0.65 * v.w2);
+    }
+    const tl = Math.round(0.004 * fs);
+    const tau = 0.0005 * fs;
+    let sd = (this.knockSeed = (this.knockSeed * 1664525 + 1013904223) >>> 0);
+    for (let t = 0; t < tl; t++) {
+      sd = (sd * 1103515245 + 12345) >>> 0;
+      const n = (sd / 4294967296) * 2 - 1;
+      const f = KNOCK_TICK * amp * n * Math.exp(-t / tau);
+      const idx = (start + t) & RMASK;
+      this.fext0[idx] += f * (0.35 + 0.65 * v.w0);
+      this.fext1[idx] += f * (0.35 + 0.65 * v.w1);
+      this.fext2[idx] += f * (0.35 + 0.65 * v.w2);
+      this.hx0[idx] += f * v.w0;
+      this.hx1[idx] += f * v.w1;
+      this.hx2[idx] += f * v.w2;
     }
   }
 
@@ -702,6 +729,19 @@ export class PianoCore {
       }
       if (v.lastStrike && v.lastStrike !== this.strikeLatest && (!this.strikeLatest || v.lastStrike.serial > this.strikeLatest.serial)) {
         this.strikeLatest = v.lastStrike;
+      }
+    }
+    // the action knock's share of the high-frequency board path
+    {
+      const Yr = this.cal.hfMobility;
+      for (let t = 0; t < Bk; t++) {
+        const ri = (f0 + t) & RMASK;
+        hf0[t] += Yr * this.hx0[ri];
+        hf1[t] += Yr * this.hx1[ri];
+        hf2[t] += Yr * this.hx2[ri];
+        this.hx0[ri] = 0;
+        this.hx1[ri] = 0;
+        this.hx2[ri] = 0;
       }
     }
     // output: modal radiation + diffused HF board path

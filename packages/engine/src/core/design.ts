@@ -81,6 +81,10 @@ export interface PianoDesign {
   randomKeyDetune: number;
   /** std dev of the hammer's per-string contact weight (uneven strings / felt wear) */
   hammerImbalance: number;
+  /** std dev of each unison string's inharmonicity B around the key's (wire and tension
+   *  tolerances). Without it the strings of a unison are exact copies detuned by a fixed
+   *  ratio, and their beating sweeps a perfectly regular comb through the upper partials. */
+  unisonBSpread?: number;
   hammerHardness: number;
   hammerMassScale: number;
   decayScale: number;
@@ -121,6 +125,7 @@ const GRAND: PianoDesign = {
   unisonBeatCapHz: 500,
   randomKeyDetune: 0,
   hammerImbalance: 0.05,
+  unisonBSpread: 0.02,
   hammerHardness: 1,
   hammerMassScale: 1,
   decayScale: 1,
@@ -366,13 +371,16 @@ export function buildKeySpecs(
     const spread = params.unisonDetune * beatScale;
     const pattern = nStrings === 3 ? [-0.5, 0.12, 0.5] : nStrings === 2 ? [-0.5, 0.5] : [0];
     const strings: StringSpec[] = [];
+    // per-string stiffness: its own random stream, so the detunes above stay as they were
+    const randB = mulberry32(design.seed * 1000 + m * 7919 + 104729);
     for (let s = 0; s < nStrings; s++) {
       const c = pattern[s] * spread + design.randomDetune * beatScale * gauss(rand);
       const fs1 = f1 * Math.pow(2, c / 1200);
+      const Bs = nStrings > 1 ? B * clamp(1 + (design.unisonBSpread ?? 0) * gauss(randB), 0.9, 1.1) : B;
       strings.push({
         f1: fs1,
-        f0: fs1 / Math.sqrt(1 + B),
-        B,
+        f0: fs1 / Math.sqrt(1 + Bs),
+        B: Bs,
         Z,
         weight: clamp(1 + design.hammerImbalance * gauss(rand), 0.5, 1.5),
       });

@@ -222,6 +222,8 @@ class BowedString {
   Dtarget = 100;
   /** delay of the stopped note without vibrato */
   D0 = 100;
+  /** loop the bow taps follow: D0 with pitch bend, without vibrato */
+  Dtap = 100;
   lossB = 0.9;
   lossA = 0;
   ly = 0;
@@ -453,6 +455,7 @@ export class BowedCore implements InstrumentCore {
     s.lossB = ld.g * (1 + ld.a);
     s.D0 = this.loopDelay(s, f);
     s.Dtarget = s.D0;
+    s.Dtap = s.D0 * Math.pow(2, -this.bend / 12);
     if (immediate) s.D = s.D0;
   }
 
@@ -478,6 +481,7 @@ export class BowedCore implements InstrumentCore {
     if (s.midi >= 0) {
       s.D0 = this.loopDelay(s, et(s.midi));
       s.Dtarget = s.D0;
+      s.Dtap = s.D0;
       s.D = s.D0;
     }
   }
@@ -744,6 +748,7 @@ export class BowedCore implements InstrumentCore {
       if (s.bowing && s.fBase > 0) s.fBowTarget = Math.min(1.3 * s.fMax, s.fBase * this.pressureCC);
       const bendC = s.bowing || s.midi !== s.def.open ? 100 * this.bend : 0;
       s.Dtarget = s.D0 * Math.pow(2, -(cents + bendC) / 1200);
+      s.Dtap = s.D0 * Math.pow(2, -bendC / 1200);
     }
     this.bowControl(dt);
   }
@@ -792,7 +797,13 @@ export class BowedCore implements InstrumentCore {
         s.D += (s.Dtarget - s.D) * 0.02;
         // ---- bow at an interior point (in place, like a hammer)
         if (s.fBow > 0) {
-          const P = s.D;
+          // round 3: the bow taps sit on the note's nominal loop (with bend, without
+          // vibrato), not the gliding D.
+          // Vibrato still changes the loop (fractional read at the bridge), but the wave
+          // the bow sees no longer jumps by a whole sample a dozen times per vibrato
+          // cycle; each jump was a click between the harmonics (the cello read 3.9 dB
+          // noisier than its recording; −1.9 dB now).
+          const P = s.Dtap || s.D0;
           const db = Math.max(1, Math.round((s.beta * P) / 2));
           const iL = (w - db) & mask;
           const iR = (w - Math.round(P - db)) & mask;

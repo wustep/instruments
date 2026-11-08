@@ -266,7 +266,8 @@ export function analyzeSustained(x: ArrayLike<number>, fs: number, seg: Segment,
   const attackMs = t10 >= 0 && t90 >= 0 ? ((t90 - t10) / fs) * 1000 : NaN;
   // vibrato from a finer f0 track (hop ~ 10 ms)
   const vib = vibratoOf(x, fs, s0, s1, f0g);
-  const f0 = median(f0s);
+  // round 3: with vibrato, the pitch is the centre of the fine track (see vibratoOf)
+  const f0 = vib.rate > 0 && Number.isFinite(vib.center) ? f0g * Math.pow(2, vib.center / 1200) : median(f0s);
   return {
     midi,
     f0,
@@ -285,7 +286,7 @@ export function analyzeSustained(x: ArrayLike<number>, fs: number, seg: Segment,
   };
 }
 
-function vibratoOf(x: ArrayLike<number>, fs: number, s0: number, s1: number, f0g: number): { rate: number; depth: number } {
+function vibratoOf(x: ArrayLike<number>, fs: number, s0: number, s1: number, f0g: number): { rate: number; depth: number; center: number } {
   const L = nextPow2(Math.max(1024 * (fs / 44100), (4 * fs) / f0g));
   const hopS = 0.01;
   const hop = Math.round(hopS * fs);
@@ -295,7 +296,13 @@ function vibratoOf(x: ArrayLike<number>, fs: number, s0: number, s1: number, f0g
     const f = frameF0(sp, f0g);
     c.push(Number.isFinite(f) ? 1200 * Math.log2(f / f0g) : NaN);
   }
-  if (c.length < 60) return { rate: 0, depth: 0 };
+  if (c.length < 60) return { rate: 0, depth: 0, center: NaN };
+  // centre of the pitch track (mean, cents): with vibrato, the median of long-frame
+  // spectral peaks is pulled toward whichever side of the swing is louder
+  // (trimmed: the outer 10 % each side, e.g. a bow change, are left out)
+  const fin = c.filter(Number.isFinite).sort((a, b) => a - b);
+  const core = fin.slice(Math.floor(fin.length * 0.1), Math.ceil(fin.length * 0.9));
+  const center = core.length ? core.reduce((a, b) => a + b, 0) / core.length : NaN;
   // detrend with a 0.5 s moving average, then the strongest component in 3–9 Hz
   const w = Math.round(0.25 / hopS);
   const d: number[] = [];
@@ -324,5 +331,5 @@ function vibratoOf(x: ArrayLike<number>, fs: number, s0: number, s1: number, f0g
     }
   }
   // a component below ~3 cents is measurement jitter, not vibrato
-  return bestA < 3 ? { rate: 0, depth: bestA } : { rate: bestR, depth: bestA };
+  return bestA < 3 ? { rate: 0, depth: bestA, center } : { rate: bestR, depth: bestA, center };
 }
