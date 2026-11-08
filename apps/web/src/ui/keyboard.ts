@@ -145,8 +145,17 @@ export class ComputerKeys {
   /** playable range of the current instrument: the 18 mapped keys must reach into it */
   private lo = 21;
   private hi = 108;
+  /**
+   * The rows always start on a C, as in a DAW (Ableton, GarageBand): A S D F G H J K L ; '
+   * are the white keys C D E F G A B C D E F, and W E · T Y U · O P the black keys between
+   * them (C# D# · F# G# A# · C# D#). U and J are always A#/B. The octave moves in Cs, from
+   * the lowest C whose upper half reaches the instrument to the highest whose bottom does.
+   */
   private clampBase(m: number): number {
-    return Math.min(Math.min(96, this.hi - 5), Math.max(Math.max(21, this.lo - 12), m));
+    const lo = Math.ceil((this.lo - 11) / 12) * 12;
+    const hi = Math.floor((this.hi - 5) / 12) * 12;
+    const c = Math.round(m / 12) * 12;
+    return Math.min(Math.min(96, hi), Math.max(Math.max(12, lo), c));
   }
   setBase(m: number): void {
     this.base = this.clampBase(m);
@@ -159,7 +168,7 @@ export class ComputerKeys {
   /** Octave up (+1) or down (−1), kept within the instrument's range. */
   octave(d: number): void {
     const next = this.clampBase(this.base + 12 * d);
-    if (next === this.base || Math.abs(next - this.base) !== 12) return;
+    if (next === this.base) return;
     this.base = next;
     this.changed();
   }

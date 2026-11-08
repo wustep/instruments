@@ -429,13 +429,20 @@ test('octave control: buttons and Z/X/−/= shift the keys, within each instrume
   await page.keyboard.down('KeyA');
   await expect(page.locator('.key[data-midi="48"]')).toHaveClass(/down/);
   await page.keyboard.up('KeyA');
-  // violin: G3 is its lowest string, so the keys stop an octave below
+  // violin: the rows still start on a C (A = C4, J = B4, U = A#4); G3, its lowest string,
+  // is reached one octave down (A = C3 … G = G3), and it stops there
   await page.evaluate(() => (window as any).__piano.setInstrument('violin'));
-  await expect(label).toHaveText('G4');
+  await expect(label).toHaveText('C4');
+  await page.keyboard.down('KeyJ');
+  await expect(page.locator('.key[data-midi="71"]')).toHaveClass(/down/);
+  await page.keyboard.up('KeyJ');
+  await page.keyboard.down('KeyU');
+  await expect(page.locator('.key[data-midi="70"]')).toHaveClass(/down/);
+  await page.keyboard.up('KeyU');
   for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Octave down' }).click();
-  await expect(label).toHaveText('G2');
+  await expect(label).toHaveText('C3');
   await page.getByRole('button', { name: 'Octave up' }).click();
-  await expect(label).toHaveText('G3');
+  await expect(label).toHaveText('C4');
   await page.evaluate(() => (window as any).__piano.setInstrument('piano'));
 });
 
