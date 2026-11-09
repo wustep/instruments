@@ -183,6 +183,8 @@ export class Batch {
   floor: { y: number; c: Vec3; r0: number; r1: number } | null = null;
   /** a section: everything with side·(x − at) > 0 is cut away (a piano key's action, close up) */
   clip: { at: number; side: 1 | -1 } | null = null;
+  /** a box the orbit camera may not enter (an instrument's case: its target is inside it) */
+  keepOut: { lo: Vec3; hi: Vec3 } | null = null;
   ov: Overlays = { amps: new Float32Array(16), mn: new Float32Array(32), modalHot: [0.95, 0.65, 0.27], modalGain: 0, wave: new Float32Array(48), waveCol: [1, 0.37, 0.22] };
   /** vertex count (for the performance budget) */
   get vertices(): number {
@@ -200,6 +202,7 @@ export class Batch {
     this.ov.wave.fill(0);
     this.floor = null;
     this.clip = null;
+    this.keepOut = null;
   }
   /** a glowing polyline (additive) of `width` px; colour per point or one for all */
   line(pts: Vec3[], color: RGBA | RGBA[], width = 1.2): void {

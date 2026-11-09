@@ -121,6 +121,26 @@ function pianoModel(si: SceneIn, st: Scene3State): PianoModel | null {
   if (!st.upright || st.upright.sig !== sig) st.upright = timed(st, () => caseParts(buildUprightModel(si.keys)));
   return st.upright;
 }
+/** a piano's box: its case and everything fixed inside it (from the meshes, once per model) */
+const boxes = new WeakMap<PianoModel, { lo: Vec3; hi: Vec3 }>();
+function modelBox(pm: PianoModel): { lo: Vec3; hi: Vec3 } {
+  let bx = boxes.get(pm);
+  if (bx) return bx;
+  const lo: Vec3 = [Infinity, Infinity, Infinity];
+  const hi: Vec3 = [-Infinity, -Infinity, -Infinity];
+  for (const m of [...pm.statics, ...pm.cases]) {
+    const d = m.data;
+    for (let i = 0; i < m.count; i++)
+      for (let k = 0; k < 3; k++) {
+        const v = d[i * 14 + k];
+        if (v < lo[k]) lo[k] = v;
+        if (v > hi[k]) hi[k] = v;
+      }
+  }
+  bx = { lo, hi };
+  boxes.set(pm, bx);
+  return bx;
+}
 /** the lid, the music desk and (a grand's) pedals dissolve with the case: their shadows too */
 function caseParts(pm: PianoModel): PianoModel {
   for (const m of [pm.lid, pm.desk, ...(pm.pedalsCase ? pm.pedals.map((p) => p.mesh) : [])]) if (m) m.fade = true;
@@ -145,6 +165,7 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): { src: Vec3;
     b.clip = cut;
     st.picks = pianoPickSegments(pm);
     b.bounds = pm.bounds;
+    b.keepOut = modelBox(pm);
     floor(b, st, pm.kind, pm.bounds.c, pm.bounds.r);
     return { src: pm.src, span: pm.kind === 'grand' ? 1.5 : 1.1 };
   }

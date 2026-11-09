@@ -1009,6 +1009,49 @@ test('pianos in 3D: a key flies the camera to its own action; Esc, the × or a c
   await expect(back).toBeHidden();
 });
 
+test('pianos in 3D: sustain leaves the camera alone, and zooming in stops outside the case (grand and upright)', async ({ page }, info) => {
+  const phone = info.project.name === 'phone';
+  await page.goto('/');
+  await startAudio(page);
+  await page.locator('.dim-toggle').click();
+  const cv = page.locator('.stage-3d');
+  await expect(cv).toBeVisible();
+  const eye = () => page.evaluate(() => (window as any).__stage3d.eye as number[]);
+  // well inside each case (the plate, strings, action and keybed): the camera must never get here
+  const inner: Record<string, [number[], number[]]> = { grand: [[-0.68, 0.12, 0.12], [0.68, 0.92, 1.95]], upright: [[-0.7, 0.1, 0.06], [0.7, 1.16, 0.55]] };
+  for (const preset of ['grand', 'upright']) {
+    await page.evaluate((p) => (window as any).__piano.setPreset(p), preset);
+    await page.locator('.presets button', { hasText: preset }).click();
+    await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3);
+    await page.evaluate(() => (window as any).__stage3d.resetView());
+    await page.waitForTimeout(300);
+    const before = await eye();
+    // A5, then the sustain pedal (Space on a keyboard; the API on a phone)
+    await page.evaluate(() => (window as any).__piano.noteOn(81, 100, 'keys'));
+    if (phone) await page.evaluate(() => (window as any).__piano.sustain(1));
+    else await page.keyboard.down('Space');
+    await page.waitForTimeout(500);
+    const after = await eye();
+    expect(Math.hypot(after[0] - before[0], after[1] - before[1], after[2] - before[2]), `${preset}: camera moved on sustain`).toBeLessThan(0.002);
+    if (phone) await page.evaluate(() => (window as any).__piano.sustain(0));
+    else await page.keyboard.up('Space');
+    await page.evaluate(() => (window as any).__piano.noteOff(81, 'keys'));
+    // zoom all the way in (wheel / pinch clamp): the camera stays outside the case
+    if (!phone) {
+      const b = (await cv.boundingBox())!;
+      await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+      for (let k = 0; k < 12; k++) await page.mouse.wheel(0, -400);
+    } else {
+      await page.evaluate(() => (window as any).__stage3d.setView({ dist: 0.05 }));
+    }
+    await page.waitForTimeout(600);
+    const e = await eye();
+    const [lo, hi] = inner[preset];
+    const isIn = e.every((v, k) => v > lo[k] && v < hi[k]);
+    expect(isIn, `${preset}: camera inside the case at ${e.map((v) => v.toFixed(2))}`).toBe(false);
+  }
+});
+
 test('without WebGL2 there is no 3D toggle and the 2D stage works', async ({ page }) => {
   await page.addInitScript(() => {
     const orig = HTMLCanvasElement.prototype.getContext;

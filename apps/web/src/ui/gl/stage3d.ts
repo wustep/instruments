@@ -31,6 +31,8 @@ export interface Stage3D {
   zoomOut(): void;
   /** the key seen close up (null: none, or flying back out) */
   readonly zoomed: number | null;
+  /** tests: where the camera was last frame (world, m) */
+  readonly eye: Vec3;
   dispose(): void;
   /** frame build + draw time (ms, smoothed, without one-off model building), vertices, whether
    *  the light scene / shadows are in use, and the total time spent building models */
@@ -66,6 +68,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
   let probe = false;
   const px = new Uint8Array(4);
   let lastVP: Mat4 | null = null;
+  let lastEye: Vec3 = [0, 0, 0];
   let cssW = 1;
   let cssH = 1;
   // the target the orbit turns about (the view's, or a zoomed key's), and a flight between views
@@ -182,6 +185,9 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     get zoomed() {
       return zoom && !(fly && fly.out) ? zoom.midi : null;
     },
+    get eye() {
+      return [...lastEye] as Vec3;
+    },
     setView(v) {
       if (!view) return;
       zoom = null;
@@ -287,7 +293,28 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       dist += (distT - dist) * kE;
       const minPitch = Math.asin(Math.max(-1, Math.min(1, (0.04 - target[1]) / dist)));
       if (pitch < minPitch) pitch = pitchT = Math.max(pitchT, minPitch);
-      const eye: Vec3 = [target[0] + dist * Math.cos(pitch) * Math.sin(yaw), target[1] + dist * Math.sin(pitch), target[2] - dist * Math.cos(pitch) * Math.cos(yaw)];
+      // never into the instrument: a piano's orbit target is inside its case, so zooming in (wheel,
+      // pinch) would carry the camera through the plate into the case. Outside a key's close-up
+      // (beside its section) the camera stops 6 cm outside the case's box, along its own ray
+      const dir: Vec3 = [Math.cos(pitch) * Math.sin(yaw), Math.sin(pitch), -Math.cos(pitch) * Math.cos(yaw)];
+      const ko = batch.keepOut;
+      if (ko && !zoom) {
+        const m = 0.06;
+        const inside = (p: Vec3) => p[0] > ko.lo[0] - m && p[0] < ko.hi[0] + m && p[1] > ko.lo[1] - m && p[1] < ko.hi[1] + m && p[2] > ko.lo[2] - m && p[2] < ko.hi[2] + m;
+        const at = (d: number): Vec3 => [target[0] + dir[0] * d, target[1] + dir[1] * d, target[2] + dir[2] * d];
+        if (inside(at(dist))) {
+          // the ray's exit from the expanded box (the target may be inside it, or behind it)
+          let tExit = Infinity;
+          for (let k = 0; k < 3; k++) {
+            if (Math.abs(dir[k]) < 1e-6) continue;
+            const t = ((dir[k] > 0 ? ko.hi[k] + m : ko.lo[k] - m) - target[k]) / dir[k];
+            if (t > 0) tExit = Math.min(tExit, t);
+          }
+          if (Number.isFinite(tExit)) dist = distT = Math.max(dist, distT, tExit + 0.01);
+        }
+      }
+      const eye: Vec3 = [target[0] + dist * dir[0], target[1] + dist * dir[1], target[2] + dist * dir[2]];
+      lastEye = eye;
       const g = getComputedStyle(document.body).getPropertyValue('--ground').trim() || '#0e0d0b';
       const hex = /^#([0-9a-f]{6})$/i.exec(g)?.[1] ?? '0e0d0b';
       const ground: [number, number, number] = [parseInt(hex.slice(0, 2), 16) / 255, parseInt(hex.slice(2, 4), 16) / 255, parseInt(hex.slice(4, 6), 16) / 255];
