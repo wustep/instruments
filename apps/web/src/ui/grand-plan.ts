@@ -172,6 +172,8 @@ export function grandDepth(W: number, pts: Pt[]): number {
     const sx = kx0 + (x + KB) * pxm;
     if (sx > -40 && sx < W + 40) zo = Math.max(zo, z);
   }
+  // the whole keyboard on screen: the whole rim, its tail at the top
+  if (kx0 > -pitch && kx1 < W + pitch) return Math.max(zo, 0.6) + 0.004;
   return Math.max(0.6, Math.min(Math.max(zo, 0.6), zs + 0.2));
 }
 
@@ -725,6 +727,8 @@ export function drawGrandPlan(ctx: CanvasRenderingContext2D, W: number, H: numbe
   }
   ctx.stroke();
   const hw = (GZ.headW / 0.0139) * pitch;
+  // (px per metre across a head: the action's pitch is 13.9 mm)
+  const pxmHead = pitch / 0.0139;
   for (const s of strs) {
     if (!vis(s)) continue;
     const h = st.hammer[s.p.i];
@@ -741,13 +745,29 @@ export function drawGrandPlan(ctx: CanvasRenderingContext2D, W: number, H: numbe
       ctx.fillStyle = rgba('0,0,0', 0.35 * h);
       ctx.fillRect(x - w / 2 + 2 * h, y - d / 2 + 2.5 * h, w, d);
     }
-    ctx.fillStyle = flash > 0.02 ? rgba(INK.vermilion, 0.6 + 0.4 * flash) : rgba(C.hFelt, 0.5 + 0.35 * h);
+    ctx.fillStyle = flash > 0.02 ? rgba(INK.vermilion, 0.6 + 0.4 * flash) : rgba(C.hFelt, 0.62 + 0.3 * h);
     ctx.beginPath();
     ctx.roundRect(x - w / 2, y - d / 2, w, d, Math.min(w, d) * 0.4);
     ctx.fill();
     // the crown: the felt's highest line, across the head
     ctx.fillStyle = flash > 0.02 ? rgba('255,214,190', 0.8 * flash) : rgba('255,250,240', 0.3 + 0.5 * h);
     ctx.fillRect(x - w / 2 + 1, y - Math.max(0.6, d * 0.08), w - 2, Math.max(1.2, d * 0.16));
+    // where each string meets the crown (the felt's grooves): under the una corda the head has slid
+    // 2.5 mm to the treble and misses its unison's leftmost string
+    ctx.fillStyle = rgba('70,52,40', 0.75);
+    for (const o of s.off) {
+      const rel = s.x + o - x;
+      if (Math.abs(rel) > (GZ.headW / 2) * (w / hw) * pxmHead - 0.4) continue;
+      ctx.fillRect(s.x + o - 0.5, y - d * 0.32, 1, d * 0.64);
+    }
+    // the una corda: the shifted heads glow amber, as the 3D's pedals do
+    if (st.shift > 0.05) {
+      ctx.strokeStyle = rgba(INK.amber, 0.55 * st.shift);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(x - w / 2 - 0.5, y - d / 2 - 0.5, w + 1, d + 1, Math.min(w, d) * 0.4);
+      ctx.stroke();
+    }
   }
   ctx.drawImage(lay.over, 0, 0, W, H);
   // ---- the sounding strings light along their speaking length (sympathetic ones amber, faintly)
@@ -849,10 +869,10 @@ export function drawGrandPlan(ctx: CanvasRenderingContext2D, W: number, H: numbe
   for (const s of strs) {
     const t = st.strikes.get(s.p.midi);
     if (t === undefined || !vis(s)) continue;
-    const age = (now - t) / 240;
+    const age = (now - t) / 320;
     if (age < 0 || age > 1) continue;
     const v = (st.vels.get(s.p.midi) ?? 64) / 127;
-    const r = (0.6 + 0.9 * v) * pitch * (0.8 + 0.6 * age);
+    const r = (0.7 + 1.1 * v) * pitch * (0.8 + 0.7 * age);
     const a = (1 - age) ** 2 * (0.35 + 0.5 * v);
     const x = s.x + sh;
     const y = Y(GZ.strike);

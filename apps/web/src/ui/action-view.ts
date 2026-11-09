@@ -491,6 +491,9 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
   };
   const R = (c: Q, a: number) => (p: Q): Q => rot(c[0], c[1], p[0], p[1], a);
   const outline = rgba('0,0,0', 0.55);
+  // the fixed frame (rails, blocks, the bracket) is drawn quiet, in outline; the moving parts solid
+  const FIX = rgba(GC.actionWood, 0.26);
+  const FIXS = rgba(GC.actionWood, 0.62);
   // ---- the key's string data
   const w = g.watch;
   const black = [1, 3, 6, 8, 10].includes(g.midi % 12);
@@ -529,7 +532,7 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
   const Sh = R([GA.hamZ, GA.hamY], sA);
   // ---- background: the action bracket (cast, behind this key), the fallboard folded back
   const br = BRACKET;
-  shape(br, rgba(GC.bracket, 0.16), rgba(GC.bracket, 0.3), 1);
+  shape(br, rgba(GC.bracket, 0.12), rgba(GC.bracket, 0.38), 1);
   disc([392, 772.4], 7.2, rgba('8,7,6', 1));
   disc([622.5, 713], 8.5, rgba('8,7,6', 1));
   shape([[150, 730], [168, 730], [212, 862], [200, 868], [186, 866], [150, 760]], rgba(GC.lacquer, 1), rgba(GC.sheen, 0.6), 1);
@@ -537,31 +540,31 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
   // ---- the keybed and the key frame's rails
   box(-20, 648, 712, 682, rgba('34,29,25', 1));
   poly([[-20, 682], [712, 682]], rgba(GC.sheen, 0.5), 1);
-  box(4, 682, 30, 692, rgba(GC.actionWood, 0.7), outline, 0.8);
+  box(4, 682, 30, 692, FIX, FIXS, 0.8);
   box(8, 692, 26, 693.5, rgba(GC.red, 0.9));
-  box(255, 682, 277, 698, rgba(GC.actionWood, 0.7), outline, 0.8);
-  box(520, 682, 560, 694, rgba(GC.actionWood, 0.7), outline, 0.8);
+  box(255, 682, 277, 698, FIX, FIXS, 0.8);
+  box(520, 682, 560, 694, FIX, FIXS, 0.8);
   box(520, 694, 560, 698, rgba(GC.green, 0.9));
   part('key bed', [120, 665]);
   part('balance rail', [266, 690]);
   // ---- the action's rails: hammer flange rail, wippen rail, hammer rest rail, damper guide rail,
   //      the underlever rail
-  box(298, 790, 332, 822, rgba(GC.actionWood, 0.75), outline, 0.8);
-  box(GA.wipZ - 16, 726, GA.wipZ + 16, 742, rgba(GC.actionWood, 0.75), outline, 0.8);
-  box(428, 775, 448, 790, rgba(GC.actionWood, 0.75), outline, 0.8);
+  box(298, 790, 332, 822, FIX, FIXS, 0.8);
+  box(GA.wipZ - 16, 726, GA.wipZ + 16, 742, FIX, FIXS, 0.8);
+  box(428, 775, 448, 790, FIX, FIXS, 0.8);
   box(428, 790, 448, 794, rgba(GC.green, 0.95));
-  box(657, 698, 693, 742, rgba(GC.actionWood, 0.75), outline, 0.8);
+  box(657, 698, 693, 742, FIX, FIXS, 0.8);
   part('hammer flange rail', [315, 806]);
   part('hammer rest rail', [438, 782]);
   part('wippen rail', [GA.wipZ, 734]);
   // ---- the string's surroundings: pin block, plate web, belly rail, soundboard and its ribs
-  box(199, 826, 334, 866, rgba(GC.maple, 0.6), outline, 0.8);
+  box(199, 826, 334, 866, rgba(GC.maple, 0.3), rgba(GC.maple, 0.7), 0.8);
   box(GA.plateFront, 866, webZ, 882, rgba(GC.plate, 0.85), rgba(GC.plateLit, 0.5), 0.8);
   shape([[197, 878], [216, 878], [216, 888], [212, 894], [201, 894], [197, 888]], rgba(GC.plate, 0.9), rgba(GC.plateLit, 0.5), 0.8);
-  box(GA.boardZ, 788, GA.bellyZ, 839, rgba('22,19,17', 1), rgba(GC.sheen, 0.4), 0.8);
-  box(GA.boardZ, 839, 712, GA.boardY, rgba(GC.spruce, 0.55), rgba(GC.spruce, 0.8), 0.8);
-  for (const rz of [600, 690]) shape([[rz - 11.5, 839], [rz + 11.5, 839], [rz + 11.5, 824], [rz - 11.5, 824]], rgba(GC.spruce, 0.35), rgba(GC.spruce, 0.5), 0.8);
-  box(494, 833, 520, 848, rgba(GC.actionWood, 0.75), outline, 0.8);
+  box(GA.boardZ, 788, GA.bellyZ, 839, rgba('22,19,17', 1), rgba(GC.sheen, 0.5), 0.8);
+  box(GA.boardZ, 839, 712, GA.boardY, rgba(GC.spruce, 0.42), rgba(GC.spruce, 0.85), 0.8);
+  for (const rz of [600, 690]) shape([[rz - 11.5, 839], [rz + 11.5, 839], [rz + 11.5, 824], [rz - 11.5, 824]], rgba(GC.spruce, 0.18), rgba(GC.spruce, 0.55), 0.8);
+  box(494, 833, 520, 848, FIX, FIXS, 0.8);
   box(503.5, 833, 510.5, 848, rgba(GC.red, 0.6));
   part('pin block', [266, 846]);
   part('plate', [240, 874]);
@@ -595,7 +598,7 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
   centrePin([GA.balZ, GA.pivY]);
   // ---- the wippen on its flange: body, heel on the capstan, the repetition lever's post and spring
   const wipAbs = (pts: Q[]): Q[] => pts.map(([u, v]) => Wp([GA.wipZ + u, GA.wipY + v]));
-  box(GA.wipZ - 6, 742, GA.wipZ + 10, 752, rgba(GC.hornbeam, 0.75), outline, 0.8);
+  box(GA.wipZ - 6, 742, GA.wipZ + 10, 752, rgba(GC.hornbeam, 0.3), rgba(GC.hornbeam, 0.6), 0.8);
   shape(wipAbs([[9, -7], [9, 5], [-30, 7], [-80, 6], [-112, 4], [-112, -6], [-80, -10], [-45, -11], [-20, -9]]), rgba(GC.hornbeam, 0.85), outline, 0.8);
   shape(wipAbs([[-74, -16], [-58, -16], [-58, -10], [-74, -10]]), rgba(GC.buckskin, 1), outline, 0.6);
   shape(wipAbs([[-50, 4], [-40, 4], [-42, 31], [-49, 31]]), rgba(GC.hornbeam, 0.85), outline, 0.8);
@@ -609,7 +612,7 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
   shape([[334.8, 767], [343.2, 767], [343.2, 773], [334.8, 773]], rgba(GC.red, 0.95), outline, 0.6);
   part('let-off button', [339, 770]);
   // ---- the hammer: flange, shank, knuckle; the head at the shank's end
-  box(330, 794, 350, 812, rgba(GC.hornbeam, 0.85), outline, 0.8);
+  box(330, 794, 350, 812, rgba(GC.hornbeam, 0.3), rgba(GC.hornbeam, 0.6), 0.8);
   const shk = (pts: Q[]) => pts.map(([u, v]) => Sh([GA.hamZ + u, GA.hamY + v]));
   shape(shk([[-6, -4.6], [GA.shank + 2, -3.5], [GA.shank + 2, 4.7], [-6, 4.6]]), rgba(GC.hornbeam, 0.95), outline, 0.8);
   shape(shk([[GA.knR - 8, -7.5], [GA.knR + 8, -7.5], [GA.knR + 8, -2], [GA.knR - 8, -2]]), rgba(GC.hornbeam, 0.95));
@@ -643,7 +646,8 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
   const hot = g.contact ? 0.95 : g.active && g.escaped ? 0.55 : 0;
   shape(feltPts, hot ? rgba(INK.vermilion, hot) : rgba(GC.hFelt, 0.95), outline, 0.8);
   shape(head(HEAD_UNDER), rgba(GC.underfelt, 0.95));
-  shape(head(HEAD_MOULD), rgba(GC.maple, 0.95), outline, 0.8);
+  shape(head(HEAD_MOULD), rgba('196,152,100', 0.95), outline, 0.8);
+  if (!hot) poly(head(HEAD_FELT.slice(8, 15).map(([a, c]): Q => [a * 0.92, Math.min(c, 48 - squash / hy) - 1.2])), rgba('255,252,244', 0.9), lw(1.4));
   part('hammer (felt)', Sh([GA.hamZ + GA.shank, GA.hamY + 40 * hy]));
   part('hammer tail', Sh([GA.hamZ + GA.shank + 12 * hs, GA.hamY - 15 * hy]));
   // ---- the damper: the underlever (lifted by the key's tail, the pedal's tray or, if latched, the
@@ -667,6 +671,18 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
     shape(ul([[-127, -9], [-112, -9], [-112, -4], [-127, -4]]), rgba(GC.red, 0.95));
     shape(ul([[-ulLen - 8, 5], [-ulLen + 8, 5], [-ulLen + 8, 12], [-ulLen - 8, 12]]), rgba(GC.hornbeam, 0.95), outline, 0.6);
     centrePin([GA.ulZ, GA.ulY]);
+    // the sostenuto (the middle pedal): a rod along the underlevers; turned in, its lip catches the
+    // tab of an underlever already raised, so that damper stays off after its key comes up
+    shape(ul([[-98, 5], [-93, 5], [-93, 13], [-84, 13], [-84, 16.5], [-98, 16.5]]), rgba(GC.hornbeam, 0.95), outline, 0.6);
+    const rodC: Q = [589, 744];
+    const mid = g.middle ?? 0;
+    const holding = mid > 0.5 && lift > 2 && byKey < 0.5 && tray < 1;
+    const under = U([GA.ulZ - 88, GA.ulY + 12.4]);
+    const lipA = holding ? Math.atan2(under[1] - rodC[1], under[0] - rodC[0]) : mid > 0.5 ? Math.PI * 1.08 : -Math.PI / 2;
+    const lipL = holding ? Math.min(14, Math.hypot(under[0] - rodC[0], under[1] - rodC[1])) : 10;
+    poly([rodC, [rodC[0] + Math.cos(lipA) * lipL, rodC[1] + Math.sin(lipA) * lipL]], holding ? rgba(INK.amber, 0.95) : rgba(GC.dFelt, 0.7), lw(2.2));
+    disc(rodC, 3.4, rgba(GC.steel, 0.85), outline);
+    part('sostenuto rod (middle pedal)', rodC);
     const yStr = strAt(GA.damperZ);
     const hb = yStr + 1.2 + lift;
     const wb = U([GA.damperZ, GA.ulY + 12]);
@@ -720,7 +736,7 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
   if (sh) {
     const amp = 9 / g.sc;
     ctx.strokeStyle = rgba(INK.vermilion, 0.95);
-    ctx.lineWidth = Math.max(1.2, strW * 0.8);
+    ctx.lineWidth = wound ? 1.6 : 1.3;
     ctx.beginPath();
     const n = sh.length;
     let started = false;
