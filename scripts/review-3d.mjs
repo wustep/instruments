@@ -144,8 +144,7 @@ for (const [id, cfg] of Object.entries(R)) {
     }
     if (SECTION !== null && which.startsWith('sec'))
       await page.evaluate((x) => {
-        // the renderer's world is mirrored in x; three keeps n·p + c ≥ 0 (a plain object will do)
-        window.__stage3d.r3.r.clippingPlanes = [{ normal: { x: 1, y: 0, z: 0 }, constant: x }];
+        window.__stage3d.r3.debugClip = { at: x, side: 1 };
       }, SECTION);
     if (which === 'act') {
       await view(page, cfg.act.view);
