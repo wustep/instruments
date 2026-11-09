@@ -86,7 +86,36 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
   }
   const dimBtn = h('button', { class: 'dim-toggle', type: 'button', 'aria-pressed': String(want3d), 'aria-label': '3D view', 'data-tip': '3D · drag to turn, pinch to zoom' }, '3d');
   dimBtn.hidden = !has3d;
-  const picker = h('div', { class: 'picker' }, h('div', { class: 'instruments', role: 'group', 'aria-label': 'Instrument' }, instBtns), h('div', { class: 'picker-row' }, presets, dimBtn));
+  // pianos in 3D: hide the case (the plate, strings, soundboard, keys and the whole action stay);
+  // remembered for the session; the I key ("inside") toggles it too (no note or octave key uses I)
+  let caseHidden = false;
+  try {
+    caseHidden = sessionStorage.getItem('piano-model.case') === '0';
+  } catch {
+    /* storage blocked */
+  }
+  const caseBtn = h('button', { class: 'case-toggle', type: 'button', 'aria-pressed': String(caseHidden), 'aria-label': 'Hide the case', 'data-tip': 'inside · I' });
+  caseBtn.innerHTML = '<svg viewBox="0 0 14 12" width="14" height="12" aria-hidden="true"><path d="M1.5 1.5h11v9h-11z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-dasharray="2 1.6"/><path d="M4.5 3.5v5M7 3.5v5M9.5 3.5v5" stroke="currentColor" stroke-width="1.1"/></svg>';
+  caseBtn.hidden = true;
+  const setCase = (hide: boolean) => {
+    caseHidden = hide;
+    caseBtn.setAttribute('aria-pressed', String(hide));
+    caseBtn.setAttribute('aria-label', hide ? 'Show the case' : 'Hide the case');
+    try {
+      sessionStorage.setItem('piano-model.case', hide ? '0' : '1');
+    } catch {
+      /* storage blocked */
+    }
+  };
+  caseBtn.addEventListener('click', () => setCase(!caseHidden));
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'KeyI' || e.repeat || e.metaKey || e.ctrlKey || e.altKey || caseBtn.hidden) return;
+    const t = e.target as HTMLElement | null;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault();
+    setCase(!caseHidden);
+  });
+  const picker = h('div', { class: 'picker' }, h('div', { class: 'instruments', role: 'group', 'aria-label': 'Instrument' }, instBtns), h('div', { class: 'picker-row' }, presets, dimBtn, caseBtn));
 
   // ---------------------------------------------------------------- readout, spectrum, scope
   const noteEl = h('div', { class: 'r-note' }, '');
@@ -170,6 +199,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     show3d();
   };
   const show3d = () => {
+    caseBtn.hidden = !(want3d && family() === 'piano');
     if (s3) s3.el.hidden = !want3d;
     el.classList.toggle('is-3d', want3d && !!s3);
     (window as unknown as { __stage3d?: Stage3D | null }).__stage3d = want3d ? s3 : null;
@@ -315,6 +345,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     inst = id;
     instBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(INSTRUMENT_IDS[i] === id)));
     presets.hidden = id !== 'piano';
+    caseBtn.hidden = !(want3d && INSTRUMENT_INFO[id].family === 'piano');
     el.dataset.family = INSTRUMENT_INFO[id].family;
     bowedGeom = INSTRUMENT_INFO[id].family === 'bowed' ? { id: id as BowedGeom['id'], ...bowedGeometry(id as BowedGeom['id']) } : null;
     frame = null;
@@ -470,6 +501,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
         rms,
         down: (m) => audio.down.has(m),
         sounding: (m) => audio.isSounding(m),
+        caseHidden,
       });
     }
     gripRoom.hidden = in3d;

@@ -881,6 +881,45 @@ test('the action close-up is the pianos’ alone: no string zoom on the bowed st
   await btn.click();
 });
 
+test('pianos in 3D: the case hides (button or I), the inside keeps drawing, and it is remembered for the session', async ({ page }, info) => {
+  await page.goto('/');
+  await startAudio(page);
+  const caseBtn = page.locator('.case-toggle');
+  await expect(caseBtn).toBeHidden(); // 2D: no case toggle
+  await page.locator('.dim-toggle').click();
+  await expect(page.locator('.stage-3d')).toBeVisible();
+  await expect(caseBtn).toBeVisible();
+  await expect(caseBtn).toHaveAttribute('aria-label', 'Hide the case');
+  await page.evaluate(() => (window as any).__piano.setPreset('upright'));
+  await page.locator('.presets button', { hasText: 'upright' }).click();
+  await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3);
+  await page.waitForTimeout(300);
+  const verts = () => page.evaluate(() => (window as any).__stage3d.stats.vertices as number);
+  const shown = await verts();
+  if (info.project.name === 'phone') await caseBtn.tap();
+  else await page.keyboard.press('KeyI');
+  await expect(caseBtn).toHaveAttribute('aria-pressed', 'true');
+  // after the dissolve the cabinet is no longer drawn; the keys, action and strings still are
+  await expect.poll(verts, { timeout: 3000 }).toBeLessThan(shown);
+  expect(await verts()).toBeGreaterThan(shown * 0.5);
+  // a key still moves its action with the case hidden
+  await page.evaluate(() => (window as any).__piano.noteOn(60, 100, 'keys'));
+  await page.waitForTimeout(150);
+  await page.evaluate(() => (window as any).__piano.noteOff(60, 'keys'));
+  // remembered for the session (a reload keeps it), and only offered for the pianos
+  await page.reload();
+  await startAudio(page);
+  await expect(page.locator('.stage-3d')).toBeVisible();
+  await expect(caseBtn).toHaveAttribute('aria-pressed', 'true');
+  await page.evaluate(() => (window as any).__piano.setInstrument('cello'));
+  await expect(caseBtn).toBeHidden();
+  await page.keyboard.press('KeyI');
+  await page.evaluate(() => (window as any).__piano.setInstrument('piano'));
+  await expect(caseBtn).toHaveAttribute('aria-pressed', 'true');
+  await caseBtn.click();
+  await expect(caseBtn).toHaveAttribute('aria-pressed', 'false');
+});
+
 test('without WebGL2 there is no 3D toggle and the 2D stage works', async ({ page }) => {
   await page.addInitScript(() => {
     const orig = HTMLCanvasElement.prototype.getContext;

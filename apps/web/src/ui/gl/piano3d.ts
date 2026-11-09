@@ -36,7 +36,7 @@
 import type { KeySummary, VisualFrame } from '@piano-model/engine';
 import { ShapeUtils, Vector2 } from 'three';
 import { stepAction, type PianoState, type Pt } from '../piano-draw.ts';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, ink, lerp3, norm, plateModes, xform } from './gl3d.ts';
+import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, dissolve, ink, lerp3, norm, plateModes, xform } from './gl3d.ts';
 import { M, MeshBuilder, area, cyl, ellipsoid, lathe, offset, spline, tube, type Mat } from './mesh.ts';
 import { INK } from '../stage-draw.ts';
 
@@ -567,7 +567,12 @@ interface Wire {
 export interface PianoModel {
   kind: 'grand' | 'upright';
   sig: string;
+  /** what stays when the case is hidden: plate, soundboard, bridges, keybed, action rails… */
   statics: Mesh[];
+  /** the case (it dissolves when hidden); the lid, its prop and the music desk go with it, and the
+   *  pedals too where `pedalsCase` (a grand's hang from the lyre) */
+  cases: Mesh[];
+  pedalsCase: boolean;
   /** the music desk (not part of the case) */
   desk: Mesh | null;
   board: Mesh;
@@ -917,6 +922,8 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
     kind: 'grand',
     sig: sigOf(keys),
     statics: [mb.build()],
+    cases: [],
+    pedalsCase: true,
     desk,
     board: sb.build(),
     boardAspect: (bz1 - bz0) / (bx1 - bx0),
@@ -1264,12 +1271,16 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
   const xL = -0.765;
   const xR = 0.765;
   const mb = new MeshBuilder();
+  // the cabinet (its own mesh: it dissolves when the case is hidden): sides, arms and their
+  // consoles, top, back panel, kneeboard, key slip, fallboard. The legs, toe blocks and toe rail, the
+  // keybed and key frame, the back posts, the plate and the action stay (a stripped upright stands)
+  const cb = new MeshBuilder();
   // ---- the case: sides (full height), arms at the keyboard, legs on toe blocks, top, back posts,
   //      kneeboard, toe rail
   for (const s of [-1, 1]) {
     const x0 = s < 0 ? xL : xR - 0.026;
     const x1 = s < 0 ? xL + 0.026 : xR;
-    sideSlab(mb, [[0.1, 0.0], [U.back, 0.0], [U.back, U.top - 0.025], [0.03, U.top - 0.025], [0.03, 0.8], [0.1, 0.66]], x0, x1, M.lacquer, 0.004);
+    sideSlab(cb, [[0.1, 0.0], [U.back, 0.0], [U.back, U.top - 0.025], [0.03, U.top - 0.025], [0.03, 0.8], [0.1, 0.66]], x0, x1, M.lacquer, 0.004);
     // the arm (key cheek): a block with a rounded front
     const ax0 = s < 0 ? xL : 0.613;
     const ax1 = s < 0 ? -0.613 : xR;
@@ -1278,7 +1289,7 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
       const a = (Math.PI / 2) * (k / 8);
       prof.push([0.0 - 0.045 * Math.sin(a), 0.755 + 0.045 * Math.cos(a)]);
     }
-    sideSlab(mb, prof, ax0, ax1, M.lacquer, 0.005);
+    sideSlab(cb, prof, ax0, ax1, M.lacquer, 0.005);
     // the leg under the arm and its toe block
     const lx = s < 0 ? xL + 0.045 : xR - 0.045;
     post(mb, lx, -0.005, [[0.022, 0.022, 0.045], [0.019, 0.019, 0.08], [0.024, 0.024, 0.58], [0.032, 0.032, 0.62], [0.032, 0.032, 0.655]], 0.004, M.lacquer);
@@ -1289,20 +1300,20 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
       const a = (k / 10) * (Math.PI / 2);
       cove.push([-0.045 + 0.072 * Math.cos(a), 0.575 + 0.072 * Math.sin(a)]);
     }
-    sideSlab(mb, cove, lx - 0.026, lx + 0.026, M.lacquer, 0.004);
+    sideSlab(cb, cove, lx - 0.026, lx + 0.026, M.lacquer, 0.004);
   }
   // the top (overhanging, rounded front edge; the U1's lid: a front flap on a piano hinge). With the
   // upper panel off nothing crosses the opening below it: no rail, the pin field in plain view
-  slab(mb, PLAN, rrect(xL - 0.012, 0.012, xR + 0.012, U.back + 0.012, 0.012), [], U.top - 0.025, U.top, M.lacquer, { bevel: 0.008 });
-  cyl(mb, [xL + 0.02, U.top + 0.0006, 0.2], [xR - 0.02, U.top + 0.0006, 0.2], 0.0028, 0.0028, 10, M.brassDull);
-  box3(mb, [xL + 0.026, 0.04, U.back - 0.022], [xR - 0.026, U.top - 0.025, U.back], M.lacquerSatin);
+  slab(cb, PLAN, rrect(xL - 0.012, 0.012, xR + 0.012, U.back + 0.012, 0.012), [], U.top - 0.025, U.top, M.lacquer, { bevel: 0.008 });
+  cyl(cb, [xL + 0.02, U.top + 0.0006, 0.2], [xR - 0.02, U.top + 0.0006, 0.2], 0.0028, 0.0028, 10, M.brassDull);
+  box3(cb, [xL + 0.026, 0.04, U.back - 0.022], [xR - 0.026, U.top - 0.025, U.back], M.lacquerSatin);
   // kneeboard (the lower front panel, a raised field) and the toe rail
-  slab(mb, FRONT, rrect(xL + 0.026, 0.085, xR - 0.026, 0.652, 0.002), [], 0.09, 0.11, M.lacquer, { bevel: 0.003 });
-  slab(mb, FRONT, rrect(xL + 0.1, 0.16, xR - 0.1, 0.6, 0.01), [], 0.085, 0.091, M.lacquer, { bevel: 0.004, bottom: false });
+  slab(cb, FRONT, rrect(xL + 0.026, 0.085, xR - 0.026, 0.652, 0.002), [], 0.09, 0.11, M.lacquer, { bevel: 0.003 });
+  slab(cb, FRONT, rrect(xL + 0.1, 0.16, xR - 0.1, 0.6, 0.01), [], 0.085, 0.091, M.lacquer, { bevel: 0.004, bottom: false });
   rbox(mb, [xL + 0.026, 0.0, 0.07], [xR - 0.026, 0.085, 0.12], M.lacquer, 0.005);
   // keybed, key slip, key frame
   rbox(mb, [xL + 0.026, 0.655, -0.045], [xR - 0.026, 0.682, 0.44], M.lacquer, 0.003);
-  rbox(mb, [-0.613, 0.682, -0.024], [0.613, 0.708, -0.004], M.lacquer, 0.002);
+  rbox(cb, [-0.613, 0.682, -0.024], [0.613, 0.708, -0.004], M.lacquer, 0.002);
   rbox(mb, [-0.612, 0.682, 0.004], [0.612, 0.692, 0.03], M.actionWood, 0.001);
   rbox(mb, [-0.612, 0.692, 0.008], [0.612, 0.6935, 0.026], M.redFelt, 0.0004);
   rbox(mb, [-0.612, 0.682, U.balZ - 0.011], [0.612, 0.698, U.balZ + 0.011], M.actionWood, 0.0015);
@@ -1317,10 +1328,10 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
       fb.push([0.176 + 0.011 * Math.cos(a) - 0.002 * Math.sin(a), 0.794 + 0.011 * Math.sin(a)]);
     }
     fb.push([0.157, 0.785]);
-    sideSlab(mb, fb, -0.613, 0.613, M.lacquer, 0.003);
+    sideSlab(cb, fb, -0.613, 0.613, M.lacquer, 0.003);
     // its hinges (brass knuckles at each end and the middle) and the felt it rests on
-    for (const x of [-0.5, 0, 0.5]) cyl(mb, [x - 0.03, 0.735, 0.147], [x + 0.03, 0.735, 0.147], 0.0035, 0.0035, 10, M.brass);
-    rbox(mb, [-0.613, 0.722, 0.146], [0.613, 0.729, 0.18], M.redFelt, 0.001);
+    for (const x of [-0.5, 0, 0.5]) cyl(cb, [x - 0.03, 0.735, 0.147], [x + 0.03, 0.735, 0.147], 0.0035, 0.0035, 10, M.brass);
+    rbox(cb, [-0.613, 0.722, 0.146], [0.613, 0.729, 0.18], M.redFelt, 0.001);
   }
   // pedals (three, brass) through the toe rail
   const pedals: { mesh: Mesh; pivot: Vec3 }[] = [];
@@ -1510,6 +1521,8 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
     kind: 'upright',
     sig: sigOf(keys),
     statics: [mb.build()],
+    cases: [caseMesh(cb)],
+    pedalsCase: false,
     desk: null,
     board: ub.build(),
     boardAspect: (uy1 - uy0) / (ux1 - ux0),
@@ -1549,6 +1562,12 @@ function ribbonX(mb: MeshBuilder, path: P2[], x: number, w: number, m: Mat): voi
     }
   }
 }
+/** a case mesh: built like any other, marked to dissolve */
+function caseMesh(cb: MeshBuilder): Mesh {
+  const m = cb.build();
+  m.fade = true;
+  return m;
+}
 /** a plain box (for faces nobody sees edge-on: the case back) */
 function box3(mb: MeshBuilder, lo: Vec3, hi: Vec3, m: Mat): void {
   slab(mb, PLAN, [[lo[0], lo[2]], [hi[0], lo[2]], [hi[0], hi[2]], [lo[0], hi[2]]], [], lo[1], hi[1], m);
@@ -1562,8 +1581,10 @@ export interface PianoPose {
   /** whether the jack has tripped at let-off (it resets as the key rises) */
   trip: Uint8Array;
   pedal: [number, number];
+  /** the case's visibility (1 shown … 0 hidden), eased */
+  caseVis: number;
 }
-export const newPianoPose = (): PianoPose => ({ keyPos: new Float32Array(88), jack: new Float32Array(88), trip: new Uint8Array(88), pedal: [0, 0] });
+export const newPianoPose = (): PianoPose => ({ keyPos: new Float32Array(88), jack: new Float32Array(88), trip: new Uint8Array(88), pedal: [0, 0], caseVis: 1 });
 
 export interface PianoIn {
   piano: PianoState;
@@ -1573,6 +1594,8 @@ export interface PianoIn {
   down: (m: number) => boolean;
   sounding: (m: number) => boolean;
   lite: boolean;
+  /** the case hidden (3D toggle): it dissolves over ≈ 0.35 s */
+  caseHidden?: boolean;
 }
 
 const C = {
@@ -1629,11 +1652,20 @@ const GLOW_JACK: RGBA = [1, 0.37, 0.22, 0.25];
 const GLOW_DAMP: RGBA = [0.95, 0.65, 0.27, 0.18];
 const headGlow: RGBA = [1, 0.37, 0.22, 0];
 
+const FADE: RGBA = [0, 0, 0, 3];
 export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose): void {
   const ps = si.piano;
   stepAction(ptsOf(si.keys), ps);
   for (const s of pm.statics) b.mesh(s);
-  if (pm.desk) b.mesh(pm.desk);
+  // the case: shown, dissolving, or gone (a time constant, so it doesn't depend on the frame rate)
+  pose.caseVis = ease(pose.caseVis, si.caseHidden ? 0 : 1, si.dt, 0.09);
+  if (Math.abs(pose.caseVis - (si.caseHidden ? 0 : 1)) < 0.004) pose.caseVis = si.caseHidden ? 0 : 1;
+  const cv = pose.caseVis;
+  const caseGlow = cv >= 1 ? null : dissolve(cv, FADE);
+  if (cv > 0) {
+    for (const s of pm.cases) b.mesh(s, null, caseGlow);
+    if (pm.desk) b.mesh(pm.desk, null, caseGlow);
+  }
   b.mesh(pm.board);
   const grand = pm.kind === 'grand';
   const P = pm.parts;
@@ -1706,26 +1738,28 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
   if (P.hamRail) b.mesh(P.hamRail, trs(MS[3], 0, 0, pose.pedal[0] * 0.012, 0));
   pm.pedals.forEach((p, k) => {
     const v = k === 0 ? pose.pedal[0] : k === pm.pedals.length - 1 ? pose.pedal[1] : 0;
-    b.mesh(p.mesh, aboutX(MS[3], p.pivot[1], p.pivot[2], -0.12 * v), v > 0.3 ? [0.95, 0.65, 0.27, 0.15] : null);
+    if (pm.pedalsCase && cv <= 0) return;
+    b.mesh(p.mesh, aboutX(MS[3], p.pivot[1], p.pivot[2], -0.12 * v), pm.pedalsCase && caseGlow ? caseGlow : v > 0.3 ? PEDAL_GLOW : null);
   });
   // the lid on its hinge, and its prop
-  if (pm.lid) {
+  if (pm.lid && cv > 0) {
     const ang = si.lid * 0.7;
     const h = pm.lidHinge;
     const c = Math.cos(ang);
     const s = Math.sin(ang);
     // rotation about the z-parallel axis through the hinge
     const lidM = new Float32Array([c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, h[0] - (c * h[0] - s * h[1]), h[1] - (s * h[0] + c * h[1]), 0, 1]);
-    b.mesh(pm.lid, lidM);
+    b.mesh(pm.lid, lidM, caseGlow);
     if (pm.prop && si.lid > 0.03) {
       const tip = xform(lidM, pm.prop.tipLocal);
-      propStick(b, pm.prop.base, tip);
+      propStick(b, pm.prop.base, tip, caseGlow);
     }
   }
 }
 
 const propCache = new Map<string, Mesh>();
-function propStick(b: Batch, a: Vec3, c: Vec3): void {
+const PEDAL_GLOW: RGBA = [0.95, 0.65, 0.27, 0.15];
+function propStick(b: Batch, a: Vec3, c: Vec3, glow: RGBA | null): void {
   const key = `${a.map((v) => v.toFixed(3))}${c.map((v) => v.toFixed(3))}`;
   let m = propCache.get(key);
   if (!m) {
@@ -1737,10 +1771,11 @@ function propStick(b: Batch, a: Vec3, c: Vec3): void {
     cyl(mb, at(0.03), at(L - 0.03), 0.0115, 0.0085, 16, M.lacquer);
     cyl(mb, at(L - 0.03), at(L), 0.009, 0.012, 16, M.brass);
     m = mb.build();
+    m.fade = true;
     if (propCache.size > 32) propCache.clear();
     propCache.set(key, m);
   }
-  b.mesh(m);
+  b.mesh(m, null, glow);
 }
 
 /** the strings: wires of their real diameters (steel, copper-wound in the bass), the sounding ones

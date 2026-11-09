@@ -102,8 +102,16 @@ export interface Mesh {
   mats?: Uint16Array;
   /** each vertex's position in its part's own frame (for solid textures) */
   loc?: Float32Array;
+  /** can dissolve (a piano's case): drawn with a glow alpha of 2 + visibility (0..1), its shadow too */
+  fade?: boolean;
 }
 const ISTRIDE = 20;
+/** the glow that dissolves a `fade` mesh to visibility v (0..1): set [3] = 2 + v before each call */
+export const dissolve = (v: number, out: RGBA): RGBA => {
+  out[0] = out[1] = out[2] = 0;
+  out[3] = 2 + Math.max(0, Math.min(1, v));
+  return out;
+};
 
 export class LineSet {
   lv = new Buf();

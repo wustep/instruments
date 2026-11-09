@@ -108,6 +108,7 @@ async function view(page, v) {
   }, v);
 }
 
+// CASE=off hides the pianos' case.
 // ad-hoc views: CUSTOM='name:yaw,pitch,dist,tx,ty,tz;name2:...' (added to every instrument run).
 // SECTION=x cuts the views whose name starts with "sec" at world x (keeps x < SECTION): a side
 // section through the action, seen from +x (yaw π/2)
@@ -135,6 +136,11 @@ for (const [id, cfg] of Object.entries(R)) {
     await page.goto(`${BASE}/`);
     await page.evaluate(() => document.fonts.ready);
     await setup(page, cfg);
+    // CASE=off: the pianos' case hidden (the toggle beside "3d"), after its dissolve
+    if (process.env.CASE === 'off' && cfg.inst === 'piano') {
+      await page.locator('.case-toggle').click();
+      await page.waitForTimeout(700);
+    }
     if (SECTION !== null && which.startsWith('sec'))
       await page.evaluate((x) => {
         // the renderer's world is mirrored in x; three keeps n·p + c ≥ 0 (a plain object will do)

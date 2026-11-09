@@ -20,6 +20,23 @@ import { LINE_FS, LINE_VS, type LineSet } from './gl3d.ts';
 import { LIVE, disposeMaterials, materialFor } from './mats3.ts';
 import { MAT_LIST } from './mesh.ts';
 
+/** the shadow pass of a dissolving mesh: the same screen-door as its colour pass, so the shadow
+ *  thins out with the part instead of popping */
+let fadeDepth: THREE.MeshDepthMaterial | null = null;
+function fadeDepthMaterial(): THREE.MeshDepthMaterial {
+  if (fadeDepth) return fadeDepth;
+  const m = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side: THREE.DoubleSide });
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec4 iGlow; varying float vKeep;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvKeep = iGlow.a > 1.5 ? iGlow.a - 2.0 : 1.0;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vKeep;')
+      .replace('void main() {', 'void main() {\n  if (vKeep < 0.999 && fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) >= vKeep) discard;');
+  };
+  fadeDepth = m;
+  return m;
+}
 interface Entry {
   im: THREE.InstancedMesh;
   glow: THREE.InstancedBufferAttribute;
@@ -257,6 +274,7 @@ export class Renderer3 {
     im.frustumCulled = false;
     im.castShadow = true;
     im.receiveShadow = true;
+    if (m.fade) im.customDepthMaterial = fadeDepthMaterial();
     this.root.add(im);
     e = { im, glow, cap };
     this.entries.set(m, e);

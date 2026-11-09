@@ -31,6 +31,8 @@ export interface SceneIn {
   sounding: (m: number) => boolean;
   /** lighter scenes for slow devices */
   lite: boolean;
+  /** pianos: the case hidden (the plate, strings, soundboard, keys and action stay) */
+  caseHidden?: boolean;
 }
 
 /** where the camera looks and from how far, per instrument */
@@ -110,11 +112,16 @@ function pianoModel(si: SceneIn, st: Scene3State): PianoModel | null {
   if (!si.keys.length) return null;
   const sig = si.keys.map((k) => `${k.lengthM.toFixed(3)}${k.nStrings}${k.hasDamper ? 1 : 0}`).join('');
   if (si.kind === 'grand') {
-    if (!st.grand || st.grand.sig !== sig) st.grand = timed(st, () => buildGrandModel(si.keys));
+    if (!st.grand || st.grand.sig !== sig) st.grand = timed(st, () => caseParts(buildGrandModel(si.keys)));
     return st.grand;
   }
-  if (!st.upright || st.upright.sig !== sig) st.upright = timed(st, () => buildUprightModel(si.keys));
+  if (!st.upright || st.upright.sig !== sig) st.upright = timed(st, () => caseParts(buildUprightModel(si.keys)));
   return st.upright;
+}
+/** the lid, the music desk and (a grand's) pedals dissolve with the case: their shadows too */
+function caseParts(pm: PianoModel): PianoModel {
+  for (const m of [pm.lid, pm.desk, ...(pm.pedalsCase ? pm.pedals.map((p) => p.mesh) : [])]) if (m) m.fade = true;
+  return pm;
 }
 
 /** the floor under the instrument (the renderer draws it: shadowed, fading into the ground) */
@@ -128,7 +135,7 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): { src: Vec3;
   if (si.family === 'piano') {
     const pm = pianoModel(si, st);
     if (!pm) return { src: [0, 0, 0], span: 1 };
-    posePiano(b, pm, { piano: si.piano, keys: si.keys, dt: si.dt, lid: si.lid, down: si.down, sounding: si.sounding, lite: si.lite }, st.pianoPose);
+    posePiano(b, pm, { piano: si.piano, keys: si.keys, dt: si.dt, lid: si.lid, down: si.down, sounding: si.sounding, lite: si.lite, caseHidden: si.caseHidden }, st.pianoPose);
     boardOverlay(b, pm, modeAmps(si.fr, st));
     pianoStrings(b, pm, si.fr, (mx) => st.str.of(mx), si.lite);
     st.picks = pianoPickSegments(pm);

@@ -1394,7 +1394,8 @@ figure[title] {
   align-items: center;
   gap: 10px;
 }
-.dim-toggle {
+.dim-toggle,
+.case-toggle {
   font: 500 11px/1 var(--mono);
   letter-spacing: 0.06em;
   color: var(--ink-2, #c9bfab);
@@ -1404,13 +1405,26 @@ figure[title] {
   padding: 3px 7px;
   cursor: pointer;
 }
-.dim-toggle[aria-pressed='true'] {
+.dim-toggle[aria-pressed='true'],
+.case-toggle[aria-pressed='true'] {
   color: var(--ground, #0e0d0b);
   background: rgba(236, 226, 206, 0.82);
   border-color: transparent;
 }
-.dim-toggle:focus-visible {
+.dim-toggle:focus-visible,
+.case-toggle:focus-visible {
   outline: 1px solid rgba(242, 166, 70, 0.8);
+}
+.case-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+}
+.case-toggle[hidden] {
+  display: none;
+}
+.case-toggle svg {
+  display: block;
 }
 .stage-3d {
   position: absolute;

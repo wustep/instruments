@@ -206,7 +206,12 @@ vec3 crossAxis(vec3 a) { return normalize(abs(a.y) < 0.9 ? cross(a, vec3(0, 1, 0
       )
       .replace(
         '#include <map_fragment>',
-        `#if PAINTED
+        `// a dissolving part (a piano's case being hidden): glow alpha 2 + visibility
+if (vGlow.a > 1.5) {
+  float keep = vGlow.a - 2.0;
+  if (fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) >= keep) discard;
+}
+#if PAINTED
 vec2 pUV = vec2((vLoc.x - uRect.x) / (uRect.z - uRect.x), (vLoc.z - uRect.y) / (uRect.w - uRect.y));
 vec4 texelColor = texture2D(map, pUV);
 diffuseColor *= texelColor;
@@ -284,7 +289,7 @@ roughnessFactor = clamp(roughnessFactor + microR, 0.03, 1.0);`,
       .replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
-totalEmissiveRadiance += vGlow.rgb * vGlow.rgb * vGlow.a * 0.55;
+totalEmissiveRadiance += vGlow.rgb * vGlow.rgb * min(vGlow.a, 1.0) * 0.55;
 #if KIND == 1
 {
   float s = 0.0;
