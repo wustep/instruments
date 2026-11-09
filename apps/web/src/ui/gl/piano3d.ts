@@ -692,7 +692,7 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
     // the pin field follows the agraffes back towards the treble, as cast (grand-inside.jpg): the
     // front row 17 cm ahead of the web's edge, within the pin block
     const aZ = G.strikeZ - dir[2] * beta * L;
-    const pinZ = clamp(Math.min(aZ - 0.008, G.strikeZ - 0.016) - 0.17, 0.208, 0.262);
+    const pinZ = clamp(Math.min(aZ - 0.008, G.strikeZ - 0.016) - 0.155, 0.222, 0.27);
     for (let j = 0; j < n; j++) {
       const dx = (j - (n - 1) / 2) * sp;
       const a: Vec3 = [xs + dx - dir[0] * beta * L, ya, aZ];
@@ -913,7 +913,10 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
       const d = new MeshBuilder();
       cyl(d, [0, -0.15, 0], [0, 0.012, 0], 0.0011, 0.0011, 6, M.pinNickel, false);
       const len = wedge ? 0.034 : 0.028;
-      rbox(d, [-0.0062, 0.006, -len / 2], [0.0062, 0.03, len / 2], M.damperHead, 0.0012);
+      // the head: a block whose top is chamfered front and back to the wire's boss (grand-action-side.jpg)
+      const h = len / 2;
+      sideSlab(d, [[-h, 0.006], [h, 0.006], [h, 0.021], [h - 0.007, 0.028], [-h + 0.007, 0.028], [-h, 0.021]], -0.0062, 0.0062, M.damperHead, 0.0012, { smooth: 0.6 });
+      cyl(d, [0, 0.0275, 0], [0, 0.031, 0], 0.0026, 0.0022, 10, M.brassDull);
       if (!wedge) rbox(d, [-0.006, -0.0005, -len / 2 + 0.001], [0.006, 0.006, len / 2 - 0.001], M.damperFelt, 0.0012);
       else for (const sx of [-1, 1]) slab(d, SIDE, rrect(-len / 2 + 0.001, -0.004, len / 2 - 0.001, 0.006, 0.001, 1), [], sx < 0 ? -0.006 : 0.0003, sx < 0 ? -0.0003 : 0.006, M.damperFelt, { bevel: 0.0012 });
       const mesh = d.build();
@@ -1102,7 +1105,7 @@ function plateGrand(mb: MeshBuilder, geo: KeyGeo[], inner: P2[], DB: Vec3): void
   const holes: P2[][] = [];
   const centres: { c: P2; r: number }[] = [];
   const path = resample(rimIn, 0.02);
-  const cands: { c: P2; r: number; w: number }[] = [];
+  const cands: { c: P2; r: number; w: number; t: P2 }[] = [];
   path.forEach((p, k) => {
     if (p[1] < 0.7) return;
     const a = path[Math.max(0, k - 1)];
@@ -1119,22 +1122,36 @@ function plateGrand(mb: MeshBuilder, geo: KeyGeo[], inner: P2[], DB: Vec3): void
     if (w < 0.16) return;
     const r = Math.min(0.06, (w - 0.08) / 2);
     const d = 0.035 + r + (w - 0.08 - 2 * r) * 0.4;
-    cands.push({ c: [p[0] + lft[0] * d, p[1] + lft[1] * d], r, w });
+    cands.push({ c: [p[0] + lft[0] * d, p[1] + lft[1] * d], r, w, t });
   });
   cands.sort((p, q) => q.w - p.w);
   for (const cd of cands) {
-    if (centres.length >= 5) break;
+    if (centres.length >= 4) break;
     if (centres.some((o) => Math.hypot(o.c[0] - cd.c[0], o.c[1] - cd.c[1]) < o.r + cd.r + 0.1)) continue;
     centres.push(cd);
     holes.push(circle(cd.c[0], cd.c[1], cd.r, 36));
   }
+  // the cast oval cartouche where the flange is widest after the rosettes (grand-inside.jpg; left plain)
+  const oval = cands.find((cd) => cd.w >= 0.2 && centres.every((o) => Math.hypot(o.c[0] - cd.c[0], o.c[1] - cd.c[1]) > o.r + 0.14));
+  const ell = (c: P2, t: P2, A: number, B: number): P2[] => Array.from({ length: 40 }, (_, k): P2 => {
+    const th = (k / 40) * Math.PI * 2;
+    return [c[0] + t[0] * A * Math.cos(th) - t[1] * B * Math.sin(th), c[1] + t[1] * A * Math.cos(th) + t[0] * B * Math.sin(th)];
+  });
   slab(mb, PLAN, outline, [...windows, ...holes], PY - 0.016, PY, M.grandPlate, { bevel: 0.004, smooth: 0.6 });
   // raised lips round the windows and holes (the casting's flanges)
   for (const W of windows) slab(mb, PLAN, inset(W, -0.013), [W], PY - 0.004, PY + 0.006, M.grandPlate, { bevel: 0.003, botBevel: false, bottom: false, smooth: 0.6 });
   for (const { c, r } of centres) slab(mb, PLAN, circle(c[0], c[1], r + 0.012, 28), [circle(c[0], c[1], r, 28)], PY - 0.004, PY + 0.007, M.grandPlate, { bevel: 0.0035, botBevel: false, bottom: false });
+  if (oval) {
+    const B = Math.min(0.06, (oval.w - 0.1) / 2);
+    const A = Math.min(0.11, B * 1.75);
+    slab(mb, PLAN, ell(oval.c, oval.t, A + 0.011, B + 0.011), [ell(oval.c, oval.t, A, B)], PY - 0.004, PY + 0.007, M.grandPlate, { bevel: 0.0035, botBevel: false, bottom: false, smooth: 0.5 });
+    slab(mb, PLAN, ell(oval.c, oval.t, A, B), [], PY - 0.004, PY + 0.0025, M.grandPlate, { bevel: 0.002, botBevel: false, bottom: false });
+    slab(mb, PLAN, ell(oval.c, oval.t, A - 0.012, B - 0.012), [ell(oval.c, oval.t, A - 0.017, B - 0.017)], PY, PY + 0.0055, M.grandPlate, { bevel: 0.0018, botBevel: false, bottom: false, smooth: 0.5 });
+  }
   // the raised flange all round the plate's edge, where it sits on the rim, and the skirt below it
+  // round the soundboard (in front of it, over the action, the plate rests on the rim: no skirt)
   slab(mb, PLAN, outline, [inset(outline, 0.024)], PY - 0.004, PY + 0.009, M.grandPlate, { bevel: 0.004, botBevel: false, bottom: false, smooth: 0.6 });
-  const skirt = rimIn.filter((p) => p[1] > G.plateFront + 0.01);
+  const skirt = rimIn.filter((p) => p[1] > G.bellyZ - 0.03);
   sweepPlan(mb, skirt, [{ n: 0, y: PY - 0.016 }, { n: 0, y: PY - 0.05 }, { n: 0.006, y: PY - 0.054 }, { n: 0.014, y: PY - 0.05 }, { n: 0.014, y: PY - 0.016 }], M.grandPlate, { smooth: 0.6 });
   // the pin block (laminated maple, 40 mm) under the web, back to the stretcher over the hammer flanges
   rbox(mb, [xIn + 0.004, 0.826, G.plateFront + 0.004], [xInR - 0.004, PY - 0.0162, 0.334], M.maple, 0.003);
@@ -1175,7 +1192,19 @@ function plateGrand(mb: MeshBuilder, geo: KeyGeo[], inner: P2[], DB: Vec3): void
     const z0 = webEdge(g45) - 0.01;
     const z1 = backPt(tIn[0], 0.05)[1];
     strut([lineX(g45, z0) + 0.019, z0], [lineX(g45, z1) + 0.019, z1], 0.948);
+    // in front of it the web's partition between the bass and tenor pin fields, forward to the lip
+    // (grand-inside.jpg: the web is cast as trays, one per section)
+    const xa = Math.max(...g45.strings.map((s) => s.pin[0])) + 0.0048;
+    const xb = Math.min(...g46.strings.map((s) => s.pin[0])) - 0.0048;
+    const w = Math.min(0.014, xb - xa - 0.002);
+    if (w > 0.006) {
+      const xm = (xa + xb) / 2;
+      const sec: SecPt[] = [{ n: -w / 2, y: PY - 0.002 }, { n: w / 2, y: PY - 0.002 }, { n: w / 2, y: PY + 0.006 }, { n: w / 4, y: PY + 0.011 }, { n: -w / 4, y: PY + 0.011 }, { n: -w / 2, y: PY + 0.006 }];
+      sweepPlan(mb, [[xm, G.plateFront + 0.012], [xm, z0 - 0.03], [lineX(g45, z0) + 0.019, z0]], sec, M.grandPlate, { smooth: 0.5 });
+    }
   }
+  // the plate's front edge: a raised, rounded lip from rim to rim
+  rbox(mb, [xIn + 0.006, PY - 0.004, G.plateFront + 0.002], [xInR - 0.006, PY + 0.012, G.plateFront + 0.021], M.grandPlate, 0.006, { smooth: 0.5 });
   for (const [ma, ang] of [[58, 0.06], [70, 0.16], [84, 0.3]] as [number, number][]) {
     const g0 = byM(ma);
     const g1 = byM(ma + 1);
@@ -1199,11 +1228,18 @@ function plateGrand(mb: MeshBuilder, geo: KeyGeo[], inner: P2[], DB: Vec3): void
     const pe = pts[pts.length - 1];
     slab(mb, PLAN, circle(pe[0], pe[1] - 0.014, 0.018, 16), [], PY - 0.004, y + 0.012, M.grandPlate, { bevel: 0.004 });
   }
+  // the agraffes: brass studs on a seat, the unison through holes near the top, the speaking length
+  // starting at their back face
   for (const g of geo) {
     if (g.midi >= capoFrom) continue;
     const s0 = g.strings[0];
     const s1 = g.strings[g.strings.length - 1];
-    rbox(mb, [Math.min(s0.a[0], s1.a[0]) - 0.003, PY - 0.002, s0.a[2] - 0.009], [Math.max(s0.a[0], s1.a[0]) + 0.003, s0.a[1] + 0.004, s0.a[2] + 0.0005], M.brassDull, 0.0012);
+    const x0 = Math.min(s0.a[0], s1.a[0]) - 0.0035;
+    const x1 = Math.max(s0.a[0], s1.a[0]) + 0.0035;
+    const z0 = s0.a[2] - 0.0075;
+    const z1 = s0.a[2] + 0.0012;
+    slab(mb, PLAN, rrect(x0 - 0.0016, z0 - 0.0016, x1 + 0.0016, z1 + 0.0016, 0.0018, 1), [], PY - 0.002, PY + 0.0022, M.brassDull, { bevel: 0.0007 });
+    slab(mb, PLAN, rrect(x0, z0, x1, z1, (z1 - z0) / 2, 3), [], PY + 0.0022, s0.a[1] + 0.0035, M.brass, { bevel: 0.0016, smooth: 0.5 });
   }
   // ---- tuning pins (nickel-plated, in the pin block, a bright coil of wire round each), hitch pins
   for (const g of geo)
@@ -1215,10 +1251,17 @@ function plateGrand(mb: MeshBuilder, geo: KeyGeo[], inner: P2[], DB: Vec3): void
   // ---- felts: the red understring felt just behind the pins, under every string (grand-inside.jpg),
   //      and the hitch felt woven along the hitch pins
   {
-    // (behind each key's back row, not its stagger, held straight: the running max over five keys)
+    // (behind each key's back row, not its stagger: the running max over seven keys, eased over nine,
+    // so a step in the pin field is a gentle bend in the strip; clear of the pins and the agraffes)
     const feltLine = (gs: KeyGeo[]): P2[] => {
-      const z = gs.map((g) => Math.max(...g.strings.map((s) => s.pin[2])) - 0.012 * (g.i % 2) + 0.04);
-      return gs.map((g, k): P2 => [mid(g).pin[0], Math.min(Math.max(...z.slice(Math.max(0, k - 2), k + 3)), mid(g).a[2] - 0.014)]);
+      const own = gs.map((g) => Math.max(...g.strings.map((s) => s.pin[2])));
+      const z = gs.map((g, k) => own[k] - 0.012 * (g.i % 2) + 0.04);
+      const rm = z.map((_, k) => Math.max(...z.slice(Math.max(0, k - 3), k + 4)));
+      return gs.map((g, k): P2 => {
+        const w = rm.slice(Math.max(0, k - 4), k + 5);
+        const avg = w.reduce((a, b) => a + b, 0) / w.length;
+        return [mid(g).pin[0], Math.min(Math.max(avg, own[k] + 0.012), mid(g).a[2] - 0.014)];
+      });
     };
     const fsec = (y: number): SecPt[] => [{ n: -0.007, y: PY }, { n: 0.007, y: PY }, { n: 0.006, y }, { n: -0.006, y }];
     sweepPlan(mb, feltLine(bass), fsec(G.plateY + 0.016), M.redFelt, { smooth: 0.5 });

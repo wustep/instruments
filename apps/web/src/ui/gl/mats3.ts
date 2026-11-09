@@ -125,7 +125,7 @@ const P: Record<string, Phys> = {
   // its highlights stay gold. Fitted at the grand's default hero view to grand-inside.jpg's lit plate,
   // sRGB ≈ (130–160, 100–125, 70–85): with less metal or a gloss coat the flange's highlights are the
   // white of the studio's softbox, and the tone mapper desaturates the over-bright plate to champagne
-  grandPlate: { color: '#8a5e22', metalness: 0.9, roughness: 0.62, tex: 9 },
+  grandPlate: { color: '#8a6522', metalness: 0.9, roughness: 0.62, tex: 9 },
   // the inside of the grand's rim: a polished mahogany veneer under a gloss coat (grand-inside.jpg)
   rimVeneer: { color: '#3a1a0c', roughness: 0.42, clearcoat: 1, clearcoatRoughness: 0.06, tex: 10 },
   // grand damper heads: black-stained hardwood (grand-inside.jpg, grand-action-side.jpg)
@@ -311,6 +311,25 @@ float microR = 0.0;
         '#include <roughnessmap_fragment>',
         `#include <roughnessmap_fragment>
 roughnessFactor = clamp(roughnessFactor + microR, 0.03, 1.0);`,
+      )
+      .replace(
+        '#include <normal_fragment_maps>',
+        `#include <normal_fragment_maps>
+#if TEX == 9
+{
+  // a casting is never flat: a gentle waviness (≈ 1 mm over 10 cm, 0.3 mm over 3 cm) breaks the
+  // flange's sheen up as a real plate's (a bump in metres: Mikkelsen's surface gradient, unnormalised)
+  float hb = 0.0012 * fbm(vLoc * 9.0) + 0.0003 * fbm(vLoc * 37.0);
+  vec3 sp = -vViewPosition;
+  vec3 sx = dFdx(sp);
+  vec3 sy = dFdy(sp);
+  vec3 r1 = cross(sy, normal);
+  vec3 r2 = cross(normal, sx);
+  float det = dot(sx, r1);
+  vec3 grad = sign(det) * (dFdx(hb) * r1 + dFdy(hb) * r2);
+  normal = normalize(abs(det) * normal - grad);
+}
+#endif`,
       )
       .replace(
         '#include <emissivemap_fragment>',
