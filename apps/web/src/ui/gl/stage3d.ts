@@ -1,10 +1,12 @@
 // The stage in 3D: a WebGL2 canvas over the instrument area, an orbit camera (drag to turn,
 // pinch or wheel to zoom, double-click to reset), and the instruments drawn from the live frames
 // (three.js, `three3d.ts`; this module and three.js load only when 3D is first switched on).
-// On the piano, a click on a note's strings opens that key's action (the stage wires `pick`).
+// On the pianos, a click on a key (its strings or its key top) flies the camera to that key's own
+// action, a section cutting away the keys in front of it (`zoomTo`, `zoomOut`; the stage wires them).
 // Where WebGL2 is missing the toggle never appears and the 2D stage carries on (`webgl2.ts`).
 import { Batch, project, type Mat4, type Vec3 } from './gl3d.ts';
 import { buildRoom, buildScene, newScene3State, viewFor, type SceneIn, type View3 } from './scenes3d.ts';
+import { zoomFrame } from './piano3d.ts';
 import { Renderer3 } from './three3d.ts';
 
 /** the lens: a 24° vertical field (about a 55 mm lens on full frame at the stage's aspect), not the
@@ -23,6 +25,12 @@ export interface Stage3D {
   pick(x: number, y: number): number | null;
   /** tests: where a key's strings are on screen (CSS px in the canvas: the middle of the speaking length) */
   screenOf(midi: number): [number, number] | null;
+  /** pianos: fly to a key's action (eased, ≈0.9 s), a section cutting away the keys in front of it */
+  zoomTo(midi: number): void;
+  /** back to the whole instrument (eased) */
+  zoomOut(): void;
+  /** the key seen close up (null: none, or flying back out) */
+  readonly zoomed: number | null;
   dispose(): void;
   /** frame build + draw time (ms, smoothed, without one-off model building), vertices, whether
    *  the light scene / shadows are in use, and the total time spent building models */
@@ -60,6 +68,30 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
   let lastVP: Mat4 | null = null;
   let cssW = 1;
   let cssH = 1;
+  // the target the orbit turns about (the view's, or a zoomed key's), and a flight between views
+  let target: Vec3 = [0, 0, 0];
+  interface Cam {
+    target: Vec3;
+    yaw: number;
+    pitch: number;
+    dist: number;
+    cut: number;
+  }
+  let zoom: { midi: number; side: 1 | -1; cut: number } | null = null;
+  let fly: { t0: number; dur: number; from: Cam; to: Cam; out: boolean } | null = null;
+  let cutAt = 0;
+  let kind: 'grand' | 'upright' = 'grand';
+  let family = '';
+  /** ease in and out (a camera move that starts and lands softly) */
+  const smooth = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+  const camNow = (): Cam => ({ target: [...target] as Vec3, yaw, pitch, dist, cut: cutAt });
+  const flyTo = (to: Cam, out: boolean, dur = 0.9) => {
+    const from = camNow();
+    // turn the short way round
+    while (to.yaw - from.yaw > Math.PI) to.yaw -= 2 * Math.PI;
+    while (to.yaw - from.yaw < -Math.PI) to.yaw += 2 * Math.PI;
+    fly = { t0: performance.now(), dur: dur * 1000, from, to, out };
+  };
 
   // ---- orbit: one pointer turns, two pinch, the wheel zooms
   const ptrs = new Map<number, { x: number; y: number }>();
@@ -103,13 +135,35 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     },
     { passive: false },
   );
-  el.addEventListener('dblclick', () => resetView());
+  el.addEventListener('dblclick', () => (zoom ? zoomOut() : resetView()));
   const clampDist = (d: number) => (view ? Math.max(view.dist * 0.12, Math.min(view.dist * 3, d)) : d);
   function resetView(): void {
     if (!view) return;
+    zoom = null;
+    fly = null;
+    target = [...view.target] as Vec3;
     yaw = yawT = view.yaw;
     pitch = pitchT = view.pitch;
     dist = distT = view.dist;
+  }
+  function zoomTo(midi: number): void {
+    if (family !== 'piano' || !view || (zoom && zoom.midi === midi && !fly)) return;
+    const f = zoomFrame(kind, midi);
+    // framed to the action's extents on this canvas: its height, or its depth across the width
+    const tanH = Math.tan(((FOV / 2) * Math.PI) / 180);
+    const aspect = cssW / Math.max(1, cssH);
+    const d = 1.04 * Math.max(f.h / (2 * tanH), (f.w * 0.99) / (2 * tanH * aspect));
+    // from the nearer end, nearly in profile (the action reads as a side drawing; the keys behind
+    // the cut recede a little), a little above the keys
+    const to: Cam = { target: f.target, yaw: f.side * 1.4, pitch: 0.1, dist: d, cut: f.cut };
+    // the section starts at the case's end (or where it already is) and sweeps in to the key
+    if (!zoom || zoom.side !== f.side) cutAt = f.edge;
+    zoom = { midi, side: f.side, cut: f.cut };
+    flyTo(to, false);
+  }
+  function zoomOut(): void {
+    if (!zoom || !view) return;
+    flyTo({ target: [...view.target] as Vec3, yaw: view.yaw, pitch: view.pitch, dist: view.dist, cut: zoom.side * 0.85 }, true, 0.8);
   }
 
   return {
@@ -123,9 +177,19 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       probe = v;
     },
     resetView,
+    zoomTo,
+    zoomOut,
+    get zoomed() {
+      return zoom && !(fly && fly.out) ? zoom.midi : null;
+    },
     setView(v) {
       if (!view) return;
-      if (v.target) view = { ...view, target: v.target };
+      zoom = null;
+      fly = null;
+      if (v.target) {
+        view = { ...view, target: v.target };
+        target = [...v.target] as Vec3;
+      }
       if (v.yaw !== undefined) yaw = yawT = v.yaw;
       if (v.pitch !== undefined) pitch = pitchT = v.pitch;
       // (distances in the views' units: scaled by the lens like the default views)
@@ -164,7 +228,9 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       const t0 = performance.now();
       const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / 60;
       last = now;
-      const si: SceneIn = { ...si0, now, dt, lite: stats.lite };
+      family = si0.family;
+      kind = si0.kind;
+      const si: SceneIn = { ...si0, now, dt, lite: stats.lite, zoomKey: zoom?.midi ?? null, cut: zoom ? { at: cutAt, side: zoom.side } : null };
       // size: the instrument area under the top band; phones draw at ≤1.5× pixels
       const host = el.parentElement!;
       const W = host.clientWidth;
@@ -198,22 +264,37 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
         resetView();
       }
       buildRoom(batch, si, st, src, span, 0);
-      // camera: orbiting the view's target, eased (τ ≈ 70 ms), never below the floor
-      const v = view!;
+      // camera: orbiting the target, eased (τ ≈ 70 ms), never below the floor; or flying (a key's
+      // action, close up, and back), eased in and out, the section sweeping with it
+      if (fly) {
+        const t = Math.min(1, (performance.now() - fly.t0) / fly.dur);
+        const e = smooth(t);
+        const a = fly.from;
+        const b = fly.to;
+        for (let k = 0; k < 3; k++) target[k] = a.target[k] + (b.target[k] - a.target[k]) * e;
+        yaw = yawT = a.yaw + (b.yaw - a.yaw) * e;
+        pitch = pitchT = a.pitch + (b.pitch - a.pitch) * e;
+        dist = distT = a.dist * (b.dist / a.dist) ** e;
+        cutAt = a.cut + (b.cut - a.cut) * e;
+        if (t >= 1) {
+          if (fly.out) zoom = null;
+          fly = null;
+        }
+      }
       const kE = 1 - Math.exp(-dt / 0.07);
       yaw += (yawT - yaw) * kE;
       pitch += (pitchT - pitch) * kE;
       dist += (distT - dist) * kE;
-      const minPitch = Math.asin(Math.max(-1, Math.min(1, (0.04 - v.target[1]) / dist)));
+      const minPitch = Math.asin(Math.max(-1, Math.min(1, (0.04 - target[1]) / dist)));
       if (pitch < minPitch) pitch = pitchT = Math.max(pitchT, minPitch);
-      const eye: Vec3 = [v.target[0] + dist * Math.cos(pitch) * Math.sin(yaw), v.target[1] + dist * Math.sin(pitch), v.target[2] - dist * Math.cos(pitch) * Math.cos(yaw)];
+      const eye: Vec3 = [target[0] + dist * Math.cos(pitch) * Math.sin(yaw), target[1] + dist * Math.sin(pitch), target[2] - dist * Math.cos(pitch) * Math.cos(yaw)];
       const g = getComputedStyle(document.body).getPropertyValue('--ground').trim() || '#0e0d0b';
       const hex = /^#([0-9a-f]{6})$/i.exec(g)?.[1] ?? '0e0d0b';
       const ground: [number, number, number] = [parseInt(hex.slice(0, 2), 16) / 255, parseInt(hex.slice(2, 4), 16) / 255, parseInt(hex.slice(4, 6), 16) / 255];
       r.shadows = stats.shadows;
       r.ao = stats.ao;
       const progs = r.r.info.programs?.length ?? 0;
-      r.draw(batch, eye, v.target, FOV, pw, ph, ground);
+      r.draw(batch, eye, target, FOV, pw, ph, ground);
       lastVP = r.vp.elements as unknown as Mat4;
       // budget: if a frame costs more than ~9 ms, drop the occlusion, then draw the light scene
       // (every other string, fewer parts), then drop the shadows. A frame that compiled shaders

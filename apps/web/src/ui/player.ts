@@ -39,7 +39,8 @@ export class MidiPlayer {
     const stop = h('button', { class: 'pl-btn', type: 'button', 'aria-label': 'Stop', 'data-tip': 'stop', onclick: () => this.stop() });
     stop.appendChild(icon(STOP));
     this.fill = h('i', { class: 'pl-fill' });
-    this.bar = h('div', { class: 'pl-bar', role: 'slider', 'aria-label': 'Position', 'data-tip': 'position', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0', tabindex: '0' }, this.fill);
+    // (the hairline has no tooltip: its fill says where the file is; it still scrubs)
+    this.bar = h('div', { class: 'pl-bar', role: 'slider', 'aria-label': 'Position', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0', tabindex: '0' }, this.fill);
     this.bar.addEventListener('pointerdown', (e) => {
       if (!this.song) return;
       const r = this.bar.getBoundingClientRect();
