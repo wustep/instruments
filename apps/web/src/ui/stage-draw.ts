@@ -346,6 +346,9 @@ function bowedShapes(id: BowedGeom['id'], p: BowedPlan, L: number): BowedShapes 
  *  rises to a rounded top, and either side the volute's turns stand out as ears round the eyes (a ≈ 0.79). */
 const bwPegboxW = (p: BowedPlan, a: number) => (p.pbW / 2) * (1 - 0.14 * Math.min(1, a / 0.68));
 const HEAD_EAR = { a: 0.8, w: 0.58, r: 0.42 };
+/** the head's length as a front view shows it: the pegbox and scroll lean back from the neck, so the
+ *  photographs show nut to crown as 0.85 of the head's length (violin-front.jpg: 90 of 108 mm) */
+const HEAD_PROJ = 0.85;
 function bwHeadParts(p: BowedPlan): { box: Pt[]; crown: Pt[]; ear: Pt[] } {
   const e = p.eyeW / 2;
   const box: Pt[] = [];
@@ -365,7 +368,7 @@ function bwHeadParts(p: BowedPlan): { box: Pt[]; crown: Pt[]; ear: Pt[] } {
   const ear: Pt[] = [];
   for (let k = 0; k < 36; k++) {
     const th = (k / 36) * Math.PI * 2;
-    ear.push([HEAD_EAR.a + (Math.cos(th) * HEAD_EAR.r * e) / Lh, HEAD_EAR.w * e + Math.sin(th) * HEAD_EAR.r * e]);
+    ear.push([HEAD_EAR.a + (Math.cos(th) * HEAD_EAR.r * e) / (Lh * HEAD_PROJ), HEAD_EAR.w * e + Math.sin(th) * HEAD_EAR.r * e]);
   }
   return { box, crown, ear };
 }
@@ -386,7 +389,7 @@ interface BowedLayout {
 }
 function bowedLayout(g: BowedGeom, p: BowedPlan, sh: BowedShapes, W: number, H: number): BowedLayout {
   const vertical = H > W * 1.05;
-  const x0 = -p.neck - p.head - 0.003;
+  const x0 = -p.neck - p.head * HEAD_PROJ - 0.003;
   const x1 = p.body + (g.id === 'cello' ? 0.16 : 0.012);
   const len = x1 - x0;
   const Lw = vertical ? H : W;
@@ -523,6 +526,33 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
       z += (0.0018 + 0.0022 * f * f) * S ** 0.5 * (0.8 + 0.4 * rnd());
     }
   }
+  // the long arch catches the light along the middle; the varnish is mottled, rubbed thin in places
+  {
+    const ag = a.createLinearGradient(0, X(-sh.hwMax), 0, X(sh.hwMax));
+    ag.addColorStop(0, vc(1.6, 0));
+    ag.addColorStop(0.5, vc(1.6, 0.13));
+    ag.addColorStop(1, vc(1.6, 0));
+    a.fillStyle = ag;
+    a.fillRect(0, X(-sh.hwMax), X(B), X(2 * sh.hwMax));
+    const nw = 14;
+    const nh = 8;
+    const nc = document.createElement('canvas');
+    nc.width = nw;
+    nc.height = nh;
+    const nx = nc.getContext('2d')!;
+    const im = nx.createImageData(nw, nh);
+    for (let i = 0; i < nw * nh; i++) {
+      const v = rnd();
+      const dark = v < 0.5;
+      im.data[i * 4] = dark ? 20 : 255;
+      im.data[i * 4 + 1] = dark ? 8 : 200;
+      im.data[i * 4 + 2] = dark ? 2 : 140;
+      im.data[i * 4 + 3] = Math.round(255 * Math.abs(v - 0.5) * (dark ? 0.26 : 0.14));
+    }
+    nx.putImageData(im, 0, 0);
+    a.imageSmoothingEnabled = true;
+    a.drawImage(nc, 0, X(-sh.hwMax), X(B), X(2 * sh.hwMax));
+  }
   // the channel round the edge, deeper in colour
   for (const d of [16, 10, 5.5, 2.5]) {
     a.strokeStyle = 'rgba(14,6,2,0.12)';
@@ -580,7 +610,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   const Lh = p.head;
   const e = p.eyeW / 2;
   const hp = bwHeadParts(p);
-  const HX = (aa: number) => X(xn - aa * Lh);
+  const HX = (aa: number) => X(xn - aa * Lh * HEAD_PROJ);
   const sym = (pts: Pt[]) => {
     const q = new Path2D();
     pts.forEach(([aa, w], i) => (i ? q.lineTo(HX(aa), X(w)) : q.moveTo(HX(aa), X(w))));
@@ -630,7 +660,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
     for (let j = 0; j <= 48; j++) {
       const th = (j / 48) * 2.2 * Math.PI;
       const r = HEAD_EAR.r * e * 0.92 * Math.exp(-0.36 * th);
-      const aa = ea + (Math.cos(th) * r) / Lh;
+      const aa = ea + (Math.cos(th) * r) / (Lh * HEAD_PROJ);
       const w = ew + sg * Math.sin(th) * r;
       if (j) c.lineTo(HX(aa), X(w));
       else c.moveTo(HX(aa), X(w));
@@ -1186,7 +1216,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     const lit = s?.bowing ? 1 : 0.6;
     const x = fingerX[i];
     const z = zAt(i, x);
-    const pad = 0.0068;
+    const pad = 0.0066;
     ctx.globalAlpha = a;
     if (lv.vhi[i] - lv.vlo[i] > 0.0004) {
       ctx.strokeStyle = rgba(INK.amber, 0.3 * lit);
@@ -1198,8 +1228,8 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     }
     const roll = (x - lv.fx[i]) * 0.5;
     const gr = ctx.createRadialGradient(X(x - roll), X(z), 0, X(x - roll), X(z), X(pad));
-    gr.addColorStop(0, rgba(INK.felt, 0.34 * lit));
-    gr.addColorStop(0.7, rgba(INK.felt, 0.2 * lit));
+    gr.addColorStop(0, rgba(INK.felt, 0.5 * lit));
+    gr.addColorStop(0.65, rgba(INK.felt, 0.32 * lit));
     gr.addColorStop(1, rgba(INK.felt, 0));
     ctx.fillStyle = gr;
     ctx.beginPath();
@@ -1259,6 +1289,11 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     }
     const cxk = xk(kc);
     const czk = zAt(bowedIdx, cxk) - shp[kc] * amp;
+    const hg = ctx.createRadialGradient(X(cxk), X(czk), 0, X(cxk), X(czk), 9);
+    hg.addColorStop(0, rgba(INK.vermilion, 0.55));
+    hg.addColorStop(1, rgba(INK.vermilion, 0));
+    ctx.fillStyle = hg;
+    ctx.fillRect(X(cxk) - 9, X(czk) - 9, 18, 18);
     ctx.fillStyle = rgba(INK.ivory, 0.95);
     ctx.beginPath();
     ctx.arc(X(cxk), X(czk), 2.4, 0, Math.PI * 2);
@@ -1312,7 +1347,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
   for (const s of [s0, ac, s1]) ctx.lineTo(Xh(s, 0) - X(hw), X(Zs(s)));
   for (const s of [s1, ac, s0]) ctx.lineTo(Xh(s, 0) + X(hw), X(Zs(s)));
   ctx.closePath();
-  ctx.fillStyle = 'rgba(236,228,210,0.62)';
+  ctx.fillStyle = 'rgba(240,234,218,0.8)';
   ctx.fill();
   ctx.lineCap = 'butt';
   ctx.lineWidth = 0.7;
@@ -1452,11 +1487,12 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     const pw = Math.min(1, Math.sqrt((v * F) / 0.25));
     const gx = X(lv.cx);
     const gz = X(lv.cz);
-    const gr = ctx.createRadialGradient(gx, gz, 0, gx, gz, 11);
+    const rc = Math.max(4, X(p.spreadB) * (0.35 + 0.45 * Math.min(1.5, Math.sqrt(F / 0.5))));
+    const gr = ctx.createRadialGradient(gx, gz, 0, gx, gz, rc);
     gr.addColorStop(0, rgba(INK.vermilion, 0.9 * pw));
     gr.addColorStop(1, rgba(INK.vermilion, 0));
     ctx.fillStyle = gr;
-    ctx.fillRect(gx - 11, gz - 11, 22, 22);
+    ctx.fillRect(gx - rc, gz - rc, 2 * rc, 2 * rc);
     if (!bow.changing && v > 0.02) {
       // down-bow draws the frog away from the strings (towards the player)
       const d = bow.dir > 0 ? 1 : -1;
