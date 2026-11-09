@@ -109,6 +109,8 @@ export const M = {
   bracketCast: { col: hex('#7d7354'), rough: 0.42, metal: 0.85 },
   mahogany: { col: hex('#6b3219'), rough: 0.5, metal: 0 },
   keyIvory: { col: hex('#f0ebdf'), rough: 0.3, metal: 0 },
+  pinSteel: { col: hex('#bfc2c7'), rough: 0.34, metal: 1 },
+  caseRaw: { col: hex('#151210'), rough: 0.85, metal: 0 },
 } satisfies Record<string, Mat>;
 for (const [k, m] of Object.entries(M)) (m as Mat).name = k;
 /** a variant of a shared material (same shading family, its own colour or maps) */

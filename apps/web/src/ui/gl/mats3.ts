@@ -84,12 +84,16 @@ const P: Record<string, Phys> = {
   floor: { color: '#13110e', roughness: 0.7 },
   // pianos: the plate is lacquered metal-flake paint over cast iron (a thin, slightly rough coat; a
   // heavy clearcoat would wash it to cream under the softbox)
-  pianoPlate: { color: '#a07533', metalness: 0.82, roughness: 0.4, clearcoat: 0.2, clearcoatRoughness: 0.4, tex: 5 },
+  pianoPlate: { color: '#9a6c22', metalness: 0.9, roughness: 0.48, tex: 5 },
   underfelt: { color: '#5c1418', roughness: 1, sheen: 0.9, sheenColor: '#b04048', sheenRoughness: 0.5, tex: 6 },
   greenFelt: { color: '#1f4a36', roughness: 1, sheen: 0.8, sheenColor: '#5a9a7a', sheenRoughness: 0.5, tex: 6 },
   bracketCast: { color: '#7a6e4c', metalness: 0.85, roughness: 0.42, tex: 5 },
-  mahogany: { color: '#6b3219', roughness: 0.5, clearcoat: 0.3, clearcoatRoughness: 0.3, tex: 3, axis: [0, 1, 0], texScale: 0.5 },
+  mahogany: { color: '#8a4a26', roughness: 0.55, clearcoat: 0.2, clearcoatRoughness: 0.35, tex: 3, axis: [0, 1, 0], texScale: 0.5 },
   keyIvory: { color: '#f1ece0', roughness: 0.32, clearcoat: 0.4, clearcoatRoughness: 0.1, sheen: 0.4, sheenColor: '#fff4dc', sheenRoughness: 0.35 },
+  // tuning pins: nickel-plated, turned (a satin finish: hundreds of mirror caps read as fog)
+  pinSteel: { color: '#bfc2c7', metalness: 1, roughness: 0.34, tex: 8, axis: [0, 1, 0] },
+  // the raw, dark inside of a case (black-stained, unpolished)
+  caseRaw: { color: '#151210', roughness: 0.85, envMapIntensity: 0.3 },
 };
 
 // GLSL: hashes, value noise and fbm (all in the part's own metres)

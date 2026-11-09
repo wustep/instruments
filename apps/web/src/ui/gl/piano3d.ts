@@ -201,6 +201,14 @@ function circle(cu: number, cv: number, r: number, n = 24): P2[] {
 function rbox(mb: MeshBuilder, lo: Vec3, hi: Vec3, m: Mat, b = 0.0015, o: SlabOpts = {}): void {
   slab(mb, PLAN, rrect(lo[0], lo[2], hi[0], hi[2], b, 2), [], lo[1], hi[1], m, { bevel: b, ...o });
 }
+/** a tuning pin from `p` along `d` (unit): the shaft in the block, a coil of wire, a turned head */
+function tuningPin(mb: MeshBuilder, p: Vec3, d: Vec3): void {
+  const at = (t: number): Vec3 => [p[0] + d[0] * t, p[1] + d[1] * t, p[2] + d[2] * t];
+  cyl(mb, at(0), at(0.012), 0.0035, 0.0035, 10, M.pinSteel, false);
+  cyl(mb, at(0.012), at(0.02), 0.0044, 0.0044, 10, M.pinSteel);
+  cyl(mb, at(0.02), at(0.031), 0.0035, 0.0035, 10, M.pinSteel, false);
+  cyl(mb, at(0.031), at(0.035), 0.0035, 0.0024, 10, M.pinSteel);
+}
 /** a side profile (z, y) between x0 and x1 */
 function sideSlab(mb: MeshBuilder, prof: P2[], x0: number, x1: number, m: Mat, bevel = 0.001, o: SlabOpts = {}): void {
   slab(mb, SIDE, prof, [], x0, x1, m, { bevel, ...o });
@@ -258,7 +266,7 @@ interface SecPt {
   y: number;
   m?: Mat;
 }
-function sweepPlan(mb: MeshBuilder, path: P2[], sec: SecPt[], defM: Mat, o: { capA?: Mat | null; capB?: Mat | null; smooth?: number } = {}): void {
+function sweepPlan(mb: MeshBuilder, path: P2[], sec: SecPt[], defM: Mat, o: { capA?: Mat | null; capB?: Mat | null; smooth?: number; yOff?: number[] } = {}): void {
   const np = path.length;
   const S = sec.length;
   const left: P2[] = path.map((_, i) => {
@@ -274,7 +282,7 @@ function sweepPlan(mb: MeshBuilder, path: P2[], sec: SecPt[], defM: Mat, o: { ca
     const t = nrm2(c[0] - a[0], c[1] - a[1]);
     return 1 / Math.max(0.6, dot2([-t[1], t[0]], left[i]));
   });
-  const P = (i: number, s: SecPt): Vec3 => [path[i][0] + left[i][0] * s.n * miter[i], s.y, path[i][1] + left[i][1] * s.n * miter[i]];
+  const P = (i: number, s: SecPt): Vec3 => [path[i][0] + left[i][0] * s.n * miter[i], s.y + (o.yOff?.[i] ?? 0), path[i][1] + left[i][1] * s.n * miter[i]];
   // the section's outward edge normals (in n, y)
   const sp: P2[] = sec.map((s) => [s.n, s.y]);
   const ccw = area(sp) > 0;
@@ -492,12 +500,13 @@ function hammerHead(upright: boolean): Mesh {
   const map = (p: P2[]): P2[] => (upright ? p.map(([al, cr]): P2 => [cr, al]) : p);
   const half = 0.0058;
   const mk = (prof: P2[], hw: number, m: Mat, bevel: number) => slab(mb, SIDE, map(prof), [], -hw, hw, m, { bevel });
-  // felt: crown 48 mm above the shank's axis, 25 mm across at its shoulders, crown radius ≈ 5.5 mm
-  mk(egg(0.0128, 0.03, 0.018, 0.004), half, M.hammerFelt, 0.0016);
-  mk(egg(0.0093, 0.0255, 0.018, 0.0045), half + 0.00012, M.underfelt, 0.0006);
+  // felt: crown 48 mm above the shank's axis, 25 mm across, crown radius ≈ 5 mm; the felt is 10 mm
+  // thick at the crown and 5.5 mm on the shoulders, over a 1.5 mm coloured underfelt
+  mk(egg(0.0125, 0.032, 0.016, 0.0), half, M.hammerFelt, 0.0016);
+  mk(egg(0.0072, 0.0226, 0.016, 0.0012), half + 0.00012, M.underfelt, 0.0006);
   // the moulding: under the felt, its top shaped like the felt's inner face; its tail for the backcheck
-  const top = egg(0.0078, 0.024, 0.018, 0.006, 18);
-  const mould: P2[] = [[-0.0105, -0.0095], [0.0165, -0.0095], [0.0172, -0.002], [0.0098, 0.006], ...top, [-0.0098, 0.006], [-0.0108, 0.0]];
+  const top = egg(0.0057, 0.0211, 0.016, 0.003, 18);
+  const mould: P2[] = [[-0.0105, -0.0095], [0.0165, -0.0095], [0.0172, -0.002], [0.0105, 0.003], ...top, [-0.0105, 0.003], [-0.011, -0.002]];
   mk(mould, half + 0.00024, upright ? M.mahogany : M.maple, 0.0007);
   return mb.build();
 }
@@ -698,7 +707,7 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
   // the case bottom (a dark rim liner) and the braces under the soundboard
   {
     const poly = dedupe(clipV([...inner, [inner[inner.length - 1][0], 0.17], [inner[0][0], 0.17]] as P2[], G.bellyZ));
-    slab(mb, PLAN, poly, [], G.rimBottom + 0.0, G.rimBottom + 0.012, M.lacquerSatin, { bevel: 0.002 });
+    slab(mb, PLAN, poly, [], G.rimBottom + 0.0, G.rimBottom + 0.012, M.caseRaw, { bevel: 0.002 });
     for (const [x0, z0, x1, z1] of [[-0.3, 0.66, -0.55, 1.95], [0.0, 0.66, -0.15, 2.0], [0.3, 0.66, 0.2, 1.5]]) {
       const dx = x1 - x0;
       const dz = z1 - z0;
@@ -709,7 +718,7 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
     }
   }
   // ---- keybed, key slip, cheek blocks, the key frame, the open fallboard
-  slab(mb, PLAN, rrect(xL, -0.022, xR, 0.66, 0.004), [], 0.648, 0.682, M.lacquer, { bevel: 0.003 });
+  slab(mb, PLAN, rrect(xL, -0.022, xR, 0.66, 0.004), [], 0.648, 0.682, M.lacquer, { bevel: 0.003, topMat: M.actionWood });
   rbox(mb, [-0.612, 0.682, -0.023], [0.612, 0.708, -0.004], M.lacquer, 0.002);
   for (const s of [-1, 1]) {
     const x0 = s < 0 ? xL : 0.613;
@@ -735,11 +744,11 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
   //      damper guide rail and underlever rail
   {
     // (the key sticks pass under them: each bracket stands on a foot behind the key ends)
-    const br: P2[] = [
-      [0.6, 0.682], [0.645, 0.682], [0.645, 0.7], [0.62, 0.745], [0.53, 0.75], [0.48, 0.753], [0.43, 0.766], [0.385, 0.785], [0.345, 0.808], [0.335, 0.824], [0.297, 0.826], [0.295, 0.795], [0.315, 0.778], [0.36, 0.758], [0.42, 0.742], [0.5, 0.737], [0.6, 0.737],
-    ];
+    const br = spline([
+      [0.6, 0.682], [0.645, 0.682], [0.648, 0.71], [0.635, 0.742], [0.6, 0.752], [0.53, 0.752], [0.47, 0.76], [0.42, 0.776], [0.37, 0.8], [0.34, 0.822], [0.31, 0.828], [0.294, 0.815], [0.298, 0.795], [0.325, 0.782], [0.37, 0.762], [0.43, 0.744], [0.5, 0.738], [0.575, 0.735], [0.6, 0.72],
+    ], 4, true);
     for (const x of [-0.605, -0.305, -0.003, 0.297, 0.605]) {
-      slab(mb, SIDE, br, [circle(0.4, 0.763, 0.0055, 14), circle(0.6225, 0.712, 0.007, 14)], x - 0.0045, x + 0.0045, M.bracketCast, { bevel: 0.0012 });
+      slab(mb, SIDE, br, [circle(0.392, 0.7724, 0.0072, 16), circle(0.6225, 0.713, 0.0085, 16)], x - 0.0045, x + 0.0045, M.bracketCast, { bevel: 0.0014, smooth: 0.5 });
     }
   }
   rbox(mb, [-0.615, 0.79, 0.298], [0.615, 0.822, 0.332], M.actionWood, 0.002);
@@ -769,7 +778,7 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
   for (const x of [-0.1, 0.1]) post(mb, x, 0.33, [[0.016, 0.02, 0.115], [0.012, 0.017, 0.3], [0.014, 0.019, 0.55], [0.02, 0.026, 0.62], [0.02, 0.026, 0.648]], 0.004, M.lacquer);
   rbox(mb, [-0.15, 0.6, 0.29], [0.15, 0.648, 0.37], M.lacquer, 0.006);
   rbox(mb, [-0.14, 0.03, 0.272], [0.14, 0.115, 0.39], M.lacquer, 0.008);
-  for (const s of [-1, 1]) cyl(mb, [s * 0.12, 0.09, 0.385], [s * 0.2, G.rimBottom - 0.035, 0.95], 0.008, 0.008, 10, M.lacquer);
+  for (const s of [-1, 1]) cyl(mb, [s * 0.12, 0.09, 0.385], [s * 0.17, G.rimBottom - 0.035, 0.72], 0.008, 0.008, 10, M.lacquer);
   for (const x of [-0.04, 0, 0.04]) cyl(mb, [x, 0.115, 0.335], [x, 0.6, 0.335], 0.0028, 0.0028, 8, M.brassDull, false);
   // ---- the soundboard (lives: its modes) inside the rim behind the belly rail
   const sb = new MeshBuilder();
@@ -956,9 +965,9 @@ function musicDesk(): Mesh {
     rbox(mb, [-W + 0.01, -0.01, -0.045], [W - 0.01, 0.006, 0.0], M.lacquer, 0.003);
     rbox(mb, [-W + 0.01, 0.006, -0.046], [W - 0.01, 0.022, -0.04], M.lacquer, 0.002);
   });
-  // the desk rail it stands on, across the plate's front
-  rbox(mb, [-0.5, G.rimTop - 0.005, 0.185], [0.5, G.rimTop + 0.03, 0.255], M.lacquer, 0.005);
-  for (const s of [-1, 1]) rbox(mb, [s * 0.5 - (s > 0 ? 0 : 0.17), G.rimTop - 0.06, 0.185], [s * 0.5 + (s > 0 ? 0.17 : 0), G.rimTop + 0.005, 0.255], M.lacquer, 0.004);
+  // the desk rail it stands on, across the plate's front, on two posts
+  rbox(mb, [-0.46, G.rimTop + 0.004, 0.19], [0.46, G.rimTop + 0.03, 0.24], M.lacquer, 0.005);
+  for (const s of [-1, 1]) rbox(mb, [s * 0.4 - 0.02, G.plateY + 0.03, 0.2], [s * 0.4 + 0.02, G.rimTop + 0.006, 0.23], M.lacquer, 0.004);
   return mb.build();
 }
 
@@ -1025,12 +1034,13 @@ function plateGrand(mb: MeshBuilder, geo: KeyGeo[], inner: P2[], DB: Vec3): void
   const rimIn = offset(inner, 0.006);
   const outline: P2[] = dedupe([...rimIn.filter((p) => p[1] > G.plateFront + 0.01), [rimIn[rimIn.length - 1][0], G.plateFront], [rimIn[0][0], G.plateFront]], 0.004);
   // lightening holes where the flange is wide (between the rim and the windows)
+  // (Steinway's "rosettes": four or five big round holes where the flange is widest)
   const holes: P2[][] = [];
   const centres: { c: P2; r: number }[] = [];
-  const path = resample(rimIn, 0.03);
-  for (const p of path) {
-    if (p[1] < 0.7) continue;
-    const k = path.indexOf(p);
+  const path = resample(rimIn, 0.02);
+  const cands: { c: P2; r: number; w: number }[] = [];
+  path.forEach((p, k) => {
+    if (p[1] < 0.7) return;
     const a = path[Math.max(0, k - 1)];
     const c = path[Math.min(path.length - 1, k + 1)];
     const t = nrm2(c[0] - a[0], c[1] - a[1]);
@@ -1042,19 +1052,24 @@ function plateGrand(mb: MeshBuilder, geo: KeyGeo[], inner: P2[], DB: Vec3): void
       if (windows.some((W) => inPoly(q, W) || distLine(q, W, true) < 0.02)) break;
       w += 0.01;
     }
-    if (w < 0.15) continue;
-    const r = Math.min(0.052, (w - 0.075) / 2);
-    const cc: P2 = [p[0] + lft[0] * (0.03 + r + (w - 0.075 - 2 * r) * 0.35), p[1] + lft[1] * (0.03 + r + (w - 0.075 - 2 * r) * 0.35)];
-    if (centres.some((o) => Math.hypot(o.c[0] - cc[0], o.c[1] - cc[1]) < o.r + r + 0.045)) continue;
-    centres.push({ c: cc, r });
-    holes.push(circle(cc[0], cc[1], r, 28));
+    if (w < 0.16) return;
+    const r = Math.min(0.06, (w - 0.08) / 2);
+    const d = 0.035 + r + (w - 0.08 - 2 * r) * 0.4;
+    cands.push({ c: [p[0] + lft[0] * d, p[1] + lft[1] * d], r, w });
+  });
+  cands.sort((p, q) => q.w - p.w);
+  for (const cd of cands) {
+    if (centres.length >= 5) break;
+    if (centres.some((o) => Math.hypot(o.c[0] - cd.c[0], o.c[1] - cd.c[1]) < o.r + cd.r + 0.1)) continue;
+    centres.push(cd);
+    holes.push(circle(cd.c[0], cd.c[1], cd.r, 36));
   }
   slab(mb, PLAN, outline, [...windows, ...holes], PY - 0.016, PY, M.pianoPlate, { bevel: 0.004, smooth: 0.6 });
   // raised lips round the windows and holes (the casting's flanges)
   for (const W of windows) slab(mb, PLAN, offset(W, -0.013, true), [W], PY - 0.004, PY + 0.006, M.pianoPlate, { bevel: 0.003, botBevel: false, bottom: false, smooth: 0.6 });
   for (const { c, r } of centres) slab(mb, PLAN, circle(c[0], c[1], r + 0.012, 28), [circle(c[0], c[1], r, 28)], PY - 0.004, PY + 0.007, M.pianoPlate, { bevel: 0.0035, botBevel: false, bottom: false });
-  // a raised rib along the front edge
-  slab(mb, PLAN, rrect(xIn, G.plateFront, xInR, G.plateFront + 0.014, 0.004), [], PY - 0.004, PY + 0.008, M.pianoPlate, { bevel: 0.004, botBevel: false, bottom: false });
+  // the raised flange all round the plate's edge, where it sits on the rim
+  slab(mb, PLAN, outline, [offset(outline, 0.024, true)], PY - 0.004, PY + 0.009, M.pianoPlate, { bevel: 0.004, botBevel: false, bottom: false, smooth: 0.6 });
   // ---- the tenor hitch bar: carries the tenor strings' hitch pins under the bass strings
   const tOut = tenor.filter((g) => !inT(g));
   if (tOut.length) {
@@ -1068,17 +1083,24 @@ function plateGrand(mb: MeshBuilder, geo: KeyGeo[], inner: P2[], DB: Vec3): void
     slab(mb, PLAN, bar, [], PY - 0.014, PY + 0.002, M.pianoPlate, { bevel: 0.004 });
   }
   // ---- struts over the strings (oval beams rising from the web to clear the dampers), with feet
+  // (a flat bar with raised edges, as cast; it rises off the web, clears the dampers, comes down onto the flange)
+  const SEC: SecPt[] = [
+    { n: -0.021, y: 0 }, { n: 0.021, y: 0 }, { n: 0.021, y: 0.011 }, { n: 0.0185, y: 0.0165 }, { n: 0.014, y: 0.0165 }, { n: 0.0125, y: 0.0095 }, { n: -0.0125, y: 0.0095 }, { n: -0.014, y: 0.0165 }, { n: -0.0185, y: 0.0165 }, { n: -0.021, y: 0.011 },
+  ];
   const strut = (p0: P2, p1: P2, top: number) => {
-    const n = 14;
-    const pts: Vec3[] = [];
+    const n = 24;
+    const path: P2[] = [];
+    const yOff: number[] = [];
     for (let k = 0; k <= n; k++) {
       const t = k / n;
-      const rise = Math.min(1, t / 0.12, (1 - t) / 0.1);
+      const rise = Math.min(1, t / 0.14, (1 - t) / 0.12);
       const e = rise < 1 ? 0.5 - 0.5 * Math.cos(Math.PI * rise) : 1;
-      pts.push([lerp(p0[0], p1[0], t), lerp(PY - 0.002, top, e), lerp(p0[1], p1[1], t)]);
+      path.push([lerp(p0[0], p1[0], t), lerp(p0[1], p1[1], t)]);
+      yOff.push(lerp(PY - 0.006, top - 0.0165, e));
     }
-    tube(mb, pts, 0.017, 14, M.pianoPlate, { flat: 0.62 });
-    for (const p of [p0, p1]) slab(mb, PLAN, circle(p[0], p[1], 0.024, 18), [], PY - 0.004, PY + 0.01, M.pianoPlate, { bevel: 0.006 });
+    sweepPlan(mb, path, SEC, M.pianoPlate, { yOff, smooth: 0.6 });
+    // the feet: the bar spreads into the web and the flange
+    for (const p of [p0, p1]) slab(mb, PLAN, circle(p[0], p[1], 0.03, 24), [], PY - 0.004, PY + 0.008, M.pianoPlate, { bevel: 0.006, botBevel: false });
   };
   // the bass strut: along the gap between the windows, over the tenor strings
   {
@@ -1118,12 +1140,9 @@ function plateGrand(mb: MeshBuilder, geo: KeyGeo[], inner: P2[], DB: Vec3): void
   // ---- tuning pins (blued steel in the pin block, a bright coil of wire round each), hitch pins
   for (const g of geo)
     for (const s of g.strings) {
-      const [x, , z] = s.pin;
-      cyl(mb, [x, PY - 0.004, z], [x, PY + 0.03, z], 0.0035, 0.0035, 10, M.nickel, false);
-      cyl(mb, [x, PY + 0.008, z], [x, PY + 0.017, z], 0.0043, 0.0043, 10, M.steel, false);
-      cyl(mb, [x, PY + 0.03, z], [x, PY + 0.0315, z], 0.0035, 0.0025, 10, M.steel);
+      tuningPin(mb, [s.pin[0], PY - 0.004, s.pin[2]], [0, 1, 0]);
       const [hx, , hz] = s.hitch;
-      cyl(mb, [hx, PY - 0.002, hz], [hx, PY + 0.016, hz], 0.0021, 0.0019, 6, M.steel);
+      cyl(mb, [hx, PY - 0.002, hz], [hx, PY + 0.016, hz], 0.0021, 0.0019, 6, M.pinSteel);
     }
   // ---- felts: the red understring felt between the pins and the speaking length (treble), and the
   //      hitch felt woven along the hitch pins
@@ -1227,6 +1246,13 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
     const lx = s < 0 ? xL + 0.045 : xR - 0.045;
     post(mb, lx, -0.005, [[0.022, 0.022, 0.045], [0.019, 0.019, 0.08], [0.024, 0.024, 0.58], [0.032, 0.032, 0.62], [0.032, 0.032, 0.655]], 0.004, M.lacquer);
     rbox(mb, [lx - 0.034, 0.0, -0.075], [lx + 0.034, 0.045, 0.12], M.lacquer, 0.006);
+    // the console: a cove bracket from the leg up under the arm's front
+    const cove: P2[] = [[-0.045, 0.655], [0.027, 0.655], [0.027, 0.575]];
+    for (let k = 1; k < 10; k++) {
+      const a = (k / 10) * (Math.PI / 2);
+      cove.push([-0.045 + 0.072 * Math.cos(a), 0.575 + 0.072 * Math.sin(a)]);
+    }
+    sideSlab(mb, cove, lx - 0.026, lx + 0.026, M.lacquer, 0.004);
   }
   // top (overhanging, rounded front edge) and the top front rail above the action
   slab(mb, PLAN, rrect(xL - 0.012, 0.012, xR + 0.012, U.back + 0.012, 0.012), [], U.top - 0.025, U.top, M.lacquer, { bevel: 0.008 });
@@ -1342,12 +1368,9 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
     }
     for (const g of geo)
       for (const s of g.strings) {
-        const [x, y, z] = s.pin;
-        cyl(mb, [x, y, PZ + 0.004], [x, y, z - 0.03], 0.0035, 0.0035, 10, M.steel, false);
-        cyl(mb, [x, y, z - 0.004], [x, y, z - 0.012], 0.0043, 0.0043, 10, g.wound ? M.copper : M.nickel, false);
-        cyl(mb, [x, y, z - 0.03], [x, y, z - 0.0315], 0.0035, 0.0025, 10, M.steel);
+        tuningPin(mb, [s.pin[0], s.pin[1], PZ + 0.004], [0, 0, -1]);
         const [hx, hy] = s.hitch;
-        cyl(mb, [hx, hy, PZ], [hx, hy, PZ - 0.016], 0.0021, 0.0019, 6, M.steel);
+        cyl(mb, [hx, hy, PZ], [hx, hy, PZ - 0.016], 0.0021, 0.0019, 6, M.pinSteel);
       }
     // the red felt between the pins and the speaking length
     for (let k = 0; k < trebU.length - 1; k += 4) {
@@ -1382,11 +1405,11 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
     sideSlab(w, [[0.008, -0.008], [0.008, 0.006], [-0.03, 0.012], [-0.06, 0.012], [-0.112, 0.006], [-0.118, -0.002], [-0.11, -0.012], [-0.06, -0.012]], -0.0045, 0.0045, M.hornbeam, 0.0012);
     rbox(w, [-0.0046, -0.017, -0.106], [0.0046, -0.011, -0.09], M.buckskin, 0.0015);
     rbox(w, [-0.0047, 0.006, -0.066], [0.0047, 0.016, -0.05], M.hornbeam, 0.001);
-    cyl(w, [0, 0.006, -0.1], [0, 0.068, -0.108], 0.0011, 0.0011, 6, M.steel, false);
+    cyl(w, [0, 0.006, -0.1], [0, 0.068, -0.108], 0.0011, 0.0011, 6, M.brassDull, false);
     sideSlab(w, [[-0.116, 0.062], [-0.102, 0.062], [-0.1, 0.084], [-0.114, 0.086]], -0.004, 0.004, M.hornbeam, 0.001);
     sideSlab(w, [[-0.1, 0.064], [-0.097, 0.064], [-0.095, 0.083], [-0.1, 0.084]], -0.0041, 0.0041, M.redFelt, 0.0005);
     tube(w, [[0, 0.004, 0.004], [0, 0.03, 0.014], [0, 0.058, 0.01]], 0.0014, 6, M.nickel);
-    cyl(w, [0.0042, 0.012, -0.09], [0.0042, 0.07, -0.098], 0.0006, 0.0006, 5, M.steel, false);
+    cyl(w, [0.0042, 0.012, -0.09], [0.0042, 0.07, -0.098], 0.0006, 0.0006, 5, M.brassDull, false);
     parts.wippen = w.build();
     const j = new MeshBuilder();
     sideSlab(j, [[-0.0035, 0], [0.0035, 0], [0.0035, 0.068], [-0.0035, 0.068], [-0.0035, 0.024], [-0.013, 0.02], [-0.013, 0.014], [-0.0035, 0.014]], -0.0036, 0.0036, M.hornbeam, 0.0008);
@@ -1404,7 +1427,7 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
     const d = new MeshBuilder();
     sideSlab(d, [[-0.005, -0.03], [0.006, -0.03], [0.007, 0.1], [-0.004, 0.1]], -0.004, 0.004, M.hornbeam, 0.001);
     rbox(d, [-0.0041, -0.03, -0.008], [0.0041, -0.014, -0.005], M.redFelt, 0.001);
-    cyl(d, [0.0, 0.097, 0.002], [0.0, 0.165, 0.026], 0.001, 0.001, 6, M.steel, false);
+    cyl(d, [0.0, 0.097, 0.002], [0.0, 0.165, 0.026], 0.001, 0.001, 6, M.brassDull, false);
     rbox(d, [-0.0062, 0.158, 0.02], [0.0062, 0.186, 0.034], M.maple, 0.0012);
     rbox(d, [-0.006, 0.16, 0.034], [0.006, 0.184, 0.04], M.damperFelt, 0.0012);
     parts.damper = d.build();
