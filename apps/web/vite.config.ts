@@ -53,7 +53,8 @@ export default defineConfig({
   plugins: [pianoDesigns()],
   // Safari 14.1 is the first WebKit with AudioWorklet; the worklet bundle is lowered to what it
   // parses, and `pnpm build` checks that (scripts/check-worklet-syntax.mjs)
-  build: { target: ['es2020', 'safari14'], sourcemap: false },
+  // (the 3D stage — three.js — is its own chunk, loaded only when 3D is switched on)
+  build: { target: ['es2020', 'safari14'], sourcemap: false, chunkSizeWarningLimit: 800 },
   worker: { format: 'es' },
   server: { port: 5199, strictPort: false },
   preview: { port: 4199 },

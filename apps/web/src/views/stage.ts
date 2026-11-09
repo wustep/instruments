@@ -7,7 +7,8 @@ import { DEFAULT_PARAMS, INSTRUMENT_IDS, INSTRUMENT_INFO, PRESETS, PRESET_IDS, b
 import { cssVar, fitCanvas, fmt, h, type View } from '../ui/dom.ts';
 import type { KeyboardHandle } from '../ui/keyboard.ts';
 import { openActionView } from '../ui/action-view.ts';
-import { createStage3D, webgl2Available, type Stage3D } from '../ui/gl/stage3d.ts';
+import type { Stage3D } from '../ui/gl/stage3d.ts';
+import { webgl2Available } from '../ui/gl/webgl2.ts';
 import { glyph, knob, type KnobSpec } from '../ui/controls.ts';
 import { AutoScale, INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, type BowedGeom } from '../ui/stage-draw.ts';
 import { drawPiano, newPianoState, stringAt } from '../ui/piano-draw.ts';
@@ -110,6 +111,28 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
   };
   const el = h('div', { class: 'view stage' }, canvas, top, gripRoom, gripLid);
   let s3: Stage3D | null = null;
+  // three.js and the 3D stage load on first use (a separate chunk)
+  let loading3d: Promise<void> | null = null;
+  const wire3d = (s: Stage3D) => {
+    // in 3D too, a click (not a drag) on a note's strings opens that key's action
+    const cv3 = s.el;
+    let at3: { x: number; y: number } | null = null;
+    cv3.addEventListener('pointerdown', (e) => {
+      at3 = { x: e.clientX, y: e.clientY };
+    });
+    cv3.addEventListener('pointerup', (e) => {
+      if (!at3 || !s3 || Math.hypot(e.clientX - at3.x, e.clientY - at3.y) > 6 || family() !== 'piano') return;
+      at3 = null;
+      const r = cv3.getBoundingClientRect();
+      const m = s3.pick(e.clientX - r.left, e.clientY - r.top);
+      if (m !== null) openAction(m);
+    });
+    cv3.addEventListener('pointermove', (e) => {
+      if (e.buttons || !s3 || family() !== 'piano') return;
+      const r = cv3.getBoundingClientRect();
+      cv3.style.cursor = s3.pick(e.clientX - r.left, e.clientY - r.top) !== null ? 'zoom-in' : '';
+    });
+  };
   const set3d = (on: boolean) => {
     want3d = on && has3d;
     dimBtn.setAttribute('aria-pressed', String(want3d));
@@ -118,16 +141,30 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     } catch {
       /* storage blocked */
     }
-    if (want3d && !s3) {
-      s3 = createStage3D(el);
-      if (!s3) {
-        // WebGL2 said yes and then failed: stay in 2D
-        want3d = false;
-        dimBtn.hidden = true;
-      }
+    if (want3d && !s3 && !loading3d) {
+      loading3d = import('../ui/gl/stage3d.ts')
+        .then(({ createStage3D }) => {
+          s3 = createStage3D(el);
+          if (!s3) {
+            // WebGL2 said yes and then failed: stay in 2D
+            want3d = false;
+            dimBtn.hidden = true;
+            dimBtn.setAttribute('aria-pressed', 'false');
+            el.classList.remove('is-3d');
+          } else wire3d(s3);
+          show3d();
+        })
+        .catch(() => {
+          want3d = false;
+          dimBtn.hidden = true;
+          el.classList.remove('is-3d');
+        });
     }
+    show3d();
+  };
+  const show3d = () => {
     if (s3) s3.el.hidden = !want3d;
-    el.classList.toggle('is-3d', want3d);
+    el.classList.toggle('is-3d', want3d && !!s3);
     (window as unknown as { __stage3d?: Stage3D | null }).__stage3d = want3d ? s3 : null;
   };
   dimBtn.addEventListener('click', () => set3d(!want3d));
