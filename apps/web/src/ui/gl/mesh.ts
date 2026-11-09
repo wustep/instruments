@@ -123,6 +123,11 @@ export const M = {
   keyIvory: { col: hex('#f0ebdf'), rough: 0.3, metal: 0 },
   pinSteel: { col: hex('#bfc2c7'), rough: 0.34, metal: 1 },
   caseRaw: { col: hex('#151210'), rough: 0.85, metal: 0 },
+  // the upright's action: rails of pale beech (Kawai, Yamaha: natural, unstained), the bridle tapes'
+  // cotton, the bridle wires' leather ends
+  railBeech: { col: hex('#d2b384'), rough: 0.55, metal: 0 },
+  tape: { col: hex('#ebe6da'), rough: 0.9, metal: 0 },
+  bridleLeather: { col: hex('#a8231d'), rough: 0.8, metal: 0 },
 } satisfies Record<string, Mat>;
 for (const [k, m] of Object.entries(M)) (m as Mat).name = k;
 /** a variant of a shared material (same shading family, its own colour or maps) */

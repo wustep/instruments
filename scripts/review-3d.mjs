@@ -108,7 +108,10 @@ async function view(page, v) {
   }, v);
 }
 
-// ad-hoc views: CUSTOM='name:yaw,pitch,dist,tx,ty,tz;name2:...' (added to every instrument run)
+// ad-hoc views: CUSTOM='name:yaw,pitch,dist,tx,ty,tz;name2:...' (added to every instrument run).
+// SECTION=x cuts the views whose name starts with "sec" at world x (keeps x < SECTION): a side
+// section through the action, seen from +x (yaw π/2)
+const SECTION = process.env.SECTION === undefined ? null : Number(process.env.SECTION);
 const CUSTOM = (process.env.CUSTOM ?? '').split(';').filter(Boolean).map((c) => {
   const [name, v] = c.split(':');
   const [yaw, pitch, dist, tx, ty, tz] = v.split(',').map(Number);
@@ -132,6 +135,11 @@ for (const [id, cfg] of Object.entries(R)) {
     await page.goto(`${BASE}/`);
     await page.evaluate(() => document.fonts.ready);
     await setup(page, cfg);
+    if (SECTION !== null && which.startsWith('sec'))
+      await page.evaluate((x) => {
+        // the renderer's world is mirrored in x; three keeps n·p + c ≥ 0 (a plain object will do)
+        window.__stage3d.r3.r.clippingPlanes = [{ normal: { x: 1, y: 0, z: 0 }, constant: x }];
+      }, SECTION);
     if (which === 'act') {
       await view(page, cfg.act.view);
       await play(page, cfg.act.notes, false, 40);

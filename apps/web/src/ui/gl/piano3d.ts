@@ -17,8 +17,9 @@
 //     the key, lifted by the key's tail, its wire up through the guide rail to the head;
 //   * upright action (Yamaha U pattern): the wippen flanged at the back on the main rail, the jack up
 //     to the hammer butt 10 mm in front of the butt centre, a 152 mm shank, the catcher and backcheck,
-//     the damper lever pushed by the wippen's spoon, its head on the strings just above the hammers;
-//     the hammer rail moves with the soft pedal;
+//     the bridle wire and tape; an underdamper: the damper lever pushed by the wippen's spoon, its head
+//     on the strings 50 mm below the strike line, behind the shanks; the hammer rail moves with the
+//     soft pedal; rails of pale beech, gold-painted cast brackets (upright-action-close.jpg);
 //   * grand case: a ≈2.1 m grand (the engine's scale: its longest string, A0, is 1.58 m; Steinway B
 //     is 2.11 × 1.48 m), rim 68 mm thick and 345 mm deep, lid hinged on the spine with its front flap
 //     folded back, a long prop stick on the bentside, three square tapered legs on brass casters, a
@@ -523,7 +524,7 @@ function hammerHead(upright: boolean): Mesh {
   // backcheck (grand); an upright's head is seen from behind: a narrow wooden back between the felt's shoulders
   const top = egg(0.0075, 0.0211, 0.016, 0.003, 18);
   const mould: P2[] = upright
-    ? [[-0.0062, -0.012], [0.0062, -0.012], [0.0068, 0.003], ...top, [-0.0068, 0.003]]
+    ? [[-0.0058, -0.0075], [0.0058, -0.0075], [0.0068, 0.003], ...top, [-0.0068, 0.003]]
     : [[-0.009, -0.0095], [0.012, -0.0095], [0.0128, -0.002], [0.0095, 0.003], ...top, [-0.0095, 0.003], [-0.0098, -0.002]];
   mk(mould, half + 0.00024, upright ? M.mahogany : M.maple, 0.0007);
   return mb.build();
@@ -1252,7 +1253,9 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
       const hitch: Vec3 = [b[0] + dir[0] * 0.06, b[1] + dir[1] * 0.06, U.plateZ - 0.006];
       strings.push({ pin, a, b, hitch });
     }
-    const damper: Vec3 | null = k.hasDamper ? [strike[0] - dir[0] * 0.035, strike[1] + 0.035, z] : null;
+    // an underdamper action (every modern upright): the damper's felt on the strings 50 mm below the
+    // strike line, hidden behind the shanks (the old overdamper "birdcage" put them above the hammers)
+    const damper: Vec3 | null = k.hasDamper ? [strike[0] + dir[0] * 0.05, strike[1] + dir[1] * 0.05, z] : null;
     const hs = 1.15 - 0.3 * ((m - 21) / 87);
     // the head's depth from the shank to the crown (48 mm, less where the bass strings come nearer)
     const depth = Math.min(0.048, z - U.blow - U.buttZ);
@@ -1288,9 +1291,10 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
     }
     sideSlab(mb, cove, lx - 0.026, lx + 0.026, M.lacquer, 0.004);
   }
-  // top (overhanging, rounded front edge) and the top front rail above the action
+  // the top (overhanging, rounded front edge; the U1's lid: a front flap on a piano hinge). With the
+  // upper panel off nothing crosses the opening below it: no rail, the pin field in plain view
   slab(mb, PLAN, rrect(xL - 0.012, 0.012, xR + 0.012, U.back + 0.012, 0.012), [], U.top - 0.025, U.top, M.lacquer, { bevel: 0.008 });
-  rbox(mb, [xL + 0.026, U.top - 0.075, 0.03], [xR - 0.026, U.top - 0.025, 0.05], M.lacquer, 0.004);
+  cyl(mb, [xL + 0.02, U.top + 0.0006, 0.2], [xR - 0.02, U.top + 0.0006, 0.2], 0.0028, 0.0028, 10, M.brassDull);
   box3(mb, [xL + 0.026, 0.04, U.back - 0.022], [xR - 0.026, U.top - 0.025, U.back], M.lacquerSatin);
   // kneeboard (the lower front panel, a raised field) and the toe rail
   slab(mb, FRONT, rrect(xL + 0.026, 0.085, xR - 0.026, 0.652, 0.002), [], 0.09, 0.11, M.lacquer, { bevel: 0.003 });
@@ -1304,16 +1308,37 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
   rbox(mb, [-0.612, 0.682, U.balZ - 0.011], [0.612, 0.698, U.balZ + 0.011], M.actionWood, 0.0015);
   rbox(mb, [-0.612, 0.682, 0.385], [0.612, 0.694, 0.42], M.actionWood, 0.0015);
   rbox(mb, [-0.612, 0.694, 0.385], [0.612, 0.698, 0.42], M.greenFelt, 0.0008);
-  // the fall rail over the key ends (the fallboard is off with the upper panel)
-  sideSlab(mb, [[0.148, 0.728], [0.175, 0.728], [0.19, 0.745], [0.19, 0.79], [0.165, 0.795], [0.148, 0.78]], -0.613, 0.613, M.lacquer, 0.004);
-  rbox(mb, [-0.613, 0.722, 0.146], [0.613, 0.729, 0.18], M.redFelt, 0.001);
+  // the fallboard, open: pushed back over the key ends and leaning back, its rounded top edge just
+  // below the wippens (Yamaha U1: a two-part board; open, its front leaf stands above the keys)
+  {
+    const fb: P2[] = [[0.148, 0.729], [0.171, 0.729], [0.186, 0.792]];
+    for (let k = 0; k <= 8; k++) {
+      const a = (Math.PI * k) / 8;
+      fb.push([0.176 + 0.011 * Math.cos(a) - 0.002 * Math.sin(a), 0.794 + 0.011 * Math.sin(a)]);
+    }
+    fb.push([0.157, 0.785]);
+    sideSlab(mb, fb, -0.613, 0.613, M.lacquer, 0.003);
+    // its hinges (brass knuckles at each end and the middle) and the felt it rests on
+    for (const x of [-0.5, 0, 0.5]) cyl(mb, [x - 0.03, 0.735, 0.147], [x + 0.03, 0.735, 0.147], 0.0035, 0.0035, 10, M.brass);
+    rbox(mb, [-0.613, 0.722, 0.146], [0.613, 0.729, 0.18], M.redFelt, 0.001);
+  }
   // pedals (three, brass) through the toe rail
   const pedals: { mesh: Mesh; pivot: Vec3 }[] = [];
-  for (const x of [-0.06, 0, 0.06]) {
+  // (cast brass feet, ≈ 30 mm wide at the tip and 105 mm out of the toe rail (K-132, U1), each through
+  // a slot lined with red felt)
+  for (const x of [-0.065, 0, 0.065]) {
     const p = new MeshBuilder();
-    tube(p, [[x, 0.06, 0.13], [x, 0.06, 0.07], [x, 0.058, 0.02], [x, 0.054, -0.01]], 0.006, 12, M.brass, { caps: true, flat: 0.45 });
-    ellipsoid(p, [x, 0.053, -0.02], [0.016, 0.0055, 0.028], 18, M.brass);
-    pedals.push({ mesh: p.build(), pivot: [x, 0.06, 0.13] });
+    const half = (z: number) => (z > 0.06 ? 0.0085 : 0.0085 + (0.0065 * (0.06 - z)) / 0.08);
+    const foot: P2[] = [];
+    for (let k = 0; k <= 6; k++) foot.push([x + half(0.13 - (0.14 * k) / 6), 0.13 - (0.14 * k) / 6]);
+    for (let k = 1; k < 12; k++) {
+      const a = (Math.PI * k) / 12;
+      foot.push([x + 0.015 * Math.cos(a), -0.01 - 0.026 * Math.sin(a)]);
+    }
+    for (let k = 6; k >= 0; k--) foot.push([x - half(0.13 - (0.14 * k) / 6), 0.13 - (0.14 * k) / 6]);
+    slab(p, PLAN, dedupe(foot), [], 0.049, 0.057, M.brass, { bevel: 0.0022, smooth: 0.5 });
+    pedals.push({ mesh: p.build(), pivot: [x, 0.053, 0.13] });
+    rbox(mb, [x - 0.014, 0.042, 0.0685], [x + 0.014, 0.064, 0.0705], M.redFelt, 0.001);
   }
   // ---- soundboard and back posts
   const ub = new MeshBuilder();
@@ -1391,7 +1416,7 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
     for (let k = 0; k < pb.length - 1; k += 3) {
       const a = pb[k];
       const b = pb[Math.min(pb.length - 1, k + 3)];
-      slab(mb, FRONT, [[a[0] - 0.004, a[1] - 0.001], [b[0] + 0.004, b[1] - 0.001], [b[0] + 0.004, b[1] + 0.016], [a[0] - 0.004, a[1] + 0.016]], [], U.strZ - 0.012, U.strZ - 0.0015, M.nickel, { bevel: 0.0015 });
+      slab(mb, FRONT, [[a[0] - 0.004, a[1] - 0.001], [b[0] + 0.004, b[1] - 0.001], [b[0] + 0.004, b[1] + 0.016], [a[0] - 0.004, a[1] + 0.016]], [], U.strZ - 0.012, U.strZ - 0.0015, M.nickelSatin, { bevel: 0.0015 });
     }
     for (let k = 0; k < pb.length; k += 6) cyl(mb, [pb[k][0], pb[k][1] + 0.008, U.strZ - 0.012], [pb[k][0], pb[k][1] + 0.008, U.strZ - 0.016], 0.004, 0.0035, 10, M.nickel);
     for (const g of geo) {
@@ -1419,9 +1444,9 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
     slab(mb, SIDE, prof, [rrect(0.44, 0.94, 0.455, 1.03, 0.006, 2)], x - 0.006, x + 0.006, M.pianoPlate, { bevel: 0.002 });
   }
   // main rail, damper rail (behind the damper levers: the pedal swings them off), let-off rail
-  rbox(mb, [-0.62, 0.815, 0.398], [0.62, 0.848, 0.424], M.actionWood, 0.002);
-  rbox(mb, [-0.62, 0.89, 0.448], [0.62, 0.905, 0.462], M.actionWood, 0.0015);
-  rbox(mb, [-0.62, 0.822, 0.352], [0.62, 0.832, 0.372], M.actionWood, 0.0015);
+  rbox(mb, [-0.62, 0.815, 0.398], [0.62, 0.848, 0.424], M.railBeech, 0.002);
+  rbox(mb, [-0.62, 0.89, 0.448], [0.62, 0.905, 0.462], M.railBeech, 0.0015);
+  rbox(mb, [-0.62, 0.822, 0.352], [0.62, 0.832, 0.372], M.railBeech, 0.0015);
   for (const g of geo) {
     const x = g.strike[0];
     // butt flange and wippen flange on the main rail, the let-off button over the jack's toe
@@ -1444,6 +1469,12 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
     sideSlab(w, [[-0.1, 0.064], [-0.097, 0.064], [-0.095, 0.083], [-0.1, 0.084]], -0.0041, 0.0041, M.redFelt, 0.0005);
     tube(w, [[0, 0.004, 0.004], [0, 0.03, 0.014], [0, 0.058, 0.01]], 0.0014, 6, M.nickel);
     cyl(w, [0.0042, 0.012, -0.09], [0.0042, 0.07, -0.098], 0.0006, 0.0006, 5, M.brassDull, false);
+    // the bridle wire up the wippen's front, its hooked end sleeved in red leather; the cotton tape
+    // from the catcher's shank hangs in a slack loop to the hook (it pulls the hammer back on a fast
+    // repetition). The tape rides with the wippen: its few millimetres of slack hide the difference
+    cyl(w, [-0.003, 0.004, -0.112], [-0.003, 0.046, -0.124], 0.0006, 0.0006, 5, M.brassDull, false);
+    ellipsoid(w, [-0.003, 0.046, -0.124], [0.0016, 0.0042, 0.0016], 10, M.bridleLeather);
+    ribbonX(w, spline([[-0.124, 0.05], [-0.128, 0.062], [-0.122, 0.074], [-0.105, 0.082], [-0.09, 0.083]], 4), -0.003, 0.0028, M.tape);
     parts.wippen = w.build();
     const j = new MeshBuilder();
     sideSlab(j, [[-0.0035, 0], [0.0035, 0], [0.0035, 0.068], [-0.0035, 0.068], [-0.0035, 0.024], [-0.013, 0.02], [-0.013, 0.014], [-0.0035, 0.014]], -0.0036, 0.0036, M.hornbeam, 0.0008);
@@ -1452,22 +1483,26 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
     const s = new MeshBuilder();
     sideSlab(s, [[-0.014, -0.011], [0.013, -0.011], [0.014, 0.004], [0.008, 0.017], [-0.012, 0.017], [-0.015, 0.004]], -0.0048, 0.0048, M.hornbeam, 0.0015);
     rbox(s, [-0.0049, -0.0135, -0.014], [0.0049, -0.0105, 0.0], M.buckskin, 0.001);
-    cyl(s, [0, 0.003, -0.013], [0, 0.0, -0.034], 0.0018, 0.0018, 8, M.hornbeam, false);
-    ellipsoid(s, [0, -0.002, -0.037], [0.0048, 0.009, 0.0045], 12, M.greenFelt);
+    // the catcher: a hornbeam head on its shank towards the player, its face (that the backcheck
+    // catches) covered in green felt (Kawai; buckskin on others)
+    cyl(s, [0, 0.003, -0.013], [0, 0.0, -0.03], 0.0018, 0.0018, 8, M.hornbeam, false);
+    sideSlab(s, [[-0.0405, -0.012], [-0.03, -0.011], [-0.028, 0.0], [-0.03, 0.01], [-0.038, 0.011], [-0.0415, 0.002]], -0.0045, 0.0045, M.hornbeam, 0.0015);
+    sideSlab(s, [[-0.043, -0.0125], [-0.0402, -0.0125], [-0.0412, 0.0025], [-0.0385, 0.0115], [-0.041, 0.0118], [-0.044, 0.002]], -0.0046, 0.0046, M.greenFelt, 0.0008);
     cyl(s, [0, 0.015, 0], [0, U.shank - 0.006, 0.0], 0.0036, 0.0033, 12, M.hornbeam);
     parts.shank = s.build();
     parts.head = hammerHead(true);
     // damper lever (pivot on the damper flange): lever up behind the hammer, its spring and wire, the head
     const d = new MeshBuilder();
-    sideSlab(d, [[-0.005, -0.03], [0.006, -0.03], [0.007, 0.1], [-0.004, 0.1]], -0.004, 0.004, M.actionWood, 0.001);
+    sideSlab(d, [[-0.0035, -0.03], [0.0045, -0.03], [0.0055, 0.068], [-0.0025, 0.068]], -0.0035, 0.0035, M.hornbeam, 0.001);
     rbox(d, [-0.0041, -0.03, -0.008], [0.0041, -0.014, -0.005], M.redFelt, 0.001);
-    cyl(d, [0.0, 0.097, 0.002], [0.0, 0.165, 0.026], 0.001, 0.001, 6, M.brassDull, false);
-    rbox(d, [-0.0062, 0.158, 0.02], [0.0062, 0.186, 0.034], M.maple, 0.0012);
-    rbox(d, [-0.006, 0.16, 0.034], [0.006, 0.184, 0.04], M.damperFelt, 0.0012);
+    // the damper wire (bent to regulate the head) and the head: a block, its felt on the strings
+    cyl(d, [0.0, 0.062, 0.003], [0.0, 0.082, 0.022], 0.001, 0.001, 6, M.brassDull, false);
+    rbox(d, [-0.0058, 0.074, 0.019], [0.0058, 0.1, 0.034], M.hornbeam, 0.0012);
+    rbox(d, [-0.0056, 0.0755, 0.034], [0.0056, 0.0985, 0.0402], M.damperFelt, 0.0012);
     parts.damper = d.build();
     // the hammer rail (moves with the soft pedal): its felt faces the shanks
     const hr = new MeshBuilder();
-    rbox(hr, [-0.62, 0.932, 0.36], [0.62, 0.952, 0.378], M.actionWood, 0.002);
+    rbox(hr, [-0.62, 0.932, 0.36], [0.62, 0.952, 0.378], M.railBeech, 0.002);
     rbox(hr, [-0.62, 0.934, 0.378], [0.62, 0.95, 0.3814], M.greenFelt, 0.001);
     parts.hamRail = hr.build();
   }
@@ -1489,6 +1524,30 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
     floorY: 0,
     src: [0, 1.1, 0.3],
   };
+}
+/** a thin flexible strip (a tape) along a path in the side plane (z, y) at x, `w` wide in x, both faces */
+function ribbonX(mb: MeshBuilder, path: P2[], x: number, w: number, m: Mat): void {
+  const t = 0.00025;
+  for (let i = 0; i < path.length - 1; i++) {
+    const [z0, y0] = path[i];
+    const [z1, y1] = path[i + 1];
+    const [nz, ny] = nrm2(-(y1 - y0), z1 - z0);
+    for (const sg of [1, -1]) {
+      const o = sg * t;
+      const A: Vec3 = [x - w / 2, y0 + ny * o, z0 + nz * o];
+      const B: Vec3 = [x + w / 2, y0 + ny * o, z0 + nz * o];
+      const C: Vec3 = [x + w / 2, y1 + ny * o, z1 + nz * o];
+      const D: Vec3 = [x - w / 2, y1 + ny * o, z1 + nz * o];
+      const n: Vec3 = [0, ny * sg, nz * sg];
+      if (sg > 0) {
+        mb.stri(A, C, B, n, n, n, m);
+        mb.stri(A, D, C, n, n, n, m);
+      } else {
+        mb.stri(A, B, C, n, n, n, m);
+        mb.stri(A, C, D, n, n, n, m);
+      }
+    }
+  }
 }
 /** a plain box (for faces nobody sees edge-on: the case back) */
 function box3(mb: MeshBuilder, lo: Vec3, hi: Vec3, m: Mat): void {

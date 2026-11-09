@@ -108,12 +108,18 @@ const P: Record<string, Phys> = {
   underfelt: { color: '#5c1418', roughness: 1, sheen: 0.9, sheenColor: '#b04048', sheenRoughness: 0.5, tex: 6 },
   greenFelt: { color: '#1f4a36', roughness: 1, sheen: 0.8, sheenColor: '#5a9a7a', sheenRoughness: 0.5, tex: 6 },
   bracketCast: { color: '#7a6e4c', metalness: 0.85, roughness: 0.42, tex: 5 },
-  mahogany: { color: '#8a4a26', roughness: 0.55, clearcoat: 0.2, clearcoatRoughness: 0.35, tex: 3, axis: [0, 1, 0], texScale: 0.5 },
+  // (the upright's hammer mouldings: a brown hardwood, less red than it was: upright-action-close.jpg)
+  mahogany: { color: '#7c4b2e', roughness: 0.55, clearcoat: 0.2, clearcoatRoughness: 0.35, tex: 3, axis: [0, 1, 0], texScale: 0.5 },
   keyIvory: { color: '#f1ece0', roughness: 0.32, clearcoat: 0.4, clearcoatRoughness: 0.1, sheen: 0.4, sheenColor: '#fff4dc', sheenRoughness: 0.35 },
   // tuning pins: nickel-plated, turned (a satin finish: hundreds of mirror caps read as fog)
   pinSteel: { color: '#d2d5da', metalness: 1, roughness: 0.3, tex: 8, axis: [0, 1, 0] },
   // the raw, dark inside of a case (black-stained, unpolished)
   caseRaw: { color: '#151210', roughness: 0.85, envMapIntensity: 0.3 },
+  // the upright's action (upright-action-close.jpg: natural beech rails, white cotton bridle tapes,
+  // red leather on the bridle wires)
+  railBeech: { color: '#d8bb8c', roughness: 0.58, tex: 3, axis: [1, 0, 0], texScale: 0.8 },
+  tape: { color: '#eee9de', roughness: 1, sheen: 0.7, sheenColor: '#ffffff', sheenRoughness: 0.6, tex: 6 },
+  bridleLeather: { color: '#b0261f', roughness: 0.75, sheen: 0.4, sheenColor: '#e06050', sheenRoughness: 0.5 },
 };
 
 // GLSL: hashes, value noise and fbm (all in the part's own metres)

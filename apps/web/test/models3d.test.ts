@@ -60,7 +60,7 @@ describe('3D instruments', () => {
     expect(top).toBeCloseTo(0.725, 3);
   });
 
-  it('each hammer strikes its own strings; dampers sit behind the strike line, none above the top octaves', () => {
+  it('each hammer strikes its own strings; dampers sit behind the strike line (the upright: below it, an underdamper action), none above the top octaves', () => {
     for (const m of [grand, upright] as PianoModel[]) {
       for (const g of m.keys) {
         const s = g.strings[Math.floor(g.strings.length / 2)];
@@ -74,7 +74,14 @@ describe('3D instruments', () => {
       expect(m.keys.filter((g) => g.damper).length).toBeGreaterThan(60);
     }
     for (const g of grand.keys) if (g.damper) expect(g.damper[2]).toBeGreaterThan(g.strike[2]);
-    for (const g of upright.keys) if (g.damper) expect(g.damper[1]).toBeGreaterThan(g.strike[1]);
+    for (const g of upright.keys)
+      if (g.damper) {
+        // on the speaking length, 3–8 cm below the strike line, behind the shanks
+        const s = g.strings[Math.floor(g.strings.length / 2)];
+        expect(g.damper[1]).toBeLessThan(g.strike[1] - 0.03);
+        expect(g.damper[1]).toBeGreaterThan(g.strike[1] - 0.08);
+        expect(g.damper[1]).toBeGreaterThan(s.b[1]);
+      }
   });
 
   it('a key held: its key dips, its hammer rises to the string and its damper lifts; the pedal lifts all', () => {

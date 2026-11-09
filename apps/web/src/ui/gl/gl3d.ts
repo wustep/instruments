@@ -12,7 +12,7 @@ export type Mat4 = Float32Array;
 // ---------------------------------------------------------------- the lines' shaders (GLSL 3, raw)
 export const LINE_VS = `precision highp float;
 in vec3 aPos; in vec3 aPrev; in vec3 aNext; in float aSide; in vec4 aColor; in float aWidth;
-uniform mat4 uVP; uniform vec2 uHalf; uniform float uProjY;
+uniform mat4 uVP; uniform vec2 uHalf; uniform float uProjY; uniform float uProjZ;
 out vec4 vColor; out float vSide;
 void main() {
   vec4 c = uVP * vec4(aPos, 1.0);
@@ -34,7 +34,10 @@ void main() {
     cover = clamp(px / 1.1, 0.55, 1.0);
   }
   c.xy += nrm * aSide * w * 0.5 / uHalf * c.w;
-  c.z -= 0.0004 * c.w;
+  // pulled towards the eye by a few millimetres (a wire on its bridge or in its notch still shows),
+  // in metres, not in depth-buffer units: a fixed NDC offset grows with the square of the distance
+  // (9 cm at 3 m), which let the strings show through the hammers in front of them
+  c.z += uProjZ * (0.002 + 0.0006 * c.w) / max(c.w, 1e-4);
   gl_Position = c;
   vColor = vec4(aColor.rgb, aColor.a * cover);
   vSide = aSide;

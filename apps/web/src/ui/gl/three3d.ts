@@ -411,9 +411,11 @@ export class Renderer3 {
     // the lines on top, tested against the scene's depth
     const vpArr = this.vp.elements as unknown as Mat4;
     const py = this.cam.projectionMatrix.elements[5];
-    this.wireL.set(b.wireL, vpArr, w, h, py);
-    this.inkL.set(b.inkL, vpArr, w, h, py);
-    this.glowL.set(b.glow, vpArr, w, h, py);
+    // −2fn/(f−n): how clip z moves with view depth (the lines' depth bias is in metres)
+    const pz = this.cam.projectionMatrix.elements[14];
+    this.wireL.set(b.wireL, vpArr, w, h, py, pz);
+    this.inkL.set(b.inkL, vpArr, w, h, py, pz);
+    this.glowL.set(b.glow, vpArr, w, h, py, pz);
     r.render(this.lineScene, this.cam);
   }
 
@@ -531,7 +533,7 @@ class LineLayer {
       glslVersion: THREE.GLSL3,
       vertexShader: LINE_VS,
       fragmentShader: LINE_FS,
-      uniforms: { uVP: { value: new THREE.Matrix4() }, uHalf: { value: new THREE.Vector2(1, 1) }, tDepth: { value: depth }, uRes: { value: new THREE.Vector2(1, 1) }, uProjY: { value: 1 }, uWire: { value: wire ? 1 : 0 } },
+      uniforms: { uVP: { value: new THREE.Matrix4() }, uHalf: { value: new THREE.Vector2(1, 1) }, tDepth: { value: depth }, uRes: { value: new THREE.Vector2(1, 1) }, uProjY: { value: 1 }, uProjZ: { value: 0 }, uWire: { value: wire ? 1 : 0 } },
       transparent: true,
       depthTest: false,
       depthWrite: false,
@@ -554,8 +556,9 @@ class LineLayer {
     this.geo.setAttribute('position', new THREE.InterleavedBufferAttribute(ib, 3, 0));
     this.geo.setIndex(this.idx);
   }
-  set(ls: LineSet, vp: Mat4, w: number, h: number, projY: number): void {
+  set(ls: LineSet, vp: Mat4, w: number, h: number, projY: number, projZ: number): void {
     this.mat.uniforms.uProjY.value = projY;
+    this.mat.uniforms.uProjZ.value = projZ;
     const nf = ls.lv.n;
     const ni = ls.li.n;
     this.mesh.visible = ni > 0;
