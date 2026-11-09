@@ -49,3 +49,59 @@ plate and strings in it are the picture of a grand.
 Before (top) and after (bottom): `round2-lid/grand-{hero,side,under}.jpg`.
 
 Gate: typecheck clean; vitest 106/106; Playwright 55 passed, 7 skipped.
+
+## Round 3: the bow in the hand, 2D back to the sound, 3D without drawn waves
+
+Audit of `9ce6125` across sound, 2D, 3D, features, UI/UX and type, with Stephen's four items first.
+
+**The bow did nothing under a finger (priority bug).** Reproduced on Pixel 7 touch emulation, 2D and
+3D, violin / viola / cello: keys sounded, a drag on the stage or the bow never did. Root cause: the
+bow had no pointer path at all (it moved only while a key was held), and in 2D the stage canvas had
+no `touch-action`, so the browser would take the touch as a pan anyway.
+
+- Engine (`bowed.ts`): the bow in the player's hand. Controllers 128 (signed speed, m/s), 129 (contact
+  point along the hair) and 130 (let go). While it is held the keys only stop the strings; with none
+  held the bow plays the string last played. No hand event, no change: golden and block-size tests
+  are bit-identical, and `scripts/judge.ts` against `9ce6125` gives identical held-out errors for
+  violin, viola and cello.
+- UI (`ui/hand-bow.ts`): a drag along the bow's own line, touch or mouse. 2D: anywhere on the stage.
+  3D: start on the bow (30 px by touch, 14 by mouse); anywhere else still turns the instrument. The
+  bow stops when the hair runs out. One pointer holds the bow, the rest are free for the keys.
+- Tests: 4 unit tests (`bow.test.ts`), one Playwright test on both projects (CDP touch on the phone,
+  mouse on desktop; six instrument × view cases, 6–8 s).
+- Proof: `round3-touch-bow/touch-bow-{violin,viola,cello}.gif` (2D left, 3D right, the finger
+  marked). `scripts/touch-bow.mjs` prints level and contact point per stroke.
+- Limit: on iOS the very first touch of a page cannot start audio until it lifts (the platform's
+  rule), so a first-ever drag is silent until then.
+
+**3D only: drawn wave overlays removed.** The room's wavefront rings and outline on the floor, the
+mode light on soundboards and bodies, and the standing-wave light in the flute and trumpet tubes are
+gone, with their shader code. Kept: the strings' own vibration and glow, the stopping mark, the bow's
+contact, the flute's jet, the trumpet's lips. Before (top) / after (bottom): `round3-3d-no-waves/`.
+
+**2D: back to the sound.** Before/after: `round3-2d-pianos/` (its own NOTES.md) and
+`round3-2d-strings/`.
+
+- Pianos: the literal hardware of the 2D round is out (plate, windows, struts, pin fields, agraffes,
+  felts, hammer and damper heads; on the upright also the action stack, the muffler rail and the row
+  of keys drawn on the stage). Back: bold string shapes with a glow, lit strings at their old weight,
+  the soundboard's mode field across the whole case. Hammers and dampers are two quiet rows of marks
+  that still follow the keys and all three pedals. `piano-draw.ts` + `grand-plan.ts`: 1725 → 826 lines.
+- Upright on a phone: its height fits the longest string in view, so two octaves fill the stage.
+- Violin, viola, cello: the body's modes are sand on the plate again (nodal lines and glow, on the
+  varnish, out of the f-holes); they had been reduced to a faint warm wash.
+
+**Also.** 3D cello nearer on a wide stage (dist 2.55 → 2.25). The spectrum's "10k" no longer runs off
+the phone's edge. Notes page: the hand bow; the 3D paragraph no longer claims mode shading.
+
+**Sound audit (measured, nothing changed).** Cello against Iowa: centroid ratio pp ×1.35, mf ×1.05,
+ff ×0.76; LTAS 4.2 dB RMS; pitch 2.5 ¢ RMS. Round 4 candidate.
+
+**Type audit.** Newsreader, IBM Plex Sans and Mono only; no banned face. Stray half-pixel sizes
+(9.5, 10.5, 11.5, 12.5, 15.5 px) and 9 px labels are a round 4 candidate.
+
+Left, seen: the desktop upright's right half is board and modes only (its treble strings are short);
+the grand's lid edge crosses the bass strings at the default angle; with sustain down the damper row
+is the busiest thing on the piano stage.
+
+Gate: typecheck clean; vitest 22 files / 110 tests; Playwright 57 passed, 7 skipped (desktop + Pixel 7).

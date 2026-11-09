@@ -44,7 +44,11 @@ export const SYM_VISIBLE = 0.03;
 
 /** a layer the size of the stage, repainted only when its key changes (one canvas, reused) */
 export class Layer {
-  readonly canvas = document.createElement('canvas');
+  /** made on first use: the module is also loaded where there is no document (the model tests) */
+  private cv: HTMLCanvasElement | null = null;
+  get canvas(): HTMLCanvasElement {
+    return (this.cv ??= document.createElement('canvas'));
+  }
   private key = '';
   paint(W: number, H: number, dpr: number, key: string, draw: (ctx: CanvasRenderingContext2D) => void): void {
     if (key === this.key) return;
