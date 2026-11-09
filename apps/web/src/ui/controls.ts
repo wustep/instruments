@@ -120,7 +120,7 @@ export function knob(c: KnobSpec, v0: number, onChange: (v: number) => void): { 
 }
 
 // ---------------------------------------------------------------- pedal
-export function pedal(name: string, title: string, onValue: (v: number) => void): { el: HTMLElement; set(v: number): void } {
+export function pedal(name: string, title: string, onValue: (v: number) => void): { el: HTMLElement; set(v: number): void; rename(name: string, title: string): void } {
   const body = svg('path', { d: 'M7 3 H25 L28 23 Q28 27 24 27 H8 Q4 27 4 23 Z', class: 'p-foot' });
   const shine = svg('path', { d: 'M9 6 H23 L24.5 15', class: 'p-shine' });
   const face = svg('svg', { viewBox: '0 0 32 30', class: 'p-face', 'aria-hidden': 'true' }, body, shine);
@@ -158,6 +158,11 @@ export function pedal(name: string, title: string, onValue: (v: number) => void)
     set(v: number) {
       el.style.setProperty('--depress', String(v));
       el.setAttribute('aria-pressed', String(v > 0.05));
+    },
+    rename(n: string, t: string) {
+      el.querySelector('.p-name')!.textContent = n;
+      el.title = t;
+      el.setAttribute('aria-label', t);
     },
   };
 }

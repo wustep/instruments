@@ -25,6 +25,13 @@ export interface PianoState {
   down: Set<number>;
   sustain: number;
   soft: number;
+  /** the middle pedal: a grand's sostenuto, an upright's muffler (0 … 1) */
+  middle: number;
+  /** an upright's action: the soft pedal is the half-blow rail, the middle pedal the muffler */
+  upright: boolean;
+  /** keys whose dampers the sostenuto holds (latched as it went down) */
+  sost: Uint8Array;
+  sostWas: boolean;
   strScale: AutoScale;
   lvlScale: AutoScale;
   /** running scale for all sounding strings' shapes together (so quieter ones look smaller) */
@@ -67,6 +74,10 @@ export const newPianoState = (): PianoState => ({
   down: new Set(),
   sustain: 0,
   soft: 0,
+  middle: 0,
+  upright: false,
+  sost: new Uint8Array(88),
+  sostWas: false,
   strScale: new AutoScale(2e-6),
   lvlScale: new AutoScale(1e-6, 0.995),
   allScale: new AutoScale(2e-6, 0.99),
@@ -94,7 +105,15 @@ export interface Pt {
  *  velocity, are caught by the backcheck while the key is held; dampers follow the key
  *  and the sustain pedal (half-pedal lifts them part way) */
 export function stepAction(pts: Pt[], st: PianoState): void {
-  st.shift += (st.soft - st.shift) * 0.25;
+  // a grand's soft pedal shifts the action; an upright's brings the hammers nearer the strings
+  st.shift += ((st.upright ? 0 : st.soft) - st.shift) * 0.25;
+  // the sostenuto (a grand's middle pedal) latches the keys down as it goes down, as the engine does
+  const sostOn = !st.upright && st.middle >= 0.5;
+  for (const p of pts) {
+    if (!sostOn) st.sost[p.i] = 0;
+    else if (st.sostWas === false && st.down.has(p.midi)) st.sost[p.i] = 1;
+  }
+  st.sostWas = sostOn;
   for (const p of pts) {
     const t = st.strikes.get(p.midi);
     if (t !== undefined && st.lastStrike.get(p.midi) !== t) {
@@ -105,9 +124,10 @@ export function stepAction(pts: Pt[], st: PianoState): void {
     const v = (st.vels.get(p.midi) ?? 64) / 127;
     // louder strikes rebound faster and further
     const rate = 0.1 + 0.18 * v;
-    const target = held ? 0.32 : 0;
+    // (the half-blow rail holds an upright's hammers about 45 % of the way to the strings)
+    const target = Math.max(held ? 0.32 : 0, st.upright ? 0.45 * st.soft : 0);
     st.hammer[p.i] += (target - st.hammer[p.i]) * rate;
-    const lift = p.k.hasDamper ? Math.max(held ? 1 : 0, Math.min(1, st.sustain * 1.4)) : 1;
+    const lift = p.k.hasDamper ? Math.max(held || st.sost[p.i] ? 1 : 0, Math.min(1, st.sustain * 1.4)) : 1;
     st.damper[p.i] += (lift - st.damper[p.i]) * (lift > st.damper[p.i] ? 0.45 : 0.22);
   }
 }

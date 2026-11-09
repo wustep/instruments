@@ -64,9 +64,11 @@ interface Spec {
   bridgeR: number;
   proj: number;
   overstand: number;
-  scroll: number;
-  pegbox: number;
-  pbDepth: number;
+  /** the head: its length (fingerboard end to the back of the scroll), the pegbox's width at the
+   *  nut, the scroll's width across the eyes (Jóhannsson's tables; the eyes from the Met's photos) */
+  head: number;
+  pbW: number;
+  eyeW: number;
   tail: number;
   spreadB: number;
   spreadN: number;
@@ -90,7 +92,7 @@ const SPEC: Record<'violin' | 'viola' | 'cello', Spec> = {
     body: 0.356, ol: VIOLIN, rib: 0.031, archT: 0.0155, archB: 0.0145, edgeT: 3.8 * mm, over: 2.6 * mm, rE: 1.6 * mm, plateT: 2.8 * mm, ribT: 1.1 * mm,
     purf: [4 * mm, 1.2 * mm], chan: [4.6 * mm, 2.2 * mm, 0.55 * mm], rise: 22 * mm, button: 10 * mm,
     neck: 0.13, fbLen: 0.27, fbW: [0.024, 0.042], fbThick: 0.005, fbCrown: 0.003, bridgeH: 0.033, bridgeW: 0.041, bridgeR: 0.042, proj: 0.027, overstand: 0.006,
-    scroll: 0.04, pegbox: 0.07, pbDepth: 0.021, tail: 0.11, spreadB: 0.0113, spreadN: 0.0055, neckDepth: [0.018, 0.021], stick: [0.0043, 0.0028], hairW: 0.0105,
+    head: 0.108, pbW: 0.0255, eyeW: 0.041, tail: 0.11, spreadB: 0.0113, spreadN: 0.0055, neckDepth: [0.018, 0.021], stick: [0.0043, 0.0028], hairW: 0.0105,
     dia: [0.8 * mm, 0.8 * mm, 0.6 * mm, 0.26 * mm], wound: [true, true, true, false], grain: [0.9 * mm, 2.0 * mm], flame: 3.6 * mm,
     vTop: [150, 78, 30], vBack: [146, 70, 26], vEdge: [70, 28, 10],
   },
@@ -98,15 +100,15 @@ const SPEC: Record<'violin' | 'viola' | 'cello', Spec> = {
     body: 0.406, ol: VIOLIN, rib: 0.038, archT: 0.0175, archB: 0.0165, edgeT: 4.1 * mm, over: 2.8 * mm, rE: 1.8 * mm, plateT: 3 * mm, ribT: 1.2 * mm,
     purf: [4.3 * mm, 1.3 * mm], chan: [5 * mm, 2.5 * mm, 0.65 * mm], rise: 26 * mm, button: 11 * mm,
     neck: 0.148, fbLen: 0.295, fbW: [0.025, 0.045], fbThick: 0.0055, fbCrown: 0.0032, bridgeH: 0.037, bridgeW: 0.045, bridgeR: 0.046, proj: 0.029, overstand: 0.007,
-    scroll: 0.045, pegbox: 0.08, pbDepth: 0.024, tail: 0.125, spreadB: 0.0122, spreadN: 0.0058, neckDepth: [0.019, 0.023], stick: [0.0045, 0.003], hairW: 0.011,
+    head: 0.125, pbW: 0.0275, eyeW: 0.046, tail: 0.125, spreadB: 0.0122, spreadN: 0.0058, neckDepth: [0.019, 0.023], stick: [0.0045, 0.003], hairW: 0.011,
     dia: [1.0 * mm, 0.9 * mm, 0.75 * mm, 0.6 * mm], wound: [true, true, true, true], grain: [1.0 * mm, 2.2 * mm], flame: 4.2 * mm,
-    vTop: [150, 70, 30], vBack: [140, 60, 24], vEdge: [80, 32, 12],
+    vTop: [124, 50, 22], vBack: [116, 44, 18], vEdge: [62, 22, 8],
   },
   cello: {
     body: 0.755, ol: CELLO, rib: 0.12, archT: 0.026, archB: 0.024, edgeT: 5.8 * mm, over: 3.8 * mm, rE: 2.6 * mm, plateT: 4.5 * mm, ribT: 1.4 * mm,
     purf: [6.5 * mm, 1.8 * mm], chan: [9 * mm, 4.2 * mm, 1.1 * mm], rise: 48 * mm, button: 19 * mm,
     neck: 0.28, fbLen: 0.58, fbW: [0.032, 0.075], fbThick: 0.009, fbCrown: 0.006, bridgeH: 0.09, bridgeW: 0.092, bridgeR: 0.066, proj: 0.082, overstand: 0.02,
-    scroll: 0.072, pegbox: 0.14, pbDepth: 0.046, tail: 0.235, spreadB: 0.0205, spreadN: 0.0078, neckDepth: [0.03, 0.036], stick: [0.0055, 0.0038], hairW: 0.0145,
+    head: 0.204, pbW: 0.045, eyeW: 0.07, tail: 0.235, spreadB: 0.0205, spreadN: 0.0078, neckDepth: [0.03, 0.036], stick: [0.0055, 0.0038], hairW: 0.0145,
     dia: [1.6 * mm, 1.3 * mm, 1.05 * mm, 0.8 * mm], wound: [true, true, true, true], grain: [1.4 * mm, 3.2 * mm], flame: 7 * mm,
     vTop: [138, 54, 22], vBack: [130, 48, 18], vEdge: [58, 20, 8],
   },
@@ -393,6 +395,33 @@ function makePlate(ol: Outline, B: number, n: number, button: number): Plate {
     const hit = cache.get(d);
     if (hit) return hit;
     const q: P2[] = poly.map(([x, z], i) => [x - sharp[i][0] * d, z - sharp[i][1] * d]);
+    // where the offset crosses itself (inside a corner's tip, or a hook narrower than 2d) the loop is
+    // cut out at the crossing: the miter where the rib's two sides meet. From each point the farthest
+    // crossing ahead is taken, so a loop is removed whole, with any inside it.
+    const cross2 = (a: P2, b: P2, c2: P2, e: P2): P2 | null => {
+      const rx = b[0] - a[0];
+      const rz = b[1] - a[1];
+      const sx2 = e[0] - c2[0];
+      const sz2 = e[1] - c2[1];
+      const den = rx * sz2 - rz * sx2;
+      if (Math.abs(den) < 1e-18) return null;
+      const t = ((c2[0] - a[0]) * sz2 - (c2[1] - a[1]) * sx2) / den;
+      const u = ((c2[0] - a[0]) * rz - (c2[1] - a[1]) * rx) / den;
+      return t > 0 && t < 1 && u > 0 && u < 1 ? [a[0] + rx * t, a[1] + rz * t] : null;
+    };
+    const WIN = 90;
+    for (let i = 0; i < n; i++) {
+      const a = q[i];
+      const b = q[(i + 1) % n];
+      for (let k = WIN; k >= 2; k--) {
+        const j = (i + k) % n;
+        const hit = cross2(a, b, q[j], q[(j + 1) % n]);
+        if (!hit) continue;
+        for (let m = 1; m <= k; m++) q[(i + m) % n] = hit;
+        i += k - 1;
+        break;
+      }
+    }
     for (let pass = 0; pass < 6; pass++) {
       let changed = false;
       for (let i = 0; i < n; i++) {
@@ -604,6 +633,167 @@ function paintPlate(id: string, sp: Spec, pl: Plate, holes: P2[][] | null, kind:
         glow(mx, mz, 0.07 * B, sp.vEdge, 0.22);
       }
       for (let k = 0; k < 180; k++) glow(r() * B, (r() * 2 - 1) * pl.hwMax, (0.008 + 0.05 * r()) * B, r() < 0.6 ? sp.vEdge : [214, 130, 60], 0.06 + 0.12 * r());
+      // ---- wear, where a player's hands, chin, knees and bow have been (the Met's photographs: the
+      // varnish rubbed through to the golden ground at the contact points, darkened where sweat has
+      // worked into it, the edges and corners rubbed pale, small scratches and chips everywhere); each
+      // worn place is also written into the aux map's blue channel, which dulls the clear coat there
+      const hw = pl.hwMax;
+      const S = B / 0.356;
+      const wear: [number, number, number, number, number][] = [];
+      const spot = (cx: number, cz: number, rx: number, rz: number, a: number, col: RGB, wa: number) => {
+        c.save();
+        c.translate(X(cx), Z(cz));
+        c.scale(1, rz / rx);
+        const g = c.createRadialGradient(0, 0, 0, 0, 0, rx * sx);
+        g.addColorStop(0, rgba(col, a * 0.45));
+        g.addColorStop(0.6, rgba(col, a * 0.2));
+        g.addColorStop(1, rgba(col, 0));
+        c.fillStyle = g;
+        c.fillRect(-rx * sx, -rx * sx, 2 * rx * sx, 2 * rx * sx);
+        c.restore();
+        // the varnish wears unevenly: rubbed through in irregular islands, denser towards the middle
+        for (let k = 0; k < 70; k++) {
+          const t = r() * Math.PI * 2;
+          const q = Math.pow(r(), 0.8) * 0.95;
+          const ix = cx + Math.cos(t) * rx * q;
+          const iz = cz + Math.sin(t) * rz * q;
+          const ir = (0.03 + 0.09 * r()) * rx * (1.2 - q);
+          c.fillStyle = rgba([col[0] + (r() - 0.5) * 20, col[1] + (r() - 0.5) * 16, col[2] + (r() - 0.5) * 12].map(Math.round) as RGB, a * (0.25 + 0.45 * r()) * (1.1 - q));
+          c.beginPath();
+          const nv = 7;
+          for (let v = 0; v <= nv; v++) {
+            const tv = (v / nv) * Math.PI * 2;
+            const rv = ir * (0.6 + 0.6 * r());
+            const px = X(ix + Math.cos(tv) * rv);
+            const pz = Z(iz + Math.sin(tv) * rv * 0.7);
+            if (v) c.lineTo(px, pz);
+            else c.moveTo(px, pz);
+          }
+          c.closePath();
+          c.fill();
+        }
+        wear.push([cx, cz, rx, rz, wa]);
+      };
+      const ground: RGB = [212, 150, 88];
+      const sweat: RGB = [64, 26, 10];
+      const cello = id === 'cello';
+      if (kind === 'top') {
+        // the treble upper bout: the hand in the high positions (the thumb, on the cello)
+        spot(0.19 * B, -0.5 * hw, 0.085 * B, 0.07 * B, 0.36, ground, 0.8);
+        if (cello) {
+          // the knees, both lower bouts at the edge, and the bow's scrapes below the fingerboard
+          spot(0.76 * B, 0.8 * hw, 0.07 * B, 0.09 * B, 0.3, ground, 0.7);
+          spot(0.76 * B, -0.8 * hw, 0.07 * B, 0.09 * B, 0.3, ground, 0.7);
+          spot(0.5 * B, -0.62 * hw, 0.05 * B, 0.03 * B, 0.28, ground, 0.6);
+        } else {
+          // beside the chinrest the varnish is worn through and darkened by sweat
+          spot(0.82 * B, 0.52 * hw, 0.08 * B, 0.075 * B, 0.3, sweat, 0.9);
+          spot(0.66 * B, -0.72 * hw, 0.06 * B, 0.05 * B, 0.22, ground, 0.5);
+        }
+        // the C-bouts' edges, where the bow scrapes at the extremes of the string crossing
+        for (const sd of [-1, 1]) spot(0.5 * B, sd * 0.6 * hw, 0.05 * B, 0.022 * B, 0.3, ground, 0.6);
+        // rosin dust under the strings between the fingerboard's end and the bridge, heaviest by the
+        // bridge, and round its feet
+        let bx = 0;
+        if (holes) for (const hp of holes) for (const [x] of hp) bx += x / (hp.length * holes.length);
+        const fbEnd = sp.fbLen - sp.neck;
+        const span = bx - fbEnd;
+        for (let k = 0; k < 2200; k++) {
+          const u = Math.pow(r(), 1.7);
+          const x = bx - u * span * 1.05;
+          const z = (r() * 2 - 1) * sp.spreadB * (2.1 - 0.5 * u) + (r() - 0.5) * 0.004 * S;
+          c.fillStyle = `rgba(238,230,208,${(0.03 + 0.1 * r()) * (1 - 0.75 * u)})`;
+          c.beginPath();
+          c.arc(X(x), Z(z), (0.08 + 0.28 * r()) * pm * S ** 0.5, 0, Math.PI * 2);
+          c.fill();
+        }
+        glow(bx - 0.25 * span, 0, 0.55 * span, [235, 225, 200], 0.1);
+        glow(bx - 0.02 * B, 0, 0.18 * span, [235, 225, 200], 0.12);
+      } else if (cello) {
+        // the back's upper bout rests against the player's chest; the lower edges by the knees
+        spot(0.24 * B, 0.25 * hw, 0.12 * B, 0.1 * B, 0.3, ground, 0.8);
+        spot(0.8 * B, 0.78 * hw, 0.06 * B, 0.08 * B, 0.25, ground, 0.6);
+        spot(0.8 * B, -0.78 * hw, 0.06 * B, 0.08 * B, 0.25, ground, 0.6);
+      } else {
+        // the back's lower bout against the collarbone and shoulder
+        spot(0.84 * B, 0.3 * hw, 0.1 * B, 0.09 * B, 0.3, ground, 0.8);
+        spot(0.86 * B, 0.1 * hw, 0.05 * B, 0.05 * B, 0.2, sweat, 0.6);
+      }
+      // scratches (dark hairlines) and chips (where the varnish has flaked off to the ground)
+      for (let k = 0; k < 70; k++) {
+        const x = (0.05 + 0.9 * r()) * B;
+        const z = (r() * 2 - 1) * hw * 0.85;
+        const t = r() * Math.PI;
+        const len = (2 + 12 * r() * r()) * mm * S;
+        // dark where dirt has filled them, pale where they cut through to the ground
+        c.strokeStyle = r() < 0.55 ? `rgba(52,22,8,${0.08 + 0.12 * r()})` : `rgba(226,170,110,${0.1 + 0.14 * r()})`;
+        c.lineWidth = Math.max(0.5, (0.05 + 0.07 * r()) * pm * S ** 0.5);
+        c.beginPath();
+        c.moveTo(X(x), Z(z));
+        c.quadraticCurveTo(X(x + Math.cos(t) * len * 0.5 + (r() - 0.5) * len * 0.2), Z(z + Math.sin(t) * len * 0.5), X(x + Math.cos(t) * len), Z(z + Math.sin(t) * len));
+        c.stroke();
+      }
+      for (let k = 0; k < 60; k++) {
+        // chips mostly near the edge
+        const i = Math.floor(r() * pl.poly.length);
+        const d = r() < 0.7 ? (0.5 + 4 * r()) * mm * S : (4 + 40 * r()) * mm * S;
+        const [px, pz] = pl.poly[i];
+        const [nx, nz] = pl.nrm[i];
+        c.fillStyle = `rgba(222,160,92,${0.25 + 0.35 * r()})`;
+        c.beginPath();
+        c.ellipse(X(px - nx * d), Z(pz - nz * d), (0.25 + 0.8 * r()) * pm * S ** 0.6, (0.2 + 0.5 * r()) * pm * S ** 0.6, r() * Math.PI, 0, Math.PI * 2);
+        c.fill();
+      }
+      // the edges rubbed pale in places: always at the corners' tips, and in random runs elsewhere
+      const npl = pl.poly.length;
+      const turn = pl.poly.map((p, i) => {
+        const a = pl.poly[(i + npl - 3) % npl];
+        const b = pl.poly[(i + 3) % npl];
+        const t1 = Math.atan2(p[1] - a[1], p[0] - a[0]);
+        const t2 = Math.atan2(b[1] - p[1], b[0] - p[0]);
+        let d = Math.abs(t2 - t1);
+        if (d > Math.PI) d = 2 * Math.PI - d;
+        return d;
+      });
+      const runs: [number, number, number][] = [];
+      for (let i = 0; i < npl; i++) if (turn[i] > 0.5 && turn[i] >= turn[(i + 1) % npl] && turn[i] >= turn[(i + npl - 1) % npl]) runs.push([i, 9, 0.55]);
+      for (let k = 0; k < 26; k++) runs.push([Math.floor(r() * npl), 4 + Math.floor(r() * 22), 0.2 + 0.3 * r()]);
+      c.lineCap = 'round';
+      for (const [i0, len, a] of runs) {
+        c.beginPath();
+        for (let j = -len; j <= len; j++) {
+          const [px, pz] = pl.poly[(i0 + j + npl) % npl];
+          const [nx, nz] = pl.nrm[(i0 + j + npl) % npl];
+          const d = 0.6 * mm * S ** 0.5;
+          if (j === -len) c.moveTo(X(px - nx * d), Z(pz - nz * d));
+          else c.lineTo(X(px - nx * d), Z(pz - nz * d));
+        }
+        c.strokeStyle = `rgba(226,166,98,${a})`;
+        c.lineWidth = (1.0 + 1.4 * r()) * pm * S ** 0.5;
+        c.stroke();
+        const [px, pz] = pl.poly[i0];
+        wear.push([px, pz, 0.006 * S + len * 0.0006 * S, 0.006 * S + len * 0.0006 * S, a]);
+      }
+      c.lineCap = 'butt';
+      // (the wear into the aux map's blue channel, once the aux is laid down below)
+      const wearToAux = () => {
+        aux.save();
+        aux.globalCompositeOperation = 'lighter';
+        for (const [cx, cz, rx, rz, a] of wear) {
+          aux.save();
+          aux.translate(X(cx), Z(cz));
+          aux.scale(1, rz / rx);
+          const g = aux.createRadialGradient(0, 0, 0, 0, 0, rx * sx);
+          g.addColorStop(0, `rgba(0,0,255,${a})`);
+          g.addColorStop(0.6, `rgba(0,0,255,${a * 0.5})`);
+          g.addColorStop(1, 'rgba(0,0,255,0)');
+          aux.fillStyle = g;
+          aux.fillRect(-rx * sx, -rx * sx, 2 * rx * sx, 2 * rx * sx);
+          aux.restore();
+        }
+        aux.restore();
+      };
+
       // purfling (black–white–black) and a worn line at the edge
       const band = (d1: number, d2: number, style: string) => {
         const L = document.createElement('canvas');
@@ -644,6 +834,406 @@ function paintPlate(id: string, sp: Spec, pl: Plate, holes: P2[][] | null, kind:
         aux.fillStyle = 'rgb(128,0,0)';
         aux.fillRect(0, 0, w, h);
       }
+      wearToAux();
+    },
+  };
+}
+
+// ---------------------------------------------------------------- the scroll
+// The head's side profile, traced from the "Francesca" Strad's scroll in profile (violin-scroll.jpg, The
+// Met, CC0) by scripts/trace-scroll.py, in the neck's frame: a along the neck towards the scroll from the
+// fingerboard's end, h towards the strings from the neck's top surface, both as fractions of the head
+// length (fingerboard end to the back of the scroll: violin 108, viola 125, cello 204 mm, Jóhannsson's
+// tables in docs/3d-reference.md). The volute is a logarithmic spiral fitted to the traced turns (4.4 px
+// rms over 23 points): centre C, radius R0 at its crown (θ = 0, clockwise towards the strings), shrinking
+// by e^(−Kθ) (0.51 a turn), ending in the eye after 2.6 turns. The cello's and viola's heads are the
+// violin's scaled: Jóhannsson's pegbox/head ratio is 0.66 for both.
+const SCROLL = {
+  C: [0.7798, -0.2491] as P2,
+  R0: 0.2181,
+  K: 0.1075,
+  /** the photograph's tilt from the neck axis */
+  tilt: 0.0437,
+  /** the throat: the cheeks' front edge curls round under the first turn, a gap away from it, closing at θTip */
+  gap: 0.0333,
+  thC0: 1.05 * Math.PI,
+  thTip: 1.4 * Math.PI,
+  /** the eye: its boss, and the core the last turn wraps, a groove round the boss (the Francesca: a
+   *  dark gap between the eye and the turn that ends on it) */
+  rEye: 0.031,
+  rCore: 0.041,
+  /** the chin's underside, from the neck's back out to the chin */
+  under: [[-0.1984, -0.1119], [-0.1453, -0.1346], [-0.1236, -0.1545], [-0.1014, -0.1838], [-0.0918, -0.2386]] as P2[],
+  /** the back: from the chin up the pegbox, over into the crown */
+  back: [[-0.0862, -0.2947], [-0.0758, -0.2942], [-0.0655, -0.2896], [-0.0553, -0.285], [-0.045, -0.2814], [-0.0348, -0.2779], [-0.0245, -0.2743], [-0.0142, -0.2717], [-0.0038, -0.2702], [0.0065, -0.2677], [0.0169, -0.2673], [0.0273, -0.2658], [0.0377, -0.2653], [0.0481, -0.2659], [0.0586, -0.2665], [0.069, -0.2671], [0.0795, -0.2687], [0.09, -0.2703], [0.1005, -0.2709], [0.111, -0.2736], [0.1215, -0.2752], [0.1321, -0.2779], [0.1426, -0.2805], [0.1532, -0.2832], [0.1638, -0.2869], [0.1743, -0.2906], [0.185, -0.2954], [0.1956, -0.3001], [0.2062, -0.3048], [0.2169, -0.3096], [0.2276, -0.3154], [0.2382, -0.3212], [0.249, -0.328], [0.2597, -0.3348], [0.2705, -0.3427], [0.2812, -0.3506], [0.2921, -0.3595], [0.3029, -0.3684], [0.3137, -0.3773], [0.3245, -0.3862], [0.3573, -0.4213], [0.368, -0.426], [0.3786, -0.4318], [0.3894, -0.4397], [0.4003, -0.4507], [0.4111, -0.4586], [0.422, -0.4685], [0.4328, -0.4774], [0.4436, -0.4863], [0.4544, -0.4952], [0.4652, -0.5031], [0.476, -0.511], [0.4867, -0.5178], [0.4974, -0.5246], [0.5081, -0.5304], [0.5188, -0.5362], [0.5294, -0.541], [0.5401, -0.5468], [0.5508, -0.5526], [0.5614, -0.5563], [0.572, -0.56], [0.5825, -0.5637], [0.5931, -0.5663], [0.6037, -0.5701], [0.6142, -0.5727], [0.6247, -0.5743], [0.6352, -0.576], [0.6457, -0.5776], [0.6562, -0.5792], [0.6667, -0.5798], [0.6771, -0.5804], [0.6876, -0.581], [0.6981, -0.5826], [0.7085, -0.5832], [0.719, -0.5838], [0.7294, -0.5844], [0.7398, -0.5839], [0.7502, -0.5835], [0.7607, -0.583], [0.7711, -0.5825], [0.7814, -0.581], [0.7918, -0.5795], [0.8021, -0.577], [0.8124, -0.5734], [0.8227, -0.5709], [0.833, -0.5673], [0.8432, -0.5627], [0.8725, -0.5466], [0.8984, -0.5273], [0.9203, -0.5039], [0.9391, -0.4796], [0.9545, -0.454], [0.9671, -0.4286], [0.9778, -0.4038], [0.9861, -0.379], [0.9861, -0.3516], [0.993, -0.3294], [0.9977, -0.3069], [1.0, -0.2842], [1.0, -0.2617], [0.9978, -0.2396]] as P2[],
+  /** the cheeks' front edge, from the nut to where it curls under the first turn */
+  front: [[0.0052, 0.0002], [0.0262, -0.002], [0.0681, -0.0064], [0.1099, -0.0098], [0.1623, -0.0158], [0.215, -0.0271], [0.2678, -0.0425], [0.3209, -0.0663], [0.3637, -0.0904], [0.4089, -0.1229], [0.45, -0.1555], [0.4826, -0.1854], [0.5046, -0.2115], [0.5264, -0.2335], [0.5449, -0.2525], [0.5645, -0.2694], [0.5972, -0.2863]] as P2[],
+  /** the pegs' axes along the pegbox (from the nut), nearest first, and how deep in from the front edge */
+  pegA: [0.08, 0.205, 0.38, 0.5],
+  pegDepth: 0.57,
+};
+
+/** a strip of surface through rows of points (one row per station), normals across both directions,
+ *  turned to face `out` (a direction at the middle of the strip); `uv` per point if given */
+function sweep(mb: MeshBuilder, P: Vec3[][], m: Mat, out: Vec3, uv?: ((i: number, j: number) => [number, number]) | null, wrapJ = false): void {
+  const nu = P.length - 1;
+  const nv = P[0].length - 1;
+  if (nu < 1 || nv < 1) return;
+  // wrapJ: each row is a closed loop whose last point repeats its first
+  const jn = (j: number) => (wrapJ ? (j + 1 > nv ? 1 : j + 1) : Math.min(nv, j + 1));
+  const jp = (j: number) => (wrapJ ? (j - 1 < 0 ? nv - 1 : j - 1) : Math.max(0, j - 1));
+  const N: Vec3[][] = P.map((row, i) =>
+    row.map((_, j) => {
+      const du = sub(P[Math.min(nu, i + 1)][j], P[Math.max(0, i - 1)][j]);
+      const dv = sub(P[i][jn(j)], P[i][jp(j)]);
+      const c = cross(du, dv);
+      return Math.hypot(c[0], c[1], c[2]) < 1e-16 ? ([0, 0, 0] as Vec3) : norm(c);
+    }),
+  );
+  const mi = nu >> 1;
+  const mj = nv >> 1;
+  const sgn = N[mi][mj][0] * out[0] + N[mi][mj][1] * out[1] + N[mi][mj][2] * out[2] < 0 ? -1 : 1;
+  // a degenerate point (a strip closing to a line) takes its neighbour's normal
+  const nn = (i: number, j: number): Vec3 => {
+    let n = N[i][j];
+    if (n[0] === 0 && n[1] === 0 && n[2] === 0) n = N[Math.min(nu, i + 1)][j][0] || N[Math.min(nu, i + 1)][j][1] || N[Math.min(nu, i + 1)][j][2] ? N[Math.min(nu, i + 1)][j] : N[Math.max(0, i - 1)][j];
+    return sgn < 0 ? scale(n, -1) : n;
+  };
+  const U = (i: number, j: number) => (uv ? uv(i, j) : undefined);
+  for (let i = 0; i < nu; i++)
+    for (let j = 0; j < nv; j++) {
+      const a = P[i][j];
+      const b = P[i + 1][j];
+      const c = P[i + 1][j + 1];
+      const d = P[i][j + 1];
+      mb.stri(a, b, c, nn(i, j), nn(i + 1, j), nn(i + 1, j + 1), m, U(i, j), U(i + 1, j), U(i + 1, j + 1));
+      mb.stri(a, c, d, nn(i, j), nn(i + 1, j + 1), nn(i, j + 1), m, U(i, j), U(i + 1, j + 1), U(i, j + 1));
+    }
+}
+
+/** a closed polyline resampled to n points by arc length (an open one if `open`) */
+function resampleOpen(pts: P2[], n: number): P2[] {
+  const acc = [0];
+  for (let i = 1; i < pts.length; i++) acc.push(acc[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const total = acc[acc.length - 1];
+  const out: P2[] = [];
+  let j = 0;
+  for (let k = 0; k < n; k++) {
+    const s = (k / (n - 1)) * total;
+    while (j < pts.length - 2 && acc[j + 1] < s) j++;
+    const t = (s - acc[j]) / Math.max(1e-12, acc[j + 1] - acc[j]);
+    out.push([pts[j][0] + (pts[j + 1][0] - pts[j][0]) * t, pts[j][1] + (pts[j + 1][1] - pts[j][1]) * t]);
+  }
+  return out;
+}
+/** a light smoothing of an open polyline (ends fixed) */
+function smoothOpen(pts: P2[], passes: number): P2[] {
+  let p = pts;
+  for (let k = 0; k < passes; k++) p = p.map((q, i) => (i === 0 || i === p.length - 1 ? q : [(p[i - 1][0] + 2 * q[0] + p[i + 1][0]) / 4, (p[i - 1][1] + 2 * q[1] + p[i + 1][1]) / 4]));
+  return p;
+}
+
+interface ScrollDims {
+  /** the neck's top surface at the fingerboard's end, the neck's axis towards the scroll, towards the strings */
+  N: Vec3;
+  A: Vec3;
+  H: Vec3;
+  /** the head's length (fingerboard end to the back of the scroll) */
+  Lh: number;
+  /** half-widths: the pegbox at the nut, the back at the crown, across the eyes */
+  w0: number;
+  wTop: number;
+  wEye: number;
+  /** chamfer on the volute's and pegbox's edges, the fluting's depth, the hollow of the turns' sides,
+   *  the cheeks' and the floor's thickness, the chamfer on the cheeks' top edges */
+  ch: number;
+  flute: number;
+  hollow: number;
+  cheek: number;
+  floor: number;
+  chTop: number;
+  /** the neck's depth and a half-width inside its section, at the nut (where the chin grows out of it) */
+  neckD: number;
+  wNeck: number;
+}
+
+/** the scroll, carved: the pegbox (cheeks, floor, open throat), the back fluted from the chin over the
+ *  crown, the volute's 2.6 turns stepping out towards the eye, each turn's side hollowed inside a
+ *  chamfered rim, and the eye. Returns where the pegs go. */
+function buildScroll(mb: MeshBuilder, d: ScrollDims, wood: Mat, inside: Mat, dark: Mat): { peg: (k: number) => { c: Vec3; w: number; depth: number } } {
+  const { N, A, H, Lh } = d;
+  const toL = (p: P2, z: number): Vec3 => [N[0] + Lh * (p[0] * A[0] + p[1] * H[0]), N[1] + Lh * (p[0] * A[1] + p[1] * H[1]), N[2] + z];
+  const dirL = (p: P2): Vec3 => norm([p[0] * A[0] + p[1] * H[0], p[0] * A[1] + p[1] * H[1], 0]);
+  const C = SCROLL.C;
+  const dirS = (th: number): P2 => [Math.cos(th + SCROLL.tilt), Math.sin(th + SCROLL.tilt)];
+  const rS = (th: number) => SCROLL.R0 * Math.exp(-SCROLL.K * th);
+  const thEnd = Math.log(SCROLL.R0 / SCROLL.rCore) / SCROLL.K;
+  const at = (th: number, r: number): P2 => {
+    const u = dirS(th);
+    return [C[0] + r * u[0], C[1] + r * u[1]];
+  };
+  // dimensions in the profile's units
+  const ch = d.ch / Lh;
+  const cheek = d.cheek / Lh;
+  const floorT = d.floor / Lh;
+  const chTop = d.chTop / Lh;
+  const wPeg = (a: number) => d.w0 + (d.wTop - d.w0) * clamp(a / 0.998, 0, 1);
+  const wVol = (th: number) => d.wTop + (d.wEye - d.wTop) * Math.pow(clamp(th / thEnd, 0, 1), 1.5);
+  // the fluting's depth at z across a back of half-width wf (metres): two channels either side of a
+  // sharp spine, inside flat borders; e (0–1) closes each channel to a rounded end
+  const fluteAt = (z: number, wf: number, e: number) => {
+    if (e <= 0.001) return 0;
+    const zc = 0.47 * wf;
+    const hw = 0.47 * wf * Math.sqrt(e);
+    const q = (Math.abs(z) - zc) / hw;
+    return Math.abs(q) >= 1 ? 0 : d.flute * Math.sqrt(e) * Math.pow(1 - q * q, 0.75);
+  };
+  const NB = 24;
+  const NS = 10;
+  // the back of the scroll: the traced curve, smoothed; the ray from C at θ meets it at rBack(θ)
+  const back = smoothOpen(resampleOpen(SCROLL.back, 160), 3);
+  const rBack = (th: number): number => {
+    const u = dirS(th);
+    let best = Infinity;
+    for (let i = 0; i < back.length - 1; i++) {
+      const p = back[i];
+      const q = back[i + 1];
+      const ex = q[0] - p[0];
+      const ez = q[1] - p[1];
+      const den = u[0] * ez - u[1] * ex;
+      if (Math.abs(den) < 1e-12) continue;
+      const t = ((p[0] - C[0]) * ez - (p[1] - C[1]) * ex) / den;
+      const s = ((p[0] - C[0]) * u[1] - (p[1] - C[1]) * u[0]) / den;
+      if (s >= -1e-6 && s <= 1 + 1e-6 && t > 0) best = Math.min(best, t);
+    }
+    return Number.isFinite(best) ? best : rS(th);
+  };
+  /** one station's section: the back point, its inward normal, the inner (front) point, half-width,
+   *  fluting, chamfers, hollow, and what lies inside: the open pegbox (`floor`: the floor's line) or
+   *  the throat's recess (`turn`: the first turn's surface across the gap) */
+  interface Station {
+    b: P2;
+    n: P2;
+    f: P2;
+    w: number;
+    fl: number;
+    hol: number;
+    floor?: P2;
+    turn?: P2;
+  }
+  const rows = (sts: Station[], part: (s: Station) => Vec3[]) => sts.map(part);
+  const sub2 = (a: P2, b: P2): P2 => [a[0] - b[0], a[1] - b[1]];
+  const out = (p: P2): Vec3 => dirL(p);
+  // ---- the pegbox, chin to the throat: back and front matched by arc length
+  const th0 = SCROLL.thC0 - 2 * Math.PI;
+  const r0 = rBack(th0);
+  const pb0 = at(th0, r0);
+  // the back from the chin to pb0
+  let cut = back.length - 1;
+  let bestD = Infinity;
+  for (let i = 0; i < back.length; i++) {
+    const dd = Math.hypot(back[i][0] - pb0[0], back[i][1] - pb0[1]);
+    if (dd < bestD) {
+      bestD = dd;
+      cut = i;
+    }
+  }
+  const NL = 76;
+  // from inside the neck's end: the chin's underside flares out of the neck's back to the chin, then
+  // the back rises from it; the front runs along the neck's top to the nut and on along the cheeks
+  const nd = d.neckD / Lh;
+  const a0 = -0.17;
+  const backL = resampleOpen([[a0, -0.55 * nd], ...SCROLL.under.slice(1), ...back.slice(0, cut), pb0], NL);
+  const frontL = resampleOpen(smoothOpen(resampleOpen([[a0, 0], [-0.08, 0], ...SCROLL.front], 70), 2), NL);
+  const chin = SCROLL.back[0];
+  const wUnder = (h: number) => d.wNeck + (d.w0 - d.wNeck) * sstep(-0.55 * nd, chin[1], h);
+  const normalOf = (pts: P2[], i: number, toward: P2): P2 => {
+    const a = pts[Math.max(0, i - 1)];
+    const b = pts[Math.min(pts.length - 1, i + 1)];
+    let n: P2 = [-(b[1] - a[1]), b[0] - a[0]];
+    const l = Math.hypot(n[0], n[1]) || 1;
+    n = [n[0] / l, n[1] / l];
+    return n[0] * (toward[0] - pts[i][0]) + n[1] * (toward[1] - pts[i][1]) < 0 ? [-n[0], -n[1]] : n;
+  };
+  const turnJ = at(SCROLL.thC0, rS(SCROLL.thC0) + 0.004);
+  const lower: Station[] = backL.map((b, i) => {
+    const f = frontL[i];
+    const n = normalOf(backL, i, f);
+    const s = i / (NL - 1);
+    // the cavity: from behind the nut, deepening, then its floor rising into the throat to meet the turn
+    const fl0: P2 = [b[0] + n[0] * floorT, b[1] + n[1] * floorT];
+    const open = sstep(0.03, 0.08, f[0]);
+    const rise = sstep(0.72, 1, s);
+    const deep: P2 = [fl0[0] + (turnJ[0] - fl0[0]) * rise, fl0[1] + (turnJ[1] - fl0[1]) * rise];
+    const floor: P2 = [f[0] + (deep[0] - f[0]) * open, f[1] + (deep[1] - f[1]) * open];
+    return { b, n, f, w: b[0] < chin[0] - 0.002 ? wUnder(b[1]) : wPeg(b[0]), fl: sstep(-0.075, 0.03, b[0]), hol: 0, floor };
+  });
+  // ---- above the throat: by angle round the eye, the back to the first turn (a gap away, closing)
+  const NU = 56;
+  const upper: Station[] = Array.from({ length: NU + 1 }, (_, i) => {
+    const th = th0 * (1 - i / NU);
+    const rb = rBack(th);
+    const b = at(th, rb);
+    const t2 = th + 2 * Math.PI;
+    const g = SCROLL.gap * (1 - sstep(SCROLL.thC0, SCROLL.thTip, t2));
+    const f = at(th, rS(t2) + g);
+    const turn = at(th, rS(t2));
+    // the inward normal of the back (towards C, tilted by the curve)
+    const e = 0.002;
+    const pa = at(th - e, rBack(th - e));
+    const pc = at(th + e, rBack(th + e));
+    let n: P2 = [-(pc[1] - pa[1]), pc[0] - pa[0]];
+    const l = Math.hypot(n[0], n[1]) || 1;
+    n = [n[0] / l, n[1] / l];
+    if (n[0] * (C[0] - b[0]) + n[1] * (C[1] - b[1]) < 0) n = [-n[0], -n[1]];
+    return { b, n, f, w: wPeg(b[0]), fl: 1, hol: 0, turn };
+  });
+  // ---- the volute: from the crown round to the eye; each turn rests on the next, which stands proud
+  const NV = Math.round((thEnd / (2 * Math.PI)) * 72);
+  const vol: Station[] = Array.from({ length: NV + 1 }, (_, i) => {
+    const th = (i / NV) * thEnd;
+    const r = rS(th);
+    const rin = Math.max(rS(th + 2 * Math.PI), SCROLL.rCore);
+    const b = at(th, r);
+    // the spiral's inward normal: perpendicular to its tangent (r′ dir + r dir′)
+    const u = dirS(th);
+    const tg: P2 = [-SCROLL.K * r * u[0] - r * u[1], -SCROLL.K * r * u[1] + r * u[0]];
+    const tl = Math.hypot(tg[0], tg[1]) || 1;
+    let n: P2 = [-tg[1] / tl, tg[0] / tl];
+    if (n[0] * u[0] + n[1] * u[1] > 0) n = [-n[0], -n[1]];
+    const thick = (r - rin) * Lh;
+    return {
+      b,
+      n,
+      f: at(th, rin),
+      w: wVol(th),
+      // the fluting runs over the crown and down the front, closing before the turn goes under
+      fl: 1 - sstep(0.72 * Math.PI, 1.0 * Math.PI, th),
+      hol: d.hollow * sstep(0.15 * Math.PI, 0.7 * Math.PI, th) * Math.min(1, thick / (6 * d.ch)),
+    };
+  });
+  // the chamfer shrinks where a band thins (towards the eye) — per station
+  const chOf = (s: Station) => Math.min(ch, 0.28 * Math.hypot(s.f[0] - s.b[0], s.f[1] - s.b[1]));
+  // wear and grime (uv for the worn-varnish material): the crown and the chamfers rubbed pale, grime
+  // in the flutes, the turns' hollows and the corners where each turn meets the next
+  const all = [...lower, ...upper.slice(1), ...vol.slice(1)];
+  const nUp = lower.length + upper.length - 1;
+  const crown = all.map((s, i) => {
+    if (i < lower.length) return 0.06;
+    const th = i < nUp ? th0 * (1 - (i - lower.length + 1) / NU) : ((i - nUp + 1) / NV) * thEnd;
+    return 0.06 + 0.34 * sstep(-0.45 * Math.PI, -0.05 * Math.PI, th) * (1 - sstep(0.2 * Math.PI, 0.6 * Math.PI, th));
+  });
+  const inVol = (i: number) => (i >= nUp ? 1 : 0);
+  // the back (fluted), its chamfers and the sides: one strip from the chin to the eye, so the shading
+  // runs on without a seam
+  {
+    const sts = all;
+    const mid = sts[sts.length >> 1];
+    const midN: Vec3 = scale(out(mid.n), -1);
+    const UVb: [number, number][][] = [];
+    const backR = sts.map((s, i) => {
+      const cs = chOf(s) * Lh;
+      const wf = s.w - cs;
+      const uvr: [number, number][] = [];
+      const row = Array.from({ length: NB + 1 }, (_, j) => {
+        const z = -wf + (2 * wf * j) / NB;
+        const dd = fluteAt(z, wf, s.fl);
+        uvr.push([crown[i] * (1 - dd / d.flute), 0.6 * (dd / d.flute)]);
+        return toL([s.b[0] + (s.n[0] * dd) / Lh, s.b[1] + (s.n[1] * dd) / Lh], z);
+      });
+      UVb.push(uvr);
+      return row;
+    });
+    sweep(mb, backR, wood, midN, (i, j) => UVb[i][j]);
+    for (const sg of [-1, 1]) {
+      sweep(mb, rows(sts, (s) => {
+        const c = chOf(s);
+        return [toL(s.b, sg * (s.w - c * Lh)), toL([s.b[0] + s.n[0] * c, s.b[1] + s.n[1] * c], sg * s.w)];
+      }), wood, add(midN, [0, 0, sg]), (i) => [0.1 + crown[i] * 0.45, 0.05]);
+      const UVs: [number, number][][] = [];
+      sweep(mb, sts.map((s, i) => {
+        const c = chOf(s);
+        const p0: P2 = [s.b[0] + s.n[0] * c, s.b[1] + s.n[1] * c];
+        const v = sub2(s.f, p0);
+        const len = Math.hypot(v[0], v[1]);
+        const open = s.floor ? 1 : s.turn ? clamp(Math.hypot(s.f[0] - s.turn[0], s.f[1] - s.turn[1]) / (0.2 * SCROLL.gap), 0, 1) : 0;
+        const c2 = Math.min(chTop * open, 0.4 * len);
+        const p1: P2 = len > 1e-9 ? [s.f[0] - (v[0] / len) * c2, s.f[1] - (v[1] / len) * c2] : s.f;
+        const uvr: [number, number][] = [];
+        const row = Array.from({ length: NS + 1 }, (_, j) => {
+          const t = j / NS;
+          const hs = Math.pow(Math.sin(Math.PI * Math.pow(t, 0.65)), 1.2);
+          const hz = s.hol * hs;
+          // the cheeks: rubbed a little along their top edge; the turns: grime in the hollow and
+          // in the corner against the next turn's wall
+          uvr.push(inVol(i) ? [0.04, 0.62 * hs * (s.hol / d.hollow) + 0.85 * sstep(0.6, 1, t)] : [0.12 * sstep(0.75, 1, t) * open, 0.25 * sstep(0.85, 1, t) * (1 - open)]);
+          return toL([p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t], sg * (s.w - hz));
+        });
+        UVs.push(uvr);
+        return row;
+      }), wood, [0, 0, sg], (i, j) => UVs[i][j]);
+    }
+  }
+  // the cheeks' top edges (chamfered), their inner faces and the pegbox's floor; above the throat the
+  // same edge runs on round the turn's underside, over a dark recess, until the gap closes
+  for (const sg of [-1, 1]) {
+    const edge = (s: Station): Vec3[] => {
+      const p0 = s.f;
+      const v = sub2(s.f, s.b);
+      const len = Math.hypot(v[0], v[1]) || 1;
+      const open = s.floor ? 1 : clamp(Math.hypot(s.f[0] - s.turn![0], s.f[1] - s.turn![1]) / (0.2 * SCROLL.gap), 0, 1);
+      const c2 = chTop * open;
+      return [toL([p0[0] - (v[0] / len) * c2, p0[1] - (v[1] / len) * c2], sg * s.w), toL(p0, sg * (s.w - c2 * Lh)), toL(p0, sg * (s.w - cheek * Lh))];
+    };
+    const both = [...lower, ...upper.slice(1)];
+    const thr = (i: number) => (i < lower.length ? 0 : 1);
+    sweep(mb, rows(both, edge).map((r) => [r[0], r[1]]), wood, add(out(sub2(lower[NL >> 1].f, lower[NL >> 1].b)), [0, 0, sg]), (i) => [0.45 * (1 - thr(i)), 0.4 * thr(i)]);
+    sweep(mb, rows(both, edge).map((r) => [r[1], r[2]]), wood, out(sub2(lower[NL >> 1].f, lower[NL >> 1].b)), (i) => [0.3 * (1 - thr(i)), 0.6 * thr(i)]);
+    // inside the cheek: down to the floor (the pegbox) or across the recess to the turn (the throat)
+    sweep(mb, rows(both, (s) => [toL(s.f, sg * (s.w - cheek * Lh)), toL(s.floor ?? s.turn!, sg * (s.w - cheek * Lh))]), inside, [0, 0, -sg]);
+  }
+
+  // the floor across the pegbox, and above the throat the solid's face over the recess
+  sweep(mb, rows(lower, (s) => [toL(s.floor!, -(s.w - cheek * Lh)), toL(s.floor!, s.w - cheek * Lh)]), inside, out(sub2(lower[NL >> 1].f, lower[NL >> 1].b)));
+  sweep(mb, rows(upper, (s) => [toL(s.f, -(s.w - cheek * Lh)), toL(s.f, s.w - cheek * Lh)]), inside, out(sub2(upper[NU >> 1].turn!, upper[NU >> 1].f)));
+  // the core the last turn wraps: its face is the floor of the groove round the eye
+  {
+    const rc = SCROLL.rCore * Lh;
+    const wc = wVol(thEnd) - 0.9 * d.hollow;
+    lathe2(mb, toL(C, -wc), 1, [[0.00001, 0], [rc, 0], [rc, 2 * wc], [0.00001, 2 * wc]], dark);
+  }
+  // the eye: a boss standing proudest, its face domed, its rim chamfered
+  {
+    const re = SCROLL.rEye * Lh;
+    const dm = 0.32 * re;
+    const wb = wVol(thEnd) - 0.25 * dm;
+    const c = toL(C, -wb);
+    const ce = Math.min(d.ch, 0.25 * re);
+    // the face: a dome rising from a rounded rim (a quarter round, then the crown)
+    const prof: [number, number][] = [[0.00001, -dm]];
+    for (let k = 1; k <= 5; k++) {
+      const t = k / 6;
+      prof.push([re * 0.82 * t, -dm * (1 - t * t)]);
+    }
+    for (let k = 0; k <= 3; k++) {
+      const a = (k / 3) * (Math.PI / 2);
+      prof.push([re - ce + ce * Math.sin(a), ce - ce * Math.cos(a)]);
+    }
+    const n = prof.length;
+    for (let k = n - 1; k >= 0; k--) prof.push([prof[k][0], 2 * wb - prof[k][1]]);
+    lathe2(mb, c, 1, prof, wood);
+  }
+  // the pegs' axes: at fraction pegDepth from the front edge to the back, at a along the pegbox
+  const hAt = (pts: P2[], a: number) => {
+    for (let i = 0; i < pts.length - 1; i++) if ((pts[i][0] - a) * (pts[i + 1][0] - a) <= 0) return pts[i][1] + ((pts[i + 1][1] - pts[i][1]) * (a - pts[i][0])) / (pts[i + 1][0] - pts[i][0] || 1e-9);
+    return pts[pts.length - 1][1];
+  };
+  return {
+    peg: (k: number) => {
+      const a = SCROLL.pegA[k];
+      const hf = hAt(frontL, a);
+      const hb = hAt(backL, a);
+      return { c: toL([a, hf + (hb - hf) * SCROLL.pegDepth], 0), w: wPeg(a), depth: (hf - hb) * Lh };
     },
   };
 }
@@ -694,8 +1284,28 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   const ribH = (x: number) => sp.rib * (0.955 + 0.045 * clamp(x / B, 0, 1));
   const yTop = (x: number, z: number) => sp.edgeT + arch(sp, pl, x, z, sp.archT - sp.edgeT);
   const yBack = (x: number, z: number) => -ribH(x) - sp.edgeT - arch(sp, plB, x, z, sp.archB - sp.edgeT);
-  // f-holes, from the traced one, its notches on the bridge line
-  const fb = sp.ol.fhole;
+  // f-holes, from the traced one, its notches on the bridge line; the trace's row-by-row wobble
+  // smoothed out (a Gaussian along it, σ ≈ 1.2 mm: the eyes and wings keep their shape)
+  const fb = ((): P2[] => {
+    const q = resample(sp.ol.fhole, 480, 0);
+    let per = 0;
+    for (let i = 0; i < q.length; i++) per += Math.hypot(q[(i + 1) % q.length][0] - q[i][0], q[(i + 1) % q.length][1] - q[i][1]);
+    const sig = (0.0012 * S ** 0.5) / B / (per / q.length);
+    const k = Math.max(1, Math.ceil(2.5 * sig));
+    return q.map((_, i): P2 => {
+      let x = 0;
+      let z = 0;
+      let ws = 0;
+      for (let j = -k; j <= k; j++) {
+        const wj = Math.exp(-0.5 * (j / sig) ** 2);
+        const p = q[(i + j + q.length) % q.length];
+        x += p[0] * wj;
+        z += p[1] * wj;
+        ws += wj;
+      }
+      return [x / ws, z / ws];
+    });
+  })();
   let fu0 = Infinity;
   let fu1 = -Infinity;
   for (const [u] of fb) {
@@ -710,7 +1320,8 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   const mTop = variant(M.varnishTop, { paint: paintPlate(g.id, sp, pl, holes, 'top'), kind: 1 });
   const mBack = variant(M.varnish, { paint: paintPlate(g.id, sp, plB, null, 'back') });
   const flamed = variant(M.varnish, { col: [sp.vBack[0] / 255, sp.vBack[1] / 255, sp.vBack[2] / 255], tint: true });
-  const flamedDark = variant(M.varnishDark, { col: [sp.vEdge[0] / 255, sp.vEdge[1] / 255, sp.vEdge[2] / 255], tint: true });
+  const flamedW = variant(M.varnishWorn, { col: [sp.vBack[0] / 255, sp.vBack[1] / 255, sp.vBack[2] / 255], tint: true });
+  const flamedDark = variant(M.varnishDark,{ col: [sp.vEdge[0] / 255, sp.vEdge[1] / 255, sp.vEdge[2] / 255], tint: true });
   // ---- plates: arched surfaces fanned from the spine to the edge round's inner line
   // the plate's surface over its outline (inset by `inset`): a grid clipped to the outline — whole
   // cells inside, boundary cells cut to it (Sutherland–Hodgman) and triangulated — finer near the
@@ -996,7 +1607,11 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     // the heel's back is rounded in profile: deeper along the middle of the section
     const yy = neckBot(x) - Math.pow(Math.sin(a), 1 - 0.4 * heel) * dep;
     return [x, yy, (Math.cos(a) * wn) / 2];
-  }, flamed);
+  }, flamedW, {
+    // the neck's back is left bare (oiled, as most are) and the hand keeps it so; the heel keeps its
+    // varnish (violin-back.jpg, violin-scroll.jpg)
+    uv: (s) => [0.92 * sstep(0.0, 0.05, s) * (1 - sstep(0.8, 0.95, s)), 0],
+  });
   // the nut (ebony)
   const yNut = fbY(xn) + 0.0008 * S;
   grid(mb, 1, 16, (s, v) => {
@@ -1005,140 +1620,68 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     return [xn - 0.0022 * S ** 0.5 + Math.cos(a) * r * 0.55, yNut - 0.0035 * S ** 0.5 + Math.sin(a) * r, (s - 0.5) * fbW(xn) * 1.02];
   }, M.fittings, { wrapV: true });
 
-  // ---- pegbox: two cheeks and a floor, open on top, angled back from the nut
-  const al = 0.2;
-  const ax: Vec3 = [-Math.cos(al), -Math.sin(al), 0];
-  const up: Vec3 = [-Math.sin(al), Math.cos(al), 0];
-  const pbH = sp.pbDepth;
-  const pbLen = sp.pegbox;
-  const O: Vec3 = sub([xn - 0.002 * S ** 0.5, yNut - 0.0018 * S ** 0.5, 0], scale(up, pbH));
-  const pbW = (s: number) => fbW(xn) * 1.18 * (1 - 0.1 * s);
-  const cheek = 0.0034 * S ** 0.75;
-  const floorT = 0.003 * S ** 0.75;
-  const PB = (s: number, hh: number, z: number): Vec3 => add(add(O, scale(ax, s * pbLen)), [up[0] * hh, up[1] * hh, z]);
-  for (const side of [-1, 1]) {
-    // outer cheek, its chamfered top edge, inner cheek
-    grid(mb, 10, 8, (s, v) => {
-      const w2 = pbW(s) / 2;
-      // the loop over the cheek's section: outer face up, chamfer, top, chamfer, inner face down
-      const pts: [number, number][] = [
-        [w2, 0],
-        [w2, pbH * 0.86],
-        [w2 - cheek * 0.25, pbH],
-        [w2 - cheek * 0.75, pbH],
-        [w2 - cheek, pbH * 0.88],
-        [w2 - cheek, floorT],
-      ];
-      const f = v * (pts.length - 1);
-      const k = Math.min(pts.length - 2, Math.floor(f));
-      const t = f - k;
-      const zz = pts[k][0] + (pts[k + 1][0] - pts[k][0]) * t;
-      const hh = pts[k][1] + (pts[k + 1][1] - pts[k][1]) * t;
-      return PB(s * 1.02, hh, side * zz);
-    }, flamed, { flip: side < 0 });
-  }
-  // the floor (outside: the back of the pegbox; inside: dark)
-  grid(mb, 10, 6, (s, v) => PB(s * 1.02, 0, (v - 0.5) * pbW(s)), flamed, { flip: true });
-  grid(mb, 10, 6, (s, v) => PB(s * 1.02, floorT, (v - 0.5) * (pbW(s) - 2 * cheek)), M.interior);
-  // the throat: closing the pegbox's end under the nut
-  grid(mb, 1, 6, (s, v) => PB(0, s * pbH * 0.9, (v - 0.5) * pbW(0)), flamed);
-  // pegs: two each side; the strings wind on their shafts. String i (0 = lowest) → its peg.
-  const pegS = [0.8, 0.42, 0.24, 0.62];
+  // ---- the head: pegbox, chin, throat and volute, carved (buildScroll), in the neck's frame
+  const ax = norm([-1, -slope, 0]);
+  const up: Vec3 = [ax[1], -ax[0], 0]; // towards the strings
+  const head = buildScroll(mb, {
+    N: [xn, neckBot(xn), 0],
+    A: ax,
+    H: up,
+    Lh: sp.head,
+    w0: sp.pbW / 2,
+    wTop: (0.86 * sp.pbW) / 2,
+    wEye: sp.eyeW / 2,
+    ch: 1.15 * mm * S ** 0.9,
+    flute: 1.3 * mm * S ** 0.9,
+    hollow: 2.0 * mm * S ** 0.9,
+    cheek: 4.2 * mm * S ** 0.85,
+    floor: 4.5 * mm * S ** 0.85,
+    chTop: 0.7 * mm * S ** 0.8,
+    neckD: sp.neckDepth[0],
+    wNeck: 0.36 * fbW(xn),
+  }, flamedW, M.interior, flamedDark);
+  // pegs: two each side, through both cheeks; the strings wind on their shafts. String i (0 = lowest)
+  // → its peg, from the nut: the treble side's lower, the bass side's lower, the treble's upper, the bass's
+  const pegK = [3, 1, 0, 2];
   const pegSide = [1, 1, -1, -1];
   const pegEnd: Vec3[] = [];
   const pegMat = g.id === 'cello' ? M.rosewood : M.fittings;
   for (let i = 0; i < 4; i++) {
     const side = pegSide[i];
-    const s = pegS[i];
-    const c = PB(s, pbH * 0.46, 0);
-    const w2 = pbW(s) / 2;
+    const pk = head.peg(pegK[i]);
+    const c = pk.c;
+    const w2 = pk.w;
     const r = 0.0031 * S ** 0.6;
-    // the shaft, through both cheeks
-    cyl(mb, [c[0], c[1], -side * (w2 + 0.002 * S ** 0.5)], [c[0], c[1], side * (w2 + 0.004 * S ** 0.6)], r * 0.8, r * 1.05, 14, pegMat);
-    // the collar and the head (a flattened pear, broad in the plane of the neck)
+    // the shaft, through both cheeks (its end shows through the far one)
+    cyl(mb, [c[0], c[1], -side * (w2 + 0.0015 * S ** 0.5)], [c[0], c[1], side * (w2 + 0.004 * S ** 0.6)], r * 0.8, r * 1.05, 16, pegMat);
+    // the collar (two rings) and the head (a flattened pear, broad in the plane of the neck)
     const z0 = side * (w2 + 0.004 * S ** 0.6);
     const hl = 0.03 * S ** 0.62;
     const hw = 0.022 * S ** 0.62;
     lathe2(mb, [c[0], c[1], z0], side, [
       [r * 1.05, 0],
-      [r * 1.5, 0.0015 * S ** 0.6],
-      [r * 1.25, 0.0028 * S ** 0.6],
-      [r * 1.55, 0.004 * S ** 0.6],
-      [r * 1.2, 0.0055 * S ** 0.6],
+      [r * 1.5, 0.0012 * S ** 0.6],
+      [r * 1.3, 0.0021 * S ** 0.6],
+      [r * 1.55, 0.0029 * S ** 0.6],
+      [r * 1.3, 0.0038 * S ** 0.6],
+      [r * 1.5, 0.0046 * S ** 0.6],
+      [r * 1.2, 0.0058 * S ** 0.6],
     ], pegMat);
     grid(mb, 22, 24, (t, v) => {
       const a = v * Math.PI * 2;
       // a fiddle peg's head: from the collar it flares into a broad, flat thumb-piece with a
       // rounded end; thin across its faces
-      const A = 0.5 * hw * (0.36 + 0.64 * sstep(0, 0.55, t)) * Math.sqrt(Math.max(0, 1 - Math.pow(Math.max(0, t - 0.6) / 0.4, 2.4)));
-      const Bt = A * 0.4 + 0.07 * hw * (1 - t) * Math.sqrt(Math.max(0, 1 - Math.pow(Math.max(0, t - 0.6) / 0.4, 2.4)));
-      // a superellipse section: flat faces with crisp, rounded edges
+      const A0 = 0.5 * hw * (0.36 + 0.64 * sstep(0, 0.55, t)) * Math.sqrt(Math.max(0, 1 - Math.pow(Math.max(0, t - 0.6) / 0.4, 2.4)));
+      const Bt = A0 * 0.4 + 0.07 * hw * (1 - t) * Math.sqrt(Math.max(0, 1 - Math.pow(Math.max(0, t - 0.6) / 0.4, 2.4)));
       const ca = Math.cos(a);
       const sa = Math.sin(a);
-      const along = Math.sign(ca) * Math.pow(Math.abs(ca), 0.6) * A;
+      const along = Math.sign(ca) * Math.pow(Math.abs(ca), 0.6) * A0;
       const thick = Math.sign(sa) * Math.pow(Math.abs(sa), 0.6) * Bt * 0.85;
-      const zz = z0 + side * (0.0055 * S ** 0.6 + t * hl);
+      const zz = z0 + side * (0.0058 * S ** 0.6 + t * hl);
       return [c[0] + ax[0] * along + up[0] * thick, c[1] + ax[1] * along + up[1] * thick, zz];
     }, pegMat, { wrapV: true });
-    pegEnd.push(PB(s, pbH * 0.52, -side * pbW(s) * 0.16));
-  }
-  // ---- the scroll: a volute on a logarithmic spiral from the pegbox's back
-  {
-    const R0 = sp.scroll * 0.5;
-    const turns = 2.55;
-    const TH = turns * 2 * Math.PI;
-    const k = Math.log(1 / 0.16) / TH;
-    const P0 = PB(1.0, 0, 0);
-    const cC = add(P0, scale(up, R0));
-    const r = (th: number) => R0 * Math.exp(-k * th);
-    const W1 = pbW(1);
-    const Wsc = fbW(xn) * 1.42;
-    const wz = (th: number) => (th < Math.PI / 2 ? W1 + (Wsc - W1) * sstep(0, Math.PI / 2, th) : Wsc * (0.3 + 0.7 * Math.exp(-(th - Math.PI / 2) / (0.9 * Math.PI))));
-    const dir = (th: number): Vec3 => add(scale(up, -Math.cos(th)), scale(ax, Math.sin(th)));
-    const prof = (th: number): [number, number][] => {
-      const thick = r(th) - r(th + 2 * Math.PI);
-      const fl = 0.1 * thick * (1 - sstep(1.2 * Math.PI, 2 * Math.PI, th));
-      const ch = Math.min(0.18 * thick, 0.003 * S ** 0.7);
-      // the section: the outer face fluted either side of the spine, the chamfer, the side face
-      // hollowed between its raised edges, the inner face
-      const half: [number, number][] = [
-        [0, 0],
-        [-fl, 0.3],
-        [-fl * 0.35, 0.62],
-        [-ch * 0.25, 0.86],
-        [-ch, 1],
-        [-ch - (thick - ch) * 0.3, 0.955],
-        [-ch - (thick - ch) * 0.65, 0.95],
-        [-thick + ch * 0.6, 1],
-        [-thick, 0.86],
-        [-thick, 0],
-      ];
-      return [...half, ...half.slice(1, -1).reverse().map(([a, b]): [number, number] => [a, -b])];
-    };
-    const np = prof(0).length;
-    grid(mb, 150, np, (s, v) => {
-      const th = s * TH;
-      const pr = prof(th);
-      const f = v * np;
-      const j = Math.floor(f) % np;
-      const t = f - Math.floor(f);
-      const a = pr[j];
-      const b2 = pr[(j + 1) % np];
-      const rho = r(th) + a[0] + (b2[0] - a[0]) * t;
-      const zz = (a[1] + (b2[1] - a[1]) * t) * (wz(th) / 2);
-      const d = dir(th);
-      return [cC[0] + d[0] * rho, cC[1] + d[1] * rho, zz];
-    }, flamed, { wrapV: true });
-    // the eye
-    const re = r(TH) * 1.05;
-    lathe2(mb, [cC[0], cC[1], -wz(TH) * 0.52], 1, [
-      [0.001, 0],
-      [re * 0.9, 0],
-      [re, wz(TH) * 0.08],
-      [re, wz(TH) * 0.96],
-      [re * 0.9, wz(TH) * 1.04],
-      [0.001, wz(TH) * 1.04],
-    ], flamed);
+    // the string runs straight back from its notch in the nut and winds on the shaft's front
+    pegEnd.push([c[0] + up[0] * r, c[1] + up[1] * r, clamp((1.5 - i) * sp.spreadN * 1.3, -w2 * 0.55, w2 * 0.55)]);
   }
 
   // ---- bridge (maple), cut from its outline, standing on the arch at the f-holes' notches
@@ -1176,7 +1719,7 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   } else {
     // the end button, and a chinrest on the bass side of the tailpiece
     mb.with(chain(translate(B, -ribH(B) / 2, 0), rotZ(-Math.PI / 2)), () => lathe(mb, [[0, -0.001], [0.0045, -0.001], [0.0052, 0.002], [0.0042, 0.004], [0.0056, 0.0065], [0.0045, 0.0095], [0, 0.0102]], 18, M.fittings));
-    chinrest(mb, sp, B, yTop, ribH, S);
+    chinrest(mb, sp, pl, yTop, ribH, S, M.rosewood);
   }
   // the strings' silk at the tailpiece (the colours a maker uses to mark each string); the strings
   // themselves are drawn each frame as wires (poseBowed)
@@ -1222,7 +1765,7 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     floorY = 0;
   }
   const c = xform(T, [B * 0.3, 0, 0]);
-  const extent = B + sp.neck + sp.pegbox + sp.scroll;
+  const extent = B + sp.neck + sp.head;
   return {
     id: g.id,
     sp,
@@ -1385,45 +1928,148 @@ function tailpiece(mb: MeshBuilder, id: string, sp: Spec, x0: number, x1: number
   // a fine tuner on the highest string: lever, screw and its knurled head (nickel)
   const e = ends[3];
   const sc = S ** 0.55;
-  cyl(mb, [e[0] - 0.004 * sc, e[1] - 0.001, e[2]], [e[0] + 0.016 * sc, e[1] + 0.003 * sc, e[2]], 0.0016 * sc, 0.0013 * sc, 12, M.nickel);
-  cyl(mb, [e[0] + 0.011 * sc, e[1] - 0.002, e[2]], [e[0] + 0.011 * sc, e[1] + 0.009 * sc, e[2]], 0.0011 * sc, 0.0011 * sc, 12, M.nickel);
-  cyl(mb, [e[0] + 0.011 * sc, e[1] + 0.009 * sc, e[2]], [e[0] + 0.011 * sc, e[1] + 0.0125 * sc, e[2]], 0.0032 * sc, 0.0032 * sc, 18, M.nickel);
+  // (satin: a polished head facing the softbox bloomed into a white dot)
+  tube(mb, [[e[0] - 0.004 * sc, e[1] - 0.0008, e[2]], [e[0] + 0.004 * sc, e[1] + 0.0016 * sc, e[2]], [e[0] + 0.012 * sc, e[1] + 0.0022 * sc, e[2]], [e[0] + 0.0155 * sc, e[1] + 0.0008 * sc, e[2]]], 0.0012 * sc, 10, M.nickelSatin, { caps: true, flat: 0.6 });
+  cyl(mb, [e[0] + 0.011 * sc, e[1] - 0.002, e[2]], [e[0] + 0.011 * sc, e[1] + 0.0075 * sc, e[2]], 0.0009 * sc, 0.0009 * sc, 12, M.nickelSatin);
+  {
+    const rh = 0.0026 * sc;
+    const hh = 0.0034 * sc;
+    const prof: [number, number][] = [[0.00001, 0], [rh * 0.8, 0], [rh, rh * 0.2]];
+    for (let k = 1; k < 9; k++) prof.push([rh * (k % 2 ? 0.94 : 1), rh * 0.2 + ((hh - rh * 0.5) * k) / 9]);
+    prof.push([rh, hh - rh * 0.3], [rh * 0.7, hh], [0.00001, hh + rh * 0.12]);
+    mb.with(translate(e[0] + 0.011 * sc, e[1] + 0.0075 * sc, e[2]), () => lathe(mb, prof, 20, M.nickelSatin));
+  }
   void id;
 }
 
-/** a chinrest (ebony) over the lower bout's edge on the bass side: a dished, rimmed cup on a
- *  pedestal, clamped to the rib by two nickel barrels */
-function chinrest(mb: MeshBuilder, sp: Spec, B: number, yTop: (x: number, z: number) => number, ribH: (x: number) => number, S: number): void {
-  const cx = B * 0.91;
-  const cz = sp.spreadB * 3.0;
-  const ra = 0.032 * S;
-  const rb = 0.02 * S;
-  const base = yTop(cx, cz);
-  const h = 0.0085 * S;
-  // the cup: dished, its rim rounded over, higher on the outside
-  grid(mb, 40, 16, (s, v) => {
-    const a = s * Math.PI * 2;
-    const x = cx + Math.cos(a) * ra * v;
-    const z = cz + Math.sin(a) * rb * v;
-    const lift = 0.002 * S * Math.max(0, Math.cos(a - 0.4));
-    const dish = 0.0022 * S * (1 - v * v);
-    const roll = v > 0.82 ? (1 - Math.cos(((v - 0.82) / 0.18) * Math.PI * 0.5)) * h * 0.45 : 0;
-    return [x, base + h + lift - dish - roll, z];
-  }, M.ebony);
-  // its side, tapering in to a pedestal on the plate
-  grid(mb, 40, 6, (s, v) => {
-    const a = s * Math.PI * 2;
-    const k = 1 - 0.35 * v;
-    const x = cx + Math.cos(a) * ra * k;
-    const z = cz + Math.sin(a) * rb * k;
-    const lift = 0.0025 * S * Math.max(0, Math.cos(a - 0.4));
-    const top = base + h + lift - h * 0.45;
-    const yp = yTop(Math.min(B * 0.995, x), z) + 0.0015 * S;
-    return [x, top + (yp - top) * v, z];
-  }, M.ebony, { flip: true });
-  for (const dz of [-0.015 * S, 0.015 * S]) {
-    const x = B + 0.0035 * S;
-    cyl(mb, [x, 0.001, cz + dz], [x, -ribH(B) * 0.85, cz + dz], 0.0021 * S ** 0.6, 0.0021 * S ** 0.6, 16, M.nickel);
+/** a side-mounted chinrest over the lower bout's edge on the bass side, beside the tailpiece (the shape
+ *  of a Flesch/Kaufman rest, violin-34.png): a kidney-shaped cup, dished, its lip rising along the
+ *  outer side, on an upper jaw that sits on the top's edge over a cork pad; a lower jaw under the back's
+ *  edge, also corked; and two knurled barrels between them against the rib (satin nickel) */
+function chinrest(mb: MeshBuilder, sp: Spec, pl: Plate, yTop: (x: number, z: number) => number, ribH: (x: number) => number, S: number, wood: Mat): void {
+  const B = pl.B;
+  const k = S;
+  // the anchor: the outline on the bass side's tail curve, 30 mm (×S) off the centre line
+  const zE = 0.03 * k;
+  let iE = 0;
+  let best = Infinity;
+  pl.poly.forEach(([x, z], i) => {
+    if (x > 0.8 * B && z > 0 && Math.abs(z - zE) < best) {
+      best = Math.abs(z - zE);
+      iE = i;
+    }
+  });
+  const E = pl.poly[iE];
+  const nE = pl.nrm[iE];
+  const tE: P2 = [-nE[1], nE[0]];
+  const P = (t: number, n: number): P2 => [E[0] + tE[0] * t + nE[0] * n, E[1] + tE[1] * t + nE[1] * n];
+  const yEdge = sp.edgeT;
+  // a rounded puck over a superellipse footprint (centre c, half-axes at, an along t and n), its top
+  // and bottom heights given per point, rimmed by a half-round; `uvOf` none
+  const puck = (c: P2, at: number, an: number, pw: number, top: (q: P2, s: number, phi: number) => number, bot: (q: P2) => number, rimR: number, m: Mat, NA = 56) => {
+    const K = 9;
+    const R = 7;
+    const rows: Vec3[][] = [];
+    for (let j = 0; j <= NA; j++) {
+      const phi = (j / NA) * Math.PI * 2;
+      const cs = Math.cos(phi);
+      const sn = Math.sin(phi);
+      // the superellipse's radius along phi (in the t–n frame)
+      const rr = 1 / Math.pow(Math.pow(Math.abs(cs) / at, pw) + Math.pow(Math.abs(sn) / an, pw), 1 / pw);
+      const at2 = (s: number): P2 => [c[0] + (tE[0] * cs + nE[0] * sn) * rr * s, c[1] + (tE[1] * cs + nE[1] * sn) * rr * s];
+      const row: Vec3[] = [];
+      const sIn = 1 - rimR / rr;
+      for (let i = 0; i <= K; i++) {
+        const s = (i / K) * sIn;
+        const q = at2(s);
+        row.push([q[0], top(q, s, phi), q[1]]);
+      }
+      // the rim: a half-round from the top's edge down to the bottom's
+      const qe = at2(sIn);
+      const yT = top(qe, sIn, phi);
+      const yB = bot(at2(sIn));
+      const hr = Math.max(1e-5, (yT - yB) / 2);
+      for (let i = 1; i < R; i++) {
+        const a = Math.PI / 2 - (i / R) * Math.PI;
+        const s = sIn + (rimR / rr) * Math.cos(a) * Math.min(1, hr / rimR);
+        const q = at2(s);
+        row.push([q[0], yB + hr + hr * Math.sin(a), q[1]]);
+      }
+      for (let i = 0; i <= K; i++) {
+        const s = sIn * (1 - i / K);
+        const q = at2(s);
+        row.push([q[0], bot(q), q[1]]);
+      }
+      rows.push(row);
+    }
+    // rows run round phi: transpose so i is along the profile and j round the loop
+    const T: Vec3[][] = rows[0].map((_, i) => rows.map((r) => r[i]));
+    // the outward hint: up at the top's middle
+    sweep(mb, T, m, [0, 1, 0], null, true);
+  };
+  // the cup: 62 × 44 mm (×S), its centre 17 mm inside the edge, dished 5 mm, its lip rising 5.5 mm
+  // along the outer side; its underside sweeps down at the edge into the upper jaw
+  const cupC = P(0, -0.017 * k);
+  const yU = yEdge + 0.0072 * k;
+  const thick = 0.0034 * k;
+  const nOf = (q: P2) => (q[0] - E[0]) * nE[0] + (q[1] - E[1]) * nE[1];
+  puck(
+    cupC, 0.031 * k, 0.022 * k, 2.4,
+    (_q, s, phi) => {
+      const out = Math.max(0, Math.sin(phi)); // towards +n: the outer side
+      const ring = sstep(0.35, 0.92, s);
+      return yU + thick + 0.005 * k * s * s + 0.0055 * k * Math.pow(out, 1.4) * ring - 0.0008 * k * (1 - out) * ring;
+    },
+    (q) => yU - 0.0045 * k * sstep(-0.016 * k, -0.002 * k, nOf(q)), 0.0019 * k, wood,
+  );
+  // the upper jaw: under the cup, down onto the top's edge over a cork pad, wrapping the edge
+  const jawC = P(0, -0.0035 * k);
+  const cork = 0.0009 * k;
+  const onTop = (q: P2) => yTop(Math.min(q[0], B * 0.999), q[1]);
+  puck(
+    jawC, 0.018 * k, 0.0062 * k, 3,
+    () => yU - 0.002 * k,
+    (q) => (nOf(q) < -0.0006 * k ? onTop(q) + 2 * cork : yEdge * 0.45),
+    0.0012 * k, wood,
+  );
+  puck(jawC, 0.0172 * k, 0.0056 * k, 3, (q) => onTop(q) + 2 * cork, (q) => onTop(q) + 0.0002, 0.0004, M.cork, 32);
+  // the lower jaw under the back's edge, and its cork
+  const yBk = -ribH(E[0]) - sp.edgeT;
+  puck(jawC, 0.018 * k, 0.006 * k, 3, () => yBk - 2 * cork, () => yBk - 0.0055 * k, 0.0014 * k, wood);
+  puck(jawC, 0.0172 * k, 0.0055 * k, 3, () => yBk - 0.0002, () => yBk - 2 * cork, 0.0004, M.cork, 32);
+  // the barrels: on the outline ±12 mm from the anchor, against the rib, from jaw to jaw; a knurled
+  // collar (the turning part) with its key hole facing out
+  const rb = 0.0024 * k ** 0.7;
+  const n = pl.poly.length;
+  const walk = (dist: number): number => {
+    let i = iE;
+    let acc = 0;
+    const st = dist > 0 ? 1 : -1;
+    while (acc < Math.abs(dist)) {
+      const j = (i + st + n) % n;
+      acc += Math.hypot(pl.poly[j][0] - pl.poly[i][0], pl.poly[j][1] - pl.poly[i][1]);
+      i = j;
+    }
+    return i;
+  };
+  for (const t of [-0.012 * k, 0.012 * k]) {
+    const ib = walk(t);
+    const pb = pl.poly[ib];
+    const nb = pl.nrm[ib];
+    const off = rb - sp.over + 0.0003;
+    const q: P2 = [pb[0] + nb[0] * off, pb[1] + nb[1] * off];
+    const y0 = yBk - 0.003 * k;
+    const y1 = yU - 0.003 * k;
+    cyl(mb, [q[0], y0, q[1]], [q[0], y1, q[1]], rb * 0.5, rb * 0.5, 16, M.nickelSatin);
+    const yc = (yEdge + yBk) / 2;
+    const half = Math.min(0.009 * k, (y1 - y0) * 0.36);
+    const prof: [number, number][] = [[0.00001, 0], [rb * 0.82, 0], [rb, rb * 0.22]];
+    // the knurl: fine rings
+    for (let r = 1; r < 12; r++) prof.push([rb * (r % 2 ? 0.97 : 1), rb * 0.22 + ((2 * half - rb * 0.44) * r) / 12]);
+    prof.push([rb, 2 * half - rb * 0.22], [rb * 0.82, 2 * half], [0.00001, 2 * half]);
+    mb.with(translate(q[0], yc - half, q[1]), () => lathe(mb, prof, 20, M.nickelSatin));
+    const ho: Vec3 = [q[0] + nb[0] * rb * 0.99, yc + half * 0.15, q[1] + nb[1] * rb * 0.99];
+    cyl(mb, ho, [ho[0] - nb[0] * rb * 0.5, ho[1], ho[2] - nb[1] * rb * 0.5], rb * 0.3, rb * 0.3, 10, M.hole);
   }
 }
 

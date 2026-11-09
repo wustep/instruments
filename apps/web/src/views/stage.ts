@@ -47,6 +47,9 @@ const VISIBLE_PRESETS = ['grand', 'upright'];
 export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
   let inst: InstrumentId = audio.instrument;
   const family = () => INSTRUMENT_INFO[inst].family;
+  /** the action close-up (click or tap a note's strings → that key's action) is the pianos' alone:
+   *  the bowed strings and the winds offer no string zoom in 2D or 3D, only orbit and camera zoom */
+  const closeUpOffered = () => family() === 'piano';
 
   // ---------------------------------------------------------------- picker
   const instBtns = INSTRUMENT_IDS.map((id) => {
@@ -83,7 +86,36 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
   }
   const dimBtn = h('button', { class: 'dim-toggle', type: 'button', 'aria-pressed': String(want3d), 'aria-label': '3D view', 'data-tip': '3D · drag to turn, pinch to zoom' }, '3d');
   dimBtn.hidden = !has3d;
-  const picker = h('div', { class: 'picker' }, h('div', { class: 'instruments', role: 'group', 'aria-label': 'Instrument' }, instBtns), h('div', { class: 'picker-row' }, presets, dimBtn));
+  // pianos in 3D: hide the case (the plate, strings, soundboard, keys and the whole action stay);
+  // remembered for the session; the I key ("inside") toggles it too (no note or octave key uses I)
+  let caseHidden = false;
+  try {
+    caseHidden = sessionStorage.getItem('piano-model.case') === '0';
+  } catch {
+    /* storage blocked */
+  }
+  const caseBtn = h('button', { class: 'case-toggle', type: 'button', 'aria-pressed': String(caseHidden), 'aria-label': 'Hide the case', 'data-tip': 'inside · I' });
+  caseBtn.innerHTML = '<svg viewBox="0 0 14 12" width="14" height="12" aria-hidden="true"><path d="M1.5 1.5h11v9h-11z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-dasharray="2 1.6"/><path d="M4.5 3.5v5M7 3.5v5M9.5 3.5v5" stroke="currentColor" stroke-width="1.1"/></svg>';
+  caseBtn.hidden = true;
+  const setCase = (hide: boolean) => {
+    caseHidden = hide;
+    caseBtn.setAttribute('aria-pressed', String(hide));
+    caseBtn.setAttribute('aria-label', hide ? 'Show the case' : 'Hide the case');
+    try {
+      sessionStorage.setItem('piano-model.case', hide ? '0' : '1');
+    } catch {
+      /* storage blocked */
+    }
+  };
+  caseBtn.addEventListener('click', () => setCase(!caseHidden));
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'KeyI' || e.repeat || e.metaKey || e.ctrlKey || e.altKey || caseBtn.hidden) return;
+    const t = e.target as HTMLElement | null;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault();
+    setCase(!caseHidden);
+  });
+  const picker = h('div', { class: 'picker' }, h('div', { class: 'instruments', role: 'group', 'aria-label': 'Instrument' }, instBtns), h('div', { class: 'picker-row' }, presets, dimBtn, caseBtn));
 
   // ---------------------------------------------------------------- readout, spectrum, scope
   const noteEl = h('div', { class: 'r-note' }, '');
@@ -109,28 +141,42 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     g.setAttribute('aria-valuenow', String(v));
     g.setAttribute('aria-valuetext', text);
   };
-  const el = h('div', { class: 'view stage' }, canvas, top, gripRoom, gripLid);
+  // in 3D, a key's action close up: back to the whole piano (also Esc, a click off the keys, a double-click)
+  const zoomBack = h('button', { class: 'zoom-back', type: 'button', 'aria-label': 'Back to the whole piano', 'data-tip': 'whole piano · Esc' });
+  zoomBack.innerHTML = '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
+  zoomBack.hidden = true;
+  zoomBack.addEventListener('click', () => s3?.zoomOut());
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && s3 && want3d && s3.zoomed !== null) s3.zoomOut();
+  });
+  const el = h('div', { class: 'view stage' }, canvas, top, gripRoom, gripLid, zoomBack);
   let s3: Stage3D | null = null;
   // three.js and the 3D stage load on first use (a separate chunk)
   let loading3d: Promise<void> | null = null;
   const wire3d = (s: Stage3D) => {
-    // in 3D too, a click (not a drag) on a note's strings opens that key's action
+    // in 3D, a click or a long press (not a drag) on a key's strings or its key top flies the camera to
+    // that key's action; a click off the keys flies back out
     const cv3 = s.el;
     let at3: { x: number; y: number } | null = null;
     cv3.addEventListener('pointerdown', (e) => {
       at3 = { x: e.clientX, y: e.clientY };
     });
     cv3.addEventListener('pointerup', (e) => {
-      if (!at3 || !s3 || Math.hypot(e.clientX - at3.x, e.clientY - at3.y) > 6 || family() !== 'piano') return;
+      if (!at3 || !s3 || Math.hypot(e.clientX - at3.x, e.clientY - at3.y) > 6 || !closeUpOffered()) return;
       at3 = null;
       const r = cv3.getBoundingClientRect();
       const m = s3.pick(e.clientX - r.left, e.clientY - r.top);
-      if (m !== null) openAction(m);
+      if (m !== null) s3.zoomTo(m);
+      else if (s3.zoomed !== null) s3.zoomOut();
     });
     cv3.addEventListener('pointermove', (e) => {
-      if (e.buttons || !s3 || family() !== 'piano') return;
+      if (e.buttons || !s3) return;
+      if (!closeUpOffered()) {
+        cv3.style.cursor = '';
+        return;
+      }
       const r = cv3.getBoundingClientRect();
-      cv3.style.cursor = s3.pick(e.clientX - r.left, e.clientY - r.top) !== null ? 'zoom-in' : '';
+      cv3.style.cursor = s3.pick(e.clientX - r.left, e.clientY - r.top) !== null ? 'zoom-in' : s3.zoomed !== null ? 'zoom-out' : '';
     });
   };
   const set3d = (on: boolean) => {
@@ -163,6 +209,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     show3d();
   };
   const show3d = () => {
+    caseBtn.hidden = !(want3d && family() === 'piano');
     if (s3) s3.el.hidden = !want3d;
     el.classList.toggle('is-3d', want3d && !!s3);
     (window as unknown as { __stage3d?: Stage3D | null }).__stage3d = want3d ? s3 : null;
@@ -175,7 +222,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     downAt = { x: e.clientX, y: e.clientY };
   });
   canvas.addEventListener('pointerup', (e) => {
-    if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6 || family() !== 'piano') return;
+    if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6 || !closeUpOffered()) return;
     downAt = null;
     const r = canvas.getBoundingClientRect();
     const topH = top.getBoundingClientRect().height;
@@ -183,13 +230,17 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     if (m !== null) openAction(m);
   });
   canvas.addEventListener('pointermove', (e) => {
-    if (family() !== 'piano') return;
+    if (!closeUpOffered()) {
+      canvas.style.cursor = '';
+      return;
+    }
     const r = canvas.getBoundingClientRect();
     const hit = stringAt(pianoState, e.clientX - r.left, e.clientY - r.top - top.getBoundingClientRect().height);
     canvas.style.cursor = hit !== null ? 'zoom-in' : '';
   });
   const openAction = (m: number) => {
     action?.close();
+    if (!closeUpOffered()) return;
     const kind = audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand';
     action = openActionView({ midi: m, kind, host: el, latest: () => frame, onClose: () => (action = null) });
   };
@@ -304,11 +355,16 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     inst = id;
     instBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(INSTRUMENT_IDS[i] === id)));
     presets.hidden = id !== 'piano';
+    caseBtn.hidden = !(want3d && INSTRUMENT_INFO[id].family === 'piano');
     el.dataset.family = INSTRUMENT_INFO[id].family;
     bowedGeom = INSTRUMENT_INFO[id].family === 'bowed' ? { id: id as BowedGeom['id'], ...bowedGeometry(id as BowedGeom['id']) } : null;
     frame = null;
     strike = null;
     lastFocus = null;
+    // no close-up state survives a change of instrument: the panel shuts, the zoom cursor goes
+    action?.close();
+    canvas.style.cursor = '';
+    if (s3) s3.el.style.cursor = '';
     noteEl.textContent = '';
     hzEl.textContent = '';
     buildKnobs();
@@ -419,6 +475,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       pianoState.down = new Set(audio.down.keys());
       pianoState.sustain = audio.lastStats?.sustain ?? audio.sustainValue;
       pianoState.soft = audio.lastStats?.soft ?? audio.softValue;
+      pianoState.middle = audio.lastStats?.middle ?? audio.middleValue;
+      pianoState.upright = audio.preset === 'upright' || audio.preset === 'honky-tonk';
       const keys = audio.piano && audio.piano.instrument === 'piano' && audio.piano.keys.length ? audio.piano.keys : keysFallback;
       const kind = audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand';
       drawPiano(ctx, w, ih, { keys, kind, lid: lidVal(), keyX: (m) => ({ x: kr.left - sr.left + kb.keyFrac(m).c * kr.width, w: kb.keyFrac(m).w * kr.width }) }, frame, pianoState, fields.piano, now);
@@ -442,6 +500,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       pianoState.down = new Set(audio.down.keys());
       pianoState.sustain = audio.lastStats?.sustain ?? audio.sustainValue;
       pianoState.soft = audio.lastStats?.soft ?? audio.softValue;
+      pianoState.middle = audio.lastStats?.middle ?? audio.middleValue;
+      pianoState.upright = audio.preset === 'upright' || audio.preset === 'honky-tonk';
       const keys = audio.piano && audio.piano.instrument === 'piano' && audio.piano.keys.length ? audio.piano.keys : keysFallback;
       s3.frame(now, topH, {
         fr: frame,
@@ -455,9 +515,18 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
         rms,
         down: (m) => audio.down.has(m),
         sounding: (m) => audio.isSounding(m),
+        caseHidden,
       });
     }
     gripRoom.hidden = in3d;
+    // the MIDI file player sits at the top middle, just under this band (a fixed overlay)
+    const bandY = Math.round(top.getBoundingClientRect().bottom);
+    if (bandY !== lastBandY) {
+      lastBandY = bandY;
+      document.documentElement.style.setProperty('--stage-band-y', `${bandY}px`);
+    }
+    zoomBack.hidden = !(in3d && s3!.zoomed !== null);
+    if (!zoomBack.hidden) zoomBack.style.top = `${topH + 12}px`;
     // place the grips (stage coordinates: the instrument area starts below the top band)
     gripRoom.style.transform = `translate(${rg.x1 - 7}px, ${topH + (rg.y0 + rg.y1) / 2 - 14}px)`;
     label(gripRoom, roomVal(), roomText(roomVal()));
@@ -488,6 +557,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       if (v.strike) strike = v.strike;
     });
   };
+  let lastBandY = -1;
   const unsubs: (() => void)[] = [];
   return {
     el,
@@ -496,7 +566,6 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       attach();
       unsubs.push(audio.state.on(() => attach()));
       unsubs.push(audio.instrumentChanged.on(applyInstrument));
-      unsubs.push(audio.instrumentChanged.on(() => action?.close()));
       unsubs.push(
         audio.notes.on((n) => {
           if (!n.on) return;

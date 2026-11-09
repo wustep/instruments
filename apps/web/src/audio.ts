@@ -129,6 +129,8 @@ class AudioApp {
   private pressedAt = new Map<number, number>();
   sustainValue = 0;
   softValue = 0;
+  /** the pianos' middle pedal: a grand's sostenuto, an upright's practice muffler */
+  middleValue = 0;
   lastStats: Stats | null = null;
   /** 'stalled': still not ready after a few seconds (shown, with what to do) */
   status: 'idle' | 'starting' | 'stalled' | 'running' | 'suspended' | 'error' = 'idle';
@@ -309,6 +311,7 @@ class AudioApp {
       this.keysChanged.emit(piano.keys);
       if (this.sustainValue) piano.sustain(this.sustainValue);
       if (this.softValue) piano.softPedal(this.softValue);
+      if (this.middleValue) piano.sostenuto(this.middleValue);
       const q = this.queue;
       this.queue = [];
       for (const fn of q) fn(piano);
@@ -392,6 +395,7 @@ class AudioApp {
     this.piano?.softPedal(v);
   }
   sostenuto(v: number): void {
+    this.middleValue = v;
     if (this.piano) this.piano.sostenuto(v);
     else this.queue.push((p) => p.sostenuto(v));
   }
@@ -426,7 +430,10 @@ class AudioApp {
     } else if (e.cc === 64) {
       p.sustain(e.value!, at);
       later(() => (this.sustainValue = e.value!));
-    } else if (e.cc === 66) p.sostenuto(e.value!, at);
+    } else if (e.cc === 66) {
+      p.sostenuto(e.value!, at);
+      later(() => (this.middleValue = e.value!));
+    }
     else if (e.cc === 67) {
       p.softPedal(e.value!, at);
       later(() => (this.softValue = e.value!));

@@ -12,7 +12,7 @@ export type Mat4 = Float32Array;
 // ---------------------------------------------------------------- the lines' shaders (GLSL 3, raw)
 export const LINE_VS = `precision highp float;
 in vec3 aPos; in vec3 aPrev; in vec3 aNext; in float aSide; in vec4 aColor; in float aWidth;
-uniform mat4 uVP; uniform vec2 uHalf; uniform float uProjY;
+uniform mat4 uVP; uniform vec2 uHalf; uniform float uProjY; uniform float uProjZ;
 out vec4 vColor; out float vSide;
 void main() {
   vec4 c = uVP * vec4(aPos, 1.0);
@@ -34,7 +34,10 @@ void main() {
     cover = clamp(px / 1.1, 0.55, 1.0);
   }
   c.xy += nrm * aSide * w * 0.5 / uHalf * c.w;
-  c.z -= 0.0004 * c.w;
+  // pulled towards the eye by a few millimetres (a wire on its bridge or in its notch still shows),
+  // in metres, not in depth-buffer units: a fixed NDC offset grows with the square of the distance
+  // (9 cm at 3 m), which let the strings show through the hammers in front of them
+  c.z += uProjZ * (0.002 + 0.0006 * c.w) / max(c.w, 1e-4);
   gl_Position = c;
   vColor = vec4(aColor.rgb, aColor.a * cover);
   vSide = aSide;
@@ -99,8 +102,16 @@ export interface Mesh {
   mats?: Uint16Array;
   /** each vertex's position in its part's own frame (for solid textures) */
   loc?: Float32Array;
+  /** can dissolve (a piano's case): drawn with a glow alpha of 2 + visibility (0..1), its shadow too */
+  fade?: boolean;
 }
 const ISTRIDE = 20;
+/** the glow that dissolves a `fade` mesh to visibility v (0..1): set [3] = 2 + v before each call */
+export const dissolve = (v: number, out: RGBA): RGBA => {
+  out[0] = out[1] = out[2] = 0;
+  out[3] = 2 + Math.max(0, Math.min(1, v));
+  return out;
+};
 
 export class LineSet {
   lv = new Buf();
@@ -170,6 +181,10 @@ export class Batch {
   /** shadow casters' bounds (centre, radius) and the floor */
   bounds: { c: Vec3; r: number } = { c: [0, 0, 0], r: 1 };
   floor: { y: number; c: Vec3; r0: number; r1: number } | null = null;
+  /** a section: everything with side·(x − at) > 0 is cut away (a piano key's action, close up) */
+  clip: { at: number; side: 1 | -1 } | null = null;
+  /** a box the orbit camera may not enter (an instrument's case: its target is inside it) */
+  keepOut: { lo: Vec3; hi: Vec3 } | null = null;
   ov: Overlays = { amps: new Float32Array(16), mn: new Float32Array(32), modalHot: [0.95, 0.65, 0.27], modalGain: 0, wave: new Float32Array(48), waveCol: [1, 0.37, 0.22] };
   /** vertex count (for the performance budget) */
   get vertices(): number {
@@ -186,6 +201,8 @@ export class Batch {
     this.ov.modalGain = 0;
     this.ov.wave.fill(0);
     this.floor = null;
+    this.clip = null;
+    this.keepOut = null;
   }
   /** a glowing polyline (additive) of `width` px; colour per point or one for all */
   line(pts: Vec3[], color: RGBA | RGBA[], width = 1.2): void {

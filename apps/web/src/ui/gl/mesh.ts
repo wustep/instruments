@@ -123,6 +123,29 @@ export const M = {
   keyIvory: { col: hex('#f0ebdf'), rough: 0.3, metal: 0 },
   pinSteel: { col: hex('#bfc2c7'), rough: 0.34, metal: 1 },
   caseRaw: { col: hex('#151210'), rough: 0.85, metal: 0 },
+  // the upright's action: rails of pale beech (Kawai, Yamaha: natural, unstained), the bridle tapes'
+  // cotton, the bridle wires' leather ends
+  railBeech: { col: hex('#d2b384'), rough: 0.55, metal: 0 },
+  tape: { col: hex('#ebe6da'), rough: 0.9, metal: 0 },
+  bridleLeather: { col: hex('#a8231d'), rough: 0.8, metal: 0 },
+  // the violin family's varnished maple worn per vertex (uv: wear, grime): neck, scroll, ribs
+  varnishWorn: { col: hex('#56240f'), rough: 0.22, metal: 0 },
+  // the grand: its plate's gold lacquer (grand-only: matched at the grand's hero angle to
+  // grand-inside.jpg), the inside of its rim in a polished mahogany veneer, the dampers' black heads
+  grandPlate: { col: hex('#8a6522'), rough: 0.62, metal: 0.9 },
+  rimVeneer: { col: hex('#3a1a0c'), rough: 0.3, metal: 0 },
+  damperHead: { col: hex('#1a1614'), rough: 0.4, metal: 0 },
+  pinNickel: { col: hex('#e6e6e3'), rough: 0.45, metal: 1 },
+  bridgeCap: { col: hex('#3a2a1c'), rough: 0.5, metal: 0.15 },
+  // the flute's pads: white skin over felt (winds3d.ts)
+  padSkin: { col: hex('#f1eee6'), rough: 0.7, metal: 0 },
+  // the trumpet's knurling, its buttons' pearl, the bell's burnished lacquer and the valve casings'
+  // handled lacquer (winds3d.ts)
+  nickelKnurl: { col: hex('#bdbcb6'), rough: 0.45, metal: 1 },
+  pearlButton: { col: hex('#d9d2c6'), rough: 0.25, metal: 0 },
+  brassBell: { col: hex('#ecc36c'), rough: 0.16, metal: 1 },
+  brassHandled: { col: hex('#e9c06a'), rough: 0.22, metal: 1 },
+  nickelDrawn: { col: hex('#d0cfc9'), rough: 0.3, metal: 1 },
 } satisfies Record<string, Mat>;
 for (const [k, m] of Object.entries(M)) (m as Mat).name = k;
 /** a variant of a shared material (same shading family, its own colour or maps) */

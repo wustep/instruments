@@ -226,6 +226,8 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       maxVoices: core.maxVoices,
       sustain: core.sustain,
       soft: core.soft,
+      // the pianos' middle pedal (a grand's sostenuto, an upright's muffler)
+      middle: 'sostenutoPedal' in core ? (core.sostenutoPedal as number) : 0,
     };
     if (!this.vis) {
       this.post({ type: 'stats', ...base });
