@@ -10,9 +10,10 @@ import { openActionView } from '../ui/action-view.ts';
 import type { Stage3D } from '../ui/gl/stage3d.ts';
 import { webgl2Available } from '../ui/gl/webgl2.ts';
 import { glyph, knob, type KnobSpec } from '../ui/controls.ts';
-import { AutoScale, INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, type BowedGeom } from '../ui/stage-draw.ts';
+import { AutoScale, INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, type BowedGeom, type BowedState } from '../ui/stage-draw.ts';
 import { drawPiano, newPianoState, stringAt } from '../ui/piano-draw.ts';
 import { drawRoom, newRoomState, roomRect } from '../ui/room-draw.ts';
+import { createHandBow, type HandBow } from '../ui/hand-bow.ts';
 
 const PIANO_KNOBS: KnobSpec[] = [
   { key: 'hammerHardness', label: 'Hammer hardness', short: 'hammer', sub: 'felt stiffness K in F = K·xᵖ', min: 0.25, max: 4, step: 0.01, log: true, fmt: (v) => `×${fmt(v, 2)}` },
@@ -151,6 +152,9 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     if (e.key === 'Escape' && s3 && want3d && s3.zoomed !== null) s3.zoomOut();
   });
   const el = h('div', { class: 'view stage' }, canvas, top, gripRoom, gripLid, zoomBack);
+  /** the bow in the hand, on the 2D and the 3D stage (ui/hand-bow.ts) */
+  const hands: HandBow[] = [];
+  window.addEventListener('blur', () => hands.forEach((hb) => hb.drop()));
   let s3: Stage3D | null = null;
   // three.js and the 3D stage load on first use (a separate chunk)
   let loading3d: Promise<void> | null = null;
@@ -158,6 +162,20 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     // in 3D, a click or a long press (not a drag) on a key's strings or its key top flies the camera to
     // that key's action; a click off the keys flies back out
     const cv3 = s.el;
+    // the bowed strings: a pointer that lands on the bow takes it in the hand; anywhere else still
+    // turns the instrument
+    const hand = createHandBow(
+      cv3,
+      () => {
+        const l = family() === 'bowed' && bowedGeom ? s.bowLine() : null;
+        if (!l) return null;
+        const r = cv3.getBoundingClientRect();
+        return { fx: l.fx + r.left, fy: l.fy + r.top, tx: l.tx + r.left, ty: l.ty + r.top, pos: l.pos, hair: bowedGeom!.bowLength };
+      },
+      (e) => (e.pointerType === 'mouse' ? 14 : 30),
+    );
+    s.grab = (e) => hand.down(e);
+    hands.push(hand);
     let at3: { x: number; y: number } | null = null;
     cv3.addEventListener('pointerdown', (e) => {
       at3 = { x: e.clientX, y: e.clientY };
@@ -222,8 +240,21 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
   // click a note's strings on the piano: that key's action, close up
   let action: { close: () => void } | null = null;
   let downAt: { x: number; y: number } | null = null;
+  // the bowed strings in 2D: a drag anywhere on the stage moves the bow along its own line
+  const hand2dLine = () => {
+    const l = family() === 'bowed' && bowedGeom && !(want3d && s3) ? bowedState.bowLine : null;
+    if (!l) return null;
+    const r = canvas.getBoundingClientRect();
+    const y0 = r.top + top.getBoundingClientRect().height;
+    return { fx: l.fx + r.left, fy: l.fy + y0, tx: l.tx + r.left, ty: l.ty + y0, pos: l.pos, hair: bowedGeom!.bowLength };
+  };
+  const hand2d = createHandBow(canvas, hand2dLine, () => Infinity);
+  hands.push(hand2d);
+  // tests: where the 2D stage last drew the hair (client px) and the contact point along it
+  (window as unknown as { __bow2d?: () => unknown }).__bow2d = () => hand2dLine();
   canvas.addEventListener('pointerdown', (e) => {
     downAt = { x: e.clientX, y: e.clientY };
+    hand2d.down(e);
   });
   canvas.addEventListener('pointerup', (e) => {
     if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6 || !closeUpOffered()) return;
@@ -345,7 +376,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
   let lastFocus: VisualFrame['focus'] = null;
   let keysFallback: KeySummary[] = pianoKeySummary(audio.preset);
   const pianoState = newPianoState();
-  const bowedState = { strScale: new AutoScale(2e-6), lvlScale: new AutoScale(1e-6, 0.995) };
+  const bowedState: BowedState = { strScale: new AutoScale(2e-6), lvlScale: new AutoScale(1e-6, 0.995) };
   const fluteState = { pScale: new AutoScale(1e-6), jetScale: new AutoScale(1e-9), env: new Float32Array(0) };
   const trumpetState: { pScale: AutoScale; env: Float32Array; src?: { x: number; y: number } } = { pScale: new AutoScale(1e-6), env: new Float32Array(0) };
   const roomState = newRoomState();
@@ -362,6 +393,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     for (const c of [canvas, s3?.el]) c?.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' });
   };
   const applyInstrument = (id: InstrumentId) => {
+    for (const hb of hands) hb.drop();
     inst = id;
     fadeIn();
     instBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(INSTRUMENT_IDS[i] === id)));

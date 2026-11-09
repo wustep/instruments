@@ -1119,3 +1119,94 @@ test('without WebGL2 there is no 3D toggle and the 2D stage works', async ({ pag
   await expect(page.locator('.stage-3d')).toHaveCount(0);
   await expect(page.locator('.stage-cv')).toBeVisible();
 });
+
+test('the bow in the hand: a drag on the bow sounds the string and moves the bow, by touch and by mouse, in 2D and 3D', async ({ page, context }, info) => {
+  const errors = collectErrors(page);
+  const phone = info.project.name === 'phone';
+  await page.goto('/');
+  await startAudio(page);
+  const cdp = phone ? await context.newCDPSession(page) : null;
+  const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', x = 0, y = 0) => cdp!.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
+  const line = () =>
+    page.evaluate(() => {
+      const w = window as any;
+      if (!w.__stage3d) return w.__bow2d();
+      const l = w.__stage3d.bowLine();
+      if (!l) return null;
+      const r = w.__stage3d.el.getBoundingClientRect();
+      return { fx: l.fx + r.left, fy: l.fy + r.top, tx: l.tx + r.left, ty: l.ty + r.top, pos: l.pos };
+    }) as Promise<{ fx: number; fy: number; tx: number; ty: number; pos: number } | null>;
+  const rms = () =>
+    page.evaluate(() => {
+      const a = (window as any).__piano.analyser as AnalyserNode;
+      const b = new Float32Array(a.fftSize);
+      a.getFloatTimeDomainData(b);
+      let s = 0;
+      for (const v of b) s += v * v;
+      return Math.sqrt(s / b.length);
+    });
+  const vw = page.viewportSize()!;
+  for (const d3 of [false, true]) {
+    if (d3) {
+      await page.locator('.dim-toggle').click();
+      await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3);
+    }
+    for (const inst of ['violin', 'viola', 'cello']) {
+      await page.evaluate((i) => (window as any).__piano.setInstrument(i), inst);
+      await expect.poll(async () => (await line())?.pos ?? -1).toBeGreaterThanOrEqual(0);
+      await page.waitForTimeout(d3 ? 250 : 80);
+      // a touch on the stage is the bow's, never a pan the browser takes away
+      expect(await page.evaluate((s) => getComputedStyle(document.querySelector(s)!).touchAction, d3 ? '.stage-3d' : '.stage-cv')).toBe('none');
+      const l = (await line())!;
+      const len = Math.hypot(l.tx - l.fx, l.ty - l.fy);
+      const ux = (l.tx - l.fx) / len;
+      const uy = (l.ty - l.fy) / len;
+      // down on the hair (at the string, kept on screen), then towards the frog: the contact point travels to the tip
+      let x = Math.min(vw.width - 70, Math.max(70, l.fx + (l.tx - l.fx) * l.pos));
+      let y = l.fy + (l.ty - l.fy) * l.pos + (l.tx - l.fx ? ((x - (l.fx + (l.tx - l.fx) * l.pos)) / (l.tx - l.fx)) * (l.ty - l.fy) : 0);
+      if (phone) await touch('touchStart', x, y);
+      else {
+        await page.mouse.move(x, y);
+        await page.mouse.down();
+      }
+      // the bow is in the hand and still: nothing sounds yet
+      expect(await page.evaluate(() => (window as any).__piano.sounding.size)).toBe(0);
+      let loud = 0;
+      for (let i = 0; i < 14; i++) {
+        x -= ux * 6;
+        y -= uy * 6;
+        if (phone) await touch('touchMove', x, y);
+        else await page.mouse.move(x, y);
+        await page.waitForTimeout(16);
+        if (i > 6) loud = Math.max(loud, await rms());
+      }
+      const where = `${inst} ${d3 ? '3D' : '2D'}`;
+      expect(loud, `${where}: it sounds`).toBeGreaterThan(0.002);
+      expect(await page.evaluate(() => (window as any).__piano.sounding.size), `${where}: a string is bowed`).toBe(1);
+      await expect.poll(async () => (await line())!.pos, { message: `${where}: the bow has moved` }).toBeGreaterThan(l.pos + 0.04);
+      if (phone) await touch('touchEnd');
+      else await page.mouse.up();
+      // let go: the bow leaves the string
+      await expect.poll(() => page.evaluate(() => (window as any).__piano.sounding.size)).toBe(0);
+    }
+  }
+  // the 3D stage still turns when the pointer lands off the bow
+  const eye0 = await page.evaluate(() => [...(window as any).__stage3d.eye]);
+  const r = (await page.locator('.stage-3d').boundingBox())!;
+  const [ox, oy] = [r.x + r.width * 0.12, r.y + r.height * 0.1];
+  if (phone) {
+    await touch('touchStart', ox, oy);
+    for (let i = 1; i <= 6; i++) await touch('touchMove', ox + 12 * i, oy);
+    await touch('touchEnd');
+  } else {
+    await page.mouse.move(ox, oy);
+    await page.mouse.down();
+    await page.mouse.move(ox + 72, oy, { steps: 6 });
+    await page.mouse.up();
+  }
+  await expect.poll(async () => Math.hypot(...(await page.evaluate(() => [...(window as any).__stage3d.eye])).map((v: number, i: number) => v - eye0[i]))).toBeGreaterThan(0.01);
+  expect(await page.evaluate(() => (window as any).__piano.sounding.size)).toBe(0);
+  await page.locator('.dim-toggle').click();
+  await page.evaluate(() => (window as any).__piano.setInstrument('piano'));
+  expect(errors).toEqual([]);
+});

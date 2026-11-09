@@ -190,6 +190,12 @@ main {
   height: 100%;
   display: block;
 }
+/* the bowed strings: the stage is where the bow is dragged, so a touch there is never a pan (the
+   browser would take the gesture and cancel the pointer) */
+.stage[data-family='bowed'] .stage-cv {
+  touch-action: none;
+  cursor: grab;
+}
 .stage-top {
   position: relative;
   z-index: 2;
@@ -1287,7 +1293,7 @@ figure[title] {
   width: 14px;
   height: 28px;
   border-radius: 7px;
-  cursor: ew-resize;
+  cursor: grab;
   touch-action: none;
   background: linear-gradient(180deg, rgba(242, 166, 70, 0.15), rgba(242, 166, 70, 0.05));
   border: 1px solid rgba(242, 166, 70, 0.35);

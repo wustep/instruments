@@ -111,3 +111,58 @@ describe('bow changes', () => {
     expect(r.force.slice(-20).every((v) => v > 0)).toBe(true);
   });
 });
+
+// The bow in the player's hand (a finger or the mouse dragging it on the stage): controllers 128
+// (signed speed, m/s), 129 (contact point along the hair) and 130 (let go).
+describe('the bow in the hand', () => {
+  const cc = (t: number, c: number, value: number) => ({ t, ev: { type: 'control', cc: c, value } });
+  const rms = (x: Float32Array, t0: number, t1: number) => {
+    let s = 0;
+    for (let i = Math.round(t0 * FS); i < Math.round(t1 * FS); i++) s += x[i] * x[i];
+    return Math.sqrt(s / Math.round((t1 - t0) * FS));
+  };
+  for (const inst of ['violin', 'viola', 'cello'] as const) {
+    it(`${inst}: a still bow is silent, a moving one sounds, both ways, and it stops with the hand`, () => {
+      const core = new BowedCore({ sampleRate: FS, instrument: inst, dry: true, params: { vibrato: 0 } });
+      const evs = [cc(0.01, 128, 0), cc(0.3, 128, 0.25), cc(0.3, 129, 0.4), cc(1.0, 128, -0.25), cc(1.7, 128, 0), cc(2.4, 130, 0)];
+      for (const e of evs) core.schedule(e.ev, Math.round(e.t * FS));
+      const n = Math.round(3 * FS);
+      const x = new Float32Array(n);
+      const L = new Float32Array(480);
+      const R = new Float32Array(480);
+      const dir: number[] = [];
+      const snd: number[] = [];
+      for (let i = 0; i + 480 <= n; i += 480) {
+        core.process(L, R, 480);
+        x.set(L, i);
+        dir.push(core.bow.dir);
+        snd.push(core.sounding().length);
+      }
+      expect(rms(x, 0.05, 0.28)).toBe(0);
+      const down = rms(x, 0.6, 0.95);
+      const up = rms(x, 1.3, 1.65);
+      expect(down).toBeGreaterThan(1e-3);
+      expect(up).toBeGreaterThan(0.4 * down);
+      expect(dir[80]).toBe(1);
+      expect(dir[150]).toBe(-1);
+      // the hair is where the hand has it, with no automatic change
+      expect(core.bow.auto).toBe(0);
+      expect(snd[80]).toBe(1);
+      // the bow at rest on the string: it rings down; let go: nothing is bowed
+      expect(rms(x, 2.2, 2.4)).toBeLessThan(0.2 * up);
+      expect(snd[snd.length - 1]).toBe(0);
+    });
+  }
+
+  it('a held key stops the string and the hand bows it: the pitch is the key\u2019s; the key alone bows again after', () => {
+    const r = run([cc(0.01, 128, 0), { t: 0.05, ev: { type: 'noteOn', midi: 69, velocity: 90 } }, cc(0.4, 128, 0.2), cc(1.4, 130, 0)], 2.4);
+    // the key is down but the bow is still: nothing yet
+    let s = 0;
+    for (let i = Math.round(0.1 * FS); i < Math.round(0.38 * FS); i++) s += r.x[i] * r.x[i];
+    expect(Math.sqrt(s)).toBeLessThan(1e-6);
+    expect(Math.abs(pitchCents(r.x, et(69), 0.9))).toBeLessThan(8);
+    // let go with the key still held: the note carries on, bowed as the key asked
+    expect(r.core.sounding()).toEqual([69]);
+    expect(Math.abs(pitchCents(r.x, et(69), 1.9))).toBeLessThan(8);
+  });
+});

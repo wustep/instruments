@@ -7,20 +7,10 @@
 // (varnish, purfling, edge wear; the f-holes cut through), drawn once on a canvas.
 //
 // Every material also takes two live inputs: a per-instance glow (rgb, amount: keys, hammers, the
-// bow) and, for the soundboard/violin top and the flute/trumpet bore, the engine's mode
-// amplitudes or standing wave, added as light.
+// bow).
 import * as THREE from 'three';
 import { MAT_LIST, type Mat, type PaintSpec } from './mesh.ts';
 
-/** live uniforms shared by every material */
-export const LIVE = {
-  uAmp: { value: new Float32Array(16) },
-  uMN: { value: new Float32Array(32) },
-  uModalHot: { value: new THREE.Color(0.95, 0.65, 0.27) },
-  uModalGain: { value: 0 },
-  uWave: { value: new Float32Array(48) },
-  uWaveCol: { value: new THREE.Color(1, 0.37, 0.22) },
-};
 
 type Phys = THREE.MeshPhysicalMaterialParameters & {
   /** solid texture: 0 none, 1 spruce, 2 flamed maple, 3 plain wood, 4 ebony, 5 cast iron, 6 felt, 7 maple fleck, 8 brushed,
@@ -203,7 +193,6 @@ export function materialFor(m: Mat, lite: boolean): THREE.Material {
     pm.color.set('#ffffff');
   }
   pm.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, LIVE);
     sh.uniforms.uAxis = { value: new THREE.Vector3(...axis).normalize() };
     sh.uniforms.uTexScale = { value: texScale };
     if (aux) sh.uniforms.tAux = { value: aux };
@@ -235,8 +224,6 @@ vGlow = iGlow; vLoc = aLoc; vUv2 = uv;
         `#include <common>
 varying vec4 vGlow; varying vec3 vLoc; varying vec3 vAxisV; varying vec2 vUv2;
 uniform vec3 uAxis; uniform float uTexScale;
-uniform float uAmp[16]; uniform vec2 uMN[16]; uniform vec3 uModalHot; uniform float uModalGain;
-uniform float uWave[48]; uniform vec3 uWaveCol;
 #if PAINTED
 uniform sampler2D tAux; uniform vec4 uRect;
 #endif
@@ -390,22 +377,7 @@ roughnessFactor = clamp(roughnessFactor + microR, 0.03, 1.0);`,
       .replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
-totalEmissiveRadiance += vGlow.rgb * vGlow.rgb * min(vGlow.a, 1.0) * 0.55;
-#if KIND == 1
-{
-  float s = 0.0;
-  for (int k = 0; k < 16; k++) s += uAmp[k] * sin(uMN[k].x * PI * vUv2.x) * sin(uMN[k].y * PI * vUv2.y);
-  float e = clamp(abs(s) * uModalGain, 0.0, 1.0);
-  totalEmissiveRadiance += uModalHot * e * e * 0.22;
-}
-#elif KIND == 2
-{
-  float x = clamp(vUv2.x, 0.0, 1.0) * 47.0;
-  int i = int(floor(x));
-  float e = mix(uWave[i], uWave[min(i + 1, 47)], fract(x));
-  totalEmissiveRadiance += uWaveCol * e * e * 0.06;
-}
-#endif`,
+totalEmissiveRadiance += vGlow.rgb * vGlow.rgb * min(vGlow.a, 1.0) * 0.55;`,
       );
   };
   pm.customProgramCacheKey = () => `${name}|${tex}|${kind}|${paint ? 'p' : ''}`;

@@ -5,7 +5,7 @@
 // action, a section cutting away the keys in front of it (`zoomTo`, `zoomOut`; the stage wires them).
 // Where WebGL2 is missing the toggle never appears and the 2D stage carries on (`webgl2.ts`).
 import { Batch, project, type Mat4, type Vec3 } from './gl3d.ts';
-import { buildRoom, buildScene, newScene3State, viewFor, type SceneIn, type View3 } from './scenes3d.ts';
+import { buildScene, newScene3State, viewFor, type SceneIn, type View3 } from './scenes3d.ts';
 import { zoomFrame } from './piano3d.ts';
 import { Renderer3 } from './three3d.ts';
 
@@ -23,6 +23,10 @@ export interface Stage3D {
   setView(v: Partial<View3>): void;
   /** the piano key whose strings are nearest (x, y) (CSS px in the canvas), if close enough */
   pick(x: number, y: number): number | null;
+  /** the bowed strings' hair on screen (CSS px in the canvas: frog end, tip end) and the contact point along it */
+  bowLine(): { fx: number; fy: number; tx: number; ty: number; pos: number } | null;
+  /** asked first on every pointer down: true takes the pointer away from the orbit (the bow in the hand) */
+  grab: ((e: PointerEvent) => boolean) | null;
   /** tests: where a key's strings are on screen (CSS px in the canvas: the middle of the speaking length) */
   screenOf(midi: number): [number, number] | null;
   /** pianos: fly to a key's action (eased, ≈0.9 s), a section cutting away the keys in front of it */
@@ -102,6 +106,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
   let pinch0 = 0;
   let dist0 = 1;
   el.addEventListener('pointerdown', (e) => {
+    if (api.grab?.(e)) return;
     el.setPointerCapture(e.pointerId);
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (ptrs.size === 2) {
@@ -170,7 +175,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     flyTo({ target: [...view.target] as Vec3, yaw: view.yaw, pitch: view.pitch, dist: view.dist, cut: zoom.side * 0.85 }, true, 0.8);
   }
 
-  return {
+  const api: Stage3D = {
     el,
     stats,
     r3: r,
@@ -222,6 +227,14 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       }
       return bd < 7 ? best : null;
     },
+    bowLine() {
+      const l = st.bowLine;
+      if (!lastVP || !l) return null;
+      const a = project(lastVP, l.a, cssW, cssH);
+      const b = project(lastVP, l.b, cssW, cssH);
+      return a && b ? { fx: a[0], fy: a[1], tx: b[0], ty: b[1], pos: l.pos } : null;
+    },
+    grab: null,
     screenOf(midi) {
       const s = st.picks.find((p) => p.midi === midi);
       if (!lastVP || !s) return null;
@@ -256,7 +269,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       // scene (the models are built on first use; that time is kept out of the frame budget)
       batch.clear();
       const built0 = st.buildMs;
-      const { src, span } = buildScene(batch, si, st);
+      buildScene(batch, si, st);
       const buildMs = st.buildMs - built0;
       stats.buildMs = st.buildMs;
       // the view for this instrument (and preset); reset when it changes
@@ -270,7 +283,6 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
         if (aspect < 1.4) view.dist *= Math.min(2.6, 1.4 / Math.max(0.45, aspect)) * 0.92;
         resetView();
       }
-      buildRoom(batch, si, st, src, span, 0);
       // camera: orbiting the target, eased (τ ≈ 70 ms), never below the floor; or flying (a key's
       // action, close up, and back), eased in and out, the section sweeping with it
       if (fly) {
@@ -357,4 +369,5 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       }
     },
   };
+  return api;
 }

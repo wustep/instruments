@@ -28,7 +28,7 @@ import type { VisualFrame } from '@piano-model/engine';
 import { ShapeUtils, Vector2 } from 'three';
 import type { BowedGeom } from '../stage-draw.ts';
 import { INK } from '../stage-draw.ts';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cross, ink, lerp3, mul, norm, plateModes, rotY, rotZ, scale, sub, translate, xdir, xform } from './gl3d.ts';
+import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cross, ink, lerp3, mul, norm, rotY, rotZ, scale, sub, translate, xdir, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, grid, lathe, spline, tube, variant, type Mat, type PaintSpec } from './mesh.ts';
 import { CELLO, VIOLIN, type Outline } from './outlines.ts';
 
@@ -1265,6 +1265,8 @@ export interface BowedModel {
   src: Vec3;
   /** the bow's eased pose (it crosses strings in an arc, not a jump) */
   bowPose: { dir: Vec3; up: Vec3; contact: Vec3; t: number } | null;
+  /** the hair as posed last (world: frog end, tip end) and the contact point along it (0…1) */
+  bowLine: { a: Vec3; b: Vec3; pos: number } | null;
 }
 
 export function buildBowedModel(g: BowedGeom): BowedModel {
@@ -1788,6 +1790,7 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     floorY,
     src: xform(T, [xb + 0.05, 0.05, 0]),
     bowPose: null,
+    bowLine: null,
   };
 }
 
@@ -2203,13 +2206,10 @@ const C = {
   amber: (a: number) => ink(INK.amber, a),
 };
 
-export function poseBowed(b: Batch, bm: BowedModel, fr: VisualFrame | null, str: { of(v: number): number }, modes: Float32Array): void {
+export function poseBowed(b: Batch, bm: BowedModel, fr: VisualFrame | null, str: { of(v: number): number }): void {
   const { T, sp } = bm;
   for (const m of bm.meshes) b.mesh(m, T);
   b.mesh(bm.top, T);
-  b.ov.amps.set(modes);
-  b.ov.mn.set(plateModes(0.55));
-  b.ov.modalGain = 0.55;
   const W = (p: Vec3) => xform(T, p);
   const strs = fr?.strings;
   const focus = fr?.focus ?? null;
@@ -2285,6 +2285,7 @@ export function poseBowed(b: Batch, bm: BowedModel, fr: VisualFrame | null, str:
   const origin = sub(add(bp.contact, scale(ay, 0.0012)), scale(ax, pos * bm.hairLen));
   const Bm = new Float32Array([ax[0], ax[1], ax[2], 0, ay[0], ay[1], ay[2], 0, az[0], az[1], az[2], 0, origin[0], origin[1], origin[2], 1]);
   const bowM = mul(T, Bm);
+  bm.bowLine = { a: W(origin), b: W(add(origin, scale(ax, bm.hairLen))), pos };
   b.mesh(bm.bow, bowM, bow?.changing ? [0.95, 0.65, 0.27, 0.3] : null);
   if (bow && bowedIdx >= 0) {
     const c = W(contact);
