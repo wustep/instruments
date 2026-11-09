@@ -96,6 +96,8 @@ const P: Record<string, Phys> = {
   pearlInlay: { color: '#f2ede4', roughness: 0.32, clearcoat: 0.5, clearcoatRoughness: 0.22, iridescence: 0.8, iridescenceIOR: 1.35, iridescenceThicknessRange: [220, 620] },
   // the valve caps' faces: satin, as most are (and a polished dome facing the key light blooms)
   nickelSatin: { color: '#e0ded7', metalness: 1, roughness: 0.32, envMapIntensity: 1.5, tex: 8, axis: [1, 0, 0] },
+  // the flute's keys, rings and fittings and the mouthpiece: polished, without the drawn tube's grain
+  silverKeys: { color: '#f3f3f1', metalness: 1, roughness: 0.19, envMapIntensity: 1.6 },
 };
 
 // GLSL: hashes, value noise and fbm (all in the part's own metres)

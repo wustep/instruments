@@ -112,6 +112,7 @@ export const M = {
   cork: { col: hex('#a98458'), rough: 0.9, metal: 0 },
   pearlInlay: { col: hex('#efe9df'), rough: 0.3, metal: 0 },
   nickelSatin: { col: hex('#d9d8d2'), rough: 0.32, metal: 1 },
+  silverKeys: { col: hex('#e8e8e6'), rough: 0.18, metal: 1 },
 } satisfies Record<string, Mat>;
 for (const [k, m] of Object.entries(M)) (m as Mat).name = k;
 /** a variant of a shared material (same shading family, its own colour or maps) */

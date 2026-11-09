@@ -47,7 +47,7 @@ const C = {
 };
 
 // ---------------------------------------------------------------- materials
-const AG = M.silverPolish;
+const AG = M.silverKeys;
 /** the flute's tube: the bore's standing wave as a faint light (uv.x along the bore) */
 const AGG = variant(M.silverPolish, { kind: 2 });
 const BORE = M.boreDark;
@@ -550,7 +550,7 @@ export function buildFluteModel(): FluteModel {
   // the head tube (no glow behind the cork), then from the lip plate on
   {
     const xs = Array.from({ length: 6 }, (_, i) => lerp(0.0124, 0.047, i / 5));
-    lx(mb, xs.map((x) => [rHead(x), x] as P2), 56, AG);
+    lx(mb, xs.map((x) => [rHead(x), x] as P2), 56, M.silverPolish);
     const xg = Array.from({ length: 14 }, (_, i) => lerp(0.047, HEAD_END + 0.0004, i / 13));
     lx(mb, xg.map((x) => [rHead(x), x] as P2), 56, AGG, (i) => uvx(xg[i]));
   }
