@@ -22,9 +22,56 @@ export interface Outline {
   bouts: { upper: number; c: number; lower: number };
 }
 ''']
+
+
+def clean_corners(hw: list[float], jump: float = 0.006) -> list[float]:
+    """The row scan sees a corner as a staircase (the tip, then the C-bout, alternating over a few
+    rows). Rebuild each corner as one clean step: an upper corner (the width drops into the C-bout)
+    goes straight from its tip to where the C-bout starts; a lower corner (the width rises out of the
+    C-bout) goes from the C-bout straight out to its tip, then eases down into the lower bout."""
+    hw = hw[:]
+    n = len(hw)
+    jumps = [i for i in range(20, n - 20) if abs(hw[i + 1] - hw[i]) > jump]
+    groups: list[list[int]] = []
+    for i in jumps:
+        if groups and i - groups[-1][-1] <= 8:
+            groups[-1].append(i)
+        else:
+            groups.append([i])
+    for g in groups:
+        a, b = g[0], g[-1] + 1
+        net = hw[b] - hw[a]
+        if net < 0:
+            # upper corner: tip up to a, then the C-bout from b on; the stations between join it
+            for i in range(a + 1, b):
+                hw[i] = hw[b]
+        else:
+            # lower corner: the C-bout up to a; the tip is the widest in the group's span
+            t = max(range(a + 1, b + 4), key=lambda i: hw[i])
+            tip = hw[t]
+            end = min(n - 1, b + 6)
+            for i in range(a + 1, end):
+                s_ = (i - (a + 1)) / max(1, end - (a + 1))
+                hw[i] = tip + (hw[end] - tip) * s_ - 0.003 * (4 * s_ * (1 - s_))
+    return hw
+
+
+def chaikin(poly: list[tuple[float, float]], k: int = 2) -> list[tuple[float, float]]:
+    """corner-cutting subdivision of a closed polygon (smooths the traced pixel wobble)"""
+    for _ in range(k):
+        out = []
+        n = len(poly)
+        for i in range(n):
+            a, b = poly[i], poly[(i + 1) % n]
+            out.append((0.75 * a[0] + 0.25 * b[0], 0.75 * a[1] + 0.25 * b[1]))
+            out.append((0.25 * a[0] + 0.75 * b[0], 0.25 * a[1] + 0.75 * b[1]))
+        poly = out
+    return poly
+
+
 for name, (f, who) in SRC.items():
     d = json.loads(subprocess.run([sys.executable, 'scripts/trace-outline.py', f'.cache/refs-3d/{f}'], capture_output=True, text=True, check=True).stdout)
-    hw = [s[1] for s in d['halfWidth']]
+    hw = clean_corners([s[1] for s in d['halfWidth']])
     sm = hw[:]
     for i in range(1, len(hw) - 1):
         if abs(hw[i + 1] - hw[i - 1]) < 0.004:
@@ -34,7 +81,8 @@ for name, (f, who) in SRC.items():
     out.append(f"/** traced from {who} ({d['bodyPx']} px body) */")
     out.append(f'export const {name}: Outline = {{')
     out.append('  hw: [' + ', '.join(fmt(v) for v in sm) + '],')
-    out.append('  fhole: [' + ', '.join(f'[{a:.4f}, {b:.4f}]' for a, b in d['fhole']) + '],')
+    fh = chaikin([tuple(p) for p in d['fhole']], 2)
+    out.append('  fhole: [' + ', '.join(f'[{a:.4f}, {b:.4f}]' for a, b in fh) + '],')
     b = d['bouts']
     out.append(f"  bouts: {{ upper: {b['upper']}, c: {b['c']}, lower: {b['lower']} }},")
     out.append('};')

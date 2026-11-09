@@ -46,9 +46,13 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
   const st = newScene3State();
   let view: View3 | null = null;
   let viewKey = '';
+  // the camera eases towards where the input puts it (damped orbit); setView/reset jump there
   let yaw = 0;
   let pitch = 0;
   let dist = 1;
+  let yawT = 0;
+  let pitchT = 0;
+  let distT = 1;
   let last = 0;
   const stats = { ms: 0, vertices: 0, lite: phone, frames: 0, lit: 0, sum: 0, buildMs: 0, shadows: true, ao: !phone };
   let probe = false;
@@ -67,22 +71,22 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     if (ptrs.size === 2) {
       const [a, b] = [...ptrs.values()];
       pinch0 = Math.hypot(a.x - b.x, a.y - b.y);
-      dist0 = dist;
+      dist0 = distT;
     }
   });
   el.addEventListener('pointermove', (e) => {
     const p = ptrs.get(e.pointerId);
     if (!p) return;
     if (ptrs.size === 1) {
-      yaw += (e.clientX - p.x) * 0.006;
-      pitch = Math.max(-0.2, Math.min(1.45, pitch + (e.clientY - p.y) * 0.005));
+      yawT += (e.clientX - p.x) * 0.006;
+      pitchT = Math.max(-0.2, Math.min(1.45, pitchT + (e.clientY - p.y) * 0.005));
     }
     p.x = e.clientX;
     p.y = e.clientY;
     if (ptrs.size === 2 && pinch0 > 0) {
       const [a, b] = [...ptrs.values()];
       const d = Math.hypot(a.x - b.x, a.y - b.y);
-      if (d > 0) dist = clampDist(dist0 * (pinch0 / d));
+      if (d > 0) distT = clampDist(dist0 * (pinch0 / d));
     }
   });
   const up = (e: PointerEvent) => {
@@ -95,7 +99,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     'wheel',
     (e) => {
       e.preventDefault();
-      dist = clampDist(dist * Math.exp(e.deltaY * 0.0015));
+      distT = clampDist(distT * Math.exp(e.deltaY * 0.0015));
     },
     { passive: false },
   );
@@ -103,9 +107,9 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
   const clampDist = (d: number) => (view ? Math.max(view.dist * 0.12, Math.min(view.dist * 3, d)) : d);
   function resetView(): void {
     if (!view) return;
-    yaw = view.yaw;
-    pitch = view.pitch;
-    dist = view.dist;
+    yaw = yawT = view.yaw;
+    pitch = pitchT = view.pitch;
+    dist = distT = view.dist;
   }
 
   return {
@@ -122,10 +126,10 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     setView(v) {
       if (!view) return;
       if (v.target) view = { ...view, target: v.target };
-      if (v.yaw !== undefined) yaw = v.yaw;
-      if (v.pitch !== undefined) pitch = v.pitch;
+      if (v.yaw !== undefined) yaw = yawT = v.yaw;
+      if (v.pitch !== undefined) pitch = pitchT = v.pitch;
       // (distances in the views' units: scaled by the lens like the default views)
-      if (v.dist !== undefined) dist = v.dist * FRAME;
+      if (v.dist !== undefined) dist = distT = v.dist * FRAME;
     },
     pick(x, y) {
       if (!lastVP || !st.picks.length) return null;
@@ -194,8 +198,14 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
         resetView();
       }
       buildRoom(batch, si, st, src, span, 0);
-      // camera: orbiting the view's target
+      // camera: orbiting the view's target, eased (τ ≈ 70 ms), never below the floor
       const v = view!;
+      const kE = 1 - Math.exp(-dt / 0.07);
+      yaw += (yawT - yaw) * kE;
+      pitch += (pitchT - pitch) * kE;
+      dist += (distT - dist) * kE;
+      const minPitch = Math.asin(Math.max(-1, Math.min(1, (0.04 - v.target[1]) / dist)));
+      if (pitch < minPitch) pitch = pitchT = Math.max(pitchT, minPitch);
       const eye: Vec3 = [v.target[0] + dist * Math.cos(pitch) * Math.sin(yaw), v.target[1] + dist * Math.sin(pitch), v.target[2] - dist * Math.cos(pitch) * Math.cos(yaw)];
       const g = getComputedStyle(document.body).getPropertyValue('--ground').trim() || '#0e0d0b';
       const hex = /^#([0-9a-f]{6})$/i.exec(g)?.[1] ?? '0e0d0b';

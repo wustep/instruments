@@ -29,6 +29,7 @@ interface Entry {
 const FINAL_FS = /* glsl */ `
 #include <tonemapping_pars_fragment>
 uniform sampler2D tColor; uniform sampler2D tAO; uniform float uAO; uniform vec3 uGround; uniform vec2 uRes;
+uniform vec2 uGlowC; uniform vec2 uGlowR; uniform float uGlow;
 varying vec2 vUv;
 vec3 toSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
 void main() {
@@ -40,7 +41,11 @@ void main() {
   vec3 s = toSRGB(NeutralToneMapping(col));
   // a little dither against banding in the dark gradients
   float d = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
-  gl_FragColor = vec4(mix(uGround, s, a) + d / 255.0, 1.0);
+  // the backdrop: a seamless studio wall lit softly behind the instrument, falling off to the page's
+  // own ground at the edges (so the canvas still meets the page without a seam)
+  vec2 q = (vUv - uGlowC) / uGlowR;
+  vec3 back = uGround + vec3(0.085, 0.077, 0.068) * uGlow * exp(-dot(q, q));
+  gl_FragColor = vec4(mix(back, s, a) + d / 255.0, 1.0);
 }`;
 const FINAL_VS = /* glsl */ `
 varying vec2 vUv;
@@ -69,13 +74,16 @@ function studio(): THREE.Scene {
     m.lookAt(...look);
     s.add(m);
   };
-  // overhead softbox (large, warm white), the key softbox (front left, above), two tall strips
-  // behind left and right (the rim lights' reflections), a low cool card at the front
-  panel(7, 4, [1, 0.95, 0.88], 3.2, [0, 9, -1], [0, 0, 0]);
-  panel(4, 3, [1, 0.9, 0.78], 5.5, [-6, 5, -6], [0, 0, 0]);
-  panel(0.9, 8, [0.85, 0.9, 1], 6, [-8, 3, 7], [0, 1, 0]);
-  panel(0.9, 8, [0.85, 0.9, 1], 4.5, [8, 3, 6], [0, 1, 0]);
-  panel(6, 1.2, [0.7, 0.78, 0.9], 0.9, [0, 0.6, -10], [0, 1, 0]);
+  // as a product studio lights metal: a large overhead softbox; a key softbox front left; a wide,
+  // soft card behind the camera (polished brass and silver need something bright to reflect, or
+  // they read as dark mirrors of the walls); tall strips behind left and right for the rims; a
+  // low cool card in front; a faint floor bounce
+  panel(9, 6, [1, 0.96, 0.9], 2.6, [0, 9, -0.5], [0, 0, 0]);
+  panel(4.5, 3.5, [1, 0.9, 0.78], 5, [-6, 5, -6], [0, 0, 0]);
+  panel(16, 4.5, [1, 0.97, 0.93], 0.75, [0, 3.2, -11], [0, 1.4, 0]);
+  panel(1.2, 9, [0.85, 0.9, 1], 5, [-8, 3, 7], [0, 1, 0]);
+  panel(1.2, 9, [0.85, 0.9, 1], 4, [8, 3, 6], [0, 1, 0]);
+  panel(8, 1.6, [0.7, 0.78, 0.9], 0.8, [0, 0.4, -9], [0, 1, 0]);
   return s;
 }
 
@@ -151,7 +159,7 @@ export class Renderer3 {
     this.fill = new THREE.DirectionalLight(new THREE.Color(0.9, 0.92, 1), 0.55);
     this.root.add(this.fill, this.fill.target);
     // the floor
-    const fm = new THREE.MeshStandardMaterial({ color: new THREE.Color(0.022, 0.02, 0.018), roughness: 0.6, metalness: 0, transparent: true, depthWrite: true });
+    const fm = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(0.018, 0.016, 0.014), roughness: 0.85, metalness: 0, specularIntensity: 0.35, envMapIntensity: 0.35, transparent: true, depthWrite: true });
     fm.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, this.floorU);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWorldP;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWorldP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
@@ -167,7 +175,7 @@ export class Renderer3 {
     // targets
     this.rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: lite ? 2 : 4, depthTexture: new THREE.DepthTexture(1, 1, THREE.UnsignedIntType) });
     this.finalMat = new THREE.ShaderMaterial({
-      uniforms: { tColor: { value: this.rt.texture }, tAO: { value: null }, uAO: { value: 0 }, uGround: { value: new THREE.Color() }, uRes: { value: new THREE.Vector2() }, toneMappingExposure: { value: 1.0 } },
+      uniforms: { tColor: { value: this.rt.texture }, tAO: { value: null }, uAO: { value: 0 }, uGround: { value: new THREE.Color() }, uRes: { value: new THREE.Vector2() }, uGlowC: { value: new THREE.Vector2(0.5, 0.5) }, uGlowR: { value: new THREE.Vector2(0.4, 0.5) }, uGlow: { value: 1 }, toneMappingExposure: { value: 1.0 } },
       vertexShader: FINAL_VS,
       fragmentShader: FINAL_FS,
       depthTest: false,
@@ -220,7 +228,14 @@ export class Renderer3 {
       this.h = h;
       r.setSize(w, h, false);
       this.rt.setSize(w, h);
-      this.gtao?.setSize(w, h);
+      // big canvases (high-DPR laptops): 2× multisampling is enough at that pixel density
+      const ms = w * h > 2.6e6 ? 2 : this.lite ? 2 : 4;
+      if (this.rt.samples !== ms) {
+        this.rt.samples = ms;
+        this.rt.dispose();
+      }
+      // occlusion is low-frequency: half resolution
+      this.gtao?.setSize(Math.ceil(w / 2), Math.ceil(h / 2));
     }
     // instances
     const used = new Set<Mesh>();
@@ -302,7 +317,7 @@ export class Renderer3 {
     let aoTex: THREE.Texture | null = null;
     if (this.ao) {
       if (!this.gtao) {
-        this.gtao = new GTAOPass(this.scene, this.cam, w, h);
+        this.gtao = new GTAOPass(this.scene, this.cam, Math.ceil(w / 2), Math.ceil(h / 2));
         this.gtao.output = GTAOPass.OUTPUT.Off;
       }
       this.gtao.updateGtaoMaterial({ radius: rad * 0.09, distanceExponent: 1.5, thickness: rad * 0.06, scale: 1.1, samples: 12 });
@@ -316,6 +331,14 @@ export class Renderer3 {
     u.uAO.value = aoTex ? 1 : 0;
     u.uGround.value.setRGB(ground[0], ground[1], ground[2]);
     u.uRes.value.set(w, h);
+    // the backdrop's light centred a little above the instrument's middle, sized to it on screen
+    {
+      const pc = new THREE.Vector3(-c[0], c[1] + rad * 0.15, c[2]).project(this.cam);
+      const pr = new THREE.Vector3(-c[0], c[1] + rad * 1.15, c[2]).project(this.cam);
+      const ry = Math.max(0.25, Math.min(0.9, Math.abs(pr.y - pc.y) * 0.5 * 1.6));
+      u.uGlowC.value.set(pc.x * 0.5 + 0.5, pc.y * 0.5 + 0.5);
+      u.uGlowR.value.set((ry * h) / w * 1.3, ry);
+    }
     r.setRenderTarget(null);
     r.clear(true, true, false);
     this.final.render(r);
