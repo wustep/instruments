@@ -1,0 +1,140 @@
+{
+ "pieces": [
+  {
+   "name": "phrase",
+   "what": "the round-3 audit phrase: C3 E3 G3 C4 B3 A3 G3, vibrato 17 ¢"
+  },
+  {
+   "name": "bach-prelude",
+   "what": "Bach, Suite No. 1, Prelude, bars 1–4 (string crossings, slurs of four)"
+  },
+  {
+   "name": "sustained",
+   "what": "long tones with vibrato: C2 pp, G2 mf, D3 ff, A3 mf, E4 ff, A4 pp (2.2 s each)"
+  },
+  {
+   "name": "sustained-novib",
+   "what": "G2 mf, D3 ff, A3 mf, D4 mf without vibrato (pitch stability)"
+  },
+  {
+   "name": "transitions",
+   "what": "legato D3–A3 on one string; slurred crossings G2↔D3; détaché repeated notes; one long ff note with bow changes"
+  }
+ ],
+ "metrics": {
+  "before": {
+   "pitch": [
+    {
+     "midi": 43,
+     "offsetCents": 0,
+     "jitterMadCents": 1,
+     "rangeCents": 11,
+     "sdCents": 2.29
+    },
+    {
+     "midi": 50,
+     "offsetCents": -1,
+     "jitterMadCents": 0.5,
+     "rangeCents": 56,
+     "sdCents": 11.19
+    },
+    {
+     "midi": 57,
+     "offsetCents": 0.5,
+     "jitterMadCents": 0.5,
+     "rangeCents": 98.5,
+     "sdCents": 12.16
+    },
+    {
+     "midi": 62,
+     "offsetCents": 1,
+     "jitterMadCents": 1,
+     "rangeCents": 71.5,
+     "sdCents": 10.34
+    }
+   ],
+   "clicks:phrase": {
+    "clicks": 3,
+    "worstDb": 11.5,
+    "perSecond": 0.35
+   },
+   "clicks:bach-prelude": {
+    "clicks": 0,
+    "worstDb": 6.2,
+    "perSecond": 0
+   },
+   "clicks:sustained": {
+    "clicks": 0,
+    "worstDb": 10,
+    "perSecond": 0
+   },
+   "clicks:sustained-novib": {
+    "clicks": 0,
+    "worstDb": 5.6,
+    "perSecond": 0
+   },
+   "clicks:transitions": {
+    "clicks": 1,
+    "worstDb": 10.1,
+    "perSecond": 0.09
+   }
+  },
+  "after": {
+   "pitch": [
+    {
+     "midi": 43,
+     "offsetCents": 2.5,
+     "jitterMadCents": 0,
+     "rangeCents": 0.5,
+     "sdCents": 0.23
+    },
+    {
+     "midi": 50,
+     "offsetCents": -1,
+     "jitterMadCents": 1,
+     "rangeCents": 67.5,
+     "sdCents": 13.23
+    },
+    {
+     "midi": 57,
+     "offsetCents": 0.5,
+     "jitterMadCents": 1,
+     "rangeCents": 59,
+     "sdCents": 8.75
+    },
+    {
+     "midi": 62,
+     "offsetCents": 0,
+     "jitterMadCents": 1,
+     "rangeCents": 12,
+     "sdCents": 2.33
+    }
+   ],
+   "clicks:phrase": {
+    "clicks": 0,
+    "worstDb": 9.5,
+    "perSecond": 0
+   },
+   "clicks:bach-prelude": {
+    "clicks": 0,
+    "worstDb": 8,
+    "perSecond": 0
+   },
+   "clicks:sustained": {
+    "clicks": 0,
+    "worstDb": 6.4,
+    "perSecond": 0
+   },
+   "clicks:sustained-novib": {
+    "clicks": 0,
+    "worstDb": 6.1,
+    "perSecond": 0
+   },
+   "clicks:transitions": {
+    "clicks": 0,
+    "worstDb": 5.9,
+    "perSecond": 0
+   }
+  }
+ }
+}
