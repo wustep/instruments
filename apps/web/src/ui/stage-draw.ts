@@ -1902,7 +1902,9 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
   }
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
-  const silver = (a: number) => rgba(INK.ivory, a);
+  // (polished silver: a cool white over a mid grey body, so it reads as metal on the dark stage)
+  const silver = (a: number) => rgba('230,232,236', a);
+  const SILVER_BODY = 'rgb(62,64,68)';
   // ---- behind the tube: the thumb's key and the G♯ key on the player's side, their cups' edges
   // showing beyond the tube
   FL_KEYS.forEach((k, i) => {
@@ -1910,15 +1912,15 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
     drawFlCup(ctx, X(k.x), Y(FL_YC * Math.sin(k.phi * D2R)), k.r * sc, k.r * sc * Math.abs(Math.cos(k.phi * D2R)), k.style, keyPos[i]);
   });
   // ---- the tube: an opaque body, brushed silver lit from above the player's side
-  ctx.fillStyle = INK.ground;
+  ctx.fillStyle = SILVER_BODY;
   ctx.fill(L.tube);
   const g = ctx.createLinearGradient(0, Y(-0.0105), 0, Y(0.0105));
-  g.addColorStop(0, silver(0.07));
-  g.addColorStop(0.17, silver(0.32));
-  g.addColorStop(0.3, silver(0.13));
-  g.addColorStop(0.62, silver(0.05));
-  g.addColorStop(0.9, silver(0.08));
-  g.addColorStop(1, silver(0.03));
+  g.addColorStop(0, silver(0.2));
+  g.addColorStop(0.17, silver(0.68));
+  g.addColorStop(0.3, silver(0.36));
+  g.addColorStop(0.62, silver(0.12));
+  g.addColorStop(0.9, silver(0.26));
+  g.addColorStop(1, silver(0.08));
   ctx.fillStyle = g;
   ctx.fill(L.tube);
   ctx.strokeStyle = silver(0.18);
@@ -1941,6 +1943,28 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
     const xb = Math.min(FL_LEN, xFar);
     // the envelope (where the air's pressure swings most: antinodes glow, nodes stay dark) in a
     // wide soft band, the swing itself (compression warm, rarefaction cool) in a narrower one
+    // around the tube: the pressure's standing-wave envelope (|p| along the air column, pinched at
+    // the nodes), quiet, as lobes above and below: where the air works hardest is readable at a glance
+    {
+      const Hm = Math.min(Cw * 0.14, 0.05 * sc) * Math.min(1, 0.35 + lvl);
+      const M = 64;
+      for (const sgn of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(X(xNear), Y(sgn * FL_RB));
+        for (let i = 0; i <= M; i++) {
+          const x = xNear + ((xFar - xNear) * i) / M;
+          const A = Math.min(1, Math.abs(boreAt(w.amp, (x - xNear) / Leff) / scale));
+          ctx.lineTo(X(x), Y(sgn * FL_RB) + sgn * Hm * A);
+        }
+        ctx.lineTo(X(xFar), Y(sgn * FL_RB));
+        ctx.closePath();
+        ctx.fillStyle = rgba(INK.vermilion, 0.07 * lvl + 0.03);
+        ctx.fill();
+        ctx.strokeStyle = rgba(INK.vermilion, 0.16 + 0.22 * lvl);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
     const ge = ctx.createLinearGradient(X(xa), 0, X(xb), 0);
     const gw = ctx.createLinearGradient(X(xa), 0, X(xb), 0);
     const N = 40;
@@ -1961,13 +1985,13 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
     ctx.restore();
   }
   // ---- the lip plate and the embouchure hole
-  ctx.fillStyle = INK.ground;
+  ctx.fillStyle = SILVER_BODY;
   ctx.fill(L.plate);
   const gp = ctx.createLinearGradient(0, Y(-0.011), 0, Y(0.011));
-  gp.addColorStop(0, silver(0.08));
-  gp.addColorStop(0.22, silver(0.26));
-  gp.addColorStop(0.5, silver(0.12));
-  gp.addColorStop(1, silver(0.04));
+  gp.addColorStop(0, silver(0.2));
+  gp.addColorStop(0.22, silver(0.6));
+  gp.addColorStop(0.5, silver(0.3));
+  gp.addColorStop(1, silver(0.1));
   ctx.fillStyle = gp;
   ctx.fill(L.plate);
   ctx.strokeStyle = silver(0.6);
@@ -2074,12 +2098,13 @@ function drawFlCup(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: nu
   // the cup: brushed silver, lit from above the player's side; seated, it takes the warm accent
   ctx.beginPath();
   ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
-  ctx.fillStyle = '#1d1c1a';
+  ctx.fillStyle = 'rgb(58,60,64)';
   ctx.fill();
+  // (silver like the tube: a bright crown towards the light, a darker skirt)
   const g = ctx.createLinearGradient(0, cy - ry, 0, cy + ry);
-  g.addColorStop(0, rgba(INK.ivory, 0.2));
-  g.addColorStop(0.45, rgba(INK.ivory, 0.07));
-  g.addColorStop(1, rgba(INK.ivory, 0.03));
+  g.addColorStop(0, rgba('230,232,236', 0.62));
+  g.addColorStop(0.45, rgba('230,232,236', 0.3));
+  g.addColorStop(1, rgba('230,232,236', 0.1));
   ctx.fillStyle = g;
   ctx.fill();
   if (shut > 0.01) {
@@ -2514,8 +2539,9 @@ function trumpetLayout(W: number, H: number): TrLayout {
   trLayout = { key, S, ox, oy, memo: new Map() };
   return trLayout;
 }
-const BRASS_BODY = '#22180f';
-const BRASS_DEEP = '#120d08';
+// lacquered yellow brass on the dark stage: a dark gold body under the amber edges and highlights
+const BRASS_BODY = '#4a3416';
+const BRASS_DEEP = '#251a0c';
 
 /** Side view of a B♭ trumpet from the player's left, a little in front of the bell and above: the
  *  mouthpiece and leadpipe, the main tuning slide, three piston valves (the pistons going down with the

@@ -226,7 +226,7 @@ export function openActionView(opts: { midi: number; kind: Kind; host: HTMLEleme
     const pedals = opts.latest();
     const geo = { soft: pedals?.soft ?? 0, middle: pedals?.middle ?? 0, parts, X, Y, s, y, comp, keyPos, escaped: escaped || phase === 'free' || phase === 'contact' || phase === 'fall' || phase === 'checked', damperOn: hasDamper ? damperOn : 0, hasDamper, shape, sc, beta: w?.beta ?? 0.12, active: phase === 'drive' || phase === 'free' || phase === 'contact', contact: phase === 'contact', jackOut: replay ? (phase === 'drive' ? 0 : 1) : jackOut };
     if (kind === 'grand') drawGrand(ctx, { ...geo, midi, watch: w, sustain: pedals?.sustain ?? 0 });
-    else drawUpright(ctx, geo);
+    else drawUpright(ctx, { ...geo, midi, watch: w, sustain: pedals?.sustain ?? 0 });
     hover = parts.map(([n, px, py]) => [n, X(px), Y(py)] as [string, number, number]);
     if (!replay && held) jackOut = 1;
   }
@@ -753,115 +753,293 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
   }
 }
 
-// ---------------------------------------------------------------- upright (side view, player left)
-// The string hangs vertically behind the action; the key's capstan lifts the wippen, whose jack
-// pushes the hammer butt so the hammer swings back into the string; the jack tips out at the
-// let-off button; the catcher on the butt is caught by the backcheck on the wippen; the bridle
-// tape pulls the hammer back as the key rises. The damper spoon on the wippen pushes the damper
-// lever, swinging its head off the string. Single escapement: no repetition lever.
-function drawUpright(ctx: CanvasRenderingContext2D, g: Geo): void {
-  const D = BLOW.upright;
-  const kA = (g.keyPos * KEY_DIP) / 200;
-  line(ctx, [[0, 8], [470, 8]], rgba(INK.wood, 1), 3, g);
-  const kp: [number, number] = [200, 26];
-  const key = (x: number, yy: number) => rot(kp[0], kp[1], x, yy, kA);
-  line(ctx, [key(0, 40), key(380, 40)], rgba(INK.felt, 0.8), 2, g);
-  line(ctx, [key(0, 26), key(380, 26)], rgba(INK.felt, 0.35), 1, g);
-  line(ctx, [key(0, 40), key(60, 40)], rgba(INK.ivory, 0.9), 4, g);
-  pivot(ctx, kp[0], kp[1], g);
-  g.parts.push(['key', ...key(30, 40)], ['key lever', ...key(130, 34)], ['balance rail', kp[0], kp[1]], ['key bed', 120, 8]);
-  // capstan lifts the wippen's front; the wippen pivots at its back on the action rail
-  const cap = key(330, 54);
-  line(ctx, [key(330, 40), cap], rgba(INK.steel, 0.7), 2, g);
-  const wp: [number, number] = [420, 120];
-  const wA = (cap[1] - 54) / 90;
-  const wip = (x: number, yy: number) => rot(wp[0], wp[1], x, yy, -wA);
-  line(ctx, [wip(330, 58), wip(370, 96), wp], rgba(INK.wood, 1), 5, g);
-  line(ctx, [wip(330, 58), wip(370, 96), wp], rgba(INK.felt, 0.5), 1, g);
-  pivot(ctx, wp[0], wp[1], g);
-  // the hammer: butt pivots at (420, 200); shank up to the head; it swings right into the string
-  const bp: [number, number] = [415, 205];
-  const R = 150; // butt pivot to hammer centre
-  const xRest = bp[0];
-  // the soft pedal (half-blow) holds the hammers about 45 % of the way to the strings
-  const halfBlow = (g.soft ?? 0) * 0.45 * D;
-  const hA = Math.asin(Math.min(0.9, Math.max(g.y, halfBlow) / R)); // clockwise swing towards the string
-  const ham = (x: number, yy: number) => rot(bp[0], bp[1], x, yy, -hA);
-  const head = ham(xRest, bp[1] + R);
-  const xStr = xRest + 13 + D;
-  line(ctx, [bp, head], rgba(INK.wood, 1), 3.5, g);
-  line(ctx, [bp, head], rgba(INK.felt, 0.6), 1, g);
-  // the hammer rail the shanks rest against: deep, just under the heads (25–59 mm below the hammer's
-  // centre, as on the 3D upright and both reference photographs); its felt faces the shanks
-  const railX = 397 + halfBlow * ((bp[1] + R - 42 - bp[1]) / R);
-  line(ctx, [[railX - 9, bp[1] + R - 59], [railX - 9, bp[1] + R - 25]], rgba('214,188,142', 0.9), 12, g);
-  line(ctx, [[railX - 2, bp[1] + R - 57], [railX - 2, bp[1] + R - 27]], rgba('44,96,72', 0.9), 2.5, g);
-  // butt, catcher (towards the player) and the backcheck on the wippen
-  const butt = ham(402, 205);
-  ctx.fillStyle = rgba(INK.felt, 0.6);
-  ctx.beginPath();
-  ctx.arc(g.X(butt[0]), g.Y(butt[1]), 7 * g.s, 0, Math.PI * 2);
-  ctx.fill();
-  const catcher = ham(372, 190);
-  line(ctx, [ham(404, 200), catcher], rgba(INK.wood, 1), 3, g);
-  felt(ctx, g, catcher[0], catcher[1], 9, 9, 0, false);
-  const bcb = wip(372, 100);
-  line(ctx, [bcb, [bcb[0] - 6, bcb[1] + 70]], rgba(INK.steel, 0.6), 1.2, g);
-  felt(ctx, g, bcb[0] - 6, bcb[1] + 76, 8, 16, 0.3, false);
-  // bridle tape: from the wippen to the butt
-  ctx.strokeStyle = rgba(INK.ivory, 0.3);
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  const bw = wip(396, 104);
-  ctx.moveTo(g.X(bw[0]), g.Y(bw[1]));
-  ctx.quadraticCurveTo(g.X(bw[0] - 18), g.Y(bw[1] + 40), g.X(butt[0] - 6), g.Y(butt[1] - 4));
-  ctx.stroke();
-  // jack: from the wippen up to the butt; tipped out after let-off
-  const jb = wip(394, 100);
-  const jTilt = g.escaped || g.jackOut > 0.5 ? -0.3 : 0;
-  const jt = rot(jb[0], jb[1], butt[0] + 2, butt[1] - 8, jTilt);
-  line(ctx, [jb, jt], g.active && !g.escaped ? rgba(INK.vermilion, 0.9) : rgba(INK.steel, 0.8), 2.4, g);
-  line(ctx, [[372, 168], [380, 168]], rgba(INK.amber, 0.8), 3, g); // let-off button
-  pivot(ctx, bp[0], bp[1], g);
-  // hammer head
-  felt(ctx, g, head[0], head[1], 30, 26, -hA, g.active, g.contact ? Math.min(8, g.comp * 6) : 0);
-  g.parts.push(['capstan', ...cap], ['wippen', ...wip(370, 96)], ['jack', (jb[0] + jt[0]) / 2, (jb[1] + jt[1]) / 2], ['let-off button (escapement)', 376, 168], ['hammer butt', ...butt], ['catcher', ...catcher], ['backcheck', bcb[0] - 6, bcb[1] + 76], ['bridle tape', bw[0] - 12, bw[1] + 30], ['hammer rail', 392, 270], ['hammer shank', (bp[0] + head[0]) / 2, (bp[1] + head[1]) / 2], ['hammer (felt)', ...head]);
-  // ---- string: vertical; pressure bar above, bridge far below; the hammer strikes at β from the top
-  const yTop = head[1] + 50;
-  const L = 50 / g.beta;
-  string(ctx, g, xStr, yTop, 0, -1, L, yTop - 20);
-  line(ctx, [[xStr - 6, yTop + 6], [xStr, yTop], [xStr + 6, yTop + 6]], rgba(INK.steel, 0.8), 2, g);
-  g.parts.push(['pressure bar', xStr, yTop], ['string', xStr, yTop - 120], ['string', xStr, 60]);
-  // ---- damper: lever pivoted below; the spoon on the wippen pushes its foot, the head leaves the string
-  if (g.hasDamper) {
-    // the lever stands in front of the string (player's side), pivoted on the action rail; its
-    // foot is pushed by the spoon, so its head swings off the string
-    const off = (1 - g.damperOn) * 12;
-    const dp: [number, number] = [448, 215];
-    // an underdamper: its head on the string 50 mm under the strike line, behind the shank
-    const yHead = bp[1] + R - 50;
-    const da = Math.atan2(off, yHead - dp[1]);
-    const dl = (x: number, yy: number) => rot(dp[0], dp[1], x, yy, da);
-    const headPt = dl(dp[0], yHead);
-    line(ctx, [dl(dp[0], 165), dp, headPt], rgba(INK.wood, 1), 3, g);
-    pivot(ctx, dp[0], dp[1], g);
-    const spoon = wip(430, 128);
-    line(ctx, [wp, spoon, dl(dp[0] - 2, 168)], rgba(INK.steel, 0.6), 1.5, g);
-    // the head: a hornbeam block, its white felt on the string (amber while lifted)
-    const dx = xStr - 3 - 14 - off;
-    ctx.fillStyle = rgba('230,212,172', 0.75);
-    ctx.fillRect(g.X(dx), g.Y(yHead + 13), 9 * g.s, 26 * g.s);
-    ctx.fillStyle = g.damperOn > 0.5 ? rgba('238,231,214', 0.95) : rgba(INK.amber, 0.85);
-    ctx.fillRect(g.X(dx + 9), g.Y(yHead + 12), 5 * g.s, 24 * g.s);
-    line(ctx, [headPt, [dx + 7, yHead]], rgba(INK.steel, 0.5), 1, g);
-    g.parts.push(['damper', dx + 7, yHead], ['damper lever', ...dl(dp[0], 190)], ['damper spoon', ...spoon]);
-  }
-  // ---- the practice muffler (the middle pedal): a felt strip dropped between hammer and string
+// ---------------------------------------------------------------- upright (side section, player left)
+// A section through this key, to scale, from the 3D upright (piano3d.ts `U`, a Yamaha U1, the
+// parts as built there): the key rocks on its balance rail (215 mm); its capstan (335) lifts the
+// front of the wippen, flanged at its back on the main rail (433); the wippen's jack (58 mm in
+// front of its centre) pushes the hammer butt until its toe meets the let-off button and it tips
+// out towards the player; the hammer (152 mm shank) swings into the strings at 478 and back, the
+// catcher on the butt is caught by the backcheck on the wippen, and the bridle tape pulls it back
+// as the key rises. Single escapement: no repetition lever. An underdamper: the damper lever,
+// flanged behind the butt, is pushed at its foot by the wippen's spoon (or the sustain pedal's rail)
+// and swings its head, on the strings 50 mm under the strike line, towards the player. The deep
+// hammer rail just under the heads moves the hammers half-way to the strings with the soft pedal
+// (half-blow); the middle pedal drops the practice muffler's felt between hammers and strings.
+const UA = {
+  balZ: 215,
+  pivY: 698,
+  stickTop: 722,
+  keyTop: 725,
+  keyLen: 420,
+  capZ: 335,
+  capH: 41,
+  wipZ: 433,
+  wipY: 780,
+  jackZ: 375,
+  buttZ: 385,
+  buttY: 865,
+  shank: 152,
+  strike: 1017,
+  strZ: 478,
+  plateZ: 488,
+  boardZ: 535,
+  dampZ: 438,
+  dampY: 880,
+  dip: 10,
+  blow: 45,
+  mufZ: 462.5,
+  /** the damper's head swings off the strings by about 4.5 mm at the felt */
+  dampA: 0.05,
+};
+let uprightKey = 0;
+let uprightJack = 0;
+function drawUpright(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
+  const cw = ctx.canvas.clientWidth;
+  const ch = ctx.canvas.clientHeight;
+  // the section shown (mm): the key's front to the soundboard, the keybed to the tuning pins; a tall
+  // panel (a phone) starts behind the key's front
+  const narrow = cw / Math.max(1, ch) < 1.0;
+  const z0 = narrow ? 140 : -12;
+  const z1 = 560;
+  const y0 = 645;
+  const y1 = 1165;
+  const pad = 16;
+  const top = narrow ? 52 : 40;
+  const s = Math.min((cw - 2 * pad) / (z1 - z0), (ch - top - pad) / (y1 - y0));
+  const ox = (cw - (z1 - z0) * s) / 2 - z0 * s;
+  const oy = top + (ch - top - pad - (y1 - y0) * s) / 2 + y1 * s;
+  const X = (z: number) => ox + z * s;
+  const Y = (y: number) => oy - y * s;
+  const part = (n: string, p: Q) => g.parts.push([n, (X(p[0]) - g.X(0)) / g.s, (g.Y(0) - Y(p[1])) / g.s]);
+  const shape = (pts: Q[], fill: string | null, stroke: string | null = null, w = 1) => {
+    ctx.beginPath();
+    pts.forEach(([z, y], k) => (k ? ctx.lineTo(X(z), Y(y)) : ctx.moveTo(X(z), Y(y))));
+    ctx.closePath();
+    if (fill) {
+      ctx.fillStyle = fill;
+      ctx.fill();
+    }
+    if (stroke) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = w;
+      ctx.stroke();
+    }
+  };
+  const box = (za: number, ya: number, zb: number, yb: number, fill: string | null, stroke: string | null = null, w = 1) => shape([[za, ya], [zb, ya], [zb, yb], [za, yb]], fill, stroke, w);
+  const poly = (pts: Q[], col: string, w: number) => {
+    ctx.strokeStyle = col;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    pts.forEach(([z, y], k) => (k ? ctx.lineTo(X(z), Y(y)) : ctx.moveTo(X(z), Y(y))));
+    ctx.stroke();
+  };
+  const disc = (p: Q, r: number, fill: string, stroke: string | null = null) => {
+    ctx.beginPath();
+    ctx.arc(X(p[0]), Y(p[1]), Math.max(0.8, r * s), 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    if (stroke) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+  };
+  const centrePin = (p: Q) => {
+    disc(p, 2.4, rgba('0,0,0', 0.6));
+    disc(p, 1.4, rgba(GC.steel, 0.95));
+  };
+  const R = (c: Q, a: number) => (p: Q): Q => rot(c[0], c[1], p[0], p[1], a);
+  const outline = rgba('0,0,0', 0.55);
+  const FIX = rgba(GC.actionWood, 0.26);
+  const FIXS = rgba(GC.actionWood, 0.62);
+  const lw = (mm: number) => Math.max(0.6, mm * s);
+  // ---- this key's string
+  const w = g.watch;
+  const nStr = w?.nStrings ?? 3;
+  const wound = g.midi < 48 && nStr <= 2;
+  const L = Math.max(40, (w?.lengthM ?? 0.6) * 1000);
+  const zS = wound ? 470 : UA.strZ;
+  const aY = UA.strike + g.beta * L;
+  const bY = Math.max(y0 - 20, UA.strike - (1 - g.beta) * L);
+  // ---- the state: the key follows the hammer while the jack drives it, then rests on the key bed
+  const driving = g.active && !g.escaped;
+  const fromHammer = Math.min(1, ((g.y / UA.shank) * 10 / 58) * (UA.wipZ - UA.capZ) / (UA.capZ - UA.balZ) / (UA.dip / UA.balZ));
+  const keyT = driving ? fromHammer : g.keyPos;
+  uprightKey += (keyT - uprightKey) * (driving || keyT < uprightKey ? 1 : 0.35);
+  const kA = (uprightKey * UA.dip) / UA.balZ;
+  const K = R([UA.balZ, UA.pivY], kA); // the back of the key rises
+  const capRise = (UA.capZ - UA.balZ) * Math.sin(kA);
+  const wA = capRise / (UA.wipZ - UA.capZ);
+  const Wp = R([UA.wipZ, UA.wipY], -wA); // the wippen's front rises about its back
+  const jTarget = g.escaped || g.jackOut > 0.5 ? 0.22 : 0;
+  uprightJack += (jTarget - uprightJack) * (jTarget > uprightJack ? 1 : 0.3);
+  // the hammer: the soft pedal's half-blow rest, the muffler's felt stopping it short of the string
+  const half = (g.soft ?? 0) * 0.45 * UA.blow;
   const mu = g.middle ?? 0;
-  if (mu > 0.02) {
-    const yM = head[1] + 46 * (1 - mu);
-    ctx.fillStyle = rgba('44,96,72', 0.35 + 0.5 * mu);
-    ctx.fillRect(g.X(xStr - 8), g.Y(yM + 20), 4 * g.s, 40 * g.s);
-    g.parts.push(['muffler', xStr - 6, yM]);
+  const maxT = UA.blow - mu * (zS - UA.mufZ);
+  const travel = Math.min(maxT, Math.max(g.y, half));
+  const hA = Math.asin(Math.min(0.95, travel / UA.shank));
+  const Sh = R([UA.buttZ, UA.buttY], -hA); // the shank swings towards the strings
+  const off = g.hasDamper ? 1 - g.damperOn : 0;
+  const Dm = R([UA.dampZ, UA.dampY], UA.dampA * off); // its head swings towards the player
+  // ---- behind: the soundboard, the plate, the pin block, the string, its bridge
+  box(UA.boardZ, y0, UA.boardZ + 9, y1, rgba(GC.spruce, 0.35), rgba(GC.spruce, 0.5), 0.8);
+  shape([[UA.plateZ, y0], [UA.plateZ + 16, y0], [UA.plateZ + 16, 1180], [UA.plateZ, 1180]], rgba(GC.plate, 0.38), rgba(GC.plateLit, 0.45), 0.8);
+  box(UA.plateZ + 12, 1080, UA.boardZ + 20, 1180, rgba(GC.maple, 0.45), rgba(GC.maple, 0.6), 0.8);
+  part('plate', [UA.plateZ + 8, 820]);
+  part('soundboard', [UA.boardZ + 4, 760]);
+  part('pin block', [UA.boardZ, 1130]);
+  // the tuning pin through the plate into the block, the agraffe (pressure bar in the top treble)
+  const pinY = Math.min(1160, aY + 30);
+  box(UA.plateZ - 12, pinY - 3.5, UA.plateZ + 20, pinY + 3.5, rgba(GC.steel, 0.85), outline, 0.6);
+  poly([[UA.plateZ - 8, pinY], [zS, aY + 2]], rgba(GC.steel, 0.7), lw(1));
+  if (g.midi >= 74) box(zS - 13, aY - 1, zS - 1, aY + 16, rgba(GC.steel, 0.7), outline, 0.6);
+  else box(zS - 5, aY - 2, UA.plateZ, aY + 8, rgba(GC.brass, 0.85), outline, 0.6);
+  box(zS + 1.5, aY + 16, UA.plateZ, aY + 24, rgba(GC.red, 0.8));
+  part(g.midi >= 74 ? 'pressure bar' : 'agraffe', [zS - 4, aY + 4]);
+  part('tuning pin', [UA.plateZ + 4, pinY]);
+  // the bridge on the board, where the speaking length ends (if it is in view)
+  if (bY > y0 + 4) {
+    box(zS + 1, bY - 12, UA.boardZ, bY + 12, rgba(GC.maple, 0.8), outline, 0.6);
+    part('bridge', [zS + 20, bY]);
+  }
+  // the string (its live shape over the speaking length, drawn sideways: the motion is towards the hammer)
+  {
+    ctx.strokeStyle = rgba(wound ? GC.brass : GC.steel, 0.55);
+    ctx.lineWidth = Math.max(1, (wound ? 3 : 1) * s);
+    ctx.beginPath();
+    ctx.moveTo(X(zS), Y(aY));
+    ctx.lineTo(X(zS), Y(bY));
+    ctx.stroke();
+    const sh = g.shape;
+    if (sh) {
+      const amp = 9 / g.sc;
+      ctx.strokeStyle = rgba(INK.vermilion, 0.9);
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      for (let i = 0; i < sh.length; i++) {
+        const y = aY - ((aY - bY) * i) / (sh.length - 1);
+        const z = zS - sh[i] * amp / s;
+        if (i) ctx.lineTo(X(z), Y(y));
+        else ctx.moveTo(X(z), Y(y));
+      }
+      ctx.stroke();
+    }
+    part('string', [zS, (UA.strike + aY) / 2 + 10]);
+  }
+  // ---- the fixed frame, quiet: keybed, key frame rails, the bracket, main rail, damper rail,
+  //      let-off rail and its button
+  box(z0 - 20, 655, 440, 682, rgba(GC.lacquer, 0.9), rgba(GC.sheen, 0.4), 0.8);
+  box(4, 682, 30, 692, FIX, FIXS, 0.7);
+  box(UA.balZ - 11, 682, UA.balZ + 11, 698, FIX, FIXS, 0.7);
+  box(385, 682, 420, 698, FIX, FIXS, 0.7);
+  part('key bed', [200, 668]);
+  part('balance rail', [UA.balZ, 690]);
+  const bracket: Q[] = [[360, 698], [470, 698], [470, 720], [452, 780], [468, 860], [470, 1000], [484, 1060], [484, 1090], [458, 1090], [448, 1000], [440, 900], [425, 790], [390, 730], [360, 720]];
+  shape(bracket, rgba(GC.plate, 0.12), rgba(GC.plate, 0.4), 0.8);
+  part('action bracket', [462, 940]);
+  box(398, 815, 424, 848, FIX, FIXS, 0.8);
+  box(448, 890, 462, 905, FIX, FIXS, 0.8);
+  box(352, 822, 372, 832, FIX, FIXS, 0.8);
+  box(358, 816, 366, 822, rgba(GC.red, 0.85));
+  part('main rail', [411, 832]);
+  part('damper rail', [455, 897]);
+  part('let-off rail and button', [362, 822]);
+  // ---- the key: stick, key top, leads, the capstan
+  const stick: Q[] = [K([50, UA.pivY]), K([UA.keyLen, UA.pivY]), K([UA.keyLen, UA.stickTop]), K([50, UA.stickTop])];
+  shape(stick, rgba(GC.keyWood, 0.95), outline, 0.7);
+  shape([K([0, 703]), K([147, 703]), K([147, UA.keyTop]), K([0, UA.keyTop])], rgba(GC.ivory, 0.95), outline, 0.7);
+  for (const z of [180, 205]) disc(K([z, 709]), 4.5, rgba('92,94,99', 0.95));
+  const capBase = K([UA.capZ, UA.stickTop]);
+  const capTop = K([UA.capZ, UA.stickTop + UA.capH]);
+  box(capBase[0] - 4.2, capBase[1], capBase[0] + 4.2, capTop[1] - 2, rgba(GC.brass, 0.9), outline, 0.6);
+  centrePin([UA.balZ, UA.pivY]);
+  part('key', K([70, 715]));
+  part('capstan', [capBase[0], (capBase[1] + capTop[1]) / 2]);
+  // ---- the open fallboard over the key ends
+  {
+    const fb: Q[] = [[148, 729], [171, 729], [186, 792]];
+    for (let k = 0; k <= 8; k++) {
+      const a = (Math.PI * k) / 8;
+      fb.push([176 + 11 * Math.cos(a) - 2 * Math.sin(a), 794 + 11 * Math.sin(a)]);
+    }
+    fb.push([157, 785]);
+    shape(fb, rgba(GC.lacquer, 0.95), rgba(GC.sheen, 0.6), 0.8);
+    part('fallboard', [168, 760]);
+  }
+  // ---- the wippen and what it carries: heel on the capstan, jack, backcheck, bridle wire and tape, spoon
+  const W = (p: Q): Q => Wp([UA.wipZ + p[0], UA.wipY + p[1]]);
+  shape([W([8, -8]), W([8, 6]), W([-30, 12]), W([-60, 12]), W([-112, 6]), W([-118, -2]), W([-110, -12]), W([-60, -12])], rgba(GC.hornbeam, 0.95), outline, 0.7);
+  shape([W([-106, -17]), W([-90, -17]), W([-90, -11]), W([-106, -11])], rgba(GC.buckskin, 0.95));
+  poly([W([-100, 6]), W([-108, 68])], rgba(GC.brass, 0.85), lw(1.4));
+  shape([W([-116, 62]), W([-102, 62]), W([-100, 84]), W([-114, 86])], rgba(GC.hornbeam, 0.95), outline, 0.6);
+  shape([W([-100, 64]), W([-97, 64]), W([-95, 83]), W([-100, 84])], rgba(GC.red, 0.95));
+  poly([W([-112, 4]), W([-124, 46])], rgba(GC.brass, 0.85), lw(1.2));
+  disc(W([-124, 46]), 2.5, rgba(GC.red, 0.95));
+  poly([W([4, 4]), W([14, 30]), W([10, 58])], rgba(GC.steel, 0.85), lw(2.6));
+  centrePin([UA.wipZ, UA.wipY]);
+  part('wippen', W([-60, 0]));
+  part('backcheck', W([-108, 74]));
+  part('bridle wire', W([-120, 30]));
+  part('damper spoon', W([12, 40]));
+  // the jack: on the wippen, up to the butt; tipped out after let-off (its top towards the player)
+  {
+    const jp = W([UA.jackZ - UA.wipZ, 6]);
+    const J = (p: Q): Q => rot(jp[0], jp[1], jp[0] + p[0], jp[1] + p[1], uprightJack);
+    const hot = g.active && !g.escaped;
+    shape([J([-3.5, 0]), J([3.5, 0]), J([3.5, 68]), J([-3.5, 68]), J([-3.5, 24]), J([-13, 20]), J([-13, 14]), J([-3.5, 14])], hot ? rgba(INK.vermilion, 0.9) : rgba(GC.hornbeam, 0.95), outline, 0.7);
+    centrePin(jp);
+    part('jack', J([0, 40]));
+  }
+  // ---- the damper: lever on its flange behind the butt, its red felt where the spoon pushes,
+  //      the wire and the head on the string 50 mm under the strike line
+  if (g.hasDamper) {
+    const D = (p: Q): Q => Dm([UA.dampZ + p[0], UA.dampY + p[1]]);
+    shape([D([-3.5, -30]), D([4.5, -30]), D([5.5, 68]), D([-2.5, 68])], rgba(GC.hornbeam, 0.9), outline, 0.6);
+    shape([D([-8, -30]), D([-5, -30]), D([-5, -14]), D([-8, -14])], rgba(GC.red, 0.95));
+    poly([D([3, 62]), D([22, 82])], rgba(GC.brass, 0.85), lw(1.2));
+    shape([D([19, 74]), D([34, 74]), D([34, 100]), D([19, 100])], rgba(GC.hornbeam, 0.95), outline, 0.6);
+    shape([D([34, 75.5]), D([40.2, 75.5]), D([40.2, 98.5]), D([34, 98.5])], off > 0.3 ? rgba(INK.amber, 0.9) : rgba(GC.dFelt, 0.95));
+    centrePin([UA.dampZ, UA.dampY]);
+    part('damper lever', D([0, 30]));
+    part('damper', D([30, 88]));
+  }
+  // ---- the hammer: butt, catcher (green felt), shank, head; the bridle tape from the catcher's shank
+  {
+    const B = (p: Q): Q => Sh([UA.buttZ + p[0], UA.buttY + p[1]]);
+    poly([W([-124, 50]), W([-128, 62]), W([-122, 74]), B([-25, 2]), B([-14, 1])], rgba('238,233,222', 0.85), lw(2.8));
+    part('bridle tape', W([-126, 60]));
+    shape([B([-14, -11]), B([13, -11]), B([14, 4]), B([8, 17]), B([-12, 17]), B([-15, 4])], rgba(GC.hornbeam, 0.95), outline, 0.7);
+    shape([B([-14, -13.5]), B([0, -13.5]), B([0, -10.5]), B([-14, -10.5])], rgba(GC.buckskin, 0.95));
+    poly([B([-13, 3]), B([-30, 0])], rgba(GC.hornbeam, 0.95), lw(3.6));
+    shape([B([-40.5, -12]), B([-30, -11]), B([-28, 0]), B([-30, 10]), B([-38, 11]), B([-41.5, 2])], rgba(GC.hornbeam, 0.95), outline, 0.6);
+    shape([B([-43, -12.5]), B([-40.2, -12.5]), B([-41.2, 2.5]), B([-38.5, 11.5]), B([-41, 11.8]), B([-44, 2])], rgba(GC.green, 0.95));
+    shape([B([-3.6, 15]), B([3.6, 15]), B([3.3, UA.shank - 6]), B([-3.3, UA.shank - 6])], rgba(GC.hornbeam, 0.95), outline, 0.6);
+    centrePin([UA.buttZ, UA.buttY]);
+    part('hammer butt', B([0, 0]));
+    part('catcher', B([-38, 0]));
+    part('hammer shank', B([0, 80]));
+    // the head: the felt's egg (crown towards the strings), the coloured underfelt, the moulding
+    const hs = 1.15 - 0.3 * ((g.midi - 21) / 87);
+    const H = (al: number, cr: number): Q => B([cr, UA.shank - al * hs]);
+    const hot = g.active ? (g.contact ? 1 : 0.6) : 0;
+    shape(HEAD_FELT.map(([al, cr]) => H(al, cr)), hot ? rgba(INK.vermilion, 0.55 + 0.4 * hot) : rgba(GC.hFelt, 0.97), outline, 0.7);
+    shape(HEAD_UNDER.map(([al, cr]) => H(al, cr)), rgba(GC.underfelt, 0.95));
+    shape([H(-5.8, -7.5), H(5.8, -7.5), H(6.8, 3), ...egg(7.5, 21.1, 16, 3, 14).map(([al, cr]) => H(al, cr)), H(-6.8, 3)], rgba('124,75,46', 0.95), outline, 0.6);
+    part('hammer (felt)', H(0, 40));
+  }
+  // ---- the hammer rail (deep, just under the heads; it moves with the soft pedal), its felt
+  {
+    const dz = half * ((958 - UA.buttY + 16) / UA.shank);
+    box(351 + dz, 958, 378 + dz, 990, rgba(GC.hornbeam, 0.85), outline, 0.7);
+    box(378 + dz, 962, 381.4 + dz, 986, rgba(GC.green, 0.95));
+    part('hammer rail', [365 + dz, 974]);
+  }
+  // ---- the practice muffler: its rail and felt above the hammers, dropped between hammer and string
+  {
+    const d = mu * 45;
+    box(460.5, 1075 - d, 466.5, 1087 - d, rgba(GC.hornbeam, 0.8), outline, 0.6);
+    box(UA.mufZ, 1038 - d, UA.mufZ + 3.5, 1076 - d, rgba(GC.green, 0.5 + 0.45 * mu));
+    part('muffler', [UA.mufZ + 2, 1056 - d]);
   }
 }
