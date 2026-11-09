@@ -844,7 +844,7 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
     for (let i = 0; i <= N; i++) {
       const x = xa + ((xb - xa) * i) / N;
       const A = boreAt(w.amp, (x - xNear) / Leff) / scale;
-      ge.addColorStop(i / N, rgba(INK.vermilion, 0.22 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+      ge.addColorStop(i / N, rgba(INK.vermilion, 0.26 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
       gw.addColorStop(i / N, rgba(waveInk(A * ph), 0.42 * Math.min(1, Math.pow(Math.abs(A * ph), 1.15))));
     }
     ctx.save();
@@ -1596,7 +1596,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     ctx.lineWidth = 0.56 * D;
     ctx.stroke(base);
     for (const [e, bp] of envB) {
-      ctx.strokeStyle = rgba(INK.vermilion, (e / 10) * 0.24);
+      ctx.strokeStyle = rgba(INK.vermilion, (e / 10) * 0.32);
       ctx.stroke(bp);
     }
     ctx.lineWidth = 0.32 * D;
@@ -1665,7 +1665,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
       for (let i = 0; i <= 24; i++) {
         const u = i / 24;
         const A = ampAt(sBell + u * TR_BELL_LEN);
-        ge.addColorStop(u, rgba(INK.vermilion, 0.24 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+        ge.addColorStop(u, rgba(INK.vermilion, 0.32 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
         gw.addColorStop(u, rgba(waveInk(A * ph), 0.5 * Math.min(1, Math.pow(Math.abs(A * ph), 1.2))));
       }
       ctx.fillStyle = rgba(INK.amber, 0.05 + 0.04 * lvl);
