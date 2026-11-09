@@ -349,11 +349,13 @@ const ROD_PHI = deg(79.5); // the main rod: towards the audience, a little above
 const ROD_R = 0.0137;
 const TRILL_PHI = deg(128); // the trill keys' rod, below it
 const TRILL_R = 0.0152;
-const FOOT_PHI = deg(62); // the foot's rod
+// the foot's rod, above its cups; the whole foot is turned (as players align it) so that its C♯ and C
+// cups face the audience a little upwards and catch the studio's low front card
+const FOOT_PHI = deg(10);
 const FOOT_R = 0.0148;
 const BACK_R = 0.0142; // the thumb and G♯ rods on the player's side
 
-type CupStyle = 'open' | 'plain' | 'dome';
+type CupStyle = 'open' | 'plain' | 'dome' | 'crown';
 interface FKey {
   x: number;
   /** the note the bore plays when this is the first open hole */
@@ -384,9 +386,9 @@ const FKEYS: FKey[] = [
   { x: 0.474, note: 66, style: 'open', ...BIG, phi: 0, ...MAIN, mesh: 'open' }, // RH 1
   { x: 0.5, note: 65, style: 'open', ...BIG, phi: 0, ...MAIN, mesh: 'open' }, // RH 2
   { x: 0.529, note: 64, style: 'open', ...BIG, phi: 0, ...MAIN, mesh: 'open' }, // RH 3
-  { x: 0.558, note: 63, style: 'plain', ...BIG, phi: deg(15), ...FOOT, closed: true, mesh: 'dsharp' }, // D♯
-  { x: 0.591, note: 62, style: 'plain', r: 0.0105, hole: 0.0074, phi: deg(106), ...FOOT, mesh: 'footA' }, // C♯ key
-  { x: 0.625, note: 61, style: 'plain', r: 0.0105, hole: 0.0074, phi: deg(106), ...FOOT, mesh: 'footB' }, // C key
+  { x: 0.558, note: 63, style: 'plain', ...BIG, phi: deg(-42), ...FOOT, closed: true, mesh: 'dsharp' }, // D♯
+  { x: 0.591, note: 62, style: 'crown', r: 0.0105, hole: 0.0074, phi: deg(62), ...FOOT, mesh: 'footA' }, // C♯ key
+  { x: 0.625, note: 61, style: 'crown', r: 0.0105, hole: 0.0074, phi: deg(62), ...FOOT, mesh: 'footB' }, // C key
 ];
 const MAIN_POSTS = [0.2965, 0.348, 0.412, 0.4605, 0.5375];
 const FOOT_POSTS = [0.5505, 0.608, 0.6455];
@@ -419,6 +421,10 @@ function cupInto(mb: MeshBuilder, Cf: Mat4, style: CupStyle, r: number, hole: nu
       // the pad washer's button in a shallow dish, then the shoulder and skirt
       prof = [[0, top + 0.0002], [0.0013 * k, top + 0.0002], [0.0018 * k, top - 0.0003], [0.005 * k, top - 0.0003], [r - 0.0024 * k, top], [r, top - 0.0013], [r, 0.0006], [r - 0.0006, 0.0006]];
       rads = [0, 0.0004, 0.0002, 0.0006, 0.0016, 0.0009, 0.0003, 0];
+    } else if (style === 'crown') {
+      // a convex French cup (the foot's): a dome rising to the pad washer's button
+      prof = [[0, top + 0.0011], [0.0014 * k, top + 0.0011], [0.0019 * k, top + 0.0007], [r - 0.0022 * k, top - 0.0001], [r, top - 0.0014], [r, 0.0006], [r - 0.0006, 0.0006]];
+      rads = [0, 0.0004, 0.0003, 0.0022, 0.0009, 0.0003, 0];
     } else {
       prof = [[0, top + 0.0005], [r - 0.0028 * k, top + 0.0001], [r, top - 0.0014], [r, 0.0006], [r - 0.0006, 0.0006]];
       rads = [0, 0.004, 0.001, 0.0003, 0];
@@ -494,7 +500,7 @@ function steelRod(mb: MeshBuilder, x0: number, x1: number, phi: number, r: numbe
 function needle(mb: MeshBuilder, x0: number, x1: number, phi: number): void {
   const a = polar(x0, phi + deg(10), ROD_R - 0.0016);
   const b = polar(x1, phi + deg(10), ROD_R - 0.0016);
-  cyl(mb, a, b, 0.00026, 0.00026, 6, M.steel, false);
+  cyl(mb, a, b, 0.0004, 0.0004, 8, M.steel, false);
   cyl(mb, b, polar(x1, phi + deg(3), ROD_R - 0.0004), 0.0004, 0.0004, 8, AG);
 }
 
@@ -503,11 +509,11 @@ function lipPlate(mb: MeshBuilder): void {
   const Ah = 0.0062;
   const Bh = 0.0051;
   const nh = 3.6; // the hole: 12.4 × 10.2, a rounded rectangle
-  const Ap = 0.0215;
-  const Bp = 0.0128;
-  const np = 3; // the plate: 43 long, 25.6 across (arc length)
+  const Ap = 0.0225;
+  const Bp = 0.0138;
+  const np = 3; // the plate: 45 long, 27.6 across (arc length), standing 4.2 mm proud at the hole
   const rho = (s: number, w: number) => (Math.abs(s / Ap) ** np + Math.abs(w / Bp) ** np) ** (1 / np);
-  const lift = (r: number) => (r <= 1 ? 0.001 + 0.0028 * Math.sqrt(Math.max(0, 1 - r ** 3)) : 0.001 * Math.sqrt(Math.max(0, 1 - ((r - 1) / 0.035) ** 2)));
+  const lift = (r: number) => (r <= 1 ? 0.001 + 0.0032 * Math.sqrt(Math.max(0, 1 - r ** 3)) : 0.001 * Math.sqrt(Math.max(0, 1 - ((r - 1) / 0.035) ** 2)));
   const place = (s: number, w: number, d: number): Vec3 => {
     const x = EMB + s;
     const rr = rHead(x) + d;
@@ -611,14 +617,16 @@ export function buildFluteModel(): FluteModel {
   for (const x of [0.4045, 0.4225]) pillar(mb, x, deg(-98), BACK_R);
   barrel(mb, 0.4067, 0.4203, deg(-98), BACK_R);
   {
-    // the G♯ spatula: a stem rising on the player's side to a long teardrop spoon (~22 × 11 mm)
-    const path = spline3([polar(0.414, deg(-98), BACK_R), polar(0.4118, deg(-82), 0.0182), polar(0.4085, deg(-64), 0.0222), polar(0.404, deg(-50), 0.0262), polar(0.398, deg(-38), 0.0305), polar(0.392, deg(-30), 0.0345), polar(0.3875, deg(-26), 0.0372)], 8);
-    const spoon = (f: number) => {
-      if (f < 0.38) return 0.0011;
-      const g = (f - 0.38) / 0.62;
-      return 0.0011 + 0.0047 * Math.pow(Math.sin(Math.min(1, g * 1.08) * Math.PI * 0.94), 0.7) * (g > 0.92 ? Math.sqrt(Math.max(0.02, (1 - g) / 0.08)) : 1);
-    };
-    sweep(mb, path, (p) => [0, p[1], p[2]], spoon, (f) => (f < 0.38 ? 0.0009 : 0.0007), AG, 16, 3);
+    // the G♯ spatula: a stem rising on the player's side from its lever, then a teardrop spoon
+    // (~22 × 11 mm) laid along the tube towards the head, face up for the little finger
+    const stem = spline3([polar(0.414, deg(-98), BACK_R), polar(0.4135, deg(-80), 0.0176), polar(0.4115, deg(-62), 0.0205), polar(0.407, deg(-50), 0.0222)], 6);
+    sweep(mb, stem, (p) => [0, p[1], p[2]], () => 0.0011, () => 0.0009, AG, 12);
+    const blade = Array.from({ length: 17 }, (_, i) => {
+      const t = i / 16;
+      return polar(lerp(0.4085, 0.3835, t), deg(lerp(-50, -38, t)), lerp(0.0222, 0.0236, t) + 0.0012 * Math.sin(t * Math.PI));
+    });
+    const tear = (f: number) => 0.0058 * Math.pow(Math.sin(Math.PI * Math.max(0.02, Math.min(0.985, 0.08 + 0.92 * f))), 0.62) * (0.62 + 0.38 * f);
+    sweep(mb, blade, (p) => [0, p[1], p[2]], tear, () => 0.00075, AG, 18, 3);
   }
   // ---- the foot's rod line
   rib(mb, 0.5475, 0.6485, FOOT_PHI, deg(10));
@@ -653,20 +661,20 @@ function keyMesh(k: FKey): { mesh: Mesh; rod: Vec3; sign: number; maxAng: number
   const outward = (p: Vec3): Vec3 => [0, p[1], p[2]];
   if (k.mesh === 'dsharp') {
     // the D♯ touch: a curved paddle beyond the rod (the key is a lever: press it and the cup lifts)
-    sweep(mb, spline3([polar(0.004, FOOT_PHI, FOOT_R), polar(0.004, deg(72), 0.017), polar(0.004, deg(84), 0.0188)], 5), outward, () => 0.0012, () => 0.0007, AG, 10);
-    sweep(mb, Array.from({ length: 9 }, (_, i) => polar(lerp(-0.0058, 0.0108, i / 8), deg(86), 0.0189)), outward, (f) => 0.0044 * Math.sqrt(Math.sin(Math.PI * Math.max(0.02, Math.min(0.98, f)))), () => 0.0007, AG, 14, 3);
+    sweep(mb, spline3([polar(0.004, FOOT_PHI, FOOT_R), polar(0.004, deg(24), 0.0168), polar(0.004, deg(40), 0.0186)], 5), outward, () => 0.0012, () => 0.0007, AG, 10);
+    sweep(mb, Array.from({ length: 9 }, (_, i) => polar(lerp(-0.0058, 0.0108, i / 8), deg(44), 0.0189)), outward, (f) => 0.0044 * Math.sqrt(Math.sin(Math.PI * Math.max(0.02, Math.min(0.98, f)))), () => 0.0007, AG, 14, 3);
   }
   if (k.mesh === 'footA' || k.mesh === 'footB') {
     // the roller this key is played by, on an arm from its hinge tube
     const A = k.mesh === 'footA';
     const r0 = (A ? 0.5515 : 0.5525) - k.x;
     const r1 = (A ? 0.5665 : 0.5655) - k.x;
-    const phi = A ? deg(100) : deg(116);
+    const phi = A ? deg(74) : deg(90);
     const rr = A ? 0.0178 : 0.0184;
     const bx = (A ? 0.5755 : 0.6112) - k.x;
     const arm = A
-      ? [polar(bx, FOOT_PHI, FOOT_R), polar(bx - 0.003, deg(72), 0.0188), polar(r1 + 0.003, deg(88), 0.0195), polar(r1 + 0.0016, phi, rr - 0.0018)]
-      : [polar(bx, FOOT_PHI, FOOT_R), polar(bx - 0.004, deg(70), 0.0206), polar(0.556 - k.x + 0.0135, deg(76), 0.0215), polar(r1 + 0.0035, deg(96), 0.0218), polar(r1 + 0.0016, phi, rr - 0.0018)];
+      ? [polar(bx, FOOT_PHI, FOOT_R), polar(bx - 0.003, deg(28), 0.0188), polar(r1 + 0.003, deg(56), 0.0195), polar(r1 + 0.0016, phi, rr - 0.0018)]
+      : [polar(bx, FOOT_PHI, FOOT_R), polar(bx - 0.004, deg(22), 0.0206), polar(0.556 - k.x + 0.0135, deg(32), 0.0218), polar(r1 + 0.0035, deg(66), 0.022), polar(r1 + 0.0016, phi, rr - 0.0018)];
     sweep(mb, spline3(arm, 6), outward, () => 0.0011, () => 0.0007, AG, 10);
     // the table under the roller and the roller's two end brackets
     sweep(mb, [polar(r1 + 0.0016, phi, rr - 0.0018), polar(r0 - 0.0016, phi, rr - 0.0018)], outward, () => 0.0016, () => 0.0006, AG, 10);
@@ -686,8 +694,11 @@ export interface WindPose {
   cupV: Float32Array;
   valves: Float32Array;
   valveV: Float32Array;
+  /** the trumpet's 1st and 3rd slides kicked out (0..1) */
+  slide: Float32Array;
+  slideV: Float32Array;
 }
-export const newWindPose = (): WindPose => ({ env: new Float32Array(48), cups: new Float32Array(16).fill(1), cupV: new Float32Array(16), valves: new Float32Array(3), valveV: new Float32Array(3) });
+export const newWindPose = (): WindPose => ({ env: new Float32Array(48), cups: new Float32Array(16).fill(1), cupV: new Float32Array(16), valves: new Float32Array(3), valveV: new Float32Array(3), slide: new Float32Array(3), slideV: new Float32Array(3) });
 
 /** the bore's standing wave, enveloped (nodes dark, antinodes glowing), into the tube-glow overlay
  *  over the first `frac` of the tube (the rest beyond the sounding end stays dark), at `gain` */
@@ -757,11 +768,13 @@ export function poseFlute(b: Batch, fm: FluteModel, fr: VisualFrame | null, pose
 
 // ================================================================ trumpet
 const RT = 0.00635; // tubing: 11.66 mm (0.459″) bore, 12.7 mm outside
-const VX = [-0.025, 0, 0.025]; // the three valves, 1 nearest the player
-const RC = 0.00915; // valve casing, Ø18.3 (a 17 mm piston)
+const VX = [-0.026, 0, 0.026]; // the three valves, 1 nearest the player
+// valve casing Ø19.8: 1.56 × the tubing, as measured on trumpet-side.jpg (a 17 mm piston in a
+// thick two-piece casing)
+const RC = 0.0099;
 const CY = 0.052; // casing half-length (104 mm between the caps)
-const ZL = -0.0165; // the player's left (the camera's side): leadpipe, slides
-const ZB = 0.0165; // the player's right: the bell section
+const ZL = -0.017; // the player's left (the camera's side): leadpipe, slides
+const ZB = 0.017; // the player's right: the bell section
 const XR = -0.15; // the receiver's end
 const XB = 0.33; // the bell rim: 480 mm from the receiver (NMM 9107)
 const MP = 0.066; // the mouthpiece out of the receiver (88 mm long, 22 mm in)
@@ -771,6 +784,8 @@ const LEAD_END = 0.098;
 const CAP_TOP = CY + 0.0104;
 const STEM = 0.017;
 const STROKE = 0.0155;
+/** how far the 1st and 3rd slides kick out (the 3rd's stop nut meets its guide at 18 mm) */
+const SLIDE_TRAVEL = [0.012, 0, 0.017];
 const BOW_C: Vec3 = [-0.103, 0.0055, ZB];
 const BOW_R = 0.0255;
 const BELL0: Vec3 = [-0.103, 0.031, ZB];
@@ -788,7 +803,9 @@ export interface TrumpetModel {
   T: Mat4;
   /** the body, then the mouthpiece */
   statics: Mesh[];
-  slides: { plain: Mesh; glow: Mesh }[];
+  /** each valve's slide: the fixed tubes, and the slide itself (the U and its outer tubes) that the
+   *  player kicks out along `dir` on the notes that need it (the 1st and 3rd) */
+  slides: { plain: Mesh; glow: Mesh; sleeve: Mesh; sleeveGlow: Mesh; dir: Vec3 }[];
   piston: Mesh;
   /** the rolled rim (shimmers with the level) */
   rimBead: Mesh;
@@ -883,14 +900,14 @@ export function buildTrumpetModel(): TrumpetModel {
     mb.with(translate(x, 0, 0), () => {
       revolve(mb, fillet([[RC, -CY - 0.0006], [RC + 0.0009, -CY], [RC + 0.0009, -CY + 0.0058], [RC, -CY + 0.0066], [RC, 0.0115], [RC + 0.0005, 0.012], [RC + 0.0005, 0.0138], [RC, 0.0143], [RC, CY - 0.0076], [RC + 0.001, CY - 0.0068], [RC + 0.001, CY - 0.0004], [RC, CY]], 0.00025, 3), 48, BR);
       // the top cap: a knurled band, a domed top, the felt round the stem
-      revolve(mb, fillet([[RC + 0.0003, CY - 0.0002], [0.0108, CY + 0.0004], [0.0108, CY + 0.0014]], 0.0002, 3), 48, NS);
-      knurl(mb, 0.0114, CY + 0.0014, CY + 0.0072, 64, 0.00028, NS);
-      revolve(mb, fillet([[0.0114, CY + 0.0072], [0.0113, CY + 0.0079], [0.0104, CY + 0.0087], [0.0058, CY + 0.009], [0.0035, CY + 0.009], [0.0035, CY + 0.004]], [0, 0.0003, 0.0006, 0.0006, 0.0002, 0], 3), 48, NS);
+      revolve(mb, fillet([[RC + 0.0003, CY - 0.0002], [RC + 0.0016, CY + 0.0004], [RC + 0.0016, CY + 0.0014]], 0.0002, 3), 48, NS);
+      knurl(mb, RC + 0.0022, CY + 0.0014, CY + 0.0072, 68, 0.00028, NS);
+      revolve(mb, fillet([[RC + 0.0022, CY + 0.0072], [RC + 0.0021, CY + 0.0079], [RC + 0.0012, CY + 0.0087], [0.0058, CY + 0.009], [0.0035, CY + 0.009], [0.0035, CY + 0.004]], [0, 0.0003, 0.0006, 0.0006, 0.0002, 0], 3), 48, NS);
       revolve(mb, fillet([[0.0035, CY + 0.0089], [0.0057, CY + 0.0089], [0.0057, CAP_TOP], [0.0035, CAP_TOP]], 0.0003, 3), 32, M.valveFelt);
       // the bottom cap: knurled, a domed foot with a dimple
-      revolve(mb, fillet([[RC + 0.0003, -CY + 0.0002], [0.0105, -CY - 0.0006], [0.0105, -CY - 0.0018]], 0.0002, 3), 48, NS);
-      knurl(mb, 0.011, -CY - 0.0086, -CY - 0.0018, 64, 0.00028, NS);
-      revolve(mb, fillet([[0, -CY - 0.0114], [0.0018, -CY - 0.0116], [0.004, -CY - 0.0119], [0.009, -CY - 0.0113], [0.0108, -CY - 0.0096], [0.011, -CY - 0.0086]], [0, 0.0005, 0.002, 0.002, 0.0008, 0], 4), 48, NS);
+      revolve(mb, fillet([[RC + 0.0003, -CY + 0.0002], [RC + 0.0013, -CY - 0.0006], [RC + 0.0013, -CY - 0.0018]], 0.0002, 3), 48, NS);
+      knurl(mb, RC + 0.0018, -CY - 0.0086, -CY - 0.0018, 68, 0.00028, NS);
+      revolve(mb, fillet([[0, -CY - 0.0114], [0.0018, -CY - 0.0116], [0.004, -CY - 0.0119], [RC - 0.0002, -CY - 0.0113], [RC + 0.0016, -CY - 0.0096], [RC + 0.0018, -CY - 0.0086]], [0, 0.0005, 0.002, 0.002, 0.0008, 0], 4), 48, NS);
     });
   // the knuckles between the casings, at two heights
   for (let k = 0; k < 2; k++)
@@ -947,46 +964,57 @@ export function buildTrumpetModel(): TrumpetModel {
     ellipsoid(mb, [0.0445, y0 + RT - 0.0004, ZL - 0.0005], [0.0034, 0.0012, 0.0024], 14, BR);
   }
 
-  // ---- the valve slides (plain, and glowing when their valve sends the air through them)
-  interface Slide { legs: Vec3[]; sleeve: Vec3[]; ferrules: Vec3[]; ports: Vec3[]; extra?: (s: MeshBuilder, m: Mat) => void }
+  // ---- the valve slides: fixed tubes from the casing's ports (plain, and glowing when their valve
+  // sends the air through them), and the slide itself, which moves: its U and outer tubes with
+  // ferrules, sliding over nickel-silver inner tubes that show when it is kicked out
+  interface Slide { fixed: Vec3[][]; inner: [Vec3, Vec3][]; sleeve: Vec3[]; ferrules: Vec3[]; ports: Vec3[]; dir: Vec3; onSleeve?: (s: MeshBuilder, m: Mat) => void; onFixed?: (s: MeshBuilder, m: Mat) => void }
   const slideDefs: Slide[] = [];
   {
     // 1st: back towards the player, with the thumb saddle
     const y1 = -0.01;
     const y2 = -0.027;
     const xb = -0.0915;
+    const xs = -0.052;
     slideDefs.push({
-      legs: bend([[VX[0], y1, -0.003], [VX[0], y1, ZL], [xb, y1, ZL], [xb, y2, ZL], [VX[0], y2, ZL], [VX[0], y2, -0.003]], [0.0075, 0.0085, 0.0085, 0.0075], 12),
-      sleeve: bend([[-0.052, y1, ZL], [xb, y1, ZL], [xb, y2, ZL], [-0.052, y2, ZL]], [0.0085, 0.0085], 12),
-      ferrules: [[-0.052, y1, ZL], [-0.052, y2, ZL]],
+      fixed: [y1, y2].map((y) => bend([[VX[0], y, -0.003], [VX[0], y, ZL], [xs, y, ZL]], 0.0075, 12)),
+      inner: [y1, y2].map((y) => [[xs + 0.001, y, ZL], [xs - 0.026, y, ZL]] as [Vec3, Vec3]),
+      sleeve: bend([[xs, y1, ZL], [xb, y1, ZL], [xb, y2, ZL], [xs, y2, ZL]], [0.0085, 0.0085], 12),
+      ferrules: [[xs, y1, ZL], [xs, y2, ZL]],
       ports: [[VX[0], y1, -RC + 0.0004], [VX[0], y2, -RC + 0.0004]],
-      extra: (s, m) => {
+      dir: [-1, 0, 0],
+      onSleeve: (s, m) => {
         const path = spline3([[-0.0786, y1 + 0.026, ZL - 0.0042], [-0.078, y1 + 0.013, ZL - 0.0026], [-0.0752, y1 + 0.0072, ZL - 0.0012], [-0.0668, y1 + RT + 0.0005, ZL], [-0.0584, y1 + 0.0072, ZL - 0.0012], [-0.0556, y1 + 0.013, ZL - 0.0026], [-0.055, y1 + 0.026, ZL - 0.0042]], 7);
         pipe(s, path, 0.0017, m, 12);
         ellipsoid(s, [-0.0668, y1 + RT - 0.0002, ZL], [0.004, 0.0014, 0.0026], 14, m);
       },
     });
-    // 2nd: a short crook, out beyond the first slide
+    // 2nd: a short crook, out beyond the first slide (it does not move in playing)
     const z2 = -0.032;
     const a1 = -0.004;
     const a2 = -0.036;
     const xb2 = -0.034;
     slideDefs.push({
-      legs: bend([[VX[1], a1, -0.003], [VX[1], a1, z2], [xb2, a1, z2], [xb2, a2, z2], [VX[1], a2, z2], [VX[1], a2, -0.003]], [0.01, 0.016, 0.016, 0.01], 14),
+      fixed: [a1, a2].map((y) => bend([[VX[1], y, -0.003], [VX[1], y, z2], [-0.0135, y, z2]], 0.01, 14)),
+      inner: [],
       sleeve: bend([[-0.0135, a1, z2], [xb2, a1, z2], [xb2, a2, z2], [-0.0135, a2, z2]], [0.016, 0.016], 14),
       ferrules: [[-0.0135, a1, z2], [-0.0135, a2, z2]],
       ports: [[VX[1], a1, -RC + 0.0004], [VX[1], a2, -RC + 0.0004]],
+      dir: [0, 0, 0],
     });
-    // 3rd: forward, with the ring
+    // 3rd: forward, with the ring and its stop rod
     const b1 = -0.004;
     const b2 = -0.02;
     const xf = 0.148;
+    const xs3 = 0.059;
+    const zr = ZL - RT - 0.0027;
     slideDefs.push({
-      legs: bend([[VX[2], b1, -0.003], [VX[2], b1, ZL], [xf, b1, ZL], [xf, b2, ZL], [VX[2], b2, ZL], [VX[2], b2, -0.003]], [0.0075, 0.008, 0.008, 0.0075], 12),
-      sleeve: bend([[0.062, b1, ZL], [xf, b1, ZL], [xf, b2, ZL], [0.062, b2, ZL]], [0.008, 0.008], 12),
-      ferrules: [[0.059, b1, ZL], [0.059, b2, ZL]],
+      fixed: [b1, b2].map((y) => bend([[VX[2], y, -0.003], [VX[2], y, ZL], [xs3, y, ZL]], 0.0075, 12)),
+      inner: [b1, b2].map((y) => [[xs3 - 0.001, y, ZL], [xs3 + 0.03, y, ZL]] as [Vec3, Vec3]),
+      sleeve: bend([[xs3, b1, ZL], [xf, b1, ZL], [xf, b2, ZL], [xs3, b2, ZL]], [0.008, 0.008], 12),
+      ferrules: [[xs3, b1, ZL], [xs3, b2, ZL]],
       ports: [[VX[2], b1, -RC + 0.0004], [VX[2], b2, -RC + 0.0004]],
-      extra: (s, m) => {
+      dir: [1, 0, 0],
+      onSleeve: (s, m) => {
         const c: Vec3 = [0.075, 0.0135, ZL - 0.0042];
         const ring = Array.from({ length: 41 }, (_, i) => {
           const a = (i / 40) * TAU;
@@ -995,35 +1023,42 @@ export function buildTrumpetModel(): TrumpetModel {
         pipe(s, ring, 0.0016, m, 12);
         cyl(s, [0.075, b1 + RT - 0.0006, ZL - 0.0004], [0.075, c[1] - 0.0101, c[2] + 0.0028], 0.0017, 0.0015, 12, m);
         ellipsoid(s, [0.075, b1 + RT - 0.0002, ZL], [0.0032, 0.0012, 0.0024], 14, m);
-        // the slide's stop rod beside the upper leg: through a guide on the fixed tube, a knurled
-        // stop nut, clamped to the slide at its end
-        const zr = ZL - RT - 0.0027;
-        cyl(s, [0.034, b1, zr], [0.113, b1, zr], 0.0012, 0.0012, 12, NS);
-        s.with(chain(translate(0.0385, b1, zr), rotZ(-Math.PI / 2)), () => {
+        // the stop rod beside the upper leg, clamped to the slide at its end, with a knurled stop
+        // nut that meets the guide on the fixed tube at full travel
+        cyl(s, [0.018, b1, zr], [0.113, b1, zr], 0.0012, 0.0012, 12, NS);
+        s.with(chain(translate(0.0225, b1, zr), rotZ(-Math.PI / 2)), () => {
           revolve(s, fillet([[0.0012, -0.0003], [0.0028, 0], [0.0028, 0.0005]], 0.0002, 2), 24, NS);
           knurl(s, 0.0031, 0.0005, 0.0048, 28, 0.00022, NS);
           revolve(s, fillet([[0.0028, 0.0048], [0.0028, 0.0053], [0.0012, 0.0056]], 0.0002, 2), 24, NS);
         });
-        for (const xg of [0.049, 0.111]) {
-          ellipsoid(s, [xg, b1, zr], [0.0028, 0.0026, 0.0024], 14, m);
-          cyl(s, [xg, b1, zr + 0.0012], [xg, b1, ZL - RT * 0.6], 0.0016, 0.0019, 12, m);
-        }
+        ellipsoid(s, [0.111, b1, zr], [0.0028, 0.0026, 0.0024], 14, m);
+        cyl(s, [0.111, b1, zr + 0.0012], [0.111, b1, ZL - RT * 0.6], 0.0016, 0.0019, 12, m);
+      },
+      onFixed: (s, m) => {
+        ellipsoid(s, [0.0485, b1, zr], [0.0028, 0.0026, 0.0024], 14, m);
+        cyl(s, [0.0485, b1, zr + 0.0012], [0.0485, b1, ZL - RT * 0.6], 0.0016, 0.0019, 12, m);
       },
     });
   }
   const slides = slideDefs.map((d, k) => {
-    const mk = (glow: boolean) => {
+    const u: [number, number] = [uV[0] + ((uV[1] - uV[0]) * k) / 3, uV[0] + ((uV[1] - uV[0]) * (k + 1)) / 3];
+    const fixedMesh = (glow: boolean) => {
       const s = new MeshBuilder();
       const m = glow ? BRG : BR;
-      const u: [number, number] = [uV[0] + ((uV[1] - uV[0]) * k) / 3, uV[0] + ((uV[1] - uV[0]) * (k + 1)) / 3];
-      pipe(s, d.legs, RT, m, 24, u);
-      pipe(s, d.sleeve, RT + 0.0007, m, 24, u);
-      for (const f of d.ferrules) cyl(s, add(f, [-0.0015, 0, 0]), add(f, [0.0015, 0, 0]), RT + 0.0012, RT + 0.0012, 24, BR);
+      for (const f of d.fixed) pipe(s, f, RT, m, 24, u);
+      for (const [a, b] of d.inner) cyl(s, a, b, RT - 0.0001, RT - 0.0001, 24, NS, false);
       for (const p of d.ports) cyl(s, p, add(p, [0, 0, -0.0035]), RT + 0.0011, RT + 0.0008, 24, BR);
-      d.extra?.(s, BR);
+      d.onFixed?.(s, BR);
       return s.build();
     };
-    return { plain: mk(false), glow: mk(true) };
+    const sleeveMesh = (glow: boolean) => {
+      const s = new MeshBuilder();
+      pipe(s, d.sleeve, RT + 0.0007, glow ? BRG : BR, 24, u);
+      for (const f of d.ferrules) cyl(s, add(f, [-0.0015, 0, 0]), add(f, [0.0015, 0, 0]), RT + 0.0012, RT + 0.0012, 24, BR);
+      d.onSleeve?.(s, BR);
+      return s.build();
+    };
+    return { plain: fixedMesh(false), glow: fixedMesh(true), sleeve: sleeveMesh(false), sleeveGlow: sleeveMesh(true), dir: d.dir };
   });
   // ports where the main slide and the bell tail enter the casings
   cyl(mb, [VX[2] + RC - 0.0004, MS_LOW, -0.002], [VX[2] + RC + 0.0032, MS_LOW, -0.002], RT + 0.0011, RT + 0.0008, 24, BR);
@@ -1062,10 +1097,18 @@ export function poseTrumpet(b: Batch, tm: TrumpetModel, fr: VisualFrame | null, 
   const valves = /valves (\S+)/.exec(meta)?.[1] ?? 'open';
   const down = VALVE_DOWN[valves] ?? VALVE_DOWN.open;
   const lvl = Math.min(1, Math.sqrt(rms) * 3);
+  // the slides players kick out to flatten the sharp combinations: the 3rd for low D and C♯
+  // (1+3, 1+2+3 on the third partial, the engine's count from the pedal), the 1st higher up
+  const partial = Number(/partial (\d+)/.exec(meta)?.[1] ?? 0);
+  const combo = valves === '1+3' ? 0.6 : valves === '1+2+3' ? 1 : 0;
+  const kick = [partial >= 4 ? combo : 0, 0, partial > 0 && partial <= 3 ? combo : 0];
   tm.valveX.forEach((x, k) => {
     const p = springTo(pose.valves, pose.valveV, k, down[k] ? 1 : 0, dt, 22, 0.6);
     b.mesh(tm.piston, chain(T, translate(x, -STROKE * p, 0)), down[k] ? [1, 0.62, 0.34, 0.05] : null);
-    b.mesh(down[k] ? tm.slides[k].glow : tm.slides[k].plain, T);
+    const sl = tm.slides[k];
+    b.mesh(down[k] ? sl.glow : sl.plain, T);
+    const q = springTo(pose.slide, pose.slideV, k, kick[k], dt, 6, 0.9) * SLIDE_TRAVEL[k];
+    b.mesh(down[k] ? sl.sleeveGlow : sl.sleeve, q ? chain(T, translate(sl.dir[0] * q, sl.dir[1] * q, sl.dir[2] * q)) : T);
   });
   // the rim: a faint shimmer with the level
   b.mesh(tm.rimBead, T, lvl > 0.02 ? [1, 0.7, 0.4, 0.1 * lvl * (0.75 + 0.25 * Math.sin(now * 0.021))] : null);

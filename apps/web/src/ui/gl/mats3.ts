@@ -84,10 +84,10 @@ const P: Record<string, Phys> = {
   floor: { color: '#13110e', roughness: 0.7 },
   // winds3d: polished sterling silver and nickel silver read in a dark studio through their
   // reflections, so the environment counts for more (a product shot's big white cards); the lacquer
-  // is a clear coat over yellow brass whose own polish varies a little (fingerprints, buffing)
+  // is a clear coat over polished yellow brass (no texture: a polished part shows no grain)
   silverPolish: { color: '#f3f3f1', metalness: 1, roughness: 0.15, envMapIntensity: 2.2, tex: 8, axis: [0, 1, 0] },
   boreDark: { color: '#2e2e2c', metalness: 1, roughness: 0.4, envMapIntensity: 0.35 },
-  brassLacquer: { color: '#f5d68c', metalness: 1, roughness: 0.13, clearcoat: 1, clearcoatRoughness: 0.025, envMapIntensity: 2.3, tex: 8, axis: [1, 0, 0] },
+  brassLacquer: { color: '#f6d382', metalness: 1, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 2.3 },
   nickelSilver: { color: '#e4e2db', metalness: 1, roughness: 0.14, envMapIntensity: 2, tex: 8, axis: [0, 1, 0] },
   valveFelt: { color: '#4d1c15', roughness: 1, sheen: 0.8, sheenColor: '#a0584a', sheenRoughness: 0.6, tex: 6 },
   cork: { color: '#a98458', roughness: 0.92, tex: 6 },

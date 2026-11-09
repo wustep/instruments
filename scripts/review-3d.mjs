@@ -71,7 +71,7 @@ const R = {
     side: { yaw: 1.5708, pitch: 0.05, dist: 0.66, target: [0, 0.2, 0] },
     close: { yaw: 0.5, pitch: 0.35, dist: 0.3, target: [-0.04, 0.205, 0.0] },
     detail: { yaw: 0.3, pitch: 0.55, dist: 0.2, target: [-0.057, 0.25, 0.0] },
-    act: { view: { yaw: -0.35, pitch: 0.3, dist: 0.36, target: [-0.03, 0.2, 0.0] }, notes: [61], wait: 1000 },
+    act: { view: { yaw: -0.35, pitch: 0.3, dist: 0.36, target: [-0.03, 0.2, 0.0] }, notes: [60], wait: 1000 },
   },
 };
 
