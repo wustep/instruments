@@ -537,11 +537,13 @@ function spring01(pos: Float32Array, vel: Float32Array, i: number, target: numbe
 
 // ---------------------------------------------------------------- flute
 export interface FluteState {
+  /** (the stage's state object keeps these; the wave now has its own reference, `waveRef`) */
   pScale: AutoScale;
   jetScale: AutoScale;
-  /** (kept for the stage's state object; unused) */
   env: Float32Array;
   wave?: BoreWave;
+  /** the wave's reference level: the loudest of the last few seconds, so a note dying away fades */
+  waveRef?: AutoScale;
   /** each key's spring: 1 open, 0 seated */
   keys?: { pos: Float32Array; vel: Float32Array; t: number; quiet: number };
 }
@@ -663,6 +665,8 @@ interface FluteLayout {
   x0: number;
   c: number;
   tube: Path2D;
+  /** the tube's upper (lit) edge alone */
+  rim: Path2D;
   seams: Path2D;
   plate: Path2D;
   hole: Path2D;
@@ -686,6 +690,8 @@ function fluteLayout(Lw: number, Cw: number, vertical: boolean): FluteLayout {
   FL_PROFILE.forEach(([x, r], i) => (i ? tube.lineTo(X(x), Y(-r)) : tube.moveTo(X(x), Y(-r))));
   for (let i = FL_PROFILE.length - 1; i >= 0; i--) tube.lineTo(X(FL_PROFILE[i][0]), Y(FL_PROFILE[i][1]));
   tube.closePath();
+  const rim = new Path2D();
+  FL_PROFILE.forEach(([x, r], i) => (i ? rim.lineTo(X(x), Y(-r)) : rim.moveTo(X(x), Y(-r))));
   const seams = new Path2D();
   for (const x of FL_SEAMS) {
     let r = FL_RB;
@@ -747,7 +753,7 @@ function fluteLayout(Lw: number, Cw: number, vertical: boolean): FluteLayout {
     rollers.lineTo(X(bx - 0.006), Y(v));
     rollers.lineTo(X(r1 + 0.0012), Y(v));
   }
-  flLayout = { key, sc, x0, c, tube, seams, plate, hole, rods, hinges, posts, touches, rollers };
+  flLayout = { key, sc, x0, c, tube, rim, seams, plate, hole, rods, hinges, posts, touches, rollers };
   return flLayout;
 }
 
@@ -815,13 +821,16 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
   ctx.strokeStyle = silver(0.18);
   ctx.lineWidth = 1;
   ctx.stroke(L.seams);
-  ctx.strokeStyle = silver(0.55);
+  ctx.strokeStyle = silver(0.45);
   ctx.lineWidth = 1.1;
   ctx.stroke(L.tube);
+  // the lit edge: polished silver catches the light along the tube's upper side
+  ctx.strokeStyle = silver(0.75);
+  ctx.stroke(L.rim);
   // ---- the bore's standing wave, inside the tube: compression warm, rarefaction cool, nodes dark
   const w = (st.wave ??= newBoreWave());
   const peak = trackBoreWave(w, focus?.shapes[0] ?? null);
-  const scale = st.pScale.of(peak);
+  const scale = (st.waveRef ??= new AutoScale(1e-6, 0.997)).of(peak);
   const ph = Math.cos(slowPhase(focus?.f1 ?? 440, now));
   const lvl = Math.min(1, peak / scale);
   if (focus && Leff > 0 && lvl > 0.02) {
@@ -880,25 +889,22 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
   ctx.strokeStyle = silver(0.45);
   ctx.stroke(L.touches);
   ctx.stroke(L.rollers);
-  // ---- the keys (cups and arms), seated or open
-  FL_KEYS.forEach((k, i) => {
-    const cphi = Math.cos(k.phi * D2R);
-    if (cphi < 0) return;
-    const cx = X(k.x);
-    const cy = Y(FL_YC * Math.sin(k.phi * D2R));
-    const ry = k.r * sc * cphi;
-    const rod = k.foot ? FL_FOOT_V : FL_ROD_V;
-    // the arm from the hinge tube to the cup (a French pointed arm runs on over the cup to its hole)
-    const toward = Math.sign(Y(rod) - cy) || 1;
-    const tip = k.style === 'open' ? 0.0053 : k.style === 'plain' || k.style === 'crown' ? 0.0011 : k.r * 0.85;
+  // ---- the keys, seated or open: each cup on its arm's neck from the hinge tube (a French cup's
+  // pointed arm runs on over the cup to its hole)
+  const seen = FL_KEYS.map((k, i) => ({ k, i, cphi: Math.cos(k.phi * D2R) })).filter((q) => q.cphi >= 0);
+  const cupAt = (k: FlKey, cphi: number) => ({ cx: X(k.x), cy: Y(FL_YC * Math.sin(k.phi * D2R)), ry: k.r * sc * cphi, rod: Y(k.foot ? FL_FOOT_V : FL_ROD_V) });
+  for (const { k, cphi } of seen) {
+    const { cx, cy, ry, rod } = cupAt(k, cphi);
+    flNeck(ctx, cx, cy + Math.sign(rod - cy) * ry * 0.82, rod, k.r * sc * 0.36, 0.0017 * sc);
+    if (k.note === 73) flNeck(ctx, X(0.338), Y(0.0083 * 0.82), rod, 0.0083 * sc * 0.36, 0.0017 * sc);
+  }
+  for (const { k, i, cphi } of seen) {
+    const { cx, cy, ry, rod } = cupAt(k, cphi);
     drawFlCup(ctx, cx, cy, k.r * sc, ry, k.style, keyPos[i]);
-    flArm(ctx, cx, Y(rod), cy + toward * tip * sc * cphi, 0.002 * sc);
     // the first finger's cup on the C♯ key's lever (one piece with it)
-    if (k.note === 73) {
-      drawFlCup(ctx, X(0.338), Y(0), 0.0083 * sc, 0.0083 * sc, 'dome', keyPos[i]);
-      flArm(ctx, X(0.338), Y(FL_ROD_V), Y(0.0083 * 0.85), 0.0021 * sc);
-    }
-  });
+    if (k.note === 73) drawFlCup(ctx, X(0.338), Y(0), 0.0083 * sc, 0.0083 * sc, 'dome', keyPos[i]);
+    if (k.style === 'open') flArm(ctx, cx, cy + Math.sign(rod - cy) * ry * 0.98, cy + Math.sign(rod - cy) * 0.0045 * sc * cphi, 0.0016 * sc);
+  }
   ctx.fillStyle = '#24221f';
   ctx.fill(L.posts);
   ctx.strokeStyle = silver(0.55);
@@ -1009,6 +1015,21 @@ function drawFlCup(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: nu
     ctx.stroke();
   }
 }
+/** a key's neck: from the cup's edge (at y0, half-width w0) narrowing to its hinge tube (y1, w1) */
+function flNeck(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number, w0: number, w1: number): void {
+  const m = (y0 + y1) / 2;
+  ctx.beginPath();
+  ctx.moveTo(x - w0, y0);
+  ctx.bezierCurveTo(x - w0 * 0.55, m, x - w1, m, x - w1, y1);
+  ctx.lineTo(x + w1, y1);
+  ctx.bezierCurveTo(x + w1, m, x + w0 * 0.55, m, x + w0, y0);
+  ctx.closePath();
+  ctx.fillStyle = '#262421';
+  ctx.fill();
+  ctx.strokeStyle = rgba(INK.ivory, 0.42);
+  ctx.lineWidth = 0.9;
+  ctx.stroke();
+}
 /** a key's arm: from its hinge tube (at y0) to its tip on the cup (y1), tapering */
 function flArm(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number, hw: number): void {
   ctx.beginPath();
@@ -1086,14 +1107,16 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
 
 // ---------------------------------------------------------------- trumpet
 export interface TrumpetState {
+  /** (the stage's state object keeps these; the wave now has its own reference, `waveRef`) */
   pScale: AutoScale;
-  /** (kept for the stage's state object; unused) */
   env: Float32Array;
   /** where the sound leaves (the bell's mouth), set while drawing */
   src?: { x: number; y: number };
   wave?: BoreWave;
+  /** the wave's reference level: the loudest of the last few seconds, so a note dying away fades */
+  waveRef?: AutoScale;
   /** pistons (0 up, 1 down) and the 1st and 3rd slides kicked out (0..1), each on a spring */
-  mech?: { valves: Float32Array; valveV: Float32Array; slide: Float32Array; slideV: Float32Array; t: number };
+  mech?: { valves: Float32Array; valveV: Float32Array; slide: Float32Array; slideV: Float32Array; t: number; quiet: number };
 }
 export const VALVE_DOWN: Record<string, [boolean, boolean, boolean]> = {
   open: [false, false, false],
@@ -1357,6 +1380,8 @@ interface TrLayout {
   S: number;
   ox: number;
   oy: number;
+  /** the paths that only change with the canvas's size, built once */
+  memo: Map<string, unknown>;
 }
 let trLayout: TrLayout | null = null;
 /** the fit: the instrument's projected extent (mouthpiece rim to bell rim, bottom caps to buttons) */
@@ -1382,8 +1407,8 @@ function trumpetLayout(W: number, H: number): TrLayout {
   const portrait = H > W * 1.05;
   const S = Math.min(((portrait ? 0.9 : 0.84) * W) / (b.x1 - b.x0), ((portrait ? 0.5 : 0.62) * H) / (b.y1 - b.y0));
   const ox = W / 2 - ((b.x0 + b.x1) / 2) * S;
-  const oy = H * (portrait ? 0.46 : 0.47) - ((b.y0 + b.y1) / 2) * S;
-  trLayout = { key, S, ox, oy };
+  const oy = H * (portrait ? 0.38 : 0.47) - ((b.y0 + b.y1) / 2) * S;
+  trLayout = { key, S, ox, oy, memo: new Map() };
   return trLayout;
 }
 const BRASS_BODY = '#22180f';
@@ -1399,26 +1424,41 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
   const L = trumpetLayout(W, H);
   const { S } = L;
   const P = (q: [number, number]): [number, number] => [L.ox + q[0] * S, L.oy + q[1] * S];
+  const memo = <T,>(k: string, f: () => T): T => {
+    let v = L.memo.get(k) as T | undefined;
+    if (v === undefined) L.memo.set(k, (v = f()));
+    return v;
+  };
+  /** a 3D offset (a slide kicked out, a piston down) on the screen */
+  const shift = (o: V3): [number, number] => {
+    const q = trProj(o);
+    return [q[0] * S, q[1] * S];
+  };
   const now = performance.now();
   const meta = fr?.excite?.meta ?? '';
   const valves = /valves (\S+)/.exec(meta)?.[1] ?? 'open';
   const down = VALVE_DOWN[valves] ?? VALVE_DOWN.open;
   const focus = fr?.focus ?? null;
   // ---- the mechanism's springs (the 3D model's: pistons 22 Hz, slides 6 Hz)
-  const mc = (st.mech ??= { valves: new Float32Array(3), valveV: new Float32Array(3), slide: new Float32Array(3), slideV: new Float32Array(3), t: now });
-  const dt = Math.min(0.1, Math.max(0, (now - mc.t) / 1000));
-  mc.t = now;
-  const partial = Number(/partial (\d+)/.exec(meta)?.[1] ?? 0);
-  const combo = valves === '1+3' ? 0.6 : valves === '1+2+3' ? 1 : 0;
-  const kickTo = [partial >= 4 ? combo : 0, 0, partial > 0 && partial <= 3 ? combo : 0];
-  const press = [0, 1, 2].map((k) => spring01(mc.valves, mc.valveV, k, down[k] ? 1 : 0, dt, 22, 0.6));
-  const kick = [0, 1, 2].map((k) => spring01(mc.slide, mc.slideV, k, kickTo[k], dt, 6, 0.9) * TR_SLIDE_TRAVEL[k]);
-  const slideOff = (k: number): V3 => [TR_SLIDES[k].dir[0] * kick[k], 0, 0];
   // ---- the standing wave along the air's path
   const w = (st.wave ??= newBoreWave());
   const peak = trackBoreWave(w, focus?.shapes[0] ?? null);
-  const scale = st.pScale.of(peak);
+  const scale = (st.waveRef ??= new AutoScale(1e-6, 0.997)).of(peak);
   const lvl = Math.min(1, peak / scale);
+  // ---- the mechanism's springs (the 3D model's: pistons 22 Hz, slides 6 Hz); the fingers stay down
+  // while the trumpet sounds and a moment after, then lift
+  const mc = (st.mech ??= { valves: new Float32Array(3), valveV: new Float32Array(3), slide: new Float32Array(3), slideV: new Float32Array(3), t: now, quiet: 10 });
+  const dt = Math.min(0.1, Math.max(0, (now - mc.t) / 1000));
+  mc.t = now;
+  mc.quiet = lvl > 0.04 ? 0 : mc.quiet + dt;
+  const held = mc.quiet < 0.8;
+  const pressed = held ? down : VALVE_DOWN.open;
+  const partial = Number(/partial (\d+)/.exec(meta)?.[1] ?? 0);
+  const combo = !held ? 0 : valves === '1+3' ? 0.6 : valves === '1+2+3' ? 1 : 0;
+  const kickTo = [partial >= 4 ? combo : 0, 0, partial > 0 && partial <= 3 ? combo : 0];
+  const press = [0, 1, 2].map((k) => spring01(mc.valves, mc.valveV, k, pressed[k] ? 1 : 0, dt, 22, 0.6));
+  const kick = [0, 1, 2].map((k) => spring01(mc.slide, mc.slideV, k, kickTo[k], dt, 6, 0.9) * TR_SLIDE_TRAVEL[k]);
+  const slideOff = (k: number): V3 => [TR_SLIDES[k].dir[0] * kick[k], 0, 0];
   const ph = Math.cos(slowPhase(focus?.f1 ?? 392, now));
   const { runs, runLen, total } = trAir(valves, down);
   // the pressure at s along the path (m from the lips): the engine's wave, and in the bell's flare the
@@ -1433,61 +1473,103 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   const D = 2 * TR_RT * S;
-  const tubes = (polys: [number, number][][], d = D, edge = rgba(INK.amber, 0.7), body = BRASS_BODY) => {
-    const p = new Path2D();
-    for (const pl of polys) pl.forEach((q, i) => (i ? p.lineTo(...P(q)) : p.moveTo(...P(q))));
+  /** tubes along 3D polylines: an edge, the body, a lacquer highlight on the side towards the light
+   *  (above, a little behind); their paths are kept per canvas size under `key` */
+  const tubes = (key: string, polys: () => V3[][], d = D, edge = rgba(INK.amber, 0.7), body = BRASS_BODY, off?: V3) => {
+    const { p, hp } = memo(`tube:${key}`, () => {
+      const p = new Path2D();
+      const hp = new Path2D();
+      for (const pl3 of polys()) {
+        const pl = trPoly(pl3).map(P);
+        pl.forEach((q, i) => (i ? p.lineTo(...q) : p.moveTo(...q)));
+        pl.forEach(([x, y], i) => {
+          const a = pl[Math.max(0, i - 1)];
+          const b = pl[Math.min(pl.length - 1, i + 1)];
+          const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+          const nx = -(b[1] - a[1]) / l;
+          const ny = (b[0] - a[0]) / l;
+          const o = 0.26 * d * (nx * -0.3 + ny * -0.95);
+          if (i) hp.lineTo(x + nx * o, y + ny * o);
+          else hp.moveTo(x + nx * o, y + ny * o);
+        });
+      }
+      return { p, hp };
+    });
+    const o = off ? shift(off) : null;
+    if (o) {
+      ctx.save();
+      ctx.translate(o[0], o[1]);
+    }
     ctx.strokeStyle = edge;
     ctx.lineWidth = d + 2.2;
     ctx.stroke(p);
     ctx.strokeStyle = body;
     ctx.lineWidth = d;
     ctx.stroke(p);
-    // a lacquer highlight along the side towards the light (above, a little behind)
-    const hp = new Path2D();
-    for (const pl of polys)
-      pl.forEach((q, i) => {
-        const a = pl[Math.max(0, i - 1)];
-        const b = pl[Math.min(pl.length - 1, i + 1)];
-        const tx = b[0] - a[0];
-        const ty = b[1] - a[1];
-        const l = Math.hypot(tx, ty) || 1;
-        const nx = -ty / l;
-        const ny = tx / l;
-        const k = nx * -0.3 + ny * -0.95; // the light, up and to the left
-        const [x, y] = P(q);
-        const o = 0.26 * d * k;
-        if (i) hp.lineTo(x + nx * o, y + ny * o);
-        else hp.moveTo(x + nx * o, y + ny * o);
-      });
     ctx.strokeStyle = rgba(INK.amber, 0.26);
     ctx.lineWidth = Math.max(1, 0.16 * d);
     ctx.stroke(hp);
+    if (o) ctx.restore();
+  };
+  // a ferrule: the sleeve soldered over a joint, a short band a little proud of the tube
+  const ferrule = (p: V3, off: V3 = [0, 0, 0], r = TR_RT) => {
+    const a = P(trProj(v3add(p, off)));
+    const b = P(trProj(v3add(p, v3add(off, [0.01, 0, 0]))));
+    const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    const ux = (b[0] - a[0]) / l;
+    const uy = (b[1] - a[1]) / l;
+    const h = 0.0016 * S;
+    const w = (r + 0.0011) * S;
+    ctx.beginPath();
+    ctx.moveTo(a[0] - ux * h + uy * w, a[1] - uy * h - ux * w);
+    ctx.lineTo(a[0] + ux * h + uy * w, a[1] + uy * h - ux * w);
+    ctx.lineTo(a[0] + ux * h - uy * w, a[1] + uy * h + ux * w);
+    ctx.lineTo(a[0] - ux * h - uy * w, a[1] - uy * h + ux * w);
+    ctx.closePath();
+    ctx.fillStyle = BRASS_BODY;
+    ctx.fill();
+    ctx.fillStyle = rgba(INK.amber, 0.16);
+    ctx.fill();
+    ctx.strokeStyle = rgba(INK.amber, 0.7);
+    ctx.lineWidth = 1;
+    ctx.stroke();
   };
   // the air's glow inside the tubes of group g: the path faintly, then the wave's lobes by strength
   const glow = (g: number) => {
     if (!focus || lvl < 0.02) return;
-    let s0 = 0;
+    // the runs on the screen, with each point's distance from the lips (kept per fingering)
+    const proj = memo(`air:${valves}`, () => {
+      let s0 = 0;
+      return runs.map((r, ri) => {
+        const xy = new Float32Array(2 * r.pts.length);
+        const sm = new Float32Array(r.pts.length);
+        let s = s0;
+        r.pts.forEach((p3, i) => {
+          if (i) s += v3len(r.pts[i - 1], p3);
+          const q = P(trProj(p3));
+          xy[2 * i] = q[0];
+          xy[2 * i + 1] = q[1];
+          sm[i] = s;
+        });
+        s0 += runLen[ri];
+        return { xy, sm };
+      });
+    });
     const base = new Path2D();
     const buckets = new Map<number, Path2D>();
     const envB = new Map<number, Path2D>();
     runs.forEach((r, ri) => {
-      const l = runLen[ri];
-      if (r.group !== g || r.hidden || g === 0 && ri === runs.length - 1) {
-        s0 += l;
-        return;
-      }
-      const off = r.slide !== undefined ? slideOff(r.slide) : ([0, 0, 0] as V3);
-      let s = s0;
+      if (r.group !== g || r.hidden || (g === 0 && ri === runs.length - 1)) return;
+      const { xy, sm } = proj[ri];
+      const o = r.slide !== undefined ? shift(slideOff(r.slide)) : [0, 0];
       let last = -1;
       let lastE = -1;
-      let prev = P(trProj(v3add(r.pts[0], off)));
+      let prev: [number, number] = [xy[0] + o[0], xy[1] + o[1]];
       base.moveTo(...prev);
-      for (let i = 1; i < r.pts.length; i++) {
-        const sl = v3len(r.pts[i - 1], r.pts[i]);
-        const A = ampAt(s + sl / 2);
+      for (let i = 1; i < sm.length; i++) {
+        const A = ampAt((sm[i - 1] + sm[i]) / 2);
         const v = A * ph;
-        s += sl;
-        const q = P(trProj(v3add(r.pts[i], off)));
+        const q: [number, number] = [xy[2 * i] + o[0], xy[2 * i + 1] + o[1]];
         base.lineTo(...q);
         const e = Math.round(Math.min(10, 10 * Math.pow(Math.abs(A), 1.5)));
         if (e) {
@@ -1508,7 +1590,6 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
         last = key;
         prev = q;
       }
-      s0 += l;
     });
     ctx.lineCap = 'butt';
     ctx.strokeStyle = rgba(INK.amber, 0.06 + 0.05 * lvl);
@@ -1520,40 +1601,50 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     }
     ctx.lineWidth = 0.32 * D;
     for (const [key, bp] of buckets) {
-      ctx.strokeStyle = rgba(key > 0 ? INK.vermilion : INK.steel, (Math.abs(key) / 10) * 0.5);
+      ctx.strokeStyle = rgba(key > 0 ? INK.vermilion : INK.steel, (Math.abs(key) / 10) * 0.44);
       ctx.stroke(bp);
     }
     ctx.lineCap = 'round';
   };
 
   // ---- group 0: the bell section (tail, bow, the bell pipe flaring to the rim), farthest
-  tubes([trPoly(TR_TAIL), trPoly(TR_BOW)]);
-  const bellPts = Array.from({ length: 61 }, (_, i) => {
-    const t = Math.pow(i / 60, 0.6);
-    const p = v3lerp(TR_BELL0, TR_BELL_END, t);
-    return { p, r: trBellR(TR_BELL_LEN * (1 - t)), t };
-  });
+  tubes('bellTail', () => [TR_TAIL, TR_BOW]);
   {
-    const ax = trPoly([TR_BELL0, TR_BELL_END]);
-    const dx = ax[1][0] - ax[0][0];
-    const dy = ax[1][1] - ax[0][1];
-    const l = Math.hypot(dx, dy);
-    const nx = -dy / l;
-    const ny = dx / l;
-    const side = (sg: number) => bellPts.map(({ p, r }) => {
-      const q = P(trProj(p));
-      return [q[0] + sg * nx * r * S, q[1] + sg * ny * r * S] as [number, number];
+    // the bell's outline (its flare about the projected axis), the band inside it that carries the
+    // wave, the mouth: built once per canvas size
+    const B = memo('bell', () => {
+      const pts = Array.from({ length: 61 }, (_, i) => {
+        const t = Math.pow(i / 60, 0.6);
+        return { q: P(trProj(v3lerp(TR_BELL0, TR_BELL_END, t))), r: trBellR(TR_BELL_LEN * (1 - t)) * S };
+      });
+      const ax = trPoly([TR_BELL0, TR_BELL_END]);
+      const l = Math.hypot(ax[1][0] - ax[0][0], ax[1][1] - ax[0][1]);
+      const nx = -(ax[1][1] - ax[0][1]) / l;
+      const ny = (ax[1][0] - ax[0][0]) / l;
+      const band = (k: number) => {
+        const b = new Path2D();
+        pts.forEach(({ q, r }, i) => (i ? b.lineTo(q[0] - nx * r * k, q[1] - ny * r * k) : b.moveTo(q[0] - nx * r * k, q[1] - ny * r * k)));
+        for (let i = pts.length - 1; i >= 0; i--) b.lineTo(pts[i].q[0] + nx * pts[i].r * k, pts[i].q[1] + ny * pts[i].r * k);
+        b.closePath();
+        return b;
+      };
+      const edges = new Path2D();
+      for (const sg of [-1, 1]) pts.forEach(({ q, r }, i) => (i ? edges.lineTo(q[0] + sg * nx * r, q[1] + sg * ny * r) : edges.moveTo(q[0] + sg * nx * r, q[1] + sg * ny * r)));
+      const mouth = new Path2D();
+      for (let i = 0; i <= 64; i++) {
+        const t = (i / 64) * 2 * Math.PI;
+        const q = P(trProj([TR_XB, TR_BELL_END[1] + TR_RIM * Math.cos(t), TR_ZB + TR_RIM * Math.sin(t)]));
+        if (i) mouth.lineTo(...q);
+        else mouth.moveTo(...q);
+      }
+      mouth.closePath();
+      return { bell: band(1), inner: band(0.3), edges, mouth, nx, ny, e0: P(trProj(TR_BELL0)), e1: P(trProj(TR_BELL_END)), c: P(trProj([TR_XB, TR_BELL_END[1], TR_ZB])) };
     });
-    const up = side(-1);
-    const lo = side(1);
-    const bell = new Path2D();
-    up.forEach((q, i) => (i ? bell.lineTo(...q) : bell.moveTo(...q)));
-    for (let i = lo.length - 1; i >= 0; i--) bell.lineTo(...lo[i]);
-    bell.closePath();
+    const { bell, nx, ny } = B;
     ctx.fillStyle = BRASS_BODY;
     ctx.fill(bell);
     // burnished lacquer: brighter along the upper flank
-    const a0 = P(trProj(TR_BELL0));
+    const a0 = B.e0;
     const g = ctx.createLinearGradient(a0[0] + nx * -0.06 * S, a0[1] + ny * -0.06 * S, a0[0] + nx * 0.06 * S, a0[1] + ny * 0.06 * S);
     g.addColorStop(0, rgba(INK.amber, 0.04));
     g.addColorStop(0.3, rgba(INK.amber, 0.22));
@@ -1564,15 +1655,11 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     ctx.fill(bell);
     ctx.strokeStyle = rgba(INK.amber, 0.7);
     ctx.lineWidth = 1.1;
-    const edges = new Path2D();
-    up.forEach((q, i) => (i ? edges.lineTo(...q) : edges.moveTo(...q)));
-    lo.forEach((q, i) => (i ? edges.lineTo(...q) : edges.moveTo(...q)));
-    ctx.stroke(edges);
+    ctx.stroke(B.edges);
     // the wave inside the bell: a gradient along its axis, as wide as the flare lets it be
     if (focus && lvl > 0.02) {
       const sBell = total - runLen[runs.length - 1];
-      const e0 = P(trProj(TR_BELL0));
-      const e1 = P(trProj(TR_BELL_END));
+      const { e0, e1, inner } = B;
       const gw = ctx.createLinearGradient(e0[0], e0[1], e1[0], e1[1]);
       const ge = ctx.createLinearGradient(e0[0], e0[1], e1[0], e1[1]);
       for (let i = 0; i <= 24; i++) {
@@ -1580,18 +1667,6 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
         const A = ampAt(sBell + u * TR_BELL_LEN);
         ge.addColorStop(u, rgba(INK.vermilion, 0.24 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
         gw.addColorStop(u, rgba(waveInk(A * ph), 0.5 * Math.min(1, Math.pow(Math.abs(A * ph), 1.2))));
-      }
-      const inner = new Path2D();
-      const k = 0.3;
-      bellPts.forEach(({ p, r }, i) => {
-        const q = P(trProj(p));
-        if (i) inner.lineTo(q[0] - nx * r * S * k, q[1] - ny * r * S * k);
-        else inner.moveTo(q[0] - nx * r * S * k, q[1] - ny * r * S * k);
-      });
-      for (let i = bellPts.length - 1; i >= 0; i--) {
-        const q = P(trProj(bellPts[i].p));
-        const r = bellPts[i].r;
-        inner.lineTo(q[0] + nx * r * S * k, q[1] + ny * r * S * k);
       }
       ctx.fillStyle = rgba(INK.amber, 0.05 + 0.04 * lvl);
       ctx.fill(inner);
@@ -1601,15 +1676,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
       ctx.fill(inner);
     }
     // the rim: the bell's mouth as an ellipse, its rolled bead, the dark throat inside
-    const rimPts: [number, number][] = [];
-    for (let i = 0; i <= 64; i++) {
-      const t = (i / 64) * 2 * Math.PI;
-      rimPts.push(P(trProj([TR_XB, TR_BELL_END[1] + TR_RIM * Math.cos(t), TR_ZB + TR_RIM * Math.sin(t)])));
-    }
-    const mouth = new Path2D();
-    rimPts.forEach((q, i) => (i ? mouth.lineTo(...q) : mouth.moveTo(...q)));
-    mouth.closePath();
-    const c = P(trProj([TR_XB, TR_BELL_END[1], TR_ZB]));
+    const { mouth, c } = B;
     const tg = ctx.createRadialGradient(c[0] - 0.01 * S, c[1], 0, c[0], c[1], TR_RIM * S);
     tg.addColorStop(0, BRASS_DEEP);
     tg.addColorStop(0.55, '#1e150c');
@@ -1622,16 +1689,20 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     st.src = { x: c[0] + 0.012 * S, y: c[1] };
   }
   glow(0);
+  ferrule([TR_BOW_C[0] + 0.001, -0.02, TR_ZB], [0, 0, 0], 0.0065);
+  ferrule([TR_BELL0[0] + 0.0012, TR_BELL0[1], TR_ZB], [0, 0, 0], 0.0068);
   // ---- group 1: the valve casings, their caps, the pistons
   TR_VX.forEach((x, k) => {
-    const ring = (y: number, r: number) => {
-      const pts: [number, number][] = [];
-      for (let i = 0; i <= 40; i++) {
-        const t = (i / 40) * 2 * Math.PI;
-        pts.push(P(trProj([x + r * Math.cos(t), y, r * Math.sin(t)])));
-      }
-      return pts;
-    };
+    // a horizontal circle round the casing's axis, on the screen (kept per canvas size)
+    const ring = (y: number, r: number) =>
+      memo(`ring:${k}:${y}:${r}`, () => {
+        const pts: [number, number][] = [];
+        for (let i = 0; i <= 40; i++) {
+          const t = (i / 40) * 2 * Math.PI;
+          pts.push(P(trProj([x + r * Math.cos(t), y, r * Math.sin(t)])));
+        }
+        return pts;
+      });
     const cyl = (y0: number, y1: number, r: number, fill: string, edge: string, top = true) => {
       const a = ring(y0, r);
       const b = ring(y1, r);
@@ -1690,9 +1761,11 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
       ctx.stroke();
     }
     // the piston: stem and button (pearl in a polished bezel), down by the stroke when pressed
-    const yb = TR_CAP_TOP + TR_STEM - TR_STROKE * press[k];
+    const yb = TR_CAP_TOP + TR_STEM;
+    const [, dy] = shift([0, -TR_STROKE * press[k], 0]);
     const s0 = P(trProj([x, TR_CY + 0.006, 0]));
     const s1 = P(trProj([x, yb, 0]));
+    s1[1] += dy;
     ctx.strokeStyle = rgba(INK.ivory, 0.55);
     ctx.lineWidth = Math.max(1.5, 0.005 * S);
     ctx.lineCap = 'butt';
@@ -1704,33 +1777,47 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     ctx.lineWidth = Math.max(0.5, 0.005 * S - 2);
     ctx.stroke();
     ctx.lineCap = 'round';
+    ctx.save();
+    ctx.translate(0, dy);
     cyl(yb, yb + 0.0045, 0.0084, '#1c1a17', nickel);
-    const pearl: [number, number][] = [];
-    for (let i = 0; i <= 32; i++) {
-      const t = (i / 32) * 2 * Math.PI;
-      pearl.push(P(trProj([x + 0.0053 * Math.cos(t), yb + 0.0045, 0.0053 * Math.sin(t)])));
-    }
     ctx.beginPath();
-    pearl.forEach((q, i) => (i ? ctx.lineTo(...q) : ctx.moveTo(...q)));
+    ring(yb + 0.0045, 0.0053).forEach((q, i) => (i ? ctx.lineTo(...q) : ctx.moveTo(...q)));
     ctx.closePath();
-    ctx.fillStyle = down[k] ? rgba(INK.amber, 0.75) : rgba(INK.ivory, 0.32);
+    ctx.fillStyle = pressed[k] ? rgba(INK.amber, 0.75) : rgba(INK.ivory, 0.32);
     ctx.fill();
+    ctx.restore();
   });
   // ---- group 2: the main tuning slide, the third slide (inside its loop), the first slide
   const slideTubes = (k: number) => {
     const sl = TR_SLIDES[k];
-    const on = down[k];
-    tubes([trPoly(sl.out), trPoly(sl.back)], D, rgba(INK.amber, on ? 0.8 : 0.5));
+    const on = pressed[k];
+    tubes(`fixed${k}`, () => [sl.out, sl.back], D, rgba(INK.amber, on ? 0.78 : 0.48), on ? BRASS_BODY : BRASS_DEEP);
     // kicked out, the slide shows its nickel-silver inner tubes between the fixed tubes and its sleeve
     if (kick[k] > 0.0005) {
       const ends = [sl.out[sl.out.length - 1], sl.back[0]];
-      tubes(ends.map((e) => trPoly([e, v3add(e, [sl.dir[0] * (kick[k] + 0.003), 0, 0])])), D * 0.9, rgba(INK.ivory, 0.55), '#1c1a17');
+      ctx.save();
+      const [ox, oy] = shift([sl.dir[0] * (kick[k] + 0.003), 0, 0]);
+      // the inner tubes: from the fixed tube's end out to the sleeve, stretched with the kick
+      ctx.lineCap = 'butt';
+      for (const [wd, col] of [[D * 0.9 + 2, rgba(INK.ivory, 0.55)], [D * 0.9, '#1c1a17']] as const) {
+        ctx.strokeStyle = col;
+        ctx.lineWidth = wd;
+        ctx.beginPath();
+        for (const e of ends) {
+          const a = P(trProj(e));
+          ctx.moveTo(...a);
+          ctx.lineTo(a[0] + ox, a[1] + oy);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
     }
-    tubes([trPoly(sl.sleeve, slideOff(k))], D, rgba(INK.amber, on ? 0.8 : 0.5));
+    tubes(`sleeve${k}`, () => [sl.sleeve], D, rgba(INK.amber, on ? 0.78 : 0.48), on ? BRASS_BODY : BRASS_DEEP, slideOff(k));
   };
-  tubes([trPoly(TR_MAIN)]);
+  tubes('main', () => [TR_MAIN]);
   slideTubes(2);
   slideTubes(0);
+  glow(2);
   // the third slide's ring and the first's thumb saddle, riding with them
   {
     const o3 = slideOff(2);
@@ -1749,9 +1836,72 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     sad.forEach((q, i) => (i ? ctx.lineTo(...q) : ctx.moveTo(...q)));
     ctx.stroke();
   }
-  glow(2);
+  // the ferrules: the main slide's, the 1st and 3rd slides' sleeves (riding with them)
+  ferrule([0.1035, TR_MS_TOP, TR_ZL]);
+  ferrule([0.1015, TR_MS_LOW, -0.002]);
+  for (const k of [0, 2]) {
+    const sl = TR_SLIDES[k];
+    ferrule(sl.sleeve[0], slideOff(k));
+    ferrule(sl.sleeve[sl.sleeve.length - 1], slideOff(k));
+  }
+  {
+    // the 3rd slide's stop rod (clamped to the slide) and its knurled nut, the guide on the fixed tube
+    const o3 = slideOff(2);
+    const zr = TR_ZL - TR_RT - 0.0027;
+    const r0 = P(trProj(v3add([0.018, -0.004, zr], o3)));
+    const r1 = P(trProj(v3add([0.113, -0.004, zr], o3)));
+    ctx.strokeStyle = rgba(INK.ivory, 0.42);
+    ctx.lineWidth = Math.max(1, 0.0024 * S);
+    ctx.beginPath();
+    ctx.moveTo(...r0);
+    ctx.lineTo(...r1);
+    ctx.stroke();
+    const nut = P(trProj(v3add([0.0225, -0.004, zr], o3)));
+    ctx.fillStyle = '#1c1a17';
+    ctx.strokeStyle = rgba(INK.ivory, 0.6);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(nut[0], nut[1] - 0.0031 * S, 0.0048 * S, 0.0062 * S, 0.001 * S);
+    ctx.fill();
+    ctx.stroke();
+    const gd = P(trProj([0.0485, -0.004, zr]));
+    ctx.beginPath();
+    ctx.arc(gd[0], gd[1], 0.0026 * S, 0, 2 * Math.PI);
+    ctx.fillStyle = BRASS_BODY;
+    ctx.fill();
+    ctx.strokeStyle = rgba(INK.amber, 0.6);
+    ctx.stroke();
+  }
+  {
+    // the water key on the main slide's crook: the nipple, the lever's cork cup, its hinge, the paddle
+    const msR = (TR_MS_TOP - TR_MS_LOW) / 2;
+    const c: V3 = [TR_MS_X, (TR_MS_TOP + TR_MS_LOW) / 2, (TR_ZL - 0.002) / 2];
+    const uz = TR_ZL - c[2];
+    const at = (a: number, out: number): V3 => {
+      const q: V3 = [c[0] + msR * Math.sin(a), c[1] + msR * Math.cos(a), c[2] + uz * Math.cos(a)];
+      const l = Math.hypot(q[0] - c[0], q[1] - c[1], q[2] - c[2]);
+      return [q[0] + ((q[0] - c[0]) / l) * out, q[1] + ((q[1] - c[1]) / l) * out, q[2] + ((q[2] - c[2]) / l) * out];
+    };
+    // the lever lies along the crook's outside, from its cup back past the hinge to the paddle
+    ctx.strokeStyle = rgba(INK.ivory, 0.5);
+    ctx.lineWidth = Math.max(1, 0.0017 * S);
+    ctx.beginPath();
+    for (let i = 0; i <= 10; i++) {
+      const a = 2.5 - 0.62 * (i / 10);
+      const q = P(trProj(at(a, TR_RT + 0.0028 + 0.0035 * Math.max(0, (i - 6) / 4))));
+      if (i) ctx.lineTo(...q);
+      else ctx.moveTo(...q);
+    }
+    ctx.stroke();
+    const cup = P(trProj(at(2.5, TR_RT + 0.0026)));
+    ctx.beginPath();
+    ctx.ellipse(cup[0], cup[1], 0.0034 * S, 0.0026 * S, Math.atan2(cup[1] - P(trProj(c))[1], cup[0] - P(trProj(c))[0]) + Math.PI / 2, 0, 2 * Math.PI);
+    ctx.fillStyle = '#1c1a17';
+    ctx.fill();
+    ctx.stroke();
+  }
   // ---- group 3: the leadpipe, the receiver, the finger hook and the mouthpiece
-  tubes([trPoly(TR_LEAD)]);
+  tubes('lead', () => [TR_LEAD]);
   {
     // the finger hook past the third valve, leaning back, its tip curled
     const xb = 0.0545;
@@ -1794,9 +1944,11 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     ctx.stroke(mp);
   }
   glow(3);
+  ferrule([TR_LEAD_END - 0.0015, TR_MS_TOP, TR_ZL]);
   // ---- group 4: the second valve's crook, nearest
   slideTubes(1);
   glow(4);
+  for (const e of [TR_SLIDES[1].sleeve[0], TR_SLIDES[1].sleeve[TR_SLIDES[1].sleeve.length - 1]]) ferrule(e);
   // ---- the lips at the rim: closed at rest; buzzing (drawn slowed) with the engine's lip opening
   {
     const tr = fr?.excite?.trace;
@@ -1809,7 +1961,8 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     const swing = tr && hi > lo ? Math.sqrt(hi) - Math.sqrt(Math.max(0, lo)) : 0;
     const playing = swing > 0.02 && lvl > 0.02;
     const t = now / 1000;
-    const open01 = playing ? 0.5 - 0.5 * Math.cos(2 * Math.PI * 5 * t) : 0;
+    // drawn slowed, a little quicker for higher notes (the true buzz is the note itself)
+    const open01 = playing ? 0.5 - 0.5 * Math.cos(2 * Math.PI * 4.5 * Math.sqrt((focus?.f1 ?? 392) / 392) * t) : 0;
     const gap = (0.0004 + 0.0032 * Math.min(1, swing * 1.6) * open01) * S;
     const rim = P(trProj(trAlong(-TR_MP)));
     const dx = P(trProj(trAlong(0)))[0] - rim[0];
@@ -1830,7 +1983,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
         if (i) ctx.lineTo(...q);
         else ctx.moveTo(...q);
       }
-      ctx.fillStyle = rgba(INK.felt, playing ? 0.14 + 0.08 * open01 : 0.12);
+      ctx.fillStyle = playing ? rgba(INK.vermilion, 0.1 + 0.1 * open01) : rgba(INK.felt, 0.12);
       ctx.fill();
       ctx.strokeStyle = rgba(INK.felt, 0.7);
       ctx.lineWidth = 1.2;
