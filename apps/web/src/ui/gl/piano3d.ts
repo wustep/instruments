@@ -926,7 +926,7 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
       parts[name] = mesh;
     }
   }
-  // ---- the lid (hinged on the spine; its front flap folded back over it) and its prop; the desk
+  // ---- the lid (hinged on the spine; its front flap folded back over it) and its prop
   const caseOutline = [...offset(outer, -0.003)];
   const closed: P2[] = dedupe([...caseOutline, [caseOutline[caseOutline.length - 1][0], 0.17], [caseOutline[0][0], 0.17]]);
   const lm = new MeshBuilder();
@@ -941,7 +941,7 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
   const bentAt = (z: number) => outer.filter((p) => p[0] > 0).reduce((a, p) => (Math.abs(p[1] - z) < Math.abs(a[1] - z) ? p : a));
   const pb = bentAt(0.98);
   const prop = { base: [pb[0] - G.RIM * 0.55, G.rimTop, pb[1] + 0.02] as Vec3, tipLocal: [pb[0] - 0.09, G.rimTop, pb[1] + 0.03] as Vec3 };
-  const desk = musicDesk();
+  // (no music desk: taken off, with its rail and posts, the pins and the fallboard in plain view)
   // ---- pedals: brass, from the lyre's box
   const pedals: { mesh: Mesh; pivot: Vec3 }[] = [];
   for (const x of [-0.055, 0, 0.055]) {
@@ -956,7 +956,7 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
     statics: [mb.build()],
     cases: [caseMesh(cb)],
     pedalsCase: true,
-    desk,
+    desk: null,
     board: sb.build(),
     boardAspect: (bz1 - bz0) / (bx1 - bx0),
     keys: geo,
@@ -1016,30 +1016,6 @@ function caster(mb: MeshBuilder, x: number, z: number): void {
     cyl(mb, [w1, 0.03, zc], [w1 + s * 0.002, 0.03, zc], 0.026, 0.018, 22, M.brass);
   }
 }
-/** the music desk: a panel with a shaped top, leaning back on its rail, with its ledge */
-function musicDesk(): Mesh {
-  const mb = new MeshBuilder();
-  // about 0.74 × 0.25 m (a Steinway B's desk), its top a shallow arch between two scrolled ears
-  const W = 0.37;
-  const H = 0.25;
-  const topCtrl: P2[] = [
-    [W, H - 0.075], [W - 0.012, H - 0.04], [W - 0.035, H - 0.022], [W - 0.07, H - 0.034], [W - 0.16, H - 0.018], [0, H],
-    [-(W - 0.16), H - 0.018], [-(W - 0.07), H - 0.034], [-(W - 0.035), H - 0.022], [-(W - 0.012), H - 0.04], [-W, H - 0.075],
-  ];
-  const prof: P2[] = [[-W, 0], [W, 0], ...spline(topCtrl, 5)];
-  const T = new Float32Array([1, 0, 0, 0, 0, Math.cos(0.26), Math.sin(0.26), 0, 0, -Math.sin(0.26), Math.cos(0.26), 0, 0, G.rimTop + 0.035, 0.212, 1]);
-  mb.with(T, () => {
-    slab(mb, FRONT, prof, [], -0.009, 0.009, M.lacquer, { bevel: 0.004, smooth: 0.85 });
-    // the ledge for the music, and its lip
-    rbox(mb, [-W + 0.01, -0.01, -0.045], [W - 0.01, 0.006, 0.0], M.lacquer, 0.003);
-    rbox(mb, [-W + 0.01, 0.006, -0.046], [W - 0.01, 0.022, -0.04], M.lacquer, 0.002);
-  });
-  // the desk rail it stands on, across the plate's front, on two posts
-  rbox(mb, [-0.4, G.rimTop + 0.004, 0.19], [0.4, G.rimTop + 0.03, 0.24], M.lacquer, 0.005);
-  for (const s of [-1, 1]) rbox(mb, [s * 0.34 - 0.02, G.plateY + 0.03, 0.2], [s * 0.34 + 0.02, G.rimTop + 0.006, 0.23], M.lacquer, 0.004);
-  return mb.build();
-}
-
 /** the grand's cast-iron plate: the front web over the pin block, the bass and treble windows the
  *  strings sound over, the bass strut between them, the hitch-pin flange round the rim with its
  *  lightening holes, the tenor hitch bar, struts over the strings, agraffes, capo bar, pins and felts */
