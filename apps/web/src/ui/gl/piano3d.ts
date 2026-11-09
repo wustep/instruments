@@ -727,7 +727,8 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
   {
     const front = outer.slice(0, cutI + 1);
     const WT = 0.93;
-    const WB = 0.682;
+    // (the foot's cut face sits under the keybed's top, not flush with it: coplanar faces flicker)
+    const WB = 0.676;
     sweepPlan(mb, front, [
       { n: 0, y: WT, m: M.lacquer }, { n: 0, y: G.rimTop - 0.008, m: M.lacquer }, { n: 0.0025, y: G.rimTop - 0.0022, m: M.lacquer }, { n: 0.008, y: G.rimTop, m: M.lacquer }, { n: G.RIM - 0.004, y: G.rimTop, m: M.lacquer }, { n: G.RIM - 0.0005, y: G.rimTop - 0.0035, m: M.lacquerSatin }, { n: G.RIM, y: WT, m: M.maple },
     ], M.lacquer, { capA: M.lacquer, capB: null, smooth: 0.85 });
@@ -749,7 +750,7 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
     }
   }
   // ---- keybed, key slip, cheek blocks, the key frame, the open fallboard
-  slab(mb, PLAN, rrect(xL, -0.022, xR, 0.66, 0.004), [], 0.648, 0.682, M.lacquer, { bevel: 0.003, topMat: M.actionWood });
+  slab(mb, PLAN, rrect(xL, -0.022, xR, 0.66, 0.004), [], 0.648, 0.682, M.lacquer, { bevel: 0.003, topMat: M.caseRaw });
   rbox(mb, [-0.612, 0.682, -0.023], [0.612, 0.708, -0.004], M.lacquer, 0.002);
   for (const s of [-1, 1]) {
     const x0 = s < 0 ? xL : 0.613;
@@ -978,17 +979,14 @@ function caster(mb: MeshBuilder, x: number, z: number): void {
 /** the music desk: a panel with a shaped top, leaning back on its rail, with its ledge */
 function musicDesk(): Mesh {
   const mb = new MeshBuilder();
-  const W = 0.42;
-  const H = 0.31;
-  const prof: P2[] = [[-W, 0], [W, 0]];
-  // the top: the corners rounded up into ears, the middle a shallow arch
-  for (let k = 0; k <= 24; k++) {
-    const t = k / 24;
-    const x = W - 2 * W * t;
-    const ear = Math.exp(-(((Math.abs(x) - W + 0.05) / 0.05) ** 2)) * 0.02;
-    const y = H - 0.035 + 0.035 * Math.cos(Math.PI * (t - 0.5)) ** 2 * 0.6 + ear - (Math.abs(x) > W - 0.02 ? (Math.abs(x) - W + 0.02) * 1.5 : 0);
-    prof.push([x, y]);
-  }
+  // about 0.74 × 0.25 m (a Steinway B's desk), its top a shallow arch between two scrolled ears
+  const W = 0.37;
+  const H = 0.25;
+  const topCtrl: P2[] = [
+    [W, H - 0.075], [W - 0.012, H - 0.04], [W - 0.035, H - 0.022], [W - 0.07, H - 0.034], [W - 0.16, H - 0.018], [0, H],
+    [-(W - 0.16), H - 0.018], [-(W - 0.07), H - 0.034], [-(W - 0.035), H - 0.022], [-(W - 0.012), H - 0.04], [-W, H - 0.075],
+  ];
+  const prof: P2[] = [[-W, 0], [W, 0], ...spline(topCtrl, 5)];
   const T = new Float32Array([1, 0, 0, 0, 0, Math.cos(0.26), Math.sin(0.26), 0, 0, -Math.sin(0.26), Math.cos(0.26), 0, 0, G.rimTop + 0.035, 0.212, 1]);
   mb.with(T, () => {
     slab(mb, FRONT, prof, [], -0.009, 0.009, M.lacquer, { bevel: 0.004, smooth: 0.85 });
@@ -997,8 +995,8 @@ function musicDesk(): Mesh {
     rbox(mb, [-W + 0.01, 0.006, -0.046], [W - 0.01, 0.022, -0.04], M.lacquer, 0.002);
   });
   // the desk rail it stands on, across the plate's front, on two posts
-  rbox(mb, [-0.46, G.rimTop + 0.004, 0.19], [0.46, G.rimTop + 0.03, 0.24], M.lacquer, 0.005);
-  for (const s of [-1, 1]) rbox(mb, [s * 0.4 - 0.02, G.plateY + 0.03, 0.2], [s * 0.4 + 0.02, G.rimTop + 0.006, 0.23], M.lacquer, 0.004);
+  rbox(mb, [-0.4, G.rimTop + 0.004, 0.19], [0.4, G.rimTop + 0.03, 0.24], M.lacquer, 0.005);
+  for (const s of [-1, 1]) rbox(mb, [s * 0.34 - 0.02, G.plateY + 0.03, 0.2], [s * 0.34 + 0.02, G.rimTop + 0.006, 0.23], M.lacquer, 0.004);
   return mb.build();
 }
 
