@@ -127,7 +127,7 @@ const P: Record<string, Phys> = {
   // the bell, burnished under its lacquer (a sharper coat); the valve casings' lacquer, handled (a
   // faint mottle of wear and fingerprints under the coat)
   nickelKnurl: { color: '#c9c7c0', metalness: 1, roughness: 0.44, envMapIntensity: 1.15, tex: 8, axis: [0, 1, 0] },
-  pearlButton: { color: '#cfc7bb', roughness: 0.26, clearcoat: 0.6, clearcoatRoughness: 0.14, iridescence: 1, iridescenceIOR: 1.4, iridescenceThicknessRange: [250, 700], sheen: 0.3, sheenColor: '#ffe6ee', sheenRoughness: 0.4 },
+  pearlButton: { color: '#bdb5aa', roughness: 0.22, clearcoat: 0.6, clearcoatRoughness: 0.14, iridescence: 1, iridescenceIOR: 1.4, iridescenceThicknessRange: [250, 700], sheen: 0.3, sheenColor: '#ffe6ee', sheenRoughness: 0.4 },
   brassBell: { color: '#f4d07e', metalness: 1, roughness: 0.13, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 1.6 },
   brassHandled: { color: '#f3d283', metalness: 1, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.14, envMapIntensity: 1.55, tex: 5 },
   // the slides' inner tubes where they show: nickel silver, drawn and worn satin by the slide

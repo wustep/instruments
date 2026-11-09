@@ -496,9 +496,9 @@ const FKEYS: FKey[] = [
       tongue(mb, 0.4352, 0.4345, 0.4392, ROD_PHI, ROD_R, deg(-15), 0.0034);
       // the shake lever: out from the kicker, along beside the F♯ key's tube, up to a touch by R1
       const out = (p: Vec3): Vec3 => [0, p[1], p[2]];
-      const lev = spline3([offRod(0.4352, ROD_PHI, ROD_R, deg(30), 0.0014), offRod(0.4362, ROD_PHI, ROD_R, deg(30), 0.0034), offRod(0.4452, ROD_PHI, ROD_R, deg(26), 0.0039), offRod(0.4555, ROD_PHI, ROD_R, deg(18), 0.004), polar(0.4594, deg(62), 0.0172), polar(0.4602, deg(50), 0.0181)], 6);
+      const lev = spline3([offRod(0.4352, ROD_PHI, ROD_R, deg(30), 0.0014), offRod(0.4362, ROD_PHI, ROD_R, deg(30), 0.0034), offRod(0.4452, ROD_PHI, ROD_R, deg(24), 0.004), offRod(0.4545, ROD_PHI, ROD_R, deg(16), 0.0041), polar(0.4588, deg(70), 0.0172), polar(0.4598, deg(60), 0.0158)], 6);
       sweep(mb, lev, out, () => 0.001, () => 0.0006, AG, 12);
-      sweep(mb, Array.from({ length: 9 }, (_, i) => polar(0.4603 + 0.0004 * (i / 8), deg(lerp(50, 34, i / 8)), 0.0181 + 0.0006 * Math.sin((i / 8) * Math.PI))), out, (f) => 0.0028 * Math.sqrt(Math.sin(Math.PI * Math.max(0.04, Math.min(0.96, f)))) * (0.75 + 0.25 * f), () => 0.0006, AG, 14, 3);
+      touchPad(mb, 0.46, 60, 36, 0.0158, 0.0145, 0.003);
     },
   },
   // L2: the A key, with the front connector that closes the B♭ key
@@ -619,6 +619,15 @@ const NEEDLES: [number, number, number, number, number][] = [
   [0.5375, 0.531, -60, ROD_PHI, ROD_R], [0.5505, 0.562, -60, FOOT_PHI, FOOT_R], [0.608, 0.598, -60, FOOT_PHI, FOOT_R], [0.6455, 0.632, -60, FOOT_PHI, FOOT_R],
 ];
 
+/** a lever's touch: a teardrop lying on the tube at x, from φ0 (its narrow end, where the arm meets it)
+ *  to φ1 (its round end), r0 to r1 from the axis, `w` its half-width at the round end */
+function touchPad(mb: MeshBuilder, x: number, phi0: number, phi1: number, r0: number, r1: number, w: number): void {
+  const path = Array.from({ length: 13 }, (_, i) => {
+    const t = i / 12;
+    return polar(x, deg(lerp(phi0, phi1, t)), lerp(r0, r1, t) + 0.00045 * Math.sin(t * Math.PI));
+  });
+  sweep(mb, path, (p) => [0, p[1], p[2]], (f) => w * Math.pow(Math.sin(Math.PI * Math.max(0.03, Math.min(0.97, 0.12 + 0.88 * f))), 0.55) * (0.45 + 0.55 * f), () => 0.00065, AG, 18, 3);
+}
 /** an E or D key's foot: a lug down from its hinge tube, its cork pad resting on the F♯ bridge */
 function bridgeFoot(mb: MeshBuilder, x: number): void {
   const a = deg(98);
@@ -705,7 +714,7 @@ function armInto(mb: MeshBuilder, Cf: Mat4, phi: number, style: CupStyle, r: num
   const path = spline3(local.map((p) => xform(Cf, p)), 7);
   const outward = (p: Vec3): Vec3 => [0, p[1], p[2]];
   if (style === 'dome') sweep(mb, path, outward, (f) => 0.0021 - 0.0005 * f, () => 0.0011, AG, 14, 3);
-  else sweep(mb, path, outward, (f) => (f < 0.58 ? 0.0023 - 0.0007 * (f / 0.58) : 0.0016 * (1 - ((f - 0.58) / 0.42) ** 1.5) + 0.00012), (f) => 0.0012 - 0.0005 * f, AG, 14, 3);
+  else sweep(mb, path, outward, (f) => (f < 0.58 ? 0.0024 - 0.0002 * (f / 0.58) : 0.0022 * (1 - ((f - 0.58) / 0.42) ** 1.6) + 0.00012), (f) => 0.0012 - 0.0005 * f, AG, 16, 3);
 }
 /** a tone-hole chimney at (x, φ) with its dark bore inside */
 function toneHole(mb: MeshBuilder, x: number, phi: number, ro: number): void {
@@ -853,9 +862,29 @@ export function buildFluteModel(): FluteModel {
       armInto(mb, Cf, deg(96), 'dome', 0.0062, 0.0042, polar(0, TRILL_PHI, TRILL_R));
     });
   }
-  for (const x of [0.4875, 0.5125]) {
-    const path = spline3([polar(x, TRILL_PHI, TRILL_R), polar(x, deg(104), 0.0188), polar(x, deg(80), 0.0198), polar(x - 0.0005, deg(60), 0.0186), polar(x - 0.0008, deg(48), 0.0176)], 6);
-    sweep(mb, path, (p) => [0, p[1], p[2]], (f) => (f < 0.55 ? 0.0011 : 0.0011 + 0.0012 * Math.sin(Math.min(1, (f - 0.55) / 0.45) * Math.PI * 0.85)), () => 0.0007, AG, 12);
+  for (const x of [0.487, 0.5145]) {
+    const path = spline3([polar(x, TRILL_PHI, TRILL_R), polar(x, deg(112), 0.0169), polar(x, deg(95), 0.0173), polar(x, deg(80), 0.0174), polar(x, deg(68), 0.0169), polar(x, deg(61), 0.0159)], 6);
+    sweep(mb, path, (p) => [0, p[1], p[2]], () => 0.0012, () => 0.0007, AG, 12);
+    touchPad(mb, x, 61, 22, 0.0159, 0.0141, 0.0034);
+  }
+  // ---- the C♯ trill key (closed-standing): its small cup on the back by the thumb's C hole, its long
+  // tube on a rod under the front, its lever up beside the B♭ shake lever for R1
+  {
+    const phi = deg(150);
+    const R = 0.0136;
+    rib(mb, 0.3195, 0.4595, phi, deg(7));
+    for (const x of [0.3215, 0.4575]) pillar(mb, x, phi, R);
+    steelRod(mb, 0.3215 - 0.0025, 0.4575 + 0.0005, phi, R);
+    barrel(mb, 0.3238, 0.4552, phi, R, 0.0016);
+    toneHole(mb, 0.329, deg(198), 0.0034);
+    const Cf = chain(rotX(-deg(198)), translate(0, YC, 0));
+    mb.with(translate(0.329, 0, 0), () => {
+      cupInto(mb, Cf, 'dome', 0.0056, 0.0034);
+      armInto(mb, Cf, deg(198), 'dome', 0.0056, 0.0034, polar(0, phi, R));
+    });
+    const out = (p: Vec3): Vec3 => [0, p[1], p[2]];
+    sweep(mb, spline3([polar(0.4535, phi, R), polar(0.4545, deg(128), 0.0196), polar(0.4575, deg(100), 0.021), polar(0.4612, deg(72), 0.02), polar(0.461, deg(46), 0.0186), polar(0.4606, deg(33), 0.0168), polar(0.4604, deg(29), 0.0148)], 6), out, () => 0.001, () => 0.0007, AG, 12);
+    touchPad(mb, 0.4604, 29, 10, 0.0148, 0.0136, 0.0024);
   }
   // ---- the thumb's steel and the G♯ key's, on the player's side
   rib(mb, 0.31, 0.363, THUMB_PHI, deg(9));
@@ -1336,7 +1365,7 @@ export function buildTrumpetModel(): TrumpetModel {
     revolve(pm, fillet([[0.0084, yb + 0.0006], [0.0084, yb + 0.0008]], 0.0001, 2), 40, NS);
     // a polished bezel round the pearl, which sits a little below it
     revolve(pm, fillet([[0.0084, yb + 0.0032], [0.0083, yb + 0.0044], [0.0074, yb + 0.0049], [0.006, yb + 0.0048], [0.0055, yb + 0.0043], [0.0053, yb + 0.004]], [0, 0.0005, 0.0005, 0.0003, 0.0002, 0], 3), 40, NS);
-    revolve(pm, fillet([[0.0053, yb + 0.0036], [0.0053, yb + 0.004], [0.003, yb + 0.00415], [0, yb + 0.0042]], [0, 0.0002, 0.004, 0], 4), 40, M.pearlButton);
+    revolve(pm, fillet([[0.0053, yb + 0.0036], [0.0053, yb + 0.0039], [0.003, yb + 0.0043], [0, yb + 0.00445]], [0, 0.0002, 0.004, 0], 4), 40, M.pearlButton);
   });
   // ---- the mouthpiece (Bach 7C), along the leadpipe's axis
   const mp = new MeshBuilder();
