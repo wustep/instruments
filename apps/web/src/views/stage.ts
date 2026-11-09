@@ -191,7 +191,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     cv3.addEventListener('pointermove', (e) => {
       if (e.buttons || !s3) return;
       if (!closeUpOffered()) {
-        cv3.style.cursor = '';
+        // over the bow: it can be taken (elsewhere the stage turns)
+        cv3.style.cursor = hand.over(e) ? 'pointer' : '';
         return;
       }
       const r = cv3.getBoundingClientRect();

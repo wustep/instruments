@@ -174,6 +174,15 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): void {
   return;
 }
 
+/** On a narrow stage (a phone held upright) every view steps back to fit the width; these step back
+ *  further: the flute and trumpet are all width, and the violin and viola keep the whole bow in the
+ *  picture, as they did before the wide stage's view moved in. */
+export function narrowStep(si: SceneIn): number {
+  if (si.family === 'wind' || si.family === 'brass') return 1.28;
+  if (si.family === 'bowed' && si.bowed && si.bowed.id !== 'cello') return 1.16;
+  return 1;
+}
+
 /** default cameras: a three-quarter view from the audience's side, a little above */
 export function viewFor(si: SceneIn, st: Scene3State): View3 {
   // the grand from the treble front corner (as in Steinway's own photographs), above the rim so the
@@ -188,7 +197,7 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
     // the violin and viola: from the scroll's side, low enough that the instrument reads in three-quarter
     // (not as a plan) and the bow, crossing the strings, lies into the picture instead of standing up
     // through its top and bottom edges
-    return { target: [c[0], c[1] - 0.025, c[2]], dist: id === 'viola' ? 1.06 : 0.95, yaw: -0.5, pitch: 0.42 };
+    return { target: [c[0], c[1] - 0.025, c[2]], dist: id === 'viola' ? 0.95 : 0.86, yaw: -0.5, pitch: 0.42 };
   }
   if (si.family === 'brass') return { target: [0.0, 0.2, 0.0], dist: 0.6, yaw: 0.4, pitch: 0.28 };
   return { target: [0.0, 0.17, 0.0], dist: 0.68, yaw: 0.24, pitch: 0.5 };

@@ -105,3 +105,38 @@ the grand's lid edge crosses the bass strings at the default angle; with sustain
 is the busiest thing on the piano stage.
 
 Gate: typecheck clean; vitest 22 files / 110 tests; Playwright 57 passed, 7 skipped (desktop + Pixel 7).
+
+## Round 4: framing, type, and a sound change measured and not made
+
+Audit of round 3's build across the same six dimensions. Ranked:
+
+1. 3D on a phone: the flute and the trumpet ran off both edges of the stage.
+2. 3D on a wide stage: violin and viola small, high in the frame (the price round 1 paid for the bow).
+3. Type: labels at 9 and 9.5 px, and five half-pixel sizes (9.5, 10.5, 11.5, 12.5, 15.5).
+4. Sound: the cello's brightness against the recording is pp ×1.35, ff ×0.76 (centroid ratio).
+5. 2D grand: the lid's free edge, a bright hairline across the bass strings.
+6. The hand bow in 3D gave no sign of where it can be taken.
+
+Changes:
+
+- **3D framing** (`scenes3d.ts`, `stage3d.ts`). Violin and viola nearer on a wide stage (dist 0.95 →
+  0.86, 1.06 → 0.95), the whole bow still in the picture. On a narrow stage the flute and trumpet step
+  back ×1.28 and fit; violin and viola keep their round 1 phone framing. `round4-framing/`.
+- **Type** (`styles.css`, the spectrum's axis). A whole-pixel scale with a 10 px floor:
+  10 / 11 / 12 / 13 / 15 / 17, then the display sizes. Instrument names, pedal names, knob readouts,
+  key names and the spectrum's axis were 9–9.5 px. Still Newsreader and IBM Plex only. `round4-type/`.
+- **2D grand**: the lid's free edge drawn quiet (alpha 0.25–0.55 → 0.1–0.2, 1 px); its grip marks it.
+- **Hand bow**: in 3D the cursor is a pointer over the bow, the turning hand elsewhere.
+
+**Sound: measured, rejected.** Eight variants of the cello's dynamics (`betaDyn` from [1.22, 0.72] out
+to [1.6, 0.5], `forceDyn` from [1.08, 2.2] out to [0.6, 2.6] and [1.08, 3], and both together) through
+`scripts/fit-cello.ts --eval`. Held-out total 2.83 at the current values; the variants gave 2.80–2.97,
+within the run-to-run spread of a chaotic bow, and the widest ones worsened pitch (2.3 → 2.9 ¢) and
+the pp–ff level spread. None would earn a BETTER from the judge, so the engine is unchanged in this
+round: no audio difference from round 3.
+
+Left, seen: the desktop 2D upright's right half is board and modes only; in 3D the hand's bow is
+exhausted in a short drag on a phone (it is drawn small there); the dynamics' brightness needs
+something other than bow position and force (the body's level-dependent radiation, or bow width).
+
+Gate: typecheck clean; vitest 22 files / 110 tests; Playwright 57 passed, 7 skipped (desktop + Pixel 7).
