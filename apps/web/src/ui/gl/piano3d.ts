@@ -1419,6 +1419,23 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
       wT.push([xLeft(y), y]);
     }
     const windows = [ccw(dedupe(wB, 0.002)), ccw(dedupe(wT, 0.002))];
+    // the harp's lower opening (upright-action.jpg, its lower panel off): below the treble
+    // hitch-pin flange the soundboard and the treble bridge's lower end show through, up to the
+    // bass strut and down to the bottom flange
+    {
+      const hitchY = (g: KeyGeo) => mid(g).hitch[1] - 0.024;
+      const xl = (y: number) => lineX(g45, y) + 0.045;
+      const lowT = trebU.filter((g) => hitchY(g) > 0.27 && mid(g).hitch[0] > xl(hitchY(g)) + 0.012 && mid(g).hitch[0] < px1 - 0.07);
+      if (lowT.length > 4) {
+        const yB = 0.17;
+        const y0 = hitchY(lowT[0]);
+        const w3: P2[] = [[xl(y0), y0]];
+        for (const g of lowT) w3.push([mid(g).hitch[0], hitchY(g)]);
+        const yE = hitchY(lowT[lowT.length - 1]);
+        w3.push([px1 - 0.05, yE], [px1 - 0.05, yB], [xl(yB), yB]);
+        windows.push(ccw(dedupe(w3, 0.003)));
+      }
+    }
     const outline: P2[] = [[px0, 0.07], [px1, 0.07], [px1, 1.13], [px1 - 0.05, 1.18], [px0 + 0.05, 1.18], [px0, 1.13]];
     slab(mb, FRONT, outline, windows, PZ, PZ + 0.016, M.pianoPlate, { bevel: 0.004, smooth: 0.6 });
     for (const W of windows) slab(mb, FRONT, inset(W, -0.012), [W], PZ - 0.006, PZ + 0.004, M.pianoPlate, { bevel: 0.003, botBevel: false, smooth: 0.6 });
@@ -1513,8 +1530,9 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
     parts.damper = d.build();
     // the hammer rail (moves with the soft pedal): its felt faces the shanks
     const hr = new MeshBuilder();
-    rbox(hr, [-0.62, 0.932, 0.36], [0.62, 0.952, 0.378], M.railBeech, 0.002);
-    rbox(hr, [-0.62, 0.934, 0.378], [0.62, 0.95, 0.3814], M.greenFelt, 0.001);
+    // (both references: a deep rail just under the heads, Kawai's in aluminium, Yamaha's gilt)
+    rbox(hr, [-0.62, 0.958, 0.351], [0.62, 0.99, 0.378], M.railBeech, 0.004);
+    rbox(hr, [-0.62, 0.962, 0.378], [0.62, 0.986, 0.3814], M.greenFelt, 0.001);
     parts.hamRail = hr.build();
   }
   return {
