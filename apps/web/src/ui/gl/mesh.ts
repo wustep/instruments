@@ -128,6 +128,12 @@ export const M = {
   railBeech: { col: hex('#d2b384'), rough: 0.55, metal: 0 },
   tape: { col: hex('#ebe6da'), rough: 0.9, metal: 0 },
   bridleLeather: { col: hex('#a8231d'), rough: 0.8, metal: 0 },
+  // the grand: its plate's gold lacquer (grand-only: matched at the grand's hero angle to
+  // grand-inside.jpg), the inside of its rim in a polished mahogany veneer, the dampers' black heads
+  grandPlate: { col: hex('#8a5e22'), rough: 0.62, metal: 0.9 },
+  rimVeneer: { col: hex('#3a1a0c'), rough: 0.3, metal: 0 },
+  damperHead: { col: hex('#1a1614'), rough: 0.4, metal: 0 },
+  pinNickel: { col: hex('#e6e6e3'), rough: 0.45, metal: 1 },
 } satisfies Record<string, Mat>;
 for (const [k, m] of Object.entries(M)) (m as Mat).name = k;
 /** a variant of a shared material (same shading family, its own colour or maps) */

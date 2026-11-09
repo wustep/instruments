@@ -23,7 +23,8 @@ export const LIVE = {
 };
 
 type Phys = THREE.MeshPhysicalMaterialParameters & {
-  /** solid texture: 0 none, 1 spruce, 2 flamed maple, 3 plain wood, 4 ebony, 5 cast iron, 6 felt, 7 maple fleck, 8 brushed */
+  /** solid texture: 0 none, 1 spruce, 2 flamed maple, 3 plain wood, 4 ebony, 5 cast iron, 6 felt, 7 maple fleck, 8 brushed,
+   *  9 gold-lacquered casting, 10 veneer round a wall */
   tex?: number;
   /** the grain/long axis in the part's own frame */
   axis?: [number, number, number];
@@ -120,6 +121,18 @@ const P: Record<string, Phys> = {
   railBeech: { color: '#d8bb8c', roughness: 0.58, tex: 3, axis: [1, 0, 0], texScale: 0.8 },
   tape: { color: '#eee9de', roughness: 1, sheen: 0.7, sheenColor: '#ffffff', sheenRoughness: 0.6, tex: 6 },
   bridleLeather: { color: '#b0261f', roughness: 0.75, sheen: 0.4, sheenColor: '#e06050', sheenRoughness: 0.5 },
+  // the grand's plate (grand-only; the upright keeps pianoPlate): gold lacquer, mostly metal flake, so
+  // its highlights stay gold. Fitted at the grand's default hero view to grand-inside.jpg's lit plate,
+  // sRGB ≈ (130–160, 100–125, 70–85): with less metal or a gloss coat the flange's highlights are the
+  // white of the studio's softbox, and the tone mapper desaturates the over-bright plate to champagne
+  grandPlate: { color: '#8a5e22', metalness: 0.9, roughness: 0.62, tex: 9 },
+  // the inside of the grand's rim: a polished mahogany veneer under a gloss coat (grand-inside.jpg)
+  rimVeneer: { color: '#3a1a0c', roughness: 0.42, clearcoat: 1, clearcoatRoughness: 0.06, tex: 10 },
+  // grand damper heads: black-stained hardwood (grand-inside.jpg, grand-action-side.jpg)
+  damperHead: { color: '#0f0d0c', roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.2, tex: 4, axis: [0, 0, 1] },
+  // the grand's tuning pins: bright nickel, satin enough to take the overhead softbox on every head
+  // (as polished pins they mirrored the dark studio and read as a grey carpet)
+  pinNickel: { color: '#e8e8e6', metalness: 1, roughness: 0.48, tex: 8, axis: [0, 1, 0] },
 };
 
 // GLSL: hashes, value noise and fbm (all in the part's own metres)
@@ -271,6 +284,19 @@ float microR = 0.0;
   // drawn or ground metal: streaks along the axis
   float w = fbm(vec3(along * 8.0, across * 900.0, depth * 900.0));
   microR = 0.12 * (w - 0.5);
+  #elif TEX == 9
+  // gold lacquer over cast iron: slow clouds in the paint (centimetres: no per-pixel speckle at the
+  // hero's distance) and the casting's skin in its roughness
+  float w = fbm(vLoc * 22.0);
+  float sk = fbm(vLoc * 420.0);
+  diffuseColor.rgb *= 0.9 + 0.2 * w;
+  microR = 0.1 * (w - 0.5) + 0.08 * (sk - 0.5);
+  #elif TEX == 10
+  // a sliced veneer round a curved wall: the grain runs along the wall (its lines vary with height),
+  // wavering slowly
+  float w = fbm(vec3(vLoc.x * 3.0, vLoc.y * 30.0, vLoc.z * 3.0));
+  float g = fract(vLoc.y * 140.0 + w * 2.6);
+  diffuseColor.rgb *= 0.86 + 0.24 * w - 0.12 * smoothstep(0.7, 0.95, g);
   #endif
   #if PAINTED
   // the painted aux map: r = figure (flame) under the varnish, flipping with the view; g = 1 at the edge

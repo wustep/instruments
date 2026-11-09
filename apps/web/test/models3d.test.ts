@@ -44,7 +44,10 @@ describe('3D instruments', () => {
   const upright = buildUprightModel(keysOf('upright'));
 
   it('the grand is a grand: about 2 m long, 1.5 m wide, a 1 m tall case on legs, 88 keys at 725 mm', () => {
-    const b = bounds([...grand.statics, grand.board]);
+    const b = bounds([...grand.statics, ...grand.cases, grand.board]);
+    // the case (rim, legs, lyre) is its own mesh, to dissolve; what stays starts at the keybed
+    expect(grand.cases.every((m) => m.fade)).toBe(true);
+    expect(bounds(grand.statics).lo[1]).toBeGreaterThan(0.6);
     expect(b.hi[2] - b.lo[2]).toBeGreaterThan(1.8);
     expect(b.hi[2] - b.lo[2]).toBeLessThan(2.5);
     expect(b.hi[0] - b.lo[0]).toBeGreaterThan(1.3);
