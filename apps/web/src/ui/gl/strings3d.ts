@@ -670,6 +670,8 @@ export interface BowedModel {
   bounds: { c: Vec3; r: number };
   floorY: number;
   src: Vec3;
+  /** the bow's eased pose (it crosses strings in an arc, not a jump) */
+  bowPose: { dir: Vec3; up: Vec3; contact: Vec3; t: number } | null;
 }
 
 export function buildBowedModel(g: BowedGeom): BowedModel {
@@ -1067,8 +1069,11 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
       // rounded end; thin across its faces
       const A = 0.5 * hw * (0.36 + 0.64 * sstep(0, 0.55, t)) * Math.sqrt(Math.max(0, 1 - Math.pow(Math.max(0, t - 0.6) / 0.4, 2.4)));
       const Bt = A * 0.4 + 0.07 * hw * (1 - t) * Math.sqrt(Math.max(0, 1 - Math.pow(Math.max(0, t - 0.6) / 0.4, 2.4)));
-      const along = Math.cos(a) * A;
-      const thick = Math.sin(a) * Bt;
+      // a superellipse section: flat faces with crisp, rounded edges
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      const along = Math.sign(ca) * Math.pow(Math.abs(ca), 0.6) * A;
+      const thick = Math.sign(sa) * Math.pow(Math.abs(sa), 0.6) * Bt * 0.85;
       const zz = z0 + side * (0.0055 * S ** 0.6 + t * hl);
       return [c[0] + ax[0] * along + up[0] * thick, c[1] + ax[1] * along + up[1] * thick, zz];
     }, pegMat, { wrapV: true });
@@ -1091,12 +1096,16 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
       const thick = r(th) - r(th + 2 * Math.PI);
       const fl = 0.1 * thick * (1 - sstep(1.2 * Math.PI, 2 * Math.PI, th));
       const ch = Math.min(0.18 * thick, 0.003 * S ** 0.7);
+      // the section: the outer face fluted either side of the spine, the chamfer, the side face
+      // hollowed between its raised edges, the inner face
       const half: [number, number][] = [
         [0, 0],
         [-fl, 0.3],
         [-fl * 0.35, 0.62],
         [-ch * 0.25, 0.86],
         [-ch, 1],
+        [-ch - (thick - ch) * 0.3, 0.955],
+        [-ch - (thick - ch) * 0.65, 0.95],
         [-thick + ch * 0.6, 1],
         [-thick, 0.86],
         [-thick, 0],
@@ -1232,6 +1241,7 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     bounds: { c: [c[0], Math.max(c[1], extent * 0.35), c[2]], r: extent * 0.9 + 0.1 },
     floorY,
     src: xform(T, [xb + 0.05, 0.05, 0]),
+    bowPose: null,
   };
 }
 
@@ -1608,10 +1618,22 @@ export function poseBowed(b: Batch, bm: BowedModel, fr: VisualFrame | null, str:
   const contactX = bm.xb - beta * (strs?.[bi] ? (strs[bi].stopNow ?? strs[bi].stop) : 1) * bm.L;
   const contact = at(bi, contactX);
   const pos = bow ? bow.pos : 0.5;
-  const ax = dirL;
-  const ay = upL;
+  // ease the bow towards its target (time constant ~60 ms of real time): a string crossing turns the
+  // bow about the strings' arc rather than snapping it
+  const now = performance.now();
+  let bp = bm.bowPose;
+  if (!bp || now - bp.t > 500) bp = bm.bowPose = { dir: dirL, up: upL, contact, t: now };
+  else {
+    const k = 1 - Math.exp(-(now - bp.t) / 60);
+    bp.dir = norm(add(bp.dir, scale(sub(dirL, bp.dir), k)));
+    bp.up = norm(add(bp.up, scale(sub(upL, bp.up), k)));
+    bp.contact = add(bp.contact, scale(sub(contact, bp.contact), k));
+    bp.t = now;
+  }
+  const ax = bp.dir;
+  const ay = norm(sub(bp.up, scale(ax, ax[0] * bp.up[0] + ax[1] * bp.up[1] + ax[2] * bp.up[2])));
   const az = cross(ax, ay);
-  const origin = sub(add(contact, scale(ay, 0.0012)), scale(ax, pos * bm.hairLen));
+  const origin = sub(add(bp.contact, scale(ay, 0.0012)), scale(ax, pos * bm.hairLen));
   const Bm = new Float32Array([ax[0], ax[1], ax[2], 0, ay[0], ay[1], ay[2], 0, az[0], az[1], az[2], 0, origin[0], origin[1], origin[2], 1]);
   const bowM = mul(T, Bm);
   b.mesh(bm.bow, bowM, bow?.changing ? [0.95, 0.65, 0.27, 0.3] : null);

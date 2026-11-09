@@ -71,7 +71,7 @@ const P: Record<string, Phys> = {
   bridgeMaple: { color: '#dec59a', roughness: 0.62, tex: 7, axis: [0, 1, 0], texScale: 0.5 },
   pernambuco: { color: '#5e2711', roughness: 0.32, clearcoat: 0.8, clearcoatRoughness: 0.08, tex: 3, axis: [1, 0, 0], texScale: 0.5 },
   bowHair: { color: '#cfc8ba', roughness: 0.6, sheen: 0.5, sheenColor: '#f0ece4', sheenRoughness: 0.45 },
-  rosewood: { color: '#3a1a0e', roughness: 0.35, clearcoat: 0.5, clearcoatRoughness: 0.15, tex: 3, axis: [1, 0, 0], texScale: 0.4 },
+  rosewood: { color: '#34170c', roughness: 0.48, clearcoat: 0.18, clearcoatRoughness: 0.35, tex: 3, axis: [1, 0, 0], texScale: 0.4 },
   boxwood: { color: '#d9b878', roughness: 0.4, clearcoat: 0.4, clearcoatRoughness: 0.15, tex: 3, axis: [1, 0, 0], texScale: 0.4 },
   gut: { color: '#2a2420', roughness: 0.5 },
   interior: { color: '#2a160b', roughness: 0.92, envMapIntensity: 0.18 },
