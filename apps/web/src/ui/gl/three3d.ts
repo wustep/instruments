@@ -17,7 +17,7 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import type { Batch, Mat4, Mesh, Vec3 } from './gl3d.ts';
 import { LINE_FS, LINE_VS, type LineSet } from './gl3d.ts';
-import { LIVE, disposeMaterials, materialFor } from './mats3.ts';
+import { LIVE, disposeMaterials, materialFor, setEnvironment } from './mats3.ts';
 import { MAT_LIST } from './mesh.ts';
 
 /** the shadow pass of a dissolving mesh: the same screen-door as its colour pass, so the shadow
@@ -195,6 +195,7 @@ export class Renderer3 {
     this.envRT = pm.fromScene(studio(), 0.02);
     pm.dispose();
     this.scene.environment = this.envRT.texture;
+    setEnvironment(this.envRT.texture);
     this.scene.environmentIntensity = 1.0;
     // key (warm, soft shadow) and rim (cool, from behind)
     this.key = new THREE.DirectionalLight(new THREE.Color(1, 0.93, 0.84), 2.6);
@@ -211,7 +212,7 @@ export class Renderer3 {
     this.fill = new THREE.DirectionalLight(new THREE.Color(0.9, 0.92, 1), 0.55);
     this.root.add(this.fill, this.fill.target);
     // the floor
-    const fm = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(0.018, 0.016, 0.014), roughness: 0.85, metalness: 0, specularIntensity: 0.35, envMapIntensity: 0.35, transparent: true, depthWrite: true });
+    const fm = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(0.018, 0.016, 0.014), roughness: 0.85, metalness: 0, specularIntensity: 0.35, envMap: this.envRT.texture, envMapIntensity: 0.35, transparent: true, depthWrite: true });
     fm.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, this.floorU);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWorldP;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWorldP = (modelMatrix * vec4(transformed, 1.0)).xyz;');

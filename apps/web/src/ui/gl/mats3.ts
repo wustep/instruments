@@ -166,6 +166,14 @@ float fbm(vec3 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a
 
 /** one material per shared Mat (by object), built on first use */
 const cache = new Map<Mat, THREE.Material>();
+/** the studio environment. three (r186) replaces a material's envMapIntensity with the scene's
+ *  environmentIntensity unless the material has an envMap of its own, so the materials that set
+ *  an intensity (the winds' metals 1.4–1.6, the bores, the f-holes' and the case's insides
+ *  0.18–0.35, the upright's plate 0.75) are given the environment itself to have it honoured */
+let envTex: THREE.Texture | null = null;
+export function setEnvironment(t: THREE.Texture | null): void {
+  envTex = t;
+}
 const textures: THREE.Texture[] = [];
 
 export function materialFor(m: Mat, lite: boolean): THREE.Material {
@@ -175,6 +183,7 @@ export function materialFor(m: Mat, lite: boolean): THREE.Material {
   const base = P[name] ?? { color: new THREE.Color().setRGB(m.col[0], m.col[1], m.col[2], THREE.SRGBColorSpace), roughness: m.rough, metalness: m.metal };
   const { tex = 0, axis = [1, 0, 0], texScale = 1, ...params } = base;
   const pm = new THREE.MeshPhysicalMaterial({ side: THREE.DoubleSide, ...params });
+  if (params.envMapIntensity !== undefined && envTex) pm.envMap = envTex;
   if (m.tint) pm.color.setRGB(m.col[0], m.col[1], m.col[2], THREE.SRGBColorSpace);
   if (pm.anisotropy) pm.anisotropyRotation = 0;
   const kind = m.kind ?? 0;

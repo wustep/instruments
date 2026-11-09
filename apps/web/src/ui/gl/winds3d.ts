@@ -961,10 +961,10 @@ export function poseFlute(b: Batch, fm: FluteModel, fr: VisualFrame | null, pose
   pose.quiet[0] = blow > 0.015 ? 0 : pose.quiet[0] + dt;
   const midi = focus && pose.quiet[0] < 0.8 ? (focus.midi ?? boreNote(focus.lengthM)) : null;
   const fingers = midi === null ? 0 : fingersFor(midi);
-  // the sounding end: the first open hole (or the foot's end for the low C)
-  const bore = focus ? boreNote(focus.lengthM) : null;
-  const first = bore === null ? null : fm.keys.find((k) => k.note === bore);
-  const endX = first ? first.x : FL;
+  // the sounding end: the air column's own length (the engine's c / 2f) from its node 50 mm above
+  // the embouchure, as the 2D draws it; it falls just past the first open hole, or among the vents
+  // of a cross-fingered third-octave note (A6–C7 matched no key and fell back to the whole tube)
+  const endX = focus ? Math.min(FL, EMB - 0.05 + focus.lengthM) : FL;
   // the wave as a faint warm sheen in the silver (an accent, not a colour)
   waveOverlay(b, fr, pose, (endX - EMB) / (FL - EMB), scale, 0.45);
   b.ov.waveCol = [1, 0.6, 0.36];
@@ -1256,11 +1256,13 @@ export function buildTrumpetModel(): TrumpetModel {
         ellipsoid(s, [-0.0668, y1 + RT - 0.0002, ZL], [0.004, 0.0014, 0.0026], 14, m);
       },
     });
-    // 2nd: a short crook, out beyond the first slide (it does not move in playing)
-    const z2 = -0.032;
+    // 2nd: a short crook, out beyond the first slide (it does not move in playing). A semitone lower
+    // needs 2^(1/12) − 1 of the 1.48 m: 88 mm, plus the ≈11 mm bypass it replaces; the crook was
+    // 134 mm, now ≈104 mm (as the 2D's)
+    const z2 = -0.026;
     const a1 = -0.004;
     const a2 = -0.036;
-    const xb2 = -0.034;
+    const xb2 = -0.025;
     slideDefs.push({
       fixed: [a1, a2].map((y) => bend([[VX[1], y, -0.003], [-0.001, y, -0.02], [-0.009, y, z2], [-0.0135, y, z2]], [0.008, 0.008], 12)),
       inner: [],
