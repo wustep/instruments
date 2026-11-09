@@ -1835,7 +1835,9 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
     if (grand) {
       const W = trs(MS[3], x, G.wipY, G.wipZ, wA);
       b.mesh(P.wippen, W);
-      b.mesh(P.jack, mul4(MS[5], W, trs(MS[4], 0, 0.004, G.jackZ - G.wipZ, 0.28 * pose.jack[i])), jg);
+      // (tripped, the let-off button holds the jack's toe down and its top escapes towards the keys,
+      // out from under the knuckle: a negative turn here)
+      b.mesh(P.jack, mul4(MS[5], W, trs(MS[4], 0, 0.004, G.jackZ - G.wipZ, -0.28 * pose.jack[i])), jg);
       // the repetition lever rides the wippen and, once the jack has tripped, holds the knuckle up
       b.mesh(P.rep, mul4(MS[5], W, trs(MS[4], 0, 0.028, -0.045, -0.06 * pose.jack[i] * Math.min(1, kp * 2))));
       const sA = Math.atan2(travel, G.shankLen);
