@@ -103,31 +103,56 @@ varying vec3 vWorldP;`;
 /** a studio to light the scene with (and to see reflected in lacquer and brass) */
 function studio(): THREE.Scene {
   const s = new THREE.Scene();
-  const room = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.035, 0.032, 0.03), side: THREE.BackSide }));
+  // dark walls: polished metal and lacquer read through contrast, bright cards against black
+  const room = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.02, 0.019, 0.018), side: THREE.BackSide }));
   room.scale.set(30, 14, 30);
   room.position.y = 5;
   s.add(room);
   // a floor a little lighter than the walls (the bounce under an instrument)
-  const flo = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.06, 0.052, 0.045) }));
+  const flo = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.07, 0.06, 0.05) }));
   flo.rotation.x = -Math.PI / 2;
   flo.position.y = -1.9;
   s.add(flo);
-  const panel = (w: number, h: number, c: [number, number, number], k: number, pos: Vec3, look: Vec3) => {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(c[0] * k, c[1] * k, c[2] * k), side: THREE.DoubleSide }));
+  // a softbox: brightest in the middle, feathered to nothing over `soft` of its half-size (a real
+  // diffuser's falloff; a hard-edged card reflects as a paper cut-out)
+  const panel = (w: number, h: number, c: [number, number, number], k: number, pos: Vec3, look: Vec3, soft = 0.5) => {
+    const g = new THREE.PlaneGeometry(w, h, 24, 24);
+    const P = g.attributes.position;
+    const col = new Float32Array(P.count * 3);
+    for (let i = 0; i < P.count; i++) {
+      const u = Math.abs(P.getX(i)) / (w / 2);
+      const v = Math.abs(P.getY(i)) / (h / 2);
+      const e = (x: number) => {
+        const t = Math.max(0, Math.min(1, (1 - x) / soft));
+        return t * t * (3 - 2 * t);
+      };
+      const f = e(u) * e(v);
+      col[i * 3] = c[0] * k * f;
+      col[i * 3 + 1] = c[1] * k * f;
+      col[i * 3 + 2] = c[2] * k * f;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
     m.position.set(...pos);
     m.lookAt(...look);
     s.add(m);
   };
-  // as a product studio lights metal: a large overhead softbox; a key softbox front left; a wide,
-  // soft card behind the camera (polished brass and silver need something bright to reflect, or
-  // they read as dark mirrors of the walls); tall strips behind left and right for the rims; a
-  // low cool card in front; a faint floor bounce
-  panel(9, 6, [1, 0.96, 0.9], 1.8, [0, 9, -0.5], [0, 0, 0]);
-  panel(4.5, 3.5, [1, 0.9, 0.78], 5, [-6, 5, -6], [0, 0, 0]);
-  panel(16, 4.5, [1, 0.97, 0.93], 0.75, [0, 3.2, -11], [0, 1.4, 0]);
-  panel(1.2, 9, [0.85, 0.9, 1], 5, [-8, 3, 7], [0, 1, 0]);
-  panel(1.2, 9, [0.85, 0.9, 1], 4, [8, 3, 6], [0, 1, 0]);
-  panel(8, 1.6, [0.7, 0.78, 0.9], 0.8, [0, 0.4, -9], [0, 1, 0]);
+  // as a product studio lights lacquer and metal: a large overhead softbox; a key softbox front
+  // left; a wide, feathered card behind the camera (a piano's black front and a bell's flare need
+  // something bright to reflect, or they read as holes); tall strips behind left and right for the
+  // rims, and two beside the camera for the long highlights down tubes and case edges; a low cool
+  // card in front
+  panel(10, 7, [1, 0.96, 0.9], 2.4, [0, 9, -0.5], [0, 0, 0], 0.45);
+  panel(5, 4, [1, 0.9, 0.78], 6.5, [-6, 5, -6], [0, 0, 0], 0.4);
+  panel(20, 7, [1, 0.97, 0.93], 1.5, [0, 3.6, -11], [0, 1.4, 0], 0.9);
+  panel(1.3, 9, [0.85, 0.9, 1], 7, [-8, 3, 7], [0, 1, 0], 0.5);
+  panel(1.3, 9, [0.85, 0.9, 1], 5.5, [8, 3, 6], [0, 1, 0], 0.5);
+  panel(1.6, 8, [1, 0.95, 0.88], 3.2, [-10, 3, -3], [0, 1, 0], 0.6);
+  panel(1.6, 8, [0.9, 0.94, 1], 2.4, [10, 3, -4], [0, 1, 0], 0.6);
+  panel(9, 1.8, [0.7, 0.78, 0.9], 0.9, [0, 0.4, -9], [0, 1, 0], 0.6);
+  // the lit floor in front of the instrument: what a piano's vertical black front, a bell's underside
+  // and a rib's lower edge reflect (they face down and out, at the floor, not at the softboxes)
+  panel(22, 16, [1, 0.93, 0.84], 0.55, [0, -1.85, -5], [0, 10, -5], 1.0);
   return s;
 }
 
@@ -212,7 +237,7 @@ export class Renderer3 {
     this.fill = new THREE.DirectionalLight(new THREE.Color(0.9, 0.92, 1), 0.55);
     this.root.add(this.fill, this.fill.target);
     // the floor
-    const fm = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(0.018, 0.016, 0.014), roughness: 0.85, metalness: 0, specularIntensity: 0.35, envMap: this.envRT.texture, envMapIntensity: 0.35, transparent: true, depthWrite: true });
+    const fm = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(0.075, 0.062, 0.05), roughness: 0.8, metalness: 0, specularIntensity: 0.25, envMap: this.envRT.texture, envMapIntensity: 0.35, transparent: true, depthWrite: true });
     fm.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, this.floorU);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWorldP;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWorldP = (modelMatrix * vec4(transformed, 1.0)).xyz;');

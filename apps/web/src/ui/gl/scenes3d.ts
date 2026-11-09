@@ -206,7 +206,10 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
     if (id === 'cello') return { target: [0, 0.76, 0.08], dist: 2.55, yaw: 0.62, pitch: 0.07 };
     const bm = st.bowedM.get(id);
     const c = bm ? bm.bounds.c : ([0, 0.25, 0] as Vec3);
-    return { target: [c[0] - 0.05, c[1], c[2]], dist: id === 'viola' ? 0.86 : 0.76, yaw: 0.25, pitch: 0.6 };
+    // the violin and viola: from the scroll's side, low enough that the instrument reads in three-quarter
+    // (not as a plan) and the bow, crossing the strings, lies into the picture instead of standing up
+    // through its top and bottom edges
+    return { target: [c[0], c[1] - 0.025, c[2]], dist: id === 'viola' ? 1.06 : 0.95, yaw: -0.5, pitch: 0.42 };
   }
   if (si.family === 'brass') return { target: [0.0, 0.2, 0.0], dist: 0.6, yaw: 0.4, pitch: 0.28 };
   return { target: [0.0, 0.17, 0.0], dist: 0.68, yaw: 0.24, pitch: 0.5 };
