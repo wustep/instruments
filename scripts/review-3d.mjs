@@ -51,6 +51,8 @@ const R = {
     side: { yaw: 1.5708, pitch: 0.05, dist: 2.1, target: [0, 0.68, 0] },
     close: { yaw: 0.4, pitch: 0.25, dist: 0.75, target: [0.0, 0.64, 0.05] },
     scroll: { yaw: 0.9, pitch: 0.15, dist: 0.42, target: [0.0, 1.47, 0.3] },
+    detail: { yaw: 0.5, pitch: 0.15, dist: 0.32, target: [0.08, 0.74, 0.0] },
+    scrollside: { yaw: 1.65, pitch: 0.12, dist: 0.32, target: [0.0, 1.48, 0.3] },
     act: { view: { yaw: 0.45, pitch: 0.3, dist: 0.85, target: [0.0, 1.12, 0.2] }, notes: [55], wait: 1000 },
   },
   flute: {
@@ -104,8 +106,8 @@ async function view(page, v) {
 
 for (const [id, cfg] of Object.entries(R)) {
   if (ONLY && !ONLY.includes(id)) continue;
-  for (const which of ['hero', 'front', 'side', 'close', 'scroll', 'act']) {
-    if (which === 'scroll' && !cfg.scroll) continue;
+  for (const which of ['hero', 'front', 'side', 'close', 'scroll', 'scrollside', 'detail', 'act']) {
+    if (['scroll', 'scrollside', 'detail'].includes(which) && !cfg[which]) continue;
     if (VIEWS && !VIEWS.includes(which)) continue;
     const ctx = await browser.newContext(PHONE ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true } : { viewport: { width: 1440, height: 900 }, deviceScaleFactor: DSF });
     await ctx.addInitScript((inst) => {

@@ -117,7 +117,11 @@ export function materialFor(m: Mat, lite: boolean): THREE.Material {
     map = painted.map;
     aux = painted.aux;
     pm.map = map;
-    if (paint.cut) pm.alphaTest = 0.5;
+    // the cut-outs (f-holes): alpha to coverage, so their edges are antialiased by the multisampling
+    if (paint.cut) {
+      pm.alphaTest = 0.02;
+      pm.alphaToCoverage = true;
+    }
     pm.color.set('#ffffff');
   }
   pm.onBeforeCompile = (sh) => {

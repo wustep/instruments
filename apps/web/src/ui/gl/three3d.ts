@@ -151,7 +151,7 @@ export class Renderer3 {
     this.fill = new THREE.DirectionalLight(new THREE.Color(0.9, 0.92, 1), 0.55);
     this.root.add(this.fill, this.fill.target);
     // the floor
-    const fm = new THREE.MeshStandardMaterial({ color: new THREE.Color(0.022, 0.02, 0.018), roughness: 0.6, metalness: 0, transparent: true, depthWrite: true });
+    const fm = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(0.018, 0.016, 0.014), roughness: 0.85, metalness: 0, specularIntensity: 0.35, envMapIntensity: 0.35, transparent: true, depthWrite: true });
     fm.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, this.floorU);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWorldP;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWorldP = (modelMatrix * vec4(transformed, 1.0)).xyz;');

@@ -92,7 +92,7 @@ const SPEC: Record<'violin' | 'viola' | 'cello', Spec> = {
     neck: 0.13, fbLen: 0.27, fbW: [0.024, 0.042], fbThick: 0.005, fbCrown: 0.003, bridgeH: 0.033, bridgeW: 0.041, bridgeR: 0.042, proj: 0.027, overstand: 0.006,
     scroll: 0.04, pegbox: 0.07, pbDepth: 0.021, tail: 0.11, spreadB: 0.0113, spreadN: 0.0055, neckDepth: [0.018, 0.021], stick: [0.0043, 0.0028], hairW: 0.0105,
     dia: [0.8 * mm, 0.8 * mm, 0.6 * mm, 0.26 * mm], wound: [true, true, true, false], grain: [0.9 * mm, 2.0 * mm], flame: 3.6 * mm,
-    vTop: [172, 96, 40], vBack: [166, 84, 32], vEdge: [92, 40, 14],
+    vTop: [150, 78, 30], vBack: [146, 70, 26], vEdge: [70, 28, 10],
   },
   viola: {
     body: 0.406, ol: VIOLIN, rib: 0.038, archT: 0.0175, archB: 0.0165, edgeT: 4.1 * mm, over: 2.8 * mm, rE: 1.8 * mm, plateT: 3 * mm, ribT: 1.2 * mm,
@@ -108,7 +108,7 @@ const SPEC: Record<'violin' | 'viola' | 'cello', Spec> = {
     neck: 0.28, fbLen: 0.58, fbW: [0.032, 0.075], fbThick: 0.009, fbCrown: 0.006, bridgeH: 0.09, bridgeW: 0.092, bridgeR: 0.066, proj: 0.082, overstand: 0.02,
     scroll: 0.072, pegbox: 0.14, pbDepth: 0.046, tail: 0.235, spreadB: 0.0205, spreadN: 0.0078, neckDepth: [0.03, 0.036], stick: [0.0055, 0.0038], hairW: 0.0145,
     dia: [1.6 * mm, 1.3 * mm, 1.05 * mm, 0.8 * mm], wound: [true, true, true, true], grain: [1.4 * mm, 3.2 * mm], flame: 7 * mm,
-    vTop: [150, 64, 26], vBack: [142, 56, 22], vEdge: [74, 26, 10],
+    vTop: [138, 54, 22], vBack: [130, 48, 18], vEdge: [58, 20, 8],
   },
 };
 
@@ -123,8 +123,10 @@ interface Plate {
   B: number;
   /** closed outline (x, z): along the bass side (z > 0) to the tail, back along the treble side */
   poly: P2[];
-  /** outward unit normals */
+  /** outward unit normals (smoothed, for shading) */
   nrm: P2[];
+  /** the outline inset by d, with sharp corners and no folds (cached per distance) */
+  inset: (d: number) => P2[];
   hwMax: number;
   /** a smoothed half-width envelope (the cross arch's scale) */
   W: (x: number) => number;
@@ -185,11 +187,61 @@ function resample(pts0: P2[], n: number, bend: number): P2[] {
   return out;
 }
 
+/** the corners as hooks: a traced outline sees only the outermost edge row by row, so a corner comes
+ *  out as a square step. A real corner's tip overhangs the C-bout, which curves back out under it:
+ *  each step is replaced by a curve undercutting the tip by `h` */
+function hookCorners(pts: P2[], B: number): P2[] {
+  const h = 0.012 * B;
+  const out: P2[] = [];
+  const at = (x: number, from: number, dir: number): number => {
+    // z of the outline at x, walking from index `from` in direction dir
+    for (let k = from; k > 0 && k < pts.length - 1; k += dir) {
+      const a = pts[k];
+      const b = pts[k + dir];
+      if ((b[0] - x) * (a[0] - x) <= 0) return a[1] + ((b[1] - a[1]) * (x - a[0])) / (b[0] - a[0] || 1e-9);
+    }
+    return pts[from][1];
+  };
+  const bez = (p0: P2, p1: P2, p2: P2, p3: P2, k: number): P2[] =>
+    Array.from({ length: k }, (_, i): P2 => {
+      const t = (i + 1) / (k + 1);
+      const u = 1 - t;
+      return [u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0], u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]];
+    });
+  let skipUntil = -Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    if (p[0] < skipUntil) continue;
+    const q = pts[i + 1];
+    if (q && i > 10 && i < pts.length - 10 && Math.abs(q[1] - p[1]) > 0.02 * B) {
+      const D = Math.abs(q[1] - p[1]);
+      if (q[1] < p[1]) {
+        // upper corner: the tip p, then under it and back up, down into the C-bout
+        out.push(p);
+        const xe = p[0] + 0.7 * h;
+        const ze = at(xe, i + 1, 1);
+        out.push(...bez(p, [p[0] - 0.9 * h, p[1] - 0.25 * D], [p[0] - 0.8 * h, ze + 0.12 * D], [xe, ze], 8), [xe, ze]);
+        skipUntil = xe + 1e-6;
+      } else {
+        // lower corner: the C-bout runs down past the tip, turns out and back up to the tip q
+        const xs = q[0] - 0.7 * h;
+        const zs = at(xs, i, -1);
+        while (out.length && out[out.length - 1][0] > xs) out.pop();
+        out.push([xs, zs], ...bez([xs, zs], [q[0] + 0.8 * h, zs + 0.12 * D], [q[0] + 0.9 * h, q[1] - 0.25 * D], q, 8));
+      }
+      continue;
+    }
+    out.push(p);
+  }
+  return out;
+}
+
 function makePlate(ol: Outline, B: number, n: number, button: number): Plate {
   const N = ol.hw.length;
-  const bass: P2[] = [];
-  for (let i = 0; i < N; i++) bass.push([(i / (N - 1)) * B, ol.hw[i] * B]);
-  let pts: P2[] = [...bass, ...bass.slice(1, N - 1).reverse().map(([x, z]): P2 => [x, -z])];
+  const bass0: P2[] = [];
+  for (let i = 0; i < N; i++) bass0.push([(i / (N - 1)) * B, ol.hw[i] * B]);
+  const bass = hookCorners(bass0, B);
+  let pts: P2[] = [...bass, ...bass.slice(1, bass.length - 1).reverse().map(([x, z]): P2 => [x, -z])];
   if (button > 0) {
     // the back's button at the neck end: a half-round tongue the neck's heel sits on
     const keep = pts.filter(([x, z]) => Math.abs(z) >= button || x > button * 3);
@@ -200,7 +252,29 @@ function makePlate(ol: Outline, B: number, n: number, button: number): Plate {
     }
     pts = [...arc, ...keep];
   }
-  const poly = resample(pts, n, 0.012 * B);
+  const poly0 = resample(pts, n, 0.012 * B);
+  // smooth the traced wobble (it shows in the edge's highlight): a small Gaussian along the
+  // outline, weakened where it turns sharply (the corners keep their tips)
+  const poly = poly0.map((p0, i): P2 => {
+    const a = poly0[(i + n - 1) % n];
+    const b = poly0[(i + 1) % n];
+    const t1 = Math.atan2(p0[1] - a[1], p0[0] - a[0]);
+    const t2 = Math.atan2(b[1] - p0[1], b[0] - p0[0]);
+    let turn = Math.abs(t2 - t1);
+    if (turn > Math.PI) turn = 2 * Math.PI - turn;
+    const k = turn > 0.35 ? 0 : 3;
+    let x = 0;
+    let z = 0;
+    let ws = 0;
+    for (let j = -k; j <= k; j++) {
+      const w = Math.exp(-((j / 2) ** 2));
+      const q = poly0[(i + j + n) % n];
+      x += q[0] * w;
+      z += q[1] * w;
+      ws += w;
+    }
+    return [x / ws, z / ws];
+  });
   let area = 0;
   for (let i = 0; i < n; i++) {
     const a = poly[i];
@@ -290,6 +364,10 @@ function makePlate(ol: Outline, B: number, n: number, button: number): Plate {
       }
       D[gz * (GX + 1) + gx] = Math.sqrt(best);
     }
+  // Catmull–Rom across the grid: smooth (C1), so the channel's normals have no kinks at the cells
+  const r = GX + 1;
+  const g = (ix: number, iz: number) => D[clamp(iz, 0, GZ) * r + clamp(ix, 0, GX)];
+  const cr = (p0: number, p1: number, p2: number, p3: number, t: number) => 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
   const dist = (x: number, z: number) => {
     const fx = clamp(((x - x0) / (x1 - x0)) * GX, 0, GX - 1e-6);
     const fz = clamp(((z - z0) / (z1 - z0)) * GZ, 0, GZ - 1e-6);
@@ -297,12 +375,63 @@ function makePlate(ol: Outline, B: number, n: number, button: number): Plate {
     const iz = Math.floor(fz);
     const tx = fx - ix;
     const tz = fz - iz;
-    const r = GX + 1;
-    const a = D[iz * r + ix] + (D[iz * r + ix + 1] - D[iz * r + ix]) * tx;
-    const b = D[(iz + 1) * r + ix] + (D[(iz + 1) * r + ix + 1] - D[(iz + 1) * r + ix]) * tx;
-    return a + (b - a) * tz;
+    const row = (k: number) => cr(g(ix - 1, iz + k), g(ix, iz + k), g(ix + 1, iz + k), g(ix + 2, iz + k), tx);
+    return Math.max(0, cr(row(-1), row(0), row(1), row(2), tz));
   };
-  return { B, poly, nrm, hwMax, W, xa: (ia / (N - 1)) * B, xb: (ib / (N - 1)) * B, dist };
+  // insets: offset along the sharp normals, then collapse any stretch that folded back on itself
+  // (inside a corner's tip) to one point, so the inset keeps a sharp corner without loops
+  const sharp = poly.map((_, i): P2 => {
+    const a = poly[(i + n - 2) % n];
+    const b = poly[(i + 2) % n];
+    const tx = b[0] - a[0];
+    const tz = b[1] - a[1];
+    const l = Math.hypot(tx, tz) || 1;
+    return area > 0 ? [tz / l, -tx / l] : [-tz / l, tx / l];
+  });
+  const cache = new Map<number, P2[]>();
+  const inset = (d: number): P2[] => {
+    const hit = cache.get(d);
+    if (hit) return hit;
+    const q: P2[] = poly.map(([x, z], i) => [x - sharp[i][0] * d, z - sharp[i][1] * d]);
+    for (let pass = 0; pass < 6; pass++) {
+      let changed = false;
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        const dq = (q[j][0] - q[i][0]) * (poly[j][0] - poly[i][0]) + (q[j][1] - q[i][1]) * (poly[j][1] - poly[i][1]);
+        if (dq >= 0) continue;
+        // the run of reversed segments around i
+        let a = i;
+        let b = j;
+        const rev = (k: number) => {
+          const k2 = (k + 1) % n;
+          return (q[k2][0] - q[k][0]) * (poly[k2][0] - poly[k][0]) + (q[k2][1] - q[k][1]) * (poly[k2][1] - poly[k][1]) < 0;
+        };
+        for (let s = 0; s < 40 && rev((a + n - 1) % n); s++) a = (a + n - 1) % n;
+        for (let s = 0; s < 40 && rev(b); s++) b = (b + 1) % n;
+        // take in one more point each side, and put them all at their mean
+        a = (a + n - 1) % n;
+        b = (b + 1) % n;
+        let mx = 0;
+        let mz = 0;
+        let c = 0;
+        for (let k = a; ; k = (k + 1) % n) {
+          mx += q[k][0];
+          mz += q[k][1];
+          c++;
+          if (k === b) break;
+        }
+        for (let k = a; ; k = (k + 1) % n) {
+          q[k] = [mx / c, mz / c];
+          if (k === b) break;
+        }
+        changed = true;
+      }
+      if (!changed) break;
+    }
+    cache.set(d, q);
+    return q;
+  };
+  return { B, poly, nrm, inset, hwMax, W, xa: (ia / (N - 1)) * B, xb: (ib / (N - 1)) * B, dist };
 }
 
 /** the arch above the edge level: a long × cross arch, rising out of the channel round the edge */
@@ -451,15 +580,27 @@ function paintPlate(id: string, sp: Spec, pl: Plate, holes: P2[][] | null, kind:
         c.fillStyle = g;
         c.fillRect(0, 0, w, h);
       };
-      glow(0.26 * B, 0, 0.2 * B, [236, 150, 72], 0.16);
-      glow(0.74 * B, 0, 0.26 * B, [236, 150, 72], 0.14);
-      glow(0.5 * B, 0.04 * B, 0.1 * B, [236, 150, 72], 0.08);
-      for (let k = 1; k <= 12; k++) {
-        c.strokeStyle = rgba(sp.vEdge, 0.05);
-        c.lineWidth = 2 * k * 2.2 * pm * (B / 0.356) ** 0.5;
+      // the ground shows through where the varnish is thin (the bouts' crowns); it pools darker in
+      // the channel, the C-bouts and round the f-holes; and it is mottled everywhere
+      glow(0.25 * B, 0.03 * B, 0.17 * B, [226, 140, 64], 0.2);
+      glow(0.73 * B, -0.02 * B, 0.22 * B, [226, 140, 64], 0.18);
+      glow(0.52 * B, 0.0, 0.07 * B, [226, 140, 64], 0.08);
+      for (let k = 1; k <= 14; k++) {
+        c.strokeStyle = rgba(sp.vEdge, 0.055);
+        c.lineWidth = 2 * k * 2.4 * pm * (B / 0.356) ** 0.5;
         c.stroke(path);
       }
-      for (let k = 0; k < 40; k++) glow(r() * B, (r() * 2 - 1) * pl.hwMax, (0.02 + 0.06 * r()) * B, r() < 0.5 ? sp.vEdge : [200, 120, 60], 0.06 + 0.06 * r());
+      for (const sd of [-1, 1]) glow(0.5 * B, sd * pl.hwMax * 0.95, 0.12 * B, sp.vEdge, 0.3);
+      if (holes) for (const hp of holes) {
+        let mx = 0;
+        let mz = 0;
+        for (const [x, z] of hp) {
+          mx += x / hp.length;
+          mz += z / hp.length;
+        }
+        glow(mx, mz, 0.07 * B, sp.vEdge, 0.22);
+      }
+      for (let k = 0; k < 140; k++) glow(r() * B, (r() * 2 - 1) * pl.hwMax, (0.008 + 0.04 * r()) * B, r() < 0.55 ? sp.vEdge : [214, 130, 60], 0.05 + 0.08 * r());
       // purfling (black–white–black) and a worn line at the edge
       const band = (d1: number, d2: number, style: string) => {
         const L = document.createElement('canvas');
@@ -566,58 +707,149 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   const flamed = variant(M.varnish, { col: [sp.vBack[0] / 255, sp.vBack[1] / 255, sp.vBack[2] / 255], tint: true });
   const flamedDark = variant(M.varnishDark, { col: [sp.vEdge[0] / 255, sp.vEdge[1] / 255, sp.vEdge[2] / 255], tint: true });
   // ---- plates: arched surfaces fanned from the spine to the edge round's inner line
-  const plateSurface = (b: MeshBuilder, p: Plate, yf: (x: number, z: number) => number, inset: number, m: Mat, down: boolean) => {
-    const K = 20;
-    const n = p.poly.length;
+  // the plate's surface over its outline (inset by `inset`): a grid clipped to the outline — whole
+  // cells inside, boundary cells cut to it (Sutherland–Hodgman) and triangulated — finer near the
+  // edge, where the channel is; heights and normals from the arch function
+  const plateSurface = (b: MeshBuilder, p: Plate, yf: (x: number, z: number) => number, inset0: number, m: Mat, down: boolean, coarse = 1) => {
     const e = 0.25 * mm;
-    const rows: { pos: Vec3; nrm: Vec3; uv: [number, number] }[][] = [];
-    for (let i = 0; i < n; i++) {
-      const [px, pz] = p.poly[i];
-      const [nx, nz] = p.nrm[i];
-      const qx = px - nx * inset;
-      const qz = pz - nz * inset;
-      const cx = clamp(px, p.xa, p.xb);
-      const row: { pos: Vec3; nrm: Vec3; uv: [number, number] }[] = [];
-      for (let k = 0; k <= K; k++) {
-        const v = 1 - Math.pow(1 - k / K, 1.7);
-        const x = cx + (qx - cx) * v;
-        const z = qz * v;
-        const y = yf(x, z);
-        const gx = (yf(x + e, z) - yf(x - e, z)) / (2 * e);
-        const gz = (yf(x, z + e) - yf(x, z - e)) / (2 * e);
-        const nn = norm(down ? [gx, -1, gz] : [-gx, 1, -gz]);
-        row.push({ pos: [x, y, z], nrm: nn, uv: [x / B, 0.5 + z / (2 * p.hwMax)] });
-      }
-      rows.push(row);
+    // the band round the edge (the channel and the start of the rise) as rings that follow the
+    // outline, so the channel is never aliased by a grid; the interior beyond it as a clipped grid
+    const band = coarse <= 1 ? sp.chan[0] + 3.2 * sp.chan[1] : 0;
+    const inset = inset0 + band;
+    const Q = p.inset(inset);
+    const n = Q.length;
+    const vtx = (x: number, z: number): { pos: Vec3; nrm: Vec3; uv: [number, number] } => {
+      const y = yf(x, z);
+      const gx = (yf(x + e, z) - yf(x - e, z)) / (2 * e);
+      const gz = (yf(x, z + e) - yf(x, z - e)) / (2 * e);
+      return { pos: [x, y, z], nrm: norm(down ? [gx, -1, gz] : [-gx, 1, -gz]), uv: [x / B, 0.5 + z / (2 * p.hwMax)] };
+    };
+    const tri = (a: P2, b2: P2, c2: P2) => {
+      const A = vtx(a[0], a[1]);
+      const Bv = vtx(b2[0], b2[1]);
+      const Cv = vtx(c2[0], c2[1]);
+      b.stri(A.pos, Bv.pos, Cv.pos, A.nrm, Bv.nrm, Cv.nrm, m, A.uv, Bv.uv, Cv.uv);
+    };
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let z0 = Infinity;
+    let z1 = -Infinity;
+    for (const [x, z] of Q) {
+      x0 = Math.min(x0, x);
+      x1 = Math.max(x1, x);
+      z0 = Math.min(z0, z);
+      z1 = Math.max(z1, z);
     }
+    const big = 0.017 * B * coarse;
+    const nx = Math.ceil((x1 - x0) / big);
+    const nz = Math.ceil((z1 - z0) / big);
+    // scanline inside test at a cell's centre
+    const inside = (x: number, z: number) => {
+      let c = false;
+      for (let i = 0, j = n - 1; i < n; j = i++) {
+        const [xi, zi] = Q[i];
+        const [xj, zj] = Q[j];
+        if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) c = !c;
+      }
+      return c;
+    };
+    // cells the outline passes through (sampled along each edge)
+    const fine = 2;
+    const fx = nx * fine;
+    const fz = nz * fine;
+    const small = big / fine;
+    const edgeCell = new Uint8Array((fx + 2) * (fz + 2));
     for (let i = 0; i < n; i++) {
-      const A = rows[i];
-      const C = rows[(i + 1) % n];
-      for (let k = 0; k < K; k++) {
-        const a = A[k];
-        const b2 = A[k + 1];
-        const c2 = C[k + 1];
-        const d = C[k];
-        b.stri(a.pos, b2.pos, c2.pos, a.nrm, b2.nrm, c2.nrm, m, a.uv, b2.uv, c2.uv);
-        b.stri(a.pos, c2.pos, d.pos, a.nrm, c2.nrm, d.nrm, m, a.uv, c2.uv, d.uv);
+      const a = Q[i];
+      const c2 = Q[(i + 1) % n];
+      const len = Math.hypot(c2[0] - a[0], c2[1] - a[1]);
+      const k = Math.max(1, Math.ceil(len / (small * 0.25)));
+      for (let t = 0; t <= k; t++) {
+        const x = a[0] + ((c2[0] - a[0]) * t) / k;
+        const z = a[1] + ((c2[1] - a[1]) * t) / k;
+        const ix = Math.floor((x - x0) / small);
+        const iz = Math.floor((z - z0) / small);
+        if (ix >= 0 && iz >= 0 && ix < fx && iz < fz) edgeCell[iz * fx + ix] = 1;
       }
     }
+    const clipRect = (rx0: number, rz0: number, rx1: number, rz1: number): P2[] => {
+      let poly: P2[] = Q;
+      const clip = (keep: (q: P2) => boolean, cut: (a: P2, c2: P2) => P2) => {
+        const out: P2[] = [];
+        for (let i = 0; i < poly.length; i++) {
+          const a = poly[i];
+          const c2 = poly[(i + 1) % poly.length];
+          const ka = keep(a);
+          const kc = keep(c2);
+          if (ka) out.push(a);
+          if (ka !== kc) out.push(cut(a, c2));
+        }
+        poly = out;
+      };
+      const ix = (xv: number) => (a: P2, c2: P2): P2 => [xv, a[1] + ((c2[1] - a[1]) * (xv - a[0])) / (c2[0] - a[0])];
+      const iz = (zv: number) => (a: P2, c2: P2): P2 => [a[0] + ((c2[0] - a[0]) * (zv - a[1])) / (c2[1] - a[1]), zv];
+      clip((q) => q[0] >= rx0, ix(rx0));
+      if (poly.length) clip((q) => q[0] <= rx1, ix(rx1));
+      if (poly.length) clip((q) => q[1] >= rz0, iz(rz0));
+      if (poly.length) clip((q) => q[1] <= rz1, iz(rz1));
+      return poly;
+    };
+    const cell = (cx0: number, cz0: number, sz: number, fineIx: number, fineIz: number, span: number) => {
+      // any boundary in this cell?
+      let edge = false;
+      for (let a = 0; a < span && !edge; a++) for (let c2 = 0; c2 < span && !edge; c2++) if (edgeCell[(fineIz + c2) * fx + fineIx + a]) edge = true;
+      if (!edge) {
+        if (!inside(cx0 + sz / 2, cz0 + sz / 2)) return;
+        tri([cx0, cz0], [cx0 + sz, cz0], [cx0 + sz, cz0 + sz]);
+        tri([cx0, cz0], [cx0 + sz, cz0 + sz], [cx0, cz0 + sz]);
+        return;
+      }
+      const piece = clipRect(cx0, cz0, cx0 + sz, cz0 + sz);
+      if (piece.length < 3) return;
+      const faces = ShapeUtils.triangulateShape(piece.map(([x, z]) => new Vector2(x, z)), []);
+      for (const [a, c2, d] of faces) tri(piece[a], piece[c2], piece[d]);
+    };
+    if (band > 0) {
+      const K = 12;
+      const rings = Array.from({ length: K + 1 }, (_, k) => p.inset(inset0 + band * (k / K) ** 1.15));
+      const V = rings.map((rg) => rg.map(([x, z]) => vtx(x, z)));
+      for (let k = 0; k < K; k++)
+        for (let i = 0; i < n; i++) {
+          const j = (i + 1) % n;
+          const a = V[k][i];
+          const b2 = V[k + 1][i];
+          const c2 = V[k + 1][j];
+          const d = V[k][j];
+          b.stri(a.pos, b2.pos, c2.pos, a.nrm, b2.nrm, c2.nrm, m, a.uv, b2.uv, c2.uv);
+          b.stri(a.pos, c2.pos, d.pos, a.nrm, c2.nrm, d.nrm, m, a.uv, c2.uv, d.uv);
+        }
+    }
+    for (let j = 0; j < nz; j++)
+      for (let i = 0; i < nx; i++) {
+        const cx0 = x0 + i * big;
+        const cz0 = z0 + j * big;
+        // near the edge (the channel, the corners): four smaller cells
+        const near = p.dist(cx0 + big / 2, cz0 + big / 2) < 0.035 * B * Math.max(1, coarse * 0.5);
+        if (near && coarse <= 1) {
+          for (let b2 = 0; b2 < fine; b2++) for (let a = 0; a < fine; a++) cell(cx0 + a * small, cz0 + b2 * small, small, i * fine + a, j * fine + b2, 1);
+        } else cell(cx0, cz0, big, i * fine, j * fine, fine);
+      }
   };
   plateSurface(topMb, pl, yTop, sp.rE, mTop, false);
   plateSurface(mb, plB, yBack, sp.rE, mBack, true);
   // the inside: the plates' inner faces and the ribs' inner faces, dark (seen through the f-holes)
-  plateSurface(mb, plIn, (x, z) => yTop(x, z) - sp.plateT, sp.over + sp.ribT, M.interior, true);
-  plateSurface(mb, plIn, (x, z) => yBack(x, z) + sp.plateT, sp.over + sp.ribT, M.interior, false);
+  plateSurface(mb, plIn, (x, z) => yTop(x, z) - sp.plateT, sp.over + sp.ribT, M.interior, true, 2.5);
+  plateSurface(mb, plIn, (x, z) => yBack(x, z) + sp.plateT, sp.over + sp.ribT, M.interior, false, 2.5);
   // ---- the edges: a round from the plate's surface over the edge to the overhang's underside
   const edge = (b: MeshBuilder, p: Plate, top: boolean, m: Mat) => {
     const n = p.poly.length;
     const rE = sp.rE;
     const rB = 0.6 * mm * S ** 0.5;
+    const QE = p.inset(rE);
+    const QO = p.inset(sp.over);
     const prof = (i: number): { o: number; y: number; no: number; ny: number }[] => {
-      const [px, pz] = p.poly[i];
-      const [nx, nz] = p.nrm[i];
-      const qx = px - nx * rE;
-      const qz = pz - nz * rE;
+      const [px] = p.poly[i];
+      const [qx, qz] = QE[i];
       const out: { o: number; y: number; no: number; ny: number }[] = [];
       const s = top ? 1 : -1;
       const y0 = top ? yTop(qx, qz) : yBack(qx, qz);
@@ -643,13 +875,20 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
       const pc = p.poly[j];
       const na = p.nrm[i];
       const nc = p.nrm[j];
-      const V = (pp: P2, nn: P2, q: { o: number; y: number }): Vec3 => [pp[0] + nn[0] * q.o, q.y, pp[1] + nn[1] * q.o];
+      // a point of the profile: between the outline (o = 0) and its insets (o = −rE, −over)
+      const V = (pp: P2, nn: P2, q: { o: number; y: number }, k: number): Vec3 => {
+        void nn;
+        const ins = q.o >= -rE ? QE[k] : QO[k];
+        const d0 = q.o >= -rE ? rE : sp.over;
+        const t = Math.min(1, -q.o / d0);
+        return [pp[0] + (ins[0] - pp[0]) * t, q.y, pp[1] + (ins[1] - pp[1]) * t];
+      };
       const NN = (nn: P2, q: { no: number; ny: number }): Vec3 => norm([nn[0] * q.no, q.ny, nn[1] * q.no]);
       for (let k = 0; k < A.length - 1; k++) {
-        const a = V(pa, na, A[k]);
-        const b2 = V(pa, na, A[k + 1]);
-        const c2 = V(pc, nc, C[k + 1]);
-        const d = V(pc, nc, C[k]);
+        const a = V(pa, na, A[k], i);
+        const b2 = V(pa, na, A[k + 1], i);
+        const c2 = V(pc, nc, C[k + 1], j);
+        const d = V(pc, nc, C[k], j);
         const uvs = (q: Vec3): [number, number] => [q[0] / B, 0.5 + q[2] / (2 * p.hwMax)];
         b.stri(a, b2, c2, NN(na, A[k]), NN(na, A[k + 1]), NN(nc, C[k + 1]), m, uvs(a), uvs(b2), uvs(c2));
         b.stri(a, c2, d, NN(na, A[k]), NN(nc, C[k + 1]), NN(nc, C[k]), m, uvs(a), uvs(c2), uvs(d));
@@ -662,10 +901,8 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   {
     const n = pl.poly.length;
     const rib = (i: number, inset: number): [Vec3, Vec3, Vec3] => {
-      const [px, pz] = pl.poly[i];
       const [nx, nz] = pl.nrm[i];
-      const x = px - nx * (sp.over + inset);
-      const z = pz - nz * (sp.over + inset);
+      const [x, z] = pl.inset(sp.over + inset)[i];
       return [[x, 0, z], [x, -ribH(x), z], [nx, 0, nz]];
     };
     for (let i = 0; i < n; i++) {
@@ -766,7 +1003,7 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   const pbH = sp.pbDepth;
   const pbLen = sp.pegbox;
   const O: Vec3 = sub([xn - 0.002 * S ** 0.5, yNut - 0.0018 * S ** 0.5, 0], scale(up, pbH));
-  const pbW = (s: number) => fbW(xn) * 1.04 * (1 - 0.16 * s);
+  const pbW = (s: number) => fbW(xn) * 1.18 * (1 - 0.1 * s);
   const cheek = 0.0034 * S ** 0.75;
   const floorT = 0.003 * S ** 0.75;
   const PB = (s: number, hh: number, z: number): Vec3 => add(add(O, scale(ax, s * pbLen)), [up[0] * hh, up[1] * hh, z]);
@@ -820,10 +1057,12 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
       [r * 1.55, 0.004 * S ** 0.6],
       [r * 1.2, 0.0055 * S ** 0.6],
     ], pegMat);
-    grid(mb, 18, 20, (t, v) => {
+    grid(mb, 22, 24, (t, v) => {
       const a = v * Math.PI * 2;
-      const A = 0.5 * hw * Math.pow(Math.sin(Math.PI * (0.13 + 0.87 * t)), 0.55);
-      const Bt = A * (0.4 + 0.6 * Math.pow(1 - t, 5));
+      // a fiddle peg's head: from the collar it flares into a broad, flat thumb-piece with a
+      // rounded end; thin across its faces
+      const A = 0.5 * hw * (0.36 + 0.64 * sstep(0, 0.55, t)) * Math.sqrt(Math.max(0, 1 - Math.pow(Math.max(0, t - 0.6) / 0.4, 2.4)));
+      const Bt = A * 0.4 + 0.07 * hw * (1 - t) * Math.sqrt(Math.max(0, 1 - Math.pow(Math.max(0, t - 0.6) / 0.4, 2.4)));
       const along = Math.cos(a) * A;
       const thick = Math.sin(a) * Bt;
       const zz = z0 + side * (0.0055 * S ** 0.6 + t * hl);
@@ -841,7 +1080,8 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     const cC = add(P0, scale(up, R0));
     const r = (th: number) => R0 * Math.exp(-k * th);
     const W1 = pbW(1);
-    const wz = (th: number) => W1 * (0.4 + 0.6 * Math.exp(-th / (1.25 * Math.PI)));
+    const Wsc = fbW(xn) * 1.42;
+    const wz = (th: number) => (th < Math.PI / 2 ? W1 + (Wsc - W1) * sstep(0, Math.PI / 2, th) : Wsc * (0.36 + 0.64 * Math.exp(-(th - Math.PI / 2) / (1.05 * Math.PI))));
     const dir = (th: number): Vec3 => add(scale(up, -Math.cos(th)), scale(ax, Math.sin(th)));
     const prof = (th: number): [number, number][] => {
       const thick = r(th) - r(th + 2 * Math.PI);
@@ -1137,19 +1377,19 @@ function tailpiece(mb: MeshBuilder, id: string, sp: Spec, x0: number, x1: number
 /** a chinrest (ebony) over the lower bout's edge on the bass side: a dished, rimmed cup on a
  *  pedestal, clamped to the rib by two nickel barrels */
 function chinrest(mb: MeshBuilder, sp: Spec, B: number, yTop: (x: number, z: number) => number, ribH: (x: number) => number, S: number): void {
-  const cx = B * 0.9;
-  const cz = sp.spreadB * 3.1;
-  const ra = 0.03 * S;
-  const rb = 0.021 * S;
+  const cx = B * 0.91;
+  const cz = sp.spreadB * 3.0;
+  const ra = 0.032 * S;
+  const rb = 0.02 * S;
   const base = yTop(cx, cz);
-  const h = 0.011 * S;
+  const h = 0.0085 * S;
   // the cup: dished, its rim rounded over, higher on the outside
   grid(mb, 40, 16, (s, v) => {
     const a = s * Math.PI * 2;
     const x = cx + Math.cos(a) * ra * v;
     const z = cz + Math.sin(a) * rb * v;
-    const lift = 0.0025 * S * Math.max(0, Math.cos(a - 0.4));
-    const dish = 0.0035 * S * (1 - v * v);
+    const lift = 0.002 * S * Math.max(0, Math.cos(a - 0.4));
+    const dish = 0.0022 * S * (1 - v * v);
     const roll = v > 0.82 ? (1 - Math.cos(((v - 0.82) / 0.18) * Math.PI * 0.5)) * h * 0.45 : 0;
     return [x, base + h + lift - dish - roll, z];
   }, M.ebony);
