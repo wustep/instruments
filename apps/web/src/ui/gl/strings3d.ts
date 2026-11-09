@@ -979,14 +979,18 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   // the neck: a D section under the fingerboard, deepening into the heel, which runs down the
   // body's end to the back's button
   const neckBot = (x: number) => fbY(x) - sp.fbCrown - sp.fbThick;
-  grid(mb, 30, 18, (s, v) => {
+  grid(mb, 34, 18, (s, v) => {
+    // a D section under the fingerboard; over its last fifth it deepens into the heel, a rounded
+    // block that meets the body's end and runs down to the back's button
     const x = xn + s * (sp.neck + 0.002);
-    const heel = sstep(0.72, 1, s);
-    const dep = sp.neckDepth[0] + (sp.neckDepth[1] - sp.neckDepth[0]) * s + heel * (neckBot(0) + ribH(0) + sp.edgeT - sp.neckDepth[1]);
+    const heel = sstep(0.78, 1, s);
+    const reach = neckBot(0) + ribH(0) + sp.edgeT - sp.neckDepth[1];
+    const dep = sp.neckDepth[0] + (sp.neckDepth[1] - sp.neckDepth[0]) * s + heel * reach;
     const a = Math.PI * v;
-    const wn = fbW(x) * (0.9 + 0.12 * heel);
-    const yy = neckBot(x) - Math.sin(a) * dep;
-    return [x - heel * Math.sin(a) * 0.012 * S ** 0.6, yy, (Math.cos(a) * wn) / 2];
+    const wn = fbW(x) * (0.9 + 0.18 * heel);
+    // the heel's back is rounded in profile: deeper along the middle of the section
+    const yy = neckBot(x) - Math.pow(Math.sin(a), 1 - 0.4 * heel) * dep;
+    return [x, yy, (Math.cos(a) * wn) / 2];
   }, flamed);
   // the nut (ebony)
   const yNut = fbY(xn) + 0.0008 * S;
@@ -1081,12 +1085,12 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     const r = (th: number) => R0 * Math.exp(-k * th);
     const W1 = pbW(1);
     const Wsc = fbW(xn) * 1.42;
-    const wz = (th: number) => (th < Math.PI / 2 ? W1 + (Wsc - W1) * sstep(0, Math.PI / 2, th) : Wsc * (0.36 + 0.64 * Math.exp(-(th - Math.PI / 2) / (1.05 * Math.PI))));
+    const wz = (th: number) => (th < Math.PI / 2 ? W1 + (Wsc - W1) * sstep(0, Math.PI / 2, th) : Wsc * (0.3 + 0.7 * Math.exp(-(th - Math.PI / 2) / (0.9 * Math.PI))));
     const dir = (th: number): Vec3 => add(scale(up, -Math.cos(th)), scale(ax, Math.sin(th)));
     const prof = (th: number): [number, number][] => {
       const thick = r(th) - r(th + 2 * Math.PI);
-      const fl = 0.07 * thick * (1 - sstep(1.2 * Math.PI, 2 * Math.PI, th));
-      const ch = Math.min(0.14 * thick, 0.0025 * S ** 0.7);
+      const fl = 0.1 * thick * (1 - sstep(1.2 * Math.PI, 2 * Math.PI, th));
+      const ch = Math.min(0.18 * thick, 0.003 * S ** 0.7);
       const half: [number, number][] = [
         [0, 0],
         [-fl, 0.3],
@@ -1195,7 +1199,7 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     const a = xform(Tinv, base);
     const b2 = xform(Tinv, add(base, scale(dir, len - 0.03)));
     const tip = xform(Tinv, add(base, scale(dir, len)));
-    cyl(mb, a, b2, 0.0045, 0.0045, 16, M.steel);
+    cyl(mb, a, b2, 0.0045, 0.0045, 16, M.darkSteel);
     // the rubber stop on its point
     cyl(mb, b2, xform(Tinv, add(base, scale(dir, len - 0.004))), 0.011, 0.012, 20, M.rubber);
     cyl(mb, xform(Tinv, add(base, scale(dir, len - 0.004))), tip, 0.012, 0.009, 20, M.rubber);

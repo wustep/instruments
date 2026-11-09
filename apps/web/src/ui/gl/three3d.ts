@@ -220,7 +220,14 @@ export class Renderer3 {
       this.h = h;
       r.setSize(w, h, false);
       this.rt.setSize(w, h);
-      this.gtao?.setSize(w, h);
+      // big canvases (high-DPR laptops): 2× multisampling is enough at that pixel density
+      const ms = w * h > 2.6e6 ? 2 : this.lite ? 2 : 4;
+      if (this.rt.samples !== ms) {
+        this.rt.samples = ms;
+        this.rt.dispose();
+      }
+      // occlusion is low-frequency: half resolution
+      this.gtao?.setSize(Math.ceil(w / 2), Math.ceil(h / 2));
     }
     // instances
     const used = new Set<Mesh>();
@@ -302,7 +309,7 @@ export class Renderer3 {
     let aoTex: THREE.Texture | null = null;
     if (this.ao) {
       if (!this.gtao) {
-        this.gtao = new GTAOPass(this.scene, this.cam, w, h);
+        this.gtao = new GTAOPass(this.scene, this.cam, Math.ceil(w / 2), Math.ceil(h / 2));
         this.gtao.output = GTAOPass.OUTPUT.Off;
       }
       this.gtao.updateGtaoMaterial({ radius: rad * 0.09, distanceExponent: 1.5, thickness: rad * 0.06, scale: 1.1, samples: 12 });
