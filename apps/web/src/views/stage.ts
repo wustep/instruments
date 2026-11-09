@@ -475,6 +475,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       pianoState.down = new Set(audio.down.keys());
       pianoState.sustain = audio.lastStats?.sustain ?? audio.sustainValue;
       pianoState.soft = audio.lastStats?.soft ?? audio.softValue;
+      pianoState.middle = audio.lastStats?.middle ?? audio.middleValue;
+      pianoState.upright = audio.preset === 'upright' || audio.preset === 'honky-tonk';
       const keys = audio.piano && audio.piano.instrument === 'piano' && audio.piano.keys.length ? audio.piano.keys : keysFallback;
       const kind = audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand';
       drawPiano(ctx, w, ih, { keys, kind, lid: lidVal(), keyX: (m) => ({ x: kr.left - sr.left + kb.keyFrac(m).c * kr.width, w: kb.keyFrac(m).w * kr.width }) }, frame, pianoState, fields.piano, now);
@@ -498,6 +500,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       pianoState.down = new Set(audio.down.keys());
       pianoState.sustain = audio.lastStats?.sustain ?? audio.sustainValue;
       pianoState.soft = audio.lastStats?.soft ?? audio.softValue;
+      pianoState.middle = audio.lastStats?.middle ?? audio.middleValue;
+      pianoState.upright = audio.preset === 'upright' || audio.preset === 'honky-tonk';
       const keys = audio.piano && audio.piano.instrument === 'piano' && audio.piano.keys.length ? audio.piano.keys : keysFallback;
       s3.frame(now, topH, {
         fr: frame,

@@ -22,6 +22,17 @@ const keyboard = createKeyboard();
 // ---------------------------------------------------------------- fallboard (above the keys)
 const sustainPedal = pedal('sustain', 'Sustain pedal (hold; Space on a keyboard, CC64 on MIDI)', (v) => audio.sustain(v));
 const softPedal = pedal('soft', 'Una corda (hold; Shift on a keyboard, CC67 on MIDI)', (v) => audio.soft(v));
+// the middle pedal: a grand's sostenuto, an upright's practice muffler (named for the piano shown)
+const middlePedal = pedal('sost.', 'Sostenuto (hold; B on a keyboard, CC66 on MIDI)', (v) => audio.sostenuto(v));
+let pedalsFor = '';
+const syncPedals = () => {
+  const up = audio.preset === 'upright' || audio.preset === 'honky-tonk';
+  const key = `${audio.instrument}:${up}`;
+  if (key === pedalsFor) return;
+  pedalsFor = key;
+  middlePedal.rename(up ? 'muffler' : 'sost.', up ? 'Practice muffler: a felt strip between hammers and strings (hold; B on a keyboard, CC66 on MIDI)' : 'Sostenuto: holds the dampers of the keys down when pressed (hold; B on a keyboard, CC66 on MIDI)');
+  softPedal.rename('soft', up ? 'Soft pedal: the hammers rest nearer the strings (hold; Shift on a keyboard, CC67 on MIDI)' : 'Una corda: the action shifts, the hammers miss a string (hold; Shift on a keyboard, CC67 on MIDI)');
+};
 const knobSlot = h('div', { class: 'knobs', role: 'group', 'aria-label': 'Physical controls' });
 const knobToggle = h('button', { class: 'knob-toggle', type: 'button', 'aria-label': 'Show the knobs', 'aria-expanded': 'false', 'data-tip': 'knobs' }, '◐');
 knobToggle.addEventListener('click', () => {
@@ -36,7 +47,7 @@ const octave = h('div', { class: 'octave', role: 'group', 'aria-label': 'Octave'
 const fallboard = h(
   'div',
   { class: 'fallboard' },
-  h('div', { class: 'pedals' }, sustainPedal.el, softPedal.el),
+  h('div', { class: 'pedals' }, sustainPedal.el, softPedal.el, middlePedal.el),
   octave,
   knobToggle,
   knobSlot,
@@ -138,6 +149,8 @@ audio.midiStatus.on((m) => {
 audio.stats.on((s) => {
   sustainPedal.set(s.sustain);
   softPedal.set(s.soft);
+  middlePedal.set(s.middle ?? audio.middleValue);
+  syncPedals();
 });
 audio.keysChanged.on((ks) => keyboard.setPrepared(new Set(audio.instrument === 'piano' ? ks.filter((k) => k.preparation).map((k) => k.midi) : [])));
 // where the computer keys start (always a C): middle C, the violin's and viola's first
@@ -149,6 +162,8 @@ const syncInstrument = (id: InstrumentId) => {
   keys.setRange(info.lo, info.hi);
   keys.setBase(BASE[id]);
   softPedal.el.hidden = id !== 'piano';
+  middlePedal.el.hidden = id !== 'piano';
+  syncPedals();
   document.documentElement.dataset.instrument = id;
   requestAnimationFrame(() => keyboard.scrollToMidi(BASE[id] + 6));
 };

@@ -111,6 +111,8 @@ export interface VisualState {
   modes: Float32Array;
   sustain: number;
   soft: number;
+  /** the middle pedal: a grand's sostenuto, an upright's muffler */
+  middle: number;
   gainReduction: number;
 }
 
@@ -149,6 +151,8 @@ export class PianoCore {
   sustain = 0;
   soft = 0;
   sostenutoPedal = 0;
+  /** an upright's middle pedal: the practice muffler (0 up … 1 down) */
+  muffler = 0;
 
   private queue: { frame: number; ev: PianoEvent }[] = [];
   private Az0 = new Float64Array(BK_MAX);
@@ -359,7 +363,7 @@ export class PianoCore {
         v.held = true;
         v.damperTarget = 0;
         v.damper = Math.min(v.damper, 0.2); // key lifts its damper before the hammer arrives
-        v.strike(ev.velocity, hammerVelocity(ev.velocity, this.cal, ev.midi), this.soft, this.frame & POS_MASK);
+        v.strike(ev.velocity, hammerVelocity(ev.velocity, this.cal, ev.midi), this.soft, this.frame & POS_MASK, this.design.action === 'upright', this.design.action === 'upright' ? this.muffler : 0);
         this.lastStruck = v;
         break;
       }
@@ -376,6 +380,13 @@ export class PianoCore {
         this.soft = clamp(ev.value, 0, 1);
         break;
       case 'sostenuto': {
+        // the middle pedal (CC66): an upright's lowers its practice muffler (it holds no dampers)
+        if (this.design.action === 'upright') {
+          this.sostenutoPedal = clamp(ev.value, 0, 1);
+          this.muffler = this.sostenutoPedal;
+          for (const v of this.voices) v.sostenuto = false;
+          break;
+        }
         const was = this.sostenutoPedal >= 0.5;
         this.sostenutoPedal = clamp(ev.value, 0, 1);
         const now = this.sostenutoPedal >= 0.5;
@@ -922,6 +933,7 @@ export class PianoCore {
       modes: this.modeAmps.slice(),
       sustain: this.sustain,
       soft: this.soft,
+      middle: this.sostenutoPedal,
       gainReduction: this.dry ? 1 : this.limiter.reduction,
     };
   }

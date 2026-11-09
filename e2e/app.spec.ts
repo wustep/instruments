@@ -143,7 +143,7 @@ test('measurements: charts render and the A/B model renders in the browser', asy
   expect(errors).toEqual([]);
 });
 
-test('Web MIDI: hot-plug, notes, continuous sustain (CC64) and soft pedal (CC67)', async ({ page }) => {
+test('Web MIDI: hot-plug, notes, continuous sustain (CC64), sostenuto (CC66) and soft pedal (CC67)', async ({ page }) => {
   // a fake MIDI device that is plugged in after the page has started listening
   await page.addInitScript(() => {
     const inputs = new Map<string, any>();
@@ -176,12 +176,15 @@ test('Web MIDI: hot-plug, notes, continuous sustain (CC64) and soft pedal (CC67)
     const m = (window as any).__midi;
     m.send([0xb0, 64, 64]); // half pedal
     m.send([0xb0, 67, 127]); // una corda
+    m.send([0xb0, 66, 127]); // sostenuto
     m.send([0x90, 60, 90]);
   });
   await page.waitForTimeout(400);
   const st = await page.evaluate(() => (window as any).__piano.lastStats);
   expect(st.sustain).toBeCloseTo(64 / 127, 2);
   expect(st.soft).toBeCloseTo(1, 2);
+  expect(st.middle).toBeCloseTo(1, 2);
+  await page.evaluate(() => (window as any).__midi.send([0xb0, 66, 0]));
   expect(st.voices).toBeGreaterThanOrEqual(1);
   await expect(page.locator('.key[data-midi="60"]')).toHaveClass(/down/);
   await page.evaluate(() => (window as any).__midi.send([0x80, 60, 0]));
@@ -1050,6 +1053,43 @@ test('pianos in 3D: sustain leaves the camera alone, and zooming in stops outsid
     const isIn = e.every((v, k) => v > lo[k] && v < hi[k]);
     expect(isIn, `${preset}: camera inside the case at ${e.map((v) => v.toFixed(2))}`).toBe(false);
   }
+});
+
+test('the full pedal set: sustain, soft and the middle pedal (a grand’s sostenuto, an upright’s muffler), on screen, keys and engine', async ({ page }, info) => {
+  const phone = info.project.name === 'phone';
+  await page.goto('/');
+  await startAudio(page);
+  const pedals = page.locator('.pedals .pedal');
+  const middle = page.locator('.pedals .pedal').nth(2);
+  await expect(pedals).toHaveCount(3);
+  const stats = () => page.evaluate(() => (window as any).__piano.lastStats);
+  // the grand: the middle pedal is the sostenuto
+  await expect(middle.locator('.p-name')).toHaveText('sost.');
+  await expect(middle).toHaveAttribute('aria-label', /^Sostenuto/);
+  if (!phone) {
+    await page.keyboard.down('KeyB');
+    await expect.poll(async () => (await stats()).middle).toBeGreaterThan(0.9);
+    await expect(middle).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.up('KeyB');
+    await expect.poll(async () => (await stats()).middle).toBeLessThan(0.1);
+  }
+  // pressed on screen (a held pointer)
+  const mb = (await middle.boundingBox())!;
+  await page.mouse.move(mb.x + mb.width / 2, mb.y + mb.height / 2);
+  await page.mouse.down();
+  await expect.poll(async () => (await stats()).middle).toBeGreaterThan(0.9);
+  await page.mouse.up();
+  await expect.poll(async () => (await stats()).middle).toBeLessThan(0.1);
+  // the upright: the soft pedal is the half-blow rail, the middle pedal its practice muffler
+  await page.evaluate(() => (window as any).__piano.setPreset('upright'));
+  await page.locator('.presets button', { hasText: 'upright' }).click();
+  await expect(middle.locator('.p-name')).toHaveText('muffler');
+  await expect(middle).toHaveAttribute('aria-label', /^Practice muffler/);
+  await expect(pedals.nth(1)).toHaveAttribute('aria-label', /hammers rest nearer/);
+  // the other instruments show only the sustain pedal
+  await page.evaluate(() => (window as any).__piano.setInstrument('cello'));
+  await expect(middle).toBeHidden();
+  await expect(pedals.nth(1)).toBeHidden();
 });
 
 test('without WebGL2 there is no 3D toggle and the 2D stage works', async ({ page }) => {

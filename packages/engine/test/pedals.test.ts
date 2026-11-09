@@ -70,3 +70,50 @@ describe('una corda', () => {
     expect(rmsDb(soft.x, 0.05, 0.5)).toBeLessThan(rmsDb(normal.x, 0.05, 0.5) - 1);
   });
 });
+
+describe('upright pedals', () => {
+  // brightness: the first difference's level over the signal's (a high-frequency share)
+  const bright = (x: Float32Array, t0: number, t1: number) => {
+    const a = Math.round(t0 * FS);
+    const b = Math.round(t1 * FS);
+    let d = 0;
+    let s = 0;
+    for (let i = a + 1; i < b; i++) {
+      d += (x[i] - x[i - 1]) ** 2;
+      s += x[i] ** 2;
+    }
+    return 10 * Math.log10(d / Math.max(1e-30, s));
+  };
+  const up = { preset: 'upright' as const, params: { sympathetic: false } };
+  const soft = { t: 0, e: { type: 'soft' as const, value: 1 } };
+  const middle = { t: 0, e: { type: 'sostenuto' as const, value: 1 } };
+
+  it('soft is the half-blow rail: every string struck, a little softer, no shift', () => {
+    const core = new PianoCore({ sampleRate: FS, dry: true, ...up });
+    render([soft, on(0.01, 72, 100)], 0.3, {}, core);
+    const v = core.voices[72 - 21];
+    expect(v.hW[2]).toBeGreaterThan(0.5); // the third string is still struck
+    const normal = render([on(0.01, 72, 100)], 0.6, up);
+    const half = render([soft, on(0.01, 72, 100)], 0.6, up);
+    const dB = rmsDb(half.x, 0.05, 0.5) - rmsDb(normal.x, 0.05, 0.5);
+    expect(dB).toBeLessThan(-0.8);
+    expect(dB).toBeGreaterThan(-6);
+  });
+
+  it('the middle pedal lowers the practice muffler: much softer and darker, and it holds no dampers', () => {
+    const normal = render([on(0.01, 60, 100)], 0.6, up);
+    const muffled = render([middle, on(0.01, 60, 100)], 0.6, up);
+    expect(rmsDb(muffled.x, 0.05, 0.5)).toBeLessThan(rmsDb(normal.x, 0.05, 0.5) - 6);
+    expect(bright(muffled.x, 0.02, 0.3)).toBeLessThan(bright(normal.x, 0.02, 0.3) - 3);
+    // not a sostenuto: a key held when it goes down is still damped on release
+    const core = new PianoCore({ sampleRate: FS, dry: true, ...up });
+    render([on(0.01, 48, 90), { t: 0.2, e: { type: 'sostenuto', value: 1 } }, off(0.3, 48)], 0.8, {}, core);
+    expect(core.voices[48 - 21].damperTarget).toBeGreaterThan(0.9);
+  });
+
+  it('a grand ignores the muffler: its middle pedal stays a sostenuto', () => {
+    const normal = render([on(0.01, 60, 100)], 0.4, { params: { sympathetic: false } });
+    const mid = render([middle, on(0.01, 60, 100)], 0.4, { params: { sympathetic: false } });
+    expect(Math.abs(rmsDb(mid.x, 0.05, 0.35) - rmsDb(normal.x, 0.05, 0.35))).toBeLessThan(0.01);
+  });
+});

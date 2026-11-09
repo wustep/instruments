@@ -1300,6 +1300,9 @@ const U = {
   blow: 0.045,
   letoff: 0.003,
   dip: 0.01,
+  /** the practice muffler: its felt's front face, and how far the rail drops it */
+  mufZ: 0.4625,
+  mufDrop: 0.045,
 };
 export function buildUprightModel(keys: KeySummary[]): PianoModel {
   const geo: KeyGeo[] = [];
@@ -1603,6 +1606,12 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
     rbox(hr, [-0.62, 0.958, 0.351], [0.62, 0.99, 0.378], M.railBeech, 0.004);
     rbox(hr, [-0.62, 0.962, 0.378], [0.62, 0.986, 0.3814], M.greenFelt, 0.001);
     parts.hamRail = hr.build();
+    // the practice muffler (Yamaha U1's middle pedal): a beech rail above the hammers with a strip
+    // of felt hanging from it; the pedal drops it 45 mm, the felt between hammers and strings
+    const mu = new MeshBuilder();
+    rbox(mu, [-0.62, 1.075, 0.4605], [0.62, 1.087, 0.4665], M.railBeech, 0.0015);
+    rbox(mu, [-0.618, 1.038, U.mufZ], [0.618, 1.076, U.mufZ + 0.0035], M.greenFelt, 0.001);
+    parts.muffler = mu.build();
   }
   return {
     kind: 'upright',
@@ -1667,11 +1676,12 @@ export interface PianoPose {
   jack: Float32Array;
   /** whether the jack has tripped at let-off (it resets as the key rises) */
   trip: Uint8Array;
-  pedal: [number, number];
+  /** soft, sustain, middle (eased) */
+  pedal: [number, number, number];
   /** the case's visibility (1 shown … 0 hidden), eased */
   caseVis: number;
 }
-export const newPianoPose = (): PianoPose => ({ keyPos: new Float32Array(88), jack: new Float32Array(88), trip: new Uint8Array(88), pedal: [0, 0], caseVis: 1 });
+export const newPianoPose = (): PianoPose => ({ keyPos: new Float32Array(88), jack: new Float32Array(88), trip: new Uint8Array(88), pedal: [0, 0, 0], caseVis: 1 });
 
 export interface PianoIn {
   piano: PianoState;
@@ -1774,6 +1784,14 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
   const grand = pm.kind === 'grand';
   const P = pm.parts;
   const A = grand ? G : U;
+  // the pedals, eased: soft (left), sustain (right), middle; a grand's una corda shifts the whole
+  // keyboard and action 2.5 mm towards the treble (the hammers miss one string of three; the
+  // dampers stay); an upright's middle pedal lowers the muffler's felt in front of the strings
+  pose.pedal[0] = ease(pose.pedal[0], ps.soft, si.dt, 0.05);
+  pose.pedal[1] = ease(pose.pedal[1], ps.sustain, si.dt, 0.05);
+  pose.pedal[2] = ease(pose.pedal[2], ps.middle, si.dt, 0.05);
+  const sh = grand ? pose.pedal[0] * 0.0025 : 0;
+  const muf = grand ? 0 : pose.pedal[2];
   for (const g of pm.keys) {
     const i = g.i;
     const held = si.down(g.midi);
@@ -1785,8 +1803,12 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
     // the key rocks on its balance pin (front down)
     const kA = (kp * A.dip) / A.balZ;
     const R = aboutX(MS[0], A.pivY, A.balZ, -kA);
-    b.mesh(g.key, mul4(MS[1], R, trs(MS[2], g.xc, 0, 0, 0)), glow);
-    b.mesh(P.stick, mul4(MS[1], R, g.shear), glow);
+    b.mesh(g.key, mul4(MS[1], R, trs(MS[2], g.xc + sh, 0, 0, 0)), glow);
+    if (sh) {
+      MS[9].set(g.shear);
+      MS[9][12] += sh;
+    }
+    b.mesh(P.stick, mul4(MS[1], R, sh ? MS[9] : g.shear), glow);
     // the linked rig: the capstan lifts the wippen; the wippen lifts the jack; the jack drives the
     // hammer through its knuckle (grand) or butt (upright) until let-off, where it trips and the
     // hammer flies free on the stage's action state (strike, rebound, check)
@@ -1799,13 +1821,15 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
     if (!pose.trip[i] && (jackTravel >= free || hr > 0.45)) pose.trip[i] = 1;
     else if (pose.trip[i] && kp < 0.3 && hr < 0.3) pose.trip[i] = 0;
     pose.jack[i] = ease(pose.jack[i], pose.trip[i], si.dt, 0.012);
-    const travel = pose.trip[i] ? hr * g.blow : Math.max(Math.min(jackTravel, free), hr * g.blow);
+    let travel = pose.trip[i] ? hr * g.blow : Math.max(Math.min(jackTravel, free), hr * g.blow);
+    // the muffler's felt stops an upright's hammer short of the string
+    if (muf > 0) travel = Math.min(travel, g.blow - muf * (g.strike[2] - U.mufZ));
     // past a section's cut nothing shows; the light scene skips every other idle key, but never
     // near a key seen close up
     if (si.cut && si.cut.side * (g.strike[0] - si.cut.at) > 0.012) continue;
     const near = si.zoomKey != null && Math.abs(g.midi - si.zoomKey) <= 10;
     if (si.lite && !near && g.midi % 2 && !held && hr < 0.05 && kp < 0.02) continue;
-    const x = g.strike[0];
+    const x = g.strike[0] + sh;
     headGlow[3] = 0.6 * hr;
     const jg = hr > 0.05 && pose.jack[i] < 0.5 ? GLOW_JACK : null;
     if (grand) {
@@ -1840,12 +1864,10 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
       }
     }
   }
-  // pedals: soft (left) and sustain (right) from the engine
-  pose.pedal[0] = ease(pose.pedal[0], ps.soft, si.dt, 0.05);
-  pose.pedal[1] = ease(pose.pedal[1], ps.sustain, si.dt, 0.05);
   if (P.hamRail) b.mesh(P.hamRail, trs(MS[3], 0, 0, pose.pedal[0] * 0.012, 0));
+  if (P.muffler) b.mesh(P.muffler, trs(MS[3], 0, -U.mufDrop * muf, 0, 0));
   pm.pedals.forEach((p, k) => {
-    const v = k === 0 ? pose.pedal[0] : k === pm.pedals.length - 1 ? pose.pedal[1] : 0;
+    const v = k === 0 ? pose.pedal[0] : k === pm.pedals.length - 1 ? pose.pedal[1] : pose.pedal[2];
     if (pm.pedalsCase && cv <= 0) return;
     b.mesh(p.mesh, aboutX(MS[3], p.pivot[1], p.pivot[2], -0.12 * v), pm.pedalsCase && caseGlow ? caseGlow : v > 0.3 ? PEDAL_GLOW : null);
   });

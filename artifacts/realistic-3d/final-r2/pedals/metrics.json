@@ -1,0 +1,46 @@
+{
+  "pieces": [
+    {
+      "name": "upright-soft",
+      "what": "upright: the phrase without, then with the soft pedal (before: una corda; after: the half-blow rail)"
+    },
+    {
+      "name": "upright-middle",
+      "what": "upright: the phrase without, then with the middle pedal (before: a sostenuto; after: the practice muffler)"
+    },
+    {
+      "name": "grand-sostenuto",
+      "what": "grand: C2–G2–C3 held, sostenuto, released; a staccato melody over it stays damped (unchanged)"
+    }
+  ],
+  "rmsDb": {
+    "upright-soft": {
+      "before": {
+        "no pedal": -21.29,
+        "soft pedal": -24.26
+      },
+      "after": {
+        "no pedal": -21.29,
+        "soft pedal": -24.12
+      }
+    },
+    "upright-middle": {
+      "before": {
+        "no pedal": -21.31,
+        "middle pedal": -21.35
+      },
+      "after": {
+        "no pedal": -21.31,
+        "middle pedal": -30.95
+      }
+    },
+    "grand-sostenuto": {
+      "before": {
+        "held by the sostenuto": -19.23
+      },
+      "after": {
+        "held by the sostenuto": -19.23
+      }
+    }
+  }
+}
