@@ -36,7 +36,7 @@
 import type { VisualFrame } from '@piano-model/engine';
 import { INK, VALVE_DOWN } from '../stage-draw.ts';
 import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, about, add, chain, cross, dot, ink, norm, rotX, rotZ, scale, sub, translate, xform } from './gl3d.ts';
-import { M, MeshBuilder, cyl, ellipsoid, grid, variant, type Mat } from './mesh.ts';
+import { M, MeshBuilder, box, cyl, ellipsoid, grid, variant, type Mat } from './mesh.ts';
 
 type P2 = [number, number];
 const TAU = Math.PI * 2;
@@ -55,6 +55,16 @@ const BR = M.brassLacquer;
 /** brass on the air path (uv.x from the mouthpiece to the bell) */
 const BRG = variant(M.brassLacquer, { kind: 2 });
 const NS = M.nickelSilver;
+/** the flute's pad skins, and its steels and needle springs (brushed stainless) */
+const PAD = M.padSkin;
+/** knurling (its fine ridges scatter: a satin band), the buttons' mother-of-pearl, the bell's
+ *  burnished lacquer and the valve casings' handled lacquer */
+const KN = M.nickelKnurl;
+const BELLG = variant(M.brassBell, { kind: 2 });
+const BRH = M.brassHandled;
+/** nickel-silver tube drawn and worn by the slides (satin) */
+const NSD = M.nickelDrawn;
+const ROD = M.steel;
 
 // ---------------------------------------------------------------- geometry helpers
 const len3 = (a: Vec3) => Math.hypot(a[0], a[1], a[2]);
@@ -353,7 +363,45 @@ const TRILL_R = 0.0152;
 // cups face the audience a little upwards and catch the studio's low front card
 const FOOT_PHI = deg(10);
 const FOOT_R = 0.0148;
-const BACK_R = 0.0142; // the thumb and G♯ rods on the player's side
+const BACK_R = 0.0142; // the thumb's and the G♯ key's steels, on the player's side
+const THUMB_PHI = deg(-100);
+const GS_PHI = deg(-58);
+/** the needle springs run beside the rods, this far from the rod's axis */
+const NEEDLE_D = 0.0029;
+
+// The fingers (bits): the left thumb on the B lever or on the Briccialdi B♭ lever; the left hand's
+// three fingers and its little finger (the G♯ spatula); the right hand's three fingers, and its little
+// finger on the E♭ (D♯) key or the C♯ or C roller.
+const TB = 1;
+const TBB = 2;
+const L1 = 4;
+const L2 = 8;
+const L3 = 16;
+const GS = 32;
+const R1 = 64;
+const R2 = 128;
+const R3 = 256;
+const EB = 512;
+const CS = 1024;
+const CC = 2048;
+const LH = TB | L1 | L2 | L3;
+const RH = R1 | R2 | R3;
+/** the standard Boehm fingerings, C4–C7, first choices (The Woodwind Fingering Guide,
+ *  wfg.woodwind.org/flute; fluteinfo.com's chart): the second octave overblows the first's from E5,
+ *  D5 and D♯5 vent through the C♯ key (L1 up), the third octave is cross-fingered */
+const FINGERING: number[] = (() => {
+  const t: Record<number, number> = {
+    60: LH | RH | CC, 61: LH | RH | CS, 62: LH | RH, 63: LH | RH | EB, 64: LH | R1 | R2 | EB, 65: LH | R1 | EB, 66: LH | R3 | EB,
+    67: LH | EB, 68: LH | GS | EB, 69: TB | L1 | L2 | EB, 70: TBB | L1 | EB, 71: TB | L1 | EB, 72: L1 | EB, 73: EB,
+    74: TB | L2 | L3 | RH, 75: TB | L2 | L3 | RH | EB,
+    86: TB | L2 | L3 | EB, 87: LH | GS | RH | EB, 88: TB | L1 | L2 | R1 | R2 | EB, 89: TB | L1 | L3 | R1 | EB, 90: TB | L1 | L3 | R3 | EB,
+    91: L1 | L2 | L3 | EB, 92: L2 | L3 | GS | EB, 93: TB | L2 | R1 | EB, 94: TB | R1 | EB, 95: TB | L1 | L3 | R2 | CC, 96: L1 | L2 | L3 | GS | R1,
+  };
+  for (let m = 76; m <= 85; m++) t[m] = t[m - 12];
+  return Array.from({ length: 37 }, (_, i) => t[60 + i]);
+})();
+/** the fingers down for a note (the chart's range, C4–C7, held at its ends) */
+const fingersFor = (m: number) => FINGERING[Math.max(0, Math.min(36, Math.round(m) - 60))];
 
 type CupStyle = 'open' | 'plain' | 'dome' | 'crown';
 interface FKey {
@@ -369,42 +417,248 @@ interface FKey {
   rodR: number;
   /** closed-standing (the G♯ and D♯ keys) */
   closed?: boolean;
-  mesh: 'open' | 'plain' | 'dome' | 'small' | 'dsharp' | 'footA' | 'footB';
+  /** open, for the fingers down: the Boehm mechanism (see below) */
+  open: (f: number) => boolean;
+  /** the rest of the piece, in the model's frame: its hinge tube, spring catch, the clutches and touches
+   *  it carries, a second cup */
+  extra?: (mb: MeshBuilder) => void;
 }
 // positions measured off flute-side.jpg (7.75 px/mm, × 0.98 to McGee's 670 mm C-foot flute)
 const MAIN = { rodPhi: ROD_PHI, rodR: ROD_R };
 const FOOT = { rodPhi: FOOT_PHI, rodR: FOOT_R };
 const BIG = { r: 0.00975, hole: 0.0071 };
-const FKEYS: FKey[] = [
-  { x: 0.307, note: 73, style: 'plain', r: 0.0062, hole: 0.0039, phi: 0, ...MAIN, mesh: 'small' }, // C♯
-  { x: 0.338, note: 72, style: 'dome', r: 0.0083, hole: 0.0062, phi: 0, ...MAIN, mesh: 'dome' }, // thumb (B / B♭)
-  { x: 0.3575, note: 71, style: 'plain', ...BIG, phi: 0, ...MAIN, mesh: 'plain' }, // LH 1
-  { x: 0.379, note: 70, style: 'open', ...BIG, phi: 0, ...MAIN, mesh: 'open' }, // LH 2
-  { x: 0.4, note: 69, style: 'open', ...BIG, phi: 0, ...MAIN, mesh: 'open' }, // LH 3
-  { x: 0.424, note: 68, style: 'plain', ...BIG, phi: 0, ...MAIN, closed: true, mesh: 'plain' }, // G♯
-  { x: 0.4475, note: 67, style: 'plain', ...BIG, phi: 0, ...MAIN, mesh: 'plain' }, // F♯ key
-  { x: 0.474, note: 66, style: 'open', ...BIG, phi: 0, ...MAIN, mesh: 'open' }, // RH 1
-  { x: 0.5, note: 65, style: 'open', ...BIG, phi: 0, ...MAIN, mesh: 'open' }, // RH 2
-  { x: 0.529, note: 64, style: 'open', ...BIG, phi: 0, ...MAIN, mesh: 'open' }, // RH 3
-  { x: 0.558, note: 63, style: 'plain', ...BIG, phi: deg(-42), ...FOOT, closed: true, mesh: 'dsharp' }, // D♯
-  { x: 0.591, note: 62, style: 'crown', r: 0.0105, hole: 0.0074, phi: deg(62), ...FOOT, mesh: 'footA' }, // C♯ key
-  { x: 0.625, note: 61, style: 'crown', r: 0.0105, hole: 0.0074, phi: deg(62), ...FOOT, mesh: 'footB' }, // C key
-];
 const MAIN_POSTS = [0.2965, 0.348, 0.412, 0.4605, 0.5375];
 const FOOT_POSTS = [0.5505, 0.608, 0.6455];
 const TRILL_POSTS = [0.262, 0.459, 0.5205];
+const THUMB_POSTS = [0.3125, 0.3605];
+const GS_POSTS = [0.4005, 0.4245];
+/** the F♯ bridge: a rod hung below the main rod (angle about the rod, distance from its axis) */
+const BRIDGE_A = deg(115);
+const BRIDGE_D = 0.0034;
+
+/** a point at angle `a` round a rod (measured as φ is, from the rod's outward radius) and `d` from its axis */
+const offRod = (x: number, phi: number, R: number, a: number, d: number): Vec3 => [x, R * Math.cos(phi) + d * Math.cos(phi + a), -R * Math.sin(phi) - d * Math.sin(phi + a)];
+/** a hinge tube on the main rod */
+const mainTube = (mb: MeshBuilder, x0: number, x1: number) => barrel(mb, x0, x1, ROD_PHI, ROD_R);
+/** the spring catch: a stud on a hinge tube whose notch takes the needle spring's tip */
+function catchStud(mb: MeshBuilder, x: number, phi: number, R: number, a = deg(-60)): void {
+  cyl(mb, offRod(x, phi, R, a, 0.0015), offRod(x, phi, R, a, NEEDLE_D + 0.0003), 0.00052, 0.00042, 10, AG, false);
+  ellipsoid(mb, offRod(x, phi, R, a, NEEDLE_D + 0.0004), [0.00062, 0.00052, 0.00052], 10, AG);
+}
+/** a connector: a tongue from one key's hinge tube (at `a` round the rod, `d` out) reaching over its
+ *  neighbour's from x0 to x1, with the adjusting screw through its far end (the link's regulation)
+ *  and a cork under it */
+function tongue(mb: MeshBuilder, root: number, x0: number, x1: number, phi: number, R: number, a: number, d: number): void {
+  const up = (p: Vec3): Vec3 => sub(p, polar(p[0], phi, R));
+  cyl(mb, offRod(root, phi, R, a, 0.0012), offRod(root, phi, R, a, d), 0.0007, 0.0006, 10, AG, false);
+  sweep(mb, Array.from({ length: 6 }, (_, i) => offRod(lerp(x0, x1, i / 5), phi, R, a, d)), up, (f) => 0.0009 - 0.0002 * Math.abs(2 * f - 1), () => 0.00032, AG, 12, 3);
+  const xs = Math.abs(x0 - root) > Math.abs(x1 - root) ? x0 + 0.0008 : x1 - 0.0008;
+  cyl(mb, offRod(xs, phi, R, a, d - 0.0006), offRod(xs, phi, R, a, d + 0.0007), 0.0005, 0.0005, 10, AG);
+  cyl(mb, offRod(xs, phi, R, a, d - 0.0011), offRod(xs, phi, R, a, d - 0.0005), 0.0007, 0.0007, 10, M.cork);
+}
+
+/** the main line from the head: the C♯ key and its lever (the first finger's cup) in one piece, the B♭
+ *  key, the A, G and duplicate-G♯ keys, the F♯, F, E and D keys (OSU repair manual, fig. 2.2) */
+const FKEYS: FKey[] = [
+  // the C♯ key (the small hole high up, which also vents D5, D♯5) and its lever, the cup under L1:
+  // one piece, closed by L1 (C5 is L1 alone, with the thumb's C hole open)
+  {
+    x: 0.307, note: 73, style: 'plain', r: 0.0062, hole: 0.0039, phi: 0, ...MAIN, open: (f) => !(f & L1),
+    extra: (mb) => {
+      mb.with(translate(0.338, 0, 0), () => {
+        const Cf = chain(rotX(0), translate(0, YC, 0));
+        cupInto(mb, Cf, 'dome', 0.0083, 0.0062);
+        armInto(mb, Cf, 0, 'dome', 0.0083, 0.0062, polar(0, ROD_PHI, ROD_R));
+      });
+      mainTube(mb, 0.2987, 0.3458);
+      catchStud(mb, 0.3405, ROD_PHI, ROD_R);
+    },
+  },
+  // the thumb's key, on the player's side: its cup over the C hole, its B touch beyond it
+  {
+    x: 0.35, note: 72, style: 'plain', r: 0.008, hole: 0.006, phi: deg(-140), rodPhi: THUMB_PHI, rodR: BACK_R, open: (f) => !(f & (TB | TBB)),
+    extra: (mb) => {
+      barrel(mb, 0.3428, 0.3583, THUMB_PHI, BACK_R, 0.0016);
+      const out = (p: Vec3): Vec3 => [0, p[1], p[2]];
+      sweep(mb, spline3([polar(0.3436, deg(-108), BACK_R + 0.0004), polar(0.3405, deg(-138), 0.0166), polar(0.3375, deg(-162), 0.0166), polar(0.3362, deg(-172), 0.0162)], 6), out, () => 0.0011, () => 0.0007, AG, 12);
+      sweep(mb, Array.from({ length: 11 }, (_, i) => polar(lerp(0.3375, 0.3185, i / 10), deg(-174), 0.0161 + 0.0005 * Math.sin((i / 10) * Math.PI))), out, (f) => 0.0042 * Math.sqrt(Math.sin(Math.PI * Math.max(0.03, Math.min(0.97, f)))) * (0.8 + 0.2 * f), () => 0.0007, AG, 16, 3);
+    },
+  },
+  // the B♭ key: open; closed by the Briccialdi lever, by L2 (the A key's front connector) and by R1
+  // (the F/B♭ back connector) through its long inner tube, which comes out past the G keys with its
+  // kicker and the B♭ shake lever by R1
+  {
+    x: 0.3575, note: 71, style: 'plain', ...BIG, phi: 0, ...MAIN, open: (f) => !(f & (TBB | L2 | R1)),
+    extra: (mb) => {
+      mainTube(mb, 0.3502, 0.3678);
+      catchStud(mb, 0.3625, ROD_PHI, ROD_R);
+      barrel(mb, 0.4339, 0.4366, ROD_PHI, ROD_R, 0.0017);
+      tongue(mb, 0.4352, 0.4345, 0.4392, ROD_PHI, ROD_R, deg(-15), 0.0034);
+      // the shake lever: out from the kicker, along beside the F♯ key's tube, up to a touch by R1
+      const out = (p: Vec3): Vec3 => [0, p[1], p[2]];
+      const lev = spline3([offRod(0.4352, ROD_PHI, ROD_R, deg(30), 0.0014), offRod(0.4362, ROD_PHI, ROD_R, deg(30), 0.0034), offRod(0.4452, ROD_PHI, ROD_R, deg(26), 0.0039), offRod(0.4555, ROD_PHI, ROD_R, deg(18), 0.004), polar(0.4594, deg(62), 0.0172), polar(0.4602, deg(50), 0.0181)], 6);
+      sweep(mb, lev, out, () => 0.001, () => 0.0006, AG, 12);
+      sweep(mb, Array.from({ length: 9 }, (_, i) => polar(0.4603 + 0.0004 * (i / 8), deg(lerp(50, 34, i / 8)), 0.0181 + 0.0006 * Math.sin((i / 8) * Math.PI))), out, (f) => 0.0028 * Math.sqrt(Math.sin(Math.PI * Math.max(0.04, Math.min(0.96, f)))) * (0.75 + 0.25 * f), () => 0.0006, AG, 14, 3);
+    },
+  },
+  // L2: the A key, with the front connector that closes the B♭ key
+  {
+    x: 0.379, note: 70, style: 'open', ...BIG, phi: 0, ...MAIN, open: (f) => !(f & L2),
+    extra: (mb) => {
+      mainTube(mb, 0.3682, 0.3893);
+      catchStud(mb, 0.3855, ROD_PHI, ROD_R, deg(-35));
+      tongue(mb, 0.3696, 0.3658, 0.3702, ROD_PHI, ROD_R, deg(40), 0.003);
+    },
+  },
+  // L3: the G key, with the clutch that takes the duplicate G♯ key down with it
+  {
+    x: 0.4, note: 69, style: 'open', ...BIG, phi: 0, ...MAIN, open: (f) => !(f & L3),
+    extra: (mb) => {
+      mainTube(mb, 0.3897, 0.4098);
+      catchStud(mb, 0.4045, ROD_PHI, ROD_R);
+      tongue(mb, 0.4088, 0.4084, 0.4158, ROD_PHI, ROD_R, deg(60), 0.0034);
+    },
+  },
+  // the G♯ key, closed-standing, on the player's side: a lever, its spatula for the little finger
+  {
+    x: 0.4125, note: 68, style: 'plain', r: 0.0082, hole: 0.006, phi: deg(-108), rodPhi: GS_PHI, rodR: BACK_R, closed: true, open: (f) => !!(f & GS),
+    extra: (mb) => {
+      barrel(mb, 0.4027, 0.4223, GS_PHI, BACK_R, 0.0016);
+      const out = (p: Vec3): Vec3 => [0, p[1], p[2]];
+      // a stem rising from the lever's head end, then a teardrop spoon (~22 × 11 mm) laid along the tube
+      // towards the head, face up for the little finger
+      sweep(mb, spline3([polar(0.4125, GS_PHI, BACK_R), polar(0.4122, deg(-52), 0.0172), polar(0.4115, deg(-46), 0.0204), polar(0.4098, deg(-43), 0.0222)], 6), out, () => 0.0012, () => 0.0009, AG, 12);
+      const blade = Array.from({ length: 17 }, (_, i) => {
+        const t = i / 16;
+        return polar(lerp(0.411, 0.3885, t), deg(lerp(-43, -33, t)), lerp(0.0222, 0.0237, t) + 0.0012 * Math.sin(t * Math.PI));
+      });
+      const tear = (f: number) => 0.0056 * Math.pow(Math.sin(Math.PI * Math.max(0.02, Math.min(0.985, 0.08 + 0.92 * f))), 0.62) * (0.62 + 0.38 * f);
+      sweep(mb, blade, out, tear, () => 0.00075, AG, 18, 3);
+    },
+  },
+  // the duplicate G♯ key: closed by L3 through the G key's clutch
+  {
+    x: 0.424, note: 68, style: 'plain', ...BIG, phi: 0, ...MAIN, open: (f) => !(f & L3),
+    extra: (mb) => {
+      mainTube(mb, 0.4142, 0.4335);
+      catchStud(mb, 0.4285, ROD_PHI, ROD_R);
+    },
+  },
+  // the F♯ key: no touch of its own; closed by R1 (the F key's back connector), and by R2 or R3
+  // through its bridge, hung below the rod, on which the E and D keys' feet rest
+  {
+    x: 0.4475, note: 67, style: 'plain', ...BIG, phi: 0, ...MAIN, open: (f) => !(f & RH),
+    extra: (mb) => {
+      mainTube(mb, 0.437, 0.4583);
+      catchStud(mb, 0.4425, ROD_PHI, ROD_R);
+      cyl(mb, offRod(0.4566, ROD_PHI, ROD_R, BRIDGE_A, 0.0012), offRod(0.4566, ROD_PHI, ROD_R, BRIDGE_A, BRIDGE_D), 0.00085, 0.00075, 12, AG, false);
+      cyl(mb, offRod(0.4552, ROD_PHI, ROD_R, BRIDGE_A, BRIDGE_D), offRod(0.5332, ROD_PHI, ROD_R, BRIDGE_A, BRIDGE_D), 0.00062, 0.00062, 12, AG, false);
+      for (const x of [0.4552, 0.5332]) ellipsoid(mb, offRod(x, ROD_PHI, ROD_R, BRIDGE_A, BRIDGE_D), [0.0008, 0.0008, 0.0008], 12, AG);
+    },
+  },
+  // R1: the F key, with its back connector over the post to the F♯ key
+  {
+    x: 0.474, note: 66, style: 'open', ...BIG, phi: 0, ...MAIN, open: (f) => !(f & R1),
+    extra: (mb) => {
+      mainTube(mb, 0.4627, 0.4868);
+      catchStud(mb, 0.479, ROD_PHI, ROD_R);
+      tongue(mb, 0.4642, 0.4565, 0.4648, ROD_PHI, ROD_R, deg(-15), 0.0034);
+    },
+  },
+  // R2, R3: the E and D keys, each with a foot on the F♯ bridge
+  {
+    x: 0.5, note: 65, style: 'open', ...BIG, phi: 0, ...MAIN, open: (f) => !(f & R2),
+    extra: (mb) => {
+      mainTube(mb, 0.4872, 0.5143);
+      catchStud(mb, 0.5075, ROD_PHI, ROD_R, deg(-35));
+      bridgeFoot(mb, 0.4935);
+    },
+  },
+  {
+    x: 0.529, note: 64, style: 'open', ...BIG, phi: 0, ...MAIN, open: (f) => !(f & R3),
+    extra: (mb) => {
+      mainTube(mb, 0.5147, 0.5353);
+      catchStud(mb, 0.531, ROD_PHI, ROD_R);
+      bridgeFoot(mb, 0.5205);
+    },
+  },
+  // the foot: the D♯ key (closed-standing, a lever with its touch), the C♯ and C keys with their rollers
+  // (the C roller closes the C♯ key too, through the clutch over the post)
+  {
+    x: 0.558, note: 63, style: 'plain', ...BIG, phi: deg(-42), ...FOOT, closed: true, open: (f) => !!(f & EB),
+    extra: (mb) => {
+      barrel(mb, 0.5527, 0.5735, FOOT_PHI, FOOT_R);
+      catchStud(mb, 0.562, FOOT_PHI, FOOT_R);
+      const out = (p: Vec3): Vec3 => [0, p[1], p[2]];
+      sweep(mb, spline3([polar(0.562, FOOT_PHI, FOOT_R), polar(0.562, deg(24), 0.0168), polar(0.562, deg(40), 0.0186)], 5), out, () => 0.0012, () => 0.0007, AG, 10);
+      sweep(mb, Array.from({ length: 9 }, (_, i) => polar(lerp(0.5522, 0.5688, i / 8), deg(44), 0.0189)), out, (f) => 0.0044 * Math.sqrt(Math.sin(Math.PI * Math.max(0.02, Math.min(0.98, f)))), () => 0.0007, AG, 14, 3);
+    },
+  },
+  {
+    x: 0.591, note: 62, style: 'crown', r: 0.0105, hole: 0.0074, phi: deg(62), ...FOOT, open: (f) => !(f & (CS | CC)),
+    extra: (mb) => {
+      barrel(mb, 0.5741, 0.6058, FOOT_PHI, FOOT_R);
+      catchStud(mb, 0.598, FOOT_PHI, FOOT_R);
+      roller(mb, true);
+    },
+  },
+  {
+    x: 0.625, note: 61, style: 'crown', r: 0.0105, hole: 0.0074, phi: deg(62), ...FOOT, open: (f) => !(f & CC),
+    extra: (mb) => {
+      barrel(mb, 0.6102, 0.6433, FOOT_PHI, FOOT_R);
+      catchStud(mb, 0.632, FOOT_PHI, FOOT_R);
+      tongue(mb, 0.6112, 0.6046, 0.6116, FOOT_PHI, FOOT_R, deg(-60), 0.0034);
+      roller(mb, false);
+    },
+  },
+];
+/** the needle springs: from a post to a key's catch (post x, catch x, angle round the rod) */
+const NEEDLES: [number, number, number, number, number][] = [
+  [0.348, 0.3405, -60, ROD_PHI, ROD_R], [0.348, 0.3625, -60, ROD_PHI, ROD_R], [0.412, 0.3855, -35, ROD_PHI, ROD_R], [0.412, 0.4045, -60, ROD_PHI, ROD_R],
+  [0.412, 0.4285, -60, ROD_PHI, ROD_R], [0.4605, 0.4425, -60, ROD_PHI, ROD_R], [0.4605, 0.479, -60, ROD_PHI, ROD_R], [0.5375, 0.5075, -35, ROD_PHI, ROD_R],
+  [0.5375, 0.531, -60, ROD_PHI, ROD_R], [0.5505, 0.562, -60, FOOT_PHI, FOOT_R], [0.608, 0.598, -60, FOOT_PHI, FOOT_R], [0.6455, 0.632, -60, FOOT_PHI, FOOT_R],
+];
+
+/** an E or D key's foot: a lug down from its hinge tube, its cork pad resting on the F♯ bridge */
+function bridgeFoot(mb: MeshBuilder, x: number): void {
+  const a = deg(98);
+  cyl(mb, offRod(x, ROD_PHI, ROD_R, a, 0.0015), offRod(x, ROD_PHI, ROD_R, a, 0.004), 0.0007, 0.0006, 10, AG, false);
+  const tip = offRod(x, ROD_PHI, ROD_R, a, 0.0041);
+  ellipsoid(mb, tip, [0.0014, 0.0007, 0.0007], 12, AG);
+  ellipsoid(mb, lerp3(tip, offRod(x, ROD_PHI, ROD_R, BRIDGE_A, BRIDGE_D), 0.45), [0.0011, 0.00045, 0.00045], 10, M.cork);
+}
+/** a foot key's roller on its arm (the C♯ key's, nearer the body, or the C key's) */
+function roller(mb: MeshBuilder, A: boolean): void {
+  const r0 = A ? 0.5515 : 0.5525;
+  const r1 = A ? 0.5665 : 0.5655;
+  const phi = A ? deg(74) : deg(90);
+  const rr = A ? 0.0178 : 0.0184;
+  const bx = A ? 0.5755 : 0.6112;
+  const out = (p: Vec3): Vec3 => [0, p[1], p[2]];
+  const arm = A
+    ? [polar(bx, FOOT_PHI, FOOT_R), polar(bx - 0.003, deg(28), 0.0188), polar(r1 + 0.003, deg(56), 0.0195), polar(r1 + 0.0016, phi, rr - 0.0018)]
+    : [polar(bx, FOOT_PHI, FOOT_R), polar(bx - 0.004, deg(22), 0.0206), polar(0.5695, deg(32), 0.0218), polar(r1 + 0.0035, deg(66), 0.022), polar(r1 + 0.0016, phi, rr - 0.0018)];
+  sweep(mb, spline3(arm, 6), out, () => 0.0011, () => 0.0007, AG, 10);
+  // the table under the roller, its two end brackets, the roller turning on its axle
+  sweep(mb, [polar(r1 + 0.0016, phi, rr - 0.0018), polar(r0 - 0.0016, phi, rr - 0.0018)], out, () => 0.0016, () => 0.0006, AG, 10);
+  for (const xe of [r0 - 0.0012, r1 + 0.0012]) cyl(mb, polar(xe, phi, rr - 0.0022), polar(xe, phi, rr + 0.0002), 0.0011, 0.0011, 10, AG);
+  const a = polar(0, phi, rr);
+  mb.with(translate(0, a[1], a[2]), () => lx(mb, fillet([[0, r0], [0.0023, r0], [0.0023, r1], [0, r1]], [0, 0.0008, 0.0008, 0], 4), 22, AG));
+}
 
 export interface FluteModel {
   T: Mat4;
   statics: Mesh[];
-  keys: { x: number; note: number; closed: boolean; mesh: Mesh; rod: Vec3; sign: number; maxAng: number }[];
+  keys: { x: number; note: number; closed: boolean; open: (f: number) => boolean; mesh: Mesh; rod: Vec3; sign: number; maxAng: number }[];
+  /** the Briccialdi B♭ lever: no cup, pressed by the thumb (built pressed) */
+  levers: { pressed: (f: number) => boolean; mesh: Mesh; rod: Vec3; sign: number; maxAng: number }[];
   /** the tone holes the keys close (position along the flute, the note each opens) */
   holes: { x: number; m: number }[];
   bounds: { c: Vec3; r: number };
   src: Vec3;
 }
 
-const cupTop = (r: number) => Math.max(0.0024, 0.0031 * Math.min(1, r / 0.00975 + 0.15));
+const cupTop = (r: number) => Math.max(0.003, 0.0041 * Math.min(1, r / 0.00975 + 0.15));
 /** a key's cup (shell and pad) in the frame `Cf` (y along the cup's axis, the pad's face at 0) */
 function cupInto(mb: MeshBuilder, Cf: Mat4, style: CupStyle, r: number, hole: number): void {
   const k = r / 0.00975;
@@ -415,12 +669,12 @@ function cupInto(mb: MeshBuilder, Cf: Mat4, style: CupStyle, r: number, hole: nu
     let rads: number[];
     if (style === 'open') {
       // grommet lip round the hole, a shallow valley, the domed shoulder, the skirt
-      prof = [[ph, 0.0002], [ph, top + 0.0002], [ph + 0.0009, top + 0.0002], [ph + 0.0013, top - 0.0003], [r - 0.0013 * k, top], [r, top - 0.0009], [r, 0.0006], [r - 0.0006, 0.0006]];
-      rads = [0, 0.0002, 0.00025, 0.0003, 0.0007, 0.0005, 0.0002, 0];
+      prof = [[ph, 0.0002], [ph, top + 0.0004], [ph + 0.001, top + 0.0004], [ph + 0.0015, top - 0.0004], [r - 0.0017 * k, top], [r, top - 0.0015], [r, 0.0006], [r - 0.0006, 0.0006]];
+      rads = [0, 0.0002, 0.0003, 0.0004, 0.0012, 0.0009, 0.0002, 0];
     } else if (style === 'plain') {
       // the pad washer's button in a shallow dish, then the shoulder and skirt
-      prof = [[0, top + 0.0001], [0.0013 * k, top + 0.0001], [0.0017 * k, top - 0.0002], [0.0048 * k, top - 0.0002], [r - 0.0013 * k, top], [r, top - 0.0009], [r, 0.0006], [r - 0.0006, 0.0006]];
-      rads = [0, 0.0003, 0.0002, 0.0005, 0.0007, 0.0005, 0.0002, 0];
+      prof = [[0, top + 0.0002], [0.0013 * k, top + 0.0002], [0.0017 * k, top - 0.0002], [0.0048 * k, top - 0.0002], [r - 0.0017 * k, top], [r, top - 0.0015], [r, 0.0006], [r - 0.0006, 0.0006]];
+      rads = [0, 0.0003, 0.0002, 0.0006, 0.0012, 0.0009, 0.0002, 0];
     } else if (style === 'crown') {
       // a convex French cup (the foot's): a dome rising to the pad washer's button
       prof = [[0, top + 0.0009], [0.0014 * k, top + 0.0009], [0.0019 * k, top + 0.0005], [r - 0.0016 * k, top - 0.0001], [r, top - 0.0011], [r, 0.0006], [r - 0.0006, 0.0006]];
@@ -430,9 +684,10 @@ function cupInto(mb: MeshBuilder, Cf: Mat4, style: CupStyle, r: number, hole: nu
       rads = [0, 0.004, 0.0007, 0.0002, 0];
     }
     revolve(mb, fillet(prof, rads, 5), 44, AG);
-    // the pad: its face seats on the chimney; it shows as a cream line under the skirt
+    // the pad: a white skin over felt, its face seated on the chimney, standing a little proud of the
+    // skirt (perforated round its grommet in the open cups)
     const pin = style === 'open' ? ph + 0.0002 : 0;
-    revolve(mb, [[pin, 0], [r - 0.0009, 0], [r - 0.0006, 0.0003], [r - 0.0006, 0.0008]], 44, M.pad);
+    revolve(mb, fillet([[pin, 0], [r - 0.0011, 0], [r - 0.0006, 0.0004], [r - 0.0006, 0.0009]], [0, 0.0003, 0.0002, 0], 3), 44, PAD);
   });
 }
 /** the key's arm from its hinge tube on the rod to the cup: a French pointed arm over the cup to the
@@ -449,8 +704,8 @@ function armInto(mb: MeshBuilder, Cf: Mat4, phi: number, style: CupStyle, r: num
       : [[0, rc[1], rc[2]], [0, rc[1] * 0.45 + 0.0004, (rc[2] + sg * (r + 0.0009)) * 0.5 + sg * 0.0012], [0, top * 0.35, sg * (r + 0.0007)], [0, top + 0.0003, sg * (r - 0.0009)], [0, top + 0.0006, sg * (r * 0.55 + tipZ * 0.45)], [0, top + 0.0004, sg * tipZ]];
   const path = spline3(local.map((p) => xform(Cf, p)), 7);
   const outward = (p: Vec3): Vec3 => [0, p[1], p[2]];
-  if (style === 'dome') sweep(mb, path, outward, (f) => 0.0017 - 0.0004 * f, () => 0.0008, AG, 14, 3);
-  else sweep(mb, path, outward, (f) => (f < 0.58 ? 0.0018 - 0.0005 * (f / 0.58) : 0.0013 * (1 - ((f - 0.58) / 0.42) ** 1.5) + 0.00012), (f) => 0.0009 - 0.0004 * f, AG, 14, 3);
+  if (style === 'dome') sweep(mb, path, outward, (f) => 0.0021 - 0.0005 * f, () => 0.0011, AG, 14, 3);
+  else sweep(mb, path, outward, (f) => (f < 0.58 ? 0.0023 - 0.0007 * (f / 0.58) : 0.0016 * (1 - ((f - 0.58) / 0.42) ** 1.5) + 0.00012), (f) => 0.0012 - 0.0005 * f, AG, 14, 3);
 }
 /** a tone-hole chimney at (x, φ) with its dark bore inside */
 function toneHole(mb: MeshBuilder, x: number, phi: number, ro: number): void {
@@ -467,16 +722,16 @@ function toneHole(mb: MeshBuilder, x: number, phi: number, ro: number): void {
     }, BORE, { wrapV: true });
   });
 }
-/** a post: a turned pillar on the rib with a ball round the rod */
+/** a post: a turned pillar on the rib, flared where it is soldered, with a ball round the rod */
 function pillar(mb: MeshBuilder, x: number, phi: number, rTop: number, m: Mat = AG): void {
   const base = polar(x, phi, RB + 0.0003);
   const top = polar(x, phi, rTop);
   const L = len3(sub(top, base));
-  mb.with(frameY(base, sub(top, base)), () => revolve(mb, fillet([[0, -0.0006], [0.0021, -0.0006], [0.0021, 0.0002], [0.00135, 0.0011], [0.00125, L - 0.0016], [0.0016, L - 0.0009]], [0, 0, 0.0004, 0.0005, 0.0006, 0], 3), 18, m));
-  ellipsoid(mb, top, [0.00215, 0.00215, 0.00215], 18, m);
+  mb.with(frameY(base, sub(top, base)), () => revolve(mb, fillet([[0, -0.0006], [0.0026, -0.0006], [0.0026, 0.0001], [0.0016, 0.0012], [0.0014, L - 0.0019], [0.0019, L - 0.001]], [0, 0, 0.0006, 0.0007, 0.0007, 0], 3), 20, m));
+  ellipsoid(mb, top, [0.0024, 0.0024, 0.0024], 20, m);
 }
 /** a hinge tube along x on a rod line, with rounded ends */
-function barrel(mb: MeshBuilder, x0: number, x1: number, phi: number, r: number, rr = 0.0017): void {
+function barrel(mb: MeshBuilder, x0: number, x1: number, phi: number, r: number, rr = 0.002): void {
   const c = polar(0, phi, r);
   mb.with(translate(0, c[1], c[2]), () => lx(mb, fillet([[0, x0], [rr, x0], [rr, x1], [0, x1]], [0, 0.0004, 0.0004, 0], 3), 20, AG));
 }
@@ -489,19 +744,26 @@ function rib(mb: MeshBuilder, x0: number, x1: number, phi: number, half: number)
     return polar(x0 + u * L, phi + (v - 0.5) * 2 * half, RB - 0.00012 + 0.00062 * Math.sqrt(eu * ev));
   }, AG);
 }
-/** the steel rod of a rod line (seen in the gaps between hinge tubes), with its pointed screw end */
+/** the steel rod of a rod line (brushed stainless, seen in the gaps between hinge tubes), with the
+ *  slotted head of its screw at one end and its pointed end at the other */
 function steelRod(mb: MeshBuilder, x0: number, x1: number, phi: number, r: number): void {
   const a = polar(x0, phi, r);
   const b = polar(x1, phi, r);
-  cyl(mb, a, b, 0.0008, 0.0008, 10, NS, false);
+  cyl(mb, a, b, 0.0008, 0.0008, 12, ROD, false);
   cyl(mb, b, add(b, [0.0032, 0, 0]), 0.0013, 0.0001, 12, AG);
+  mb.with(translate(a[0], a[1], a[2]), () => lx(mb, fillet([[0, -0.0004], [0.0014, -0.0004], [0.0014, 0.0004], [0.0009, 0.0004]], [0, 0.0003, 0.0002, 0], 2), 16, AG));
+  box(mb, [x0 - 0.00045, a[1] - 0.0012, a[2] - 0.0002], [x0 - 0.00036, a[1] + 0.0012, a[2] + 0.0002], BORE);
 }
-/** a needle spring: a fine wire from a post along the tube to the key's catch */
-function needle(mb: MeshBuilder, x0: number, x1: number, phi: number): void {
-  const a = polar(x0, phi + deg(10), ROD_R - 0.0016);
-  const b = polar(x1, phi + deg(10), ROD_R - 0.0016);
-  cyl(mb, a, b, 0.0004, 0.0004, 8, NS, false);
-  cyl(mb, b, polar(x1, phi + deg(3), ROD_R - 0.0004), 0.0004, 0.0004, 8, AG);
+/** a needle spring: a fine steel wire from its post, beside the rod, to the key's catch */
+function needle(mb: MeshBuilder, x0: number, x1: number, a: number, phi: number, R: number): void {
+  const p0 = offRod(x0, phi, R, a, NEEDLE_D);
+  const p1 = offRod(x1, phi, R, a, NEEDLE_D);
+  const sag = 0.00018;
+  const pts = Array.from({ length: 7 }, (_, i) => {
+    const t = i / 6;
+    return add(lerp3(p0, p1, t), scale(norm(sub(p0, polar(x0, phi, R))), -sag * Math.sin(t * Math.PI)));
+  });
+  pipe(mb, pts, 0.0003, ROD, 8);
 }
 
 /** the lip plate on its riser, round the embouchure hole, with the dark bore below */
@@ -568,25 +830,15 @@ export function buildFluteModel(): FluteModel {
   // the foot's end ring, the open end and the bore inside it
   lx(mb, fillet([[RB, FL - 0.0045], [0.0103, FL - 0.0038], [0.0104, FL - 0.0012], [0.01, FL], [0.0095, FL], [0.0095, FL - 0.006]], [0, 0.0002, 0.0004, 0.0003, 0.0002, 0], 3), 56, AG);
   lx(mb, [[0, FL - 0.006], [0.0095, FL - 0.006]], 40, BORE);
-  // ---- tone holes
+  // ---- tone holes (the C♯ lever's cup has its own, under L1)
   for (const k of FKEYS) toneHole(mb, k.x, k.phi, k.hole);
-  // ---- the main rod line: rib, posts, steel, hinge tubes, needle springs
+  toneHole(mb, 0.338, 0, 0.0062);
+  // ---- the main rod line: rib, posts, the steel, needle springs (the hinge tubes go with their keys)
   rib(mb, 0.2925, 0.5405, ROD_PHI, deg(11));
   for (const x of MAIN_POSTS) pillar(mb, x, ROD_PHI, ROD_R);
   steelRod(mb, MAIN_POSTS[0] - 0.003, MAIN_POSTS[MAIN_POSTS.length - 1] + 0.0005, ROD_PHI, ROD_R);
-  {
-    const keysX = FKEYS.filter((k) => k.rodPhi === ROD_PHI).map((k) => k.x);
-    const cuts = [...MAIN_POSTS.map((x) => ({ x, post: true })), ...keysX.slice(1).map((x, i) => ({ x: (x + keysX[i]) / 2, post: false }))].sort((a, b) => a.x - b.x);
-    for (const kx of keysX) {
-      const lo = cuts.filter((c) => c.x < kx).pop()!;
-      const hi = cuts.find((c) => c.x > kx)!;
-      // a post among the cuts that is not this key's own neighbour is skipped by filter order
-      barrel(mb, lo.x + (lo.post ? 0.0022 : 0.00025), hi.x - (hi.post ? 0.0022 : 0.00025), ROD_PHI, ROD_R);
-      const post = MAIN_POSTS.reduce((b, p) => (Math.abs(p - kx) < Math.abs(b - kx) ? p : b), MAIN_POSTS[0]);
-      needle(mb, post, kx + (post < kx ? -0.004 : 0.004), ROD_PHI);
-    }
-  }
-  // ---- trill keys (D and D♯, closed), their rod and the touches by the right hand
+  for (const [p, c, a, phi, R] of NEEDLES) needle(mb, p + (c > p ? 0.0016 : -0.0016), c, deg(a), phi, R);
+  // ---- trill keys (D and D♯, closed-standing), their rod and the touches by the right hand
   rib(mb, 0.258, 0.524, TRILL_PHI, deg(8));
   for (const x of TRILL_POSTS) pillar(mb, x, TRILL_PHI, TRILL_R);
   steelRod(mb, TRILL_POSTS[0] - 0.003, TRILL_POSTS[2] + 0.0005, TRILL_PHI, TRILL_R);
@@ -605,83 +857,49 @@ export function buildFluteModel(): FluteModel {
     const path = spline3([polar(x, TRILL_PHI, TRILL_R), polar(x, deg(104), 0.0188), polar(x, deg(80), 0.0198), polar(x - 0.0005, deg(60), 0.0186), polar(x - 0.0008, deg(48), 0.0176)], 6);
     sweep(mb, path, (p) => [0, p[1], p[2]], (f) => (f < 0.55 ? 0.0011 : 0.0011 + 0.0012 * Math.sin(Math.min(1, (f - 0.55) / 0.45) * Math.PI * 0.85)), () => 0.0007, AG, 12);
   }
-  // ---- the thumb's levers (B and the Briccialdi B♭) and the G♯ spatula, on the player's side
-  rib(mb, 0.31, 0.357, deg(-120), deg(9));
-  for (const x of [0.3125, 0.354]) pillar(mb, x, deg(-120), BACK_R);
-  barrel(mb, 0.3147, 0.3518, deg(-120), BACK_R);
-  for (const [x0, x1, phi, r, w] of [[0.318, 0.337, deg(-152), 0.0152, 0.0052], [0.3225, 0.3445, deg(-176), 0.0162, 0.0042]] as const) {
-    const xm = (x0 + x1) / 2;
-    sweep(mb, spline3([polar(xm, deg(-120), BACK_R), polar(xm, (deg(-120) + phi) / 2, r + 0.0006), polar(xm, phi, r)], 5), (p) => [0, p[1], p[2]], () => 0.0012, () => 0.0007, AG, 10);
-    sweep(mb, Array.from({ length: 9 }, (_, i) => polar(lerp(x0, x1, i / 8), phi, r)), (p) => [0, p[1], p[2]], (f) => w * Math.sqrt(Math.sin(Math.PI * Math.max(0.02, Math.min(0.98, f)))), () => 0.0007, AG, 14, 3);
-  }
-  for (const x of [0.4045, 0.4225]) pillar(mb, x, deg(-98), BACK_R);
-  barrel(mb, 0.4067, 0.4203, deg(-98), BACK_R);
-  {
-    // the G♯ spatula: a stem rising on the player's side from its lever, then a teardrop spoon
-    // (~22 × 11 mm) laid along the tube towards the head, face up for the little finger
-    const stem = spline3([polar(0.414, deg(-98), BACK_R), polar(0.4135, deg(-80), 0.0176), polar(0.4115, deg(-62), 0.0205), polar(0.407, deg(-50), 0.0222)], 6);
-    sweep(mb, stem, (p) => [0, p[1], p[2]], () => 0.0011, () => 0.0009, AG, 12);
-    const blade = Array.from({ length: 17 }, (_, i) => {
-      const t = i / 16;
-      return polar(lerp(0.4085, 0.3835, t), deg(lerp(-50, -38, t)), lerp(0.0222, 0.0236, t) + 0.0012 * Math.sin(t * Math.PI));
-    });
-    const tear = (f: number) => 0.0058 * Math.pow(Math.sin(Math.PI * Math.max(0.02, Math.min(0.985, 0.08 + 0.92 * f))), 0.62) * (0.62 + 0.38 * f);
-    sweep(mb, blade, (p) => [0, p[1], p[2]], tear, () => 0.00075, AG, 18, 3);
-  }
+  // ---- the thumb's steel and the G♯ key's, on the player's side
+  rib(mb, 0.31, 0.363, THUMB_PHI, deg(9));
+  for (const x of THUMB_POSTS) pillar(mb, x, THUMB_PHI, BACK_R);
+  steelRod(mb, THUMB_POSTS[0] - 0.0025, THUMB_POSTS[1] + 0.0005, THUMB_PHI, BACK_R);
+  rib(mb, 0.398, 0.427, GS_PHI, deg(9));
+  for (const x of GS_POSTS) pillar(mb, x, GS_PHI, BACK_R);
+  steelRod(mb, GS_POSTS[0] - 0.0025, GS_POSTS[1] + 0.0005, GS_PHI, BACK_R);
   // ---- the foot's rod line
   rib(mb, 0.5475, 0.6485, FOOT_PHI, deg(10));
   for (const x of FOOT_POSTS) pillar(mb, x, FOOT_PHI, FOOT_R);
   steelRod(mb, FOOT_POSTS[0] - 0.003, FOOT_POSTS[2] + 0.0005, FOOT_PHI, FOOT_R);
-  barrel(mb, 0.5527, 0.5735, FOOT_PHI, FOOT_R);
-  barrel(mb, 0.5741, 0.6058, FOOT_PHI, FOOT_R);
-  barrel(mb, 0.6102, 0.6433, FOOT_PHI, FOOT_R);
-  needle(mb, 0.5505, 0.562, FOOT_PHI);
-  needle(mb, 0.608, 0.598, FOOT_PHI);
-  needle(mb, 0.6455, 0.632, FOOT_PHI);
 
-  // ---- the keys that move: one mesh per shape, posed about their rods
-  const meshes = new Map<string, { mesh: Mesh; rod: Vec3; sign: number; maxAng: number }>();
-  for (const k of FKEYS) {
-    if (meshes.has(k.mesh)) continue;
-    meshes.set(k.mesh, keyMesh(k));
+  // ---- the keys that move, each one piece with its hinge tube, posed about its rod
+  const keys = FKEYS.map((k) => ({ x: k.x, note: k.note, closed: !!k.closed, open: k.open, ...keyMesh(k) }));
+  // the Briccialdi B♭ lever: its own hinge tube on the thumb's steel, a kicker onto the thumb key's
+  // tube (it closes the thumb key and, through its lug, the B♭ key), its touch above the B lever's
+  const lever = new MeshBuilder();
+  {
+    barrel(lever, 0.3147, 0.3424, THUMB_PHI, BACK_R, 0.0016);
+    tongue(lever, 0.3416, 0.341, 0.3448, THUMB_PHI, BACK_R, deg(60), 0.0028);
+    const out = (p: Vec3): Vec3 => [0, p[1], p[2]];
+    sweep(lever, spline3([polar(0.3305, deg(-108), BACK_R + 0.0004), polar(0.3302, deg(-128), 0.0158), polar(0.3298, deg(-142), 0.0156)], 5), out, () => 0.001, () => 0.0007, AG, 10);
+    sweep(lever, Array.from({ length: 11 }, (_, i) => polar(lerp(0.3215, 0.3378, i / 10), deg(-146), 0.0155 + 0.0004 * Math.sin((i / 10) * Math.PI))), out, (f) => 0.0033 * Math.sqrt(Math.sin(Math.PI * Math.max(0.03, Math.min(0.97, f)))), () => 0.00065, AG, 16, 3);
   }
-  const keys = FKEYS.map((k) => ({ x: k.x, note: k.note, closed: !!k.closed, ...meshes.get(k.mesh)! }));
+  const lrod = polar(0, THUMB_PHI, BACK_R);
+  const touch = polar(0.33, deg(-146), 0.0155);
+  const tq = xform(about(lrod, rotX(0.05)), touch);
+  const levers = [{ pressed: (f: number) => !!(f & TBB), mesh: lever.build(), rod: lrod, sign: Math.hypot(tq[1], tq[2]) > Math.hypot(touch[1], touch[2]) ? 1 : -1, maxAng: 0.0022 / len3(sub(touch, polar(0.33, THUMB_PHI, BACK_R))) }];
   const T = chain(translate(-FL / 2, 0.17, 0), rotX(-0.32));
-  return { T, statics: [mb.build()], keys, holes: FKEYS.map((k) => ({ x: k.x, m: k.note })), bounds: { c: xform(T, [FL / 2, 0, 0]), r: 0.38 }, src: xform(T, [FL, 0, 0]) };
+  return { T, statics: [mb.build()], keys, levers, holes: FKEYS.map((k) => ({ x: k.x, m: k.note })), bounds: { c: xform(T, [FL / 2, 0, 0]), r: 0.38 }, src: xform(T, [FL, 0, 0]) };
 }
 
-/** a key that moves, built in its own tube frame (x = 0 at the key): cup, pad, arm, and on the foot
- *  the touch or roller it is played by; it turns about its rod */
+/** a key that moves, built seated (its pad on the chimney) in the model's frame: cup, pad, arm, and the
+ *  rest of its piece; it turns about its rod (the rod's line through x = 0) */
 function keyMesh(k: FKey): { mesh: Mesh; rod: Vec3; sign: number; maxAng: number } {
   const mb = new MeshBuilder();
   const Cf = chain(rotX(-k.phi), translate(0, YC, 0));
   const rod = polar(0, k.rodPhi, k.rodR);
-  cupInto(mb, Cf, k.style, k.r, k.hole);
-  armInto(mb, Cf, k.phi, k.style, k.r, k.hole, rod);
-  const outward = (p: Vec3): Vec3 => [0, p[1], p[2]];
-  if (k.mesh === 'dsharp') {
-    // the D♯ touch: a curved paddle beyond the rod (the key is a lever: press it and the cup lifts)
-    sweep(mb, spline3([polar(0.004, FOOT_PHI, FOOT_R), polar(0.004, deg(24), 0.0168), polar(0.004, deg(40), 0.0186)], 5), outward, () => 0.0012, () => 0.0007, AG, 10);
-    sweep(mb, Array.from({ length: 9 }, (_, i) => polar(lerp(-0.0058, 0.0108, i / 8), deg(44), 0.0189)), outward, (f) => 0.0044 * Math.sqrt(Math.sin(Math.PI * Math.max(0.02, Math.min(0.98, f)))), () => 0.0007, AG, 14, 3);
-  }
-  if (k.mesh === 'footA' || k.mesh === 'footB') {
-    // the roller this key is played by, on an arm from its hinge tube
-    const A = k.mesh === 'footA';
-    const r0 = (A ? 0.5515 : 0.5525) - k.x;
-    const r1 = (A ? 0.5665 : 0.5655) - k.x;
-    const phi = A ? deg(74) : deg(90);
-    const rr = A ? 0.0178 : 0.0184;
-    const bx = (A ? 0.5755 : 0.6112) - k.x;
-    const arm = A
-      ? [polar(bx, FOOT_PHI, FOOT_R), polar(bx - 0.003, deg(28), 0.0188), polar(r1 + 0.003, deg(56), 0.0195), polar(r1 + 0.0016, phi, rr - 0.0018)]
-      : [polar(bx, FOOT_PHI, FOOT_R), polar(bx - 0.004, deg(22), 0.0206), polar(0.556 - k.x + 0.0135, deg(32), 0.0218), polar(r1 + 0.0035, deg(66), 0.022), polar(r1 + 0.0016, phi, rr - 0.0018)];
-    sweep(mb, spline3(arm, 6), outward, () => 0.0011, () => 0.0007, AG, 10);
-    // the table under the roller and the roller's two end brackets
-    sweep(mb, [polar(r1 + 0.0016, phi, rr - 0.0018), polar(r0 - 0.0016, phi, rr - 0.0018)], outward, () => 0.0016, () => 0.0006, AG, 10);
-    for (const xe of [r0 - 0.0012, r1 + 0.0012]) cyl(mb, polar(xe, phi, rr - 0.0022), polar(xe, phi, rr + 0.0002), 0.0011, 0.0011, 10, AG);
-    const a = polar(0, phi, rr);
-    mb.with(translate(0, a[1], a[2]), () => lx(mb, fillet([[0, r0], [0.0023, r0], [0.0023, r1], [0, r1]], [0, 0.0008, 0.0008, 0], 4), 22, AG));
-  }
+  mb.with(translate(k.x, 0, 0), () => {
+    cupInto(mb, Cf, k.style, k.r, k.hole);
+    armInto(mb, Cf, k.phi, k.style, k.r, k.hole, rod);
+  });
+  k.extra?.(mb);
   const c0 = xform(Cf, [0, 0, 0]);
   const t = xform(about(rod, rotX(0.05)), c0);
   const sign = Math.hypot(t[1], t[2]) > Math.hypot(c0[1], c0[2]) ? 1 : -1;
@@ -692,13 +910,15 @@ export interface WindPose {
   env: Float32Array;
   cups: Float32Array;
   cupV: Float32Array;
+  /** seconds since the flute last sounded (its keys go back to rest after a while) */
+  quiet: Float32Array;
   valves: Float32Array;
   valveV: Float32Array;
   /** the trumpet's 1st and 3rd slides kicked out (0..1) */
   slide: Float32Array;
   slideV: Float32Array;
 }
-export const newWindPose = (): WindPose => ({ env: new Float32Array(48), cups: new Float32Array(16).fill(1), cupV: new Float32Array(16), valves: new Float32Array(3), valveV: new Float32Array(3), slide: new Float32Array(3), slideV: new Float32Array(3) });
+export const newWindPose = (): WindPose => ({ env: new Float32Array(48), cups: new Float32Array(16).fill(1), cupV: new Float32Array(16), quiet: new Float32Array([10]), valves: new Float32Array(3), valveV: new Float32Array(3), slide: new Float32Array(3), slideV: new Float32Array(3) });
 
 /** the bore's standing wave, enveloped (nodes dark, antinodes glowing), into the tube-glow overlay
  *  over the first `frac` of the tube (the rest beyond the sounding end stays dark), at `gain` */
@@ -731,22 +951,29 @@ export function poseFlute(b: Batch, fm: FluteModel, fr: VisualFrame | null, pose
   const blow = br ? br.pressure : 0;
   const vib = br ? br.vib : 0;
   const focus = fr?.focus ?? null;
-  const bore = focus ? boreNote(focus.lengthM) : null;
+  // the fingers for the note the engine plays (its own midi; the bore's note if a frame has none),
+  // held while it sounds and for a moment after, as a player's are; then the keys go back to rest
+  pose.quiet[0] = blow > 0.015 ? 0 : pose.quiet[0] + dt;
+  const midi = focus && pose.quiet[0] < 0.8 ? (focus.midi ?? boreNote(focus.lengthM)) : null;
+  const fingers = midi === null ? 0 : fingersFor(midi);
   // the sounding end: the first open hole (or the foot's end for the low C)
+  const bore = focus ? boreNote(focus.lengthM) : null;
   const first = bore === null ? null : fm.keys.find((k) => k.note === bore);
   const endX = first ? first.x : FL;
   // the wave as a faint warm sheen in the silver (an accent, not a colour)
   waveOverlay(b, fr, pose, (endX - EMB) / (FL - EMB), scale, 0.45);
   b.ov.waveCol = [1, 0.6, 0.36];
+  // the closed cups pulse faintly with the breath vibrato, nothing more
+  const pulse = Math.min(0.06, 0.9 * vib * blow);
   fm.keys.forEach((k, i) => {
-    // fingered: every hole above the sounding one closes, the closed-standing keys open only for
-    // their own note (G♯) or from it up (D♯, the little finger's key); at rest the keys stand
-    const open = bore === null ? !k.closed : k.closed ? (k.note === 68 ? bore === 68 : bore >= k.note) : k.note <= bore;
-    const p = springTo(pose.cups, pose.cupV, i, open ? 1 : 0, dt, 26, 0.62);
-    const m = chain(T, translate(k.x, 0, 0), about(k.rod, rotX(k.sign * k.maxAng * p)));
-    // the closed cups pulse faintly with the breath vibrato, nothing more
-    const pulse = Math.min(0.06, 0.9 * vib * blow);
-    b.mesh(k.mesh, m, focus && p < 0.5 && pulse > 0.004 ? ([1, 0.7, 0.42, pulse] as RGBA) : null);
+    // each key springs to the state the mechanism gives it: the pad seats with a small bounce, an
+    // opening key overshoots a little off its stop
+    const p = springTo(pose.cups, pose.cupV, i, k.open(fingers) ? 1 : 0, dt, 26, 0.62);
+    b.mesh(k.mesh, chain(T, about(k.rod, rotX(k.sign * k.maxAng * p))), focus && p < 0.5 && pulse > 0.004 ? ([1, 0.7, 0.42, pulse] as RGBA) : null);
+  });
+  fm.levers.forEach((l, j) => {
+    const p = springTo(pose.cups, pose.cupV, fm.keys.length + j, l.pressed(fingers) ? 0 : 1, dt, 26, 0.62);
+    b.mesh(l.mesh, chain(T, about(l.rod, rotX(l.sign * l.maxAng * p))));
   });
   // the breath: a sheet from the player's lips (on the plate, +z) across the embouchure hole to its
   // far edge, waving more as it goes (the jet's instability), faint
@@ -765,6 +992,7 @@ export function poseFlute(b: Batch, fm: FluteModel, fr: VisualFrame | null, pose
     }
   }
 }
+
 
 // ================================================================ trumpet
 const RT = 0.00635; // tubing: 11.66 mm (0.459″) bore, 12.7 mm outside
@@ -818,6 +1046,12 @@ export interface TrumpetModel {
   axis: Vec3;
 }
 
+/** a ferrule: the sleeve soldered over a tube joint, with a bead at each end */
+function ferrule(mb: MeshBuilder, p: Vec3, dir: Vec3, r: number, L: number): void {
+  const h = L / 2;
+  mb.with(frameY(p, dir), () => revolve(mb, fillet([[r - 0.0002, -h], [r + 0.0009, -h + 0.0002], [r + 0.0009, -h + 0.001], [r + 0.0005, -h + 0.0013], [r + 0.0005, h - 0.0013], [r + 0.0009, h - 0.001], [r + 0.0009, h - 0.0002], [r - 0.0002, h]], 0.00025, 2), 32, BR));
+}
+
 export function buildTrumpetModel(): TrumpetModel {
   const mb = new MeshBuilder();
   const leadDir = norm([1, LEAD_SLOPE, 0]);
@@ -869,44 +1103,67 @@ export function buildTrumpetModel(): TrumpetModel {
   pipe(mb, msPath, RT, BRG, 26, uMs);
   {
     const fr = (p: Vec3) => (a: number) => cyl(mb, add(p, [a, 0, 0]), add(p, [a + 0.003, 0, 0]), RT + 0.0012, RT + 0.0012, 26, BR);
-    const outerTop: Vec3[] = [[0.108, MS_TOP, ZL], ...crook, [0.106, MS_LOW, -0.002]];
-    const a0 = (0.108 - LEAD_END) / pl(msPath);
-    pipe(mb, outerTop, RT + 0.0007, BRG, 26, [uMs[0] + (uMs[1] - uMs[0]) * a0, uMs[0] + (uMs[1] - uMs[0]) * (1 - (0.106 - VX[2] - 0.004) / pl(msPath))]);
-    fr([0.108, MS_TOP, ZL])(0);
-    fr([0.106, MS_LOW, -0.002])(0);
-    cyl(mb, [LEAD_END - 0.0005, MS_TOP, ZL], [0.108, MS_TOP, ZL], RT + 0.0002, RT + 0.0002, 26, NS, false);
-    cyl(mb, [0.097, MS_LOW, -0.002], [0.106, MS_LOW, -0.002], RT + 0.0002, RT + 0.0002, 26, NS, false);
+    const outerTop: Vec3[] = [[0.1035, MS_TOP, ZL], ...crook, [0.1015, MS_LOW, -0.002]];
+    const a0 = (0.1035 - LEAD_END) / pl(msPath);
+    pipe(mb, outerTop, RT + 0.0007, BRG, 26, [uMs[0] + (uMs[1] - uMs[0]) * a0, uMs[0] + (uMs[1] - uMs[0]) * (1 - (0.1015 - VX[2] - 0.004) / pl(msPath))]);
+    fr([0.1035, MS_TOP, ZL])(0);
+    fr([0.1015, MS_LOW, -0.002])(0);
+    cyl(mb, [LEAD_END - 0.0005, MS_TOP, ZL], [0.1035, MS_TOP, ZL], RT + 0.0002, RT + 0.0002, 26, NSD, false);
+    cyl(mb, [0.097, MS_LOW, -0.002], [0.1015, MS_LOW, -0.002], RT + 0.0002, RT + 0.0002, 26, NSD, false);
     cyl(mb, [LEAD_END - 0.003, MS_TOP, ZL], [LEAD_END, MS_TOP, ZL], RT + 0.0011, RT + 0.0011, 26, BR);
     cyl(mb, [0.094, MS_LOW, -0.002], [0.097, MS_LOW, -0.002], RT + 0.0011, RT + 0.0011, 26, BR);
     // the main slide's brace between its two legs
     cyl(mb, [0.128, MS_TOP - RT, ZL + 0.0006], [0.128, MS_LOW + RT, -0.0026], 0.0019, 0.0019, 12, BR);
-    // the water key: nipple, cork, lever on its hinge
-    const a = 2.45;
-    const P = add(msC, add(scale(msU, Math.cos(a)), [msR * Math.sin(a), 0, 0]));
-    const rn = norm(sub(P, add(msC, [0, 0, 0])));
+    // the water key (trumpet-side.jpg): a nipple soldered under the crook, the lever's cup with its cork
+    // pressed on it, the lever along the crook to its hinge (a saddle of two ears, a pin, the coil
+    // spring round it) and on past it to the thumb's paddle, bent out
+    const at = (a: number) => add(msC, add(scale(msU, Math.cos(a)), [msR * Math.sin(a), 0, 0]));
+    const radial = (a: number) => norm(sub(at(a), msC));
+    const tang = (a: number) => norm(add(scale(msU, -Math.sin(a)), [msR * Math.cos(a), 0, 0]));
+    const a1 = 2.5;
+    const a2 = a1 - 0.36;
+    const P = at(a1);
+    const rn = radial(a1);
     const n0 = add(P, scale(rn, RT - 0.001));
-    const n1 = add(P, scale(rn, RT + 0.0028));
-    cyl(mb, n0, n1, 0.0021, 0.0019, 16, BR);
-    cyl(mb, n1, add(n1, scale(rn, 0.0016)), 0.0024, 0.0024, 16, M.cork);
-    const tip = add(n1, scale(rn, 0.0026));
-    const hinge: Vec3 = [0.143, MS_LOW - RT - 0.0026, -0.0022];
-    cyl(mb, [0.143, MS_LOW - RT + 0.0005, -0.0022], hinge, 0.0014, 0.0014, 10, BR);
-    cyl(mb, add(hinge, [0, 0, -0.003]), add(hinge, [0, 0, 0.003]), 0.0016, 0.0016, 12, BR);
-    const lever = spline3([hinge, lerp3(hinge, tip, 0.5), tip, add(tip, add(scale(rn, 0.002), [0.007, 0, 0]))], 6);
-    sweep(mb, lever, () => rn, () => 0.0018, () => 0.0006, BR, 12, 3);
+    const n1 = add(P, scale(rn, RT + 0.0031));
+    cyl(mb, n0, n1, 0.0023, 0.0019, 18, BR);
+    mb.with(frameY(add(n1, scale(rn, 0.0028)), scale(rn, -1)), () => {
+      revolve(mb, fillet([[0, -0.0012], [0.0028, -0.0011], [0.0032, -0.0004], [0.0032, 0.0015], [0.0029, 0.0017]], [0, 0.0008, 0.0004, 0.0002, 0], 3), 24, NS);
+      revolve(mb, [[0, 0.0016], [0.0029, 0.0016], [0.0029, 0.0004]], 24, M.cork);
+    });
+    const P2 = at(a2);
+    const rn2 = radial(a2);
+    const bz = norm(cross(rn2, tang(a2)));
+    const H = add(P2, scale(rn2, RT + 0.0036));
+    for (const s2 of [-1, 1]) cyl(mb, add(P2, add(scale(rn2, RT - 0.0006), scale(bz, s2 * 0.0021))), add(H, scale(bz, s2 * 0.0021)), 0.0011, 0.001, 10, BR);
+    cyl(mb, add(H, scale(bz, -0.0029)), add(H, scale(bz, 0.0029)), 0.0006, 0.0006, 10, NS);
+    const coil = Array.from({ length: 49 }, (_, i) => {
+      const t = i / 48;
+      const ang = t * TAU * 4;
+      const u = norm(cross(bz, rn2));
+      return add(H, add(scale(bz, lerp(-0.0013, 0.0013, t)), add(scale(rn2, 0.0011 * Math.cos(ang)), scale(u, 0.0011 * Math.sin(ang)))));
+    });
+    pipe(mb, coil, 0.00028, NS, 8);
+    const cupTop = add(n1, scale(rn, 0.0031));
+    const paddle = add(H, add(scale(tang(a2), -0.0105), scale(rn2, 0.0062)));
+    const lever = spline3([cupTop, lerp3(cupTop, H, 0.5), add(H, scale(rn2, 0.0012)), add(H, add(scale(tang(a2), -0.005), scale(rn2, 0.0026))), paddle], 7);
+    sweep(mb, lever, (q) => norm(sub(q, msC)), (f) => (f > 0.8 ? 0.0019 + 0.0012 * Math.sin(((f - 0.8) / 0.2) * Math.PI * 0.5) : 0.0016), () => 0.00065, NS, 12, 3);
   }
   // ---- valve casings, caps, knuckles
   for (const x of VX)
     mb.with(translate(x, 0, 0), () => {
-      revolve(mb, fillet([[RC, -CY - 0.0006], [RC + 0.0009, -CY], [RC + 0.0009, -CY + 0.0058], [RC, -CY + 0.0066], [RC, 0.0115], [RC + 0.0005, 0.012], [RC + 0.0005, 0.0138], [RC, 0.0143], [RC, CY - 0.0076], [RC + 0.001, CY - 0.0068], [RC + 0.001, CY - 0.0004], [RC, CY]], 0.00025, 3), 48, BR);
+      revolve(mb, fillet([[RC, -CY - 0.0006], [RC + 0.0009, -CY], [RC + 0.0009, -CY + 0.0058], [RC, -CY + 0.0066], [RC, 0.0115], [RC + 0.0005, 0.012], [RC + 0.0005, 0.0138], [RC, 0.0143], [RC, CY - 0.0076], [RC + 0.001, CY - 0.0068], [RC + 0.001, CY - 0.0004], [RC, CY]], 0.00025, 3), 48, BRH);
       // the top cap: a knurled band, a domed top, the felt round the stem
       revolve(mb, fillet([[RC + 0.0003, CY - 0.0002], [RC + 0.0016, CY + 0.0004], [RC + 0.0016, CY + 0.0014]], 0.0002, 3), 48, NS);
-      knurl(mb, RC + 0.0022, CY + 0.0014, CY + 0.0072, 68, 0.00028, NS);
-      revolve(mb, fillet([[RC + 0.0022, CY + 0.0072], [RC + 0.0021, CY + 0.0079], [RC + 0.0012, CY + 0.0087], [0.0058, CY + 0.009], [0.0035, CY + 0.009], [0.0035, CY + 0.004]], [0, 0.0003, 0.0006, 0.0006, 0.0002, 0], 3), 48, M.nickelSatin);
+      revolve(mb, fillet([[RC + 0.0016, CY + 0.0014], [RC + 0.0018, CY + 0.0016], [RC + 0.0018, CY + 0.0022]], 0.0002, 2), 48, NS);
+      knurl(mb, RC + 0.0018, CY + 0.0022, CY + 0.006, 132, 0.00015, KN);
+      revolve(mb, fillet([[RC + 0.0018, CY + 0.006], [RC + 0.0017, CY + 0.0071], [RC + 0.0012, CY + 0.0085], [0.0058, CY + 0.0089], [0.0035, CY + 0.009], [0.0035, CY + 0.004]], [0, 0.0004, 0.0007, 0.0006, 0.0002, 0], 3), 48, NS);
       revolve(mb, fillet([[0.0035, CY + 0.0089], [0.0057, CY + 0.0089], [0.0057, CAP_TOP], [0.0035, CAP_TOP]], 0.0003, 3), 32, M.valveFelt);
       // the bottom cap: knurled, a domed foot with a dimple
       revolve(mb, fillet([[RC + 0.0003, -CY + 0.0002], [RC + 0.0013, -CY - 0.0006], [RC + 0.0013, -CY - 0.0018]], 0.0002, 3), 48, NS);
-      knurl(mb, RC + 0.0018, -CY - 0.0086, -CY - 0.0018, 68, 0.00028, NS);
+      knurl(mb, RC + 0.0018, -CY - 0.0082, -CY - 0.0022, 128, 0.00015, KN);
+      revolve(mb, fillet([[RC + 0.0013, -CY - 0.0018], [RC + 0.0018, -CY - 0.0019], [RC + 0.0018, -CY - 0.0022]], 0.0002, 2), 48, NS);
+      revolve(mb, fillet([[RC + 0.0018, -CY - 0.0082], [RC + 0.0018, -CY - 0.0086]], 0.0001, 2), 48, NS);
       revolve(mb, fillet([[0, -CY - 0.0114], [0.0018, -CY - 0.0116], [0.004, -CY - 0.0119], [RC - 0.0002, -CY - 0.0113], [RC + 0.0016, -CY - 0.0096], [RC + 0.0018, -CY - 0.0086]], [0, 0.0005, 0.002, 0.002, 0.0008, 0], 4), 48, M.nickelSatin);
     });
   // the knuckles between the casings, at two heights
@@ -919,6 +1176,8 @@ export function buildTrumpetModel(): TrumpetModel {
   // ---- the bell section: tail, bow, bell pipe and flare (one piece), the rolled rim
   pipe(mb, tailPath, (f) => lerp(RT, 0.0065, f), BRG, 26, uTail);
   pipe(mb, bowPath, (f) => lerp(0.0065, 0.0068, f), BRG, 26, uBow);
+  ferrule(mb, [BOW_C[0] + 0.001, -0.02, ZB], [1, 0, 0], 0.0065, 0.0072);
+  ferrule(mb, [BELL0[0] + 0.0012, BELL0[1], ZB], [1, 0, 0], 0.0068, 0.0076);
   const bellR = pchip(BELL_D, BELL_R);
   const tilt = Math.atan2(BELL_END[1] - BELL0[1], BELL_END[0] - BELL0[0]);
   const Fb = chain(translate(BELL0[0], BELL0[1], BELL0[2]), rotZ(tilt), TOX);
@@ -931,16 +1190,16 @@ export function buildTrumpetModel(): TrumpetModel {
       prof.push([bellR(d), bellLen - d]);
       ss.push(bellLen - d);
     }
-    mb.with(Fb, () => revolve(mb, prof, 96, BRG, (i) => lerp(uBell[0], uBell[1], ss[i] / bellLen)));
+    mb.with(Fb, () => revolve(mb, prof, 120, BELLG, (i) => lerp(uBell[0], uBell[1], ss[i] / bellLen)));
   }
   const rb = new MeshBuilder();
   rb.with(Fb, () => {
     const ring: P2[] = [];
     for (let i = 0; i <= 16; i++) {
       const a = (i / 16) * TAU;
-      ring.push([RIM - 0.0017 + 0.0017 * Math.cos(a), bellLen - 0.0017 + 0.0017 * Math.sin(a)]);
+      ring.push([RIM - 0.0021 + 0.0021 * Math.cos(a), bellLen - 0.0019 + 0.0021 * Math.sin(a)]);
     }
-    revolve(rb, ring, 120, BR);
+    revolve(rb, ring, 160, M.brassBell);
   });
   // ---- the braces
   const brace = (a: Vec3, b: Vec3, r = 0.0021) => {
@@ -958,10 +1217,14 @@ export function buildTrumpetModel(): TrumpetModel {
   }
   // the finger hook on the leadpipe
   {
-    const y0 = leadY(0.043);
-    const path = spline3([[0.0445, y0 + RT - 0.001, ZL - 0.0006], [0.0445, y0 + 0.016, ZL - 0.0012], [0.041, y0 + 0.0235, ZL - 0.0018], [0.0335, y0 + 0.0248, ZL - 0.0018], [0.0282, y0 + 0.0205, ZL - 0.0014], [0.029, y0 + 0.0168, ZL - 0.001]], 7);
-    pipe(mb, path, 0.0016, BR, 12);
-    ellipsoid(mb, [0.0445, y0 + RT - 0.0004, ZL - 0.0005], [0.0034, 0.0012, 0.0024], 14, BR);
+    // (trumpet-valves.jpg: an open hook past the third valve, leaning back towards it, its tip
+    // curled over towards the bell)
+    const xb = 0.0545;
+    const y0 = leadY(xb);
+    const path = spline3([[xb, y0 + RT - 0.001, ZL - 0.0004], [xb - 0.0035, y0 + 0.0095, ZL - 0.0008], [xb - 0.0098, y0 + 0.0165, ZL - 0.0012], [xb - 0.0098, y0 + 0.0228, ZL - 0.0014], [xb - 0.0045, y0 + 0.0262, ZL - 0.0014], [xb + 0.0006, y0 + 0.0244, ZL - 0.0012], [xb + 0.0016, y0 + 0.0212, ZL - 0.001]], 7);
+    pipe(mb, path, 0.0016, BR, 14);
+    ellipsoid(mb, path[path.length - 1], [0.0017, 0.0017, 0.0017], 12, BR);
+    ellipsoid(mb, [xb, y0 + RT - 0.0004, ZL - 0.0004], [0.0034, 0.0012, 0.0024], 14, BR);
   }
 
   // ---- the valve slides: fixed tubes from the casing's ports (plain, and glowing when their valve
@@ -1046,7 +1309,7 @@ export function buildTrumpetModel(): TrumpetModel {
       const s = new MeshBuilder();
       const m = glow ? BRG : BR;
       for (const f of d.fixed) pipe(s, f, RT, m, 24, u);
-      for (const [a, b] of d.inner) cyl(s, a, b, RT - 0.0001, RT - 0.0001, 24, NS, false);
+      for (const [a, b] of d.inner) cyl(s, a, b, RT - 0.0001, RT - 0.0001, 24, NSD, false);
       for (const p of d.ports) cyl(s, p, add(p, [0, 0, -0.0035]), RT + 0.0011, RT + 0.0008, 24, BR);
       d.onFixed?.(s, BR);
       return s.build();
@@ -1069,9 +1332,11 @@ export function buildTrumpetModel(): TrumpetModel {
   pm.with(translate(0, 0, 0), () => {
     revolve(pm, [[0.0025, CY + 0.004], [0.0025, yb - 0.0012]], 16, NS);
     revolve(pm, fillet([[0.0025, yb - 0.0018], [0.0042, yb - 0.0012], [0.0046, yb], [0.008, yb + 0.0001], [0.0084, yb + 0.0006]], [0, 0.0004, 0.0003, 0.0003, 0], 3), 40, NS);
-    knurl(pm, 0.0084, yb + 0.0006, yb + 0.0034, 56, 0.00022, NS);
-    revolve(pm, fillet([[0.0084, yb + 0.0034], [0.0083, yb + 0.0043], [0.0072, yb + 0.0046], [0.0066, yb + 0.004], [0.0063, yb + 0.004]], [0, 0.0005, 0.0004, 0.0002, 0], 3), 40, NS);
-    revolve(pm, fillet([[0.0063, yb + 0.0036], [0.0063, yb + 0.0041], [0.004, yb + 0.0045], [0, yb + 0.0047]], [0, 0.0003, 0.004, 0], 4), 40, M.pearlInlay);
+    knurl(pm, 0.0084, yb + 0.0008, yb + 0.0032, 96, 0.00014, KN);
+    revolve(pm, fillet([[0.0084, yb + 0.0006], [0.0084, yb + 0.0008]], 0.0001, 2), 40, NS);
+    // a polished bezel round the pearl, which sits a little below it
+    revolve(pm, fillet([[0.0084, yb + 0.0032], [0.0083, yb + 0.0044], [0.0074, yb + 0.0049], [0.006, yb + 0.0048], [0.0055, yb + 0.0043], [0.0053, yb + 0.004]], [0, 0.0005, 0.0005, 0.0003, 0.0002, 0], 3), 40, NS);
+    revolve(pm, fillet([[0.0053, yb + 0.0036], [0.0053, yb + 0.004], [0.003, yb + 0.00415], [0, yb + 0.0042]], [0, 0.0002, 0.004, 0], 4), 40, M.pearlButton);
   });
   // ---- the mouthpiece (Bach 7C), along the leadpipe's axis
   const mp = new MeshBuilder();
