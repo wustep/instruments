@@ -36,7 +36,7 @@
 import type { KeySummary, VisualFrame } from '@piano-model/engine';
 import { ShapeUtils, Vector2 } from 'three';
 import { stepAction, type PianoState, type Pt } from '../piano-draw.ts';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, dissolve, ink, lerp3, norm, plateModes, xform } from './gl3d.ts';
+import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, dissolve, ink, lerp3, norm, xform } from './gl3d.ts';
 import { M, MeshBuilder, area, cyl, ellipsoid, lathe, offset, spline, tube, type Mat } from './mesh.ts';
 import { INK } from '../stage-draw.ts';
 
@@ -1971,13 +1971,6 @@ export function pianoStrings(b: Batch, pm: PianoModel, fr: VisualFrame | null, s
       b.line(line, symS ? C.amber(Math.min(0.55, 0.1 + 0.6 * rel)) : C.verm(0.95), symS ? 1.2 : 2.2);
     }
   }
-}
-
-/** the soundboard's live modes onto the plate overlay */
-export function boardOverlay(b: Batch, pm: PianoModel, amps: Float32Array): void {
-  b.ov.amps.set(amps);
-  b.ov.mn.set(plateModes(pm.boardAspect));
-  b.ov.modalGain = 0.7;
 }
 
 /** for clicking a key: each key's speaking length in world space (first, one per key), then its

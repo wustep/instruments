@@ -10,6 +10,7 @@
 export { createPiano, createInstrument, renderOffline, processorUrl, type Piano, type PianoOptions } from './api/piano.ts';
 export { INSTRUMENT_IDS, INSTRUMENT_INFO, type InstrumentId, type ExciteTrace } from './core/instrument.ts';
 export type { BowedParams } from './core/bowed.ts';
+export { CC_HAND_BOW_OFF, CC_HAND_BOW_POS, CC_HAND_BOW_SPEED } from './core/bowed.ts';
 export type { FluteParams } from './core/flute.ts';
 export type { TrumpetParams } from './core/brass.ts';
 export type { KeySummary, Stats, VisualFrame } from './api/messages.ts';

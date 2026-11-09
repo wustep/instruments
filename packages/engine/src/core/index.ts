@@ -10,6 +10,6 @@ export * from './precompute.ts';
 export { DispersionCache, type DesignEntry } from './voice.ts';
 export * from './instrument.ts';
 export * from './factory.ts';
-export { BowedCore, BOWED, type BowedParams } from './bowed.ts';
+export { BowedCore, BOWED, CC_HAND_BOW_OFF, CC_HAND_BOW_POS, CC_HAND_BOW_SPEED, type BowedParams } from './bowed.ts';
 export { FluteCore, fluteFingering, type FluteParams } from './flute.ts';
 export { TrumpetCore, trumpetFingering, type TrumpetParams } from './brass.ts';

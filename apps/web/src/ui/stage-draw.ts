@@ -146,6 +146,9 @@ export interface BowedState {
   lvlScale: AutoScale;
   /** what the drawing keeps between frames (made on first use) */
   live?: BowedLive;
+  /** where the hair was drawn last (stage px: frog end, tip end) and the contact point along it,
+   *  for taking the bow in the hand (ui/hand-bow.ts) */
+  bowLine?: { fx: number; fy: number; tx: number; ty: number; pos: number };
 }
 
 // The plan view of a violin, viola or cello, as in the Met's front photographs (.cache/refs-3d/
@@ -1360,6 +1363,14 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
   // rising smoothly into the head
   const hgt = (s: number) => 0.0175 * S2 - 0.0095 * S2 * Math.sin(Math.PI * bwClamp(s / Hh, 0, 1)) + 0.004 * S2 * bwSstep(0.94, 1.01, s / Hh);
   const Zs = (s: number) => lv.cz + (pos * Hh - s) * ci;
+  {
+    // local (x along the strings, z across) to the stage, as bwPlace turns it
+    const { ox, oy, vertical } = ly.lay;
+    const P = (x: number, z: number): [number, number] => (vertical ? [ox - X(z), oy + X(x)] : [ox + X(x), oy + X(z)]);
+    const [fx, fy] = P(lv.cx, Zs(0));
+    const [tx, ty] = P(lv.cx, Zs(Hh));
+    st.bowLine = { fx, fy, tx, ty, pos };
+  }
   // the hair gives under the string: δ = F·a·(H − a)/(T·H) for hair tension T ≈ 60 N, drawn 3× larger
   const F = bwForce(fr?.excite?.meta);
   const s0 = 0.003 * S2;

@@ -326,6 +326,13 @@ export const BOWED: Record<string, BowedDesign> = { violin: VIOLIN, viola: VIOLA
 // (scripts/fit-strings.ts); absent keys keep the literature values above
 for (const [id, fit] of Object.entries(bowedFit as unknown as Record<string, Partial<BowedDesign>>)) if (BOWED[id]) Object.assign(BOWED[id], fit);
 
+/** Controllers above MIDI's 0–127 for the bow in the player's hand (see BowedCore.hand): its signed
+ *  speed in m/s (+ down-bow; the first one takes the bow from the keys), its contact point along the
+ *  hair (0 frog … 1 tip), and letting go. */
+export const CC_HAND_BOW_SPEED = 128;
+export const CC_HAND_BOW_POS = 129;
+export const CC_HAND_BOW_OFF = 130;
+
 /** velocity (0..1 of 1..127) at which bowPosition is the actual β: MIDI 80 */
 const X_REF = 79 / 126;
 const MU_S = 0.8;
@@ -520,6 +527,13 @@ export class BowedCore implements InstrumentCore {
   /** The bow, shared by all strings as on the instrument: direction (+1 down-bow, −1 up-bow),
    *  position along the hair from the frog (m), and an in-progress change. */
   readonly bow = { dir: 1, pos: 0, changing: false, t: 0, from: 1, changes: 0, lastStroke: -1e12, auto: 0 };
+  /** The bow in the player's own hand (a finger or the mouse dragging it on the stage): its signed
+   *  speed (m/s, + is a down-bow) as asked and as smoothed (τ = 25 ms, so a reversal passes through
+   *  zero), and the contact point along the hair (0 frog … 1 tip). While it is held the keys only
+   *  stop the strings: the bow sounds them, at the hand's speed. null: the keys bow, as always. */
+  private hand: { target: number; v: number; pos: number } | null = null;
+  /** no note yet: the hand's bow starts on the second-highest string, not the lowest */
+  private unplayed = true;
   private vinS = new Float64Array(4);
   private peakS = new Float64Array(4);
   private onS = new Uint8Array(4);
@@ -826,6 +840,7 @@ export class BowedCore implements InstrumentCore {
         s.vibRate = 5.2 + 0.8 * this.rng();
         this.bowTargets(s, ev.velocity);
         this.focus = this.strings.indexOf(s);
+        this.unplayed = false;
         break;
       }
       case 'noteOff': {
@@ -841,7 +856,8 @@ export class BowedCore implements InstrumentCore {
             continue;
           }
           s.held = false;
-          if (this.sustain < 0.5) this.lift(s);
+          // in the hand, the bow stays on the string when the finger leaves the key
+          if (this.sustain < 0.5 && !this.hand) this.lift(s);
         }
         break;
       }
@@ -856,12 +872,20 @@ export class BowedCore implements InstrumentCore {
         // mod wheel, breath controller and expression press the bow into the string
         // (×0.3 … ×1.5 of the force the note asked for, capped above Schelleng's maximum)
         if (ev.cc === 1 || ev.cc === 2 || ev.cc === 11) this.pressureCC = 0.3 + 1.2 * clamp(ev.value, 0, 1);
+        else if (ev.cc === CC_HAND_BOW_SPEED) {
+          if (!this.hand) this.hand = { target: 0, v: 0, pos: this.bow.pos / this.design.bowLength };
+          // no faster than 1.5 × the fortissimo bow: a finger crosses a phone faster than an arm can
+          this.hand.target = clamp(ev.value, -1.5 * this.design.bowSpeed[1], 1.5 * this.design.bowSpeed[1]);
+        } else if (ev.cc === CC_HAND_BOW_POS) {
+          if (this.hand) this.hand.pos = clamp(ev.value, 0, 1);
+        } else if (ev.cc === CC_HAND_BOW_OFF) this.handOff();
         break;
       case 'bend':
         // the finger slides: every stopped or bowed string follows
         this.bend = clamp(ev.value, -12, 12);
         break;
       case 'allNotesOff':
+        this.hand = null;
         for (const s of this.strings) {
           s.displaced = [];
           this.lift(s);
@@ -895,6 +919,53 @@ export class BowedCore implements InstrumentCore {
     b.dir = left(nd) >= 0.1 * L || left(nd) >= left(b.dir) ? nd : b.dir;
   }
 
+  /** The hand lets go of the bow: held keys bow their strings again, the others are left. */
+  private handOff(): void {
+    if (!this.hand) return;
+    this.hand = null;
+    for (const s of this.strings) {
+      if (!s.bowing) continue;
+      if (s.held || this.sustain >= 0.5) this.bowTargets(s, s.velocity);
+      else this.lift(s);
+    }
+  }
+
+  /** The hand's bow meets no bowed string: it takes the one last played (its finger still down if a
+   *  key is held), or the second-highest, open, if nothing has been played yet. */
+  private handStart(): void {
+    if (this.unplayed) {
+      this.unplayed = false;
+      this.focus = Math.min(2, this.strings.length - 1);
+    }
+    const s = this.strings[this.focus];
+    if (s.midi < 0) this.setStopped(s, s.def.open, true);
+    s.stick = true;
+    s.bowing = true;
+    s.held = false;
+    s.velocity = 80;
+    s.startedAt = this.frame;
+    s.vibPhase = this.rng() * Math.PI * 2;
+    s.vibRate = 5.2 + 0.8 * this.rng();
+  }
+
+  /** Bow targets at the hand's speed v (m/s): the force a note of that speed would ask for, scaled
+   *  with the speed outside the keys' range so it stays the same fraction of Schelleng's maximum. */
+  private handTargets(s: BowedString, v: number): void {
+    if (v < 1e-4) {
+      s.vBowTarget = 0;
+      s.fBowTarget = 0;
+      return;
+    }
+    const [vlo, vhi] = this.design.bowSpeed;
+    const x = clamp(Math.log(v / vlo) / Math.log(vhi / vlo), 0, 1);
+    this.bowTargets(s, 1 + 126 * x);
+    const r = v / s.vBowTarget;
+    s.fMax *= r;
+    s.fBase *= r;
+    s.fBowTarget *= r;
+    s.vBowTarget = v;
+  }
+
   /** Control-rate bow motion: position along the hair, automatic changes, reversal profile. */
   private bowControl(dt: number): void {
     const b = this.bow;
@@ -903,7 +974,14 @@ export class BowedCore implements InstrumentCore {
     for (const s of this.strings) if (s.bowing && s.vBow > vmax) vmax = s.vBow;
     let sgn = b.dir;
     let fsc = 1;
-    if (P.bowChanges) {
+    const h = this.hand;
+    if (h) {
+      // the hand decides: no automatic change, the hair where the hand has it
+      b.changing = false;
+      b.dir = h.v < 0 ? -1 : 1;
+      sgn = b.dir;
+      b.pos = h.pos * this.design.bowLength;
+    } else if (P.bowChanges) {
       const T = Math.max(0.02, P.bowChangeTime);
       const L = this.design.bowLength;
       if (!b.changing && vmax > 0) {
@@ -982,6 +1060,7 @@ export class BowedCore implements InstrumentCore {
   }
 
   allSoundOff(): void {
+    this.hand = null;
     for (const s of this.strings) {
       s.displaced = [];
       s.buf.fill(0);
@@ -1042,7 +1121,13 @@ export class BowedCore implements InstrumentCore {
     const fs = this.fs;
     const dt = n / fs;
     const vibDepth = this.modwheel >= 0 ? this.modwheel * 30 : this.params.vibrato;
+    const h = this.hand;
+    if (h) {
+      h.v += (h.target - h.v) * (1 - Math.exp(-dt / 0.025));
+      if (Math.abs(h.target) > 1e-4 && !this.strings.some((q) => q.bowing)) this.handStart();
+    }
     for (const s of this.strings) {
+      if (h && s.bowing) this.handTargets(s, Math.abs(h.v));
       // bow speed attack ~ 50 ms, release 15 ms; force follows faster
       const ka = 1 - Math.exp(-dt / (s.bowing ? (this.design.attackTau ? s.tauA : 0.045) : 0.012));
       const wd = this.design.wander;
@@ -1055,6 +1140,8 @@ export class BowedCore implements InstrumentCore {
       const sp = wd && s.bowing ? 1 + wd.speed * s.wv[2] : 1;
       const fo = wd && s.bowing ? 1 + wd.force * s.wv[3] : 1;
       s.vBow += (s.vBowTarget * sp - s.vBow) * ka;
+      // in the hand the bow has the hand's speed (already smoothed), not an envelope towards it
+      if (h && s.bowing) s.vBow = s.vBowTarget;
       const kf = 1 - Math.exp(-dt / (s.bowing ? 0.012 : 0.008));
       // design.forceWithSpeed: no more than Schelleng's maximum for the speed reached so far
       let fT = s.fBowTarget * fo;

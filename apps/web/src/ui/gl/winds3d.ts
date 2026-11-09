@@ -915,7 +915,6 @@ function keyMesh(k: FKey): { mesh: Mesh; rod: Vec3; sign: number; maxAng: number
 }
 
 export interface WindPose {
-  env: Float32Array;
   cups: Float32Array;
   cupV: Float32Array;
   /** seconds since the flute last sounded (its keys go back to rest after a while) */
@@ -926,30 +925,9 @@ export interface WindPose {
   slide: Float32Array;
   slideV: Float32Array;
 }
-export const newWindPose = (): WindPose => ({ env: new Float32Array(48), cups: new Float32Array(16).fill(1), cupV: new Float32Array(16), quiet: new Float32Array([10]), valves: new Float32Array(3), valveV: new Float32Array(3), slide: new Float32Array(3), slideV: new Float32Array(3) });
+export const newWindPose = (): WindPose => ({ cups: new Float32Array(16).fill(1), cupV: new Float32Array(16), quiet: new Float32Array([10]), valves: new Float32Array(3), valveV: new Float32Array(3), slide: new Float32Array(3), slideV: new Float32Array(3) });
 
-/** the bore's standing wave, enveloped (nodes dark, antinodes glowing), into the tube-glow overlay
- *  over the first `frac` of the tube (the rest beyond the sounding end stays dark), at `gain` */
-function waveOverlay(b: Batch, fr: VisualFrame | null, pose: WindPose, frac: number, scale: { of(v: number): number }, gain: number): void {
-  const s = fr?.focus?.shapes[0];
-  const out = b.ov.wave;
-  if (!s || !s.length) {
-    for (let i = 0; i < 48; i++) out[i] = (pose.env[i] *= 0.9) * gain;
-    return;
-  }
-  let mx = 0;
-  for (let i = 0; i < s.length; i++) mx = Math.max(mx, Math.abs(s[i]));
-  const sc = scale.of(mx);
-  for (let i = 0; i < 48; i++) {
-    const x = i / 47;
-    let v = 0;
-    if (x <= frac) v = Math.abs(s[Math.min(s.length - 1, Math.round((x / Math.max(1e-3, frac)) * (s.length - 1)))] / sc);
-    pose.env[i] = 0.8 * pose.env[i] + 0.2 * Math.min(1.2, v);
-    out[i] = pose.env[i] * gain;
-  }
-}
-
-export function poseFlute(b: Batch, fm: FluteModel, fr: VisualFrame | null, pose: WindPose, dt: number, now: number, scale: { of(v: number): number }): void {
+export function poseFlute(b: Batch, fm: FluteModel, fr: VisualFrame | null, pose: WindPose, dt: number, now: number): void {
   const T = fm.T;
   for (const s of fm.statics) b.mesh(s, T);
   const br = fr?.breath;
@@ -961,13 +939,6 @@ export function poseFlute(b: Batch, fm: FluteModel, fr: VisualFrame | null, pose
   pose.quiet[0] = blow > 0.015 ? 0 : pose.quiet[0] + dt;
   const midi = focus && pose.quiet[0] < 0.8 ? (focus.midi ?? boreNote(focus.lengthM)) : null;
   const fingers = midi === null ? 0 : fingersFor(midi);
-  // the sounding end: the air column's own length (the engine's c / 2f) from its node 50 mm above
-  // the embouchure, as the 2D draws it; it falls just past the first open hole, or among the vents
-  // of a cross-fingered third-octave note (A6–C7 matched no key and fell back to the whole tube)
-  const endX = focus ? Math.min(FL, EMB - 0.05 + focus.lengthM) : FL;
-  // the wave as a faint warm sheen in the silver (an accent, not a colour)
-  waveOverlay(b, fr, pose, (endX - EMB) / (FL - EMB), scale, 0.45);
-  b.ov.waveCol = [1, 0.6, 0.36];
   // the closed cups pulse faintly with the breath vibrato, nothing more
   const pulse = Math.min(0.06, 0.9 * vib * blow);
   fm.keys.forEach((k, i) => {
@@ -1362,7 +1333,7 @@ export function buildTrumpetModel(): TrumpetModel {
   return { T, statics: [mb.build(), mp.build()], slides, piston: pm.build(), rimBead: rb.build(), valveX: VX, bounds: { c: xform(T, [0.06, 0.005, 0.0]), r: 0.33 }, src: xform(T, [XB, BELL_END[1], ZB]), rim: RIM, lips, axis: leadDir };
 }
 
-export function poseTrumpet(b: Batch, tm: TrumpetModel, fr: VisualFrame | null, pose: WindPose, dt: number, now: number, rms: number, wave: { of(v: number): number }): void {
+export function poseTrumpet(b: Batch, tm: TrumpetModel, fr: VisualFrame | null, pose: WindPose, dt: number, now: number, rms: number): void {
   const T = tm.T;
   for (const s of tm.statics) b.mesh(s, T);
   const meta = fr?.excite?.meta ?? '';
@@ -1384,8 +1355,6 @@ export function poseTrumpet(b: Batch, tm: TrumpetModel, fr: VisualFrame | null, 
   });
   // the rim: a faint shimmer with the level
   b.mesh(tm.rimBead, T, lvl > 0.02 ? [1, 0.7, 0.4, 0.1 * lvl * (0.75 + 0.25 * Math.sin(now * 0.021))] : null);
-  waveOverlay(b, fr, pose, 1, wave, 0.55);
-  b.ov.waveCol = [1, 0.37, 0.22];
   // the lips at the rim: they buzz at the note (drawn slowed), opening with the level
   const f = fr?.focus?.f1 ?? 0;
   const gap = lvl > 0.02 ? 0.0012 + 0.0018 * lvl * (0.5 + 0.5 * Math.sin(now * 0.001 * Math.min(f, 18) * 6.283)) : 0.0005;

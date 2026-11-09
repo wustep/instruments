@@ -17,7 +17,7 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import type { Batch, Mat4, Mesh, Vec3 } from './gl3d.ts';
 import { LINE_FS, LINE_VS, type LineSet } from './gl3d.ts';
-import { LIVE, disposeMaterials, materialFor, setEnvironment } from './mats3.ts';
+import { disposeMaterials, materialFor, setEnvironment } from './mats3.ts';
 import { MAT_LIST } from './mesh.ts';
 
 /** the shadow pass of a dissolving mesh: the same screen-door as its colour pass, so the shadow
@@ -391,13 +391,6 @@ export class Renderer3 {
       im.visible = true;
     }
     for (const [m, e] of this.entries) if (!used.has(m)) e.im.visible = false;
-    // live overlays
-    LIVE.uAmp.value.set(b.ov.amps);
-    LIVE.uMN.value.set(b.ov.mn);
-    LIVE.uModalHot.value.setRGB(b.ov.modalHot[0], b.ov.modalHot[1], b.ov.modalHot[2], THREE.SRGBColorSpace);
-    LIVE.uModalGain.value = b.ov.modalGain;
-    LIVE.uWave.value.set(b.ov.wave);
-    LIVE.uWaveCol.value.setRGB(b.ov.waveCol[0], b.ov.waveCol[1], b.ov.waveCol[2], THREE.SRGBColorSpace);
     // lights fitted to the scene: the key from the front left, above; the rim from behind right
     const { c, r: rad } = b.bounds;
     const C = new THREE.Vector3(c[0], c[1], c[2]);

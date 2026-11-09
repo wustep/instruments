@@ -160,16 +160,6 @@ export class LineSet {
   }
 }
 
-/** the live overlays the lit shader computes: plate modes and a tube's standing wave */
-export interface Overlays {
-  amps: Float32Array;
-  mn: Float32Array;
-  modalHot: [number, number, number];
-  modalGain: number;
-  wave: Float32Array;
-  waveCol: [number, number, number];
-}
-
 /** what a scene draws into, each frame */
 export class Batch {
   glow = new LineSet();
@@ -189,7 +179,6 @@ export class Batch {
    *  `m` (a model matrix), facing −y there; k scales the reflection (the case's dissolve); `body` is the mesh
    *  the mirror is the face of (left out of its own reflection) */
   mirror: { m: Float32Array; poly: [number, number][]; y: number; k: number; body?: Mesh } | null = null;
-  ov: Overlays = { amps: new Float32Array(16), mn: new Float32Array(32), modalHot: [0.95, 0.65, 0.27], modalGain: 0, wave: new Float32Array(48), waveCol: [1, 0.37, 0.22] };
   /** vertex count (for the performance budget) */
   get vertices(): number {
     let n = this.glow.nv + this.inkL.nv + this.wireL.nv;
@@ -202,8 +191,6 @@ export class Batch {
     this.wireL.clear();
     for (const m of this.used) this.inst.get(m)!.n = 0;
     this.used = [];
-    this.ov.modalGain = 0;
-    this.ov.wave.fill(0);
     this.floor = null;
     this.clip = null;
     this.keepOut = null;
@@ -340,19 +327,6 @@ export function project(vp: Mat4, p: Vec3, w: number, h: number): [number, numbe
   const ww = vp[3] * p[0] + vp[7] * p[1] + vp[11] * p[2] + vp[15];
   if (ww <= 1e-5) return null;
   return [((x / ww) * 0.5 + 0.5) * w, (1 - ((y / ww) * 0.5 + 0.5)) * h];
-}
-
-/** plate modes in order of frequency for a plate of aspect `ar` (first 16 (m, n) pairs) */
-export function plateModes(ar: number): Float32Array {
-  const pairs: [number, number, number][] = [];
-  for (let m = 1; m <= 7; m++) for (let n = 1; n <= 7; n++) pairs.push([m, n, m * m + (n * ar) ** 2]);
-  pairs.sort((a, b) => a[2] - b[2]);
-  const out = new Float32Array(32);
-  pairs.slice(0, 16).forEach(([m, n], i) => {
-    out[2 * i] = m;
-    out[2 * i + 1] = n;
-  });
-  return out;
 }
 
 /** an ink colour ('255,94,56') and alpha as RGBA 0..1 */
