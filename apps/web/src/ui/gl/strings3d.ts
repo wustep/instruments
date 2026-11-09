@@ -518,7 +518,7 @@ function paintPlate(id: string, sp: Spec, pl: Plate, holes: P2[][] | null, kind:
               if (x <= -0.05 * B) c.moveTo(X(x), Z(zz));
               else c.lineTo(X(x), Z(zz));
             }
-            c.strokeStyle = `rgba(52,18,6,${0.16 + 0.22 * r()})`;
+            c.strokeStyle = `rgba(48,16,5,${0.24 + 0.28 * r()})`;
             c.lineWidth = Math.max(0.8, (0.22 + 0.2 * r()) * s * pm * 1000 * mm);
             c.stroke();
           }
@@ -590,7 +590,10 @@ function paintPlate(id: string, sp: Spec, pl: Plate, holes: P2[][] | null, kind:
         c.lineWidth = 2 * k * 2.4 * pm * (B / 0.356) ** 0.5;
         c.stroke(path);
       }
-      for (const sd of [-1, 1]) glow(0.5 * B, sd * pl.hwMax * 0.95, 0.12 * B, sp.vEdge, 0.3);
+      for (const sd of [-1, 1]) glow(0.5 * B, sd * pl.hwMax * 0.95, 0.13 * B, sp.vEdge, 0.42);
+      // worn places: the varnish rubbed thin over the treble upper bout and the lower bout
+      glow(0.2 * B, -0.35 * pl.hwMax, 0.09 * B, [222, 150, 82], 0.22);
+      glow(0.8 * B, 0.3 * pl.hwMax, 0.11 * B, [222, 150, 82], 0.18);
       if (holes) for (const hp of holes) {
         let mx = 0;
         let mz = 0;
@@ -600,7 +603,7 @@ function paintPlate(id: string, sp: Spec, pl: Plate, holes: P2[][] | null, kind:
         }
         glow(mx, mz, 0.07 * B, sp.vEdge, 0.22);
       }
-      for (let k = 0; k < 140; k++) glow(r() * B, (r() * 2 - 1) * pl.hwMax, (0.008 + 0.04 * r()) * B, r() < 0.55 ? sp.vEdge : [214, 130, 60], 0.05 + 0.08 * r());
+      for (let k = 0; k < 180; k++) glow(r() * B, (r() * 2 - 1) * pl.hwMax, (0.008 + 0.05 * r()) * B, r() < 0.6 ? sp.vEdge : [214, 130, 60], 0.06 + 0.12 * r());
       // purfling (black–white–black) and a worn line at the edge
       const band = (d1: number, d2: number, style: string) => {
         const L = document.createElement('canvas');

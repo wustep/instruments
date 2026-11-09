@@ -62,9 +62,9 @@ const P: Record<string, Phys> = {
   pearl: { color: '#f6f1ea', roughness: 0.16, clearcoat: 0.6, clearcoatRoughness: 0.08, iridescence: 0.9, iridescenceIOR: 1.35, iridescenceThicknessRange: [220, 620] },
   castAction: { color: '#8a8985', metalness: 0.85, roughness: 0.45, tex: 5 },
   // varnish: a glossy coat over matte wood (the coat carries the reflections)
-  varnish: { color: '#9a4518', roughness: 0.6, clearcoat: 0.9, clearcoatRoughness: 0.13, tex: 2, axis: [1, 0, 0] },
-  varnishTop: { color: '#a85a26', roughness: 0.62, clearcoat: 0.9, clearcoatRoughness: 0.13, tex: 1, axis: [1, 0, 0], texScale: 1 },
-  varnishDark: { color: '#5c2208', roughness: 0.62, clearcoat: 0.9, clearcoatRoughness: 0.15, tex: 2, axis: [1, 0, 0] },
+  varnish: { color: '#9a4518', roughness: 0.62, clearcoat: 0.75, clearcoatRoughness: 0.18, tex: 2, axis: [1, 0, 0] },
+  varnishTop: { color: '#a85a26', roughness: 0.64, clearcoat: 0.75, clearcoatRoughness: 0.18, tex: 1, axis: [1, 0, 0], texScale: 1 },
+  varnishDark: { color: '#5c2208', roughness: 0.64, clearcoat: 0.75, clearcoatRoughness: 0.2, tex: 2, axis: [1, 0, 0] },
   fEdge: { color: '#2a1206', roughness: 0.6 },
   hole: { color: '#050302', roughness: 1 },
   fittings: { color: '#100c0a', roughness: 0.42, clearcoat: 0.3, clearcoatRoughness: 0.2, tex: 4, axis: [1, 0, 0] },
