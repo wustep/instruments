@@ -164,7 +164,9 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): { src: Vec3;
 
 /** default cameras: a three-quarter view from the audience's side, a little above */
 export function viewFor(si: SceneIn, st: Scene3State): View3 {
-  if (si.family === 'piano') return si.kind === 'grand' ? { target: [0.0, 0.74, 0.88], dist: 3.05, yaw: 0.62, pitch: 0.5 } : { target: [0, 0.72, 0.25], dist: 2.55, yaw: 0.42, pitch: 0.3 };
+  // the grand from the treble front corner (as in Steinway's own photographs), above the rim so the
+  // plate and strings show; the upright from the treble side, a little above the keys, into the action
+  if (si.family === 'piano') return si.kind === 'grand' ? { target: [-0.12, 0.58, 1.0], dist: 3.8, yaw: 0.74, pitch: 0.33 } : { target: [0, 0.62, 0.25], dist: 2.8, yaw: 0.45, pitch: 0.26 };
   if (si.family === 'bowed' && si.bowed) {
     const id = si.bowed.id;
     // the cello: from its bass side, a little below centre, the scroll against the rim light

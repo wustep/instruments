@@ -113,6 +113,16 @@ export const M = {
   pearlInlay: { col: hex('#efe9df'), rough: 0.3, metal: 0 },
   nickelSatin: { col: hex('#d9d8d2'), rough: 0.32, metal: 1 },
   silverKeys: { col: hex('#e8e8e6'), rough: 0.18, metal: 1 },
+  // pianos: the plate's gold-bronze lacquer over cast iron, the hammers' coloured underfelt, the
+  // green baize of the action, bronze action brackets, mahogany hammer mouldings, the key tops
+  pianoPlate: { col: hex('#a27a36'), rough: 0.38, metal: 0.8 },
+  underfelt: { col: hex('#5c1418'), rough: 1, metal: 0 },
+  greenFelt: { col: hex('#1f4a36'), rough: 1, metal: 0 },
+  bracketCast: { col: hex('#7d7354'), rough: 0.42, metal: 0.85 },
+  mahogany: { col: hex('#6b3219'), rough: 0.5, metal: 0 },
+  keyIvory: { col: hex('#f0ebdf'), rough: 0.3, metal: 0 },
+  pinSteel: { col: hex('#bfc2c7'), rough: 0.34, metal: 1 },
+  caseRaw: { col: hex('#151210'), rough: 0.85, metal: 0 },
 } satisfies Record<string, Mat>;
 for (const [k, m] of Object.entries(M)) (m as Mat).name = k;
 /** a variant of a shared material (same shading family, its own colour or maps) */
