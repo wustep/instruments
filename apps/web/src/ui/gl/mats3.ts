@@ -82,6 +82,14 @@ const P: Record<string, Phys> = {
   stringSteel: { color: '#c9ccd2', metalness: 1, roughness: 0.24, anisotropy: 0.7, tex: 8 },
   stringWound: { color: '#a7a9ad', metalness: 1, roughness: 0.3, anisotropy: 0.8, tex: 8 },
   floor: { color: '#13110e', roughness: 0.7 },
+  // pianos: the plate is lacquered metal-flake paint over cast iron (a thin, slightly rough coat; a
+  // heavy clearcoat would wash it to cream under the softbox)
+  pianoPlate: { color: '#a07533', metalness: 0.82, roughness: 0.4, clearcoat: 0.2, clearcoatRoughness: 0.4, tex: 5 },
+  underfelt: { color: '#5c1418', roughness: 1, sheen: 0.9, sheenColor: '#b04048', sheenRoughness: 0.5, tex: 6 },
+  greenFelt: { color: '#1f4a36', roughness: 1, sheen: 0.8, sheenColor: '#5a9a7a', sheenRoughness: 0.5, tex: 6 },
+  bracketCast: { color: '#7a6e4c', metalness: 0.85, roughness: 0.42, tex: 5 },
+  mahogany: { color: '#6b3219', roughness: 0.5, clearcoat: 0.3, clearcoatRoughness: 0.3, tex: 3, axis: [0, 1, 0], texScale: 0.5 },
+  keyIvory: { color: '#f1ece0', roughness: 0.32, clearcoat: 0.4, clearcoatRoughness: 0.1, sheen: 0.4, sheenColor: '#fff4dc', sheenRoughness: 0.35 },
 };
 
 // GLSL: hashes, value noise and fbm (all in the part's own metres)
