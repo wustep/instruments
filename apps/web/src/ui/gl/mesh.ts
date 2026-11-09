@@ -134,6 +134,7 @@ export const M = {
   rimVeneer: { col: hex('#3a1a0c'), rough: 0.3, metal: 0 },
   damperHead: { col: hex('#1a1614'), rough: 0.4, metal: 0 },
   pinNickel: { col: hex('#e6e6e3'), rough: 0.45, metal: 1 },
+  bridgeCap: { col: hex('#3a2a1c'), rough: 0.5, metal: 0.15 },
 } satisfies Record<string, Mat>;
 for (const [k, m] of Object.entries(M)) (m as Mat).name = k;
 /** a variant of a shared material (same shading family, its own colour or maps) */

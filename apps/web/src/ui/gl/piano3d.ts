@@ -857,7 +857,8 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
   const bridge = (gs: KeyGeo[], y1: number, w0: number, w1: number) => {
     const pts = gs.map((g) => [mid(g).b[0], mid(g).b[2]] as P2).sort((p, q) => p[0] - q[0]);
     const path = resample(spline(pts.filter((_, k) => k % 3 === 0 || k === pts.length - 1), 4), 0.015);
-    sweepPlan(mb, path, [{ n: -w0, y: G.boardY }, { n: w0, y: G.boardY }, { n: w1, y: y1 - 0.003 }, { n: w1 * 0.6, y: y1 }, { n: -w1 * 0.6, y: y1 }, { n: -w1, y: y1 - 0.003 }], M.maple, { smooth: 0.9 });
+    // (maple, its top and chamfers graphited where the strings bear)
+    sweepPlan(mb, path, [{ n: -w0, y: G.boardY }, { n: w0, y: G.boardY }, { n: w1, y: y1 - 0.003, m: M.bridgeCap }, { n: w1 * 0.6, y: y1, m: M.bridgeCap }, { n: -w1 * 0.6, y: y1, m: M.bridgeCap }, { n: -w1, y: y1 - 0.003 }], M.maple, { smooth: 0.9 });
   };
   bridge(treble, G.strY - 0.0008, 0.016, 0.011);
   if (bass.length > 1) bridge(bass, G.bassBrY - 0.0008, 0.02, 0.014);
@@ -1167,10 +1168,11 @@ function plateGrand(mb: MeshBuilder, geo: KeyGeo[], inner: P2[], DB: Vec3): void
     const bar: P2[] = dedupe([...front, [lineX(g45, zf) + 0.025, zf], [lineX(g45, zb) + 0.025, zb], ...back.slice().reverse()], 0.002);
     slab(mb, PLAN, bar, [], PY - 0.014, PY + 0.002, M.grandPlate, { bevel: 0.004 });
   }
-  // ---- struts over the strings (oval beams rising from the web to clear the dampers), with feet
-  // (a flat bar with raised edges, as cast; it rises off the web, clears the dampers, comes down onto the flange)
+  // ---- struts over the strings (beams rising from the web to clear the dampers), with feet
+  // (a solid beam with a rounded crown, as cast: grand-inside.jpg's struts carry one long highlight
+  // along the top; it rises off the web, clears the dampers, comes down onto the flange)
   const SEC: SecPt[] = [
-    { n: -0.021, y: 0 }, { n: 0.021, y: 0 }, { n: 0.021, y: 0.011 }, { n: 0.0185, y: 0.0165 }, { n: 0.014, y: 0.0165 }, { n: 0.0125, y: 0.0095 }, { n: -0.0125, y: 0.0095 }, { n: -0.014, y: 0.0165 }, { n: -0.0185, y: 0.0165 }, { n: -0.021, y: 0.011 },
+    { n: -0.02, y: 0 }, { n: 0.02, y: 0 }, { n: 0.021, y: 0.008 }, { n: 0.018, y: 0.0135 }, { n: 0.012, y: 0.0165 }, { n: 0.004, y: 0.0178 }, { n: -0.004, y: 0.0178 }, { n: -0.012, y: 0.0165 }, { n: -0.018, y: 0.0135 }, { n: -0.021, y: 0.008 },
   ];
   const strut = (p0: P2, p1: P2, top: number) => {
     const n = 24;
@@ -1184,8 +1186,9 @@ function plateGrand(mb: MeshBuilder, geo: KeyGeo[], inner: P2[], DB: Vec3): void
       yOff.push(lerp(PY - 0.006, top - 0.0165, e));
     }
     sweepPlan(mb, path, SEC, M.grandPlate, { yOff, smooth: 0.6 });
-    // the feet: the bar spreads into the web and the flange
-    for (const p of [p0, p1]) slab(mb, PLAN, circle(p[0], p[1], 0.03, 24), [], PY - 0.004, PY + 0.008, M.grandPlate, { bevel: 0.006, botBevel: false });
+    // the feet: the bar spreads into the web and the flange (a pad drawn out along it)
+    const dir = nrm2(p1[0] - p0[0], p1[1] - p0[1]);
+    for (const p of [p0, p1]) slab(mb, PLAN, ell(p, dir, 0.046, 0.028), [], PY - 0.004, PY + 0.006, M.grandPlate, { bevel: 0.006, botBevel: false, smooth: 0.5 });
   };
   // the bass strut: along the gap between the windows, over the tenor strings
   {
@@ -1246,7 +1249,7 @@ function plateGrand(mb: MeshBuilder, geo: KeyGeo[], inner: P2[], DB: Vec3): void
     for (const s of g.strings) {
       tuningPin(mb, [s.pin[0], PY - 0.004, s.pin[2]], [0, 1, 0], M.pinNickel);
       const [hx, , hz] = s.hitch;
-      cyl(mb, [hx, PY - 0.002, hz], [hx, PY + 0.016, hz], 0.0021, 0.0019, 6, M.pinSteel);
+      cyl(mb, [hx, PY - 0.002, hz], [hx, PY + 0.016, hz], 0.0021, 0.0019, 6, M.pinNickel);
     }
   // ---- felts: the red understring felt just behind the pins, under every string (grand-inside.jpg),
   //      and the hitch felt woven along the hitch pins

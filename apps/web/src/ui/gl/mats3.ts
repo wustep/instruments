@@ -133,6 +133,8 @@ const P: Record<string, Phys> = {
   // the grand's tuning pins: bright nickel, satin enough to take the overhead softbox on every head
   // (as polished pins they mirrored the dark studio and read as a grey carpet)
   pinNickel: { color: '#e8e8e6', metalness: 1, roughness: 0.48, tex: 8, axis: [0, 1, 0] },
+  // the grand's bridge caps: maple blackened with graphite where the strings bear
+  bridgeCap: { color: '#3a2a1c', roughness: 0.5, metalness: 0.15, tex: 7, axis: [1, 0, 0], texScale: 1.5 },
 };
 
 // GLSL: hashes, value noise and fbm (all in the part's own metres)
