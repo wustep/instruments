@@ -135,6 +135,15 @@ export const M = {
   damperHead: { col: hex('#1a1614'), rough: 0.4, metal: 0 },
   pinNickel: { col: hex('#e6e6e3'), rough: 0.45, metal: 1 },
   bridgeCap: { col: hex('#3a2a1c'), rough: 0.5, metal: 0.15 },
+  // the flute's pads: white skin over felt (winds3d.ts)
+  padSkin: { col: hex('#f1eee6'), rough: 0.7, metal: 0 },
+  // the trumpet's knurling, its buttons' pearl, the bell's burnished lacquer and the valve casings'
+  // handled lacquer (winds3d.ts)
+  nickelKnurl: { col: hex('#bdbcb6'), rough: 0.45, metal: 1 },
+  pearlButton: { col: hex('#d9d2c6'), rough: 0.25, metal: 0 },
+  brassBell: { col: hex('#ecc36c'), rough: 0.16, metal: 1 },
+  brassHandled: { col: hex('#e9c06a'), rough: 0.22, metal: 1 },
+  nickelDrawn: { col: hex('#d0cfc9'), rough: 0.3, metal: 1 },
 } satisfies Record<string, Mat>;
 for (const [k, m] of Object.entries(M)) (m as Mat).name = k;
 /** a variant of a shared material (same shading family, its own colour or maps) */
