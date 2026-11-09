@@ -4,17 +4,23 @@
 // in pixels) and scaled to McGee's 670 mm overall and ≈600 mm sounding length (docs/3d-reference.md):
 // the crown, a head tube that tapers (Ø17.8 → 19.6 mm measured off the photograph), the lip plate on
 // its riser around a 12.4 × 10.2 mm embouchure hole 70.5 mm from the crown's end, the body's socket
-// with its two rings, drawn tone-hole chimneys, and the keywork: five open-hole (French) cups with
-// their grommets and pointed arms (LH 2, 3; RH 1, 2, 3), plain French cups (LH 1, G♯, the F♯ key),
-// the thumb's dome cup, the small C♯ key, the D and D♯ trill keys with their levers to the right hand,
-// the B♭ thumb levers, the G♯ spatula, hinge tubes on steel rods between posts soldered to ribs, needle
-// springs, cream pads (Yamaha's pad set: 18 mm main, 19.5 mm foot, 12 mm small); the foot joint with
-// its D♯ key and touch, and the C♯ and C keys with their rollers.
-// Live: the keys close for the engine's fingering. The bore note it plays (from focus.lengthM)
-// closes every hole above it, as on a simple open-standing system; the G♯ and D♯ keys stand closed.
-// Each key returns on a spring that seats the pad (a small bounce, no timing of its own). The breath
-// jet crosses the embouchure hole, and the bore's standing wave glows faintly along the tube up to
-// the first open hole.
+// with its two rings, drawn tone-hole chimneys, and the Boehm keywork, laid out after the OSU flute
+// repair manual's nomenclature (fig. 2.2): on the main line the C♯ key and its lever (the first finger's
+// cup) in one piece, the B♭ key, the A and G keys (open-hole French cups with their grommets and
+// pointed arms) and the duplicate G♯ key, the F♯ key, and the F, E and D keys; on the player's side the
+// thumb's key over the C hole with its B touch, the Briccialdi B♭ lever, and the closed G♯ key with its
+// spatula; the D and D♯ trill keys and the C♯ trill key on their long tubes, their teardrop touches for
+// the right hand, and the B♭ shake lever; hinge tubes on steel rods between posts soldered to ribs,
+// needle springs into the keys' catches, the connectors (tongues with adjusting screws and corks) and the
+// F♯ bridge with the E and D keys' feet on it, white pad skins (Yamaha's pad set: 18 mm main, 19.5 mm
+// foot, 12 mm small); the foot joint with its D♯ key and touch, and the C♯ and C keys with their
+// rollers (the C roller's clutch closes the C♯ key too).
+// Live: the keys follow the standard Boehm fingering for the engine's note (C4–C7, first choices),
+// through the linkages: L1 closes the C♯ key, the B♭ key closes for the Briccialdi lever, L2 or R1, L3
+// takes the duplicate G♯ key down, R1, R2 or R3 close the F♯ key. Each key springs to its state (the
+// pad seats with a small bounce, an opening key overshoots off its stop) and they go back to rest a
+// moment after the flute stops sounding. The breath jet crosses the embouchure hole, and the bore's
+// standing wave glows faintly along the tube up to the first open hole.
 //
 // Trumpet: a B♭ trumpet laid out from `trumpet-side.jpg` at the Bach 180S37's published sizes
 // (docs/3d-reference.md): 480 mm from the receiver to the bell rim, an 11.66 mm bore in 12.7 mm
@@ -23,16 +29,20 @@
 // player's left to the main tuning slide in front (with its water key); three piston valves (casings
 // with collars and knuckles, knurled nickel top and bottom caps, felts, stems, knurled buttons with
 // pearl inlays); the first slide back with its thumb saddle, the third forward with its ring, the
-// short second crook; the bell tail back to the bell bow and the bell pipe forward on the right; the
-// finger hook and the braces. Lacquered yellow brass, nickel silver.
+// short second crook; the bell tail back to the bell bow and the bell pipe forward on the right, with
+// ferrules at the bow; the open finger hook past valve 3, the braces, and the water key (its nipple,
+// the lever's cork cup, the saddle and coil spring, the paddle). Lacquered yellow brass (burnished on the
+// bell, a faint handled mottle on the casings), nickel silver, knurls as fine satin bands, the buttons'
+// pearl under polished bezels (trumpet-side.jpg, trumpet-valves.jpg).
 // Live: the pistons press for the engine's fingering ("valves 1+3 · partial 4"; 15.5 mm of travel,
 // a spring return with a tiny bounce off the felt). The pressed valves' slides join the glowing air
 // path, the lips buzz at the rim, the bore's standing wave glows faintly along the brass, and the rim
 // shimmers with the level.
-// Approximations: the flute's linkages between keys (clutches, the F♯ bridge, the Briccialdi
-// lever's rod) are left out and its fingering is the engine's single bore length; the trumpet's
-// wrap follows one photograph (perspective included) checked against the published sizes, not a
-// drawing.
+// Approximations: the flute's linkages are shown, not simulated (each key springs to the state the
+// mechanism gives it; a link's lost motion is not modelled), the thumb levers pivot on a steel along
+// the tube rather than on Briccialdi's cross axle, and the trill keys never open (the fingering chart
+// has no trills); the trumpet's wrap follows one photograph (perspective included) checked against the
+// published sizes, not a drawing.
 import type { VisualFrame } from '@piano-model/engine';
 import { INK, VALVE_DOWN } from '../stage-draw.ts';
 import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, about, add, chain, cross, dot, ink, norm, rotX, rotZ, scale, sub, translate, xform } from './gl3d.ts';
