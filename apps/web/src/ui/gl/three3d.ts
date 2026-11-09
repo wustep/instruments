@@ -69,13 +69,16 @@ function studio(): THREE.Scene {
     m.lookAt(...look);
     s.add(m);
   };
-  // overhead softbox (large, warm white), the key softbox (front left, above), two tall strips
-  // behind left and right (the rim lights' reflections), a low cool card at the front
-  panel(7, 4, [1, 0.95, 0.88], 3.2, [0, 9, -1], [0, 0, 0]);
-  panel(4, 3, [1, 0.9, 0.78], 5.5, [-6, 5, -6], [0, 0, 0]);
-  panel(0.9, 8, [0.85, 0.9, 1], 6, [-8, 3, 7], [0, 1, 0]);
-  panel(0.9, 8, [0.85, 0.9, 1], 4.5, [8, 3, 6], [0, 1, 0]);
-  panel(6, 1.2, [0.7, 0.78, 0.9], 0.9, [0, 0.6, -10], [0, 1, 0]);
+  // as a product studio lights metal: a large overhead softbox; a key softbox front left; a wide,
+  // soft card behind the camera (polished brass and silver need something bright to reflect, or
+  // they read as dark mirrors of the walls); tall strips behind left and right for the rims; a
+  // low cool card in front; a faint floor bounce
+  panel(9, 6, [1, 0.96, 0.9], 2.6, [0, 9, -0.5], [0, 0, 0]);
+  panel(4.5, 3.5, [1, 0.9, 0.78], 5, [-6, 5, -6], [0, 0, 0]);
+  panel(16, 4.5, [1, 0.97, 0.93], 0.75, [0, 3.2, -11], [0, 1.4, 0]);
+  panel(1.2, 9, [0.85, 0.9, 1], 5, [-8, 3, 7], [0, 1, 0]);
+  panel(1.2, 9, [0.85, 0.9, 1], 4, [8, 3, 6], [0, 1, 0]);
+  panel(8, 1.6, [0.7, 0.78, 0.9], 0.8, [0, 0.4, -9], [0, 1, 0]);
   return s;
 }
 
