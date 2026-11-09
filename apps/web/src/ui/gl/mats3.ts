@@ -34,7 +34,7 @@ type Phys = THREE.MeshPhysicalMaterialParameters & {
 };
 
 const P: Record<string, Phys> = {
-  lacquer: { color: '#050505', roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.035, envMapIntensity: 2.2, tex: 0 },
+  lacquer: { color: '#050505', roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.035, envMapIntensity: 1.7, tex: 0 },
   lacquerSatin: { color: '#0a0909', roughness: 0.42, clearcoat: 0.6, clearcoatRoughness: 0.22 },
   caseInner: { color: '#1d140e', roughness: 0.5, clearcoat: 0.4, clearcoatRoughness: 0.3, tex: 3, axis: [1, 0, 0], texScale: 3 },
   // the plate: gold-bronze lacquer over cast iron (a lacquered paint, not bare metal)

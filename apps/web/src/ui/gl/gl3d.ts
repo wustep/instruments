@@ -185,6 +185,10 @@ export class Batch {
   clip: { at: number; side: 1 | -1 } | null = null;
   /** a box the orbit camera may not enter (an instrument's case: its target is inside it) */
   keepOut: { lo: Vec3; hi: Vec3 } | null = null;
+  /** a planar mirror (the underside of a grand's lid): its plan outline [x, z] at height y in the frame
+   *  `m` (a model matrix), facing −y there; k scales the reflection (the case's dissolve); `body` is the mesh
+   *  the mirror is the face of (left out of its own reflection) */
+  mirror: { m: Float32Array; poly: [number, number][]; y: number; k: number; body?: Mesh } | null = null;
   ov: Overlays = { amps: new Float32Array(16), mn: new Float32Array(32), modalHot: [0.95, 0.65, 0.27], modalGain: 0, wave: new Float32Array(48), waveCol: [1, 0.37, 0.22] };
   /** vertex count (for the performance budget) */
   get vertices(): number {
@@ -203,6 +207,7 @@ export class Batch {
     this.floor = null;
     this.clip = null;
     this.keepOut = null;
+    this.mirror = null;
   }
   /** a glowing polyline (additive) of `width` px; colour per point or one for all */
   line(pts: Vec3[], color: RGBA | RGBA[], width = 1.2): void {
