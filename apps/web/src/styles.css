@@ -779,6 +779,18 @@ code {
     min-width: 1560px;
   }
 }
+/* the narrowest phones (320 px): three pedals, the octave and the knob toggle still fit the bar */
+@media (max-width: 360px) {
+  .fallboard {
+    gap: 10px;
+  }
+  .pedals {
+    gap: 2px;
+  }
+  .knob-toggle {
+    padding: 4px 4px;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .lamp {
     animation: none !important;

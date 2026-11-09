@@ -67,6 +67,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
         'aria-pressed': String(audio.preset === id),
         onclick: async () => {
           await audio.setPreset(id);
+          fadeIn();
           presetBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(shownPresets[i] === id)));
           keysFallback = pianoKeySummary(id);
           if (audio.piano) syncKnobs(audio.piano.params as unknown as Record<string, number>);
@@ -214,7 +215,10 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     el.classList.toggle('is-3d', want3d && !!s3);
     (window as unknown as { __stage3d?: Stage3D | null }).__stage3d = want3d ? s3 : null;
   };
-  dimBtn.addEventListener('click', () => set3d(!want3d));
+  dimBtn.addEventListener('click', () => {
+    set3d(!want3d);
+    fadeIn();
+  });
   // click a note's strings on the piano: that key's action, close up
   let action: { close: () => void } | null = null;
   let downAt: { x: number; y: number } | null = null;
@@ -351,8 +355,15 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
   const specBuf = new Float32Array(4096);
   const forceScale = new AutoScale(1e-6);
 
+  // a change of instrument, preset or view fades the stage in (a short ease-out, none with reduced motion)
+  const reduceMotion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+  const fadeIn = () => {
+    if (reduceMotion?.matches) return;
+    for (const c of [canvas, s3?.el]) c?.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' });
+  };
   const applyInstrument = (id: InstrumentId) => {
     inst = id;
+    fadeIn();
     instBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(INSTRUMENT_IDS[i] === id)));
     presets.hidden = id !== 'piano';
     caseBtn.hidden = !(want3d && INSTRUMENT_INFO[id].family === 'piano');

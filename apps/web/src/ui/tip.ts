@@ -34,8 +34,12 @@ export function installTips(): void {
     const tw = tip.offsetWidth;
     const th = tip.offsetHeight;
     const x = Math.min(window.innerWidth - tw - 6, Math.max(6, r.left + r.width / 2 - tw / 2));
-    let y = r.top - th - 6;
+    // controls in the top band take their name below them (above, it would cover the picker);
+    // the rest above, unless there is no room
+    const below = !el.hasAttribute('data-tip-follow') && r.top < Math.min(220, window.innerHeight * 0.3);
+    let y = below ? r.bottom + 6 : r.top - th - 6;
     if (y < 6) y = r.bottom + 6;
+    if (y + th > window.innerHeight - 6) y = Math.max(6, r.top - th - 6);
     tip.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
   };
   const show = (el: HTMLElement, now: boolean) => {
