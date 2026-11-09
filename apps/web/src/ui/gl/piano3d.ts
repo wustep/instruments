@@ -468,11 +468,15 @@ function keyStick(len: number, capZ: number, capH: number, grand: boolean, stick
   // capstan: a brass screw with a rounded head
   lathe(mb, [[0, 0], [0.0042, 0], [0.0042, capH - 0.003], [0.0036, capH - 0.0008], [0.002, capH], [0, capH]].map(([r, y]): P2 => [r, y]), 14, M.brassDull);
   if (grand) {
-    // backcheck: wire up from the tail, a wooden head faced with buckskin towards the hammer's tail
-    const z = 0.508;
-    cyl(mb, [0, stickTop, z], [0, 0.778, z - 0.004], 0.0011, 0.0011, 6, M.steel, false);
-    sideSlab(mb, [[z - 0.012, 0.772], [z + 0.002, 0.772], [z + 0.003, 0.794], [z - 0.008, 0.796]], -0.0055, 0.0055, M.actionWood, 0.001);
-    sideSlab(mb, [[z - 0.0135, 0.773], [z - 0.011, 0.773], [z - 0.0068, 0.796], [z - 0.0095, 0.7965]], -0.0056, 0.0056, M.buckskin, 0.0004);
+    // backcheck: wire up from the tail, a wooden head faced with buckskin towards the hammer's tail;
+    // placed so that its face meets the tail of a checked hammer (the moulding's back corner, 12 mm
+    // behind the head, rising 1.1× the head's travel) with the key down (it rises 9 mm with it):
+    // it stood 12 mm behind and a little below
+    const z = 0.496;
+    const yb = 0.006;
+    cyl(mb, [0, stickTop, z], [0, 0.778 + yb, z - 0.004], 0.0011, 0.0011, 6, M.steel, false);
+    sideSlab(mb, [[z - 0.012, 0.772 + yb], [z + 0.002, 0.772 + yb], [z + 0.003, 0.794 + yb], [z - 0.008, 0.796 + yb]], -0.0055, 0.0055, M.actionWood, 0.001);
+    sideSlab(mb, [[z - 0.0135, 0.773 + yb], [z - 0.011, 0.773 + yb], [z - 0.0068, 0.796 + yb], [z - 0.0095, 0.7965 + yb]], -0.0056, 0.0056, M.buckskin, 0.0004);
     // the damper lifter: a felt pad on the key's tail
     rbox(mb, [-0.0045, stickTop, 0.538], [0.0045, stickTop + 0.004, 0.552], M.redFelt, 0.001);
   }
