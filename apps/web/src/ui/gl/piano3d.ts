@@ -1709,7 +1709,7 @@ export function zoomFrame(kind: 'grand' | 'upright', midi: number): { target: Ve
   const edge = side * 0.85;
   // the upright: key front to strings (z −0.02…0.5), keybed to dampers (y 0.68…1.08); the grand:
   // key front to the dampers' heads (z 0…0.66), keybed to the strings (y 0.68…0.97)
-  return kind === 'upright' ? { target: [x, 0.91, 0.31], side, cut, edge, w: 0.46, h: 0.37 } : { target: [x, 0.81, 0.36], side, cut, edge, w: 0.62, h: 0.27 };
+  return kind === 'upright' ? { target: [x, 0.91, 0.31], side, cut, edge, w: 0.46, h: 0.37 } : { target: [x, 0.81, 0.3], side, cut, edge, w: 0.56, h: 0.26 };
 }
 
 const C = {
