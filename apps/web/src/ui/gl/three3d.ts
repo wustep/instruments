@@ -29,6 +29,7 @@ interface Entry {
 const FINAL_FS = /* glsl */ `
 #include <tonemapping_pars_fragment>
 uniform sampler2D tColor; uniform sampler2D tAO; uniform float uAO; uniform vec3 uGround; uniform vec2 uRes;
+uniform sampler2D tBloom; uniform float uBloom;
 uniform vec2 uGlowC; uniform vec2 uGlowR; uniform float uGlow;
 varying vec2 vUv;
 vec3 toSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
@@ -38,6 +39,8 @@ void main() {
   vec3 col = a > 1e-4 ? c.rgb / a : vec3(0.0);
   float ao = texture2D(tAO, vUv).r;
   col *= mix(1.0, ao, uAO);
+  // a slight bloom, only from the specular hot spots (the bright-pass keeps what is far over white)
+  col += texture2D(tBloom, vUv).rgb * uBloom;
   vec3 s = toSRGB(NeutralToneMapping(col));
   // a little dither against banding in the dark gradients
   float d = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
@@ -50,6 +53,27 @@ void main() {
 const FINAL_VS = /* glsl */ `
 varying vec2 vUv;
 void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+
+// bloom: a bright-pass at quarter resolution, then a separable blur
+const BRIGHT_FS = /* glsl */ `
+uniform sampler2D tColor; uniform vec2 uTexel; varying vec2 vUv;
+void main() {
+  vec3 c = vec3(0.0);
+  for (int i = 0; i < 4; i++) {
+    vec2 o = vec2(float(i % 2) - 0.5, float(i / 2) - 0.5) * uTexel * 2.0;
+    vec4 t = texture2D(tColor, vUv + o);
+    c += max(t.rgb - vec3(2.2), vec3(0.0));
+  }
+  gl_FragColor = vec4(c * 0.25, 1.0);
+}`;
+const BLUR_FS = /* glsl */ `
+uniform sampler2D tIn; uniform vec2 uDir; varying vec2 vUv;
+void main() {
+  vec3 c = texture2D(tIn, vUv).rgb * 0.2270;
+  c += (texture2D(tIn, vUv + uDir * 1.3846).rgb + texture2D(tIn, vUv - uDir * 1.3846).rgb) * 0.3162;
+  c += (texture2D(tIn, vUv + uDir * 3.2308).rgb + texture2D(tIn, vUv - uDir * 3.2308).rgb) * 0.0703;
+  gl_FragColor = vec4(c, 1.0);
+}`;
 
 // the floor: a lit, shadowed surface whose coverage (alpha) fades into the ground with distance
 const FLOOR_FADE = /* glsl */ `
@@ -96,6 +120,14 @@ export class Renderer3 {
   private rt: THREE.WebGLRenderTarget;
   private gtao: GTAOPass | null = null;
   private final: FullScreenQuad;
+  private bloomA: THREE.WebGLRenderTarget;
+  private bloomB: THREE.WebGLRenderTarget;
+  private brightQ: FullScreenQuad;
+  private blurQ: FullScreenQuad;
+  private brightMat: THREE.ShaderMaterial;
+  private blurMat: THREE.ShaderMaterial;
+  /** bloom on the specular hot spots (off on phones) */
+  bloom = true;
   private finalMat: THREE.ShaderMaterial;
   private key: THREE.DirectionalLight;
   private rim: THREE.DirectionalLight;
@@ -182,6 +214,16 @@ export class Renderer3 {
       depthWrite: false,
     });
     this.final = new FullScreenQuad(this.finalMat);
+    const bo = { type: THREE.HalfFloatType, depthBuffer: false };
+    this.bloomA = new THREE.WebGLRenderTarget(1, 1, bo);
+    this.bloomB = new THREE.WebGLRenderTarget(1, 1, bo);
+    this.brightMat = new THREE.ShaderMaterial({ uniforms: { tColor: { value: this.rt.texture }, uTexel: { value: new THREE.Vector2() } }, vertexShader: FINAL_VS, fragmentShader: BRIGHT_FS, depthTest: false, depthWrite: false });
+    this.blurMat = new THREE.ShaderMaterial({ uniforms: { tIn: { value: null }, uDir: { value: new THREE.Vector2() } }, vertexShader: FINAL_VS, fragmentShader: BLUR_FS, depthTest: false, depthWrite: false });
+    this.brightQ = new FullScreenQuad(this.brightMat);
+    this.blurQ = new FullScreenQuad(this.blurMat);
+    this.finalMat.uniforms.tBloom = { value: this.bloomA.texture };
+    this.finalMat.uniforms.uBloom = { value: 0 };
+    this.bloom = !lite;
     this.wireL = new LineLayer(this.rt.depthTexture!, THREE.NormalBlending, true);
     this.inkL = new LineLayer(this.rt.depthTexture!, THREE.NormalBlending);
     this.glowL = new LineLayer(this.rt.depthTexture!, THREE.AdditiveBlending);
@@ -228,6 +270,8 @@ export class Renderer3 {
       this.h = h;
       r.setSize(w, h, false);
       this.rt.setSize(w, h);
+      this.bloomA.setSize(Math.max(1, Math.ceil(w / 4)), Math.max(1, Math.ceil(h / 4)));
+      this.bloomB.setSize(Math.max(1, Math.ceil(w / 4)), Math.max(1, Math.ceil(h / 4)));
       // big canvases (high-DPR laptops): 2× multisampling is enough at that pixel density
       const ms = w * h > 2.6e6 ? 2 : this.lite ? 2 : 4;
       if (this.rt.samples !== ms) {
@@ -328,6 +372,25 @@ export class Renderer3 {
     // tone map, occlusion, composite over the page's ground → canvas
     const u = this.finalMat.uniforms;
     u.tAO.value = aoTex ?? this.rt.texture;
+    // bloom: bright-pass → blur (horizontal, vertical, twice)
+    if (this.bloom) {
+      const bw = this.bloomA.width;
+      const bh = this.bloomA.height;
+      this.brightMat.uniforms.uTexel.value.set(1 / w, 1 / h);
+      r.setRenderTarget(this.bloomA);
+      this.brightQ.render(r);
+      for (let k = 0; k < 2; k++) {
+        this.blurMat.uniforms.tIn.value = this.bloomA.texture;
+        this.blurMat.uniforms.uDir.value.set((1 + k) / bw, 0);
+        r.setRenderTarget(this.bloomB);
+        this.blurQ.render(r);
+        this.blurMat.uniforms.tIn.value = this.bloomB.texture;
+        this.blurMat.uniforms.uDir.value.set(0, (1 + k) / bh);
+        r.setRenderTarget(this.bloomA);
+        this.blurQ.render(r);
+      }
+    }
+    u.uBloom.value = this.bloom ? 0.35 : 0;
     u.uAO.value = aoTex ? 1 : 0;
     u.uGround.value.setRGB(ground[0], ground[1], ground[2]);
     u.uRes.value.set(w, h);
@@ -369,6 +432,10 @@ export class Renderer3 {
     this.envRT.dispose();
     this.final.dispose();
     this.finalMat.dispose();
+    this.bloomA.dispose();
+    this.bloomB.dispose();
+    this.brightMat.dispose();
+    this.blurMat.dispose();
     this.wireL.dispose();
     this.inkL.dispose();
     this.glowL.dispose();
