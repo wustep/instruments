@@ -99,9 +99,20 @@ describe('cello (v2)', () => {
   it('a soft note is not much brighter than a loud one on the same string (the bow keeps Helmholtz motion at pp)', () => {
     // mean log2(centroid pp / ff), steady part: the Iowa cello −0.7 (ff ~1.6× brighter); the point
     // bow on whole samples slipped several times per period at pp and read +0.92 here; the bow of
-    // finite width +0.26 (still brighter than the recording: see the cello-audio README)
+    // finite width +0.26, its pp slips cut short by a ripple trapped between bow and bridge; with the
+    // bridge hill (realistic-3d round 2) −0.02 (pp no brighter than ff; still not as much darker as
+    // the recording: see final-r2/cello-audio/README.md)
     const r = NOTES.map((m) => Math.log2(centroid(mono(play(m, 2.6, { vibrato: 0 }, 48000, 30)), 48000) / centroid(mono(play(m, 2.6, { vibrato: 0 }, 48000, 112)), 48000)));
-    expect(meanAbs(r, false), r.map((v) => v.toFixed(2)).join(' ')).toBeLessThan(0.45);
+    expect(meanAbs(r, false), r.map((v) => v.toFixed(2)).join(' ')).toBeLessThan(0.2);
+  });
+
+  it('the soft tone is the same instrument at 44.1 and 96 kHz (G2, D3, A3 pp: centroid within 0.2 octave)', () => {
+    // realistic-3d round 2: the soft G2 and D3 sat between a ripple-locked and a multiply slipping
+    // motion, and the sample rate chose which (+0.69 and +0.52 octave of centroid at 96 kHz); the
+    // bridge hill (design.bridgeMass) and the rate-invariant constants keep them in Helmholtz motion
+    // (+0.11, +0.13)
+    const d = [43, 50, 57].map((m) => Math.log2(centroid(mono(play(m, 2.6, { vibrato: 0 }, 96000, 30)), 96000) / centroid(mono(play(m, 2.6, { vibrato: 0 }, 44100, 30)), 44100)));
+    for (const [i, m] of [43, 50, 57].entries()) expect(Math.abs(d[i]), `m${m}: ${d.map((v) => v.toFixed(2)).join(' ')}`).toBeLessThan(0.2);
   });
 
   it('stays finite at bow-force and position extremes, with double stops', () => {
