@@ -103,13 +103,15 @@ export const M = {
   stringWound: { col: hex('#a7a9ad'), rough: 0.3, metal: 1 },
   // the flute and the trumpet (winds3d.ts): polished silver (the flute, the mouthpiece), the dark
   // bore seen down a hole, lacquered yellow brass, nickel silver (caps, stems, inner slides), the
-  // valves' felts and the water key's cork
+  // valves' felts, the water key's cork, the buttons' pearl
   silverPolish: { col: hex('#e8e8e6'), rough: 0.12, metal: 1 },
   boreDark: { col: hex('#2b2b2a'), rough: 0.45, metal: 1 },
   brassLacquer: { col: hex('#e9c06a'), rough: 0.2, metal: 1 },
   nickelSilver: { col: hex('#d9d8d2'), rough: 0.14, metal: 1 },
   valveFelt: { col: hex('#4a1a14'), rough: 0.95, metal: 0 },
   cork: { col: hex('#a98458'), rough: 0.9, metal: 0 },
+  pearlInlay: { col: hex('#efe9df'), rough: 0.3, metal: 0 },
+  nickelSatin: { col: hex('#d9d8d2'), rough: 0.32, metal: 1 },
 } satisfies Record<string, Mat>;
 for (const [k, m] of Object.entries(M)) (m as Mat).name = k;
 /** a variant of a shared material (same shading family, its own colour or maps) */

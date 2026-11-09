@@ -404,7 +404,7 @@ export interface FluteModel {
   src: Vec3;
 }
 
-const cupTop = (r: number) => Math.max(0.0027, 0.0036 * Math.min(1, r / 0.00975 + 0.15));
+const cupTop = (r: number) => Math.max(0.0024, 0.0031 * Math.min(1, r / 0.00975 + 0.15));
 /** a key's cup (shell and pad) in the frame `Cf` (y along the cup's axis, the pad's face at 0) */
 function cupInto(mb: MeshBuilder, Cf: Mat4, style: CupStyle, r: number, hole: number): void {
   const k = r / 0.00975;
@@ -415,19 +415,19 @@ function cupInto(mb: MeshBuilder, Cf: Mat4, style: CupStyle, r: number, hole: nu
     let rads: number[];
     if (style === 'open') {
       // grommet lip round the hole, a shallow valley, the domed shoulder, the skirt
-      prof = [[ph, 0.0002], [ph, top + 0.0003], [ph + 0.001, top + 0.0003], [ph + 0.0014, top - 0.0004], [r - 0.0024 * k, top], [r, top - 0.0013], [r, 0.0006], [r - 0.0006, 0.0006]];
-      rads = [0, 0.00022, 0.0003, 0.0004, 0.0016, 0.0009, 0.0003, 0];
+      prof = [[ph, 0.0002], [ph, top + 0.0002], [ph + 0.0009, top + 0.0002], [ph + 0.0013, top - 0.0003], [r - 0.0013 * k, top], [r, top - 0.0009], [r, 0.0006], [r - 0.0006, 0.0006]];
+      rads = [0, 0.0002, 0.00025, 0.0003, 0.0007, 0.0005, 0.0002, 0];
     } else if (style === 'plain') {
       // the pad washer's button in a shallow dish, then the shoulder and skirt
-      prof = [[0, top + 0.0002], [0.0013 * k, top + 0.0002], [0.0018 * k, top - 0.0003], [0.005 * k, top - 0.0003], [r - 0.0024 * k, top], [r, top - 0.0013], [r, 0.0006], [r - 0.0006, 0.0006]];
-      rads = [0, 0.0004, 0.0002, 0.0006, 0.0016, 0.0009, 0.0003, 0];
+      prof = [[0, top + 0.0001], [0.0013 * k, top + 0.0001], [0.0017 * k, top - 0.0002], [0.0048 * k, top - 0.0002], [r - 0.0013 * k, top], [r, top - 0.0009], [r, 0.0006], [r - 0.0006, 0.0006]];
+      rads = [0, 0.0003, 0.0002, 0.0005, 0.0007, 0.0005, 0.0002, 0];
     } else if (style === 'crown') {
       // a convex French cup (the foot's): a dome rising to the pad washer's button
-      prof = [[0, top + 0.0011], [0.0014 * k, top + 0.0011], [0.0019 * k, top + 0.0007], [r - 0.0022 * k, top - 0.0001], [r, top - 0.0014], [r, 0.0006], [r - 0.0006, 0.0006]];
-      rads = [0, 0.0004, 0.0003, 0.0022, 0.0009, 0.0003, 0];
+      prof = [[0, top + 0.0009], [0.0014 * k, top + 0.0009], [0.0019 * k, top + 0.0005], [r - 0.0016 * k, top - 0.0001], [r, top - 0.0011], [r, 0.0006], [r - 0.0006, 0.0006]];
+      rads = [0, 0.0004, 0.0003, 0.0016, 0.0006, 0.0002, 0];
     } else {
-      prof = [[0, top + 0.0005], [r - 0.0028 * k, top + 0.0001], [r, top - 0.0014], [r, 0.0006], [r - 0.0006, 0.0006]];
-      rads = [0, 0.004, 0.001, 0.0003, 0];
+      prof = [[0, top + 0.0005], [r - 0.0024 * k, top + 0.0001], [r, top - 0.0011], [r, 0.0006], [r - 0.0006, 0.0006]];
+      rads = [0, 0.004, 0.0007, 0.0002, 0];
     }
     revolve(mb, fillet(prof, rads, 5), 44, AG);
     // the pad: its face seats on the chimney; it shows as a cream line under the skirt
@@ -449,8 +449,8 @@ function armInto(mb: MeshBuilder, Cf: Mat4, phi: number, style: CupStyle, r: num
       : [[0, rc[1], rc[2]], [0, rc[1] * 0.45 + 0.0004, (rc[2] + sg * (r + 0.0009)) * 0.5 + sg * 0.0012], [0, top * 0.35, sg * (r + 0.0007)], [0, top + 0.0003, sg * (r - 0.0009)], [0, top + 0.0006, sg * (r * 0.55 + tipZ * 0.45)], [0, top + 0.0004, sg * tipZ]];
   const path = spline3(local.map((p) => xform(Cf, p)), 7);
   const outward = (p: Vec3): Vec3 => [0, p[1], p[2]];
-  if (style === 'dome') sweep(mb, path, outward, (f) => 0.0013 - 0.0002 * f, () => 0.0008, AG, 14);
-  else sweep(mb, path, outward, (f) => (f < 0.62 ? 0.0013 - 0.0004 * (f / 0.62) : 0.0009 * (1 - ((f - 0.62) / 0.38) ** 1.6) + 0.00012), (f) => 0.00085 - 0.0003 * f, AG, 14);
+  if (style === 'dome') sweep(mb, path, outward, (f) => 0.0017 - 0.0004 * f, () => 0.0008, AG, 14, 3);
+  else sweep(mb, path, outward, (f) => (f < 0.58 ? 0.0018 - 0.0005 * (f / 0.58) : 0.0013 * (1 - ((f - 0.58) / 0.42) ** 1.5) + 0.00012), (f) => 0.0009 - 0.0004 * f, AG, 14, 3);
 }
 /** a tone-hole chimney at (x, φ) with its dark bore inside */
 function toneHole(mb: MeshBuilder, x: number, phi: number, ro: number): void {
@@ -493,14 +493,14 @@ function rib(mb: MeshBuilder, x0: number, x1: number, phi: number, half: number)
 function steelRod(mb: MeshBuilder, x0: number, x1: number, phi: number, r: number): void {
   const a = polar(x0, phi, r);
   const b = polar(x1, phi, r);
-  cyl(mb, a, b, 0.0008, 0.0008, 10, M.steel, false);
+  cyl(mb, a, b, 0.0008, 0.0008, 10, NS, false);
   cyl(mb, b, add(b, [0.0032, 0, 0]), 0.0013, 0.0001, 12, AG);
 }
 /** a needle spring: a fine wire from a post along the tube to the key's catch */
 function needle(mb: MeshBuilder, x0: number, x1: number, phi: number): void {
   const a = polar(x0, phi + deg(10), ROD_R - 0.0016);
   const b = polar(x1, phi + deg(10), ROD_R - 0.0016);
-  cyl(mb, a, b, 0.0004, 0.0004, 8, M.steel, false);
+  cyl(mb, a, b, 0.0004, 0.0004, 8, NS, false);
   cyl(mb, b, polar(x1, phi + deg(3), ROD_R - 0.0004), 0.0004, 0.0004, 8, AG);
 }
 
@@ -597,8 +597,8 @@ export function buildFluteModel(): FluteModel {
     toneHole(mb, x, deg(96), 0.0042);
     const Cf = chain(rotX(-deg(96)), translate(0, YC, 0));
     mb.with(translate(x, 0, 0), () => {
-      cupInto(mb, Cf, 'plain', 0.0062, 0.0042);
-      armInto(mb, Cf, deg(96), 'plain', 0.0062, 0.0042, polar(0, TRILL_PHI, TRILL_R));
+      cupInto(mb, Cf, 'dome', 0.0062, 0.0042);
+      armInto(mb, Cf, deg(96), 'dome', 0.0062, 0.0042, polar(0, TRILL_PHI, TRILL_R));
     });
   }
   for (const x of [0.4875, 0.5125]) {
@@ -902,12 +902,12 @@ export function buildTrumpetModel(): TrumpetModel {
       // the top cap: a knurled band, a domed top, the felt round the stem
       revolve(mb, fillet([[RC + 0.0003, CY - 0.0002], [RC + 0.0016, CY + 0.0004], [RC + 0.0016, CY + 0.0014]], 0.0002, 3), 48, NS);
       knurl(mb, RC + 0.0022, CY + 0.0014, CY + 0.0072, 68, 0.00028, NS);
-      revolve(mb, fillet([[RC + 0.0022, CY + 0.0072], [RC + 0.0021, CY + 0.0079], [RC + 0.0012, CY + 0.0087], [0.0058, CY + 0.009], [0.0035, CY + 0.009], [0.0035, CY + 0.004]], [0, 0.0003, 0.0006, 0.0006, 0.0002, 0], 3), 48, NS);
+      revolve(mb, fillet([[RC + 0.0022, CY + 0.0072], [RC + 0.0021, CY + 0.0079], [RC + 0.0012, CY + 0.0087], [0.0058, CY + 0.009], [0.0035, CY + 0.009], [0.0035, CY + 0.004]], [0, 0.0003, 0.0006, 0.0006, 0.0002, 0], 3), 48, M.nickelSatin);
       revolve(mb, fillet([[0.0035, CY + 0.0089], [0.0057, CY + 0.0089], [0.0057, CAP_TOP], [0.0035, CAP_TOP]], 0.0003, 3), 32, M.valveFelt);
       // the bottom cap: knurled, a domed foot with a dimple
       revolve(mb, fillet([[RC + 0.0003, -CY + 0.0002], [RC + 0.0013, -CY - 0.0006], [RC + 0.0013, -CY - 0.0018]], 0.0002, 3), 48, NS);
       knurl(mb, RC + 0.0018, -CY - 0.0086, -CY - 0.0018, 68, 0.00028, NS);
-      revolve(mb, fillet([[0, -CY - 0.0114], [0.0018, -CY - 0.0116], [0.004, -CY - 0.0119], [RC - 0.0002, -CY - 0.0113], [RC + 0.0016, -CY - 0.0096], [RC + 0.0018, -CY - 0.0086]], [0, 0.0005, 0.002, 0.002, 0.0008, 0], 4), 48, NS);
+      revolve(mb, fillet([[0, -CY - 0.0114], [0.0018, -CY - 0.0116], [0.004, -CY - 0.0119], [RC - 0.0002, -CY - 0.0113], [RC + 0.0016, -CY - 0.0096], [RC + 0.0018, -CY - 0.0086]], [0, 0.0005, 0.002, 0.002, 0.0008, 0], 4), 48, M.nickelSatin);
     });
   // the knuckles between the casings, at two heights
   for (let k = 0; k < 2; k++)
@@ -994,7 +994,7 @@ export function buildTrumpetModel(): TrumpetModel {
     const a2 = -0.036;
     const xb2 = -0.034;
     slideDefs.push({
-      fixed: [a1, a2].map((y) => bend([[VX[1], y, -0.003], [VX[1], y, z2], [-0.0135, y, z2]], 0.01, 14)),
+      fixed: [a1, a2].map((y) => bend([[VX[1], y, -0.003], [-0.001, y, -0.02], [-0.009, y, z2], [-0.0135, y, z2]], [0.008, 0.008], 12)),
       inner: [],
       sleeve: bend([[-0.0135, a1, z2], [xb2, a1, z2], [xb2, a2, z2], [-0.0135, a2, z2]], [0.016, 0.016], 14),
       ferrules: [[-0.0135, a1, z2], [-0.0135, a2, z2]],
@@ -1071,7 +1071,7 @@ export function buildTrumpetModel(): TrumpetModel {
     revolve(pm, fillet([[0.0025, yb - 0.0018], [0.0042, yb - 0.0012], [0.0046, yb], [0.008, yb + 0.0001], [0.0084, yb + 0.0006]], [0, 0.0004, 0.0003, 0.0003, 0], 3), 40, NS);
     knurl(pm, 0.0084, yb + 0.0006, yb + 0.0034, 56, 0.00022, NS);
     revolve(pm, fillet([[0.0084, yb + 0.0034], [0.0083, yb + 0.0043], [0.0072, yb + 0.0046], [0.0066, yb + 0.004], [0.0063, yb + 0.004]], [0, 0.0005, 0.0004, 0.0002, 0], 3), 40, NS);
-    revolve(pm, fillet([[0.0063, yb + 0.0036], [0.0063, yb + 0.0041], [0.004, yb + 0.0045], [0, yb + 0.0047]], [0, 0.0003, 0.004, 0], 4), 40, M.pearl);
+    revolve(pm, fillet([[0.0063, yb + 0.0036], [0.0063, yb + 0.0041], [0.004, yb + 0.0045], [0, yb + 0.0047]], [0, 0.0003, 0.004, 0], 4), 40, M.pearlInlay);
   });
   // ---- the mouthpiece (Bach 7C), along the leadpipe's axis
   const mp = new MeshBuilder();

@@ -85,12 +85,17 @@ const P: Record<string, Phys> = {
   // winds3d: polished sterling silver and nickel silver read in a dark studio through their
   // reflections, so the environment counts for more (a product shot's big white cards); the lacquer
   // is a clear coat over polished yellow brass (no texture: a polished part shows no grain)
-  silverPolish: { color: '#f3f3f1', metalness: 1, roughness: 0.15, envMapIntensity: 2.2, tex: 8, axis: [0, 1, 0] },
+  silverPolish: { color: '#f3f3f1', metalness: 1, roughness: 0.2, envMapIntensity: 1.6, tex: 8, axis: [0, 1, 0] },
   boreDark: { color: '#2e2e2c', metalness: 1, roughness: 0.4, envMapIntensity: 0.35 },
-  brassLacquer: { color: '#f6d382', metalness: 1, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 2.3 },
-  nickelSilver: { color: '#e4e2db', metalness: 1, roughness: 0.14, envMapIntensity: 2, tex: 8, axis: [0, 1, 0] },
+  brassLacquer: { color: '#f6d382', metalness: 1, roughness: 0.16, clearcoat: 1, clearcoatRoughness: 0.1, envMapIntensity: 1.6 },
+  nickelSilver: { color: '#e4e2db', metalness: 1, roughness: 0.18, envMapIntensity: 1.5, tex: 8, axis: [0, 1, 0] },
   valveFelt: { color: '#4d1c15', roughness: 1, sheen: 0.8, sheenColor: '#a0584a', sheenRoughness: 0.6, tex: 6 },
   cork: { color: '#a98458', roughness: 0.92, tex: 6 },
+  // the valve buttons' mother-of-pearl: a satin coat (a mirror-sharp coat on a small dome made a
+  // hot spot the bloom turned into a fog)
+  pearlInlay: { color: '#f2ede4', roughness: 0.32, clearcoat: 0.5, clearcoatRoughness: 0.22, iridescence: 0.8, iridescenceIOR: 1.35, iridescenceThicknessRange: [220, 620] },
+  // the valve caps' faces: satin, as most are (and a polished dome facing the key light blooms)
+  nickelSatin: { color: '#e0ded7', metalness: 1, roughness: 0.32, envMapIntensity: 1.5, tex: 8, axis: [1, 0, 0] },
 };
 
 // GLSL: hashes, value noise and fbm (all in the part's own metres)
