@@ -171,7 +171,7 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
     if (id === 'cello') return { target: [0, 0.76, 0.08], dist: 2.55, yaw: 0.62, pitch: 0.07 };
     const bm = st.bowedM.get(id);
     const c = bm ? bm.bounds.c : ([0, 0.25, 0] as Vec3);
-    return { target: [c[0] - 0.05, c[1], c[2]], dist: id === 'viola' ? 1.0 : 0.88, yaw: 0.25, pitch: 0.62 };
+    return { target: [c[0] - 0.05, c[1], c[2]], dist: id === 'viola' ? 0.86 : 0.76, yaw: 0.25, pitch: 0.6 };
   }
   if (si.family === 'brass') return { target: [0.0, 0.2, 0.01], dist: 0.72, yaw: 0.35, pitch: 0.32 };
   return { target: [0.0, 0.17, 0.0], dist: 0.8, yaw: 0.2, pitch: 0.55 };
