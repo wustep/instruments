@@ -415,11 +415,19 @@ const bwRng = (seed: number) => () => {
   return seed / 4294967296;
 };
 
+/** a layer: a canvas covering only its part's box on the stage (CSS px) */
+interface BowedLayer {
+  cv: HTMLCanvasElement;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 interface BowedLayers {
   key: string;
   lay: BowedLayout;
-  plate: HTMLCanvasElement;
-  fit: HTMLCanvasElement;
+  plate: BowedLayer;
+  fit: BowedLayer;
   /** the plate (px, local frame), and the plate less its f-holes (for the modes' glow) */
   body: Path2D;
   glow: Path2D;
@@ -429,7 +437,7 @@ let bwScratch: HTMLCanvasElement | null = null;
 
 /** a line at distance d inside a closed path, w wide (the path stroked wide, the inner part cut away,
  *  kept only inside the path) */
-function bwInsetLine(c: CanvasRenderingContext2D, path: Path2D, lay: BowedLayout, dpr: number, d: number, w: number, style: string): void {
+function bwInsetLine(c: CanvasRenderingContext2D, path: Path2D, d: number, w: number, style: string): void {
   const cv = c.canvas;
   if (!bwScratch) bwScratch = document.createElement('canvas');
   const s = bwScratch;
@@ -441,8 +449,7 @@ function bwInsetLine(c: CanvasRenderingContext2D, path: Path2D, lay: BowedLayout
   x.setTransform(1, 0, 0, 1, 0, 0);
   x.globalCompositeOperation = 'source-over';
   x.clearRect(0, 0, s.width, s.height);
-  x.setTransform(dpr, 0, 0, dpr, 0, 0);
-  bwPlace(x, lay);
+  x.setTransform(c.getTransform());
   x.lineJoin = 'round';
   x.strokeStyle = style;
   x.lineWidth = 2 * (d + w / 2);
@@ -468,14 +475,32 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   const L = g.L;
   const xb = L - p.neck;
   const xn = -p.neck;
-  const mk = () => {
+  // each layer covers only its part's box (local metres → stage px, with room for the shadows)
+  const mk = (x0: number, x1: number, z0: number, z1: number) => {
+    let bx0 = Infinity;
+    let by0 = Infinity;
+    let bx1 = -Infinity;
+    let by1 = -Infinity;
+    for (const [x, z] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) {
+      const px = lay.vertical ? lay.ox - z * sc : lay.ox + x * sc;
+      const py = lay.vertical ? lay.oy + x * sc : lay.oy + z * sc;
+      bx0 = Math.min(bx0, px);
+      by0 = Math.min(by0, py);
+      bx1 = Math.max(bx1, px);
+      by1 = Math.max(by1, py);
+    }
+    const m = 44;
+    const bx = Math.max(0, Math.floor(bx0 - m));
+    const by = Math.max(0, Math.floor(by0 - m));
+    const bw = Math.max(1, Math.min(W, Math.ceil(bx1 + m)) - bx);
+    const bh = Math.max(1, Math.min(H, Math.ceil(by1 + m)) - by);
     const cv = document.createElement('canvas');
-    cv.width = Math.max(1, Math.round(W * dpr));
-    cv.height = Math.max(1, Math.round(H * dpr));
+    cv.width = Math.round(bw * dpr);
+    cv.height = Math.round(bh * dpr);
     const c = cv.getContext('2d')!;
-    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.setTransform(dpr, 0, 0, dpr, -bx * dpr, -by * dpr);
     bwPlace(c, lay);
-    return { cv, c };
+    return { cv, c, box: { cv, x: bx, y: by, w: bw, h: bh } };
   };
   const body = bwPoly(sh.body, sc);
   const holes = sh.fholes.map((f) => bwPoly(f, sc));
@@ -485,7 +510,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   const X = (x: number) => x * sc;
 
   // ---- the plate
-  const A = mk();
+  const A = mk(0, B, -sh.hwMax, sh.hwMax);
   const a = A.c;
   a.save();
   a.shadowColor = 'rgba(0,0,0,0.6)';
@@ -561,9 +586,9 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   }
   a.restore();
   // purfling (black–white–black) and the edge's rounded crown catching the light
-  bwInsetLine(a, body, lay, dpr, p.purf[0] * sc, Math.max(1.4, p.purf[1] * sc), 'rgba(10,6,3,0.85)');
-  bwInsetLine(a, body, lay, dpr, p.purf[0] * sc, Math.max(0.5, p.purf[1] * sc * 0.3), 'rgba(236,214,180,0.16)');
-  bwInsetLine(a, body, lay, dpr, 1.6 * MM * S * sc, Math.max(0.8, 1.2 * MM * S * sc), 'rgba(250,200,150,0.10)');
+  bwInsetLine(a, body, p.purf[0] * sc, Math.max(1.4, p.purf[1] * sc), 'rgba(10,6,3,0.85)');
+  bwInsetLine(a, body, p.purf[0] * sc, Math.max(0.5, p.purf[1] * sc * 0.3), 'rgba(236,214,180,0.16)');
+  bwInsetLine(a, body, 1.6 * MM * S * sc, Math.max(0.8, 1.2 * MM * S * sc), 'rgba(250,200,150,0.10)');
   a.strokeStyle = rgba(INK.ivory, 0.55);
   a.lineWidth = 1.1;
   a.lineJoin = 'round';
@@ -578,7 +603,8 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   }
 
   // ---- the fittings
-  const F = mk();
+  const reach = Math.max(sh.hwMax, p.pbW / 2 + 0.0098 * S ** 0.6 + 0.021 * S ** 0.62);
+  const F = mk(-p.neck - p.head * HEAD_PROJ - 0.003, B + (g.id === 'cello' ? 0.385 : 0.012), -reach, reach);
   const c = F.c;
   const ebony = (x0: number, x1: number, half: number) => {
     const gr = c.createLinearGradient(0, -half, 0, half);
@@ -756,7 +782,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
       c.stroke();
     }
   }
-  const pegCol = g.id === 'cello' ? ['rgb(40,18,10)', 'rgb(104,50,30)'] : ['rgb(12,10,9)', 'rgb(50,45,40)'];
+  const pegCol = g.id === 'cello' ? ['rgb(40,18,10)', 'rgb(110,54,32)'] : ['rgb(16,12,10)', 'rgb(66,52,42)'];
   for (let i = 0; i < 4; i++) {
     const aa = PEG_A[PEG_OF[i]];
     const s = PEG_SIDE[i];
@@ -977,7 +1003,9 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
     c.lineTo(X(x), X(z));
     c.stroke();
   }
-  return { key, lay, plate: A.cv, fit: F.cv, body, glow };
+  // the scratch canvas was only for the purfling
+  if (bwScratch) bwScratch.width = bwScratch.height = 1;
+  return { key, lay, plate: A.box, fit: F.box, body, glow };
 }
 
 /** The body's modes as a warm glow only: the same plate shapes as ModeField (sin mπu · sin nπv, in
@@ -1121,7 +1149,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
   ctx.rect(0, 0, W, H);
   ctx.clip();
   const base = ctx.getTransform();
-  ctx.drawImage(ly.plate, 0, 0, W, H);
+  ctx.drawImage(ly.plate.cv, ly.plate.x, ly.plate.y, ly.plate.w, ly.plate.h);
   bwPlace(ctx, ly.lay);
 
   // the body's modes: a soft warm glow on the plate, kept under the strings and out of the f-holes
@@ -1157,7 +1185,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     ctx.setLineDash([]);
   }
   ctx.setTransform(base);
-  ctx.drawImage(ly.fit, 0, 0, W, H);
+  ctx.drawImage(ly.fit.cv, ly.fit.x, ly.fit.y, ly.fit.w, ly.fit.h);
   bwPlace(ctx, ly.lay);
 
   // ---- the strings, the fingers, the bowed string's shape
