@@ -15,7 +15,9 @@ import { AutoScale, INK, rgba } from './stage-draw.ts';
 
 type Kind = 'grand' | 'upright';
 const BLOW = { grand: 47, upright: 45 };
-const LETOFF = 2.5;
+/** let-off: where the jack's toe meets its button, mm before the string (the grand's 2 mm as the 3D
+ *  model's `G.letoff` and [Askenfelt-Jansson]'s 1-3 mm; the upright's 2.5) */
+const LETOFF_OF = { grand: 2, upright: 2.5 };
 const KEY_DIP = 10;
 /** the check (backcheck catching the hammer) and, for the grand, where the repetition lever holds it */
 const CHECK = { grand: 16, upright: 13 };
@@ -39,6 +41,7 @@ interface Replay {
 /** hammer height (mm above rest) and phase at physical time t (s) of a replay */
 function replayAt(r: Replay, kind: Kind, t: number, held: boolean): { y: number; phase: 'drive' | 'free' | 'contact' | 'fall' | 'checked'; comp: number; escaped: boolean } {
   const D = BLOW[kind];
+  const LETOFF = LETOFF_OF[kind];
   if (t < r.ta) return { y: (D - LETOFF) * (t / r.ta) ** 2, phase: 'drive', comp: 0, escaped: false };
   if (t < r.ta + r.tb) return { y: D - LETOFF + r.vH * 1000 * (t - r.ta), phase: 'free', comp: 0, escaped: true };
   const tc = t - r.ta - r.tb;
@@ -144,8 +147,8 @@ export function openActionView(opts: { midi: number; kind: Kind; host: HTMLEleme
 
   function makeReplay(st: NonNullable<WatchKey['strike']>, w: WatchKey, k: Kind, now: number): Replay {
     const vH = Math.max(0.2, st.vHammer);
-    const ta = (2 * (BLOW[k] - LETOFF)) / 1000 / vH;
-    const tb = LETOFF / 1000 / vH;
+    const ta = (2 * (BLOW[k] - LETOFF_OF[k])) / 1000 / vH;
+    const tb = LETOFF_OF[k] / 1000 / vH;
     let imp = 0;
     for (let i = 0; i < st.force.length; i++) imp += st.force[i] / st.fs;
     const vOut = Math.max(0.05 * vH, imp / Math.max(1e-4, w.hammerMass) - vH);
@@ -198,7 +201,7 @@ export function openActionView(opts: { midi: number; kind: Kind; host: HTMLEleme
     }
     const D = BLOW[kind];
     // the key follows the hammer while the jack drives it, then sits on the key bed while held
-    const driveFrac = Math.min(1, y / (D - LETOFF));
+    const driveFrac = Math.min(1, y / (D - LETOFF_OF[kind]));
     const keyT = replay ? (phase === 'drive' ? driveFrac : held || phase !== 'fall' ? 1 : driveFrac) : held ? 1 : 0;
     keyPos += (keyT - keyPos) * (replay ? 1 : 0.35);
     // the damper: live from the engine (0 lifted … 1 on the string); while replaying, the key
@@ -222,7 +225,7 @@ export function openActionView(opts: { midi: number; kind: Kind; host: HTMLEleme
     const parts: [string, number, number][] = [];
     const pedals = opts.latest();
     const geo = { soft: pedals?.soft ?? 0, middle: pedals?.middle ?? 0, parts, X, Y, s, y, comp, keyPos, escaped: escaped || phase === 'free' || phase === 'contact' || phase === 'fall' || phase === 'checked', damperOn: hasDamper ? damperOn : 0, hasDamper, shape, sc, beta: w?.beta ?? 0.12, active: phase === 'drive' || phase === 'free' || phase === 'contact', contact: phase === 'contact', jackOut: replay ? (phase === 'drive' ? 0 : 1) : jackOut };
-    if (kind === 'grand') drawGrand(ctx, geo);
+    if (kind === 'grand') drawGrand(ctx, { ...geo, midi, watch: w, sustain: pedals?.sustain ?? 0 });
     else drawUpright(ctx, geo);
     hover = parts.map(([n, px, py]) => [n, X(px), Y(py)] as [string, number, number]);
     if (!replay && held) jackOut = 1;
@@ -328,97 +331,409 @@ function felt(ctx: CanvasRenderingContext2D, g: Geo, cx: number, cy: number, w: 
   ctx.restore();
 }
 
-// ---------------------------------------------------------------- grand (side view, player left)
-// The key pivots on the balance rail; its capstan lifts the wippen, whose jack pushes the hammer
-// shank's knuckle; the jack's toe meets the let-off button 2.5 mm before the string and the jack
-// tips out (escapement); the hammer flies, strikes from below, falls back and is caught by the
-// backcheck on the key's tail; the repetition lever then holds it up so the jack can reset with
-// the key only part-way up. The key's tail lifts the damper underlever off the string.
-function drawGrand(ctx: CanvasRenderingContext2D, g: Geo): void {
-  const D = BLOW.grand;
-  const yRest = 150; // hammer head centre at rest
-  const yStr = yRest + 13 + D;
-  const xHam = 430;
-  const kA = (g.keyPos * KEY_DIP) / 240; // key angle about the balance rail (front down)
-  // ---- key bed, balance rail, key
-  line(ctx, [[0, 8], [600, 8]], rgba(INK.wood, 1), 3, g);
-  const kp: [number, number] = [240, 26];
-  const key = (x: number, yy: number) => rot(kp[0], kp[1], x, yy, kA);
-  line(ctx, [key(0, 40), key(520, 40)], rgba(INK.felt, 0.8), 2, g);
-  line(ctx, [key(0, 26), key(520, 26)], rgba(INK.felt, 0.35), 1, g);
-  line(ctx, [key(0, 40), key(60, 40)], rgba(INK.ivory, 0.9), 4, g); // the key top
-  pivot(ctx, kp[0], kp[1], g);
-  g.parts.push(['key', ...key(30, 40)], ['key lever', ...key(150, 34)], ['balance rail', kp[0], kp[1]], ['key bed', 120, 8]);
-  // ---- capstan → wippen (pivot at its front), jack, repetition lever
-  const cap = key(350, 52);
-  line(ctx, [key(350, 40), cap], rgba(INK.steel, 0.7), 2, g);
-  const wp: [number, number] = [290, 78];
-  const capRise = cap[1] - 52;
-  const wA = capRise / 60; // wippen angle (rear up)
-  const wip = (x: number, yy: number) => rot(wp[0], wp[1], x, yy, -wA * -1);
-  line(ctx, [wp, wip(350, 60), wip(400, 66)], rgba(INK.wood, 1), 4, g);
-  line(ctx, [wp, wip(350, 60), wip(400, 66)], rgba(INK.felt, 0.5), 1, g);
-  pivot(ctx, wp[0], wp[1], g);
-  // hammer shank: flange at the front, hammer at the back; angle from the hammer's height
-  const sp: [number, number] = [300, 150];
-  const sA = Math.atan2(g.y, xHam - sp[0]);
-  const sh = (x: number, yy: number) => rot(sp[0], sp[1], x, yy, sA);
-  const knuckle = sh(372, 141);
-  // the jack: from the wippen up to the knuckle, or tipped forward after escapement
-  const jb = wip(368, 66);
-  const jTilt = g.escaped || g.jackOut > 0.5 ? 0.32 : 0;
-  const jt = rot(jb[0], jb[1], jb[0], knuckle[1] - 2, jTilt);
-  line(ctx, [jb, jt], g.active && !g.escaped ? rgba(INK.vermilion, 0.9) : rgba(INK.steel, 0.8), 2.4, g);
-  // let-off button above the jack's toe
-  line(ctx, [[352, 112], [362, 112]], rgba(INK.amber, 0.8), 3, g);
-  g.parts.push(['capstan', ...cap], ['wippen', ...wip(340, 62)], ['jack', (jb[0] + jt[0]) / 2, (jb[1] + jt[1]) / 2], ['let-off button (escapement)', 357, 112]);
-  // repetition lever: on the wippen, spring-loaded up under the knuckle
-  const rp = wip(330, 96);
-  const repUp = g.escaped ? Math.min(knuckle[1] - 4, rp[1] + 22) : rp[1] + 14;
-  line(ctx, [rp, [knuckle[0] + 6, repUp]], rgba(INK.copper, 0.85), 2, g);
-  pivot(ctx, rp[0], rp[1], g);
-  g.parts.push(['repetition lever', (rp[0] + knuckle[0]) / 2, (rp[1] + repUp) / 2]);
-  // shank and knuckle
-  const hc = sh(xHam, yRest);
-  line(ctx, [sp, hc], rgba(INK.wood, 1), 4, g);
-  line(ctx, [sp, hc], rgba(INK.felt, 0.6), 1.2, g);
-  ctx.fillStyle = rgba(INK.felt, 0.7);
-  ctx.beginPath();
-  ctx.arc(g.X(knuckle[0]), g.Y(knuckle[1]), 4, 0, Math.PI * 2);
-  ctx.fill();
-  pivot(ctx, sp[0], sp[1], g);
-  // backcheck on the key's tail, catching the hammer's tail
-  const bc0 = key(476, 40);
-  const bc1 = key(470, 128);
-  line(ctx, [bc0, bc1], rgba(INK.wood, 1), 3, g);
-  felt(ctx, g, bc1[0] - 4, bc1[1] + 4, 9, 18, 0.5, false);
-  // the hammer head, striking up into the string
-  felt(ctx, g, hc[0], hc[1], 26, 30, sA, g.active, g.contact ? Math.min(8, g.comp * 6) : 0);
-  g.parts.push(['hammer shank', ...sh(360, 150)], ['knuckle', ...knuckle], ['backcheck', bc1[0] - 4, bc1[1] + 4], ['hammer (felt)', ...hc]);
-  // ---- string (agraffe at the left, bridge off to the right); the hammer strikes at β
-  const L = (xHam - 360) / g.beta;
-  string(ctx, g, 360, yStr, 1, 0, L, 600 - 360);
-  line(ctx, [[352, yStr - 6], [360, yStr], [352, yStr + 6]], rgba(INK.steel, 0.8), 2, g); // agraffe
-  g.parts.push(['agraffe', 356, yStr], ['string', 470, yStr], ['string', 580, yStr]);
-  // ---- damper: underlever lifted by the key's tail, damper head on the string from above
+// ---------------------------------------------------------------- grand (side section, player left)
+// A section through this key, to scale, from the 3D grand (piano3d.ts `G`, `keyStick`, `hammerHead` and
+// its wippen, jack, repetition lever and underlever; the modern Renner/Steinway geometry of
+// [Erwin AR]): the key rocks on the balance rail (266 mm); its capstan (390) lifts the wippen
+// (flanged at 456, 66 mm behind the capstan, the "spread" 113 mm behind the hammer flange at 340);
+// the jack (99 mm in front of the wippen's centre) pushes the knuckle 17 mm from the hammer centre
+// until its toe meets the let-off button and it tips out 2 mm before the string (escapement); the
+// hammer (130 mm from its centre) flies, strikes from below, falls back and is caught by the
+// backcheck on the key's tail; the repetition lever holds it so the jack can reset. The key's tail
+// lifts the damper underlever (pivoted at 665), whose wire carries the head off the strings 37 mm
+// behind the strike line (507); the sustain pedal's tray lifts every underlever. Above: the pin
+// block under the plate's web, the tuning pins, the understring felt, the agraffe (a capo bar from
+// key 74), the string over the belly rail and the soundboard glued over it (from 520).
+// Deviation from the 3D model: the hammer's tail and the backcheck are shaped so that they meet at
+// the check (the hammer 16 mm under the string, `CHECK`), as they do on a regulated action.
+interface GrandGeo extends Geo {
+  midi: number;
+  watch: WatchKey | null;
+  /** the sustain pedal (0 … 1): its tray lifts every underlever */
+  sustain: number;
+}
+type Q = [number, number];
+/** the 3D grand's action (piano3d.ts `G`), mm: z from the key front, y from the floor */
+const GA = {
+  balZ: 266,
+  pivY: 698,
+  stickTop: 722,
+  keyTop: 725,
+  keyLen: 560,
+  capZ: 390,
+  capH: 10,
+  wipZ: 456,
+  wipY: 748,
+  jackZ: 357,
+  knR: 17,
+  hamZ: 340,
+  hamY: 800,
+  shank: 130,
+  strikeZ: 470,
+  strY: 895,
+  bassAgY: 903,
+  bassBrY: 927,
+  damperZ: 507,
+  ulZ: 665,
+  ulY: 736,
+  boardZ: 520,
+  bellyZ: 550,
+  boardY: 848,
+  plateY: 882,
+  plateFront: 195,
+  dip: 10,
+  /** the damper's full lift at the head, mm (as the 3D) */
+  lift: 9.5,
+  /** the key's lifter felt to the underlever's felt at rest: the damper starts to rise at about a
+   *  third of the key's dip and is fully off at the bottom */
+  ulGap: 3.3,
+};
+/** colours: the 3D materials (gl/mesh.ts) */
+const GC = {
+  lacquer: '14,12,11',
+  sheen: '120,112,102',
+  keyWood: '198,165,122',
+  hornbeam: '226,201,154',
+  actionWood: '168,123,76',
+  maple: '168,122,72',
+  buckskin: '179,152,118',
+  hFelt: '236,228,207',
+  underfelt: '120,30,34',
+  red: '160,44,36',
+  green: '44,96,72',
+  brass: '214,176,101',
+  steel: '201,204,208',
+  plate: '170,128,60',
+  plateLit: '236,198,122',
+  spruce: '196,160,108',
+  head: '30,26,23',
+  dFelt: '217,214,207',
+  bracket: '125,115,84',
+  ivory: '240,235,223',
+  ebony: '24,21,20',
+};
+/** the action bracket's cast profile (piano3d.ts), mm */
+const BRACKET: Q[] = [
+  [600, 682], [645, 682], [648, 710], [635, 742], [600, 752], [530, 752], [470, 760], [420, 776], [370, 800], [340, 822], [310, 828], [294, 815], [298, 795], [325, 782], [370, 762], [430, 744], [500, 738], [575, 735], [600, 720],
+];
+const egg = (a: number, b: number, c0: number, y0: number, n = 22): Q[] => {
+  const out: Q[] = [];
+  const t0 = Math.asin(Math.max(-1, Math.min(1, (y0 - c0) / b)));
+  for (let k = 0; k <= n; k++) {
+    const t = t0 + ((Math.PI - 2 * t0) * k) / n;
+    out.push([a * Math.cos(t), c0 + b * Math.sin(t)]);
+  }
+  return out;
+};
+const HEAD_FELT = egg(14.5, 32, 16, 0);
+const HEAD_UNDER = egg(9, 22.6, 16, 1.2);
+// the moulding: as the 3D's, its tail drawn down and back to meet the backcheck
+const HEAD_MOULD: Q[] = [[-9, -9.5], [5, -9.5], [9, -13], [11.5, -19.5], [15, -19], [15, -8], [12.8, -2], [9.5, 3], ...egg(7.5, 21.1, 16, 3, 14), [-9.5, 3], [-9.8, -2]];
+let grandKey = 0;
+let grandJack = 0;
+
+function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
+  const cw = ctx.canvas.clientWidth;
+  const ch = ctx.canvas.clientHeight;
+  // the section shown (mm): key front to the underlever's rail, keybed to the dampers' heads; a tall
+  // panel (a phone) shows the action from behind the key's front
+  const narrow = cw / Math.max(1, ch) < 1.3;
+  const z0 = narrow ? 170 : -14;
+  const z1 = 712;
+  const y0 = 640;
+  const y1 = 950;
+  const pad = 16;
+  const top = narrow ? 52 : 40;
+  const s = Math.min((cw - 2 * pad) / (z1 - z0), (ch - top - pad) / (y1 - y0));
+  const ox = (cw - (z1 - z0) * s) / 2 - z0 * s;
+  const oy = top + (ch - top - pad - (y1 - y0) * s) / 2 + y1 * s;
+  const X = (z: number) => ox + z * s;
+  const Y = (y: number) => oy - y * s;
+  // hover names: positions in the panel's shared model units
+  const part = (n: string, p: Q) => g.parts.push([n, (X(p[0]) - g.X(0)) / g.s, (g.Y(0) - Y(p[1])) / g.s]);
+  const lw = (mm: number) => Math.max(0.6, mm * s);
+  const shape = (pts: Q[], fill: string | null, stroke: string | null = null, w = 1) => {
+    ctx.beginPath();
+    pts.forEach(([z, y], k) => (k ? ctx.lineTo(X(z), Y(y)) : ctx.moveTo(X(z), Y(y))));
+    ctx.closePath();
+    if (fill) {
+      ctx.fillStyle = fill;
+      ctx.fill();
+    }
+    if (stroke) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = w;
+      ctx.stroke();
+    }
+  };
+  const box = (za: number, ya: number, zb: number, yb: number, fill: string | null, stroke: string | null = null, w = 1) => shape([[za, ya], [zb, ya], [zb, yb], [za, yb]], fill, stroke, w);
+  const poly = (pts: Q[], col: string, w: number) => {
+    ctx.strokeStyle = col;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    pts.forEach(([z, y], k) => (k ? ctx.lineTo(X(z), Y(y)) : ctx.moveTo(X(z), Y(y))));
+    ctx.stroke();
+  };
+  const disc = (p: Q, r: number, fill: string, stroke: string | null = null) => {
+    ctx.beginPath();
+    ctx.arc(X(p[0]), Y(p[1]), Math.max(0.8, r * s), 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    if (stroke) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+  };
+  const centrePin = (p: Q) => {
+    disc(p, 2.4, rgba('0,0,0', 0.6));
+    disc(p, 1.4, rgba(GC.steel, 0.95));
+  };
+  const R = (c: Q, a: number) => (p: Q): Q => rot(c[0], c[1], p[0], p[1], a);
+  const outline = rgba('0,0,0', 0.55);
+  // ---- the key's string data
+  const w = g.watch;
+  const black = [1, 3, 6, 8, 10].includes(g.midi % 12);
+  const nStr = w?.nStrings ?? 3;
+  const wound = g.midi < 48 && nStr <= 2;
+  const L = Math.max(40, (w?.lengthM ?? 1) * 1000);
+  const beta = g.beta;
+  const hs = 1.22 - 0.38 * ((g.midi - 21) / 87);
+  const cB = wound ? Math.cos(0.18) : 1;
+  const aZ = GA.strikeZ - cB * beta * L;
+  const bZ = aZ + cB * L;
+  const strAt = (z: number) => (wound ? GA.bassAgY + ((GA.bassBrY - GA.bassAgY) * (z - aZ)) / (bZ - aZ) : GA.strY);
+  const hy = (strAt(GA.strikeZ) - 47 - GA.hamY) / 48;
+  const webZ = Math.min(aZ - 8, GA.strikeZ - 16);
+  const pinZ = Math.max(222, Math.min(270, webZ - 155));
+  // ---- the state: during the drive the jack carries the knuckle, so the key follows the hammer
+  //      (it is at 84 % of its dip at let-off, and goes on to the key bed after it)
+  const driving = g.active && !g.escaped;
+  const keyFromHammer = Math.min(1, (((g.y * GA.knR) / GA.shank / 99) * 66) / (GA.capZ - GA.balZ) / (GA.dip / GA.balZ));
+  const keyT = driving ? keyFromHammer : g.keyPos;
+  grandKey += (keyT - grandKey) * (driving || keyT < grandKey ? 1 : 0.35);
+  const kp = grandKey;
+  const kA = (kp * GA.dip) / GA.balZ;
+  const K = R([GA.balZ, GA.pivY], kA);
+  const capRise = (GA.capZ - GA.balZ) * Math.sin(kA);
+  const wA = capRise / (GA.wipZ - GA.capZ);
+  const Wp = R([GA.wipZ, GA.wipY], -wA);
+  // the jack tips as its toe meets the button (and stays tipped while the hammer is free)
+  const toe0: Q = [GA.jackZ - 19, GA.wipY + 4 + 9];
+  const toeY = Wp(toe0)[1];
+  const contactTip = Math.max(0, Math.min(0.3, Math.asin(Math.max(0, Math.min(1, (toeY - 767) / 19)))));
+  const jTarget = Math.max(contactTip, g.escaped || g.jackOut > 0.5 ? 0.28 : 0);
+  grandJack += (jTarget - grandJack) * (jTarget > grandJack ? 1 : 0.3);
+  const jA = grandJack;
+  const sA = Math.atan2(g.y, GA.shank);
+  const Sh = R([GA.hamZ, GA.hamY], sA);
+  // ---- background: the action bracket (cast, behind this key), the fallboard folded back
+  const br = BRACKET;
+  shape(br, rgba(GC.bracket, 0.16), rgba(GC.bracket, 0.3), 1);
+  disc([392, 772.4], 7.2, rgba('8,7,6', 1));
+  disc([622.5, 713], 8.5, rgba('8,7,6', 1));
+  shape([[150, 730], [168, 730], [212, 862], [200, 868], [186, 866], [150, 760]], rgba(GC.lacquer, 1), rgba(GC.sheen, 0.6), 1);
+  box(147, 722, 180, 730, rgba(GC.red, 0.6));
+  // ---- the keybed and the key frame's rails
+  box(-20, 648, 712, 682, rgba('34,29,25', 1));
+  poly([[-20, 682], [712, 682]], rgba(GC.sheen, 0.5), 1);
+  box(4, 682, 30, 692, rgba(GC.actionWood, 0.7), outline, 0.8);
+  box(8, 692, 26, 693.5, rgba(GC.red, 0.9));
+  box(255, 682, 277, 698, rgba(GC.actionWood, 0.7), outline, 0.8);
+  box(520, 682, 560, 694, rgba(GC.actionWood, 0.7), outline, 0.8);
+  box(520, 694, 560, 698, rgba(GC.green, 0.9));
+  part('key bed', [120, 665]);
+  part('balance rail', [266, 690]);
+  // ---- the action's rails: hammer flange rail, wippen rail, hammer rest rail, damper guide rail,
+  //      the underlever rail
+  box(298, 790, 332, 822, rgba(GC.actionWood, 0.75), outline, 0.8);
+  box(GA.wipZ - 16, 726, GA.wipZ + 16, 742, rgba(GC.actionWood, 0.75), outline, 0.8);
+  box(428, 775, 448, 790, rgba(GC.actionWood, 0.75), outline, 0.8);
+  box(428, 790, 448, 794, rgba(GC.green, 0.95));
+  box(657, 698, 693, 742, rgba(GC.actionWood, 0.75), outline, 0.8);
+  part('hammer flange rail', [315, 806]);
+  part('hammer rest rail', [438, 782]);
+  part('wippen rail', [GA.wipZ, 734]);
+  // ---- the string's surroundings: pin block, plate web, belly rail, soundboard and its ribs
+  box(199, 826, 334, 866, rgba(GC.maple, 0.6), outline, 0.8);
+  box(GA.plateFront, 866, webZ, 882, rgba(GC.plate, 0.85), rgba(GC.plateLit, 0.5), 0.8);
+  shape([[197, 878], [216, 878], [216, 888], [212, 894], [201, 894], [197, 888]], rgba(GC.plate, 0.9), rgba(GC.plateLit, 0.5), 0.8);
+  box(GA.boardZ, 788, GA.bellyZ, 839, rgba('22,19,17', 1), rgba(GC.sheen, 0.4), 0.8);
+  box(GA.boardZ, 839, 712, GA.boardY, rgba(GC.spruce, 0.55), rgba(GC.spruce, 0.8), 0.8);
+  for (const rz of [600, 690]) shape([[rz - 11.5, 839], [rz + 11.5, 839], [rz + 11.5, 824], [rz - 11.5, 824]], rgba(GC.spruce, 0.35), rgba(GC.spruce, 0.5), 0.8);
+  box(494, 833, 520, 848, rgba(GC.actionWood, 0.75), outline, 0.8);
+  box(503.5, 833, 510.5, 848, rgba(GC.red, 0.6));
+  part('pin block', [266, 846]);
+  part('plate', [240, 874]);
+  part('belly rail', [535, 810]);
+  part('soundboard', [640, 844]);
+  part('damper guide rail', [507, 840]);
+  // ---- the key: stick, top, leads, capstan, backcheck and the damper lifter, rocking as one
+  const keyPts = (pts: Q[]) => pts.map(K);
+  shape(keyPts([[52, GA.pivY], [GA.keyLen, GA.pivY], [GA.keyLen, GA.stickTop], [52, GA.stickTop]]), rgba(GC.keyWood, 0.8), outline, 0.8);
+  for (const lz of [180, 205]) disc(K([lz, 709]), 4.5, rgba('91,94,99', 0.95));
+  if (black) {
+    shape(keyPts([[50, 723], [145, 723], [145, 736.5], [58, 736.5], [50, 731]]), rgba(GC.ebony, 1), rgba(GC.sheen, 0.8), 0.8);
+    shape(keyPts([[0, GA.pivY], [52, GA.pivY], [52, GA.stickTop], [0, GA.stickTop]]), rgba(GC.keyWood, 0.8), outline, 0.8);
+  } else {
+    shape(keyPts([[0, 703], [147, 703], [147, 725], [0, 725]]), rgba(GC.ivory, 0.95), rgba('0,0,0', 0.4), 0.8);
+    shape(keyPts([[52, GA.pivY], [147, GA.pivY], [147, 703], [52, 703]]), rgba(GC.keyWood, 0.8), outline, 0.8);
+  }
+  // capstan: a brass screw with a rounded head
+  shape(keyPts([[385.8, 722], [394.2, 722], [394.2, 729], [392, 732], [388, 732], [385.8, 729]]), rgba(GC.brass, 0.95), outline, 0.8);
+  // backcheck: a wire up from the tail, its head faced with buckskin towards the hammer's tail
+  poly(keyPts([[506, GA.stickTop], [497, 792]]), rgba(GC.steel, 0.9), lw(1.2));
+  shape(keyPts([[488, 792], [501, 790], [504, 821], [492, 823]]), rgba(GC.actionWood, 0.95), outline, 0.8);
+  shape(keyPts([[486, 792], [489, 792], [493, 823], [490, 823.5]]), rgba(GC.buckskin, 1));
+  shape(keyPts([[538, GA.stickTop], [552, GA.stickTop], [552, GA.stickTop + 4], [538, GA.stickTop + 4]]), rgba(GC.red, 0.95));
+  part('key', K([40, 725]));
+  part('key lever', K([150, 712]));
+  part('key leads', K([192, 709]));
+  part('capstan', K([390, 728]));
+  part('backcheck', K([494, 808]));
+  part('damper lifter', K([545, 724]));
+  centrePin([GA.balZ, GA.pivY]);
+  // ---- the wippen on its flange: body, heel on the capstan, the repetition lever's post and spring
+  const wipAbs = (pts: Q[]): Q[] => pts.map(([u, v]) => Wp([GA.wipZ + u, GA.wipY + v]));
+  box(GA.wipZ - 6, 742, GA.wipZ + 10, 752, rgba(GC.hornbeam, 0.75), outline, 0.8);
+  shape(wipAbs([[9, -7], [9, 5], [-30, 7], [-80, 6], [-112, 4], [-112, -6], [-80, -10], [-45, -11], [-20, -9]]), rgba(GC.hornbeam, 0.85), outline, 0.8);
+  shape(wipAbs([[-74, -16], [-58, -16], [-58, -10], [-74, -10]]), rgba(GC.buckskin, 1), outline, 0.6);
+  shape(wipAbs([[-50, 4], [-40, 4], [-42, 31], [-49, 31]]), rgba(GC.hornbeam, 0.85), outline, 0.8);
+  poly(wipAbs([[-30, 4], [-34, 16], [-50, 26]]), rgba(GC.steel, 0.8), lw(0.8));
+  shape(wipAbs([[-107, 2], [-93, 2], [-93, 9], [-107, 9]]), rgba(GC.hornbeam, 0.85), outline, 0.6);
+  centrePin([GA.wipZ, GA.wipY]);
+  part('wippen', Wp([GA.wipZ - 60, GA.wipY - 2]));
+  part('wippen heel', Wp([GA.wipZ - 66, GA.wipY - 13]));
+  // ---- the let-off button over the jack's toe (hung from the hammer flange rail)
+  box(338.2, 772, 339.8, 790, rgba(GC.brass, 0.9));
+  shape([[334.8, 767], [343.2, 767], [343.2, 773], [334.8, 773]], rgba(GC.red, 0.95), outline, 0.6);
+  part('let-off button', [339, 770]);
+  // ---- the hammer: flange, shank, knuckle; the head at the shank's end
+  box(330, 794, 350, 812, rgba(GC.hornbeam, 0.85), outline, 0.8);
+  const shk = (pts: Q[]) => pts.map(([u, v]) => Sh([GA.hamZ + u, GA.hamY + v]));
+  shape(shk([[-6, -4.6], [GA.shank + 2, -3.5], [GA.shank + 2, 4.7], [-6, 4.6]]), rgba(GC.hornbeam, 0.95), outline, 0.8);
+  shape(shk([[GA.knR - 8, -7.5], [GA.knR + 8, -7.5], [GA.knR + 8, -2], [GA.knR - 8, -2]]), rgba(GC.hornbeam, 0.95));
+  const kn = Sh([GA.hamZ + GA.knR, GA.hamY - 11]);
+  disc(kn, 6.5, rgba(GC.buckskin, 1), outline);
+  // the repetition lever (on the wippen; the knuckle presses it down once the jack has tripped)
+  const repC = Wp([GA.wipZ - 45, GA.wipY + 28]);
+  const repA = 0.06 * Math.min(1, jA / 0.28) * Math.min(1, kp * 2);
+  const repL = (pts: Q[]) => pts.map(([u, v]) => Wp(R([GA.wipZ - 45, GA.wipY + 28], repA)([GA.wipZ - 45 + u, GA.wipY + 28 + v])));
+  shape(repL([[12, -3.5], [12, 4], [-72, 4], [-76, 0.5], [-72, -3], [-20, -3.5]]), rgba(GC.hornbeam, 0.95), outline, 0.8);
+  shape(repL([[-60, -1.5], [-47, -1.5], [-47, 2.5], [-60, 2.5]]), rgba('20,17,15', 1));
+  disc(repC, 1.6, rgba(GC.brass, 1));
+  part('repetition lever', Wp(R([GA.wipZ - 45, GA.wipY + 28], repA)([GA.wipZ - 80, GA.wipY + 30])));
+  // the jack: up from its flange on the wippen to the knuckle, its toe forward to the button; it
+  // tips forward (towards the player) out from under the knuckle
+  const jC: Q = [GA.jackZ, GA.wipY + 4];
+  const jk = (pts: Q[]) => pts.map(([u, v]) => Wp(R(jC, jA)([GA.jackZ + u, GA.wipY + 4 + v])));
+  const jackHot = driving && g.y > 0.5;
+  shape(jk([[-3.2, 0], [3.5, 0], [3.5, 30.5], [-2.5, 30.5], [-3.2, 12], [-19, 9], [-20, 4.5], [-3.2, 3]]), jackHot ? rgba(INK.vermilion, 0.9) : rgba(GC.hornbeam, 0.95), jackHot ? rgba(INK.vermilion, 1) : outline, 0.8);
+  centrePin(Wp(jC));
+  part('jack', Wp(R(jC, jA)([GA.jackZ, GA.wipY + 20])));
+  part('knuckle', kn);
+  part('hammer shank', Sh([GA.hamZ + 70, GA.hamY]));
+  part('hammer flange', [340, 806]);
+  centrePin([GA.hamZ, GA.hamY]);
+  // the head: maple moulding with its tail, the coloured underfelt and the felt; squashed on the
+  // string while in contact; lit at the strike
+  const head = (pts: Q[]) => pts.map(([a, c]) => Sh([GA.hamZ + GA.shank + a * hs, GA.hamY + c * hy]));
+  const squash = g.contact ? Math.min(6, g.comp) : 0;
+  const feltPts = head(HEAD_FELT.map(([a, c]): Q => [a, Math.min(c, 48 - squash / hy)]));
+  const hot = g.contact ? 0.95 : g.active && g.escaped ? 0.55 : 0;
+  shape(feltPts, hot ? rgba(INK.vermilion, hot) : rgba(GC.hFelt, 0.95), outline, 0.8);
+  shape(head(HEAD_UNDER), rgba(GC.underfelt, 0.95));
+  shape(head(HEAD_MOULD), rgba(GC.maple, 0.95), outline, 0.8);
+  part('hammer (felt)', Sh([GA.hamZ + GA.shank, GA.hamY + 40 * hy]));
+  part('hammer tail', Sh([GA.hamZ + GA.shank + 12 * hs, GA.hamY - 15 * hy]));
+  // ---- the damper: the underlever (lifted by the key's tail, the pedal's tray or, if latched, the
+  //      sostenuto), its wire up through the guide rail, the head on the strings
   if (g.hasDamper) {
-    const lift = (1 - g.damperOn) * 14;
-    const tail = key(515, 40);
-    const lp: [number, number] = [600, 70];
-    const la = Math.atan2(lift, 600 - 510);
-    const lev = (x: number, yy: number) => rot(lp[0], lp[1], x, yy, -la);
-    line(ctx, [lev(505, 70), lp], rgba(INK.wood, 1), 3.5, g);
-    pivot(ctx, lp[0], lp[1], g);
-    line(ctx, [tail, lev(515, 70)], rgba(INK.felt, 0.4), 1, g);
-    const wx = 540;
-    const top = yStr + 4 + lift;
-    line(ctx, [lev(wx, 70), [wx, top]], rgba(INK.steel, 0.6), 1.2, g);
-    ctx.fillStyle = g.damperOn > 0.5 ? rgba(INK.amber, 0.6) : rgba(INK.amber, 0.3);
-    ctx.fillRect(g.X(wx - 16), g.Y(top + 16), 32 * g.s, 16 * g.s);
-    ctx.strokeStyle = rgba(INK.amber, 0.9);
-    ctx.lineWidth = 1;
-    ctx.strokeRect(g.X(wx - 16), g.Y(top + 16), 32 * g.s, 16 * g.s);
-    g.parts.push(['damper', wx, top + 8], ['damper wire', wx, (top + 70) / 2], ['damper underlever', ...lev(560, 70)]);
+    const tailRise = (545 - GA.balZ) * Math.sin(kA);
+    const byKey = (Math.max(0, tailRise - GA.ulGap) * (GA.ulZ - GA.damperZ)) / (GA.ulZ - 545);
+    const byEngine = driving ? 0 : (1 - g.damperOn) * GA.lift;
+    const tray = Math.min(1, g.sustain * 1.4) * GA.lift;
+    const lift = Math.max(byKey, byEngine, tray);
+    const ulA = -lift / (GA.ulZ - GA.damperZ);
+    const U = R([GA.ulZ, GA.ulY], ulA);
+    const ul = (pts: Q[]) => pts.map(([u, v]) => U([GA.ulZ + u, GA.ulY + v]));
+    // the pedal's tray under the underlevers
+    const trayAt = 605;
+    const trayY = GA.ulY - 5.5 + (tray * (GA.ulZ - trayAt)) / (GA.ulZ - GA.damperZ);
+    box(585, trayY - 10, 640, trayY, rgba(GC.actionWood, 0.6), g.sustain > 0.05 ? rgba(INK.amber, 0.5 + 0.4 * g.sustain) : outline, 0.8);
+    part('damper tray (sustain pedal)', [612, trayY - 5]);
+    const ulLen = GA.ulZ - GA.damperZ;
+    shape(ul([[12, -5], [12, 6], [-ulLen - 14, 5], [-ulLen - 14, -4]]), rgba(GC.actionWood, 0.9), outline, 0.8);
+    shape(ul([[-127, -9], [-112, -9], [-112, -4], [-127, -4]]), rgba(GC.red, 0.95));
+    shape(ul([[-ulLen - 8, 5], [-ulLen + 8, 5], [-ulLen + 8, 12], [-ulLen - 8, 12]]), rgba(GC.hornbeam, 0.95), outline, 0.6);
+    centrePin([GA.ulZ, GA.ulY]);
+    const yStr = strAt(GA.damperZ);
+    const hb = yStr + 1.2 + lift;
+    const wb = U([GA.damperZ, GA.ulY + 12]);
+    poly([[GA.damperZ, wb[1]], [GA.damperZ, hb + 6]], rgba(GC.steel, 0.9), lw(1.1));
+    const hh = wound ? 17 : 14;
+    const lifted = lift > 2;
+    const dz = GA.damperZ;
+    shape([[dz - hh + 1, hb - 0.5], [dz + hh - 1, hb - 0.5], [dz + hh - 1, hb + 6], [dz - hh + 1, hb + 6]], rgba(GC.dFelt, 0.95), outline, 0.6);
+    shape([[dz - hh, hb + 6], [dz + hh, hb + 6], [dz + hh, hb + 21], [dz + hh - 7, hb + 28], [dz - hh + 7, hb + 28], [dz - hh, hb + 21]], rgba(GC.head, 1), lifted ? rgba(INK.amber, 0.5 + 0.4 * Math.min(1, lift / GA.lift)) : rgba(GC.sheen, 0.8), lifted ? 1.2 : 0.8);
+    box(dz - 2.4, hb + 27.5, dz + 2.4, hb + 31, rgba(GC.brass, 1));
+    part('damper', [dz, hb + 16]);
+    part('damper wire', [dz, (wb[1] + hb) / 2]);
+    part('damper underlever', U([GA.ulZ - 60, GA.ulY]));
+  }
+  // ---- the string: from its tuning pin over the understring felt, through the agraffe (or under the
+  //      capo bar), its speaking length over the belly rail and the board; live shape in vermilion
+  const pinsZ = Array.from({ length: Math.max(1, nStr) }, (_, j) => pinZ + 24 * j + 12 * ((g.midi - 21) % 2));
+  const feltZ = Math.min(Math.max(...pinsZ) + 40, aZ - 14);
+  const yA = strAt(aZ);
+  box(feltZ - 7, GA.plateY, feltZ + 7, yA - 0.8, rgba(GC.red, 0.95));
+  for (const pz of pinsZ) {
+    shape([[pz - 3.5, GA.plateY - 4], [pz + 3.5, GA.plateY - 4], [pz + 3.5, yA + 6], [pz + 2, yA + 8], [pz - 2, yA + 8], [pz - 3.5, yA + 6]], rgba(GC.steel, 0.85), outline, 0.6);
+    box(pz - 4.2, yA - 1.5, pz + 4.2, yA + 1.5, rgba(GC.steel, 1));
+  }
+  const strCol = wound ? rgba('196,128,82', 0.95) : rgba(GC.steel, 0.85);
+  const strW = lw(wound ? 3.4 : 1.1);
+  poly([[pinsZ[pinsZ.length - 1], yA], [aZ, yA]], wound ? rgba(GC.steel, 0.7) : strCol, lw(1.1));
+  const zEnd = Math.min(bZ, z1 + 40);
+  poly([[aZ, yA], [zEnd, strAt(zEnd)]], strCol, strW);
+  if (g.midi >= 74) {
+    const y = yA + 0.6;
+    shape([[aZ + 2, y], [aZ + 2, y + 12], [aZ - 6, y + 22], [aZ - 26, y + 22], [aZ - 32, y + 12], [aZ - 32, y]], rgba(GC.plate, 0.95), rgba(GC.plateLit, 0.6), 0.8);
+    part('capo bar', [aZ - 14, y + 12]);
+  } else {
+    shape([[aZ - 7.5, GA.plateY], [aZ + 1.2, GA.plateY], [aZ + 1.2, yA + 3.5], [aZ - 1.5, yA + 6], [aZ - 4.5, yA + 6], [aZ - 7.5, yA + 3.5]], rgba(GC.brass, 0.95), outline, 0.6);
+    part('agraffe', [aZ - 3, yA + 2]);
+  }
+  if (bZ < z1) {
+    // a short treble string: its bridge on the board, then down to the hitch pin
+    const yb = strAt(bZ);
+    shape([[bZ - 16, GA.boardY], [bZ + 16, GA.boardY], [bZ + 11, yb - 0.8], [bZ - 11, yb - 0.8]], rgba(GC.maple, 0.9), outline, 0.8);
+    box(bZ - 11, yb - 3.8, bZ + 11, yb - 0.8, rgba('58,42,28', 1));
+    poly([[bZ, yb], [bZ + 75, GA.plateY + 7]], wound ? rgba(GC.steel, 0.6) : strCol, lw(1));
+    part('bridge', [bZ, yb - 10]);
+  }
+  part('tuning pins', [pinsZ[0], yA + 4]);
+  part('understring felt', [feltZ, GA.plateY + 6]);
+  part('string', [GA.strikeZ + 40, strAt(GA.strikeZ + 40)]);
+  part('strike point', [GA.strikeZ, strAt(GA.strikeZ)]);
+  const sh = g.shape;
+  if (sh) {
+    const amp = 9 / g.sc;
+    ctx.strokeStyle = rgba(INK.vermilion, 0.95);
+    ctx.lineWidth = Math.max(1.2, strW * 0.8);
+    ctx.beginPath();
+    const n = sh.length;
+    let started = false;
+    for (let i = 0; i < n; i++) {
+      const z = aZ + ((bZ - aZ) * i) / (n - 1);
+      if (z > z1 + 40) break;
+      const x = X(z);
+      const y = Y(strAt(z) + sh[i] * amp);
+      if (started) ctx.lineTo(x, y);
+      else ctx.moveTo(x, y);
+      started = true;
+    }
+    ctx.stroke();
   }
 }
 
