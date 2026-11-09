@@ -140,3 +140,60 @@ exhausted in a short drag on a phone (it is drawn small there); the dynamics' br
 something other than bow position and force (the body's level-dependent radiation, or bow width).
 
 Gate: typecheck clean; vitest 22 files / 110 tests; Playwright 57 passed, 7 skipped (desktop + Pixel 7).
+
+---
+
+# Top-3 fixes + the picker's ring (2026-11-09)
+
+Brief: `.autopilot/briefs/FABLE-52-TOP3-FIX.md`. Four fixes, each with its measurement.
+
+**1. Piano polyphony after another instrument** (`worklet/processor.ts`). The processor kept the
+*first* instrument's voice limit as the session's: a page that started on the trumpet or flute (1) or
+a bowed string (4) left the piano it switched to with that limit, so C4–E4–G4–C5 sounded one note.
+Now the requested polyphony (64) is kept apart from the instrument's own ceiling; the adaptive
+load-shedding climbs back only to the instrument's own (it would otherwise have lifted a wind's
+figure above 1). Worklet test: start on trumpet, flute, cello → piano has 64 and all four notes of
+the chord sound. A session that starts on the piano is bit-identical (piano golden unchanged).
+
+**2. Short taps on the winds** (`brass.ts`, `flute.ts`; `scripts/tap-audit.ts`, 7 notes × pp/mf/ff,
+wet, 48 kHz). `top3-winds/`.
+
+| | before | after |
+|---|---|---|
+| trumpet, 50 ms tap, peak re the held note (mean / worst) | −34.9 / −46.4 dB | −0.6 / −5.1 dB |
+| trumpet, 50 ms tap, peak (mean) | −44.5 dBFS | −8.5 dBFS |
+| trumpet, key → 10 % of steady level (mean / worst) | 258 / 530 ms | 12 / 37 ms |
+| trumpet, key → 50 % (mean / worst) | 314 / 626 ms | 40 / 97 ms |
+| flute, 50 ms tap, peak re the held note (mean) | −22.5 dB | −12.5 dB |
+
+Trumpet: the lips start from a kick (`TONGUE_KICK` 0.3), their gain is transiently higher
+(`ATTACK_BOOST` 1.5 over 60 ms, as the flute's jet already is), and the breath stays on for a minimum
+blow of 0.1 s when the key is let go sooner. Flute: the minimum blow only (0.12 s); a held note is
+bit-identical (flute golden unchanged), the trumpet's golden is re-blessed.
+Against the Iowa trumpet (`scripts/wind-attack.ts`): 10–90 % attack median pp 50 ms: 155 → 80; ff
+30 ms: 55 → 35; mf 130 ms: 70 → 50 (moves away: the recorded mf notes swell). Judge, trumpet:
+**NO CLEAR CHANGE**, no guard broken (held-out 3.25 → 3.23; attack 1.41 → 1.37 octaves; harmonics,
+centroid, noise, pitch, level unchanged). Judge, flute: NO CLEAR CHANGE (identical). The recordings
+cannot show the dead time before a note (they have no key press), so the kick is set on the tap
+audit and only guarded by the judge; this is the honest reading of "fitted".
+Side effects, known: a held trumpet note's first 60 ms overshoot (peak of a held note +1.7 dB on
+average); a tapped wind key stays lit through its minimum blow (it does sound).
+Left: the flute's lowest notes at pp barely speak even held (C4 pp −60 dBFS) and its low register is
+slow (key → 10 %: mean 110 ms); not touched here.
+
+**3. Phone landscape** (`styles.css`, `@media (max-height: 500px) and (orientation: landscape)`).
+844×390: page height 524 → 390 (no scroll); stage 300 px of which the band took 91 → stage 224 px
+with a 34 px band (3D canvas 209 → 190 px but now wholly on screen; before, the keyboard was pushed
+below the fold). One row: glyph-only picker, presets, note, spectrum; scope hidden; knobs behind ◐;
+pedal names hidden; keys 96 px. e2e: the layout test now also runs at 844×390. `top3-landscape/`.
+
+**4. The picker's ring** (priority bug). The orange ring is the keyboard-focus ring (`:focus-visible`,
+which Chrome shows on the clicked instrument as soon as a key is played). It was drawn 2 px outside
+the button, and the picker sits 2 px (desktop) or 0 px (phone) under the stage's top edge, which
+clips (`overflow: hidden`): the top of the ring was cut on every instrument, the left on the piano
+on a phone. PR #4 had not changed this. Now the ring is drawn inside the button's own box
+(`outline-offset: −1.5px`), so nothing can cut it. e2e: for all six instruments, at the project's
+viewport and at 844×390, the ring's box lies inside every clipping ancestor and the viewport, and
+nothing lies over its top edge. `top3-picker/` (18 crops before, 18 after).
+
+Gate: typecheck clean; vitest 23 files / 114 tests; Playwright 59 passed, 7 skipped (desktop + Pixel 7).
