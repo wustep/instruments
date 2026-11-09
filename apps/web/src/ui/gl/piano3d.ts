@@ -800,9 +800,10 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
     shiftX(mb, x, 0.339, 0.767);
     rbox(mb, [x - 0.0046, 0.742, G.wipZ - 0.006], [x + 0.0046, 0.752, G.wipZ + 0.01], M.hornbeam, 0.001);
   }
-  // ---- legs (square, tapered, on brass casters) and the lyre
+  // ---- legs (square, tapered, on brass casters) and the lyre: a cuff over the caster, the shaft
+  //      widening upwards into a coved capital under the case (grand-34.jpg)
   const leg = (x: number, z: number, top: number) => {
-    post(cb, x, z, [[0.034, 0.034, 0.068], [0.037, 0.037, 0.074], [0.037, 0.037, 0.125], [0.031, 0.031, 0.13], [0.043, 0.043, top - 0.13], [0.05, 0.05, top - 0.124], [0.05, 0.05, top - 0.1], [0.06, 0.06, top - 0.09], [0.06, 0.06, top]], 0.004, M.lacquer);
+    post(cb, x, z, [[0.036, 0.036, 0.064], [0.039, 0.039, 0.07], [0.039, 0.039, 0.128], [0.033, 0.033, 0.136], [0.031, 0.031, 0.148], [0.044, 0.044, top - 0.17], [0.049, 0.049, top - 0.14], [0.058, 0.058, top - 0.115], [0.066, 0.066, top - 0.1], [0.066, 0.066, top]], 0.004, M.lacquer);
     caster(cb, x, z);
   };
   leg(xL + 0.075, 0.09, 0.648);
