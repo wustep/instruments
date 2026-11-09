@@ -105,7 +105,7 @@ function studio(): THREE.Scene {
   // soft card behind the camera (polished brass and silver need something bright to reflect, or
   // they read as dark mirrors of the walls); tall strips behind left and right for the rims; a
   // low cool card in front; a faint floor bounce
-  panel(9, 6, [1, 0.96, 0.9], 2.6, [0, 9, -0.5], [0, 0, 0]);
+  panel(9, 6, [1, 0.96, 0.9], 1.8, [0, 9, -0.5], [0, 0, 0]);
   panel(4.5, 3.5, [1, 0.9, 0.78], 5, [-6, 5, -6], [0, 0, 0]);
   panel(16, 4.5, [1, 0.97, 0.93], 0.75, [0, 3.2, -11], [0, 1.4, 0]);
   panel(1.2, 9, [0.85, 0.9, 1], 5, [-8, 3, 7], [0, 1, 0]);

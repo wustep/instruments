@@ -31,7 +31,7 @@ void main() {
   if (w < 0.0) {
     float px = -w * uProjY * uHalf.y / max(c.w, 1e-4);
     w = max(px, 1.1);
-    cover = clamp(px / 1.1, 0.35, 1.0);
+    cover = clamp(px / 1.1, 0.55, 1.0);
   }
   c.xy += nrm * aSide * w * 0.5 / uHalf * c.w;
   c.z -= 0.0004 * c.w;

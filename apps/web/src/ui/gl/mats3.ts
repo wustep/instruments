@@ -102,7 +102,9 @@ const P: Record<string, Phys> = {
   // heavy clearcoat would wash it to cream under the softbox). Its colour is matched to grand-inside.jpg,
   // whose lit plate averages sRGB ≈ (130–160, 100–125, 70–85): a dark, warm bronze-gold. The flake
   // finish scatters (rough), so a broad flange takes the overhead softbox as a sheen, not a mirror
-  pianoPlate: { color: '#5e4219', metalness: 1, roughness: 0.48, envMapIntensity: 0.7, tex: 5 },
+  // (lead, after merging: as metal (metalness 1) the plate went white towards grazing angles in the
+  // hero; gold plate paint is mostly diffuse — metal flake in a lacquer — so mostly diffuse here)
+  pianoPlate: { color: '#9a6c26', metalness: 0.35, roughness: 0.52, clearcoat: 0.3, clearcoatRoughness: 0.4, envMapIntensity: 0.75, tex: 5 },
   underfelt: { color: '#5c1418', roughness: 1, sheen: 0.9, sheenColor: '#b04048', sheenRoughness: 0.5, tex: 6 },
   greenFelt: { color: '#1f4a36', roughness: 1, sheen: 0.8, sheenColor: '#5a9a7a', sheenRoughness: 0.5, tex: 6 },
   bracketCast: { color: '#7a6e4c', metalness: 0.85, roughness: 0.42, tex: 5 },
