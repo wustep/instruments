@@ -803,7 +803,7 @@ test('3D stage: every instrument draws in WebGL2 from live frames; orbit and zoo
     await page.waitForTimeout(100);
     expect(await snap()).not.toBe(before);
   }
-  // a click (not a drag) on a note's strings in 3D opens that key's action, as in 2D
+  // a click (not a drag) on a note's strings in 3D flies to that key's action (no 2D panel); back out
   await page.evaluate(() => (window as any).__stage3d.resetView());
   await page.waitForTimeout(150);
   const at = await page.evaluate(() => (window as any).__stage3d.screenOf(60));
@@ -811,11 +811,10 @@ test('3D stage: every instrument draws in WebGL2 from live frames; orbit and zoo
   const b3 = (await cv.boundingBox())!;
   if (info.project.name === 'phone') await page.touchscreen.tap(b3.x + at[0], b3.y + at[1]);
   else await page.mouse.click(b3.x + at[0], b3.y + at[1]);
-  const panel = page.locator('.av-panel');
-  await expect(panel).toBeVisible();
-  await expect(panel).toHaveAttribute('aria-label', /^C4: the upright action$/);
-  await page.locator('.av-close').click();
-  await expect(panel).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => (window as any).__stage3d.zoomed)).toBe(60);
+  await expect(page.locator('.av-panel')).toHaveCount(0);
+  await page.locator('.zoom-back').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__stage3d.zoomed)).toBeNull();
   // back to 2D
   await btn.click();
   await expect(cv).toBeHidden();
@@ -918,6 +917,56 @@ test('pianos in 3D: the case hides (button or I), the inside keeps drawing, and 
   await expect(caseBtn).toHaveAttribute('aria-pressed', 'true');
   await caseBtn.click();
   await expect(caseBtn).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('pianos in 3D: a key flies the camera to its own action; Esc, the × or a click off the keys fly back; never on other instruments', async ({ page }, info) => {
+  const phone = info.project.name === 'phone';
+  await page.goto('/');
+  await startAudio(page);
+  await page.locator('.dim-toggle').click();
+  const cv = page.locator('.stage-3d');
+  await expect(cv).toBeVisible();
+  await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3);
+  const zoomed = () => page.evaluate(() => (window as any).__stage3d.zoomed);
+  const press = (x: number, y: number) => (phone ? page.touchscreen.tap(x, y) : page.mouse.click(x, y));
+  const b = (await cv.boundingBox())!;
+  const clickKey = async (m: number) => {
+    const at = await page.evaluate((k) => (window as any).__stage3d.screenOf(k), m);
+    await press(b.x + at[0], b.y + at[1]);
+  };
+  const back = page.locator('.zoom-back');
+  await expect(back).toBeHidden();
+  await clickKey(60);
+  await expect.poll(zoomed).toBe(60);
+  await expect(back).toBeVisible();
+  await expect(back).toHaveAttribute('aria-label', 'Back to the whole piano');
+  // the key's action plays live while zoomed, and the frame stays cheap
+  await page.evaluate(() => (window as any).__piano.noteOn(60, 100, 'keys'));
+  await page.waitForTimeout(950);
+  await page.evaluate(() => (window as any).__piano.noteOff(60, 'keys'));
+  expect(await page.evaluate(() => (window as any).__stage3d.stats.ms)).toBeLessThan(phone ? 16 : 12);
+  if (!phone) {
+    await page.keyboard.press('Escape');
+    await expect.poll(zoomed).toBeNull();
+    await expect(back).toBeHidden();
+    await page.waitForTimeout(900);
+    await clickKey(72);
+    await expect.poll(zoomed).toBe(72);
+  }
+  // a click off the keys (the empty corner of the stage) flies back out
+  await press(b.x + 12, b.y + b.height - 12);
+  await expect.poll(zoomed).toBeNull();
+  await page.waitForTimeout(900);
+  // a change of instrument leaves no zoom behind, and the other instruments never zoom
+  await page.evaluate(() => (window as any).__stage3d.zoomTo(48));
+  await expect.poll(zoomed).toBe(48);
+  await page.evaluate(() => (window as any).__piano.setInstrument('violin'));
+  await page.waitForFunction(() => (window as any).__piano.piano?.instrument === 'violin');
+  await expect.poll(zoomed).toBeNull();
+  await page.evaluate(() => (window as any).__stage3d.zoomTo(60));
+  await page.waitForTimeout(200);
+  expect(await zoomed()).toBeNull();
+  await expect(back).toBeHidden();
 });
 
 test('without WebGL2 there is no 3D toggle and the 2D stage works', async ({ page }) => {

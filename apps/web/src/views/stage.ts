@@ -141,12 +141,21 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     g.setAttribute('aria-valuenow', String(v));
     g.setAttribute('aria-valuetext', text);
   };
-  const el = h('div', { class: 'view stage' }, canvas, top, gripRoom, gripLid);
+  // in 3D, a key's action close up: back to the whole piano (also Esc, a click off the keys, a double-click)
+  const zoomBack = h('button', { class: 'zoom-back', type: 'button', 'aria-label': 'Back to the whole piano', 'data-tip': 'whole piano · Esc' });
+  zoomBack.innerHTML = '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
+  zoomBack.hidden = true;
+  zoomBack.addEventListener('click', () => s3?.zoomOut());
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && s3 && want3d && s3.zoomed !== null) s3.zoomOut();
+  });
+  const el = h('div', { class: 'view stage' }, canvas, top, gripRoom, gripLid, zoomBack);
   let s3: Stage3D | null = null;
   // three.js and the 3D stage load on first use (a separate chunk)
   let loading3d: Promise<void> | null = null;
   const wire3d = (s: Stage3D) => {
-    // in 3D too, a click (not a drag) on a note's strings opens that key's action
+    // in 3D, a click or a long press (not a drag) on a key's strings or its key top flies the camera to
+    // that key's action; a click off the keys flies back out
     const cv3 = s.el;
     let at3: { x: number; y: number } | null = null;
     cv3.addEventListener('pointerdown', (e) => {
@@ -157,7 +166,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       at3 = null;
       const r = cv3.getBoundingClientRect();
       const m = s3.pick(e.clientX - r.left, e.clientY - r.top);
-      if (m !== null) openAction(m);
+      if (m !== null) s3.zoomTo(m);
+      else if (s3.zoomed !== null) s3.zoomOut();
     });
     cv3.addEventListener('pointermove', (e) => {
       if (e.buttons || !s3) return;
@@ -166,7 +176,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
         return;
       }
       const r = cv3.getBoundingClientRect();
-      cv3.style.cursor = s3.pick(e.clientX - r.left, e.clientY - r.top) !== null ? 'zoom-in' : '';
+      cv3.style.cursor = s3.pick(e.clientX - r.left, e.clientY - r.top) !== null ? 'zoom-in' : s3.zoomed !== null ? 'zoom-out' : '';
     });
   };
   const set3d = (on: boolean) => {
@@ -505,6 +515,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       });
     }
     gripRoom.hidden = in3d;
+    zoomBack.hidden = !(in3d && s3!.zoomed !== null);
+    if (!zoomBack.hidden) zoomBack.style.top = `${topH + 12}px`;
     // place the grips (stage coordinates: the instrument area starts below the top band)
     gripRoom.style.transform = `translate(${rg.x1 - 7}px, ${topH + (rg.y0 + rg.y1) / 2 - 14}px)`;
     label(gripRoom, roomVal(), roomText(roomVal()));

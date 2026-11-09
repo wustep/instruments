@@ -281,6 +281,9 @@ export class Renderer3 {
     return e;
   }
 
+  private clipPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
+  /** review shots (scripts/review-3d.mjs SECTION=x): a section without a zoomed key */
+  debugClip: { at: number; side: 1 | -1 } | null = null;
   /** the view-projection the lines and picks use (world, unmirrored, → clip) */
   readonly vp = new THREE.Matrix4();
 
@@ -349,7 +352,16 @@ export class Renderer3 {
     sc.near = rad * 0.5;
     sc.far = rad * 6;
     sc.updateProjectionMatrix();
-    this.key.castShadow = this.shadows;
+    // a section (a key's action close up) cuts the whole scene, the occlusion's passes included; the
+    // parts cut away would still cast shadows across the cut, so the key light casts none meanwhile
+    const clip = b.clip ?? this.debugClip;
+    this.key.castShadow = this.shadows && !clip;
+    if (clip) {
+      // (the root is mirrored in x: keep side·(x − at) ≤ 0 ⇔ side·X + side·at ≥ 0 in three's world)
+      this.clipPlane.normal.set(clip.side, 0, 0);
+      this.clipPlane.constant = clip.side * clip.at;
+      if (this.r.clippingPlanes.length !== 1) this.r.clippingPlanes = [this.clipPlane];
+    } else if (this.r.clippingPlanes.length) this.r.clippingPlanes = [];
     this.rim.position.copy(C).add(new THREE.Vector3(-0.6, 0.5, 0.75).normalize().multiplyScalar(rad * 3));
     this.rim.target.position.copy(C);
     this.fill.position.copy(C).add(new THREE.Vector3(-0.8, 0.25, -0.55).normalize().multiplyScalar(rad * 3));

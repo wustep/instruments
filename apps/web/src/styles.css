@@ -1426,6 +1426,29 @@ figure[title] {
 .case-toggle svg {
   display: block;
 }
+/* a key's action close up (3D): the way back, small, at the stage's top right under the top band */
+.zoom-back {
+  position: absolute;
+  right: 16px;
+  top: 140px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: var(--ink-2, #c9bfab);
+  background: rgba(14, 13, 11, 0.55);
+  border: 1px solid rgba(236, 226, 206, 0.22);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.zoom-back[hidden] {
+  display: none;
+}
+.zoom-back:focus-visible {
+  outline: 1px solid rgba(242, 166, 70, 0.8);
+}
 .stage-3d {
   position: absolute;
   left: 0;

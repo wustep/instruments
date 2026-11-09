@@ -1596,6 +1596,23 @@ export interface PianoIn {
   lite: boolean;
   /** the case hidden (3D toggle): it dissolves over ≈ 0.35 s */
   caseHidden?: boolean;
+  /** a key's action close up: that key and its neighbours at full detail, nothing drawn past the cut */
+  zoomKey?: number | null;
+  cut?: { at: number; side: 1 | -1 } | null;
+}
+
+/** a key's action, close up: the camera beside it (on the nearer end's side), looking across the
+ *  keyboard at three-quarters, a section cutting away the keys between it and that end. Returns the
+ *  target, the side (+1: the treble end), the cut's x, and the extents to frame (z across, y up, m) */
+export function zoomFrame(kind: 'grand' | 'upright', midi: number): { target: Vec3; side: 1 | -1; cut: number; edge: number; w: number; h: number } {
+  const x = actX(midi);
+  const side: 1 | -1 = x >= 0 ? 1 : -1;
+  // the cut just past this key's parts (its hammer is 11–15 mm wide, the next one 13.9 mm on)
+  const cut = x + side * 0.56 * PITCH;
+  const edge = side * 0.85;
+  // the upright: key front to strings (z −0.02…0.5), keybed to dampers (y 0.68…1.08); the grand:
+  // key front to the dampers' heads (z 0…0.66), keybed to the strings (y 0.68…0.97)
+  return kind === 'upright' ? { target: [x, 0.91, 0.31], side, cut, edge, w: 0.46, h: 0.37 } : { target: [x, 0.81, 0.36], side, cut, edge, w: 0.62, h: 0.27 };
 }
 
 const C = {
@@ -1696,7 +1713,11 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
     else if (pose.trip[i] && kp < 0.3 && hr < 0.3) pose.trip[i] = 0;
     pose.jack[i] = ease(pose.jack[i], pose.trip[i], si.dt, 0.012);
     const travel = pose.trip[i] ? hr * g.blow : Math.max(Math.min(jackTravel, free), hr * g.blow);
-    if (si.lite && g.midi % 2 && !held && hr < 0.05 && kp < 0.02) continue;
+    // past a section's cut nothing shows; the light scene skips every other idle key, but never
+    // near a key seen close up
+    if (si.cut && si.cut.side * (g.strike[0] - si.cut.at) > 0.012) continue;
+    const near = si.zoomKey != null && Math.abs(g.midi - si.zoomKey) <= 10;
+    if (si.lite && !near && g.midi % 2 && !held && hr < 0.05 && kp < 0.02) continue;
     const x = g.strike[0];
     headGlow[3] = 0.6 * hr;
     const jg = hr > 0.05 && pose.jack[i] < 0.5 ? GLOW_JACK : null;
@@ -1780,14 +1801,22 @@ function propStick(b: Batch, a: Vec3, c: Vec3, glow: RGBA | null): void {
 
 /** the strings: wires of their real diameters (steel, copper-wound in the bass), the sounding ones
  *  glowing over them, and every sounding string's live shape (the engine's) along its speaking length */
-export function pianoStrings(b: Batch, pm: PianoModel, fr: VisualFrame | null, sc: (mx: number) => number, lite: boolean): void {
+export function pianoStrings(b: Batch, pm: PianoModel, fr: VisualFrame | null, sc: (mx: number) => number, lite: boolean, cut: { at: number; side: 1 | -1 } | null = null): void {
+  // the strings are drawn over the picture (not clipped): past a section's cut, none
+  const past = (x: number) => !!cut && cut.side * (x - cut.at) > 0;
   const lv = fr?.levels;
   const sym = fr?.symLevels;
   let lvMax = 0;
   if (lv) for (let i = 0; i < lv.length; i++) lvMax = Math.max(lvMax, lv[i]);
   const grand = pm.kind === 'grand';
-  for (const w of pm.wires) if (!(lite && w.odd)) b.wire(w.pts, w.col, w.d);
+  for (const w of pm.wires) {
+    // (the speaking length's middle decides: [pin, agraffe, bridge, hitch] or a winding's two ends)
+    const n = w.pts.length;
+    const x = n === 4 ? (w.pts[1][0] + w.pts[2][0]) / 2 : (w.pts[0][0] + w.pts[n - 1][0]) / 2;
+    if (!(lite && w.odd) && !past(x)) b.wire(w.pts, w.col, w.d);
+  }
   for (const g of pm.keys) {
+    if (past(g.strike[0])) continue;
     const l = lv && lvMax > 0 ? Math.sqrt(lv[g.i] / lvMax) : 0;
     const s = sym ? Math.min(1, sym[g.i]) : 0;
     if (l <= 0.03 && s <= 0.03) continue;
@@ -1804,7 +1833,7 @@ export function pianoStrings(b: Batch, pm: PianoModel, fr: VisualFrame | null, s
     const P = shapes.points;
     for (let j = 0; j < shapes.midi.length; j++) {
       const g = pm.keys[shapes.midi[j] - 21];
-      if (!g) continue;
+      if (!g || past(g.strike[0])) continue;
       const symS = shapes.light[j] === 1;
       const rel = symS ? (sym?.[g.i] ?? 0) : 1;
       if (symS && rel < 0.03) continue;
@@ -1829,11 +1858,21 @@ export function boardOverlay(b: Batch, pm: PianoModel, amps: Float32Array): void
   b.ov.modalGain = 0.7;
 }
 
-/** for clicking a note's strings: each key's speaking length in world space */
+/** for clicking a key: each key's speaking length in world space (first, one per key), then its
+ *  key top, front to back (built once per model) */
+const pickCache = new WeakMap<PianoModel, { midi: number; a: Vec3; b: Vec3 }[]>();
 export function pianoPickSegments(pm: PianoModel): { midi: number; a: Vec3; b: Vec3 }[] {
-  return pm.keys.map((g) => {
+  let out = pickCache.get(pm);
+  if (out) return out;
+  out = pm.keys.map((g) => {
     const r = g.strings[Math.floor(g.strings.length / 2)];
     return { midi: g.midi, a: r.a, b: r.b };
   });
+  for (const g of pm.keys) {
+    const y = KEY_TOP + (isBlack(g.midi) ? 0.012 : 0);
+    out.push({ midi: g.midi, a: [g.xc, y, isBlack(g.midi) ? 0.06 : 0.008], b: [g.xc, y, 0.135] });
+  }
+  pickCache.set(pm, out);
+  return out;
 }
 export type { Mat4 };
