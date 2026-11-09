@@ -46,6 +46,8 @@ class InstrumentProcessor extends AudioWorkletProcessor {
   private quantumMs = 0;
   private adaptive: boolean;
   private baseMaxVoices: number;
+  /** this instrument's own ceiling: the piano's is the requested polyphony, a wind's is one voice */
+  private coreMaxVoices = 0;
   private lastStrikeSerial = 0;
   private frameOffset = 0;
   /** the instrument could not be built; output silence */
@@ -79,13 +81,16 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       this.failed = true;
       this.post({ type: 'error', message: `the ${o.instrument ?? 'piano'} could not be built at ${sampleRate} Hz: ${String((err as Error)?.message ?? err)}` });
       this.core = null as unknown as Core;
-      this.baseMaxVoices = 0;
+      this.baseMaxVoices = o.maxVoices ?? 64;
       this.adaptive = false;
       this.visInterval = 1;
       return;
     }
     const initMs = clock() - t0;
-    this.baseMaxVoices = this.core.maxVoices;
+    // the polyphony asked for, whatever the first instrument's own limit is (a page that starts on
+    // the trumpet, one voice, must not leave the piano it switches to with one voice)
+    this.baseMaxVoices = o.maxVoices ?? 64;
+    this.coreMaxVoices = this.core.maxVoices;
     this.adaptive = o.adaptive !== false;
     for (const e of o.events ?? []) this.core.schedule(e.event, e.frame);
     this.visInterval = Math.max(1, Math.round(sampleRate / 128 / 30));
@@ -125,6 +130,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
           break;
         }
         this.core.frame = frame;
+        this.coreMaxVoices = this.core.maxVoices;
         this.post({ type: 'preset', instrument: this.core.id, preset: m.preset ?? '', params: this.core.params as Record<string, unknown>, modeFreqs: Array.from(this.core.modeFrequencies), keys: this.core.keySummary() });
         break;
       }
@@ -136,7 +142,8 @@ class InstrumentProcessor extends AudioWorkletProcessor {
         break;
       case 'maxVoices':
         this.baseMaxVoices = m.value;
-        this.core.maxVoices = m.value;
+        // the piano's polyphony; the bowed strings and the winds keep their own
+        if (this.core.id === 'piano') this.core.maxVoices = this.coreMaxVoices = m.value;
         break;
       case 'designs':
         this.storeDesigns(m.entries);
@@ -211,7 +218,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       if (core.sympatheticAllowed) core.sympatheticAllowed = false;
       else if (core.maxVoices > 12) core.maxVoices = Math.max(12, Math.floor(core.maxVoices * 0.8));
     } else if (this.load < 0.35) {
-      if (core.maxVoices < this.baseMaxVoices) core.maxVoices = Math.min(this.baseMaxVoices, core.maxVoices + 2);
+      if (core.maxVoices < this.coreMaxVoices) core.maxVoices = Math.min(this.coreMaxVoices, core.maxVoices + 2);
       else if (!core.sympatheticAllowed) core.sympatheticAllowed = true;
     }
   }

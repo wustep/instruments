@@ -74,6 +74,29 @@ describe('AudioWorklet processor (fake global scope)', () => {
     expect(v.pianoShapes.midi).toContain(60);
   });
 
+  it('a page that starts on a one-voice instrument still gives the piano its polyphony', () => {
+    for (const first of ['trumpet', 'flute', 'cello']) {
+      const p = new Ctor({ processorOptions: { instrument: first } });
+      run(p, 130); // past one load window: the adaptive polyphony must not lift a wind above its one voice
+      expect(of(p, 'stats').at(-1).maxVoices, first).toBe(first === 'cello' ? 4 : 1);
+      p.port.deliver({ type: 'instrument', instrument: 'piano' });
+      for (const midi of [60, 64, 67, 72]) p.port.deliver({ type: 'event', event: { type: 'noteOn', midi, velocity: 90 } });
+      run(p, 30);
+      const st = of(p, 'stats').at(-1);
+      expect(st.instrument).toBe('piano');
+      expect(st.maxVoices, `after ${first}`).toBe(64);
+      expect(of(p, 'sounding').at(-1).notes, `after ${first}`).toEqual([60, 64, 67, 72]);
+    }
+    // a requested polyphony survives the round trip, and a session that starts on the piano is as before
+    const q = new Ctor({ processorOptions: { instrument: 'trumpet', maxVoices: 24 } });
+    q.port.deliver({ type: 'instrument', instrument: 'piano' });
+    run(q, 30);
+    expect(of(q, 'stats').at(-1).maxVoices).toBe(24);
+    const r = new Ctor({ processorOptions: { instrument: 'piano' } });
+    run(r, 30);
+    expect(of(r, 'stats').at(-1).maxVoices).toBe(64);
+  });
+
   it('a constructor that fails says why and outputs silence', () => {
     const p = new Ctor({ processorOptions: { instrument: 'piano', maxVoices: Number.NaN, params: { stringStiffness: Number.NaN }, designs: [{ key: 'bad', b: null }] } });
     const err = of(p, 'error');

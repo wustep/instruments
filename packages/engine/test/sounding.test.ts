@@ -11,6 +11,8 @@ function run(id: 'flute' | 'trumpet' | 'violin' | 'piano', steps: [string, numbe
   for (const [what, m] of steps) {
     if (what === 'on') core.schedule({ type: 'noteOn', midi: m, velocity: 90 });
     else if (what === 'off') core.schedule({ type: 'noteOff', midi: m });
+    // 'wait': m more blocks of 256 frames first
+    if (what === 'wait') for (let i = 0; i < m; i++) core.process(L, R, 256);
     core.process(L, R, 256);
     out.push([...core.sounding()].sort((a, b) => a - b));
   }
@@ -20,7 +22,11 @@ function run(id: 'flute' | 'trumpet' | 'violin' | 'piano', steps: [string, numbe
 describe('sounding notes', () => {
   it('flute and trumpet: the last held key sounds; releasing it returns to the previous one', () => {
     for (const id of ['flute', 'trumpet'] as const) {
-      expect(run(id, [['on', 72], ['on', 76], ['off', 76], ['off', 72]]), id).toEqual([[72], [76], [72], []]);
+      // let go 16 ms after the tongue: the note still sounds through its minimum blow (0.1 s on the
+      // trumpet, 0.12 s on the flute), then stops
+      expect(run(id, [['on', 72], ['on', 76], ['off', 76], ['off', 72], ['wait', 24]]), id).toEqual([[72], [76], [72], [72], []]);
+      // held past the minimum blow, it stops with the key
+      expect(run(id, [['on', 72], ['wait', 24], ['off', 72]]), id).toEqual([[72], [72], []]);
     }
   });
   it('violin: two keys on the G string share it; the newer wins and gives it back', () => {

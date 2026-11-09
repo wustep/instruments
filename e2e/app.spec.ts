@@ -235,6 +235,31 @@ test('layout fits the viewport (no horizontal page scroll) and keys respond to t
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow, route).toBeLessThanOrEqual(1);
   }
+  // a phone held sideways (844×390): one slim band, the stage takes the rest, the page does not scroll
+  const vp = page.viewportSize()!;
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto('/');
+  await page.waitForTimeout(500);
+  const land = await page.evaluate(() => ({
+    overX: document.documentElement.scrollWidth - window.innerWidth,
+    overY: document.documentElement.scrollHeight - window.innerHeight,
+    stage: document.querySelector('.stage')!.getBoundingClientRect().height,
+    band: document.querySelector('.stage-top')!.getBoundingClientRect().height,
+    keysBottom: document.querySelector('.keyboard')!.getBoundingClientRect().bottom,
+    knobs: getComputedStyle(document.querySelector('.knobs')!).display,
+    toggle: getComputedStyle(document.querySelector('.knob-toggle')!).display,
+  }));
+  expect(land.overX, 'landscape: no horizontal scroll').toBeLessThanOrEqual(1);
+  expect(land.overY, 'landscape: no vertical scroll').toBeLessThanOrEqual(1);
+  expect(land.stage, 'landscape: the stage has the height').toBeGreaterThanOrEqual(200);
+  expect(land.band, 'landscape: a slim band').toBeLessThanOrEqual(48);
+  expect(land.keysBottom).toBeLessThanOrEqual(390);
+  expect(land.knobs).toBe('none');
+  expect(land.toggle).not.toBe('none');
+  await page.locator('.knob-toggle').click();
+  await expect(page.locator('.knobs')).toBeVisible();
+  await page.locator('.knob-toggle').click();
+  await page.setViewportSize(vp);
   await page.goto('/');
   const key = page.locator('.key[data-midi="60"]');
   await key.scrollIntoViewIfNeeded();
@@ -245,6 +270,57 @@ test('layout fits the viewport (no horizontal page scroll) and keys respond to t
   await page.waitForTimeout(300);
   const notes = await page.evaluate(() => (window as any).__piano.lastStats?.voices ?? 0);
   expect(notes).toBeGreaterThanOrEqual(1);
+});
+
+test('the picker: the ring on the selected instrument is whole, on every instrument, upright and sideways', async ({ page }, info) => {
+  const vp = page.viewportSize()!;
+  // this project's viewport (desktop, or a phone held upright) and a phone held sideways
+  for (const size of [vp, { width: 844, height: 390 }]) {
+    await page.setViewportSize(size);
+    await page.goto('/');
+    await page.waitForTimeout(400);
+    const picks = page.locator('.instruments .pick');
+    await expect(picks).toHaveCount(6);
+    for (let i = 0; i < 6; i++) {
+      const pick = picks.nth(i);
+      await pick.click();
+      await expect(pick).toHaveAttribute('aria-pressed', 'true');
+      // the ring is the keyboard-focus ring: it shows once the keyboard has been used (playing does that)
+      await page.keyboard.press('Shift');
+      await pick.focus();
+      const r = await pick.evaluate((el) => {
+        const cs = getComputedStyle(el);
+        const grow = parseFloat(cs.outlineOffset) + parseFloat(cs.outlineWidth);
+        const b = el.getBoundingClientRect();
+        const ring = { l: b.left - grow, t: b.top - grow, r: b.right + grow, b: b.bottom + grow };
+        // what can cut it: the viewport and every ancestor that clips its overflow
+        let clip = { l: 0, t: 0, r: window.innerWidth, b: window.innerHeight };
+        const clippers: string[] = [];
+        for (let p = el.parentElement; p; p = p.parentElement) {
+          const ps = getComputedStyle(p);
+          if (ps.overflowX === 'visible' && ps.overflowY === 'visible') continue;
+          const q = p.getBoundingClientRect();
+          clippers.push(p.className || p.tagName);
+          clip = { l: Math.max(clip.l, q.left), t: Math.max(clip.t, q.top), r: Math.min(clip.r, q.right), b: Math.min(clip.b, q.bottom) };
+        }
+        // and nothing else lies over its top edge (the header above the stage)
+        const over = document.elementFromPoint((b.left + b.right) / 2, Math.max(0, ring.t + 0.5));
+        return { ring, clip, clippers, visible: el.matches(':focus-visible'), style: cs.outlineStyle, width: parseFloat(cs.outlineWidth), own: over === el || el.contains(over) || !!over?.contains(el) };
+      });
+      const where = `${size.width}×${size.height} #${i}`;
+      expect(r.visible, `${where}: ring shows`).toBe(true);
+      expect(r.style, where).toBe('solid');
+      expect(r.width, where).toBeGreaterThanOrEqual(1);
+      expect(r.clippers.length, `${where}: the stage clips`).toBeGreaterThan(0);
+      expect(r.ring.t, `${where}: top edge`).toBeGreaterThanOrEqual(r.clip.t);
+      expect(r.ring.l, `${where}: left edge`).toBeGreaterThanOrEqual(r.clip.l);
+      expect(r.ring.r, `${where}: right edge`).toBeLessThanOrEqual(r.clip.r);
+      expect(r.ring.b, `${where}: bottom edge`).toBeLessThanOrEqual(r.clip.b);
+      expect(r.own, `${where}: nothing over the ring's top edge`).toBe(true);
+      if (i === 2) await page.screenshot({ path: info.outputPath(`picker-${size.width}x${size.height}-viola.png`), clip: { x: 0, y: 0, width: Math.min(size.width, 420), height: 110 } });
+    }
+  }
+  await page.setViewportSize(vp);
 });
 
 test('all six instruments: selectable in the UI and rendered through the worklet at pitch', async ({ page }, info) => {

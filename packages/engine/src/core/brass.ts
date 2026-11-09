@@ -46,8 +46,24 @@ const RAD_FC = 1400;
 /** turbulence where the air squeezes through the lips: noise in the flow, ∝ the flow (round 3b:
  *  the model was 16 dB cleaner than the Iowa trumpet's harmonics-to-noise ratio) */
 const BREATH_NOISE = 0.016;
-/** the tongue's release: the lips start from this displacement, not from rest (0: none) */
-const TONGUE_KICK = 0;
+/** The tongue's release. Round 3 judged a kick alone against the Iowa trumpet's sustained notes:
+ *  NO CLEAR CHANGE (its 10–90 % attack times scatter from 15 to 500 ms note to note), and left it
+ *  off. But without it the buzz grows from the breath noise alone: at 48 kHz the note reached 10 %
+ *  of its level 92–530 ms after the key (mean 258 ms) and a 50 ms tap peaked 35 dB under the held
+ *  note (scripts/tap-audit.ts). A tongued trumpet note has no such dead time, so:
+ *  TONGUE_KICK: the lips start from this displacement, not from rest;
+ *  ATTACK_BOOST, ATTACK_TAU: the lips' gain is transiently higher (1 + boost·e^(−t/τ)), as the
+ *  flute's jet is, so that a soft note also speaks. Chosen on the tap audit (key → 10 %: 9–36 ms,
+ *  mean 12 ms; a 50 ms tap 0.6 dB under the held note) with the 10–90 % attack medians against
+ *  Iowa's as the fit (pp 50 ms: 155 → 80; ff 30 ms: 55 → 35; mf 130 ms: 70 → 50, the one that moves
+ *  away: the recorded mf notes swell) and the judge as the guard: NO CLEAR CHANGE, no guard broken,
+ *  held-out attack error 1.41 → 1.37 octaves. */
+const TONGUE_KICK = 0.3;
+const ATTACK_BOOST = 1.5;
+const ATTACK_TAU = 0.06;
+/** the shortest tongued note: the breath stays on this long after the tongue's release, even when
+ *  the key is let go sooner (s). Players' fastest single-tongued notes are about 100 ms apart */
+const MIN_BLOW = 0.1;
 /** dynamic brightness: output low-pass 18 kHz at ff falling as exp(−k·(0.93 − p)) towards pp (0: off) */
 const TILT_K = 0;
 /** spectral enrichment: a two-pole low-pass at N·f0, N growing with the blowing pressure (0: off) */
@@ -146,6 +162,9 @@ export class TrumpetCore implements InstrumentCore {
    *  bell's high-pass (round 3b) took 5.7 dB off the fundamental-heavy level it had */
   private gain = 0.9 * Math.pow(10, 5.7 / 20);
   private noteStart = 0;
+  /** frame until which a tongued note keeps its breath (MIN_BLOW), and a key let go before it */
+  private blowUntil = 0;
+  private releasePending = false;
 
   constructor(opts: { sampleRate: number; params?: Partial<TrumpetParams>; dry?: boolean }) {
     this.fs = opts.sampleRate;
@@ -203,21 +222,23 @@ export class TrumpetCore implements InstrumentCore {
         this.attackTau = (legato ? 0.01 : 0.03 - 0.02 * (ev.velocity / 127)) * (XA.att ?? 1);
         // the tongue releases the lips: they start from a kick, not from rest
         if (!legato) this.y1 = (XA.kick ?? TONGUE_KICK) * (0.5 + 0.5 * (ev.velocity / 127));
+        this.releasePending = false;
         if (!legato) {
           this.vibPhase = 0;
           this.noteStart = this.frame;
+          this.blowUntil = this.frame + Math.round((XA.minBlow ?? MIN_BLOW) * this.fs);
         }
         break;
       }
       case 'noteOff': {
         this.held = this.held.filter((x) => x !== ev.midi);
         if (this.held.length && ev.midi === this.note) this.setNote(this.held[this.held.length - 1], false);
-        else if (!this.held.length && this.sustain < 0.5) this.pTarget = 0;
+        else if (!this.held.length && this.sustain < 0.5) this.release();
         break;
       }
       case 'sustain':
         this.sustain = clamp(ev.value, 0, 1);
-        if (this.sustain < 0.5 && !this.held.length) this.pTarget = 0;
+        if (this.sustain < 0.5 && !this.held.length) this.release();
         break;
       case 'control':
         if (ev.cc === 1 || ev.cc === 2 || ev.cc === 11) this.expression = 0.4 + 0.8 * clamp(ev.value, 0, 1);
@@ -228,10 +249,17 @@ export class TrumpetCore implements InstrumentCore {
       case 'allNotesOff':
         this.held = [];
         this.pTarget = 0;
+        this.releasePending = false;
         break;
       default:
         break;
     }
+  }
+
+  /** The key is up: stop blowing, but not before the tongued note has had its minimum breath. */
+  private release(): void {
+    if (this.pTarget > 0 && this.frame < this.blowUntil) this.releasePending = true;
+    else this.pTarget = 0;
   }
 
   setParams(p: Record<string, unknown>): void {
@@ -249,6 +277,7 @@ export class TrumpetCore implements InstrumentCore {
   allSoundOff(): void {
     this.bore.fill(0);
     this.pressure = this.pTarget = 0;
+    this.releasePending = false;
     this.held = [];
     this.y1 = this.y2 = this.dcX = this.dcY = this.lp = 0;
     this.room.reset();
@@ -274,6 +303,14 @@ export class TrumpetCore implements InstrumentCore {
       while (q.length && q[0].frame <= this.frame) this.apply(q.shift()!.ev);
       let n = 64;
       if (q.length) n = Math.max(1, Math.min(n, q[0].frame - this.frame));
+      if (this.releasePending) {
+        // a key let go inside the minimum blow: the breath stops when that is over (the block is
+        // cut there, as at an event)
+        if (this.frame >= this.blowUntil) {
+          this.releasePending = false;
+          if (!this.held.length && this.sustain < 0.5) this.pTarget = 0;
+        } else n = Math.min(n, this.blowUntil - this.frame);
+      }
       this.render(n);
       for (let t = 0; t < n; t++) {
         L[t] = this.oL[t];
@@ -313,7 +350,10 @@ export class TrumpetCore implements InstrumentCore {
     const a1 = -2 * r * Math.cos(th);
     const a2 = r * r;
     // peak gain LIP_GAIN/(1 - r) at every pitch
-    const b0 = LIP_GAIN * (X.gain ?? 1) * 2 * Math.sin(th);
+    // right after the tongue's release the lips are set to buzz: a transient extra gain (as on the
+    // flute's jet), decaying over ATTACK_TAU, lets a soft note speak as soon as a played one does
+    const boost = 1 + (X.ab ?? ATTACK_BOOST) * Math.exp(-age / (X.abT ?? ATTACK_TAU));
+    const b0 = LIP_GAIN * (X.gain ?? 1) * boost * 2 * Math.sin(th);
     // bell loss in the loop: higher notes lose a little more at the bell
     const lpA = X.bell ? Math.exp((-2 * Math.PI * (X.bellFc ?? 1500)) / fs) : 0.12 + 0.18 * clamp((this.lipF - 200) / 800, 0, 1);
     const hpA = Math.exp((-2 * Math.PI * (X.bellFc ?? 1500)) / fs);

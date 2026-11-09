@@ -47,6 +47,11 @@ const R_EMB = 0.96;
  *  fitted to the Iowa flute's 10-90 % attack times (model x1.67 slower before, x1.14 now) */
 const TONGUE_PUSH = 1;
 const ATTACK_BOOST = 4;
+/** the shortest tongued note: the breath stays on this long after the tongue's release, even when
+ *  the key is let go sooner (s). A 50 ms tap let the breath go before the tube had spoken: it
+ *  peaked 22.5 dB under the held note, 12.5 dB with this (scripts/tap-audit.ts). Held notes are
+ *  untouched (bit-identical), so the fit to the Iowa flute stands */
+const MIN_BLOW = 0.12;
 export const FLUTE_VOICE = {
   /** small-signal jet gain (loop gain of the jet path at small amplitude) */
   jetGain: 0.115,
@@ -305,6 +310,8 @@ export class FluteCore implements InstrumentCore {
         this.attackBoost = legato ? 0 : ATTACK_BOOST * (0.6 + 0.4 * (ev.velocity / 127));
         if (!legato) this.vibPhase = 0;
         this.noteStart = this.frame;
+        this.releasePending = false;
+        if (!legato) this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
         break;
       }
       case 'noteOff': {
@@ -312,13 +319,13 @@ export class FluteCore implements InstrumentCore {
         if (this.held.length && ev.midi === this.note) {
           this.setNote(this.held[this.held.length - 1], false);
         } else if (!this.held.length && this.sustain < 0.5) {
-          this.pTarget = 0;
+          this.release();
         }
         break;
       }
       case 'sustain':
         this.sustain = clamp(ev.value, 0, 1);
-        if (this.sustain < 0.5 && !this.held.length) this.pTarget = 0;
+        if (this.sustain < 0.5 && !this.held.length) this.release();
         break;
       case 'control':
         // mod wheel, breath controller and expression all blow: breath pressure
@@ -331,12 +338,22 @@ export class FluteCore implements InstrumentCore {
       case 'allNotesOff':
         this.held = [];
         this.pTarget = 0;
+        this.releasePending = false;
         break;
       default:
         break;
     }
   }
   private noteStart = 0;
+  /** frame until which a tongued note keeps its breath (MIN_BLOW), and a key let go before it */
+  private blowUntil = 0;
+  private releasePending = false;
+
+  /** The key is up: stop blowing, but not before the tongued note has had its minimum breath. */
+  private release(): void {
+    if (this.pTarget > 0 && this.frame < this.blowUntil) this.releasePending = true;
+    else this.pTarget = 0;
+  }
 
   setParams(p: Record<string, unknown>): void {
     const old = this.params;
@@ -354,6 +371,7 @@ export class FluteCore implements InstrumentCore {
     this.bore.fill(0);
     this.jet.fill(0);
     this.pressure = this.pTarget = 0;
+    this.releasePending = false;
     this.held = [];
     this.lp = this.dcX = this.dcY = 0;
     this.room.reset();
@@ -379,6 +397,14 @@ export class FluteCore implements InstrumentCore {
       while (q.length && q[0].frame <= this.frame) this.apply(q.shift()!.ev);
       let n = 64;
       if (q.length) n = Math.max(1, Math.min(n, q[0].frame - this.frame));
+      if (this.releasePending) {
+        // a key let go inside the minimum blow: the breath stops when that is over (the block is
+        // cut there, as at an event)
+        if (this.frame >= this.blowUntil) {
+          this.releasePending = false;
+          if (!this.held.length && this.sustain < 0.5) this.pTarget = 0;
+        } else n = Math.min(n, this.blowUntil - this.frame);
+      }
       this.render(n);
       for (let t = 0; t < n; t++) {
         L[t] = this.oL[t];

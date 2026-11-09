@@ -233,6 +233,11 @@ main {
 .pick[aria-pressed='true'] {
   color: var(--ink);
 }
+/* the keyboard-focus ring is drawn inside the button's own box: the picker sits against the stage's
+   top and left edges, where a ring outside the box is cut off by the stage (overflow: hidden) */
+.pick:focus-visible {
+  outline-offset: -1.5px;
+}
 .glyph {
   width: 36px;
   height: 36px;
@@ -795,6 +800,113 @@ code {
   }
   .knob-toggle {
     padding: 4px 4px;
+  }
+}
+/* ------------------------------------------------------------ a phone held sideways */
+/* a short viewport (844×390): one slim band over the stage, the knobs behind ◐, shorter keys; the
+   stage takes all the height that is left and the page does not scroll */
+@media (max-height: 500px) and (orientation: landscape) {
+  :root {
+    --kbd-h: 96px;
+    --fall-h: 40px;
+  }
+  .top {
+    height: 24px;
+  }
+  :root[data-route='stage'] main {
+    /* the 6 px is the keyboard's bottom padding */
+    height: calc(100dvh - 24px - var(--fall-h) - var(--kbd-h) - 6px);
+    min-height: 0;
+  }
+  .stage-top {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 14px;
+    padding: 0 var(--gutter) 2px;
+  }
+  .picker {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+  .pick {
+    width: 38px;
+    padding: 3px 0;
+  }
+  .glyph {
+    width: 26px;
+    height: 26px;
+  }
+  /* the glyphs alone name the instruments here (each button keeps its aria-label and title) */
+  .pick-name {
+    display: none;
+  }
+  .readout {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    margin-left: 0;
+    padding-top: 0;
+    text-align: left;
+  }
+  .r-note {
+    font-size: 26px;
+    min-height: 26px;
+  }
+  .r-hz {
+    margin-top: 0;
+    white-space: nowrap;
+  }
+  .spec-wrap {
+    order: 0;
+    flex: 1 1 auto;
+    min-width: 90px;
+    max-width: 300px;
+    margin: 0 0 0 auto;
+  }
+  .spec {
+    height: 30px;
+  }
+  .scope {
+    display: none;
+  }
+  .pedal {
+    padding-top: 0;
+  }
+  .p-face {
+    width: 26px;
+    height: 24px;
+  }
+  .p-name {
+    display: none;
+  }
+  .knob-toggle {
+    display: block;
+    margin-left: auto;
+    border: 0;
+    background: none;
+    color: var(--brass);
+    font-size: 22px;
+    line-height: 1;
+    padding: 4px 8px;
+    cursor: pointer;
+  }
+  .knobs {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    margin: 0;
+    padding: 8px var(--gutter) 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+    background: rgba(18, 15, 12, 0.96);
+    border-top: 1px solid var(--rule-2);
+    display: none;
+  }
+  :root[data-knobs] .knobs {
+    display: flex;
   }
 }
 @media (prefers-reduced-motion: reduce) {
