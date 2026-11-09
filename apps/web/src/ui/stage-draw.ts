@@ -3,7 +3,7 @@
 // here is decorative motion: every moving line is read from the audio thread.
 
 import type { KeySummary, VisualFrame } from '@piano-model/engine';
-import { CC, CS, EB, GS, L1, L2, L3, R1, R2, R3, RH, TB, TBB, boreNote, fingersFor } from './flute-fingering.ts';
+import { CC, CS, EB, GS, L1, L2, L3, R1, R2, R3, RH, TB, TBB, fingersFor } from './flute-fingering.ts';
 
 export const INK = {
   ground: '#0e0d0b',
@@ -749,8 +749,10 @@ function fluteLayout(Lw: number, Cw: number, vertical: boolean): FluteLayout {
     const v = vAt(rr, phi);
     const hr = 0.0023 * sc;
     rollers.roundRect(X(r0), Y(v) - hr, (r1 - r0) * sc, 2 * hr, hr);
+    // the lever: out from its hinge tube, round, and back along the foot to the roller
     rollers.moveTo(X(bx), Y(FL_FOOT_V + 0.002));
-    rollers.lineTo(X(bx - 0.006), Y(v));
+    rollers.lineTo(X(bx), Y(v - 0.004));
+    rollers.quadraticCurveTo(X(bx), Y(v), X(bx - 0.004), Y(v));
     rollers.lineTo(X(r1 + 0.0012), Y(v));
   }
   flLayout = { key, sc, x0, c, tube, rim, seams, plate, hole, rods, hinges, posts, touches, rollers };
@@ -783,14 +785,12 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
   ks.quiet = blow > 0.015 ? 0 : ks.quiet + dt;
   const fingers = focus && ks.quiet < 0.8 ? fingersFor(focus.midi) : 0;
   const keyPos = FL_KEYS.map((k, i) => spring01(ks.pos, ks.vel, i, k.open(fingers) ? 1 : 0, dt, 26, 0.62));
-  // ---- the effective length: from the first open hole (the bore's own note) back over c / 2f
-  const bore = focus ? boreNote(focus.lengthM) : null;
-  const hole = bore === null ? undefined : FL_KEYS.find((k) => k.note === bore && k.phi === 0) ?? FL_KEYS.find((k) => k.note === bore);
-  const xHole = hole ? hole.x : FL_LEN;
+  // ---- the effective length (c / 2f of the bore's note, from the engine), from its node above the
+  // embouchure: its far node falls just past the first open hole (or among the vents of a
+  // cross-fingered third-octave note), at most an end correction past the foot
   const Leff = focus ? focus.lengthM : 0;
-  const farCorr = Math.max(0.004, Math.min(0.03, Leff - (xHole - FL_EMB) - FL_EMB_CORR));
-  const xFar = xHole + farCorr;
-  const xNear = xFar - Leff;
+  const xNear = FL_EMB - FL_EMB_CORR;
+  const xFar = Math.min(FL_LEN + 0.006, xNear + Leff);
 
   ctx.save();
   if (vertical) {
@@ -1897,6 +1897,8 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     ctx.beginPath();
     ctx.ellipse(cup[0], cup[1], 0.0034 * S, 0.0026 * S, Math.atan2(cup[1] - P(trProj(c))[1], cup[0] - P(trProj(c))[0]) + Math.PI / 2, 0, 2 * Math.PI);
     ctx.fillStyle = '#1c1a17';
+    ctx.fill();
+    ctx.fillStyle = rgba(INK.felt, 0.35); // the cork
     ctx.fill();
     ctx.stroke();
   }
