@@ -803,6 +803,19 @@ test('3D stage: every instrument draws in WebGL2 from live frames; orbit and zoo
     await page.waitForTimeout(100);
     expect(await snap()).not.toBe(before);
   }
+  // a click (not a drag) on a note's strings in 3D opens that key's action, as in 2D
+  await page.evaluate(() => (window as any).__stage3d.resetView());
+  await page.waitForTimeout(150);
+  const at = await page.evaluate(() => (window as any).__stage3d.screenOf(60));
+  expect(at, 'C4 strings on screen').not.toBeNull();
+  const b3 = (await cv.boundingBox())!;
+  if (info.project.name === 'phone') await page.touchscreen.tap(b3.x + at[0], b3.y + at[1]);
+  else await page.mouse.click(b3.x + at[0], b3.y + at[1]);
+  const panel = page.locator('.av-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel).toHaveAttribute('aria-label', /^C4: the upright action$/);
+  await page.locator('.av-close').click();
+  await expect(panel).toHaveCount(0);
   // back to 2D
   await btn.click();
   await expect(cv).toBeHidden();

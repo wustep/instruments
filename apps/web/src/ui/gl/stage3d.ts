@@ -1,8 +1,9 @@
 // The stage in 3D: a WebGL2 canvas over the instrument area, an orbit camera (drag to turn,
-// pinch or wheel to zoom, double-click to reset), and the scenes drawn from the live frames.
+// pinch or wheel to zoom, double-click to reset), and the instruments drawn from the live frames.
+// On the piano, a click on a note's strings opens that key's action (the stage wires `pick`).
 // Where WebGL2 is missing the toggle never appears and the 2D stage carries on.
-import { Batch, Renderer, lookAt, mul, perspective, type Vec3 } from './gl3d.ts';
-import { buildBowed, buildFlute, buildGrand, buildRoom, buildTrumpet, buildUpright, bowedView, fluteView, grandView, newScene3State, trumpetView, uprightView, type SceneIn, type View3 } from './scenes3d.ts';
+import { Batch, Renderer, lookAt, mul, perspective, project, type Mat4, type Vec3 } from './gl3d.ts';
+import { buildRoom, buildScene, newScene3State, viewFor, type SceneIn, type View3 } from './scenes3d.ts';
 
 export function webgl2Available(): boolean {
   try {
@@ -20,9 +21,16 @@ export interface Stage3D {
   /** draw one frame; `inputs` are read fresh each time */
   frame(now: number, top: number, si: Omit<SceneIn, 'now' | 'dt' | 'lite'>): void;
   resetView(): void;
+  /** set the camera (shots, tests) */
+  setView(v: Partial<View3>): void;
+  /** the piano key whose strings are nearest (x, y) (CSS px in the canvas), if close enough */
+  pick(x: number, y: number): number | null;
+  /** tests: where a key's strings are on screen (CSS px in the canvas: the middle of the speaking length) */
+  screenOf(midi: number): [number, number] | null;
   dispose(): void;
-  /** frame build + draw time (ms, smoothed), vertices, and whether the light scene is in use */
-  stats: { ms: number; vertices: number; lite: boolean; frames: number; lit: number; sum: number };
+  /** frame build + draw time (ms, smoothed, without one-off model building), vertices, whether
+   *  the light scene / shadows are in use, and the total time spent building models */
+  stats: { ms: number; vertices: number; lite: boolean; frames: number; lit: number; sum: number; buildMs: number; shadows: boolean };
   /** tests: read back the next frames' pixels (lit count and a checksum) */
   probe: boolean;
 }
@@ -32,21 +40,24 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
   el.className = 'stage-3d';
   el.setAttribute('role', 'img');
   el.setAttribute('aria-label', 'The instrument in 3D, moving as the simulation computes it. Drag to turn, pinch or scroll to zoom, double-click to reset.');
-  const r = Renderer.create(el);
+  const phone = Math.min(window.innerWidth, window.innerHeight) < 600 || matchMedia('(pointer: coarse)').matches;
+  const r = Renderer.create(el, phone ? 1024 : 2048);
   if (!r) return null;
   host.append(el);
   const batch = new Batch();
   const st = newScene3State();
-  const phone = Math.min(window.innerWidth, window.innerHeight) < 600 || matchMedia('(pointer: coarse)').matches;
   let view: View3 | null = null;
   let viewKey = '';
   let yaw = 0;
   let pitch = 0;
   let dist = 1;
   let last = 0;
-  const stats = { ms: 0, vertices: 0, lite: phone, frames: 0, lit: 0, sum: 0 };
+  const stats = { ms: 0, vertices: 0, lite: phone, frames: 0, lit: 0, sum: 0, buildMs: 0, shadows: true };
   let probe = false;
   const px = new Uint8Array(4);
+  let lastVP: Mat4 | null = null;
+  let cssW = 1;
+  let cssH = 1;
 
   // ---- orbit: one pointer turns, two pinch, the wheel zooms
   const ptrs = new Map<number, { x: number; y: number }>();
@@ -91,7 +102,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     { passive: false },
   );
   el.addEventListener('dblclick', () => resetView());
-  const clampDist = (d: number) => (view ? Math.max(view.dist * 0.25, Math.min(view.dist * 3, d)) : d);
+  const clampDist = (d: number) => (view ? Math.max(view.dist * 0.12, Math.min(view.dist * 3, d)) : d);
   function resetView(): void {
     if (!view) return;
     yaw = view.yaw;
@@ -109,6 +120,38 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       probe = v;
     },
     resetView,
+    setView(v) {
+      if (!view) return;
+      if (v.target) view = { ...view, target: v.target };
+      if (v.yaw !== undefined) yaw = v.yaw;
+      if (v.pitch !== undefined) pitch = v.pitch;
+      if (v.dist !== undefined) dist = v.dist;
+    },
+    pick(x, y) {
+      if (!lastVP || !st.picks.length) return null;
+      let best: number | null = null;
+      let bd = Infinity;
+      for (const s of st.picks) {
+        const a = project(lastVP, s.a, cssW, cssH);
+        const b = project(lastVP, s.b, cssW, cssH);
+        if (!a || !b) continue;
+        const dx = b[0] - a[0];
+        const dy = b[1] - a[1];
+        const L2 = dx * dx + dy * dy || 1;
+        const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / L2));
+        const d = Math.hypot(x - (a[0] + t * dx), y - (a[1] + t * dy));
+        if (d < bd) {
+          bd = d;
+          best = s.midi;
+        }
+      }
+      return bd < 7 ? best : null;
+    },
+    screenOf(midi) {
+      const s = st.picks.find((p) => p.midi === midi);
+      if (!lastVP || !s) return null;
+      return project(lastVP, [(s.a[0] + s.b[0]) / 2, (s.a[1] + s.b[1]) / 2, (s.a[2] + s.b[2]) / 2], cssW, cssH);
+    },
     dispose() {
       r.dispose();
       el.remove();
@@ -118,19 +161,14 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / 60;
       last = now;
       const si: SceneIn = { ...si0, now, dt, lite: stats.lite };
-      // the view for this instrument (and preset); reset when it changes
-      const key = si.family === 'piano' ? si.kind : si.family === 'bowed' ? (si.bowed?.id ?? 'bowed') : si.family;
-      if (key !== viewKey) {
-        viewKey = key;
-        view = si.family === 'piano' ? (si.kind === 'grand' ? grandView() : uprightView()) : si.family === 'bowed' && si.bowed ? bowedView(si.bowed) : si.family === 'brass' ? trumpetView() : fluteView();
-        resetView();
-      }
       // size: the instrument area under the top band; phones draw at ≤1.5× pixels
       const host = el.parentElement!;
       const W = host.clientWidth;
       const H = Math.max(10, host.clientHeight - topPx);
       el.style.top = `${topPx}px`;
       el.style.height = `${H}px`;
+      cssW = W;
+      cssH = H;
       const dpr = Math.min(window.devicePixelRatio || 1, phone ? 1.5 : 2);
       const pw = Math.round(W * dpr);
       const ph = Math.round(H * dpr);
@@ -138,53 +176,47 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
         el.width = pw;
         el.height = ph;
       }
-      // scene
+      // scene (the models are built on first use; that time is kept out of the frame budget)
       batch.clear();
-      let src: Vec3 = [0, 0, 0];
-      let span = 1;
-      let floor = 0;
-      if (si.family === 'piano' && si.kind === 'grand') {
-        buildGrand(batch, si, st);
-        src = [0, 0, 0.9];
-        span = 1.3;
-      } else if (si.family === 'piano') {
-        buildUpright(batch, si, st);
-        src = [0, 0, 0.15];
-        span = 1.0;
-      } else if (si.family === 'bowed' && si.bowed) {
-        buildBowed(batch, si, st);
-        src = [0.25 * si.bowed.L, 0, 0];
-        span = si.bowed.L * 1.6;
-        floor = -0.08 * (si.bowed.L / 0.33);
-      } else if (si.family === 'brass') {
-        buildTrumpet(batch, si, st);
-        src = [0.3, 0, 0];
-        span = 0.45;
-        floor = -0.12;
-      } else {
-        buildFlute(batch, si, st);
-        src = [0.33, 0, 0];
-        span = 0.5;
-        floor = -0.08;
+      const built0 = st.buildMs;
+      const { src, span } = buildScene(batch, si, st);
+      const buildMs = st.buildMs - built0;
+      stats.buildMs = st.buildMs;
+      // the view for this instrument (and preset); reset when it changes
+      const key = si.family === 'piano' ? si.kind : si.family === 'bowed' ? (si.bowed?.id ?? 'bowed') : si.family;
+      if (key !== viewKey) {
+        viewKey = key;
+        view = viewFor(si, st);
+        // a narrow or square screen: step back so the instrument fits the width
+        const aspect = W / H;
+        if (aspect < 1.4) view.dist *= Math.min(2.6, 1.4 / Math.max(0.45, aspect)) * 0.92;
+        resetView();
       }
-      buildRoom(batch, si, st, src, span, floor);
+      buildRoom(batch, si, st, src, span, 0);
       // camera
       const v = view!;
       const eye: Vec3 = [v.target[0] + dist * Math.cos(pitch) * Math.sin(yaw), v.target[1] + dist * Math.sin(pitch), v.target[2] - dist * Math.cos(pitch) * Math.cos(yaw)];
       // mirrored in x: the scenes are laid out with the bass at −x, and a pianist facing the
       // strings (+z) sees the bass on the left
       const mirror = new Float32Array([-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
-      const vp = mul(mirror, mul(perspective(0.7, pw / ph, 0.02, 60), lookAt(eye, v.target, [0, 1, 0])));
+      const vp = mul(mirror, mul(perspective(0.6, pw / ph, 0.02, 60), lookAt(eye, v.target, [0, 1, 0])));
+      lastVP = vp;
       const g = getComputedStyle(document.body).getPropertyValue('--ground').trim() || '#0e0d0b';
       const hex = /^#([0-9a-f]{6})$/i.exec(g)?.[1] ?? '0e0d0b';
       const ground: [number, number, number] = [parseInt(hex.slice(0, 2), 16) / 255, parseInt(hex.slice(2, 4), 16) / 255, parseInt(hex.slice(4, 6), 16) / 255];
-      r.draw(batch, vp, pw, ph, ground);
-      // budget: if a frame costs more than ~9 ms, draw the light scene (every other string, fewer parts)
-      const ms = performance.now() - t0;
+      r.shadows = stats.shadows;
+      r.draw(batch, vp, eye, pw, ph, ground);
+      // budget: if a frame costs more than ~9 ms, draw the light scene (every other string, fewer
+      // parts), and if that is still too slow, drop the shadows
+      const ms = performance.now() - t0 - buildMs;
       stats.ms = stats.frames ? stats.ms * 0.95 + ms * 0.05 : ms;
       stats.vertices = batch.vertices;
       stats.frames++;
-      if (stats.frames > 30 && stats.ms > 9) stats.lite = true;
+      if (stats.frames > 30 && stats.ms > 9) {
+        if (stats.lite) stats.shadows = false;
+        stats.lite = true;
+        stats.frames = 1;
+      }
       if (probe) {
         // sample a grid of pixels straight after drawing (the buffer is not kept for later)
         let lit = 0;
@@ -203,4 +235,3 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     },
   };
 }
-

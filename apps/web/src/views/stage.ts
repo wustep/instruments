@@ -124,6 +124,25 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
         // WebGL2 said yes and then failed: stay in 2D
         want3d = false;
         dimBtn.hidden = true;
+      } else {
+        // in 3D too, a click (not a drag) on a note's strings opens that key's action
+        const cv3 = s3.el;
+        let at3: { x: number; y: number } | null = null;
+        cv3.addEventListener('pointerdown', (e) => {
+          at3 = { x: e.clientX, y: e.clientY };
+        });
+        cv3.addEventListener('pointerup', (e) => {
+          if (!at3 || !s3 || Math.hypot(e.clientX - at3.x, e.clientY - at3.y) > 6 || family() !== 'piano') return;
+          at3 = null;
+          const r = cv3.getBoundingClientRect();
+          const m = s3.pick(e.clientX - r.left, e.clientY - r.top);
+          if (m !== null) openAction(m);
+        });
+        cv3.addEventListener('pointermove', (e) => {
+          if (e.buttons || !s3 || family() !== 'piano') return;
+          const r = cv3.getBoundingClientRect();
+          cv3.style.cursor = s3.pick(e.clientX - r.left, e.clientY - r.top) !== null ? 'zoom-in' : '';
+        });
       }
     }
     if (s3) s3.el.hidden = !want3d;

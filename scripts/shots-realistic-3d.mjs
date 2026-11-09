@@ -88,19 +88,19 @@ const INST = {
     inst: 'violin',
     whole: { notes: [72] },
     close: { view: { yaw: 0.35, pitch: 0.75, dist: 0.38, target: [0.03, 0.24, -0.03] }, wheel: -700 },
-    act: { notes: [76], view: { yaw: -0.25, pitch: 0.55, dist: 0.32, target: [-0.17, 0.26, -0.02] }, wheel: -500 },
+    act: { notes: [79], view: { yaw: -0.15, pitch: 0.75, dist: 0.36, target: [-0.12, 0.25, -0.03] }, wheel: -500 },
   },
   viola: {
     inst: 'viola',
     whole: { notes: [60] },
     close: { view: { yaw: 0.35, pitch: 0.75, dist: 0.42, target: [0.03, 0.26, -0.03] }, wheel: -700 },
-    act: { notes: [67], view: { yaw: -0.25, pitch: 0.55, dist: 0.36, target: [-0.19, 0.28, -0.02] }, wheel: -500 },
+    act: { notes: [74], view: { yaw: -0.15, pitch: 0.75, dist: 0.4, target: [-0.14, 0.27, -0.03] }, wheel: -500 },
   },
   cello: {
     inst: 'cello',
     whole: { notes: [50] },
     close: { view: { yaw: 0.4, pitch: 0.25, dist: 0.75, target: [0.0, 0.64, 0.05] }, wheel: -700 },
-    act: { notes: [55], view: { yaw: 0.5, pitch: 0.3, dist: 0.65, target: [0.0, 0.95, 0.14] }, wheel: -500 },
+    act: { notes: [55], view: { yaw: 0.45, pitch: 0.3, dist: 0.85, target: [0.0, 1.12, 0.2] }, wheel: -500 },
   },
   flute: {
     inst: 'flute',
