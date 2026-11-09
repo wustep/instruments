@@ -224,7 +224,8 @@ Scene build plus submit, CPU, measured as `stats.ms` in Chrome on an M-series Ma
 The full write-up, with sources, every measure and the listen notes, is in
 [`cello-audio/README.md`](cello-audio/README.md). In short, all the changes are in
 `packages/engine/src/core/bowed.ts`, gated on design fields that only the cello sets. The fitted values are in
-`bowed-fit.json`, fitted on the even-MIDI half of the Iowa cello notes by `scripts/fit-cello.ts`.
+`bowed-fit.json`, fitted on the even-MIDI half of the Iowa cello notes by `scripts/fit-cello.ts`. Items 1–7
+are the v2 model (`624c0bf`); item 8 is a later polish (`a6baebd`) that took on the two problems v2 left open.
 
 1. **Radiation from acceleration.** The body radiates from its acceleration, not its velocity, and the force
    reaches it through two bridge resonances (Fletcher & Rossing §7.1; Reinicke, in Cremer ch. 9). The old
@@ -245,53 +246,89 @@ The full write-up, with sources, every measure and the listen notes, is in
      Askenfelt 1989);
    * CBR and B1− radiate less.
 
+8. **Polish (`a6baebd`): a bow of finite width, between samples.** The two known problems (pp ×2 too bright,
+   a grain under vibrato) had one root. A slip counter showed that the point bow on whole samples rarely held
+   Helmholtz motion: only 4 of 22 pp, 8 of 22 mf and 0 of 23 ff Iowa notes had one slip per period. The
+   Helmholtz corner was one sample wide at any sample rate, and the pulses it left between bow and bridge
+   tripped extra slips at low force; multiple slipping is bright, so the model's pp came out brighter than its
+   ff. Under vibrato the bow–bridge segment itself swung in length (the bow taps sat on the nominal loop).
+   * **The bow touches the string over the hair ribbon's width** (`bowWidth`, fitted 9.8 mm; Guettler;
+     Pitteroff & Woodhouse 1998): it reads the string's velocity averaged over a raised-cosine contact and
+     spreads the friction force over the same taps (passive; Bilbao 2009's spreading operator), at its exact
+     fractional place. Vibrato and bend now lengthen the finger side of the loop, not the bow–bridge segment.
+   * **Rosin noise** for the cello (fitted 0.226, ~2.7 % RMS of the friction; Smith & Woodhouse 2000): clean
+     Helmholtz motion otherwise reads too harmonic.
+   * **In an attack the force stays under Schelleng's maximum for the speed the bow has reached** (Guettler
+     2002): the heavier refitted forces otherwise creaked open-G strokes into multiple slipping.
+   * **Refit** on the even-MIDI half: string HF T60 at 3 kHz 7.35 → 0.53 s (literature 1.0 s), force ×1.36 at
+     pp and ×1.82 at ff, attack 255 ms at pp and 108 ms at ff.
+
+   Notes holding Helmholtz motion now: pp 21 of 22, mf 18 of 22, ff 14 of 23. The full account, with every
+   measure, is in [`cello-audio/README.md`](cello-audio/README.md) ("Polish").
+
 Against the Iowa MIS cello (67 notes, pp/mf/ff):
 
-| measure | before (`af4f97e`) | after | recording |
-|---|---|---|---|
-| ⅓-octave spectrum, RMS error | 15.7 dB | **5.0 dB** | — |
-| spectral centroid, model/recording | 0.57 | 1.22 (pp 2.02, mf 1.10, ff 0.68) | 1 |
-| harmonic-to-noise, model − recording | −0.3 dB | +2.6 dB | 0 |
-| attack time, model/recording | 1.12 | 0.92 | 1 |
-| pp → ff level spread | 10.6 dB | 13.0 dB | 12.5 dB |
-| pitch, RMS over notes (matched vibrato) | 3.3 ¢ | **1.8 ¢** | — |
-| notes the analyser could not read | 2 | 0 | 0 |
+| measure | before (`af4f97e`) | v2 (`624c0bf`) | final (`a6baebd`) | recording |
+|---|---|---|---|---|
+| ⅓-octave spectrum, RMS error | 15.7 dB | 5.0 dB | **4.3 dB** | — |
+| spectral centroid, model/recording | 0.57 | 1.22 (pp 2.02, mf 1.10, ff 0.68) | **1.02 (pp 1.59, mf 1.01, ff 0.84)** | 1 |
+| harmonic-to-noise, model − recording | −0.3 dB | +2.6 dB | +1.6 dB | 0 |
+| attack time, model/recording | 1.12 | 0.92 | 0.90 | 1 |
+| pp → ff level spread | 10.6 dB | 13.0 dB | 11.4 dB | 12.5 dB |
+| pitch, RMS over notes (matched vibrato) | 3.3 ¢ | 1.8 ¢ | 2.5 ¢ | — |
+| notes the analyser could not read | 2 | 0 | 0 | 0 |
+| clicks per render, all five pieces (mean of 12 seeds) | 47.0 | 40.5 | **8.8** | — |
 
-**Judge.** `npx tsx scripts/judge.ts --instrument cello --before <af4f97e engine>` says **BETTER** on the
-held-out (odd-MIDI) notes: 2.68 → 2.09, Δ 0.58 ± 0.15. Every measure improves and no guard breaks. I re-ran it
-myself after merging and got the same result.
+**Judge.** `npx tsx scripts/judge.ts --instrument cello --before <engine>`, held-out (odd-MIDI) notes:
 
-**From the renders:**
+* against `af4f97e`: **BETTER**, 2.68 → 1.91, Δ 0.77 ± 0.15; every measure improves (the v2 model alone
+  scored 2.09).
+* against `624c0bf`: **NO CLEAR CHANGE**, 2.05 → 1.86, Δ 0.19 ± 0.11, just under the 0.22 that BETTER needs.
+  The centroid improves by a full spread (0.96 → 0.67), harmonics, noise and level improve, attack (+0.11)
+  and pitch (+0.01) barely move, and no guard is broken.
 
-* Without vibrato, G2 and D4 now hold to within 0.2–0.3 ¢ SD; before, the SD was 10–12 ¢.
-* High-band clicks in the left channel went from 4 to 0.
-* Earlier history said pitch scatter had worsened from 2.47 to 3.08 ¢. Re-measured at HEAD it was 3.3 ¢;
-  it is now 1.8 ¢.
+**From the renders** (`cello-audio/metrics.json`; clicks are means over 12 renders that differ only in the
+cello's seed, because one render of a chaotic bow says little about rare events: the round's single render of
+the `624c0bf` phrase had 0 clicks, while 7 of 12 seeds have some):
 
-**Listening.** Neither I nor the sub-agent can hear the files. The listen notes come from the spectrograms
+* Clicks under vibrato fell by 60–90 % against `624c0bf`: phrase 21.7 → 2.5 per render, sustained 11.3 → 4.3,
+  sustained-novib 7.2 → 0.4. Stroke starts and crossings click a little more often (Bach 0.3 → 0.9,
+  transitions 0.2 → 0.6). The worst click is 10–12 dB (16–17 dB in the phrase before).
+* Without vibrato, G2, A3 and D4 hold within 0.3–0.5 ¢ SD (`af4f97e`: 2–12 ¢).
+
+**Listening.** Neither I nor the sub-agents can hear the files. The listen notes come from the spectrograms
 and the measures, and say so. To hear the difference yourself, play
-`cello-audio/{phrase,bach-prelude,sustained,sustained-novib,transitions}-{before,after}.mp3`. Each pair is
-peak-normalised to −1 dBFS; the level differences are in the metrics, not the files.
+`cello-audio/{phrase,bach-prelude,sustained,sustained-novib,transitions}-{before,after}.mp3` (after = the
+final cello; the same files are in `final/cello-audio/`). Each pair is peak-normalised to −1 dBFS; the level
+differences are in the metrics, not the files.
 
 **Other instruments are unchanged, bit for bit.** Violin, viola, flute, trumpet and piano were compared
 sample-for-sample against the `af4f97e` engine at 44.1 and 48 kHz, dry and with room: max |Δ| = 0 in all 20
-cases (`scratchpad/bitid.ts`, re-run after merging). Only `test/golden/cello.json` was re-blessed.
+cases (`scratchpad/bitid.ts`, re-run after merging). After the polish, violin, viola, flute, trumpet, grand and
+upright were compared again against `624c0bf`: 24 of 24 identical. Only `test/golden/cello.json` was
+re-blessed, both times.
 
 ### Remaining limitations (cello)
 
-* **pp is too bright.** The centroid is about 2× the recording's at pp. The physical fix would be a finite
-  bow width or hair compliance; that was not done.
-* **Vibrato grain.** Under vibrato, some notes can still produce short high-frequency spikes, because the
-  slip happens on whole-sample positions. The fix would be a sub-sample bow junction or 2× oversampling; that
-  was not done.
+* **pp is still too bright**, though much less: the centroid is ×1.59 the recording's at pp (×2.02 before
+  the polish). Most pp notes now hold Helmholtz motion; what remains is mostly the bow–bridge ripple of a pp
+  bow far from the bridge, strongest on the A string, where the contact is only 1.5–2 samples wide. A ribbon
+  with its own stick/slip state across its width, or 2× oversampling of the string, would be next; neither
+  was done.
+* **Vibrato grain is mostly, not entirely, gone** (clicks −60–90 %), and rare clicks at stroke starts and
+  crossings are a little more frequent.
+* **Sample rate:** the soft tone of G2 and D3 still differs by 0.5–0.7 octave of centroid between 44.1 and
+  96 kHz (other notes ≤ 0.1).
+* **Pitch RMS** rose from 1.8 to 2.5 ¢ with the heavier bow (the flattening effect).
 * **Per-note harmonic profiles** still differ from the Iowa instrument's by about 11 dB RMS: the body above
   the five signature modes is statistical, not that instrument's.
 * **Fitted, not measured:**
-  * the idle-string coupling (0.245);
-  * the torsional Q (2.8, below the published 15–50, because it also stands in for the hair's compliance);
-  * the second bridge resonance, which ended at its search bound and acts as a roll-off.
-* **Violin and viola** keep the old chain, including the inverted high band. They would likely gain from the
-  same changes, but they were not touched.
+  * the idle-string coupling (0.306);
+  * the torsional Q (2.9, below the published 15–50, because it also stands in for the hair's compliance);
+  * the contact width (9.8 mm) and the rosin noise (0.226), both within physical ranges;
+  * the second bridge resonance, which acts as a roll-off.
+* **Violin and viola** keep the old chain and the point bow, including the inverted high band. They would likely
+  gain from the same changes, but they were not touched.
 
 ## Shots
 
@@ -326,6 +363,20 @@ All of these were run on the final branch, with the cello merged:
     `reuseExistingServer` would otherwise have tested that stale server.
 * `npx tsx scripts/judge.ts --instrument cello --before <af4f97e engine>`: **BETTER**.
 * Bit-identity of the non-cello instruments against `af4f97e`: 20/20 identical.
+
+After the cello polish (`a6baebd`), in its own worktree:
+
+* `pnpm build`: passes, "ok for Safari 14.1+". `pnpm typecheck`: clean.
+* `npx vitest run`: 21 files, **98/98 pass** (`cello.test.ts` gains a pp-not-brighter-than-ff check; a
+  drafted sample-rate check was dropped, see the limitations; the controllers test's brighter-with-force
+  margin is 1.05, was 1.1, because D4 now stays in Helmholtz motion at both ends and brightens by 9 %).
+* Block size: `blocksize.test.ts` bit-identical at 128/37/500 frames per call.
+* Judge: against `af4f97e` **BETTER** (2.68 → 1.91); against `624c0bf` **NO CLEAR CHANGE** (2.05 → 1.86,
+  Δ 0.19 ± 0.11), no guard broken.
+* Bit-identity against `624c0bf` (violin, viola, flute, trumpet, grand, upright; 44.1 and 48 kHz; dry and
+  with room): 24/24 identical. Only `test/golden/cello.json` re-blessed.
+* The e2e suite was not re-run for the polish: it changes no UI, and another session may hold the
+  Playwright port.
 
 ## How to verify
 

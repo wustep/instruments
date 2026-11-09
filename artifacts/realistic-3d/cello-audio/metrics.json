@@ -54,86 +54,144 @@
     }
    ],
    "clicks:phrase": {
-    "clicks": 3,
-    "worstDb": 11.5,
-    "perSecond": 0.35
+    "clicks": 23.75,
+    "worstDb": 16.3,
+    "perSecond": 2.76,
+    "seeds": 12
+   },
+   "grain:phrase": {
+    "spikesPerSecond": 0,
+    "roughnessDb": 1.16,
+    "seconds": 2.8,
+    "interHarmonicDb": -17.63
    },
    "clicks:bach-prelude": {
     "clicks": 0,
-    "worstDb": 6.2,
-    "perSecond": 0
+    "worstDb": 9.1,
+    "perSecond": 0,
+    "seeds": 12
    },
    "clicks:sustained": {
-    "clicks": 0,
-    "worstDb": 10,
-    "perSecond": 0
+    "clicks": 17.08,
+    "worstDb": 15.9,
+    "perSecond": 1.09,
+    "seeds": 12
+   },
+   "grain:sustained": {
+    "spikesPerSecond": 0,
+    "roughnessDb": 0.56,
+    "seconds": 8.7,
+    "interHarmonicDb": -29.39
    },
    "clicks:sustained-novib": {
-    "clicks": 0,
-    "worstDb": 5.6,
-    "perSecond": 0
+    "clicks": 4.42,
+    "worstDb": 14.5,
+    "perSecond": 0.39,
+    "seeds": 12
+   },
+   "grain:sustained-novib": {
+    "spikesPerSecond": 0,
+    "roughnessDb": 0.73,
+    "seconds": 6.6,
+    "interHarmonicDb": -29.49
    },
    "clicks:transitions": {
-    "clicks": 1,
-    "worstDb": 10.1,
-    "perSecond": 0.09
+    "clicks": 1.75,
+    "worstDb": 13.5,
+    "perSecond": 0.15,
+    "seeds": 12
+   },
+   "grain:transitions": {
+    "spikesPerSecond": 0,
+    "roughnessDb": 0.52,
+    "seconds": 3.6,
+    "interHarmonicDb": -39.72
    }
   },
   "after": {
    "pitch": [
     {
      "midi": 43,
-     "offsetCents": 2.5,
+     "offsetCents": 1.5,
      "jitterMadCents": 0,
-     "rangeCents": 0.5,
-     "sdCents": 0.23
+     "rangeCents": 1.5,
+     "sdCents": 0.32
     },
     {
      "midi": 50,
-     "offsetCents": -1,
-     "jitterMadCents": 1,
-     "rangeCents": 67.5,
-     "sdCents": 13.23
+     "offsetCents": -2,
+     "jitterMadCents": 1.5,
+     "rangeCents": 64,
+     "sdCents": 13.8
     },
     {
      "midi": 57,
-     "offsetCents": 0.5,
-     "jitterMadCents": 1,
-     "rangeCents": 59,
-     "sdCents": 8.75
+     "offsetCents": 0,
+     "jitterMadCents": 0.5,
+     "rangeCents": 2.5,
+     "sdCents": 0.52
     },
     {
      "midi": 62,
-     "offsetCents": 0,
-     "jitterMadCents": 1,
-     "rangeCents": 12,
-     "sdCents": 2.33
+     "offsetCents": -0.5,
+     "jitterMadCents": 0,
+     "rangeCents": 1.5,
+     "sdCents": 0.25
     }
    ],
    "clicks:phrase": {
-    "clicks": 0,
-    "worstDb": 9.5,
-    "perSecond": 0
+    "clicks": 2.5,
+    "worstDb": 11,
+    "perSecond": 0.29,
+    "seeds": 12
+   },
+   "grain:phrase": {
+    "spikesPerSecond": 0,
+    "roughnessDb": 1.19,
+    "seconds": 2.8,
+    "interHarmonicDb": -24.07
    },
    "clicks:bach-prelude": {
-    "clicks": 0,
-    "worstDb": 8,
-    "perSecond": 0
+    "clicks": 0.92,
+    "worstDb": 12.4,
+    "perSecond": 0.1,
+    "seeds": 12
    },
    "clicks:sustained": {
-    "clicks": 0,
-    "worstDb": 6.4,
-    "perSecond": 0
+    "clicks": 4.33,
+    "worstDb": 12.4,
+    "perSecond": 0.28,
+    "seeds": 12
+   },
+   "grain:sustained": {
+    "spikesPerSecond": 0,
+    "roughnessDb": 0.63,
+    "seconds": 8.7,
+    "interHarmonicDb": -31.32
    },
    "clicks:sustained-novib": {
-    "clicks": 0,
-    "worstDb": 6.1,
-    "perSecond": 0
+    "clicks": 0.42,
+    "worstDb": 11.6,
+    "perSecond": 0.04,
+    "seeds": 12
+   },
+   "grain:sustained-novib": {
+    "spikesPerSecond": 0,
+    "roughnessDb": 0.49,
+    "seconds": 6.6,
+    "interHarmonicDb": -28.11
    },
    "clicks:transitions": {
-    "clicks": 0,
-    "worstDb": 5.9,
-    "perSecond": 0
+    "clicks": 0.58,
+    "worstDb": 10.3,
+    "perSecond": 0.05,
+    "seeds": 12
+   },
+   "grain:transitions": {
+    "spikesPerSecond": 0,
+    "roughnessDb": 0.94,
+    "seconds": 3.6,
+    "interHarmonicDb": -25.38
    }
   }
  }
