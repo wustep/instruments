@@ -821,6 +821,66 @@ test('3D stage: every instrument draws in WebGL2 from live frames; orbit and zoo
   await expect(cv).toBeHidden();
 });
 
+test('the action close-up is the pianos’ alone: no string zoom on the bowed strings or the winds, in 2D or 3D', async ({ page }, info) => {
+  const phone = info.project.name === 'phone';
+  await page.goto('/');
+  await startAudio(page);
+  const panel = page.locator('.av-panel');
+  const press = (x: number, y: number) => (phone ? page.touchscreen.tap(x, y) : page.mouse.click(x, y));
+  const choose = async (label: string, id: string) => {
+    await page.locator('.instruments').getByRole('button', { name: label }).click();
+    await page.waitForFunction((x) => (window as any).__piano.piano?.instrument === x, id, { timeout: 15_000 });
+  };
+  // the piano offers it; switching instrument closes it and leaves no zoom cursor behind
+  await page.waitForTimeout(400);
+  await page.locator('.key[data-midi="48"]').scrollIntoViewIfNeeded();
+  const kb = (await page.locator('.key[data-midi="48"]').boundingBox())!;
+  const cvb = (await page.locator('.stage-cv').boundingBox())!;
+  if (!phone) {
+    await page.mouse.move(kb.x + kb.width / 2, cvb.y + cvb.height * 0.8);
+    await expect.poll(() => page.locator('.stage-cv').evaluate((e) => (e as HTMLElement).style.cursor)).toBe('zoom-in');
+  }
+  await press(kb.x + kb.width / 2, cvb.y + cvb.height * 0.8);
+  await expect(panel).toBeVisible();
+  // (the panel is modal: a switch while it is open comes from elsewhere, e.g. the API or a file)
+  await page.evaluate(() => (window as any).__piano.setInstrument('violin'));
+  await expect(panel).toHaveCount(0);
+  expect(await page.locator('.stage-cv').evaluate((e) => (e as HTMLElement).style.cursor)).toBe('');
+  // elsewhere: hover and click a grid over the whole stage (below its top band); nothing opens
+  const sweep = async (sel: string) => {
+    const cv = page.locator(sel);
+    const b = (await cv.boundingBox())!;
+    const top = (await page.locator('.stage-top').boundingBox())!;
+    const y0 = Math.max(b.y, top.y + top.height) + 8;
+    const y1 = b.y + b.height - 8;
+    for (let i = 1; i <= 5; i++)
+      for (let j = 0; j < 3; j++) {
+        const x = b.x + (b.width * i) / 6;
+        const y = y0 + ((y1 - y0) * (j + 0.5)) / 3;
+        if (!phone) {
+          await page.mouse.move(x, y);
+          expect(await cv.evaluate((e) => (e as HTMLElement).style.cursor), `${sel} cursor`).not.toBe('zoom-in');
+        }
+        await press(x, y);
+      }
+    await expect(panel).toHaveCount(0);
+  };
+  const others = [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Flute', 'flute'], ['Trumpet', 'trumpet']] as const;
+  for (const [label, id] of others) {
+    await choose(label, id);
+    await sweep('.stage-cv');
+  }
+  const btn = page.locator('.dim-toggle');
+  await btn.click();
+  await expect(page.locator('.stage-3d')).toBeVisible();
+  for (const [label, id] of others) {
+    await choose(label, id);
+    await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3);
+    await sweep('.stage-3d');
+  }
+  await btn.click();
+});
+
 test('without WebGL2 there is no 3D toggle and the 2D stage works', async ({ page }) => {
   await page.addInitScript(() => {
     const orig = HTMLCanvasElement.prototype.getContext;

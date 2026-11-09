@@ -47,6 +47,9 @@ const VISIBLE_PRESETS = ['grand', 'upright'];
 export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
   let inst: InstrumentId = audio.instrument;
   const family = () => INSTRUMENT_INFO[inst].family;
+  /** the action close-up (click or tap a note's strings → that key's action) is the pianos' alone:
+   *  the bowed strings and the winds offer no string zoom in 2D or 3D, only orbit and camera zoom */
+  const closeUpOffered = () => family() === 'piano';
 
   // ---------------------------------------------------------------- picker
   const instBtns = INSTRUMENT_IDS.map((id) => {
@@ -121,14 +124,18 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       at3 = { x: e.clientX, y: e.clientY };
     });
     cv3.addEventListener('pointerup', (e) => {
-      if (!at3 || !s3 || Math.hypot(e.clientX - at3.x, e.clientY - at3.y) > 6 || family() !== 'piano') return;
+      if (!at3 || !s3 || Math.hypot(e.clientX - at3.x, e.clientY - at3.y) > 6 || !closeUpOffered()) return;
       at3 = null;
       const r = cv3.getBoundingClientRect();
       const m = s3.pick(e.clientX - r.left, e.clientY - r.top);
       if (m !== null) openAction(m);
     });
     cv3.addEventListener('pointermove', (e) => {
-      if (e.buttons || !s3 || family() !== 'piano') return;
+      if (e.buttons || !s3) return;
+      if (!closeUpOffered()) {
+        cv3.style.cursor = '';
+        return;
+      }
       const r = cv3.getBoundingClientRect();
       cv3.style.cursor = s3.pick(e.clientX - r.left, e.clientY - r.top) !== null ? 'zoom-in' : '';
     });
@@ -175,7 +182,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     downAt = { x: e.clientX, y: e.clientY };
   });
   canvas.addEventListener('pointerup', (e) => {
-    if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6 || family() !== 'piano') return;
+    if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6 || !closeUpOffered()) return;
     downAt = null;
     const r = canvas.getBoundingClientRect();
     const topH = top.getBoundingClientRect().height;
@@ -183,13 +190,17 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     if (m !== null) openAction(m);
   });
   canvas.addEventListener('pointermove', (e) => {
-    if (family() !== 'piano') return;
+    if (!closeUpOffered()) {
+      canvas.style.cursor = '';
+      return;
+    }
     const r = canvas.getBoundingClientRect();
     const hit = stringAt(pianoState, e.clientX - r.left, e.clientY - r.top - top.getBoundingClientRect().height);
     canvas.style.cursor = hit !== null ? 'zoom-in' : '';
   });
   const openAction = (m: number) => {
     action?.close();
+    if (!closeUpOffered()) return;
     const kind = audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand';
     action = openActionView({ midi: m, kind, host: el, latest: () => frame, onClose: () => (action = null) });
   };
@@ -309,6 +320,10 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
     frame = null;
     strike = null;
     lastFocus = null;
+    // no close-up state survives a change of instrument: the panel shuts, the zoom cursor goes
+    action?.close();
+    canvas.style.cursor = '';
+    if (s3) s3.el.style.cursor = '';
     noteEl.textContent = '';
     hzEl.textContent = '';
     buildKnobs();
@@ -496,7 +511,6 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       attach();
       unsubs.push(audio.state.on(() => attach()));
       unsubs.push(audio.instrumentChanged.on(applyInstrument));
-      unsubs.push(audio.instrumentChanged.on(() => action?.close()));
       unsubs.push(
         audio.notes.on((n) => {
           if (!n.on) return;
