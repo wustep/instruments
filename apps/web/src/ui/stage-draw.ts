@@ -1012,75 +1012,6 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   return { key, lay, plate: A.box, fit: F.box, body, glow };
 }
 
-/** The body's modes as a warm glow only: the same plate shapes as ModeField (sin mπu · sin nπv, in
- *  order of an orthotropic plate's frequencies, aspect 1.8, cross/along stiffness 0.6), weighted by
- *  their live amplitudes, on a coarse grid that is drawn smoothed over the plate. No nodal "sand":
- *  on the varnish it read as stains. Level and peak follow with time constants. */
-class BowedGlow {
-  readonly canvas: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
-  private img: ImageData;
-  private f: Float32Array;
-  private pairs: [number, number][];
-  level = 0;
-  private peak = 1e-30;
-  constructor(
-    readonly gw = 36,
-    readonly gh = 20,
-  ) {
-    this.canvas = document.createElement('canvas');
-    this.canvas.width = gw;
-    this.canvas.height = gh;
-    this.ctx = this.canvas.getContext('2d')!;
-    this.img = this.ctx.createImageData(gw, gh);
-    this.f = new Float32Array(gw * gh);
-    const cand: { m: number; n: number; f: number }[] = [];
-    for (let m = 1; m <= 8; m++)
-      for (let n = 1; n <= 6; n++) {
-        const a = m / 1.8;
-        cand.push({ m, n, f: Math.sqrt(0.6 * a ** 4 + n ** 4 + 2 * Math.sqrt(0.6) * 0.6 * a * a * n * n) });
-      }
-    cand.sort((x, y) => x.f - y.f);
-    this.pairs = cand.map((c) => [c.m, c.n]);
-  }
-  update(amps: Float32Array | null, t: number, dt: number): number {
-    let total = 0;
-    if (amps) for (let k = 0; k < amps.length; k++) total += amps[k];
-    this.peak = Math.max(total, this.peak * Math.exp(-dt / 3));
-    const target = total > 0 ? Math.min(1, Math.pow(total / this.peak, 0.6)) : 0;
-    this.level += (target - this.level) * (dt > 0 ? 1 - Math.exp(-dt / 0.06) : 1);
-    if (!amps || this.level < 0.01) return this.level;
-    const { gw, gh, f } = this;
-    f.fill(0);
-    const K = Math.min(amps.length, this.pairs.length);
-    let top = 0;
-    for (let k = 0; k < K; k++) top = Math.max(top, amps[k]);
-    if (top <= 0) return this.level;
-    for (let k = 0; k < K; k++) {
-      if (amps[k] < 0.08 * top) continue;
-      const [m, n] = this.pairs[k];
-      const w = (amps[k] / top) * Math.cos(t * (0.7 + (k % 7) * 0.23) + k * 1.7);
-      for (let j = 0; j < gh; j++) {
-        const sv = w * Math.sin((n * Math.PI * (j + 0.5)) / gh);
-        for (let i = 0; i < gw; i++) f[j * gw + i] += sv * Math.sin((m * Math.PI * (i + 0.5)) / gw);
-      }
-    }
-    let mx = 1e-9;
-    for (let i = 0; i < f.length; i++) mx = Math.max(mx, Math.abs(f[i]));
-    const d = this.img.data;
-    for (let i = 0; i < f.length; i++) {
-      const g = Math.pow(Math.abs(f[i]) / mx, 1.4);
-      d[i * 4] = 255;
-      d[i * 4 + 1] = 160;
-      d[i * 4 + 2] = 70;
-      d[i * 4 + 3] = 255 * this.level * g;
-    }
-    this.ctx.putImageData(this.img, 0, 0);
-    return this.level;
-  }
-}
-let bwGlow: BowedGlow | null = null;
-
 interface BowedLive {
   id: string;
   t: number;
@@ -1156,17 +1087,16 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
   ctx.drawImage(ly.plate.cv, ly.plate.x, ly.plate.y, ly.plate.w, ly.plate.h);
   bwPlace(ctx, ly.lay);
 
-  // the body's modes: a soft warm glow on the plate, kept under the strings and out of the f-holes
-  void field;
-  bwGlow ??= new BowedGlow();
-  const lvl = bwGlow.update(fr?.modes ?? null, now / 1000, dt);
+  // the body's modes, as sand on a plate: pale nodal lines and a warm glow where it moves, on the
+  // varnish, kept under the strings and out of the f-holes
+  const lvl = field.update(fr?.modes ?? null, now / 1000);
   if (lvl > 0.01) {
     ctx.save();
     ctx.clip(ly.glow, 'evenodd');
     ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.28;
+    ctx.globalAlpha = 0.6;
     ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(bwGlow.canvas, 0, X(-sh.hwMax), X(B), X(2 * sh.hwMax));
+    ctx.drawImage(field.canvas, 0, X(-sh.hwMax), X(B), X(2 * sh.hwMax));
     ctx.restore();
   }
   // inside, seen as through the top: the bass bar under the bass foot, the soundpost behind the treble
@@ -2197,8 +2127,11 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
     [100, '100'],
     [1000, '1k'],
     [10000, '10k'],
-  ] as const)
-    ctx.fillText(t, X(f) + 3, y0 + h - 2);
+  ] as const) {
+    // (the last label sits left of its frequency where it would run off the end)
+    const tw = ctx.measureText(t).width;
+    ctx.fillText(t, X(f) + 3 + tw > x0 + w ? X(f) - tw - 3 : X(f) + 3, y0 + h - 2);
+  }
   if (an) {
     const bins = an.frequencyBinCount;
     const data = (bins <= buf.length ? buf.subarray(0, bins) : new Float32Array(bins)) as Float32Array<ArrayBuffer>;

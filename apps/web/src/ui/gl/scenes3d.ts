@@ -182,7 +182,7 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
   if (si.family === 'bowed' && si.bowed) {
     const id = si.bowed.id;
     // the cello: from its bass side, a little below centre, the scroll against the rim light
-    if (id === 'cello') return { target: [0, 0.76, 0.08], dist: 2.55, yaw: 0.62, pitch: 0.07 };
+    if (id === 'cello') return { target: [0, 0.78, 0.08], dist: 2.25, yaw: 0.62, pitch: 0.07 };
     const bm = st.bowedM.get(id);
     const c = bm ? bm.bounds.c : ([0, 0.25, 0] as Vec3);
     // the violin and viola: from the scroll's side, low enough that the instrument reads in three-quarter
