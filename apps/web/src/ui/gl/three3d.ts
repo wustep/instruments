@@ -29,6 +29,7 @@ interface Entry {
 const FINAL_FS = /* glsl */ `
 #include <tonemapping_pars_fragment>
 uniform sampler2D tColor; uniform sampler2D tAO; uniform float uAO; uniform vec3 uGround; uniform vec2 uRes;
+uniform vec2 uGlowC; uniform vec2 uGlowR; uniform float uGlow;
 varying vec2 vUv;
 vec3 toSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
 void main() {
@@ -40,7 +41,11 @@ void main() {
   vec3 s = toSRGB(NeutralToneMapping(col));
   // a little dither against banding in the dark gradients
   float d = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
-  gl_FragColor = vec4(mix(uGround, s, a) + d / 255.0, 1.0);
+  // the backdrop: a seamless studio wall lit softly behind the instrument, falling off to the page's
+  // own ground at the edges (so the canvas still meets the page without a seam)
+  vec2 q = (vUv - uGlowC) / uGlowR;
+  vec3 back = uGround + vec3(0.085, 0.077, 0.068) * uGlow * exp(-dot(q, q));
+  gl_FragColor = vec4(mix(back, s, a) + d / 255.0, 1.0);
 }`;
 const FINAL_VS = /* glsl */ `
 varying vec2 vUv;
@@ -170,7 +175,7 @@ export class Renderer3 {
     // targets
     this.rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: lite ? 2 : 4, depthTexture: new THREE.DepthTexture(1, 1, THREE.UnsignedIntType) });
     this.finalMat = new THREE.ShaderMaterial({
-      uniforms: { tColor: { value: this.rt.texture }, tAO: { value: null }, uAO: { value: 0 }, uGround: { value: new THREE.Color() }, uRes: { value: new THREE.Vector2() }, toneMappingExposure: { value: 1.0 } },
+      uniforms: { tColor: { value: this.rt.texture }, tAO: { value: null }, uAO: { value: 0 }, uGround: { value: new THREE.Color() }, uRes: { value: new THREE.Vector2() }, uGlowC: { value: new THREE.Vector2(0.5, 0.5) }, uGlowR: { value: new THREE.Vector2(0.4, 0.5) }, uGlow: { value: 1 }, toneMappingExposure: { value: 1.0 } },
       vertexShader: FINAL_VS,
       fragmentShader: FINAL_FS,
       depthTest: false,
@@ -326,6 +331,14 @@ export class Renderer3 {
     u.uAO.value = aoTex ? 1 : 0;
     u.uGround.value.setRGB(ground[0], ground[1], ground[2]);
     u.uRes.value.set(w, h);
+    // the backdrop's light centred a little above the instrument's middle, sized to it on screen
+    {
+      const pc = new THREE.Vector3(-c[0], c[1] + rad * 0.15, c[2]).project(this.cam);
+      const pr = new THREE.Vector3(-c[0], c[1] + rad * 1.15, c[2]).project(this.cam);
+      const ry = Math.max(0.25, Math.min(0.9, Math.abs(pr.y - pc.y) * 0.5 * 1.6));
+      u.uGlowC.value.set(pc.x * 0.5 + 0.5, pc.y * 0.5 + 0.5);
+      u.uGlowR.value.set((ry * h) / w * 1.3, ry);
+    }
     r.setRenderTarget(null);
     r.clear(true, true, false);
     this.final.render(r);
