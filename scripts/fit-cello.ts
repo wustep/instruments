@@ -184,7 +184,16 @@ if (!isMainThread) {
     // bow-speed attack time constant, pp and ff
     { k: 'aPp', lo: 0.02, hi: 0.3, log: true },
     { k: 'aFf', lo: 0.01, hi: 0.15, log: true },
+    // the bow's contact width, m: at most the cello ribbon's ~ 1.5 cm, down to a tilted bow's edge
+    { k: 'bw', lo: 0.004, hi: 0.015, log: true },
+    // rosin noise: the friction coefficient's random fluctuation
+    { k: 'rosin', lo: 0.01, hi: 0.25, log: true },
   ];
+  // --fix aPp,aFf: hold these at their start values (out of the search); --free aPp,aFf: hold all
+  // the others
+  const FIXED = new Set((opt('--fix') ?? '').split(',').filter(Boolean));
+  const FREE = (opt('--free') ?? '').split(',').filter(Boolean);
+  if (FREE.length) for (const p of SPACE) if (!FREE.includes(p.k)) FIXED.add(p.k);
   const d0 = BOWED.cello;
   const toOver = (z: number[]): Over => {
     const v: Record<string, number> = {};
@@ -205,7 +214,10 @@ if (!isMainThread) {
       idleCoupling: r3(v.kc),
       torsion: { speedRatio: 5, impedanceRatio: r3(v.tz), q: r3(v.tq) },
       t60HString: [r3(v.sC), r3(v.sG), r3(v.sD), 1],
-      attackTau: [r3(v.aPp), r3(v.aFf)],
+      // a soft note starts at least as slowly as a loud one (Guettler 2002)
+      attackTau: [r3(Math.max(v.aPp, v.aFf)), r3(v.aFf)],
+      bowWidth: r3(v.bw),
+      rosinNoise: r3(v.rosin),
     };
   };
   const fromOver = (o: Over): number[] => {
@@ -213,8 +225,8 @@ if (!isMainThread) {
     const br = a.radiation?.bridge ?? [[1000, 1.2], [2200, 1.2]];
     const sr = (a.radiation as { statRad?: number } | undefined)?.statRad ?? 1;
     const v: Record<string, number> = { hfG: a.hf[0], hfF: a.hf[1], hill: a.eq[0][1], hillF: a.eq[0][0], low: a.eq[1][1], vLo: a.bowSpeed[0], vHi: a.bowSpeed[1], fPp: a.forceDyn[0], fFf: a.forceDyn[1], bPp: a.betaDyn?.[0] ?? 1, bFf: a.betaDyn?.[1] ?? 1, t60H: a.t60[1], b1f: br[0][0], b1q: br[0][1], b2f: br[1][0], b2q: br[1][1], gain: a.outputGain, statRad: sr, kc: (a as { idleCoupling?: number }).idleCoupling ?? 1 };
-    const b = o as { torsion?: { impedanceRatio: number; q: number }; t60HString?: number[]; attackTau?: number[] };
-    Object.assign(v, { tz: b.torsion?.impedanceRatio ?? 3, tq: b.torsion?.q ?? 5, sC: b.t60HString?.[0] ?? 1, sG: b.t60HString?.[1] ?? 1, sD: b.t60HString?.[2] ?? 1, aPp: b.attackTau?.[0] ?? 0.045, aFf: b.attackTau?.[1] ?? 0.045 });
+    const b = o as { torsion?: { impedanceRatio: number; q: number }; t60HString?: number[]; attackTau?: number[]; bowWidth?: number; rosinNoise?: number };
+    Object.assign(v, { tz: b.torsion?.impedanceRatio ?? 3, tq: b.torsion?.q ?? 5, sC: b.t60HString?.[0] ?? 1, sG: b.t60HString?.[1] ?? 1, sD: b.t60HString?.[2] ?? 1, aPp: b.attackTau?.[0] ?? 0.045, aFf: b.attackTau?.[1] ?? 0.045, bw: b.bowWidth ?? d0.bowWidth ?? 0.01, rosin: b.rosinNoise ?? 0.04 });
     return SPACE.map((p) => Math.min(1, Math.max(0, p.log ? (Math.log(v[p.k]) - Math.log(p.lo)) / (Math.log(p.hi) - Math.log(p.lo)) : (v[p.k] - p.lo) / (p.hi - p.lo))));
   };
   const start: Over = { hf: d0.hf, eq: d0.eq, bowSpeed: d0.bowSpeed, forceDyn: d0.forceDyn, betaDyn: d0.betaDyn, t60: d0.t60, radiation: d0.radiation, outputGain: d0.outputGain, ...base, ...JSON.parse(opt('--start') ?? '{}') };
@@ -236,7 +248,7 @@ if (!isMainThread) {
   for (let it = 0; it < iters; it++) {
     const pop: { z: number[]; l: Awaited<ReturnType<typeof evalZ>> }[] = [];
     for (let c = 0; c < lambda; c++) {
-      const z = centre.map((x) => Math.min(1, Math.max(0, x + sigma * gauss())));
+      const z = centre.map((x, i) => (FIXED.has(SPACE[i].k) ? x : Math.min(1, Math.max(0, x + sigma * gauss()))));
       const l = await evalZ(z);
       pop.push({ z, l });
       if (l.total < bestL.total) {

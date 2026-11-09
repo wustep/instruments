@@ -6,7 +6,9 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { encodeWav } from '../packages/engine/src/analysis/index.ts';
+import { encodeWav, spectrum } from '../packages/engine/src/analysis/index.ts';
+import { biquadHighpass } from '../packages/engine/src/core/filters.ts';
+import { BiquadChain } from '../packages/engine/src/core/post.ts';
 import { spectrogramPng } from './spectrogram.ts';
 
 const args = process.argv.slice(2);
@@ -15,9 +17,17 @@ const OUT = resolve(opt('--out', join(import.meta.dirname, '..', 'artifacts', 'r
 const BEFORE = opt('--before');
 const AFTER = resolve(opt('--after', join(import.meta.dirname, '../packages/engine/src/core/index.ts'))!);
 type Render = typeof import('../packages/engine/src/core/index.ts').renderInstrument;
-const engines: [string, Render][] = [];
-if (BEFORE) engines.push(['before', (await import(pathToFileURL(resolve(BEFORE)).href)).renderInstrument]);
-engines.push(['after', (await import(pathToFileURL(AFTER).href)).renderInstrument]);
+type Bowed = Record<string, { seed: number }>;
+const engines: [string, Render, Bowed][] = [];
+for (const [tag, path] of [...(BEFORE ? [['before', resolve(BEFORE)]] : []), ['after', AFTER]]) {
+  const e = await import(pathToFileURL(path).href);
+  engines.push([tag, e.renderInstrument, e.BOWED]);
+}
+// --seeds N: the click and grain measures averaged over N renders that differ only in the cello's
+// random seed (rosin noise, vibrato and bow wander, and the statistical body modes above 240 Hz,
+// a statistically equivalent body): the bow is chaotic, and one render's count of
+// rare events says little
+const SEEDS = +(opt('--seeds', '1')!);
 mkdirSync(OUT, { recursive: true });
 const FS = 48000;
 type Ev = { time: number; event: Record<string, unknown> };
@@ -148,10 +158,83 @@ const sd = (xs: number[]) => {
   return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / Math.max(1, xs.length - 1));
 };
 const med = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+/** Vibrato grain, pitch-synchronously: the > 6 kHz band (4th-order Butterworth high-pass, mono
+ *  sum as the recordings are) in the steady part of each long note (0.6 s after the onset, once
+ *  the vibrato is in, to 0.15 s before the release), cut into frames one period of the note
+ *  long. A sharp Helmholtz corner puts one high-frequency pulse in every period, which is not
+ *  grain; grain is that pulse changing from one period to the next. `roughnessDb` is the SD of
+ *  each period's band energy around the running median of the 10 periods either side (dB);
+ *  a spike is a period > 6 dB above it. */
+function hfGrain(x: Float32Array, fs: number, ns: Note[]): { spikesPerSecond: number; roughnessDb: number; seconds: number; interHarmonicDb: number } {
+  const y = new Float64Array(x);
+  const z = new Float64Array(y.length);
+  const hp = new BiquadChain();
+  hp.set([biquadHighpass(6000, 0.5412, fs), biquadHighpass(6000, 1.3066, fs)]);
+  hp.process(y, z, y.length);
+  let spikes = 0;
+  let secs = 0;
+  const dev: number[] = [];
+  for (const [m, t, d] of ns) {
+    const a = Math.round((t + 0.6) * fs);
+    const b = Math.min(y.length, Math.round((t + d - 0.15) * fs));
+    if (b - a < 0.2 * fs) continue;
+    const w = Math.round(fs / (440 * 2 ** ((m - 69) / 12)));
+    const e: number[] = [];
+    for (let p = a; p + w <= b; p += w) {
+      let s = 0;
+      for (let i = p; i < p + w; i++) s += y[i] * y[i];
+      e.push(10 * Math.log10(s / w + 1e-20));
+    }
+    for (let i = 10; i + 10 < e.length; i++) {
+      const r = e[i] - med([...e.slice(i - 10, i - 1), ...e.slice(i + 2, i + 11)]);
+      dev.push(r);
+      if (r > 6) spikes++;
+    }
+    secs += (b - a) / fs;
+  }
+  const rms = Math.sqrt(dev.reduce((s, v) => s + v * v, 0) / Math.max(1, dev.length));
+  return { spikesPerSecond: +(spikes / Math.max(1e-9, secs)).toFixed(2), roughnessDb: +rms.toFixed(2), seconds: +secs.toFixed(1), interHarmonicDb: interHarmonic(x, fs, ns) };
+}
+/** Energy between the harmonics against the energy on them, 3–8 kHz, dB (median over Hann frames
+ *  of 8 periods, hop 4, in the same steady parts): partials that do not follow the note's own
+ *  harmonics, such as a bow–bridge ripple whose period swings with the vibrato. The frame's f0 is
+ *  the parabolic peak near the second harmonic. */
+function interHarmonic(x: Float32Array, fs: number, ns: Note[]): number {
+  const rs: number[] = [];
+  for (const [m, t, d] of ns) {
+    const a = Math.round((t + 0.6) * fs);
+    const b = Math.min(x.length, Math.round((t + d - 0.15) * fs));
+    const f0g = 440 * 2 ** ((m - 69) / 12);
+    const N = 2 ** Math.ceil(Math.log2((8 * fs) / f0g));
+    for (let p = a; p + N <= b; p += N >> 1) {
+      const sp = spectrum(x, fs, p, N, 4 * N, 'hann');
+      const pw = (f: number) => sp.mag[Math.round(f / sp.binHz)] ** 2;
+      // f0 from the second harmonic's peak (± 3 %)
+      let kb = Math.round((2 * f0g * 0.97) / sp.binHz);
+      for (let k = kb; k <= Math.round((2 * f0g * 1.03) / sp.binHz); k++) if (sp.mag[k] > sp.mag[kb]) kb = k;
+      const [y0, y1, y2] = [sp.mag[kb - 1], sp.mag[kb], sp.mag[kb + 1]];
+      // (the parabola's vertex, within half a bin of the peak; a flat or silent frame is skipped)
+      const den = y0 - 2 * y1 + y2;
+      const off = den < 0 ? Math.max(-0.5, Math.min(0.5, (0.5 * (y0 - y2)) / den)) : 0;
+      const f0 = ((kb + off) * sp.binHz) / 2;
+      if (!(y1 > 0) || !(f0 > 0.9 * f0g && f0 < 1.1 * f0g)) continue;
+      let eh = 0;
+      let ei = 0;
+      for (let k = Math.ceil(3000 / f0); k * f0 < 8000; k++) {
+        for (let f = (k - 0.2) * f0; f <= (k + 0.2) * f0; f += sp.binHz) eh += pw(f);
+        for (let f = (k + 0.35) * f0; f <= (k + 0.65) * f0; f += sp.binHz) ei += pw(f);
+      }
+      // equal bandwidths: 0.4 f0 on, 0.3 f0 between
+      rs.push(10 * Math.log10((ei / 0.3 + 1e-30) / (eh / 0.4 + 1e-30)));
+    }
+  }
+  return rs.length ? +med(rs).toFixed(1) : NaN;
+}
 
 const metrics: Record<string, Record<string, unknown>> = {};
-for (const [tag, render] of engines) {
+for (const [tag, render, bowed] of engines) {
   const m: Record<string, unknown> = {};
+  const seed0 = bowed.cello.seed;
   // pitch: the no-vibrato long tones, steady part (0.5 s in … 0.2 s before the end)
   const nv = PIECES.find((p) => p.name === 'sustained-novib')!;
   const x = mono(render({ sampleRate: FS, instrument: 'cello', dry: true, params: nv.params as never, events: notes(nv.ns) as never, duration: nv.dur }));
@@ -162,13 +245,28 @@ for (const [tag, render] of engines) {
     return { midi, offsetCents: +mdn.toFixed(1), jitterMadCents: +med(tr.map((c) => Math.abs(c - mdn))).toFixed(2), rangeCents: +(Math.max(...tr) - Math.min(...tr)).toFixed(1), sdCents: +sd(tr).toFixed(2) };
   });
   for (const p of PIECES) {
-    // on the left channel: the round-2/3 chain sends an inverted copy of its high-frequency
-    // radiation to the right, so a mono sum would hide its clicks; per second of audio
-    const r = render({ sampleRate: FS, instrument: 'cello', dry: true, params: p.params as never, events: notes(p.ns) as never, duration: p.dur });
-    const c = clicks(Float32Array.from(r.left), FS);
-    m[`clicks:${p.name}`] = { ...c, perSecond: +(c.clicks / p.dur).toFixed(2) };
+    const cs: { clicks: number; worstDb: number }[] = [];
+    const gs: ReturnType<typeof hfGrain>[] = [];
+    for (let k = 0; k < SEEDS; k++) {
+      bowed.cello.seed = seed0 + 1000 * k;
+      // on the left channel: the round-2/3 chain sends an inverted copy of its high-frequency
+      // radiation to the right, so a mono sum would hide its clicks; per second of audio
+      const r = render({ sampleRate: FS, instrument: 'cello', dry: true, params: p.params as never, events: notes(p.ns) as never, duration: p.dur });
+      cs.push(clicks(Float32Array.from(r.left), FS));
+      // (pieces with long notes: the Bach's sixteenths never reach the vibrato)
+      if (p.ns.some(([, , d]) => d > 1)) gs.push(hfGrain(mono(r), FS, p.ns));
+    }
+    bowed.cello.seed = seed0;
+    const avg = (xs: number[]) => +(xs.reduce((a, b) => a + b, 0) / xs.length).toFixed(2);
+    const n = avg(cs.map((c) => c.clicks));
+    m[`clicks:${p.name}`] = { clicks: n, worstDb: Math.max(...cs.map((c) => c.worstDb)), perSecond: +(n / p.dur).toFixed(2), ...(SEEDS > 1 ? { seeds: SEEDS } : {}) };
+    if (gs.length) m[`grain:${p.name}`] = { spikesPerSecond: avg(gs.map((g) => g.spikesPerSecond)), roughnessDb: avg(gs.map((g) => g.roughnessDb)), seconds: gs[0].seconds, interHarmonicDb: avg(gs.map((g) => g.interHarmonicDb)) };
   }
   metrics[tag] = m;
+}
+if (args.includes('--metrics-only')) {
+  console.log(JSON.stringify(metrics, null, 1));
+  process.exit(0);
 }
 
 // ---------------------------------------------------------------- audio + spectrograms

@@ -5,7 +5,8 @@
 // Lagrange read so the stopped length can glide for vibrato). The bow acts at an
 // interior point with a hyperbolic friction law, μ(Δv) = μd + (μs−μd)·v0/(v0+|Δv|),
 // solved per sample with the stick/slip hysteresis rule of McIntyre, Schumacher &
-// Woodhouse (1983) — Helmholtz motion is not imposed, it emerges. All four
+// Woodhouse (1983) — Helmholtz motion is not imposed, it emerges (on the cello the bow touches
+// the string over the hair ribbon's width, between samples; see design.bowWidth). All four
 // strings (open ones too) end on one bridge coupled through a passive junction to
 // a modal body built from each instrument's signature modes (A0 air mode, CBR,
 // B1−/B1+, then statistically dense modes), so open strings resonate
@@ -128,6 +129,34 @@ interface BowedDesign {
    *  extent varying through a note) and of the bow's speed and force (Askenfelt 1989, JASA 86,
    *  measured bowing parameters fluctuating within a stroke); `tau` is their time constant, s. */
   wander?: { vibRate: number; vibDepth: number; speed: number; force: number; tau: number };
+  /** Width of the bow's contact with the string, m (cello only so far). The hair is a flat ribbon
+   *  about 1 cm wide (Guettler, "Some physical properties of the modern violin bow": the ribbon
+   *  synchronises the slip across the hair width), and a finite-width contact changes how waves
+   *  reflect and pass at the bow and rounds the Helmholtz corner (Pitteroff & Woodhouse 1998,
+   *  Acta Acustica 84, "Mechanics of the contact area between a violin bow and a string", I–III).
+   *  The ribbon is lumped as one contact (one stick/slip state, a rigid ribbon) that reads the
+   *  string's velocity averaged over its width and spreads the friction force over the same width,
+   *  the spreading operator of finite-difference bowed strings (Bilbao, Numerical Sound
+   *  Synthesis, 2009, ch. 7). Absent: a point bow on whole samples (round 2/3).
+   *  Without it, nothing physical sets the corner's width: it is one sample at any sample rate,
+   *  and the one-sample pulses it leaves between bow and bridge trip extra slips at low force. */
+  bowWidth?: number;
+  /** Rosin noise: the friction coefficient's slow random fluctuation, as a fraction (absent: the
+   *  round-2 0.04). Rosin softens and re-hardens under the sliding hair, so the friction is never
+   *  quite a function of the slip speed alone (Smith & Woodhouse 2000, J. Mech. Phys. Solids 48,
+   *  "The tribology of rosin"; Guettler: "while the string is sliding, stochastic noise is
+   *  created"). Fitted for the cello: a clean Helmholtz motion otherwise reads several dB more
+   *  harmonic than the Iowa recordings. */
+  rosinNoise?: number;
+  /** In an attack the player presses no harder than the moving bow can carry (cello only so
+   *  far): the force rises on its own 12 ms time constant but never above Schelleng's maximum for
+   *  the speed the bow has reached so far (∝ that speed). A clean attack needs a force inside a
+   *  window that scales with the bow's acceleration (Guettler 2002, Acta Acustica 88, "On the
+   *  creation of the Helmholtz motion in bowed strings"): the full force of a loud note on a bow
+   *  that has not yet gathered speed is above it, and the string creaks into a raucous,
+   *  multiply-slipping start; a force that only follows the speed starts below it. Absent: the
+   *  force rises on its own, whatever the speed. */
+  forceWithSpeed?: boolean;
 }
 
 const VIOLIN: BowedDesign = {
@@ -247,6 +276,9 @@ const CELLO: BowedDesign = {
   slurCrossing: true,
   // (small: the force wander moves the pitch through the flattening effect, ±2 ¢ at these values)
   wander: { vibRate: 0.06, vibDepth: 0.2, speed: 0.015, force: 0.02, tau: 0.3 },
+  // the hair ribbon's contact, m (a cello bow's ribbon is ~ 1 cm wide; Guettler; Pitteroff & Woodhouse 1998)
+  bowWidth: 0.01,
+  forceWithSpeed: true,
 };
 
 export const BOWED: Record<string, BowedDesign> = { violin: VIOLIN, viola: VIOLA, cello: CELLO };
@@ -263,6 +295,34 @@ const MAX_BUF = 1 << 14;
 const TRACE = 2048;
 
 const et = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
+
+/** The bow's contact profile over the delay line (design.bowWidth): a raised cosine of equivalent
+ *  width W samples centred at delay x (fractional), i.e. the pressure across the ribbon falls to
+ *  zero at its edges; sampled at the whole delays j with |j − x| < W and normalised to sum 1.
+ *  Writes the taps at idx/h from offset o and returns their count. For W ≥ 2 its Σh² does not
+ *  depend on where x falls between samples, so the contact's admittance does not wobble as the
+ *  finger side of the loop glides under vibrato. The cosines of the evenly spaced taps come from
+ *  a rotation by π/W (cd, sd = its cosine and sine), one cos/sin pair per call. No allocation. */
+function contactTaps(x: number, W: number, cd: number, sd: number, idx: Int32Array, h: Float64Array, o: number): number {
+  let n = 0;
+  let sum = 0;
+  const j0 = Math.floor(x - W) + 1;
+  const a0 = (Math.PI * (j0 - x)) / W;
+  let c = Math.cos(a0);
+  let sn = Math.sin(a0);
+  for (let j = j0; j < x + W; j++) {
+    const v = 0.5 + 0.5 * c;
+    idx[o + n] = j;
+    h[o + n] = v;
+    sum += v;
+    n++;
+    const c2 = c * cd - sn * sd;
+    sn = sn * cd + c * sd;
+    c = c2;
+  }
+  for (let q = 0; q < n; q++) h[o + q] /= sum;
+  return n;
+}
 
 class BowedString {
   readonly def: StringDef;
@@ -330,6 +390,15 @@ class BowedString {
   Dt = 16;
   tg = 0.9;
   tly = 0;
+  /** design.bowWidth: the contact's width in samples of this string (≥ 1.5; 0 = a point bow), and
+   *  the taps and weights of its raised-cosine profile on the outgoing (bridge-side, kI/kH 0…) and
+   *  the returning (nut-side, kI/kH 32…) wave */
+  Wb = 0;
+  /** cos and sin of π/Wb: the step between the contact profile's taps */
+  Wc = 1;
+  Ws = 0;
+  kI = new Int32Array(64);
+  kH = new Float64Array(64);
   // traces for visualisation
   trF = new Float32Array(TRACE);
   trV = new Float32Array(TRACE);
@@ -428,6 +497,16 @@ export class BowedCore implements InstrumentCore {
       s.Zb = (s.Z * s.Zt) / (s.Z + s.Zt);
       s.tg = Math.exp(-Math.PI / tor.q);
     }
+    const bw = this.design.bowWidth;
+    // the contact's width in samples: w / (c / fs), the string's wave speed c = 2 L f_open; at
+    // least 1.5 samples (below that the sampled profile's admittance Σh² depends on where it
+    // falls between samples), at most what the taps hold
+    if (bw)
+      for (const s of this.strings) {
+        s.Wb = clamp((bw * this.fs) / (2 * this.design.L * s.fOpen), 1.5, 14);
+        s.Wc = Math.cos(Math.PI / s.Wb);
+        s.Ws = Math.sin(Math.PI / s.Wb);
+      }
     for (const s of this.strings) this.setStopped(s, s.def.open, true);
     this.room = new Room(this.fs);
     this.limiter = new Limiter(this.fs);
@@ -888,7 +967,10 @@ export class BowedCore implements InstrumentCore {
       const fo = wd && s.bowing ? 1 + wd.force * s.wv[3] : 1;
       s.vBow += (s.vBowTarget * sp - s.vBow) * ka;
       const kf = 1 - Math.exp(-dt / (s.bowing ? 0.012 : 0.008));
-      s.fBow += (s.fBowTarget * fo - s.fBow) * kf;
+      // design.forceWithSpeed: no more than Schelleng's maximum for the speed reached so far
+      let fT = s.fBowTarget * fo;
+      if (this.design.forceWithSpeed && s.bowing && s.vBowTarget > 0) fT = Math.min(fT, (s.fMax * s.vBow) / s.vBowTarget);
+      s.fBow += (fT - s.fBow) * kf;
       if (s.vBow < 1e-6 && !s.bowing) s.vBow = 0;
       if (s.fBow < 1e-6 && !s.bowing) s.fBow = 0;
       // vibrato: onset after 0.25 s, depth in cents
@@ -930,6 +1012,7 @@ export class BowedCore implements InstrumentCore {
     const tor = this.design.torsion;
     const Yt = this.Y0 + this.design.bridgeY;
     const hfG = this.design.hf[0];
+    const rosin = this.design.rosinNoise ?? 0.04;
     let ZS = 0;
     for (const s of strs) ZS += s.c * s.cz;
     const oL = this.oL;
@@ -975,12 +1058,46 @@ export class BowedCore implements InstrumentCore {
           // cycle; each jump was a click between the harmonics (the cello read 3.9 dB
           // noisier than its recording; −1.9 dB now).
           const P = s.Dtap || s.D0;
-          const db = Math.max(1, Math.round((s.beta * P) / 2));
-          const iL = (w - db) & mask;
-          const iR = (w - Math.round(P - db)) & mask;
-          const bL = buf[iL];
-          const aR = -buf[iR];
-          const vh = aR + bL;
+          const Wb = s.Wb;
+          let iL = 0;
+          let iR = 0;
+          let bL = 0;
+          let aR = 0;
+          let vh: number;
+          // design.bowWidth: the share of the force's own velocity the contact sees this sample
+          // (Σh² over the outgoing and the returning taps, halved; 1 for a point bow)
+          let sk = 1;
+          let nL = 0;
+          let nR = 0;
+          if (Wb > 0) {
+            // a contact of finite width: its centre stays β of the stopped length from the bridge
+            // (vibrato and bend move the finger, not the bow), so on the returning wave it sits
+            // at the loop's current length D minus that, between samples
+            const xb = Math.max(Wb + 1, 0.5 * s.beta * P);
+            const kI = s.kI;
+            const kH = s.kH;
+            nL = contactTaps(xb, Wb, s.Wc, s.Ws, kI, kH, 0);
+            nR = contactTaps(s.D - xb, Wb, s.Wc, s.Ws, kI, kH, 32);
+            let v = 0;
+            let s2 = 0;
+            for (let q = 0; q < nL; q++) {
+              v += kH[q] * buf[(w - kI[q]) & mask];
+              s2 += kH[q] * kH[q];
+            }
+            for (let q = 32; q < 32 + nR; q++) {
+              v -= kH[q] * buf[(w - kI[q]) & mask];
+              s2 += kH[q] * kH[q];
+            }
+            vh = v;
+            sk = 0.5 * s2;
+          } else {
+            const db = Math.max(1, Math.round((s.beta * P) / 2));
+            iL = (w - db) & mask;
+            iR = (w - Math.round(P - db)) & mask;
+            bL = buf[iL];
+            aR = -buf[iR];
+            vh = aR + bL;
+          }
           // torsion: the surface under the bow also rolls (incoming torsional waves at the bow)
           let vs = vh;
           let iLt = 0;
@@ -998,10 +1115,12 @@ export class BowedCore implements InstrumentCore {
           }
           // rosin noise roughens the friction curve slightly
           this.noise(s);
-          const muScale = 1 + 0.04 * s.noiseLp;
+          const muScale = 1 + rosin * s.noiseLp;
           const fb = s.fBow * s.fScale * muScale;
           const twoZ = 2 * s.Z;
-          const twoZb = tor ? 2 * s.Zb : twoZ;
+          // a finite-width contact is stiffer within one sample (its force spreads over Σh² of
+          // the string), in parallel with the torsional impedance at its centre
+          const twoZb = Wb > 0 ? (tor ? 1 / (sk / twoZ + 1 / (2 * s.Zt)) : twoZ / sk) : tor ? 2 * s.Zb : twoZ;
           const dh = s.vSigned - vs;
           let f: number;
           const fStick = twoZb * dh;
@@ -1036,8 +1155,17 @@ export class BowedCore implements InstrumentCore {
             }
           }
           const df = f / twoZ;
-          buf[iL] = bL + df;
-          buf[iR] = -(aR + df);
+          if (Wb > 0) {
+            // the force spread over the contact, on both travelling waves (the transpose of the
+            // read, so the junction stays passive)
+            const kI = s.kI;
+            const kH = s.kH;
+            for (let q = 0; q < nL; q++) buf[(w - kI[q]) & mask] += df * kH[q];
+            for (let q = 32; q < 32 + nR; q++) buf[(w - kI[q]) & mask] -= df * kH[q];
+          } else {
+            buf[iL] = bL + df;
+            buf[iR] = -(aR + df);
+          }
           if (tor) {
             const dft = f / (2 * s.Zt);
             s.tb[iLt] = tL + dft;
@@ -1045,7 +1173,7 @@ export class BowedCore implements InstrumentCore {
           }
           if (i === this.focus) {
             s.trF[s.trI] = f;
-            s.trV[s.trI] = vh + df;
+            s.trV[s.trI] = vh + df * sk;
             s.trI = (s.trI + 1) & (TRACE - 1);
           }
         } else if (i === this.focus) {

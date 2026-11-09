@@ -26,7 +26,12 @@ describe('cello (v2)', () => {
       expect(BOWED[id].radiation, id).toBeUndefined();
       expect(BOWED[id].torsion, id).toBeUndefined();
       expect(BOWED[id].idleCoupling, id).toBeUndefined();
+      expect(BOWED[id].bowWidth, id).toBeUndefined();
+      expect(BOWED[id].rosinNoise, id).toBeUndefined();
     }
+    // the hair ribbon's contact: a physical width, about a centimetre
+    expect(BOWED.cello.bowWidth).toBeGreaterThan(0.004);
+    expect(BOWED.cello.bowWidth).toBeLessThan(0.016);
   });
 
   it('an octave above an open string is not swallowed by it (C3, G3, D4 within 4 dB of the open strings left out)', () => {
@@ -74,6 +79,29 @@ describe('cello (v2)', () => {
     }
     expect(num / den).toBeGreaterThan(600);
     void et;
+  });
+
+  // power centroid of the steady part (1.5–2.2 s of a 2.6 s note) below 10 kHz, Hz
+  const centroid = (x: Float32Array, fs: number) => {
+    const sp = spectrum(x, fs, Math.round(1.5 * fs), 32768, 32768);
+    let num = 0;
+    let den = 0;
+    for (let k = 1; k * sp.binHz < 10000; k++) {
+      num += k * sp.binHz * sp.mag[k] ** 2;
+      den += sp.mag[k] ** 2;
+    }
+    return num / den;
+  };
+
+  const NOTES = [36, 43, 50, 57, 62];
+  const meanAbs = (xs: number[], abs = true) => xs.reduce((a, b) => a + (abs ? Math.abs(b) : b), 0) / xs.length;
+
+  it('a soft note is not much brighter than a loud one on the same string (the bow keeps Helmholtz motion at pp)', () => {
+    // mean log2(centroid pp / ff), steady part: the Iowa cello −0.7 (ff ~1.6× brighter); the point
+    // bow on whole samples slipped several times per period at pp and read +0.92 here; the bow of
+    // finite width +0.26 (still brighter than the recording: see the cello-audio README)
+    const r = NOTES.map((m) => Math.log2(centroid(mono(play(m, 2.6, { vibrato: 0 }, 48000, 30)), 48000) / centroid(mono(play(m, 2.6, { vibrato: 0 }, 48000, 112)), 48000)));
+    expect(meanAbs(r, false), r.map((v) => v.toFixed(2)).join(' ')).toBeLessThan(0.45);
   });
 
   it('stays finite at bow-force and position extremes, with double stops', () => {
