@@ -62,7 +62,10 @@ void main() {
   for (int i = 0; i < 4; i++) {
     vec2 o = vec2(float(i % 2) - 0.5, float(i / 2) - 0.5) * uTexel * 2.0;
     vec4 t = texture2D(tColor, vUv + o);
-    c += max(t.rgb - vec3(2.2), vec3(0.0));
+    // a soft knee, capped: a near-mirror metal's hot spot (hundreds over white) must not flood the
+    // blur into a fog ball
+    vec3 e = max(t.rgb - vec3(2.2), vec3(0.0));
+    c += min(e / (1.0 + e * 0.35), vec3(2.0));
   }
   gl_FragColor = vec4(c * 0.25, 1.0);
 }`;
