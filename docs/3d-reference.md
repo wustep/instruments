@@ -123,6 +123,10 @@ Jóhannsson's "medium" column (405–415 mm) is the 16″ size. His "large" colu
 | Tone holes | ≈13, nearly uniform (silver 13.2–13.5; Boehm's own guide is "at least ¾ of the tube", 14.25) | [UNSW-anatomy], [McGee-Boehm] |
 | Small holes | D and D♯ trill holes 7.6; C♯ hole 6.6 | [McGee-Boehm] |
 | Pad sizes (≈ inside diameter of the key cups) | Yamaha set: 8 × 18, 3 × 19.5, 2 × 16.5, 3 × 12 | [Dawkes-pads] |
+| Trill and C♯ holes, from the cork | D♯ trill 216.3, D trill 233.4, C♯ 253.5 (Boehm's schema at A = 435) | [McGee-Boehm] |
+| Pad cups (inside) | trill keys and C♯ key 11–11.5; body 17–17.5; foot 18–19 | [OSU-repair] p. 160 |
+| Keywork, main line from the head | C♯ key and its lever (L1's cup), B♭ key, A (L2), G1 (L3), G2 (closed with G1), F♯, F (R1), E (R2), D (R3); thumb key and Briccialdi B♭ lever, G♯ key on the back; long trill rod; F/B♭ and F/F♯ back connectors, B♭/A front connector, E and D front connector to the F♯ key | [OSU-repair] fig. 2.2 |
+| Fingerings modelled | standard first choices, C4–C7 | [WFG-flute], [fluteinfo-chart] |
 | Headjoint length | ≈200–220. **typical, unsourced** | — |
 | Embouchure hole | ≈10 × 12 oval-rectangle. **typical, unsourced** | — |
 | Lip plate | ≈35 × 25. **typical, unsourced** | — |
@@ -199,6 +203,9 @@ The photos are in `.cache/refs-3d/`, which is not committed. Full attributions a
 [UNSW-anatomy]: https://newt.phys.unsw.edu.au/music/flute/anatomy.html
 [UNSW-acoustics]: https://newt.phys.unsw.edu.au/jw/fluteacoustics.html
 [Dawkes-pads]: https://dawkes.co.uk/yamaha-flute-pad-set-200-older-models-pad-sets/4258
+[OSU-repair]: https://etd.ohiolink.edu/acprod/odb_etd/ws/send_file/send?accession=osu1211871566&disposition=inline
+[WFG-flute]: https://www.wfg.woodwind.org/flute/fl_fing.html
+[fluteinfo-chart]: https://fluteinfo.com/Fingering_chart/modern.php
 [Bach-180S37]: https://bachbrass.com/print/bach-stradivarius-trumpet-in-bb-180s37
 [Thomann-190S37]: https://www.thomann.ie/bach_ml190s37_bb_trumpet_silver.htm
 [NMM-9107]: https://emuseum.nmmusd.org/objects/9107/trumpet-bflat

@@ -20,6 +20,23 @@ import { LINE_FS, LINE_VS, type LineSet } from './gl3d.ts';
 import { LIVE, disposeMaterials, materialFor } from './mats3.ts';
 import { MAT_LIST } from './mesh.ts';
 
+/** the shadow pass of a dissolving mesh: the same screen-door as its colour pass, so the shadow
+ *  thins out with the part instead of popping */
+let fadeDepth: THREE.MeshDepthMaterial | null = null;
+function fadeDepthMaterial(): THREE.MeshDepthMaterial {
+  if (fadeDepth) return fadeDepth;
+  const m = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side: THREE.DoubleSide });
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec4 iGlow; varying float vKeep;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvKeep = iGlow.a > 1.5 ? iGlow.a - 2.0 : 1.0;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vKeep;')
+      .replace('void main() {', 'void main() {\n  if (vKeep < 0.999 && fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) >= vKeep) discard;');
+  };
+  fadeDepth = m;
+  return m;
+}
 interface Entry {
   im: THREE.InstancedMesh;
   glow: THREE.InstancedBufferAttribute;
@@ -257,12 +274,16 @@ export class Renderer3 {
     im.frustumCulled = false;
     im.castShadow = true;
     im.receiveShadow = true;
+    if (m.fade) im.customDepthMaterial = fadeDepthMaterial();
     this.root.add(im);
     e = { im, glow, cap };
     this.entries.set(m, e);
     return e;
   }
 
+  private clipPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
+  /** review shots (scripts/review-3d.mjs SECTION=x): a section without a zoomed key */
+  debugClip: { at: number; side: 1 | -1 } | null = null;
   /** the view-projection the lines and picks use (world, unmirrored, → clip) */
   readonly vp = new THREE.Matrix4();
 
@@ -331,7 +352,16 @@ export class Renderer3 {
     sc.near = rad * 0.5;
     sc.far = rad * 6;
     sc.updateProjectionMatrix();
-    this.key.castShadow = this.shadows;
+    // a section (a key's action close up) cuts the whole scene, the occlusion's passes included; the
+    // parts cut away would still cast shadows across the cut, so the key light casts none meanwhile
+    const clip = b.clip ?? this.debugClip;
+    this.key.castShadow = this.shadows && !clip;
+    if (clip) {
+      // (the root is mirrored in x: keep side·(x − at) ≤ 0 ⇔ side·X + side·at ≥ 0 in three's world)
+      this.clipPlane.normal.set(clip.side, 0, 0);
+      this.clipPlane.constant = clip.side * clip.at;
+      if (this.r.clippingPlanes.length !== 1) this.r.clippingPlanes = [this.clipPlane];
+    } else if (this.r.clippingPlanes.length) this.r.clippingPlanes = [];
     this.rim.position.copy(C).add(new THREE.Vector3(-0.6, 0.5, 0.75).normalize().multiplyScalar(rad * 3));
     this.rim.target.position.copy(C);
     this.fill.position.copy(C).add(new THREE.Vector3(-0.8, 0.25, -0.55).normalize().multiplyScalar(rad * 3));

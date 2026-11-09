@@ -24,7 +24,8 @@ export const LIVE = {
 
 type Phys = THREE.MeshPhysicalMaterialParameters & {
   /** solid texture: 0 none, 1 spruce, 2 flamed maple, 3 plain wood, 4 ebony, 5 cast iron, 6 felt, 7 maple fleck, 8 brushed,
-   *  9 flamed maple worn per vertex (uv.x: varnish rubbed through to the pale wood, satin; uv.y: grime) */
+   *  9 gold-lacquered casting, 10 veneer round a wall,
+   *  11 flamed maple worn per vertex (uv.x: varnish rubbed through to the pale wood, satin; uv.y: grime) */
   tex?: number;
   /** the grain/long axis in the part's own frame */
   axis?: [number, number, number];
@@ -123,7 +124,33 @@ const P: Record<string, Phys> = {
   bridleLeather: { color: '#b0261f', roughness: 0.75, sheen: 0.4, sheenColor: '#e06050', sheenRoughness: 0.5 },
   // the violin family's neck, scroll and ribs: the varnish worn per vertex (strings3d.ts) — the neck's
   // back rubbed bare by the hand, the scroll's chamfers and crown pale, grime in its hollows and throat
-  varnishWorn: { color: '#9a4518', roughness: 0.62, clearcoat: 0.75, clearcoatRoughness: 0.18, tex: 9, axis: [1, 0, 0] },
+  varnishWorn: { color: '#9a4518', roughness: 0.62, clearcoat: 0.75, clearcoatRoughness: 0.18, tex: 11, axis: [1, 0, 0] },
+  // the grand's plate (grand-only; the upright keeps pianoPlate): gold lacquer, mostly metal flake, so
+  // its highlights stay gold. Fitted at the grand's default hero view to grand-inside.jpg's lit plate,
+  // sRGB ≈ (130–160, 100–125, 70–85): with less metal or a gloss coat the flange's highlights are the
+  // white of the studio's softbox, and the tone mapper desaturates the over-bright plate to champagne
+  grandPlate: { color: '#8a6522', metalness: 0.9, roughness: 0.62, tex: 9 },
+  // the inside of the grand's rim: a polished mahogany veneer under a gloss coat (grand-inside.jpg)
+  rimVeneer: { color: '#3a1a0c', roughness: 0.42, clearcoat: 1, clearcoatRoughness: 0.06, tex: 10 },
+  // grand damper heads: black-stained hardwood (grand-inside.jpg, grand-action-side.jpg)
+  damperHead: { color: '#0f0d0c', roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.2, tex: 4, axis: [0, 0, 1] },
+  // the grand's tuning pins: bright nickel, satin enough to take the overhead softbox on every head
+  // (as polished pins they mirrored the dark studio and read as a grey carpet)
+  pinNickel: { color: '#e8e8e6', metalness: 1, roughness: 0.48, tex: 8, axis: [0, 1, 0] },
+  // the grand's bridge caps: maple blackened with graphite where the strings bear
+  bridgeCap: { color: '#3a2a1c', roughness: 0.5, metalness: 0.15, tex: 7, axis: [1, 0, 0], texScale: 1.5 },
+  // the flute's pads: a white skin over felt, a soft satin sheen (winds3d.ts)
+  padSkin: { color: '#f2efe7', roughness: 0.6, sheen: 0.5, sheenColor: '#ffffff', sheenRoughness: 0.45, tex: 6 },
+  // the trumpet (winds3d.ts): knurled nickel (the fine ridges scatter the light into a satin grey band,
+  // trumpet-valves.jpg); the buttons' mother-of-pearl, greyer and more iridescent than the inlay white;
+  // the bell, burnished under its lacquer (a sharper coat); the valve casings' lacquer, handled (a
+  // faint mottle of wear and fingerprints under the coat)
+  nickelKnurl: { color: '#c9c7c0', metalness: 1, roughness: 0.44, envMapIntensity: 1.15, tex: 8, axis: [0, 1, 0] },
+  pearlButton: { color: '#bdb5aa', roughness: 0.22, clearcoat: 0.6, clearcoatRoughness: 0.14, iridescence: 1, iridescenceIOR: 1.4, iridescenceThicknessRange: [250, 700], sheen: 0.3, sheenColor: '#ffe6ee', sheenRoughness: 0.4 },
+  brassBell: { color: '#f4d07e', metalness: 1, roughness: 0.13, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 1.6 },
+  brassHandled: { color: '#f3d283', metalness: 1, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.14, envMapIntensity: 1.55, tex: 5 },
+  // the slides' inner tubes where they show: nickel silver, drawn and worn satin by the slide
+  nickelDrawn: { color: '#dedcd5', metalness: 1, roughness: 0.3, envMapIntensity: 1.4, tex: 8, axis: [0, 1, 0] },
 };
 
 // GLSL: hashes, value noise and fbm (all in the part's own metres)
@@ -210,7 +237,12 @@ vec3 crossAxis(vec3 a) { return normalize(abs(a.y) < 0.9 ? cross(a, vec3(0, 1, 0
       )
       .replace(
         '#include <map_fragment>',
-        `#if PAINTED
+        `// a dissolving part (a piano's case being hidden): glow alpha 2 + visibility
+if (vGlow.a > 1.5) {
+  float keep = vGlow.a - 2.0;
+  if (fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) >= keep) discard;
+}
+#if PAINTED
 vec2 pUV = vec2((vLoc.x - uRect.x) / (uRect.z - uRect.x), (vLoc.z - uRect.y) / (uRect.w - uRect.y));
 vec4 texelColor = texture2D(map, pUV);
 diffuseColor *= texelColor;
@@ -272,6 +304,19 @@ float wearCoat = 0.0;
   float w = fbm(vec3(along * 8.0, across * 900.0, depth * 900.0));
   microR = 0.12 * (w - 0.5);
   #elif TEX == 9
+  // gold lacquer over cast iron: slow clouds in the paint (centimetres: no per-pixel speckle at the
+  // hero's distance) and the casting's skin in its roughness
+  float w = fbm(vLoc * 22.0);
+  float sk = fbm(vLoc * 420.0);
+  diffuseColor.rgb *= 0.9 + 0.2 * w;
+  microR = 0.1 * (w - 0.5) + 0.08 * (sk - 0.5);
+  #elif TEX == 10
+  // a sliced veneer round a curved wall: the grain runs along the wall (its lines vary with height),
+  // wavering slowly
+  float w = fbm(vec3(vLoc.x * 3.0, vLoc.y * 30.0, vLoc.z * 3.0));
+  float g = fract(vLoc.y * 140.0 + w * 2.6);
+  diffuseColor.rgb *= 0.86 + 0.24 * w - 0.12 * smoothstep(0.7, 0.95, g);
+  #elif TEX == 11
   // flamed maple under varnish (as TEX 2), the varnish worn through to pale wood where uv.x says
   // (mottled), satin there (less clearcoat, rougher); uv.y darkens with grime
   float n = fbm(vec3(along * 12.0, across * 30.0, depth * 30.0));
@@ -315,9 +360,28 @@ material.clearcoat *= 1.0 - 0.85 * wearCoat;
 roughnessFactor = clamp(roughnessFactor + microR, 0.03, 1.0);`,
       )
       .replace(
+        '#include <normal_fragment_maps>',
+        `#include <normal_fragment_maps>
+#if TEX == 9
+{
+  // a casting is never flat: a gentle waviness (≈ 1 mm over 10 cm, 0.3 mm over 3 cm) breaks the
+  // flange's sheen up as a real plate's (a bump in metres: Mikkelsen's surface gradient, unnormalised)
+  float hb = 0.0012 * fbm(vLoc * 9.0) + 0.0003 * fbm(vLoc * 37.0);
+  vec3 sp = -vViewPosition;
+  vec3 sx = dFdx(sp);
+  vec3 sy = dFdy(sp);
+  vec3 r1 = cross(sy, normal);
+  vec3 r2 = cross(normal, sx);
+  float det = dot(sx, r1);
+  vec3 grad = sign(det) * (dFdx(hb) * r1 + dFdy(hb) * r2);
+  normal = normalize(abs(det) * normal - grad);
+}
+#endif`,
+      )
+      .replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
-totalEmissiveRadiance += vGlow.rgb * vGlow.rgb * vGlow.a * 0.55;
+totalEmissiveRadiance += vGlow.rgb * vGlow.rgb * min(vGlow.a, 1.0) * 0.55;
 #if KIND == 1
 {
   float s = 0.0;

@@ -21,8 +21,9 @@ const R = {
     inst: 'piano', preset: 'grand', notes: [36, 48, 55, 64, 67, 72], pedal: true,
     front: { yaw: 0, pitch: 0.12, dist: 3.4, target: [0, 0.7, 0.9] },
     side: { yaw: 1.5708, pitch: 0.1, dist: 3.6, target: [0, 0.7, 0.9] },
-    close: { yaw: 1.05, pitch: 0.42, dist: 0.62, target: [0.5, 0.8, 0.38] },
-    act: { view: { yaw: 1.2, pitch: 0.3, dist: 0.5, target: [0.52, 0.8, 0.38] }, notes: [84, 86, 88, 91], wait: 120 },
+    // the action through the lid opening: the hammers under the strings between the agraffes and the dampers
+    close: { yaw: 0.35, pitch: 1.2, dist: 0.42, target: [0.2, 0.88, 0.47] },
+    act: { view: { yaw: 0.35, pitch: 1.15, dist: 0.32, target: [0.0, 0.88, 0.47] }, notes: [62, 64, 65, 67], wait: 120 },
   },
   upright: {
     inst: 'piano', preset: 'upright', notes: [36, 48, 55, 64, 67], pedal: true,
@@ -109,6 +110,7 @@ async function view(page, v) {
   }, v);
 }
 
+// CASE=off hides the pianos' case.
 // ad-hoc views: CUSTOM='name:yaw,pitch,dist,tx,ty,tz;name2:...' (added to every instrument run).
 // SECTION=x cuts the views whose name starts with "sec" at world x (keeps x < SECTION): a side
 // section through the action, seen from +x (yaw π/2)
@@ -136,10 +138,14 @@ for (const [id, cfg] of Object.entries(R)) {
     await page.goto(`${BASE}/`);
     await page.evaluate(() => document.fonts.ready);
     await setup(page, cfg);
+    // CASE=off: the pianos' case hidden (the toggle beside "3d"), after its dissolve
+    if (process.env.CASE === 'off' && cfg.inst === 'piano') {
+      await page.locator('.case-toggle').click();
+      await page.waitForTimeout(700);
+    }
     if (SECTION !== null && which.startsWith('sec'))
       await page.evaluate((x) => {
-        // the renderer's world is mirrored in x; three keeps n·p + c ≥ 0 (a plain object will do)
-        window.__stage3d.r3.r.clippingPlanes = [{ normal: { x: 1, y: 0, z: 0 }, constant: x }];
+        window.__stage3d.r3.debugClip = { at: x, side: 1 };
       }, SECTION);
     if (which === 'act') {
       await view(page, cfg.act.view);
