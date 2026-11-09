@@ -1,5 +1,165 @@
 # Realistic 3D + cello audio — notes
 
+## Round 2 (branch `improve/realistic-3d-r2`, from `63c5266`)
+
+Held to `.autopilot/ART-DIRECTION.md` and `.autopilot/BRIEF-R2.md`. The upright, the stage and the UI
+were done by the lead. The grand, the bowed strings, the winds and the cello's sound were done in
+parallel worktrees, merged into this branch.
+
+Deliverables are in `final-r2/`:
+* `before-after.jpg` / `before-after-close.jpg`: every instrument's hero and close-up, against
+  `63c5266`.
+* `contact-*.jpg`: each instrument next to its reference photograph (CC0/public domain; the winds'
+  sheet is CC BY-SA, credited in `final/README.md`).
+* Per topic: `grand/`, `bowed/` (the cello hero at 2×, the scroll), `winds/`, `pedals/`,
+  `cello-audio/`. Each has its own `NOTES.md` with its critique cycles.
+
+### A renderer bug: the strings drew through the parts in front of them
+
+The strings (and their glow) are screen-space ribbons depth-tested against the scene. The test had
+been pulled 0.0004 NDC towards the eye. With the near plane at 2 cm, that is 0.01·z² m: 9 cm at the
+hero's 3 m. So the strings, 45 mm behind the upright's hammers, drew in front of them: the "busy
+gold cage". The bias is now in metres: 2 mm + 0.06 % of the distance. Close-ups of the grand, violin,
+viola and cello are unchanged by eye.
+
+### Upright (three cycles against `upright-action-close.jpg`, Kawai, and `upright-action.jpg`, Yamaha)
+
+* **An underdamper action.** The dampers sat 35 mm above the strike line (the old "birdcage"
+  overdamper layout), a row of orange blocks over the hammers. They now touch the strings 50 mm below
+  it, behind the shanks, as in every modern upright. Above the hammers you now see the strings,
+  agraffes, understring felt and pin field, as in both photographs.
+* **The vitrine is gone.** The top front rail no longer frames the opening as a window. The fallboard
+  opens with a rounded edge and hinges, the lid has a piano hinge, and the pedals are cast brass feet
+  in red-felt slots.
+* **The action.** Rails of pale beech, and a deep hammer rail just under the heads (both photographs).
+  Catchers with green felt faces; bridle wires with red leather and white cotton tapes; pale, slimmer
+  damper levers; shorter hammer-moulding tails in a less red brown; a satin pressure bar.
+* **The harp opens onto the soundboard** below the treble hitch-pin flange. You see it when the case
+  is hidden.
+* `upright-cycle3.jpg`: before/after.
+
+### Grand, bowed strings, winds
+
+See `final-r2/grand/NOTES.md`, `final-r2/bowed/NOTES.md` and `final-r2/winds/NOTES.md`. In short:
+
+* **Grand.** A whole rim and plate (no cut-away). The plate is gold-bronze at the hero: sRGB (153,
+  121, 72) against the reference's (130–160, 100–125, 70–85); it was (193, 165, 134). The action
+  shows through the lid. The cast plate has struts, agraffes and shaped dampers. **The music desk is
+  removed** (with its rail and posts): there was no non-piano stand, so per Stephen's rule the desk
+  was the part to go. The casters stand on the floor.
+* **Bowed.** A scroll traced from the Francesca Strad: a log-spiral volute, fluting and chamfers. A
+  real rosewood chinrest. Clean corner miters. Painted wear and rosin at the contact points.
+* **Winds.** The flute follows the Boehm fingering chart with its keywork: the F♯ bridge, Briccialdi
+  lever, thumb and G♯ keys, needle springs and pads. The trumpet has an open finger hook, a real water
+  key and satin knurls.
+
+### Stage and interaction
+
+* **Action close-up is piano-only** (2D and 3D). One predicate gates every way in. A change of
+  instrument closes the panel and clears the zoom cursor. Tested over a grid of clicks on the five
+  other instruments.
+* **3D key fly-to (pianos).**
+  * A click or long-press on a key's strings or key top flies the camera (0.9 s, eased) to that
+    key's action, nearly in profile.
+  * A section plane sweeps in, cutting away the keys between the camera and it. The rest stays as
+    context and plays live.
+  * Back with Esc, a click off the keys, a double-click or a small ×.
+  * GIFs: `key-zoom-*.gif`.
+* **Hide the case (pianos, 3D).**
+  * An icon beside "3d", or I. Remembered for the session.
+  * The cabinet dissolves (screen-door, in the shadow pass too) and leaves the plate, strings,
+    soundboard, keys and action.
+  * `case-toggle-upright.jpg`.
+* **The full pedal set** (`pedals/`).
+  * Grand: una corda, sostenuto, sustain.
+  * Upright: half-blow soft, the practice muffler (the U1's middle pedal; chosen over a bass
+    sustain), sustain.
+  * In sound, 2D and 3D, on screen, with B for the middle pedal, and CC64/66/67.
+  * The default sound is bit-identical (golden tests).
+  * Levels: upright soft −2.8 dB (all strings struck), muffler −9.6 dB and darker. Both are
+    estimates, flagged in `voice.ts`: no recordings of either.
+* **The "sustain" camera bug.**
+  * Sustain never moved the camera. But a piano's orbit target lies inside its case, and the
+    wheel/pinch clamp let the camera through the plate into the action.
+  * The camera now stops 6 cm outside each piano's box (the new test fails without it: the camera
+    ends at (0.30, 0.80, 0.54)).
+  * `bug-sustain-camera-before-after.jpg`.
+* **MIDI file player** at the top middle of the stage, under its band, in 2D and 3D, covering
+  nothing. Its hairline has no tooltip. `midi-player-top.jpg`.
+
+### Frame cost (CPU per frame, 1440×900, hero)
+
+| | 63c5266 | round 2 |
+|---|---|---|
+| grand | 0.74 ms | 0.68 ms |
+| upright | 0.59 | 0.63 |
+| violin, viola, cello | 0.44–0.47 | 0.48 |
+| flute, trumpet | 0.45–0.49 | 0.46–0.47 |
+
+### Cello audio
+
+Cello only (the other instruments are sample-for-sample identical to `6a919e5`: 24 of 24 cases at
+44.1 and 48 kHz, dry and with the room; their goldens pass without re-blessing). Details, every table
+and the rejected attempts: `final-r2/cello-audio/README.md`. MP3s and spectrograms of the five pieces
+against `6a919e5` are there too.
+
+* **Judge** (held-out notes):
+  * Final against `6a919e5`: **NO CLEAR CHANGE**, 1.86 → 1.85 (Δ 0.01 ± 0.06), no guard broken.
+    Harmonics improved (12.04 → 11.40) and noise improved (5.80 → 5.56); attack slipped a little
+    (1.39 → 1.44).
+  * Kept under last round's rule: no clear change overall, clear wins on the targeted measures.
+  * A 34-parameter refit also scored NO CLEAR CHANGE but was rejected: over 6 seeds it made pp,
+    noise and pitch worse.
+* **What changed in the model.**
+  * The bridge's own resonance now appears in what the strings see (the "bridge hill", effective mass
+    2.2 g, Woodhouse 2005). Soft notes were cutting each slip short with a ripple trapped against a
+    nearly rigid bridge, which made a peak near the 7th–8th harmonic. They now hold full Helmholtz
+    slips.
+  * Per-sample constants became time constants, and the bow's torsion taps sit between samples.
+  * The stopping finger follows the heard pitch, with a fitted weighting for the open strings.
+  * The bow-change force stays under the maximum for the bow's speed at that moment.
+  * 11 parameters were refitted, with a 96 kHz measure included.
+
+| | before (6a919e5) | after |
+|---|---|---|
+| centroid ratio pp / mf / ff (default seed) | 1.59 / 1.01 / 0.84 | **1.35** / 1.05 / 0.76 |
+| same, mean of 8 seeds | 1.63 / 1.09 / 0.88 | 1.39 / 1.05 / 0.83 |
+| pitch RMS, mean of 8 seeds | 2.24 ¢ | 1.87 ± 0.51 ¢ (default seed: 2.46 → 2.47) |
+| ⅓-octave RMS error | 4.33 dB | 4.20 dB |
+| harmonic-to-noise vs the recording | +1.62 dB | **+0.18 dB** |
+| soft G2 / D3 centroid, 44.1 → 96 kHz | +0.69 / +0.52 octave | **+0.11 / +0.13 octave** |
+| clicks over five pieces (mean of 12 seeds) | 8.75 | 11.50 |
+
+* **Sample rate.** Over all 67 calibration notes, the mean 44.1/96 kHz difference fell from 0.207 to
+  0.118 octave. A new test holds soft G2, D3 and A3 within 0.2 octave. The controllers test's margin is
+  back to 1.1.
+* **Pitch.** Last round's "rise from 1.8 ¢" was seed luck: 624c0bf scores 2.45 ± 0.67 ¢ over 8
+  seeds.
+* **Not fixed: clicks.** Fewer renders click (18 → 15 of 60), but one C2 pp render clicks every
+  period for over a second and holds most of the total. The same detector finds 0.16 clicks per
+  second in the Iowa cellist; the model went from 0.155 to 0.20.
+* **Also not fixed:** pp is still ×1.35 (target 1.0–1.2), and ff got darker (×0.76 on the default
+  seed).
+
+### Leftovers, honestly
+
+* Close up, nothing passes as a photograph.
+* The upright's hammers are a little blocky from the front, and the inner faces of its sides are
+  plain black.
+* The grand's plate goes mustard in dim interior views. Its castings are smoother than real ones, and
+  its cheeks and lid are plain slabs.
+* The scroll's last turn doesn't visibly end on the eye. The varnish has no depth, and the flame is a
+  regular pattern.
+* The flute's silver reads as dark chrome and the trumpet's lacquer highlights are soft: the shared
+  studio lighting. Also, three r186 ignores a material's `envMapIntensity` when the light comes from
+  `scene.environment`; found by the grand agent, not yet acted on.
+* The una corda's 2.5 mm shift is real-sized, so it is hard to see.
+* The muffler and half-blow levels are estimates.
+* The 2D upright is still the old drawing: it is the 2D phase's first job.
+
+## Round 1
+
+
 Branch `improve/realistic-3d-cello`, from `af4f97e` (production).
 
 The round had two stages. The first rebuilt the 3D stage from extruded diagrams into lit whole instruments
