@@ -32,12 +32,15 @@ interface Job {
   dyn: Dyn;
   midi: number;
   params?: Record<string, unknown>;
+  /** sample rate of the render (default 44.1 kHz, the recordings') */
+  fs?: number;
 }
 
 /** Render one held note and analyse it exactly as the reference notes are analysed. */
 export function modelNote(j: Job): SustainedAnalysis | null {
+  const fs = j.fs ?? FS;
   const r = RENDER({
-    sampleRate: FS,
+    sampleRate: fs,
     instrument: j.instrument,
     dry: true,
     params: j.params as never,
@@ -49,10 +52,10 @@ export function modelNote(j: Job): SustainedAnalysis | null {
   });
   const x = new Float32Array(r.left.length);
   for (let i = 0; i < x.length; i++) x[i] = 0.5 * (r.left[i] + r.right[i]);
-  const segs = segmentNotes(x, FS);
+  const segs = segmentNotes(x, fs);
   if (!segs.length) return null;
   const seg = segs.reduce((a, b) => (b.end - b.start > a.end - a.start ? b : a));
-  return analyzeSustained(x, FS, seg, j.midi);
+  return analyzeSustained(x, fs, seg, j.midi);
 }
 
 async function pool(jobs: Job[]): Promise<(SustainedAnalysis | null)[]> {
