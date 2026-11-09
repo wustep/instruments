@@ -102,7 +102,7 @@ const SPEC: Record<'violin' | 'viola' | 'cello', Spec> = {
     neck: 0.148, fbLen: 0.295, fbW: [0.025, 0.045], fbThick: 0.0055, fbCrown: 0.0032, bridgeH: 0.037, bridgeW: 0.045, bridgeR: 0.046, proj: 0.029, overstand: 0.007,
     head: 0.125, pbW: 0.0275, eyeW: 0.046, tail: 0.125, spreadB: 0.0122, spreadN: 0.0058, neckDepth: [0.019, 0.023], stick: [0.0045, 0.003], hairW: 0.011,
     dia: [1.0 * mm, 0.9 * mm, 0.75 * mm, 0.6 * mm], wound: [true, true, true, true], grain: [1.0 * mm, 2.2 * mm], flame: 4.2 * mm,
-    vTop: [150, 70, 30], vBack: [140, 60, 24], vEdge: [80, 32, 12],
+    vTop: [124, 50, 22], vBack: [116, 44, 18], vEdge: [62, 22, 8],
   },
   cello: {
     body: 0.755, ol: CELLO, rib: 0.12, archT: 0.026, archB: 0.024, edgeT: 5.8 * mm, over: 3.8 * mm, rE: 2.6 * mm, plateT: 4.5 * mm, ribT: 1.4 * mm,
@@ -671,13 +671,13 @@ function paintPlate(id: string, sp: Spec, pl: Plate, holes: P2[][] | null, kind:
         if (holes) for (const hp of holes) for (const [x] of hp) bx += x / (hp.length * holes.length);
         const fbEnd = sp.fbLen - sp.neck;
         const span = bx - fbEnd;
-        for (let k = 0; k < 900; k++) {
-          const u = Math.pow(r(), 0.6);
+        for (let k = 0; k < 2200; k++) {
+          const u = Math.pow(r(), 1.7);
           const x = bx - u * span * 1.05;
           const z = (r() * 2 - 1) * sp.spreadB * (2.1 - 0.5 * u) + (r() - 0.5) * 0.004 * S;
-          c.fillStyle = `rgba(238,230,208,${(0.05 + 0.18 * r()) * (1 - 0.7 * u)})`;
+          c.fillStyle = `rgba(238,230,208,${(0.03 + 0.1 * r()) * (1 - 0.75 * u)})`;
           c.beginPath();
-          c.arc(X(x), Z(z), (0.15 + 0.5 * r()) * pm * S ** 0.5, 0, Math.PI * 2);
+          c.arc(X(x), Z(z), (0.08 + 0.28 * r()) * pm * S ** 0.5, 0, Math.PI * 2);
           c.fill();
         }
         glow(bx - 0.25 * span, 0, 0.55 * span, [235, 225, 200], 0.1);
@@ -698,8 +698,9 @@ function paintPlate(id: string, sp: Spec, pl: Plate, holes: P2[][] | null, kind:
         const z = (r() * 2 - 1) * hw * 0.85;
         const t = r() * Math.PI;
         const len = (2 + 12 * r() * r()) * mm * S;
-        c.strokeStyle = `rgba(36,14,5,${0.12 + 0.22 * r()})`;
-        c.lineWidth = Math.max(0.6, (0.06 + 0.1 * r()) * pm * S);
+        // dark where dirt has filled them, pale where they cut through to the ground
+        c.strokeStyle = r() < 0.55 ? `rgba(52,22,8,${0.08 + 0.12 * r()})` : `rgba(226,170,110,${0.1 + 0.14 * r()})`;
+        c.lineWidth = Math.max(0.5, (0.05 + 0.07 * r()) * pm * S ** 0.5);
         c.beginPath();
         c.moveTo(X(x), Z(z));
         c.quadraticCurveTo(X(x + Math.cos(t) * len * 0.5 + (r() - 0.5) * len * 0.2), Z(z + Math.sin(t) * len * 0.5), X(x + Math.cos(t) * len), Z(z + Math.sin(t) * len));
@@ -1107,7 +1108,7 @@ function buildScroll(mb: MeshBuilder, d: ScrollDims, wood: Mat, inside: Mat): { 
       const row = Array.from({ length: NB + 1 }, (_, j) => {
         const z = -wf + (2 * wf * j) / NB;
         const dd = fluteAt(z, wf, s.fl);
-        uvr.push([crown[i] * (1 - dd / d.flute), 0.45 * (dd / d.flute)]);
+        uvr.push([crown[i] * (1 - dd / d.flute), 0.6 * (dd / d.flute)]);
         return toL([s.b[0] + (s.n[0] * dd) / Lh, s.b[1] + (s.n[1] * dd) / Lh], z);
       });
       UVb.push(uvr);
@@ -1118,7 +1119,7 @@ function buildScroll(mb: MeshBuilder, d: ScrollDims, wood: Mat, inside: Mat): { 
       sweep(mb, rows(sts, (s) => {
         const c = chOf(s);
         return [toL(s.b, sg * (s.w - c * Lh)), toL([s.b[0] + s.n[0] * c, s.b[1] + s.n[1] * c], sg * s.w)];
-      }), wood, add(midN, [0, 0, sg]), (i) => [0.42 + crown[i] * 0.6, 0]);
+      }), wood, add(midN, [0, 0, sg]), (i) => [0.1 + crown[i] * 0.45, 0.05]);
       const UVs: [number, number][][] = [];
       sweep(mb, sts.map((s, i) => {
         const c = chOf(s);
@@ -1135,7 +1136,7 @@ function buildScroll(mb: MeshBuilder, d: ScrollDims, wood: Mat, inside: Mat): { 
           const hz = s.hol * hs;
           // the cheeks: rubbed a little along their top edge; the turns: grime in the hollow and
           // in the corner against the next turn's wall
-          uvr.push(inVol(i) ? [0.04, 0.32 * hs * (s.hol / d.hollow) + 0.5 * sstep(0.7, 1, t)] : [0.12 * sstep(0.75, 1, t) * open, 0.25 * sstep(0.85, 1, t) * (1 - open)]);
+          uvr.push(inVol(i) ? [0.04, 0.42 * hs * (s.hol / d.hollow) + 0.7 * sstep(0.55, 1, t)] : [0.12 * sstep(0.75, 1, t) * open, 0.25 * sstep(0.85, 1, t) * (1 - open)]);
           return toL([p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t], sg * (s.w - hz));
         });
         UVs.push(uvr);
@@ -1247,8 +1248,28 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   const ribH = (x: number) => sp.rib * (0.955 + 0.045 * clamp(x / B, 0, 1));
   const yTop = (x: number, z: number) => sp.edgeT + arch(sp, pl, x, z, sp.archT - sp.edgeT);
   const yBack = (x: number, z: number) => -ribH(x) - sp.edgeT - arch(sp, plB, x, z, sp.archB - sp.edgeT);
-  // f-holes, from the traced one, its notches on the bridge line
-  const fb = sp.ol.fhole;
+  // f-holes, from the traced one, its notches on the bridge line; the trace's row-by-row wobble
+  // smoothed out (a Gaussian along it, σ ≈ 1.2 mm: the eyes and wings keep their shape)
+  const fb = ((): P2[] => {
+    const q = resample(sp.ol.fhole, 480, 0);
+    let per = 0;
+    for (let i = 0; i < q.length; i++) per += Math.hypot(q[(i + 1) % q.length][0] - q[i][0], q[(i + 1) % q.length][1] - q[i][1]);
+    const sig = (0.0012 * S ** 0.5) / B / (per / q.length);
+    const k = Math.max(1, Math.ceil(2.5 * sig));
+    return q.map((_, i): P2 => {
+      let x = 0;
+      let z = 0;
+      let ws = 0;
+      for (let j = -k; j <= k; j++) {
+        const wj = Math.exp(-0.5 * (j / sig) ** 2);
+        const p = q[(i + j + q.length) % q.length];
+        x += p[0] * wj;
+        z += p[1] * wj;
+        ws += wj;
+      }
+      return [x / ws, z / ws];
+    });
+  })();
   let fu0 = Infinity;
   let fu1 = -Infinity;
   for (const [u] of fb) {
@@ -1572,9 +1593,9 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     w0: sp.pbW / 2,
     wTop: (0.86 * sp.pbW) / 2,
     wEye: sp.eyeW / 2,
-    ch: 1.0 * mm * S ** 0.9,
+    ch: 1.15 * mm * S ** 0.9,
     flute: 1.3 * mm * S ** 0.9,
-    hollow: 0.9 * mm * S ** 0.9,
+    hollow: 1.5 * mm * S ** 0.9,
     cheek: 4.2 * mm * S ** 0.85,
     floor: 4.5 * mm * S ** 0.85,
     chTop: 0.7 * mm * S ** 0.8,
@@ -1660,7 +1681,7 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   } else {
     // the end button, and a chinrest on the bass side of the tailpiece
     mb.with(chain(translate(B, -ribH(B) / 2, 0), rotZ(-Math.PI / 2)), () => lathe(mb, [[0, -0.001], [0.0045, -0.001], [0.0052, 0.002], [0.0042, 0.004], [0.0056, 0.0065], [0.0045, 0.0095], [0, 0.0102]], 18, M.fittings));
-    chinrest(mb, sp, pl, yTop, ribH, S, M.ebony);
+    chinrest(mb, sp, pl, yTop, ribH, S, M.rosewood);
   }
   // the strings' silk at the tailpiece (the colours a maker uses to mark each string); the strings
   // themselves are drawn each frame as wires (poseBowed)

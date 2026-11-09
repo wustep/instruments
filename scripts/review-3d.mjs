@@ -50,9 +50,10 @@ const R = {
     front: { yaw: 0, pitch: 0.05, dist: 2.1, target: [0, 0.68, 0] },
     side: { yaw: 1.5708, pitch: 0.05, dist: 2.1, target: [0, 0.68, 0] },
     close: { yaw: 0.4, pitch: 0.25, dist: 0.75, target: [0.0, 0.64, 0.05] },
-    scroll: { yaw: 0.9, pitch: 0.15, dist: 0.42, target: [0.0, 1.47, 0.3] },
+    // the carved head (strings3d.ts buildScroll): its eye is at about (0, 1.445, 0.403)
+    scroll: { yaw: 0.75, pitch: 0.3, dist: 0.3, target: [0.0, 1.44, 0.42] },
     detail: { yaw: 0.5, pitch: 0.15, dist: 0.32, target: [0.08, 0.74, 0.0] },
-    scrollside: { yaw: 1.65, pitch: 0.12, dist: 0.32, target: [0.0, 1.48, 0.3] },
+    scrollside: { yaw: 1.5708, pitch: 0.05, dist: 0.28, target: [0.0, 1.44, 0.42] },
     act: { view: { yaw: 0.45, pitch: 0.3, dist: 0.85, target: [0.0, 1.12, 0.2] }, notes: [55], wait: 1000 },
   },
   // flute: model x − 0.335 m is world x (head at −0.26, the right hand's keys near +0.13, foot +0.27)
