@@ -23,7 +23,8 @@ export const LIVE = {
 };
 
 type Phys = THREE.MeshPhysicalMaterialParameters & {
-  /** solid texture: 0 none, 1 spruce, 2 flamed maple, 3 plain wood, 4 ebony, 5 cast iron, 6 felt, 7 maple fleck, 8 brushed */
+  /** solid texture: 0 none, 1 spruce, 2 flamed maple, 3 plain wood, 4 ebony, 5 cast iron, 6 felt, 7 maple fleck, 8 brushed,
+   *  9 flamed maple worn per vertex (uv.x: varnish rubbed through to the pale wood, satin; uv.y: grime) */
   tex?: number;
   /** the grain/long axis in the part's own frame */
   axis?: [number, number, number];
@@ -120,6 +121,9 @@ const P: Record<string, Phys> = {
   railBeech: { color: '#d8bb8c', roughness: 0.58, tex: 3, axis: [1, 0, 0], texScale: 0.8 },
   tape: { color: '#eee9de', roughness: 1, sheen: 0.7, sheenColor: '#ffffff', sheenRoughness: 0.6, tex: 6 },
   bridleLeather: { color: '#b0261f', roughness: 0.75, sheen: 0.4, sheenColor: '#e06050', sheenRoughness: 0.5 },
+  // the violin family's neck, scroll and ribs: the varnish worn per vertex (strings3d.ts) — the neck's
+  // back rubbed bare by the hand, the scroll's chamfers and crown pale, grime in its hollows and throat
+  varnishWorn: { color: '#9a4518', roughness: 0.62, clearcoat: 0.75, clearcoatRoughness: 0.18, tex: 9, axis: [1, 0, 0] },
 };
 
 // GLSL: hashes, value noise and fbm (all in the part's own metres)
@@ -215,6 +219,7 @@ vec4 auxT = texture2D(tAux, pUV);
 #include <map_fragment>
 #endif
 float microR = 0.0;
+float wearCoat = 0.0;
 {
   vec3 p = vLoc / uTexScale;
   vec3 A = normalize(uAxis);
@@ -266,6 +271,21 @@ float microR = 0.0;
   // drawn or ground metal: streaks along the axis
   float w = fbm(vec3(along * 8.0, across * 900.0, depth * 900.0));
   microR = 0.12 * (w - 0.5);
+  #elif TEX == 9
+  // flamed maple under varnish (as TEX 2), the varnish worn through to pale wood where uv.x says
+  // (mottled), satin there (less clearcoat, rougher); uv.y darkens with grime
+  float n = fbm(vec3(along * 12.0, across * 30.0, depth * 30.0));
+  float f = sin(along * 520.0 + n * 9.0 + across * 90.0);
+  float fl = smoothstep(-0.2, 0.9, f) * (0.6 + 0.8 * n);
+  float vdir = dot(normalize(vViewPosition), normalize(vAxisV));
+  float wear = clamp(vUv2.x * (0.7 + 0.6 * fbm(p * 45.0)), 0.0, 1.0);
+  vec3 bare = vec3(0.47, 0.27, 0.12) * (0.88 + 0.24 * n);
+  diffuseColor.rgb = mix(diffuseColor.rgb, bare, wear * 0.9);
+  diffuseColor.rgb *= 1.0 + (0.32 - 0.1 * wear) * fl * clamp(vdir * 3.0, -1.0, 1.0) - 0.05;
+  diffuseColor.rgb *= 0.92 + 0.16 * fbm(p * 18.0);
+  diffuseColor.rgb *= 1.0 - 0.55 * clamp(vUv2.y, 0.0, 1.0) * (0.7 + 0.6 * fbm(p * 70.0));
+  microR = 0.28 * wear;
+  wearCoat = wear;
   #endif
   #if PAINTED
   // the painted aux map: r = figure (flame) under the varnish, flipping with the view; g = 1 at the edge
@@ -273,8 +293,18 @@ float microR = 0.0;
   float vd = dot(normalize(vViewPosition), normalize(vAxisV));
   diffuseColor.rgb *= 1.0 + 0.38 * fig * clamp(vd * 3.0, -1.0, 1.0);
   microR += 0.25 * auxT.g;
+  // b = wear: the varnish rubbed thin (satin: rougher, less clearcoat)
+  microR += 0.22 * auxT.b;
+  wearCoat = auxT.b;
   #endif
 }`,
+      )
+      .replace(
+        '#include <lights_physical_fragment>',
+        `#include <lights_physical_fragment>
+#ifdef USE_CLEARCOAT
+material.clearcoat *= 1.0 - 0.85 * wearCoat;
+#endif`,
       )
       .replace(
         '#include <roughnessmap_fragment>',

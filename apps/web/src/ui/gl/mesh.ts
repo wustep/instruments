@@ -128,6 +128,8 @@ export const M = {
   railBeech: { col: hex('#d2b384'), rough: 0.55, metal: 0 },
   tape: { col: hex('#ebe6da'), rough: 0.9, metal: 0 },
   bridleLeather: { col: hex('#a8231d'), rough: 0.8, metal: 0 },
+  // the violin family's varnished maple worn per vertex (uv: wear, grime): neck, scroll, ribs
+  varnishWorn: { col: hex('#56240f'), rough: 0.22, metal: 0 },
 } satisfies Record<string, Mat>;
 for (const [k, m] of Object.entries(M)) (m as Mat).name = k;
 /** a variant of a shared material (same shading family, its own colour or maps) */
