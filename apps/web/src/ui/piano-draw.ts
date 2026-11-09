@@ -6,6 +6,7 @@
 
 import type { KeySummary, VisualFrame } from '@piano-model/engine';
 import { AutoScale, INK, ModeField, rgba } from './stage-draw.ts';
+import { drawGrandPlan } from './grand-plan.ts';
 
 export interface PianoGeom {
   keys: KeySummary[];
@@ -254,174 +255,25 @@ export function drawPiano(ctx: CanvasRenderingContext2D, W: number, H: number, g
   if (g.kind === 'upright') return drawUpright(ctx, W, H, g, fr, st, field, now);
   const keys = g.keys;
   if (!keys.length) return;
-  const yKey = H - 2; // front edge (towards the keys)
-  const yPin = yKey - 7; // tuning pins in the pin block
-  const yCap = yKey - 16; // agraffes / capo bar: the strings' front end
-  let visL = 0;
-  for (const k of keys) {
-    const kx = g.keyX(k.midi);
-    if (kx.x > -kx.w && kx.x < W + kx.w) visL = Math.max(visL, k.lengthM);
-  }
-  if (!visL) visL = keys.reduce((a, k) => Math.max(a, k.lengthM), 0);
-  st.maxL = st.maxL > 0 ? st.maxL + (visL - st.maxL) * 0.15 : visL;
-  const sc = (yCap - 30) / st.maxL;
   const pts: Pt[] = keys.map((k) => {
     const kx = g.keyX(k.midi);
     return { midi: k.midi, i: k.midi - 21, x: kx.x, w: kx.w, L: k.lengthM, k, wound: k.midi < 48 && k.nStrings <= 2 };
   });
   stepAction(pts, st);
-  const whiteW = Math.max(...pts.map((p) => p.w));
-  const yEnd = (p: Pt) => yCap - p.L * sc;
-  const xL = pts[0].x - whiteW * 0.9;
-  const xR = pts[pts.length - 1].x + whiteW * 0.9;
-  // ---- case (rim follows the bridge ends: the bentside comes out of the string lengths)
-  const outline = new Path2D();
-  outline.moveTo(xL, yKey);
-  outline.lineTo(xL, yEnd(pts[0]) - 16);
-  for (let i = 0; i < pts.length; i += 3) outline.lineTo(pts[i].x, yEnd(pts[i]) - 16);
-  outline.lineTo(xR, yEnd(pts[pts.length - 1]) - 16);
-  outline.lineTo(xR, yKey);
-  outline.closePath();
-  ctx.fillStyle = rgba(INK.wood, 0.28);
-  ctx.fill(outline);
-  ctx.save();
-  ctx.clip(outline);
-  // soundboard ribs (under the board, seen through it): parallel, across the grain
-  ctx.strokeStyle = rgba(INK.felt, 0.06);
-  ctx.lineWidth = 3;
-  for (let x = xL - H; x < xR; x += 46) {
-    ctx.beginPath();
-    ctx.moveTo(x, yKey);
-    ctx.lineTo(x + H * 0.7, yKey - H);
-    ctx.stroke();
-  }
-  // the board's live mode field
-  const lv = field.update(fr?.modes ?? null, now / 1000);
-  if (lv > 0.01) {
-    ctx.globalCompositeOperation = 'lighter';
-    const top = yCap - st.maxL * sc - 20;
-    ctx.drawImage(field.canvas, xL, top, xR - xL, yKey - top);
-    ctx.globalCompositeOperation = 'source-over';
-  }
-  // plate struts, from the front towards the tail and bentside
-  ctx.strokeStyle = rgba(INK.felt, 0.1);
-  ctx.lineWidth = 7;
-  ctx.lineCap = 'round';
-  for (const f of [0.18, 0.36, 0.55, 0.74]) {
-    const a = pts[Math.floor(f * (pts.length - 1))];
-    const b = pts[Math.floor(Math.min(1, f * 0.55) * (pts.length - 1))];
-    ctx.beginPath();
-    ctx.moveTo(a.x, yCap - 4);
-    ctx.lineTo(b.x, yEnd(b) * 0.9 + yCap * 0.1);
-    ctx.stroke();
-  }
-  ctx.lineCap = 'butt';
-  ctx.restore();
-  ctx.strokeStyle = rgba(INK.ivory, 0.32);
-  ctx.lineWidth = 1.5;
-  ctx.stroke(outline);
-  // ---- bridges: the long treble bridge and the separate bass bridge
-  for (const part of [pts.filter((p) => p.wound), pts.filter((p) => !p.wound)]) {
-    if (part.length < 2) continue;
-    ctx.strokeStyle = rgba(INK.felt, 0.45);
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    part.forEach((p, i) => (i ? ctx.lineTo(p.x, yEnd(p)) : ctx.moveTo(p.x, yEnd(p))));
-    ctx.stroke();
-  }
-  // ---- strings, tuning pins, agraffes / capo bar
-  const lv2 = levelsOf(fr, st);
-  const shift = st.shift;
-  st.hits = [];
-  for (const p of pts) {
-    if (p.x < -p.w || p.x > W + p.w) continue;
-    st.hits.push({ midi: p.midi, x0: p.x, y0: yCap, x1: p.x, y1: yEnd(p), w: p.w });
-    const n = p.k.nStrings;
-    const sp = Math.min(2.4, p.w * 0.13);
-    for (let j = 0; j < n; j++) {
-      const x = p.x + (j - (n - 1) / 2) * sp;
-      strokeString(ctx, x, yCap, x, yEnd(p), p.wound, lv2.l(p.i), lv2.s(p.i));
-      ctx.fillStyle = rgba(INK.steel, 0.4);
-      ctx.fillRect(x - 0.6, yPin - 0.6, 1.2, 1.2);
-    }
-    if (p.midi < 76) {
-      ctx.fillStyle = rgba(INK.ivory, 0.3);
-      ctx.fillRect(p.x - p.w * 0.25, yCap - 1, p.w * 0.5, 2);
-    }
-  }
-  const capoFrom = pts.find((p) => p.midi >= 76);
-  if (capoFrom) {
-    ctx.strokeStyle = rgba(INK.ivory, 0.35);
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(capoFrom.x - capoFrom.w / 2, yCap);
-    ctx.lineTo(xR - 2, yCap);
-    ctx.stroke();
-  }
-  // ---- dampers (on the strings, just past the strike point) and hammers (under them)
-  for (const p of pts) {
-    if (p.x < -p.w || p.x > W + p.w) continue;
-    const ys = yCap - p.L * sc * 0.12;
-    if (p.k.hasDamper) {
-      const d = st.damper[p.i];
-      const yd = ys - Math.min(16, p.L * sc * 0.06) - 4;
-      // lifted dampers rise towards the viewer: offset, lighter, their shadow left behind
-      ctx.fillStyle = rgba(INK.ebony, 0.85 - 0.45 * d);
-      ctx.strokeStyle = rgba(INK.felt, 0.16 + 0.24 * d);
-      ctx.lineWidth = 0.7;
-      const dx = 2.5 * d;
-      ctx.beginPath();
-      ctx.roundRect(p.x - p.w * 0.32 + dx, yd - 3 - 2.5 * d, p.w * 0.64, 6, 1.5);
-      ctx.fill();
-      ctx.stroke();
-    }
-    const h = st.hammer[p.i];
-    const flash = h > 0.6 ? (h - 0.6) / 0.4 : 0;
-    // una corda: the whole action slides towards the treble, off one string of three
-    const sx = shift * Math.min(2.4, p.w * 0.13);
-    felt(ctx, p.x + sx, ys, p.w * (0.55 + 0.2 * h), 4 + 3 * h, flash);
-  }
-  // ---- the lid: hinged along the straight (bass) side, it rises towards the viewer
-  // and so is seen foreshortened; closed, it covers the strings
-  const yTopCase = yEnd(pts[0]) - 16;
-  st.caseBox = { x0: xL, x1: xR, y0: yTopCase, y1: yKey };
-  st.src = { x: xL + (xR - xL) * 0.42, y: (yTopCase + yKey) / 2 + 20 };
-  const lidOpen = Math.min(1, Math.max(0, g.lid ?? 1));
-  const phi = lidOpen * (Math.PI / 2.4);
-  const cphi = Math.cos(phi);
-  ctx.save();
-  ctx.translate(xL, 0);
-  ctx.scale(cphi, 1);
-  ctx.translate(-xL, 0);
-  ctx.fillStyle = rgba(INK.ebony, 0.22 + 0.5 * (1 - lidOpen));
-  ctx.fill(outline);
-  ctx.restore();
-  // the lid's edge, catching the light, and its prop stick when it stands open
-  const edgeX = xL + (xR - xL) * cphi;
-  ctx.strokeStyle = rgba(INK.ivory, 0.25 + 0.3 * lidOpen);
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(xL, yTopCase);
-  ctx.lineTo(xL, yKey);
-  ctx.moveTo(edgeX, yTopCase + (yKey - yTopCase) * 0.25);
-  ctx.lineTo(edgeX, yKey - 6);
-  ctx.stroke();
-  st.lidEdge = { x: edgeX, y: yTopCase + (yKey - yTopCase) * 0.55 };
-  // ---- every sounding string, then the last struck note's unisons in detail
+  // the grand from above, lid off (grand-plan.ts), then every sounding string's live shape and the
+  // last struck note's unisons in detail
+  const { ends, unison } = drawGrandPlan(ctx, W, H, pts, g.lid ?? 1, fr, st, field, now, levelsOf(fr, st));
   const focus = fr?.focus ?? null;
-  drawAllShapes(ctx, fr, new Map(pts.map((p) => [p.midi, p])), (p) => [p.x, yCap, p.x, yEnd(p)], st, W, focus?.midi ?? -1);
+  drawAllShapes(ctx, fr, new Map(pts.map((p) => [p.midi, p])), ends, st, W, focus?.midi ?? -1);
   if (focus) {
     const p = pts.find((q) => q.midi === focus.midi);
     if (p) {
-      const n = focus.shapes.length;
-      const sp = Math.min(2.4, p.w * 0.13);
-      drawFocus(ctx, focus, (j) => [p.x + (j - (n - 1) / 2) * sp, yCap, p.x + (j - (n - 1) / 2) * sp, yEnd(p)], p.w, st);
-      if (focus.prepAt >= 0) {
-        ctx.fillStyle = rgba(INK.steel, 0.95);
-        ctx.beginPath();
-        ctx.arc(p.x, yCap - focus.prepAt * p.L * sc, 3.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      const [x0, y0, x1, y1] = ends(p);
+      const off = unison(p);
+      drawFocus(ctx, focus, (j) => {
+        const o = off[Math.min(off.length - 1, j)] ?? 0;
+        return [x0 + o, y0, x1 + o, y1];
+      }, p.w, st);
     }
   }
 }
