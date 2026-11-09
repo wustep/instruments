@@ -282,7 +282,10 @@ float wearCoat = 0.0;
   vec3 bare = vec3(0.47, 0.27, 0.12) * (0.88 + 0.24 * n);
   diffuseColor.rgb = mix(diffuseColor.rgb, bare, wear * 0.9);
   diffuseColor.rgb *= 1.0 + (0.42 - 0.15 * wear) * fl * clamp(vdir * 3.0, -1.0, 1.0) - 0.05;
-  diffuseColor.rgb *= 0.92 + 0.16 * fbm(p * 18.0);
+  // (and a share that does not flip, so the figure still shows on a face seen square-on)
+  diffuseColor.rgb *= 1.0 - 0.2 * fl + 0.06;
+  // the varnish's own unevenness: thicker and darker in drifts, a finer mottle over it
+  diffuseColor.rgb *= (0.8 + 0.4 * fbm(p * 6.0)) * (0.88 + 0.24 * fbm(p * 22.0));
   diffuseColor.rgb *= 1.0 - 0.55 * clamp(vUv2.y, 0.0, 1.0) * (0.7 + 0.6 * fbm(p * 70.0));
   microR = 0.28 * wear;
   wearCoat = wear;

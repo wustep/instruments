@@ -395,6 +395,33 @@ function makePlate(ol: Outline, B: number, n: number, button: number): Plate {
     const hit = cache.get(d);
     if (hit) return hit;
     const q: P2[] = poly.map(([x, z], i) => [x - sharp[i][0] * d, z - sharp[i][1] * d]);
+    // where the offset crosses itself (inside a corner's tip, or a hook narrower than 2d) the loop is
+    // cut out at the crossing: the miter where the rib's two sides meet. From each point the farthest
+    // crossing ahead is taken, so a loop is removed whole, with any inside it.
+    const cross2 = (a: P2, b: P2, c2: P2, e: P2): P2 | null => {
+      const rx = b[0] - a[0];
+      const rz = b[1] - a[1];
+      const sx2 = e[0] - c2[0];
+      const sz2 = e[1] - c2[1];
+      const den = rx * sz2 - rz * sx2;
+      if (Math.abs(den) < 1e-18) return null;
+      const t = ((c2[0] - a[0]) * sz2 - (c2[1] - a[1]) * sx2) / den;
+      const u = ((c2[0] - a[0]) * rz - (c2[1] - a[1]) * rx) / den;
+      return t > 0 && t < 1 && u > 0 && u < 1 ? [a[0] + rx * t, a[1] + rz * t] : null;
+    };
+    const WIN = 90;
+    for (let i = 0; i < n; i++) {
+      const a = q[i];
+      const b = q[(i + 1) % n];
+      for (let k = WIN; k >= 2; k--) {
+        const j = (i + k) % n;
+        const hit = cross2(a, b, q[j], q[(j + 1) % n]);
+        if (!hit) continue;
+        for (let m = 1; m <= k; m++) q[(i + m) % n] = hit;
+        i += k - 1;
+        break;
+      }
+    }
     for (let pass = 0; pass < 6; pass++) {
       let changed = false;
       for (let i = 0; i < n; i++) {
@@ -831,7 +858,10 @@ const SCROLL = {
   gap: 0.0333,
   thC0: 1.05 * Math.PI,
   thTip: 1.4 * Math.PI,
-  rEye: 0.0365,
+  /** the eye: its boss, and the core the last turn wraps, a groove round the boss (the Francesca: a
+   *  dark gap between the eye and the turn that ends on it) */
+  rEye: 0.031,
+  rCore: 0.041,
   /** the chin's underside, from the neck's back out to the chin */
   under: [[-0.1984, -0.1119], [-0.1453, -0.1346], [-0.1236, -0.1545], [-0.1014, -0.1838], [-0.0918, -0.2386]] as P2[],
   /** the back: from the chin up the pegbox, over into the crown */
@@ -930,14 +960,14 @@ interface ScrollDims {
 /** the scroll, carved: the pegbox (cheeks, floor, open throat), the back fluted from the chin over the
  *  crown, the volute's 2.6 turns stepping out towards the eye, each turn's side hollowed inside a
  *  chamfered rim, and the eye. Returns where the pegs go. */
-function buildScroll(mb: MeshBuilder, d: ScrollDims, wood: Mat, inside: Mat): { peg: (k: number) => { c: Vec3; w: number; depth: number } } {
+function buildScroll(mb: MeshBuilder, d: ScrollDims, wood: Mat, inside: Mat, dark: Mat): { peg: (k: number) => { c: Vec3; w: number; depth: number } } {
   const { N, A, H, Lh } = d;
   const toL = (p: P2, z: number): Vec3 => [N[0] + Lh * (p[0] * A[0] + p[1] * H[0]), N[1] + Lh * (p[0] * A[1] + p[1] * H[1]), N[2] + z];
   const dirL = (p: P2): Vec3 => norm([p[0] * A[0] + p[1] * H[0], p[0] * A[1] + p[1] * H[1], 0]);
   const C = SCROLL.C;
   const dirS = (th: number): P2 => [Math.cos(th + SCROLL.tilt), Math.sin(th + SCROLL.tilt)];
   const rS = (th: number) => SCROLL.R0 * Math.exp(-SCROLL.K * th);
-  const thEnd = Math.log(SCROLL.R0 / SCROLL.rEye) / SCROLL.K;
+  const thEnd = Math.log(SCROLL.R0 / SCROLL.rCore) / SCROLL.K;
   const at = (th: number, r: number): P2 => {
     const u = dirS(th);
     return [C[0] + r * u[0], C[1] + r * u[1]];
@@ -1063,7 +1093,7 @@ function buildScroll(mb: MeshBuilder, d: ScrollDims, wood: Mat, inside: Mat): { 
   const vol: Station[] = Array.from({ length: NV + 1 }, (_, i) => {
     const th = (i / NV) * thEnd;
     const r = rS(th);
-    const rin = Math.max(rS(th + 2 * Math.PI), SCROLL.rEye);
+    const rin = Math.max(rS(th + 2 * Math.PI), SCROLL.rCore);
     const b = at(th, r);
     // the spiral's inward normal: perpendicular to its tangent (r′ dir + r dir′)
     const u = dirS(th);
@@ -1136,7 +1166,7 @@ function buildScroll(mb: MeshBuilder, d: ScrollDims, wood: Mat, inside: Mat): { 
           const hz = s.hol * hs;
           // the cheeks: rubbed a little along their top edge; the turns: grime in the hollow and
           // in the corner against the next turn's wall
-          uvr.push(inVol(i) ? [0.04, 0.42 * hs * (s.hol / d.hollow) + 0.7 * sstep(0.55, 1, t)] : [0.12 * sstep(0.75, 1, t) * open, 0.25 * sstep(0.85, 1, t) * (1 - open)]);
+          uvr.push(inVol(i) ? [0.04, 0.62 * hs * (s.hol / d.hollow) + 0.85 * sstep(0.6, 1, t)] : [0.12 * sstep(0.75, 1, t) * open, 0.25 * sstep(0.85, 1, t) * (1 - open)]);
           return toL([p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t], sg * (s.w - hz));
         });
         UVs.push(uvr);
@@ -1166,6 +1196,12 @@ function buildScroll(mb: MeshBuilder, d: ScrollDims, wood: Mat, inside: Mat): { 
   // the floor across the pegbox, and above the throat the solid's face over the recess
   sweep(mb, rows(lower, (s) => [toL(s.floor!, -(s.w - cheek * Lh)), toL(s.floor!, s.w - cheek * Lh)]), inside, out(sub2(lower[NL >> 1].f, lower[NL >> 1].b)));
   sweep(mb, rows(upper, (s) => [toL(s.f, -(s.w - cheek * Lh)), toL(s.f, s.w - cheek * Lh)]), inside, out(sub2(upper[NU >> 1].turn!, upper[NU >> 1].f)));
+  // the core the last turn wraps: its face is the floor of the groove round the eye
+  {
+    const rc = SCROLL.rCore * Lh;
+    const wc = wVol(thEnd) - 0.9 * d.hollow;
+    lathe2(mb, toL(C, -wc), 1, [[0.00001, 0], [rc, 0], [rc, 2 * wc], [0.00001, 2 * wc]], dark);
+  }
   // the eye: a boss standing proudest, its face domed, its rim chamfered
   {
     const re = SCROLL.rEye * Lh;
@@ -1571,9 +1607,11 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     // the heel's back is rounded in profile: deeper along the middle of the section
     const yy = neckBot(x) - Math.pow(Math.sin(a), 1 - 0.4 * heel) * dep;
     return [x, yy, (Math.cos(a) * wn) / 2];
+  }, flamedW, {
     // the neck's back is left bare (oiled, as most are) and the hand keeps it so; the heel keeps its
     // varnish (violin-back.jpg, violin-scroll.jpg)
-  }, flamedW, { uv: (s) => [0.92 * sstep(0.0, 0.05, s) * (1 - sstep(0.8, 0.95, s)), 0] });
+    uv: (s) => [0.92 * sstep(0.0, 0.05, s) * (1 - sstep(0.8, 0.95, s)), 0],
+  });
   // the nut (ebony)
   const yNut = fbY(xn) + 0.0008 * S;
   grid(mb, 1, 16, (s, v) => {
@@ -1595,13 +1633,13 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     wEye: sp.eyeW / 2,
     ch: 1.15 * mm * S ** 0.9,
     flute: 1.3 * mm * S ** 0.9,
-    hollow: 1.5 * mm * S ** 0.9,
+    hollow: 2.0 * mm * S ** 0.9,
     cheek: 4.2 * mm * S ** 0.85,
     floor: 4.5 * mm * S ** 0.85,
     chTop: 0.7 * mm * S ** 0.8,
     neckD: sp.neckDepth[0],
     wNeck: 0.36 * fbW(xn),
-  }, flamedW, M.interior);
+  }, flamedW, M.interior, flamedDark);
   // pegs: two each side, through both cheeks; the strings wind on their shafts. String i (0 = lowest)
   // → its peg, from the nut: the treble side's lower, the bass side's lower, the treble's upper, the bass's
   const pegK = [3, 1, 0, 2];
