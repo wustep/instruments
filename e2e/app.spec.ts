@@ -498,6 +498,46 @@ test('drop a .mid file: it plays on the current instrument, pauses, stops; a new
   expect(errors).toEqual([]);
 });
 
+test('the MIDI file player sits at the top middle of the stage, over nothing it would hide, in 2D and 3D', async ({ page }, info) => {
+  await page.goto('/');
+  await startAudio(page);
+  await page.evaluate((b) => {
+    const dt = new DataTransfer();
+    dt.items.add(new File([new Uint8Array(b)], 'd.mid', { type: 'audio/midi' }));
+    window.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt }));
+    window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, cancelable: true }));
+  }, Array.from(smf(480, [[[0, 0x90, 50, 70], [7680, 0x80, 50, 0]]])));
+  const player = page.locator('.player');
+  await expect(player).toBeVisible();
+  // the position hairline has no tooltip (it still scrubs: it is a slider)
+  expect(await page.locator('.pl-bar').getAttribute('data-tip')).toBeNull();
+  expect(await page.locator('.pl-bar').getAttribute('title')).toBeNull();
+  const check = async (mode: string) => {
+    const p = (await player.boundingBox())!;
+    const stage = (await page.locator('.stage').boundingBox())!;
+    const band = (await page.locator('.stage-top').boundingBox())!;
+    // centred on the stage, just under its top band
+    expect(Math.abs(p.x + p.width / 2 - (stage.x + stage.width / 2)), mode).toBeLessThan(3);
+    expect(p.y, mode).toBeGreaterThanOrEqual(band.y + band.height);
+    expect(p.y, mode).toBeLessThan(band.y + band.height + 30);
+    const hit = (b: { x: number; y: number; width: number; height: number }) => p.x < b.x + b.width && b.x < p.x + p.width && p.y < b.y + b.height && b.y < p.y + p.height;
+    for (const sel of ['.picker', '.readout', '.spec-wrap', '.scope', 'header nav', '.zoom-back']) {
+      for (const b of await page.locator(sel).all()) {
+        const r = await b.boundingBox();
+        if (r && (await b.isVisible())) expect(hit(r), `${mode}: covers ${sel}`).toBe(false);
+      }
+    }
+    // on top: its middle is the player's own
+    const top = await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('.player'), [p.x + p.width / 2, p.y + p.height / 2]);
+    expect(top, mode).toBe(true);
+  };
+  await check('2D');
+  await page.locator('.dim-toggle').click();
+  await expect(page.locator('.stage-3d')).toBeVisible();
+  await check('3D');
+  await player.getByRole('button', { name: 'Stop' }).click();
+});
+
 test('?debug shows the start-up log, step by step, ending in ready', async ({ page }, info) => {
   test.skip(info.project.name === 'phone', 'desktop covers the diagnostics');
   await page.goto('/?debug');

@@ -515,6 +515,12 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       });
     }
     gripRoom.hidden = in3d;
+    // the MIDI file player sits at the top middle, just under this band (a fixed overlay)
+    const bandY = Math.round(top.getBoundingClientRect().bottom);
+    if (bandY !== lastBandY) {
+      lastBandY = bandY;
+      document.documentElement.style.setProperty('--stage-band-y', `${bandY}px`);
+    }
     zoomBack.hidden = !(in3d && s3!.zoomed !== null);
     if (!zoomBack.hidden) zoomBack.style.top = `${topH + 12}px`;
     // place the grips (stage coordinates: the instrument area starts below the top band)
@@ -547,6 +553,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement): View {
       if (v.strike) strike = v.strike;
     });
   };
+  let lastBandY = -1;
   const unsubs: (() => void)[] = [];
   return {
     el,

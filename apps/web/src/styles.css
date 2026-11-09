@@ -1162,31 +1162,35 @@ figure[title] {
 
 /* ------------------------------------------------------------ MIDI file player: icons and a hairline */
 .player {
+  /* top middle of the stage, just under its top band (the stage sets --stage-band-y): clear of the
+     picker, the note readout and the spectrum, in 2D and over the 3D canvas */
   position: fixed;
   z-index: 5;
   left: 50%;
-  bottom: calc(var(--fall-h) + var(--kbd-h) + 18px);
+  top: calc(var(--stage-band-y, 140px) + 8px);
   transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px 8px;
+  padding: 3px 12px 3px 4px;
   border-radius: 6px;
   background: rgba(14, 13, 11, 0.55);
   backdrop-filter: blur(6px);
+}
+.player[hidden] {
+  display: none;
 }
 :root:not([data-route='stage']) .player {
   display: none;
 }
 .pl-btns {
   display: flex;
-  gap: 6px;
+  gap: 2px;
 }
 .pl-btn {
-  width: 30px;
-  height: 30px;
-  padding: 4px;
+  width: 28px;
+  height: 28px;
+  padding: 5px;
   border: 0;
   background: none;
   color: var(--ink-2);
@@ -1202,7 +1206,7 @@ figure[title] {
 }
 .pl-bar {
   position: relative;
-  width: 180px;
+  width: min(160px, 34vw);
   height: 2px;
   background: rgba(236, 226, 206, 0.16);
   cursor: pointer;
