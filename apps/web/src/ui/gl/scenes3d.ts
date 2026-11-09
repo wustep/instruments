@@ -169,10 +169,11 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
   if (si.family === 'piano') return si.kind === 'grand' ? { target: [0.08, 0.6, 1.0], dist: 3.45, yaw: 0.72, pitch: 0.4 } : { target: [0, 0.68, 0.25], dist: 2.6, yaw: 0.45, pitch: 0.26 };
   if (si.family === 'bowed' && si.bowed) {
     const id = si.bowed.id;
-    if (id === 'cello') return { target: [0, 0.7, 0.05], dist: 2.05, yaw: 0.42, pitch: 0.2 };
+    // the cello: from its bass side, a little below centre, the scroll against the rim light
+    if (id === 'cello') return { target: [0, 0.76, 0.08], dist: 2.55, yaw: 0.62, pitch: 0.07 };
     const bm = st.bowedM.get(id);
     const c = bm ? bm.bounds.c : ([0, 0.25, 0] as Vec3);
-    return { target: [c[0] - 0.05, c[1], c[2]], dist: id === 'viola' ? 1.0 : 0.88, yaw: 0.25, pitch: 0.62 };
+    return { target: [c[0] - 0.05, c[1], c[2]], dist: id === 'viola' ? 0.86 : 0.76, yaw: 0.25, pitch: 0.6 };
   }
   if (si.family === 'brass') return { target: [0.0, 0.2, 0.01], dist: 0.72, yaw: 0.35, pitch: 0.32 };
   return { target: [0.0, 0.17, 0.0], dist: 0.8, yaw: 0.2, pitch: 0.55 };
@@ -185,8 +186,9 @@ export function buildRoom(b: Batch, si: SceneIn, st: Scene3State, src: Vec3, spa
   const half = span * (0.9 + 1.4 * size);
   const H = span * (0.6 + 0.6 * size);
   const corners: Vec3[] = [[src[0] - half, floorY, src[2] - half * 0.8], [src[0] + half, floorY, src[2] - half * 0.8], [src[0] + half, floorY, src[2] + half * 0.8], [src[0] - half, floorY, src[2] + half * 0.8]];
-  b.loop(corners, C.ivory(0.06), 1);
-  for (const c of corners) b.line([c, [c[0], floorY + H, c[2]]], C.ivory(0.03), 1);
+  // the room's outline: barely there (the wavefronts carry the room)
+  b.loop(corners, C.ivory(0.025), 1);
+  for (const c of corners) b.line([c, [c[0], floorY + H, c[2]]], C.ivory(0.012), 1);
   // fronts: spawned on onsets and while it sounds; they expand, fading with the room's T60
   const t = si.now / 1000;
   const jump = si.rms > st.lastRms * 1.35 + 1e-4;

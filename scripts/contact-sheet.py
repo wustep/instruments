@@ -21,6 +21,8 @@ REFS = {
     'flute': ['flute-side.jpg'],
     'trumpet': ['trumpet-side.jpg'],
 }
+# CC BY-SA references (allowed with --bysa: the sheet is then itself CC BY-SA, credited in its README)
+BYSA = {'flute-side.jpg', 'trumpet-side.jpg'}
 # only these (CC0 / public domain) may go into committed sheets
 FREE = {'grand-inside.jpg', 'grand-action-side.jpg', 'upright-action-close.jpg', 'violin-front.jpg', 'viola-34.jpg', 'viola-front.jpg', 'cello-34.jpg', 'cello-front.jpg', 'violin-scroll.jpg'}
 
@@ -32,12 +34,13 @@ def main() -> None:
     views = (args[args.index('--views') + 1] if '--views' in args else 'hero,close').split(',')
     only = args[args.index('--only') + 1].split(',') if '--only' in args else list(REFS)
     free = '--free' in args
+    bysa = '--bysa' in args
     H = 420
     rows = []
     for inst in only:
         tiles = []
         for r in REFS.get(inst, []):
-            if free and r not in FREE:
+            if free and r not in FREE and not (bysa and r in BYSA):
                 continue
             p = os.path.join(refs, r)
             if os.path.exists(p):

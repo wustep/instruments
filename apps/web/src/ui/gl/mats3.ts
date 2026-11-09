@@ -62,16 +62,16 @@ const P: Record<string, Phys> = {
   pearl: { color: '#f6f1ea', roughness: 0.16, clearcoat: 0.6, clearcoatRoughness: 0.08, iridescence: 0.9, iridescenceIOR: 1.35, iridescenceThicknessRange: [220, 620] },
   castAction: { color: '#8a8985', metalness: 0.85, roughness: 0.45, tex: 5 },
   // varnish: a glossy coat over matte wood (the coat carries the reflections)
-  varnish: { color: '#9a4518', roughness: 0.6, clearcoat: 0.9, clearcoatRoughness: 0.13, tex: 2, axis: [1, 0, 0] },
-  varnishTop: { color: '#a85a26', roughness: 0.62, clearcoat: 0.9, clearcoatRoughness: 0.13, tex: 1, axis: [1, 0, 0], texScale: 1 },
-  varnishDark: { color: '#5c2208', roughness: 0.62, clearcoat: 0.9, clearcoatRoughness: 0.15, tex: 2, axis: [1, 0, 0] },
+  varnish: { color: '#9a4518', roughness: 0.62, clearcoat: 0.75, clearcoatRoughness: 0.18, tex: 2, axis: [1, 0, 0] },
+  varnishTop: { color: '#a85a26', roughness: 0.64, clearcoat: 0.75, clearcoatRoughness: 0.18, tex: 1, axis: [1, 0, 0], texScale: 1 },
+  varnishDark: { color: '#5c2208', roughness: 0.64, clearcoat: 0.75, clearcoatRoughness: 0.2, tex: 2, axis: [1, 0, 0] },
   fEdge: { color: '#2a1206', roughness: 0.6 },
   hole: { color: '#050302', roughness: 1 },
   fittings: { color: '#100c0a', roughness: 0.42, clearcoat: 0.3, clearcoatRoughness: 0.2, tex: 4, axis: [1, 0, 0] },
   bridgeMaple: { color: '#dec59a', roughness: 0.62, tex: 7, axis: [0, 1, 0], texScale: 0.5 },
   pernambuco: { color: '#5e2711', roughness: 0.32, clearcoat: 0.8, clearcoatRoughness: 0.08, tex: 3, axis: [1, 0, 0], texScale: 0.5 },
   bowHair: { color: '#cfc8ba', roughness: 0.6, sheen: 0.5, sheenColor: '#f0ece4', sheenRoughness: 0.45 },
-  rosewood: { color: '#3a1a0e', roughness: 0.35, clearcoat: 0.5, clearcoatRoughness: 0.15, tex: 3, axis: [1, 0, 0], texScale: 0.4 },
+  rosewood: { color: '#34170c', roughness: 0.48, clearcoat: 0.18, clearcoatRoughness: 0.35, tex: 3, axis: [1, 0, 0], texScale: 0.4 },
   boxwood: { color: '#d9b878', roughness: 0.4, clearcoat: 0.4, clearcoatRoughness: 0.15, tex: 3, axis: [1, 0, 0], texScale: 0.4 },
   gut: { color: '#2a2420', roughness: 0.5 },
   interior: { color: '#2a160b', roughness: 0.92, envMapIntensity: 0.18 },
@@ -125,7 +125,11 @@ export function materialFor(m: Mat, lite: boolean): THREE.Material {
     map = painted.map;
     aux = painted.aux;
     pm.map = map;
-    if (paint.cut) pm.alphaTest = 0.5;
+    // the cut-outs (f-holes): alpha to coverage, so their edges are antialiased by the multisampling
+    if (paint.cut) {
+      pm.alphaTest = 0.02;
+      pm.alphaToCoverage = true;
+    }
     pm.color.set('#ffffff');
   }
   pm.onBeforeCompile = (sh) => {
