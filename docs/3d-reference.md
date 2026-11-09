@@ -160,7 +160,8 @@ The photos are in `.cache/refs-3d/`, which is not committed. Full attributions a
 | `violin-front.jpg` | CC0 (The Met) | "Francesca" Strad, front |
 | `violin-34.png` | CC BY-SA 3.0, Tumdil | close three-quarter: f-hole, bridge, varnish |
 | `violin-bridge.jpg` | CC BY-SA 3.0, Pascalou petit | low view of the bridge, f-holes and arching |
-| `violin-scroll.jpg` | CC0 (The Met) | "Francesca" scroll, side profile |
+| `violin-scroll.jpg` | CC0 (The Met) | "Francesca" scroll, side profile (the 3D scroll is traced from it: `scripts/trace-scroll.py`) |
+| `violin-back.jpg` | CC0 (The Met) | "Francesca" from the back: the pegbox's fluting, the bare maple neck |
 | `viola-front.jpg`, `viola-side.jpg`, `viola-34.jpg` | CC0 (The Met) | Stainer viola: front, full side profile, angled on black |
 | `grand-34.jpg` | CC BY-SA 3.0, Steinway & Sons | D-274, lid open, three-quarter from the keyboard side |
 | `grand-inside.jpg` | CC0, Kjethdubns | plate, strings, dampers from above |

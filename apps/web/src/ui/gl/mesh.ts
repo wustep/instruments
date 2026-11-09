@@ -128,6 +128,8 @@ export const M = {
   railBeech: { col: hex('#d2b384'), rough: 0.55, metal: 0 },
   tape: { col: hex('#ebe6da'), rough: 0.9, metal: 0 },
   bridleLeather: { col: hex('#a8231d'), rough: 0.8, metal: 0 },
+  // the violin family's varnished maple worn per vertex (uv: wear, grime): neck, scroll, ribs
+  varnishWorn: { col: hex('#56240f'), rough: 0.22, metal: 0 },
   // the grand: its plate's gold lacquer (grand-only: matched at the grand's hero angle to
   // grand-inside.jpg), the inside of its rim in a polished mahogany veneer, the dampers' black heads
   grandPlate: { col: hex('#8a6522'), rough: 0.62, metal: 0.9 },
