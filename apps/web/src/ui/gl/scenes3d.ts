@@ -173,8 +173,8 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
     const c = bm ? bm.bounds.c : ([0, 0.25, 0] as Vec3);
     return { target: [c[0] - 0.05, c[1], c[2]], dist: id === 'viola' ? 0.86 : 0.76, yaw: 0.25, pitch: 0.6 };
   }
-  if (si.family === 'brass') return { target: [0.0, 0.2, 0.01], dist: 0.72, yaw: 0.35, pitch: 0.32 };
-  return { target: [0.0, 0.17, 0.0], dist: 0.8, yaw: 0.2, pitch: 0.55 };
+  if (si.family === 'brass') return { target: [0.0, 0.2, 0.0], dist: 0.6, yaw: 0.4, pitch: 0.28 };
+  return { target: [0.0, 0.17, 0.0], dist: 0.68, yaw: 0.24, pitch: 0.5 };
 }
 
 // ---------------------------------------------------------------- the room: walls and wavefronts on the floor

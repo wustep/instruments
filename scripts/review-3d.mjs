@@ -55,19 +55,23 @@ const R = {
     scrollside: { yaw: 1.65, pitch: 0.12, dist: 0.32, target: [0.0, 1.48, 0.3] },
     act: { view: { yaw: 0.45, pitch: 0.3, dist: 0.85, target: [0.0, 1.12, 0.2] }, notes: [55], wait: 1000 },
   },
+  // flute: model x − 0.335 m is world x (head at −0.26, the right hand's keys near +0.13, foot +0.27)
   flute: {
     inst: 'flute', notes: [74],
-    front: { yaw: 0, pitch: 0.1, dist: 0.9, target: null },
-    side: { yaw: 0, pitch: 1.5, dist: 0.9, target: null },
-    close: { yaw: 0.3, pitch: 0.65, dist: 0.32, target: [0.14, 0.18, 0.0] },
-    act: { view: { yaw: 0.15, pitch: 0.55, dist: 0.3, target: [-0.2, 0.18, 0.0] }, notes: [62], wait: 1000 },
+    front: { yaw: 0, pitch: 0.1, dist: 0.76, target: [0, 0.17, 0] },
+    side: { yaw: 0, pitch: 1.5, dist: 0.76, target: [0, 0.17, 0] },
+    close: { yaw: 0.3, pitch: 0.6, dist: 0.3, target: [0.1, 0.175, 0.0] },
+    detail: { yaw: 0.35, pitch: 0.5, dist: 0.2, target: [-0.262, 0.18, 0.0] },
+    act: { view: { yaw: 0.22, pitch: 0.38, dist: 0.3, target: [0.11, 0.172, 0.0] }, notes: [67], wait: 1000 },
   },
+  // trumpet: the valves at world x ≈ −0.057, the bell rim at +0.27
   trumpet: {
     inst: 'trumpet', notes: [67],
-    front: { yaw: 0, pitch: 0.05, dist: 0.8, target: null },
-    side: { yaw: 1.5708, pitch: 0.05, dist: 0.8, target: null },
-    close: { yaw: 0.45, pitch: 0.4, dist: 0.32, target: [0.03, 0.21, 0.0] },
-    act: { view: { yaw: -0.35, pitch: 0.3, dist: 0.42, target: [0.02, 0.2, 0.0] }, notes: [61], wait: 1000 },
+    front: { yaw: 0, pitch: 0.05, dist: 0.66, target: [0, 0.2, 0] },
+    side: { yaw: 1.5708, pitch: 0.05, dist: 0.66, target: [0, 0.2, 0] },
+    close: { yaw: 0.5, pitch: 0.35, dist: 0.3, target: [-0.04, 0.205, 0.0] },
+    detail: { yaw: 0.3, pitch: 0.55, dist: 0.2, target: [-0.057, 0.25, 0.0] },
+    act: { view: { yaw: -0.35, pitch: 0.3, dist: 0.36, target: [-0.03, 0.2, 0.0] }, notes: [60], wait: 1000 },
   },
 };
 

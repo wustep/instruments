@@ -5,11 +5,11 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PARAMS, PRESETS, buildKeySpecs } from '../../../packages/engine/src/core/design.ts';
 import { BOWED } from '../../../packages/engine/src/core/bowed.ts';
-import type { KeySummary } from '@piano-model/engine';
+import type { KeySummary, VisualFrame } from '@piano-model/engine';
 import { Batch, type Mesh, xform } from '../src/ui/gl/gl3d.ts';
 import { buildGrandModel, buildUprightModel, newPianoPose, posePiano, type PianoModel } from '../src/ui/gl/piano3d.ts';
 import { buildBowedModel } from '../src/ui/gl/strings3d.ts';
-import { buildFluteModel, buildTrumpetModel } from '../src/ui/gl/winds3d.ts';
+import { buildFluteModel, buildTrumpetModel, newWindPose, poseFlute, poseTrumpet } from '../src/ui/gl/winds3d.ts';
 import { newPianoState } from '../src/ui/piano-draw.ts';
 
 const keysOf = (preset: string): KeySummary[] => {
@@ -131,16 +131,55 @@ describe('3D instruments', () => {
     expect(len.cello).toBeCloseTo(0.755, 2);
   });
 
-  it('flute about 0.67 m with its tone holes; trumpet about 0.6 m with a 123 mm bell', () => {
+  // the measured sizes in docs/3d-reference.md, within ~3%: a Boehm C flute is 670–672 mm overall
+  // (McGee); the Bach Strad B♭ is 480 mm from the receiver to the bell rim (NMM 9107) with a 122 mm
+  // bell, and its 7C mouthpiece (88 mm long, 22 mm of it in the receiver) adds 66 mm
+  it('the flute is 670 mm with a key on every tone hole; the trumpet 480 mm to a 122 mm bell, 546 mm with its mouthpiece', () => {
     const f = buildFluteModel();
     const fb = bounds(f.statics);
-    expect(fb.hi[0] - fb.lo[0]).toBeGreaterThan(0.64);
-    expect(fb.hi[0] - fb.lo[0]).toBeLessThan(0.7);
+    expect(fb.hi[0] - fb.lo[0]).toBeGreaterThan(0.65);
+    expect(fb.hi[0] - fb.lo[0]).toBeLessThan(0.69);
     expect(f.holes.length).toBeGreaterThanOrEqual(12);
+    expect(f.keys.length).toBe(f.holes.length);
     const t = buildTrumpetModel();
-    const tb = bounds(t.statics);
-    expect(tb.hi[0] - tb.lo[0]).toBeGreaterThan(0.5);
-    expect(tb.hi[0] - tb.lo[0]).toBeLessThan(0.7);
-    expect(2 * t.rim).toBeCloseTo(0.123, 2);
+    const body = bounds([t.statics[0]]);
+    expect(body.hi[0] - body.lo[0]).toBeGreaterThan(0.466);
+    expect(body.hi[0] - body.lo[0]).toBeLessThan(0.494);
+    const all = bounds(t.statics);
+    expect(all.hi[0] - all.lo[0]).toBeGreaterThan(0.53);
+    expect(all.hi[0] - all.lo[0]).toBeLessThan(0.562);
+    expect(2 * t.rim).toBeCloseTo(0.122, 2);
+  });
+
+  it('the flute closes every hole above the note it sounds; the trumpet presses its valves and kicks the 3rd slide for low D', () => {
+    const scale = { of: (v: number) => v || 1 };
+    const f = buildFluteModel();
+    const pose = newWindPose();
+    const b = new Batch();
+    // G4 on the bore: c / 2f (the engine's own focus length), its shape a half sine
+    const g4 = 440 * 2 ** ((67 - 69) / 12);
+    const fr = { focus: { lengthM: 343 / (2 * g4), shapes: [Float32Array.from({ length: 32 }, (_, i) => Math.sin((Math.PI * i) / 31))] }, breath: { pressure: 0.6, vib: 0 } } as unknown as VisualFrame;
+    for (let k = 0; k < 40; k++) {
+      b.clear();
+      poseFlute(b, f, fr, pose, 1 / 60, k * 16, scale);
+    }
+    f.keys.forEach((k, i) => {
+      // above G (and the G♯ key, closed-standing) closed; G and below open; the D♯ key pressed open
+      const open = k.closed ? k.note === 63 : k.note <= 67;
+      if (open) expect(pose.cups[i]).toBeGreaterThan(0.9);
+      else expect(pose.cups[i]).toBeLessThan(0.1);
+    });
+    const t = buildTrumpetModel();
+    const tp = newWindPose();
+    const tf = { excite: { meta: 'valves 1+3 · partial 3' }, focus: null } as unknown as VisualFrame;
+    for (let k = 0; k < 90; k++) {
+      b.clear();
+      poseTrumpet(b, t, tf, tp, 1 / 60, k * 16, 0.01, scale);
+    }
+    expect(tp.valves[0]).toBeGreaterThan(0.9);
+    expect(tp.valves[1]).toBeLessThan(0.1);
+    expect(tp.valves[2]).toBeGreaterThan(0.9);
+    expect(tp.slide[2]).toBeGreaterThan(0.5);
+    expect(tp.slide[0]).toBeLessThan(0.05);
   });
 });
