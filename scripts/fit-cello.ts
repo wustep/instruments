@@ -4,7 +4,9 @@
 //   npx tsx scripts/fit-cello.ts --fit [--iters 40] [--lambda 16] [--write]
 // The objective is the judge's own per-note score (|error| / the recording's spread, over
 // harmonics, centroid, noise, attack, pitch, level), plus the long-term third-octave spectrum
-// per dynamic and the pp→ff level spread.
+// per dynamic and the pp→ff level spread. With --rate 96000 each fit note is also rendered at
+// that sample rate, and the change of its centroid (|log2|, in the centroid's spread) joins the
+// note's score as a seventh measure: the same instrument at any rate.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { join } from 'node:path';
@@ -23,12 +25,13 @@ interface Job {
   midi: number;
   dyn: Dyn;
   params: Record<string, unknown>;
+  fs?: number;
 }
 
 if (!isMainThread) {
   parentPort!.on('message', (m: { over: Over; jobs: Job[] }) => {
     Object.assign(BOWED.cello, structuredClone(m.over));
-    parentPort!.postMessage(m.jobs.map((j) => ({ i: j.i, a: modelNote({ instrument: 'cello', dyn: j.dyn, midi: j.midi, params: j.params }) })));
+    parentPort!.postMessage(m.jobs.map((j) => ({ i: j.i, a: modelNote({ instrument: 'cello', dyn: j.dyn, midi: j.midi, params: j.params, fs: j.fs }) })));
   });
 } else if (import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2);
@@ -38,9 +41,10 @@ if (!isMainThread) {
   const fitRefs = refs.filter((r) => r.midi % 2 === 0);
   const NW = Math.max(1, cpus().length - 2);
   const workers = Array.from({ length: NW }, () => new Worker(new URL(import.meta.url), { execArgv: ['--import', 'tsx'] }));
-  const run = (over: Over, rs: RefNote[]) =>
+  const RATE = opt('--rate') ? +opt('--rate')! : 0;
+  const run = (over: Over, rs: RefNote[], fs?: number) =>
     new Promise<(SustainedAnalysis | null)[]>((resolve) => {
-      const jobs: Job[] = rs.map((r, i) => ({ i, midi: r.midi, dyn: r.dyn, params: matchedParams(r) }));
+      const jobs: Job[] = rs.map((r, i) => ({ i, midi: r.midi, dyn: r.dyn, params: matchedParams(r), fs }));
       const out: (SustainedAnalysis | null)[] = new Array(rs.length).fill(null);
       let left = NW;
       workers.forEach((w, k) => {
@@ -76,8 +80,19 @@ if (!isMainThread) {
     const s = a.filter(Number.isFinite);
     return s.length ? s.reduce((x, y) => x + y, 0) / s.length : NaN;
   };
-  function score(rs: RefNote[], ms: (SustainedAnalysis | null)[]) {
-    const per: Record<string, number[]> = { harmonics: [], centroid: [], noise: [], attack: [], pitch: [], level: [] };
+  const bandCentroid = (a: SustainedAnalysis) => {
+    let num = 0;
+    let den = 0;
+    THIRD_OCT.forEach((f, k) => {
+      if (f > 10000) return;
+      const p = Math.pow(10, a.ltas[k] / 10);
+      num += f * p;
+      den += p;
+    });
+    return num / (den || 1);
+  };
+  function score(rs: RefNote[], ms: (SustainedAnalysis | null)[], mr?: (SustainedAnalysis | null)[]) {
+    const per: Record<string, number[]> = { harmonics: [], centroid: [], noise: [], attack: [], pitch: [], level: [], rate: [] };
     const notes: number[] = [];
     let bad = 0;
     rs.forEach((r, i) => {
@@ -94,7 +109,10 @@ if (!isMainThread) {
         pitch: m.cents,
         level: m.rmsDb - r.rmsDb,
       };
-      const zs = Object.entries(e).map(([k, v]) => Math.abs(v) / spreads[k as keyof typeof spreads]).filter(Number.isFinite);
+      // --rate: the same note at another sample rate, its brightness (the centroid of its
+      // third-octave spectrum up to 10 kHz, the band both rates share) against this one's
+      if (mr) e.rate = mr[i] ? Math.log2(bandCentroid(mr[i]!) / bandCentroid(m)) : 2;
+      const zs = Object.entries(e).map(([k, v]) => Math.abs(v) / (k === 'rate' ? spreads.centroid : spreads[k as keyof typeof spreads])).filter(Number.isFinite);
       notes.push(mean(zs));
       for (const [k, v] of Object.entries(e)) per[k].push(Math.abs(v));
     });
@@ -128,6 +146,7 @@ if (!isMainThread) {
       harm: +median(per.harmonics).toFixed(1),
       level: +median(rs.map((r, i) => (ms[i] ? ms[i]!.rmsDb - r.rmsDb : NaN))).toFixed(1),
       hnr: +median(rs.map((r, i) => (ms[i] ? ms[i]!.hnrDb - r.hnrDb : NaN))).toFixed(1),
+      ...(mr ? { rate: +mean(per.rate).toFixed(3) } : {}),
       bad,
     };
   }
@@ -135,10 +154,12 @@ if (!isMainThread) {
   if (args.includes('--eval')) {
     const over = { ...base, ...JSON.parse(opt('--eval') ?? '{}') };
     const ms = await run(over, refs);
-    console.log('all     ', JSON.stringify(score(refs, ms)));
-    const fi = refs.map((r, i) => [r, ms[i]] as const);
-    console.log('fit half', JSON.stringify(score(fi.filter(([r]) => r.midi % 2 === 0).map(([r]) => r), fi.filter(([r]) => r.midi % 2 === 0).map(([, m]) => m))));
-    console.log('held-out', JSON.stringify(score(fi.filter(([r]) => r.midi % 2 === 1).map(([r]) => r), fi.filter(([r]) => r.midi % 2 === 1).map(([, m]) => m))));
+    const mr = RATE ? await run(over, refs, RATE) : undefined;
+    console.log('all     ', JSON.stringify(score(refs, ms, mr)));
+    const fi = refs.map((r, i) => [r, ms[i], mr?.[i] ?? null] as const);
+    const half = (odd: number) => fi.filter(([r]) => r.midi % 2 === odd);
+    console.log('fit half', JSON.stringify(score(half(0).map(([r]) => r), half(0).map(([, m]) => m), mr && half(0).map(([, , q]) => q))));
+    console.log('held-out', JSON.stringify(score(half(1).map(([r]) => r), half(1).map(([, m]) => m), mr && half(1).map(([, , q]) => q))));
     const bands = THIRD_OCT.map((f, b) => [f, b] as const).filter(([f]) => f >= 63 && f <= 10000);
     for (const d of DYNS) {
       const sel = fi.filter(([r, m]) => r.dyn === d && m);
@@ -188,6 +209,8 @@ if (!isMainThread) {
     { k: 'bw', lo: 0.004, hi: 0.015, log: true },
     // rosin noise: the friction coefficient's random fluctuation
     { k: 'rosin', lo: 0.01, hi: 0.25, log: true },
+    // the bridge hill's effective mass at the string notch, kg (a cello bridge weighs ~ 8–9 g)
+    { k: 'bm', lo: 0.001, hi: 0.01, log: true },
   ];
   // --fix aPp,aFf: hold these at their start values (out of the search); --free aPp,aFf: hold all
   // the others
@@ -218,6 +241,7 @@ if (!isMainThread) {
       attackTau: [r3(Math.max(v.aPp, v.aFf)), r3(v.aFf)],
       bowWidth: r3(v.bw),
       rosinNoise: r3(v.rosin),
+      bridgeMass: r3(v.bm),
     };
   };
   const fromOver = (o: Over): number[] => {
@@ -225,15 +249,19 @@ if (!isMainThread) {
     const br = a.radiation?.bridge ?? [[1000, 1.2], [2200, 1.2]];
     const sr = (a.radiation as { statRad?: number } | undefined)?.statRad ?? 1;
     const v: Record<string, number> = { hfG: a.hf[0], hfF: a.hf[1], hill: a.eq[0][1], hillF: a.eq[0][0], low: a.eq[1][1], vLo: a.bowSpeed[0], vHi: a.bowSpeed[1], fPp: a.forceDyn[0], fFf: a.forceDyn[1], bPp: a.betaDyn?.[0] ?? 1, bFf: a.betaDyn?.[1] ?? 1, t60H: a.t60[1], b1f: br[0][0], b1q: br[0][1], b2f: br[1][0], b2q: br[1][1], gain: a.outputGain, statRad: sr, kc: (a as { idleCoupling?: number }).idleCoupling ?? 1 };
-    const b = o as { torsion?: { impedanceRatio: number; q: number }; t60HString?: number[]; attackTau?: number[]; bowWidth?: number; rosinNoise?: number };
-    Object.assign(v, { tz: b.torsion?.impedanceRatio ?? 3, tq: b.torsion?.q ?? 5, sC: b.t60HString?.[0] ?? 1, sG: b.t60HString?.[1] ?? 1, sD: b.t60HString?.[2] ?? 1, aPp: b.attackTau?.[0] ?? 0.045, aFf: b.attackTau?.[1] ?? 0.045, bw: b.bowWidth ?? d0.bowWidth ?? 0.01, rosin: b.rosinNoise ?? 0.04 });
+    const b = o as { torsion?: { impedanceRatio: number; q: number }; t60HString?: number[]; attackTau?: number[]; bowWidth?: number; rosinNoise?: number; bridgeMass?: number };
+    Object.assign(v, { tz: b.torsion?.impedanceRatio ?? 3, tq: b.torsion?.q ?? 5, sC: b.t60HString?.[0] ?? 1, sG: b.t60HString?.[1] ?? 1, sD: b.t60HString?.[2] ?? 1, aPp: b.attackTau?.[0] ?? 0.045, aFf: b.attackTau?.[1] ?? 0.045, bw: b.bowWidth ?? d0.bowWidth ?? 0.01, rosin: b.rosinNoise ?? 0.04, bm: b.bridgeMass ?? d0.bridgeMass ?? 0.002 });
     return SPACE.map((p) => Math.min(1, Math.max(0, p.log ? (Math.log(v[p.k]) - Math.log(p.lo)) / (Math.log(p.hi) - Math.log(p.lo)) : (v[p.k] - p.lo) / (p.hi - p.lo))));
   };
   const start: Over = { hf: d0.hf, eq: d0.eq, bowSpeed: d0.bowSpeed, forceDyn: d0.forceDyn, betaDyn: d0.betaDyn, t60: d0.t60, radiation: d0.radiation, outputGain: d0.outputGain, ...base, ...JSON.parse(opt('--start') ?? '{}') };
   const iters = +(opt('--iters') ?? 40);
   const lambda = +(opt('--lambda') ?? 8);
   let best = fromOver(start);
-  const evalZ = async (z: number[]) => score(fitRefs, await run(toOver(z), fitRefs));
+  const evalZ = async (z: number[]) => {
+    const over = toOver(z);
+    const ms = await run(over, fitRefs);
+    return score(fitRefs, ms, RATE ? await run(over, fitRefs, RATE) : undefined);
+  };
   let bestL = await evalZ(best);
   console.log('start', JSON.stringify(bestL), JSON.stringify(toOver(best)));
   let seed = 4242;

@@ -55,8 +55,8 @@ describe('controllers', () => {
     // same before the controller moves; brighter (more upper harmonics) after
     const a = (r: typeof lo) => analyzeSustained(r.left, FS, { start: Math.round(1.1 * FS), end: Math.round(1.55 * FS) }, 62).centroid;
     expect(Math.abs(rmsDb(lo.left, 0.4, 0.75) - rmsDb(hi.left, 0.4, 0.75))).toBeLessThan(0.5);
-    // (Schelleng: brighter with force. The cello's bow of finite width keeps D4 in Helmholtz motion
-    // at both ends, where the centroid rises ~9 % over the controller's ×0.36 … ×1.5)
-    expect(a(hi) / a(lo)).toBeGreaterThan(1.05);
+    // (Schelleng: brighter with force. With the bridge hill (realistic-3d round 2) the corner's upper
+    // harmonics follow the force again: +12 % over the controller's ×0.36 … ×1.5, was +8 %)
+    expect(a(hi) / a(lo)).toBeGreaterThan(1.1);
   });
 });

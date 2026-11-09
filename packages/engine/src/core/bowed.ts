@@ -107,6 +107,12 @@ interface BowedDesign {
   idleCoupling?: number;
   /** pitch compensation over this many harmonics, weighted 1/k (v2; absent: the first three, unweighted) */
   tuneHarmonics?: number;
+  /** the exponent p of those weights, 1/k^p (absent: 1, the sawtooth's amplitudes). Each period's
+   *  slip is set off by the arriving Helmholtz corner, which the upper harmonics carry as much as
+   *  the low ones, so with a bridge whose phase turns over the bridge hill (design.bridgeMass) the
+   *  1/k sum sharpened the open strings by 2–4 ¢; fitted on the fit half's open strings
+   *  (C2, D3 at pp/mf/ff: RMS 1.46 ¢ at p = 1, 1.27 at the fitted 0.85; held-out G2, A3: 2.81 → 2.13). */
+  tuneWeight?: number;
   /** Torsional waves (cello only so far). The bow grips the string's surface, which moves with
    *  the transverse velocity plus the torsional (rolling) velocity; torsion is fast, compliant
    *  and heavily damped, and it steadies the stick–slip (Cremer, The Physics of the Violin,
@@ -157,6 +163,36 @@ interface BowedDesign {
    *  multiply-slipping start; a force that only follows the speed starts below it. Absent: the
    *  force rises on its own, whatever the speed. */
   forceWithSpeed?: boolean;
+  /** The same instrument at any sample rate (cello only so far): the per-sample smoothing of the
+   *  loop's length, the rosin noise's low-pass and level and the torsional loss filter are defined
+   *  in time and frequency (their round-2/3 values at 44.1 kHz), not as fractions per sample, and
+   *  the bow taps the torsional waves at its exact, fractional place. Absent: the round-2/3
+   *  per-sample constants, whose effect moved with the rate (the soft G2 and D3 changed regime
+   *  between 44.1 and 96 kHz). */
+  rateInvariant?: boolean;
+  /** The bridge hill in the admittance the strings see (cello only so far), kg. The bridge's
+   *  first in-plane (rocking) resonance, radiation.bridge[0], is a resonance of the bridge on the
+   *  body: it shapes not only the force that reaches the body but the input admittance at the
+   *  string notch, which rises into a broad, resistive "bridge hill" around it (Woodhouse 2005,
+   *  Acta Acustica 91, "On the 'bridge hill' of the violin"; Jansson 2004; Reinicke 1973 for the
+   *  cello bridge's resonances near 1 and 2 kHz). It is added here as a heavily damped, non-
+   *  radiating mode at that frequency and Q (its damping capped like the body modes', ζ ≤ 0.45)
+   *  with this effective mass at the notch (fitted within 1–10 g; a cello bridge weighs about
+   *  8–9 g). The strings lose energy into it in the band where the bow–bridge segment of a soft,
+   *  sul-tasto stroke rings (f0/β ≈ 0.5–2.5 kHz): without
+   *  it those ripples were trapped between the stuck bow and a nearly rigid bridge, cut the slip
+   *  short and locked the string into a bright, ripple-dominated motion at pp (or broke it into
+   *  multiple slips), and which of the two depended on the attack and on the sample rate. */
+  bridgeMass?: number;
+  /** Intonation by ear (cello only so far): a cellist has no frets and moves the stopping finger
+   *  until the note sounds in tune, all the time it sounds. The finger's place here starts where
+   *  the loop's phases put the note (loopDelay) and is then corrected towards the period the
+   *  string actually sounds, measured slip to slip, with this time constant (s): a few times the
+   *  0.1–0.2 s latency of auditory pitch correction (Burnett et al. 1998, JASA 103, for the voice)
+   *  and slow enough to leave the vibrato alone. It takes out what the phase sum cannot predict,
+   *  mainly the flattening of a heavy bow (McIntyre & Woodhouse 1979; Schoonderwaldt 2009 measured
+   *  violinists' pitch flattening with bow force), as a player does; open strings stay as tuned. */
+  byEar?: number;
 }
 
 const VIOLIN: BowedDesign = {
@@ -279,6 +315,10 @@ const CELLO: BowedDesign = {
   // the hair ribbon's contact, m (a cello bow's ribbon is ~ 1 cm wide; Guettler; Pitteroff & Woodhouse 1998)
   bowWidth: 0.01,
   forceWithSpeed: true,
+  rateInvariant: true,
+  // the bridge hill's effective mass at the notch, kg (fitted in bowed-fit.json)
+  bridgeMass: 0.002,
+  byEar: 0.3,
 };
 
 export const BOWED: Record<string, BowedDesign> = { violin: VIOLIN, viola: VIOLA, cello: CELLO };
@@ -399,6 +439,19 @@ class BowedString {
   Ws = 0;
   kI = new Int32Array(64);
   kH = new Float64Array(64);
+  /** design.byEar: the finger's correction (cents), the note's period (samples), the frame of the
+   *  slip that began the last period, the loop length summed per sample since, the last period's
+   *  length, and this control block's period errors (sounding − intended, cents) */
+  ear = 0;
+  Pn = 100;
+  relAt = -1;
+  dSum = 0;
+  lastPm = 0;
+  errSum = 0;
+  errN = 0;
+  /** the samples the block's errors cover */
+  errT = 0;
+
   // traces for visualisation
   trF = new Float32Array(TRACE);
   trV = new Float32Array(TRACE);
@@ -470,6 +523,13 @@ export class BowedCore implements InstrumentCore {
   private vinS = new Float64Array(4);
   private peakS = new Float64Array(4);
   private onS = new Uint8Array(4);
+  /** per-sample coefficients (design.rateInvariant: from time constants; else the round-2/3
+   *  fractions): the loop length's glide, the rosin noise's one-pole and its input gain, and the
+   *  pole of the torsional loss filter */
+  private kD = 0.02;
+  private kN = 0.08;
+  private gN = 1;
+  private pT = 0.25;
 
   constructor(opts: { sampleRate: number; instrument: 'violin' | 'viola' | 'cello'; params?: Partial<BowedParams>; dry?: boolean }) {
     this.fs = opts.sampleRate;
@@ -507,6 +567,17 @@ export class BowedCore implements InstrumentCore {
         s.Wc = Math.cos(Math.PI / s.Wb);
         s.Ws = Math.sin(Math.PI / s.Wb);
       }
+    if (this.design.rateInvariant) {
+      // the round-2/3 fractions per sample, as the time constants they were at 44.1 kHz: the
+      // glide 0.02 (τ ≈ 1.1 ms), the rosin noise's one-pole 0.08 (≈ 585 Hz) and the torsional
+      // loss filter's pole 0.25 (τ ≈ 16 µs)
+      const r = 44100 / this.fs;
+      this.kD = 1 - Math.pow(0.98, r);
+      this.kN = 1 - Math.pow(0.92, r);
+      this.pT = Math.pow(0.25, r);
+      // the noise's RMS after its one-pole is √(k/(2 − k)) of its input's: keep it at 44.1 kHz's
+      this.gN = Math.sqrt((0.08 / 1.92) / (this.kN / (2 - this.kN)));
+    }
     for (const s of this.strings) this.setStopped(s, s.def.open, true);
     this.room = new Room(this.fs);
     this.limiter = new Limiter(this.fs);
@@ -529,6 +600,10 @@ export class BowedCore implements InstrumentCore {
       modes.push(md);
       f += d.stat.spacing * Math.sqrt(f / 1000) * (0.4 + 1.2 * rand());
     }
+    // design.bridgeMass: the bridge hill, at the bridge's own (fitted) resonance; it does not
+    // radiate (the body modes, driven by the bridge force, do, through radiation.bridge). Last, so
+    // the statistical modes and their pans stay as they were.
+    if (d.bridgeMass && d.radiation) modes.push({ f: d.radiation.bridge[0][0], eta: 1 / d.radiation.bridge[0][1], m: d.bridgeMass, rad: 0 });
     const K = modes.length;
     this.K = K;
     this.freq = Float64Array.from(modes.map((m) => m.f));
@@ -606,6 +681,14 @@ export class BowedCore implements InstrumentCore {
   /** Stop string s at midi note m (open if m equals its open note). */
   private setStopped(s: BowedString, m: number, immediate = false): void {
     s.midi = m;
+    // design.byEar: a new note, a new finger
+    s.ear = 0;
+    s.relAt = -1;
+    s.lastPm = 0;
+    s.errSum = 0;
+    s.errN = 0;
+    s.errT = 0;
+    s.Pn = this.fs / et(m);
     const f = et(m);
     const open = m <= s.def.open;
     // intrinsic losses; a stopping finger adds damping
@@ -649,8 +732,9 @@ export class BowedCore implements InstrumentCore {
         const er = yr * s.Z;
         const ei = yi * s.Z;
         const bridge = ((Math.atan2(-ei, 1 - er) - Math.atan2(ei, 1 + er)) / (2 * Math.PI * k)) * P;
-        num += (bridge - onePolePhaseDelay(s.lossA, w * k)) / k;
-        wsum += 1 / k;
+        const wk = Math.pow(k, -(this.design.tuneWeight ?? 1));
+        num += (bridge - onePolePhaseDelay(s.lossA, w * k)) * wk;
+        wsum += wk;
       }
       return Math.max(8, P + num / wsum);
     }
@@ -847,9 +931,14 @@ export class BowedCore implements InstrumentCore {
       }
       b.pos = clamp(b.pos + sgn * vmax * dt, 0, L);
     }
+    const fws = this.design.forceWithSpeed && this.design.rateInvariant;
     for (const s of this.strings) {
       s.vSigned = s.vBow * sgn;
-      s.fScale = fsc;
+      // design.forceWithSpeed, through a bow change too: the speed passes through zero, and each
+      // change starts the Helmholtz motion again (Guettler 2002), so the weight stays under
+      // Schelleng's maximum for the speed the bow has at that moment (before: eased by 18 % at the
+      // turn whatever the speed, i.e. well above that maximum as the bow stops)
+      s.fScale = fws && s.fBow > 0 && s.vBowTarget > 0 ? Math.min(fsc, (s.fMax * Math.abs(s.vSigned)) / (s.vBowTarget * s.fBow)) : fsc;
     }
   }
 
@@ -989,7 +1078,16 @@ export class BowedCore implements InstrumentCore {
       // the live pressure controller follows the bow while it is on the string
       if (s.bowing && s.fBase > 0) s.fBowTarget = Math.min(1.3 * s.fMax, s.fBase * this.pressureCC);
       const bendC = s.bowing || s.midi !== s.def.open ? 100 * this.bend : 0;
-      s.Dtarget = s.D0 * Math.pow(2, -(cents + bendC) / 1200);
+      // design.byEar: the finger follows the ear: the mean error of the periods heard since the
+      // last correction, weighted by the time they cover
+      const ear = this.design.byEar;
+      if (ear && s.errN > 0) {
+        if (s.bowing && s.midi > s.def.open) s.ear = clamp(s.ear - (s.errSum / s.errN) * (1 - Math.exp(-s.errT / (fs * ear))), -20, 20);
+        s.errSum = 0;
+        s.errN = 0;
+        s.errT = 0;
+      }
+      s.Dtarget = s.D0 * Math.pow(2, -(cents + bendC + s.ear) / 1200);
       s.Dtap = s.D0 * Math.pow(2, -bendC / 1200);
     }
     this.bowControl(dt);
@@ -1013,6 +1111,10 @@ export class BowedCore implements InstrumentCore {
     const Yt = this.Y0 + this.design.bridgeY;
     const hfG = this.design.hf[0];
     const rosin = this.design.rosinNoise ?? 0.04;
+    const kD = this.kD;
+    const pT = this.pT;
+    const fracT = !!this.design.rateInvariant;
+    const byEar = !!this.design.byEar;
     let ZS = 0;
     for (const s of strs) ZS += s.c * s.cz;
     const oL = this.oL;
@@ -1048,7 +1150,8 @@ export class BowedCore implements InstrumentCore {
         const buf = s.buf;
         const mask = s.mask;
         // glide the stopped length smoothly (vibrato, finger changes)
-        s.D += (s.Dtarget - s.D) * 0.02;
+        s.D += (s.Dtarget - s.D) * kD;
+        if (byEar) s.dSum += s.D;
         // ---- bow at an interior point (in place, like a hammer)
         if (s.fBow > 0) {
           // round 3: the bow taps sit on the note's nominal loop (with bend, without
@@ -1104,13 +1207,32 @@ export class BowedCore implements InstrumentCore {
           let iRt = 0;
           let tL = 0;
           let tR = 0;
+          // design.rateInvariant: the bow on the torsional loop at its exact place, between two
+          // samples (linear weights 1 − φ, φ on the bridge side; the nut side mirrors them), and
+          // the share of its own torsional velocity it sees this sample (Σ of the weights², 1 for
+          // a whole-sample tap)
+          let phT = 0;
+          let skt = 1;
           if (tor) {
             const Dt = s.Dt;
-            const dbt = Math.max(1, Math.round((s.beta * Dt) / 2));
-            iLt = (w - dbt) & 1023;
-            iRt = (w - (Dt - dbt)) & 1023;
-            tL = s.tb[iLt];
-            tR = -s.tb[iRt];
+            if (fracT) {
+              const xt = Math.max(1, (s.beta * Dt) / 2);
+              const it = Math.floor(xt);
+              phT = xt - it;
+              const tb = s.tb;
+              // bridge side: taps it, it + 1; nut side: Dt − it − 1, Dt − it (weights φ, 1 − φ)
+              iLt = it;
+              iRt = Dt - it - 1;
+              tL = (1 - phT) * tb[(w - it) & 1023] + phT * tb[(w - it - 1) & 1023];
+              tR = -(phT * tb[(w - iRt) & 1023] + (1 - phT) * tb[(w - iRt - 1) & 1023]);
+              skt = (1 - phT) * (1 - phT) + phT * phT;
+            } else {
+              const dbt = Math.max(1, Math.round((s.beta * Dt) / 2));
+              iLt = (w - dbt) & 1023;
+              iRt = (w - (Dt - dbt)) & 1023;
+              tL = s.tb[iLt];
+              tR = -s.tb[iRt];
+            }
             vs = vh + tL + tR;
           }
           // rosin noise roughens the friction curve slightly
@@ -1120,8 +1242,9 @@ export class BowedCore implements InstrumentCore {
           const twoZ = 2 * s.Z;
           // a finite-width contact is stiffer within one sample (its force spreads over Σh² of
           // the string), in parallel with the torsional impedance at its centre
-          const twoZb = Wb > 0 ? (tor ? 1 / (sk / twoZ + 1 / (2 * s.Zt)) : twoZ / sk) : tor ? 2 * s.Zb : twoZ;
+          const twoZb = Wb > 0 ? (tor ? 1 / (sk / twoZ + skt / (2 * s.Zt)) : twoZ / sk) : tor ? (fracT ? 1 / (1 / twoZ + skt / (2 * s.Zt)) : 2 * s.Zb) : twoZ;
           const dh = s.vSigned - vs;
+          const wasStick = s.stick;
           let f: number;
           const fStick = twoZb * dh;
           if (s.stick && Math.abs(fStick) <= MU_S * fb) {
@@ -1154,6 +1277,29 @@ export class BowedCore implements InstrumentCore {
               f = sg * fb * MU_D;
             }
           }
+          // design.byEar: a slip that begins a period (the first after at least 0.7 of one) marks it;
+          // its length against the period the loop's length gives (uncorrected) is the ear's error
+          if (byEar && wasStick && !s.stick && s.midi > s.def.open) {
+            if (s.relAt < 0) {
+              s.relAt = w;
+              s.dSum = 0;
+            } else {
+              const Pm = w - s.relAt;
+              const Pe = (s.Pn * s.dSum) / (Pm * s.D0);
+              if (Pm > 0.7 * Pe) {
+                // heard only once the stroke has settled: the bow near its speed, and two periods in
+                // a row that agree within 2 % (an attack's or a bow change's slips are not a pitch)
+                if (Pm < 1.4 * Pe && Math.abs(Pm - s.lastPm) < 0.02 * Pm && s.vBow > 0.7 * s.vBowTarget && Math.abs(s.vSigned) > 0.7 * s.vBow) {
+                  s.errSum += 1200 * Math.log2(Pe / Pm) + s.ear;
+                  s.errN++;
+                  s.errT += Pm;
+                }
+                s.lastPm = Pm;
+                s.relAt = w;
+                s.dSum = 0;
+              }
+            }
+          }
           const df = f / twoZ;
           if (Wb > 0) {
             // the force spread over the contact, on both travelling waves (the transpose of the
@@ -1168,8 +1314,16 @@ export class BowedCore implements InstrumentCore {
           }
           if (tor) {
             const dft = f / (2 * s.Zt);
-            s.tb[iLt] = tL + dft;
-            s.tb[iRt] = -(tR + dft);
+            if (fracT) {
+              const tb = s.tb;
+              tb[(w - iLt) & 1023] += (1 - phT) * dft;
+              tb[(w - iLt - 1) & 1023] += phT * dft;
+              tb[(w - iRt) & 1023] -= phT * dft;
+              tb[(w - iRt - 1) & 1023] -= (1 - phT) * dft;
+            } else {
+              s.tb[iLt] = tL + dft;
+              s.tb[iRt] = -(tR + dft);
+            }
           }
           if (i === this.focus) {
             s.trF[s.trI] = f;
@@ -1184,7 +1338,7 @@ export class BowedCore implements InstrumentCore {
         if (tor) {
           // the torsional round trip: rigid at the nut/finger and the bridge, heavily damped
           const xt = s.tb[(w - s.Dt) & 1023];
-          s.tly = 0.75 * s.tg * xt + 0.25 * s.tly;
+          s.tly = (1 - pT) * s.tg * xt + pT * s.tly;
           s.tb[w & 1023] = Math.abs(s.tly) < 1e-30 ? 0 : s.tly;
         }
         // ---- bridge-incoming wave: fractional (Lagrange-3) read, inversion, loss
@@ -1283,7 +1437,7 @@ export class BowedCore implements InstrumentCore {
   }
 
   private noise(s: BowedString): void {
-    s.noiseLp += 0.08 * (this.rng() * 2 - 1 - s.noiseLp);
+    s.noiseLp += this.kN * (this.gN * (this.rng() * 2 - 1) - s.noiseLp);
   }
 
   // ------------------------------------------------------------ inspection
