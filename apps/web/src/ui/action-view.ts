@@ -220,7 +220,8 @@ export function openActionView(opts: { midi: number; kind: Kind; host: HTMLEleme
     if (shape) for (let i = 0; i < shape.length; i++) mx = Math.max(mx, Math.abs(shape[i]));
     const sc = strScale.of(mx);
     const parts: [string, number, number][] = [];
-    const geo = { parts, X, Y, s, y, comp, keyPos, escaped: escaped || phase === 'free' || phase === 'contact' || phase === 'fall' || phase === 'checked', damperOn: hasDamper ? damperOn : 0, hasDamper, shape, sc, beta: w?.beta ?? 0.12, active: phase === 'drive' || phase === 'free' || phase === 'contact', contact: phase === 'contact', jackOut: replay ? (phase === 'drive' ? 0 : 1) : jackOut };
+    const pedals = opts.latest();
+    const geo = { soft: pedals?.soft ?? 0, middle: pedals?.middle ?? 0, parts, X, Y, s, y, comp, keyPos, escaped: escaped || phase === 'free' || phase === 'contact' || phase === 'fall' || phase === 'checked', damperOn: hasDamper ? damperOn : 0, hasDamper, shape, sc, beta: w?.beta ?? 0.12, active: phase === 'drive' || phase === 'free' || phase === 'contact', contact: phase === 'contact', jackOut: replay ? (phase === 'drive' ? 0 : 1) : jackOut };
     if (kind === 'grand') drawGrand(ctx, geo);
     else drawUpright(ctx, geo);
     hover = parts.map(([n, px, py]) => [n, X(px), Y(py)] as [string, number, number]);
@@ -259,6 +260,9 @@ interface Geo {
   jackOut: number;
   /** part names at their positions (model units), for the hover names */
   parts: [string, number, number][];
+  /** the pedals, live: soft (an upright's half-blow rail) and the middle (an upright's muffler) */
+  soft?: number;
+  middle?: number;
 }
 
 function line(ctx: CanvasRenderingContext2D, pts: [number, number][], col: string, wid: number, g: Geo): void {
@@ -448,14 +452,19 @@ function drawUpright(ctx: CanvasRenderingContext2D, g: Geo): void {
   const bp: [number, number] = [415, 205];
   const R = 150; // butt pivot to hammer centre
   const xRest = bp[0];
-  const hA = Math.asin(Math.min(0.9, g.y / R)); // clockwise swing towards the string
+  // the soft pedal (half-blow) holds the hammers about 45 % of the way to the strings
+  const halfBlow = (g.soft ?? 0) * 0.45 * D;
+  const hA = Math.asin(Math.min(0.9, Math.max(g.y, halfBlow) / R)); // clockwise swing towards the string
   const ham = (x: number, yy: number) => rot(bp[0], bp[1], x, yy, -hA);
   const head = ham(xRest, bp[1] + R);
   const xStr = xRest + 13 + D;
   line(ctx, [bp, head], rgba(INK.wood, 1), 3.5, g);
   line(ctx, [bp, head], rgba(INK.felt, 0.6), 1, g);
-  // hammer rail the shanks rest against
-  line(ctx, [[392, 250], [392, 290]], rgba(INK.felt, 0.35), 4, g);
+  // the hammer rail the shanks rest against: deep, just under the heads (25–59 mm below the hammer's
+  // centre, as on the 3D upright and both reference photographs); its felt faces the shanks
+  const railX = 397 + halfBlow * ((bp[1] + R - 42 - bp[1]) / R);
+  line(ctx, [[railX - 9, bp[1] + R - 59], [railX - 9, bp[1] + R - 25]], rgba('214,188,142', 0.9), 12, g);
+  line(ctx, [[railX - 2, bp[1] + R - 57], [railX - 2, bp[1] + R - 27]], rgba('44,96,72', 0.9), 2.5, g);
   // butt, catcher (towards the player) and the backcheck on the wippen
   const butt = ham(402, 205);
   ctx.fillStyle = rgba(INK.felt, 0.6);
@@ -498,7 +507,8 @@ function drawUpright(ctx: CanvasRenderingContext2D, g: Geo): void {
     // foot is pushed by the spoon, so its head swings off the string
     const off = (1 - g.damperOn) * 12;
     const dp: [number, number] = [448, 215];
-    const yHead = bp[1] + R + 28;
+    // an underdamper: its head on the string 50 mm under the strike line, behind the shank
+    const yHead = bp[1] + R - 50;
     const da = Math.atan2(off, yHead - dp[1]);
     const dl = (x: number, yy: number) => rot(dp[0], dp[1], x, yy, da);
     const headPt = dl(dp[0], yHead);
@@ -506,13 +516,21 @@ function drawUpright(ctx: CanvasRenderingContext2D, g: Geo): void {
     pivot(ctx, dp[0], dp[1], g);
     const spoon = wip(430, 128);
     line(ctx, [wp, spoon, dl(dp[0] - 2, 168)], rgba(INK.steel, 0.6), 1.5, g);
-    ctx.fillStyle = g.damperOn > 0.5 ? rgba(INK.amber, 0.6) : rgba(INK.amber, 0.3);
+    // the head: a hornbeam block, its white felt on the string (amber while lifted)
     const dx = xStr - 3 - 14 - off;
-    ctx.fillRect(g.X(dx), g.Y(yHead + 14), 14 * g.s, 28 * g.s);
-    ctx.strokeStyle = rgba(INK.amber, 0.9);
-    ctx.lineWidth = 1;
-    ctx.strokeRect(g.X(dx), g.Y(yHead + 14), 14 * g.s, 28 * g.s);
+    ctx.fillStyle = rgba('230,212,172', 0.75);
+    ctx.fillRect(g.X(dx), g.Y(yHead + 13), 9 * g.s, 26 * g.s);
+    ctx.fillStyle = g.damperOn > 0.5 ? rgba('238,231,214', 0.95) : rgba(INK.amber, 0.85);
+    ctx.fillRect(g.X(dx + 9), g.Y(yHead + 12), 5 * g.s, 24 * g.s);
     line(ctx, [headPt, [dx + 7, yHead]], rgba(INK.steel, 0.5), 1, g);
     g.parts.push(['damper', dx + 7, yHead], ['damper lever', ...dl(dp[0], 190)], ['damper spoon', ...spoon]);
+  }
+  // ---- the practice muffler (the middle pedal): a felt strip dropped between hammer and string
+  const mu = g.middle ?? 0;
+  if (mu > 0.02) {
+    const yM = head[1] + 46 * (1 - mu);
+    ctx.fillStyle = rgba('44,96,72', 0.35 + 0.5 * mu);
+    ctx.fillRect(g.X(xStr - 8), g.Y(yM + 20), 4 * g.s, 40 * g.s);
+    g.parts.push(['muffler', xStr - 6, yM]);
   }
 }
