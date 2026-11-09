@@ -1162,31 +1162,35 @@ figure[title] {
 
 /* ------------------------------------------------------------ MIDI file player: icons and a hairline */
 .player {
+  /* top middle of the stage, just under its top band (the stage sets --stage-band-y): clear of the
+     picker, the note readout and the spectrum, in 2D and over the 3D canvas */
   position: fixed;
   z-index: 5;
   left: 50%;
-  bottom: calc(var(--fall-h) + var(--kbd-h) + 18px);
+  top: calc(var(--stage-band-y, 140px) + 8px);
   transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px 8px;
+  padding: 3px 12px 3px 4px;
   border-radius: 6px;
   background: rgba(14, 13, 11, 0.55);
   backdrop-filter: blur(6px);
+}
+.player[hidden] {
+  display: none;
 }
 :root:not([data-route='stage']) .player {
   display: none;
 }
 .pl-btns {
   display: flex;
-  gap: 6px;
+  gap: 2px;
 }
 .pl-btn {
-  width: 30px;
-  height: 30px;
-  padding: 4px;
+  width: 28px;
+  height: 28px;
+  padding: 5px;
   border: 0;
   background: none;
   color: var(--ink-2);
@@ -1202,7 +1206,7 @@ figure[title] {
 }
 .pl-bar {
   position: relative;
-  width: 180px;
+  width: min(160px, 34vw);
   height: 2px;
   background: rgba(236, 226, 206, 0.16);
   cursor: pointer;
@@ -1394,7 +1398,8 @@ figure[title] {
   align-items: center;
   gap: 10px;
 }
-.dim-toggle {
+.dim-toggle,
+.case-toggle {
   font: 500 11px/1 var(--mono);
   letter-spacing: 0.06em;
   color: var(--ink-2, #c9bfab);
@@ -1404,12 +1409,48 @@ figure[title] {
   padding: 3px 7px;
   cursor: pointer;
 }
-.dim-toggle[aria-pressed='true'] {
+.dim-toggle[aria-pressed='true'],
+.case-toggle[aria-pressed='true'] {
   color: var(--ground, #0e0d0b);
   background: rgba(236, 226, 206, 0.82);
   border-color: transparent;
 }
-.dim-toggle:focus-visible {
+.dim-toggle:focus-visible,
+.case-toggle:focus-visible {
+  outline: 1px solid rgba(242, 166, 70, 0.8);
+}
+.case-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+}
+.case-toggle[hidden] {
+  display: none;
+}
+.case-toggle svg {
+  display: block;
+}
+/* a key's action close up (3D): the way back, small, at the stage's top right under the top band */
+.zoom-back {
+  position: absolute;
+  right: 16px;
+  top: 140px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: var(--ink-2, #c9bfab);
+  background: rgba(14, 13, 11, 0.55);
+  border: 1px solid rgba(236, 226, 206, 0.22);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.zoom-back[hidden] {
+  display: none;
+}
+.zoom-back:focus-visible {
   outline: 1px solid rgba(242, 166, 70, 0.8);
 }
 .stage-3d {

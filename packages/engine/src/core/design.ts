@@ -61,6 +61,10 @@ export interface PianoDesign {
   id: string;
   label: string;
   description: string;
+  /** the action, which decides what the pedals do: a grand's soft pedal shifts the action (una
+   *  corda) and its middle pedal is a sostenuto; an upright's soft pedal brings the hammers nearer
+   *  the strings (half-blow) and its middle pedal lowers a practice muffler (Yamaha U1) */
+  action: 'grand' | 'upright';
   lengthScale: Breakpoints;
   tensionScale: number;
   unichordTop: number;
@@ -112,6 +116,7 @@ export const DEFAULT_PARAMS: PianoParams = {
 
 const GRAND: PianoDesign = {
   id: 'grand',
+  action: 'grand',
   label: 'Concert grand',
   description: 'A 7-foot class grand, calibrated against a Steinway model B recording.',
   lengthScale: { midi: [21, 108], val: [1, 1] },
@@ -140,6 +145,7 @@ const GRAND: PianoDesign = {
 const UPRIGHT: PianoDesign = {
   ...GRAND,
   id: 'upright',
+  action: 'upright',
   label: 'Upright',
   description: 'A 120 cm studio upright: shorter, stiffer strings, a smaller and stiffer soundboard.',
   lengthScale: { midi: [21, 48, 72, 108], val: [0.64, 0.7, 0.82, 0.95] },

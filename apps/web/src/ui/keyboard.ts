@@ -228,6 +228,12 @@ export class ComputerKeys {
       if (!e.repeat) audio.soft(1);
       return;
     }
+    // the middle pedal (a grand's sostenuto, an upright's muffler): B, beside the octave and
+    // velocity keys, clear of the note rows
+    if (e.code === 'KeyB') {
+      if (!e.repeat) audio.sostenuto(1);
+      return;
+    }
     if (e.repeat) {
       if (e.code in ComputerKeys.MAP) e.preventDefault();
       return;
@@ -250,6 +256,10 @@ export class ComputerKeys {
     }
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
       audio.soft(0);
+      return;
+    }
+    if (e.code === 'KeyB') {
+      audio.sostenuto(0);
       return;
     }
     const midi = this.held.get(e.code);

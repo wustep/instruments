@@ -504,8 +504,12 @@ export class Voice {
     return y / this.fs;
   }
 
-  /** Launch the hammer. unaCorda in [0,1] shifts it off the third string and onto softer felt. */
-  strike(velocity: number, vHammer: number, unaCorda: number, pos: number): void {
+  /** Launch the hammer. On a grand, `soft` in [0,1] is the una corda: the action shifts the
+   *  hammer off the third string and onto softer felt. On an upright (`upright`) it is the
+   *  half-blow rail: every string is struck, by a hammer that started nearer and arrives slower.
+   *  `muffler` (an upright's middle pedal) puts a felt strip between hammer and strings. */
+  strike(velocity: number, vHammer: number, soft: number, pos: number, upright = false, muffler = 0): void {
+    const unaCorda = upright ? 0 : soft;
     this.hActive = true;
     this.hContact = false;
     this.hEverContact = false;
@@ -528,8 +532,17 @@ export class Voice {
     }
     ysMean /= nV;
     this.hY = ysMean - HAMMER_GAP;
-    this.hV = vHammer;
-    this.hKeff = this.hK * (1 - 0.3 * unaCorda);
+    // half-blow: the rail halves the hammer's free travel (≈45 → ≈25 mm), so for the same key
+    // stroke it is still accelerating when it reaches the string; a 22 % lower speed at full
+    // pedal (≈ −2 dB) is an estimate (no recordings of it here), the softening players describe
+    // (Reblitz, Piano Servicing, Tuning and Rebuilding, 2nd ed., ch. 3, the upright soft pedal).
+    // The muffler: a strip of loose woven felt (≈3 mm) in series with the hammer's pressed felt;
+    // the series contact is far softer than the hammer alone, K_series ≈ 0.07 K (an estimate: no
+    // recordings of it here), and it eats about a third of the hammer's speed: C4 comes out
+    // ≈10 dB softer and darker, C6 ≈20 dB (Yamaha U1 owner's manual: the practice pedal
+    // "considerably reduces the volume")
+    this.hV = vHammer * (1 - 0.22 * (upright ? soft : 0)) * (1 - 0.35 * muffler);
+    this.hKeff = this.hK * (1 - 0.3 * unaCorda) * (1 - 0.93 * muffler);
     this.hRecLen = 0;
     this.strikeVelocity = velocity;
     this.strikeVh = vHammer;

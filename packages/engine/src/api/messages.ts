@@ -40,6 +40,8 @@ export interface Stats {
   maxVoices: number;
   sustain: number;
   soft: number;
+  /** the pianos' middle pedal: a grand's sostenuto, an upright's practice muffler */
+  middle?: number;
 }
 
 export interface VisualFrame extends Stats {

@@ -44,7 +44,10 @@ describe('3D instruments', () => {
   const upright = buildUprightModel(keysOf('upright'));
 
   it('the grand is a grand: about 2 m long, 1.5 m wide, a 1 m tall case on legs, 88 keys at 725 mm', () => {
-    const b = bounds([...grand.statics, grand.board]);
+    const b = bounds([...grand.statics, ...grand.cases, grand.board]);
+    // the case (rim, legs, lyre) is its own mesh, to dissolve; what stays starts at the keybed
+    expect(grand.cases.every((m) => m.fade)).toBe(true);
+    expect(bounds(grand.statics).lo[1]).toBeGreaterThan(0.6);
     expect(b.hi[2] - b.lo[2]).toBeGreaterThan(1.8);
     expect(b.hi[2] - b.lo[2]).toBeLessThan(2.5);
     expect(b.hi[0] - b.lo[0]).toBeGreaterThan(1.3);
@@ -188,5 +191,31 @@ describe('3D instruments', () => {
     expect(tp.valves[2]).toBeGreaterThan(0.9);
     expect(tp.slide[2]).toBeGreaterThan(0.5);
     expect(tp.slide[0]).toBeLessThan(0.05);
+  });
+});
+
+describe('pedals in the action (2D and 3D share it)', () => {
+  it('the sostenuto holds the dampers of the keys down as it goes down; the upright soft pedal raises its hammers', async () => {
+    const { newPianoState, stepAction } = await import('../src/ui/piano-draw.ts');
+    const keys = keysOf('grand');
+    const pts = keys.map((k) => ({ midi: k.midi, i: k.midi - 21, x: 0, w: 1, L: k.lengthM, k, wound: false }));
+    const st = newPianoState();
+    st.down = new Set([60]);
+    for (let f = 0; f < 30; f++) stepAction(pts, st);
+    st.middle = 1; // sostenuto down while C4 is held
+    for (let f = 0; f < 5; f++) stepAction(pts, st);
+    st.down = new Set([64]); // C4 released, E4 pressed after the pedal
+    for (let f = 0; f < 5; f++) stepAction(pts, st);
+    st.down = new Set();
+    for (let f = 0; f < 60; f++) stepAction(pts, st);
+    expect(st.damper[60 - 21]).toBeGreaterThan(0.95);
+    expect(st.damper[64 - 21]).toBeLessThan(0.05);
+    // an upright's soft pedal: the hammers rest part way to the strings, with no shift
+    const up = newPianoState();
+    up.upright = true;
+    up.soft = 1;
+    for (let f = 0; f < 60; f++) stepAction(pts, up);
+    expect(up.hammer[60 - 21]).toBeGreaterThan(0.4);
+    expect(up.shift).toBeLessThan(0.01);
   });
 });

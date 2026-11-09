@@ -102,8 +102,16 @@ export interface Mesh {
   mats?: Uint16Array;
   /** each vertex's position in its part's own frame (for solid textures) */
   loc?: Float32Array;
+  /** can dissolve (a piano's case): drawn with a glow alpha of 2 + visibility (0..1), its shadow too */
+  fade?: boolean;
 }
 const ISTRIDE = 20;
+/** the glow that dissolves a `fade` mesh to visibility v (0..1): set [3] = 2 + v before each call */
+export const dissolve = (v: number, out: RGBA): RGBA => {
+  out[0] = out[1] = out[2] = 0;
+  out[3] = 2 + Math.max(0, Math.min(1, v));
+  return out;
+};
 
 export class LineSet {
   lv = new Buf();
@@ -173,6 +181,10 @@ export class Batch {
   /** shadow casters' bounds (centre, radius) and the floor */
   bounds: { c: Vec3; r: number } = { c: [0, 0, 0], r: 1 };
   floor: { y: number; c: Vec3; r0: number; r1: number } | null = null;
+  /** a section: everything with side·(x − at) > 0 is cut away (a piano key's action, close up) */
+  clip: { at: number; side: 1 | -1 } | null = null;
+  /** a box the orbit camera may not enter (an instrument's case: its target is inside it) */
+  keepOut: { lo: Vec3; hi: Vec3 } | null = null;
   ov: Overlays = { amps: new Float32Array(16), mn: new Float32Array(32), modalHot: [0.95, 0.65, 0.27], modalGain: 0, wave: new Float32Array(48), waveCol: [1, 0.37, 0.22] };
   /** vertex count (for the performance budget) */
   get vertices(): number {
@@ -189,6 +201,8 @@ export class Batch {
     this.ov.modalGain = 0;
     this.ov.wave.fill(0);
     this.floor = null;
+    this.clip = null;
+    this.keepOut = null;
   }
   /** a glowing polyline (additive) of `width` px; colour per point or one for all */
   line(pts: Vec3[], color: RGBA | RGBA[], width = 1.2): void {
