@@ -932,12 +932,24 @@ test('pianos in 3D: the case hides (button or I), the inside keeps drawing, and 
   await expect(page.locator('.stage-3d')).toBeVisible();
   await expect(caseBtn).toBeVisible();
   await expect(caseBtn).toHaveAttribute('aria-label', 'Hide the case');
+  // the grand's open lid mirrors the plate and strings (not in the phones' light scene, not when shut)
+  await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3);
+  const mirror = () => page.evaluate(() => (window as any).__stage3d.stats.mirror as boolean);
+  if (info.project.name === 'phone') expect(await mirror()).toBe(false);
+  else {
+    await expect.poll(mirror).toBe(true);
+    await page.evaluate(() => (window as any).__piano.setParams({ lid: 0 }));
+    await expect.poll(mirror).toBe(false);
+    await page.evaluate(() => (window as any).__piano.setParams({ lid: 1 }));
+    await expect.poll(mirror).toBe(true);
+  }
   await page.evaluate(() => (window as any).__piano.setPreset('upright'));
   await page.locator('.presets button', { hasText: 'upright' }).click();
   await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3);
   await page.waitForTimeout(300);
   const verts = () => page.evaluate(() => (window as any).__stage3d.stats.vertices as number);
   const shown = await verts();
+  expect(await mirror()).toBe(false);
   if (info.project.name === 'phone') await caseBtn.tap();
   else await page.keyboard.press('KeyI');
   await expect(caseBtn).toHaveAttribute('aria-pressed', 'true');

@@ -29,3 +29,23 @@ Gate: typecheck clean; vitest 106/106; Playwright 55 passed, 7 skipped (desktop 
 
 Left as it is, on purpose: the underside of the grand's lid is still a black field (a real one
 mirrors the plate and strings; that needs a planar reflection pass, not an environment trick).
+
+## Round 2: the grand's lid mirrors the plate and strings
+
+The one thing round 1 left: under the open lid was a black field. A polished lid is a mirror, and the
+plate and strings in it are the picture of a grand.
+
+- `three3d.ts`: a planar reflection. The scene (and the strings' lines, sounding ones glowing) is drawn
+  from the camera's mirror image in the lid's plane into its own target, then added over the lacquer by
+  its Fresnel reflectance (capped at 0.42, ×1.3). The lid itself is left out of that pass; the shadow
+  map is drawn once and shared. Follows the lid as it is dragged, fades with the case, off in a key's
+  close-up section, off in the phones' light scene, off when the camera is above the lid.
+- Cost on the grand at 2880×1100: frame median 0.9 → 1.5 ms (unthrottled). The mirror's target is not
+  multisampled: resolving a second multisampled target with a depth texture cost ≈ 2.5 ms a frame.
+- `lacquer` environment 2.2× → 1.7× (the lid's top, seen from behind, was a white slab).
+- e2e: the case test now checks the mirror is drawn for the grand on desktop, stops when the lid shuts,
+  and is never drawn for the upright or on the phone.
+
+Before (top) and after (bottom): `round2-lid/grand-{hero,side,under}.jpg`.
+
+Gate: typecheck clean; vitest 106/106; Playwright 55 passed, 7 skipped.

@@ -586,6 +586,9 @@ export interface PianoModel {
   wires: Wire[];
   lid: Mesh | null;
   lidHinge: Vec3;
+  /** the polished underside of a grand's lid (plan outline, height), in the lid's own frame: it mirrors
+   *  the plate and strings (the renderer's planar reflection) */
+  lidMirror?: { poly: [number, number][]; y: number };
   prop: { base: Vec3; tipLocal: Vec3 } | null;
   pedals: { mesh: Mesh; pivot: Vec3 }[];
   bounds: { c: Vec3; r: number };
@@ -937,7 +940,8 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
   const LID_T = 0.022;
   const LID_FOLD = 0.47;
   const y0 = G.rimTop + 0.001;
-  slab(lm, PLAN, dedupe(clipV(closed, LID_FOLD)), [], y0, y0 + LID_T, M.lacquer, { bevel: 0.006, smooth: 0.9 });
+  const lidMain = dedupe(clipV(closed, LID_FOLD));
+  slab(lm, PLAN, lidMain, [], y0, y0 + LID_T, M.lacquer, { bevel: 0.006, smooth: 0.9 });
   const flap = dedupe(clipV(clipV(closed, 0.172), LID_FOLD, true)).map(([x, z]): P2 => [x, 2 * LID_FOLD - z]);
   slab(lm, PLAN, flap, [], y0 + LID_T + 0.0008, y0 + 2 * LID_T + 0.0008, M.lacquer, { bevel: 0.006, smooth: 0.9 });
   rbox(lm, [xL + 0.02, y0 + LID_T - 0.001, LID_FOLD - 0.008], [xR - 0.06, y0 + LID_T + 0.0016, LID_FOLD + 0.008], M.brass, 0.0008);
@@ -968,6 +972,7 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
     wires: wiresOf(geo),
     lid: lm.build(),
     lidHinge: [xL, G.rimTop + 0.012, 0],
+    lidMirror: { poly: lidMain.map(([x, z]): [number, number] => [x, z]), y: y0 - 0.0004 },
     prop,
     pedals,
     bounds: { c: [0, 0.6, 1.0], r: 1.35 },
@@ -1886,6 +1891,8 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
     // rotation about the z-parallel axis through the hinge
     const lidM = new Float32Array([c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, h[0] - (c * h[0] - s * h[1]), h[1] - (s * h[0] + c * h[1]), 0, 1]);
     b.mesh(pm.lid, lidM, caseGlow);
+    // open far enough to see under, and not in a key's close-up section (which cuts the scene)
+    if (pm.lidMirror && si.lid > 0.08 && !si.lite && !si.cut) b.mirror = { m: lidM, poly: pm.lidMirror.poly, y: pm.lidMirror.y, k: cv, body: pm.lid };
     if (pm.prop && si.lid > 0.03) {
       const tip = xform(lidM, pm.prop.tipLocal);
       propStick(b, pm.prop.base, tip, caseGlow);
