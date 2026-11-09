@@ -20,11 +20,16 @@ const keysOf = (preset: string): KeySummary[] => {
 function bounds(ms: Mesh[], T: Float32Array | null = null): { lo: number[]; hi: number[] } {
   const lo = [Infinity, Infinity, Infinity];
   const hi = [-Infinity, -Infinity, -Infinity];
+  for (const m of ms) {
+    // every vertex finite (one assertion per mesh: the meshes have hundreds of thousands)
+    let bad = 0;
+    for (let k = 0; k < m.count * 14; k++) if (!Number.isFinite(m.data[k])) bad++;
+    expect(bad).toBe(0);
+  }
   for (const m of ms)
     for (let i = 0; i < m.count; i++) {
       const o = i * 14;
       let p: [number, number, number] = [m.data[o], m.data[o + 1], m.data[o + 2]];
-      for (let k = 0; k < 14; k++) expect(Number.isFinite(m.data[o + k])).toBe(true);
       if (T) p = xform(T, p);
       for (let k = 0; k < 3; k++) {
         lo[k] = Math.min(lo[k], p[k]);

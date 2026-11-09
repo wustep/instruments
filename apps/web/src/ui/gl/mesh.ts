@@ -3,12 +3,44 @@
 // the materials. Everything is built once per instrument; units are metres.
 import { type Mat4, type Mesh, type Vec3, add, cross, norm, scale, sub, xdir, xform } from './gl3d.ts';
 
-/** a surface: sRGB colour, roughness, metalness, and a kind (0 plain, 1 modal plate, 2 tube glow, 3 floor) */
+/** a surface: sRGB colour, roughness, metalness, and a kind (0 plain, 1 modal plate, 2 tube glow,
+ *  3 floor). The renderer turns each into a physically based material (`mats3.ts`, by `name`);
+ *  `paint` gives a surface its own painted maps (a violin's plates: varnish, purfling, f-holes). */
 export interface Mat {
   col: Vec3;
   rough: number;
   metal: number;
   kind?: number;
+  /** the material family the renderer shades it as (set below for the shared ones) */
+  name?: string;
+  /** a per-instrument painted surface: drawn once, in the browser, when first shown */
+  paint?: PaintSpec;
+  /** use `col` instead of the family's own colour */
+  tint?: boolean;
+}
+/** maps painted on a canvas over a plate's local (x, z) rectangle: colour (+ alpha cut-outs) and an
+ *  auxiliary map (r: figure/flame for the angle-dependent sheen, g: distance from the edge) */
+export interface PaintSpec {
+  key: string;
+  /** the local rectangle [x0, z0, x1, z1] (metres) the maps cover; u along x, v along z */
+  rect: [number, number, number, number];
+  /** pixels along x (z follows the aspect) */
+  px: number;
+  draw: (c: CanvasRenderingContext2D, aux: CanvasRenderingContext2D, w: number, h: number) => void;
+  /** holes: alpha below 0.5 is cut away */
+  cut?: boolean;
+}
+/** every material by id (the meshes store ids per vertex) */
+export const MAT_LIST: Mat[] = [];
+const matIds = new Map<Mat, number>();
+export function matId(m: Mat): number {
+  let id = matIds.get(m);
+  if (id === undefined) {
+    id = MAT_LIST.length;
+    MAT_LIST.push(m);
+    matIds.set(m, id);
+  }
+  return id;
 }
 const hex = (h: string): Vec3 => [parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255];
 export const M = {
@@ -58,16 +90,35 @@ export const M = {
   pernambuco: { col: hex('#6b2e14'), rough: 0.3, metal: 0 },
   bowHair: { col: hex('#ede7da'), rough: 0.85, metal: 0 },
   floor: { col: hex('#13110e'), rough: 0.7, metal: 0, kind: 3 },
+  // inside a violin's body (seen through the f-holes), pegs and fittings, strings and their silk
+  interior: { col: hex('#2a160b'), rough: 0.9, metal: 0 },
+  rosewood: { col: hex('#3a1a0e'), rough: 0.35, metal: 0 },
+  boxwood: { col: hex('#d9b878'), rough: 0.4, metal: 0 },
+  gut: { col: hex('#2a2420'), rough: 0.5, metal: 0 },
+  rubber: { col: hex('#151413'), rough: 0.85, metal: 0 },
+  leather: { col: hex('#2b1a12'), rough: 0.75, metal: 0 },
+  silk: { col: hex('#b0281e'), rough: 0.6, metal: 0 },
+  silkGold: { col: hex('#c9962a'), rough: 0.6, metal: 0 },
+  stringSteel: { col: hex('#c9ccd2'), rough: 0.24, metal: 1 },
+  stringWound: { col: hex('#a7a9ad'), rough: 0.3, metal: 1 },
 } satisfies Record<string, Mat>;
+for (const [k, m] of Object.entries(M)) (m as Mat).name = k;
+/** a variant of a shared material (same shading family, its own colour or maps) */
+export const variant = (m: Mat, o: Partial<Mat>): Mat => ({ ...m, ...o, name: o.name ?? m.name });
 
 export class MeshBuilder {
   private v: number[] = [];
+  private ids: number[] = [];
+  private loc: number[] = [];
   /** the transform applied to everything added (positions and normals) */
   T: Mat4 | null = null;
   vert(p: Vec3, n: Vec3, m: Mat, uv: [number, number] = [0, 0]): void {
     const q = this.T ? xform(this.T, p) : p;
     const nn = this.T ? norm(xdir(this.T, n)) : n;
     this.v.push(q[0], q[1], q[2], nn[0], nn[1], nn[2], m.col[0], m.col[1], m.col[2], m.rough, m.metal, m.kind ?? 0, uv[0], uv[1]);
+    this.ids.push(matId(m));
+    // the part's own coordinates (before `T`): solid textures (wood grain) follow the part
+    this.loc.push(p[0], p[1], p[2]);
   }
   /** a flat triangle (normal from its winding) */
   tri(a: Vec3, b: Vec3, c: Vec3, m: Mat, uv?: [[number, number], [number, number], [number, number]]): void {
@@ -90,7 +141,7 @@ export class MeshBuilder {
     return this.v.length / 14;
   }
   build(): Mesh {
-    return { data: new Float32Array(this.v), count: this.v.length / 14 };
+    return { data: new Float32Array(this.v), count: this.v.length / 14, mats: Uint16Array.from(this.ids), loc: new Float32Array(this.loc) };
   }
   /** run `f` with an extra transform */
   with(T: Mat4, f: () => void): void {
@@ -386,16 +437,21 @@ export function offset(line: [number, number][], d: number, closed = false): [nu
 }
 
 /** a parametric surface f(u, v) over [0,1]², nu × nv cells; normals from the grid; uv passed through */
-export function grid(mb: MeshBuilder, nu: number, nv: number, f: (u: number, v: number) => Vec3, m: Mat, opts: { flip?: boolean; uv?: (u: number, v: number) => [number, number] } = {}): void {
+export function grid(mb: MeshBuilder, nu: number, nv: number, f: (u: number, v: number) => Vec3, m: Mat, opts: { flip?: boolean; uv?: (u: number, v: number) => [number, number]; wrapV?: boolean } = {}): void {
   const P: Vec3[][] = [];
   for (let i = 0; i <= nu; i++) {
     P.push([]);
     for (let j = 0; j <= nv; j++) P[i].push(f(i / nu, j / nv));
   }
+  // with wrapV the v = 0 and v = 1 rows are the same loop: their normals are taken across the seam
+  const at = (i: number, j: number): Vec3 => {
+    if (opts.wrapV) return P[i][((j % nv) + nv) % nv];
+    return P[i][Math.max(0, Math.min(nv, j))];
+  };
   const Nr: Vec3[][] = P.map((row, i) =>
     row.map((_, j) => {
       const du = sub(P[Math.min(nu, i + 1)][j], P[Math.max(0, i - 1)][j]);
-      const dv = sub(P[i][Math.min(nv, j + 1)], P[i][Math.max(0, j - 1)]);
+      const dv = sub(at(i, j + 1), at(i, j - 1));
       let n = cross(du, dv);
       if (Math.hypot(...n) < 1e-14) n = [0, 1, 0];
       n = norm(n);
@@ -418,8 +474,6 @@ export function grid(mb: MeshBuilder, nu: number, nv: number, f: (u: number, v: 
       }
     }
 }
-
-/** a smooth closed curve through points (Catmull-Rom), `per` samples per segment */
 export function spline(pts: [number, number][], per: number, closed = false): [number, number][] {
   const n = pts.length;
   const out: [number, number][] = [];

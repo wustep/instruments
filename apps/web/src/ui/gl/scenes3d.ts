@@ -7,7 +7,6 @@ import type { KeySummary, VisualFrame } from '@piano-model/engine';
 import { AutoScale, INK, type BowedGeom } from '../stage-draw.ts';
 import type { PianoState } from '../piano-draw.ts';
 import { type Batch, type Mesh, type RGBA, type Vec3, ink } from './gl3d.ts';
-import { floorMesh } from './mesh.ts';
 import { boardOverlay, buildGrandModel, buildUprightModel, newPianoPose, pianoPickSegments, pianoStrings, posePiano, type PianoModel, type PianoPose } from './piano3d.ts';
 import { buildBowedModel, poseBowed, type BowedModel } from './strings3d.ts';
 import { buildFluteModel, buildTrumpetModel, newWindPose, poseFlute, poseTrumpet, type FluteModel, type TrumpetModel, type WindPose } from './winds3d.ts';
@@ -118,14 +117,9 @@ function pianoModel(si: SceneIn, st: Scene3State): PianoModel | null {
   return st.upright;
 }
 
-function floor(b: Batch, st: Scene3State, key: string, c: Vec3, r: number): void {
-  let f = st.floors.get(key);
-  if (!f) {
-    f = floorMesh([c[0], 0, c[2]], 8);
-    st.floors.set(key, f);
-  }
-  b.mesh(f);
-  b.floor = { y: 0, c: [c[0], 0, c[2]], r0: r * 0.5, r1: r * 2.0 };
+/** the floor under the instrument (the renderer draws it: shadowed, fading into the ground) */
+function floor(b: Batch, _st: Scene3State, _key: string, c: Vec3, r: number): void {
+  b.floor = { y: 0, c: [c[0], 0, c[2]], r0: r * 0.45, r1: r * 1.6 };
 }
 
 /** build this frame's scene; returns where sound leaves the instrument and the room's span */

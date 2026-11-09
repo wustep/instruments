@@ -1,20 +1,16 @@
 // The stage in 3D: a WebGL2 canvas over the instrument area, an orbit camera (drag to turn,
-// pinch or wheel to zoom, double-click to reset), and the instruments drawn from the live frames.
+// pinch or wheel to zoom, double-click to reset), and the instruments drawn from the live frames
+// (three.js, `three3d.ts`; this module and three.js load only when 3D is first switched on).
 // On the piano, a click on a note's strings opens that key's action (the stage wires `pick`).
-// Where WebGL2 is missing the toggle never appears and the 2D stage carries on.
-import { Batch, Renderer, lookAt, mul, perspective, project, type Mat4, type Vec3 } from './gl3d.ts';
+// Where WebGL2 is missing the toggle never appears and the 2D stage carries on (`webgl2.ts`).
+import { Batch, project, type Mat4, type Vec3 } from './gl3d.ts';
 import { buildRoom, buildScene, newScene3State, viewFor, type SceneIn, type View3 } from './scenes3d.ts';
+import { Renderer3 } from './three3d.ts';
 
-export function webgl2Available(): boolean {
-  try {
-    const c = document.createElement('canvas');
-    const gl = c.getContext('webgl2');
-    gl?.getExtension('WEBGL_lose_context')?.loseContext();
-    return !!gl;
-  } catch {
-    return false;
-  }
-}
+/** the lens: a 24° vertical field (about a 55 mm lens on full frame at the stage's aspect), not the
+ *  wide 34° the views were first set for; the views' distances are scaled to keep the framing */
+const FOV = 24;
+const FRAME = Math.tan(0.3) / Math.tan(((FOV / 2) * Math.PI) / 180);
 
 export interface Stage3D {
   el: HTMLCanvasElement;
@@ -30,9 +26,11 @@ export interface Stage3D {
   dispose(): void;
   /** frame build + draw time (ms, smoothed, without one-off model building), vertices, whether
    *  the light scene / shadows are in use, and the total time spent building models */
-  stats: { ms: number; vertices: number; lite: boolean; frames: number; lit: number; sum: number; buildMs: number; shadows: boolean };
+  stats: { ms: number; vertices: number; lite: boolean; frames: number; lit: number; sum: number; buildMs: number; shadows: boolean; ao: boolean };
   /** tests: read back the next frames' pixels (lit count and a checksum) */
   probe: boolean;
+  /** the renderer (debugging) */
+  r3: Renderer3;
 }
 
 export function createStage3D(host: HTMLElement): Stage3D | null {
@@ -41,7 +39,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
   el.setAttribute('role', 'img');
   el.setAttribute('aria-label', 'The instrument in 3D, moving as the simulation computes it. Drag to turn, pinch or scroll to zoom, double-click to reset.');
   const phone = Math.min(window.innerWidth, window.innerHeight) < 600 || matchMedia('(pointer: coarse)').matches;
-  const r = Renderer.create(el, phone ? 1024 : 2048);
+  const r = Renderer3.create(el, phone);
   if (!r) return null;
   host.append(el);
   const batch = new Batch();
@@ -52,7 +50,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
   let pitch = 0;
   let dist = 1;
   let last = 0;
-  const stats = { ms: 0, vertices: 0, lite: phone, frames: 0, lit: 0, sum: 0, buildMs: 0, shadows: true };
+  const stats = { ms: 0, vertices: 0, lite: phone, frames: 0, lit: 0, sum: 0, buildMs: 0, shadows: true, ao: !phone };
   let probe = false;
   const px = new Uint8Array(4);
   let lastVP: Mat4 | null = null;
@@ -113,6 +111,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
   return {
     el,
     stats,
+    r3: r,
     get probe() {
       return probe;
     },
@@ -125,7 +124,8 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       if (v.target) view = { ...view, target: v.target };
       if (v.yaw !== undefined) yaw = v.yaw;
       if (v.pitch !== undefined) pitch = v.pitch;
-      if (v.dist !== undefined) dist = v.dist;
+      // (distances in the views' units: scaled by the lens like the default views)
+      if (v.dist !== undefined) dist = v.dist * FRAME;
     },
     pick(x, y) {
       if (!lastVP || !st.picks.length) return null;
@@ -187,44 +187,47 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       if (key !== viewKey) {
         viewKey = key;
         view = viewFor(si, st);
+        view.dist *= FRAME;
         // a narrow or square screen: step back so the instrument fits the width
         const aspect = W / H;
         if (aspect < 1.4) view.dist *= Math.min(2.6, 1.4 / Math.max(0.45, aspect)) * 0.92;
         resetView();
       }
       buildRoom(batch, si, st, src, span, 0);
-      // camera
+      // camera: orbiting the view's target
       const v = view!;
       const eye: Vec3 = [v.target[0] + dist * Math.cos(pitch) * Math.sin(yaw), v.target[1] + dist * Math.sin(pitch), v.target[2] - dist * Math.cos(pitch) * Math.cos(yaw)];
-      // mirrored in x: the scenes are laid out with the bass at −x, and a pianist facing the
-      // strings (+z) sees the bass on the left
-      const mirror = new Float32Array([-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
-      const vp = mul(mirror, mul(perspective(0.6, pw / ph, 0.02, 60), lookAt(eye, v.target, [0, 1, 0])));
-      lastVP = vp;
       const g = getComputedStyle(document.body).getPropertyValue('--ground').trim() || '#0e0d0b';
       const hex = /^#([0-9a-f]{6})$/i.exec(g)?.[1] ?? '0e0d0b';
       const ground: [number, number, number] = [parseInt(hex.slice(0, 2), 16) / 255, parseInt(hex.slice(2, 4), 16) / 255, parseInt(hex.slice(4, 6), 16) / 255];
       r.shadows = stats.shadows;
-      r.draw(batch, vp, eye, pw, ph, ground);
-      // budget: if a frame costs more than ~9 ms, draw the light scene (every other string, fewer
-      // parts), and if that is still too slow, drop the shadows
+      r.ao = stats.ao;
+      const progs = r.r.info.programs?.length ?? 0;
+      r.draw(batch, eye, v.target, FOV, pw, ph, ground);
+      lastVP = r.vp.elements as unknown as Mat4;
+      // budget: if a frame costs more than ~9 ms, drop the occlusion, then draw the light scene
+      // (every other string, fewer parts), then drop the shadows. A frame that compiled shaders
+      // (the first of each instrument) is kept out of it, as the model building is.
+      const compiled = (r.r.info.programs?.length ?? 0) !== progs;
       const ms = performance.now() - t0 - buildMs;
-      stats.ms = stats.frames ? stats.ms * 0.95 + ms * 0.05 : ms;
+      if (!compiled) {
+        stats.ms = stats.frames ? stats.ms * 0.95 + ms * 0.05 : ms;
+        stats.frames++;
+      }
       stats.vertices = batch.vertices;
-      stats.frames++;
       if (stats.frames > 30 && stats.ms > 9) {
-        if (stats.lite) stats.shadows = false;
-        stats.lite = true;
+        if (stats.ao) stats.ao = false;
+        else if (stats.lite) stats.shadows = false;
+        else stats.lite = true;
         stats.frames = 1;
       }
       if (probe) {
         // sample a grid of pixels straight after drawing (the buffer is not kept for later)
         let lit = 0;
         let sum = 0;
-        const gl = r.gl;
         for (let y = 0; y < 24; y++)
           for (let x = 0; x < 40; x++) {
-            gl.readPixels(Math.floor(((x + 0.5) / 40) * pw), Math.floor(((y + 0.5) / 24) * ph), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+            r.readPixel(Math.floor(((x + 0.5) / 40) * pw), Math.floor(((y + 0.5) / 24) * ph), px);
             const v = px[0] + px[1] + px[2];
             if (v > 90) lit++;
             sum = (sum * 31 + v) % 1000003;

@@ -15,8 +15,9 @@ const ONLY = process.env.ONLY?.split(',');
 const DEVICES = (process.env.DEVICES ?? 'desktop,phone').split(',');
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', args: ['--autoplay-policy=no-user-gesture-required', '--use-angle=metal', '--enable-gpu'] });
+const DSF = Number(process.env.DSF ?? 2);
 const VIEW = {
-  desktop: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 },
+  desktop: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: DSF },
   phone: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true },
 };
 
