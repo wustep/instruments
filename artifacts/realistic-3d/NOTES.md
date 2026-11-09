@@ -1,223 +1,231 @@
 # Realistic 3D + cello audio — notes
 
-Branch `improve/realistic-3d-cello`, from `af4f97e`. Local commits only: nothing is pushed, merged or deployed.
+Branch `improve/realistic-3d-cello`, from `af4f97e` (production).
+
+The round had two stages. The first rebuilt the 3D stage from extruded diagrams into lit whole instruments
+and gave the cello a new sound model (`624c0bf`). The supervisor judged that first 3D "programmer art". A
+polish pass followed, held to `.autopilot/ART-DIRECTION.md` with these steps, in order:
+
+1. references;
+2. silhouette;
+3. forms;
+4. materials;
+5. lighting;
+6. animation;
+7. polish;
+8. harsh critique/fix cycles against reference photographs, side by side.
+
+The pass switched the renderer to three.js, rebuilt the violin family, the pianos and the winds, and
+polished the cello's sound.
+
+The before/after of every instrument's default view is `final/before-after.jpg`. The contact sheets are
+`final/contact-*.jpg` (each instrument next to its reference photograph), the shots are in `final/shots/`,
+and the cello audio is in `final/cello-audio/`.
 
 ## What changed: the 3D stage
 
-Before, the 3D stage drew the 2D diagrams extruded into space: glowing lines, flat translucent fills and no
-lighting. After, each instrument is a complete, lit model, built once from real proportions and the engine's
-own scale. Each frame it is posed from the engine's live state.
+### Process
 
-### Renderer
+Each instrument went through at least three full critique/fix cycles. Each cycle had four steps:
 
-Raw WebGL2, still with no libraries (`apps/web/src/ui/gl/gl3d.ts`):
+* render a fixed review set: hero three-quarter, front, side, a mechanism close-up and an actuated frame
+  (`scripts/review-3d.mjs`);
+* lay it out next to reference photographs (`scripts/contact-sheet.py`);
+* list the top things that made it look fake, ranked;
+* fix the top items.
 
-* static meshes drawn instanced, each with a model matrix and a glow;
-* GGX specular and Schlick Fresnel;
-* reflections of a dim studio: an overhead softbox, a strip light and warm walls;
-* a warm key light with a 3×3 PCF shadow map (2048 px on desktop, 1024 on phones), a cool unshadowed fill
-  and a hemisphere ambient;
-* ACES tone mapping;
-* a floor that takes the shadow and fades into the page's ground.
+The violin family had 4 cycles, the pianos 4 and the winds 4. The reference photographs are freely licensed
+(most are CC0 Open Access photographs from The Metropolitan Museum of Art) and measured dimensions are in
+`docs/3d-reference.md`. The photographs stay in `.cache/` and are not committed, except inside the contact
+sheets as credited in `final/README.md`.
 
-Materials are hand-tuned: polished ebonised lacquer, the gilt cast-iron plate, spruce, maple, hornbeam,
-hammer and damper felt, ivory and ebony key tops, steel, nickel, brass, silver, pearl, and oil varnish over
-spruce and maple. Spruce gets a procedural grain.
+### Renderer: three.js (`three3d.ts`, `mats3.ts`)
 
-Two live overlays are computed in the shader:
+The raw WebGL2 path could not reach the look, so the stage now renders with three.js 0.186.1. It loads only
+when 3D is first switched on: a separate chunk of 685 kB (185 kB gzip). The page's own bundle is unchanged.
 
-* the soundboard and the violin-family tops glow from the engine's mode amplitudes, as before;
-* the flute's and the trumpet's tubing glow along the bore with the engine's standing wave.
+* **Materials.** One MeshPhysicalMaterial per material family:
+  * clearcoat over lacquer, varnish and brass;
+  * sheen on felt and bow hair;
+  * anisotropic drawn steel;
+  * iridescent pearl.
 
-The glowing lines are still used for the live state: vibrating strings, sympathetic glow, stopping marks, the
-breath jet, the lips and the room's wavefronts. They are now depth-tested against the solid models.
+  Wood is textured in the shader from each part's own coordinates: spruce grain, flamed maple whose stripes
+  flip light and dark with the viewing angle, ebony and maple fleck. Roughness has micro-variation
+  throughout.
+* **Light, the way a product studio lights it:**
+  * a generated image-based light (PMREM) with a large overhead softbox, a key softbox, a wide card behind
+    the camera (so polished brass and silver have something bright to reflect), and tall rim strips;
+  * a warm key light with a soft PCF shadow, a cool rim light and a low fill;
+  * ground-truth ambient occlusion (GTAO, half resolution);
+  * a slight bloom on specular hot spots, with a capped soft knee;
+  * Khronos PBR Neutral tone mapping;
+  * a dark floor that takes the shadow and occlusion, and a softly lit backdrop. Both fade into the page's
+    own ground colour.
+* **Strings** are drawn as metal "wires" at their real diameter, shaded as cylinders, at least one pixel
+  wide. The live glows (strings, stopping marks, breath, wavefronts) are drawn over the picture and hidden
+  behind nearer surfaces.
+* **Camera:**
+  * a 24° lens (about 55 mm) instead of 34°;
+  * damped orbit (about 70 ms) that never goes below the floor;
+  * the cello's hero view is from its bass side, a little below centre.
+* **Budget.**
+  * Slow frames drop the occlusion, then switch to the light scene, then drop shadows.
+  * Phones start with no occlusion, no bloom, a 1024 px shadow map and 2× multisampling.
+  * 2× multisampling is also used on very large canvases.
 
-### Grand (`piano3d.ts`)
+### Violin, viola, cello (`strings3d.ts`, `outlines.ts`)
 
-The case and its fittings:
+**Outline and f-holes.** Both are traced from front photographs (`scripts/trace-outline.py`, `make-outlines.py`):
 
-* a rim shaped from the engine's bridge line;
-* the lid on its spine hinge, at the engine's `lid`, with its prop;
-* three turned legs on casters, and a lyre with three brass pedals (sustain and soft move with the engine);
-* the key slip, cheeks and fallboard.
+* a J.-B. Vuillaume cello: its bouts come out 345 / 238 / 444 mm at a 755 mm body (Davidov: 345 / 235 / 440);
+* the Stradivari "Francesca" violin: 166 / 111 / 208 (Messiah: 168 / 112 / 208). The viola uses the
+  violin's outline at 406 mm.
 
-Inside:
+The tracer sees the outermost edge row by row, which squares off the corners, so each corner is rebuilt as
+a real hook: the C-bout curves back out under the tip.
 
-* a gilt plate with its front web over the pin block, struts and capo bar, and 230 tuning pins (one per
-  string);
-* the strings at the engine's lengths, unisons and strike ratios, with the wound bass overstrung;
-* the bridges, on a spruce soundboard that shows its live modes.
+**Plates.** Height fields (a long arch × a cross arch) rise out of a channel round the edge. The edge is
+rounded and overhangs the ribs. The edge band is built as rings that follow the outline, so the channel is
+never aliased; the interior is a grid clipped to the outline. Insets are fold-free, which keeps the corners
+sharp.
 
-Each of the 88 keys carries its own action:
+**Painted maps:**
 
-* the key on its balance rail, with its capstan;
-* the wippen on its flange, the jack (which tips out at escapement) and the repetition lever;
-* the hammer shank with its knuckle, and the hammer head (bigger in the bass);
-* the backcheck on the key's tail;
-* the damper underlever, its wire, and the damper head on the strings behind the strike line. The top
-  octaves have no dampers, as in the engine.
+* spruce grain, the varnish (deeper in the channel, the C-bouts and round the f-holes, worn thin on the
+  crowns), and black–white–black purfling;
+* the back two-piece flamed maple with its button;
+* the f-holes cut through with their walls, antialiased by alpha to coverage; the inside of the body is dark.
 
-The treble cheek and rim are cut away in front of the bentside so you can see the action in profile.
+**Fittings:**
 
-### Upright
+* a swept volute scroll whose turns step in, with a fluted back and hollowed sides;
+* flat satin fiddle pegs;
+* the neck's heel down to the button;
+* a bridge cut from its outline (feet, heart, kidneys, ears);
+* a tailpiece with its fret and a fine tuner;
+* the chinrest, and the endpin with its rubber;
+* the bow: head plate, frog, ferrule, slide, pearl eye, winding, leather and button.
 
-The upright is built separately and has its own vertical action:
+The bow crosses strings in an arc instead of snapping.
 
-* the wippen is flanged at the back, with its jack, backcheck, spoon and bridle wire;
-* the hammer butt has a catcher, and its shank stands upright so the head strikes back into the strings;
-* the damper lever stands behind the hammer, with its head pressing the strings above the strike point.
+### Grand and upright (`piano3d.ts`)
 
-Around the action:
+**Grand: 2.16 × 1.49 m.** That is within 3 % of a Steinway B, matching the engine's 1.58 m A0 string.
 
-* the bass is cross-strung in front of the tenor;
-* behind the strings are the plate, the vertical soundboard, the back posts and the pin block, with its
-  tuning pins pointing at the player;
-* the case has arms, legs on toes, a kneeboard and two pedals;
-* the upper front panel is off, as a technician sees it, so the action shows.
+* **Case:** the bentside traced and swept into a bevelled rim with a bottom moulding and a black inner face.
+* **Lid and desk:** the lid on its prop with the front flap folded back and brass hinges, and a music desk.
+* **Legs:** square tapered legs on twin brass casters, and a lyre with braces, rods and brass pedals.
+* **Plate:** gold-bronze paint, modelled as mostly diffuse metal flake in lacquer. It has:
+  * the web over the pin block, the bass and treble windows, cast U-channel struts and the hitch flange
+    with its rosettes;
+  * the capo bar, agraffes, three staggered rows of satin tuning pins and the red felts.
+* **Strings:** wires at real diameters: steel 0.8–1.2 mm, copper-wound bass 1.8–5 mm.
+* **Action:** shaped hammers (white felt over red underfelt on a moulding), wippen, jack, repetition lever,
+  backcheck, underlevers, wedge damper felts in the bass, and cast brackets.
 
-### Violin, viola, cello (`strings3d.ts`)
+**The action is a linked rig:** key → capstan → wippen → jack → knuckle.
 
-The body:
+* It uses the Erwin gauge geometry: hammer-to-key ratio 5.3:1, and the jack trips at let-off.
+* After let-off the repetition lever holds the knuckle up.
+* The backcheck catch follows the stage's own hammer state.
 
-* top and back arched with a long × cross arch and a shallow channel at the edge, over ribs, with the plates
-  overhanging;
-* purfling, and f-holes (eyes, stem and the notches on the bridge line).
+The treble cut-away became a window under the rim's top rail, so the case's silhouette stays whole.
 
-The neck and fittings:
+**Upright: 1.21 × 1.53 m (U1).**
 
-* the neck and its heel, an ebony fingerboard with crown, the nut, the pegbox with four pegs, and the scroll
-  (a logarithmic volute);
-* the bridge (with its heart and kidneys) standing on the arch;
-* the tailpiece and tailgut;
-* a chinrest on the violin and viola, an end button, and on the cello a wooden socket with a steel endpin
-  that reaches the floor.
+* the case with arms, consoles and toe blocks;
+* the plate behind the strings and the pressure bar;
+* hammer butts with catchers;
+* narrow wooden hammer backs between cream felt shoulders;
+* damper levers;
+* a hammer rail that moves with the soft pedal.
 
-The bow has a cambered stick, the hair ribbon, the frog with its ferrule and eyes, the adjuster, and the head
-with its plate. It lies on the bowed string, tangent to the bridge arch, at the engine's contact point (β of
-the vibrating length) and at its hair position. It glows amber during a bow change.
+**Cost.** Key tops are shared by cut, there is one shared key-stick mesh, and the pose is allocation-free:
+a handful of draw calls instead of about 300. Grand frames went from 1.7–2.2 ms to 0.6–0.9 ms CPU.
 
-The live state is drawn on the instrument:
+### Flute and trumpet (`winds3d.ts`)
 
-* the stopping point is a glowing bar on the real fingerboard under its string, rocking with the live
-  vibrato;
-* the bowed string's shape moves in the bowing direction.
+**Flute.** A Boehm C flute with a C foot, 670 mm long, laid out from `flute-side.jpg` and scaled to McGee's
+figures (embouchure 70.5 mm from the crown).
 
-The violin and viola are held at playing tilt; the cello stands on its endpin, leaning back.
+* **Head:** crown, a measured head taper, and the lip plate (45 × 27.6 mm) on its riser.
+* **Body:** drawn tone-hole chimneys.
+* **Keys:**
+  * five open-hole cups with grommets and pointed arms, plus three plain French cups;
+  * the thumb key, the C♯ key, the trill keys with their touches, the B/B♭ thumb levers and the G♯ spoon;
+  * hinge tubes on rods, and posts on ribs;
+  * needle springs and pads.
+* **Foot:** the keys and rollers.
+* **Live:** every hole above the engine's bore note closes. The keys return on springs, with a small bounce
+  as each pad seats.
 
-### Flute (`winds3d.ts`)
+**Trumpet.** 480 mm from receiver to rim (NMM 9107).
 
-* The tube: a tapered headjoint, crown, lip plate on its riser, and the embouchure hole.
-* The keywork: joint rings, tone holes at the engine's own sounding lengths, padded cups on arms (five of
-  them open-hole), rods on posts, the thumb key, and rollers on the foot.
-* The cups close (amber) up to the sounding end and open beyond it. They pulse with the breath vibrato.
-* The breath jet crosses the embouchure hole, and the bore's standing wave glows along the silver.
+* **Tubing and bell:** 12.7 mm tubing, and a 122.2 mm Bessel-like bell with a rolled bead.
+* **Mouthpiece:** the Bach 7C profile.
+* **Leadpipe and main slide:** the leadpipe, and the main tuning slide with its brace and water key.
+* **Valves:** 19.8 mm casings on a 26 mm pitch, knurled nickel caps, felts, and buttons with pearl inlays.
+* **Slides:** the first with its saddle, the third with its ring and stop rod.
+* **Braces:** braces and the finger hook.
+* **Live:**
+  * Valves travel 15.5 mm on a spring, with a bounce off the felt.
+  * The first and third slides kick on the notes that need them. That is player practice; the engine
+    doesn't model it.
+  * The rim shimmers with the amplitude.
 
-### Trumpet
+### Interaction (unchanged)
 
-* Mouthpiece, receiver, leadpipe, and the main tuning slide (with its water key) in front of the valves.
-* Three valve casings with top and bottom caps, nickel stems and pearl buttons. They press down for the
-  engine's fingering.
-* The first slide runs forward and has a thumb saddle; the third runs back towards the player and has a
-  ring; the second is short. A slide glows when its valve sends the air through it.
-* The bell tail runs to the bell bow, and the bell pipe to a 123 mm Bessel-like flare.
-* The lips buzz at the rim, and the standing wave glows along the brass.
-
-### Interaction (unchanged or extended)
-
-* The 2D/3D toggle, orbit (drag), zoom (wheel/pinch) and double-click reset all work as before.
-* Without WebGL2 there is no toggle. The model build time is kept out of the frame budget. If a frame
-  costs more than about 9 ms, the scene switches to its light version (every other string, fewer action
-  parts); if that is still too slow, shadows are dropped.
-* **Single-key inspect now works in 3D.** A click (not a drag) on a note's strings opens that key's action
-  view; the cursor becomes `zoom-in` over strings. Before, it only worked in 2D.
-* For tests and shots, `window.__stage3d.setView({ yaw, pitch, dist, target })` sets the camera and
-  `screenOf(midi)` returns a key's on-screen position.
+* The 2D/3D toggle, orbit, zoom and double-click reset all work.
+* The no-WebGL2 fallback still applies: without WebGL2, no toggle appears.
+* Single-key inspect still works: a click on a note's strings opens that key's action, in 2D and in 3D.
+* The live state (keys, hammers, dampers, pedals, lid, bow, stopping marks, cups, valves, breath, lips,
+  wavefronts) is still driven by the engine's own frames.
 
 ### Frame cost
 
-Scene build plus submit, CPU, measured as `stats.ms` in Chrome on an M-series Mac:
+CPU per frame (`stats.ms`, scene + submit, Chrome on an M-series Mac, review set at 1440×900):
 
-| | desktop | Pixel 7 emulation (light scene) |
-|---|---|---|
-| grand | 0.5 ms (1.1–1.4 ms with keys moving) | 0.4–0.9 ms |
-| upright | 0.45 ms | 0.36–0.9 ms |
-| violin, viola, cello | 0.2–0.4 ms | 0.2–0.35 ms |
-| flute, trumpet | 0.15–0.3 ms | 0.15–0.3 ms |
+* grand 0.6–0.9 ms
+* upright 0.6–0.75 ms
+* violin family 0.45–0.65 ms
+* flute and trumpet 0.35–0.65 ms
 
-* About 175k vertices in the pianos and 30–48k in the others.
-* Building a model takes about 40 ms for the grand, once per instrument.
+On a Pixel 7 emulation (light scene) 0.3–0.96 ms.
 
-## References consulted (3D)
-
-**Piano actions.** I looked up parts and their order. The positions follow the site's own action view
-(`apps/web/src/ui/action-view.ts`, round 3) and standard technician diagrams:
-
-* [Piano action (Wikipedia)](https://en.wikipedia.org/wiki/Piano_action): the capstan and backcheck are on
-  the key's rising side; the jack pushes a knuckle near the shank's pivot; in the upright, the spoon and
-  backcheck are on the wippen and a bridle connects them.
-* [Steve's Piano Service, grand action diagram](https://www.stevespianoservice.com/Diagrams/grand-piano-action-diagram.htm):
-  the parts list, from the wippen flange to the damper felt contact point.
-* [Illinois MechSE, "How a piano works"](https://mechse.illinois.edu/news/blogs/how-piano-works): the key as
-  a lever on its balance pin, and the damper lever at the far end.
-* [Howard Piano Industries, "How a vertical piano action works"](https://www.howardpianoindustries.com/how-a-vertical-piano-action-works/)
-  and the [Visual Dictionary's upright action](https://www.ikonet.com/en/visualdictionary/arts-and-architecture/music/keyboard-instruments/upright-piano-action.php):
-  the upright's catcher, bridle, spoon and damper.
-* Dimensions: white keys 23.5 mm, key dip 10 mm, blow distance 47 mm (grand) and 45 mm (upright), let-off
-  about 2.5 mm, a knuckle about 18 mm from the centre pin. These are the standard regulating figures the
-  action view already used; I did not re-fetch them.
-
-**Violin family.**
-
-* Violin body 356 mm with bouts 168/112/208: the standard Stradivari pattern figures. I did not re-fetch
-  these.
-* Cello body 755 mm, bouts 345/235/440 and ribs 120 mm. These were checked against measured instruments:
-  * [Payton Violins, English cello c. 1900](https://paytonviolins.com/shop/vc3857c-english-cello-c-1900-4-4-10583)
-    (back 756, bouts 334/231/429);
-  * [Payton, Novizio student cello](https://paytonviolins.com/shop/vc1873-novizio-advanced-student-cello-model-521-5029)
-    (back 754, bouts 341/233/432);
-  * [NMM museum object 12462](https://emuseum.nmmusd.org/objects/12462/violoncello) (back 750, ribs 115–117);
-  * [Hans Jóhannsson's cello measurements](https://www.hansjohannsson.com/resources/mescello.html) (body
-    750, ribs about 120).
-
-  My bouts are about 10 mm wider than these.
-* The string length is the engine's own (`L`).
-
-**Trumpet.**
-
-* A 123 mm bell: [Yamaha trumpet brochure](https://th.yamaha.com/files/download/brochure/2/1575112/W215R17_trumpets.pdf).
-* Where the parts are (the main slide joining the leadpipe to the valves, slide functions, water keys):
-  [hellomusictheory: parts of the trumpet](https://hellomusictheory.com/learn/parts-of-the-trumpet/),
-  [theinstrumentplace: anatomy of the trumpet](https://www.theinstrumentplace.com/parts-of-the-trumpet/) and
-  [jazzfuel: parts of the trumpet](https://jazzfuel.com/parts-of-the-trumpet/).
-
-**Flute.**
-
-* The Boehm layout (tone holes, cups on rods and posts, open-hole cups, the foot's rollers) is from general
-  knowledge of the instrument; I did not look up a fresh drawing.
-* The tone-hole positions are the engine's own sounding lengths (`tubeFor`).
+Building a model takes 0.1–0.3 s, once per instrument, and is kept out of the frame budget.
 
 ## Approximations (3D), honestly
 
-* The action parts are simplified solids, though they are in the right places and proportions. The hammer's
-  flight comes from the stage's action state (strike, rebound, check), as in 2D; it is not a lever-ratio
-  simulation. The wippen and jack follow the key through real lever arms, so their ratios are approximate.
-* On the grand, the treble cheek and rim are cut away (a deliberate cutaway, not a real construction), and
-  the music desk is omitted.
-* The case outline is a spline through points offset from the engine's bridges, not a traced instrument.
-  The bentside's S-curve is a little stronger than on most grands.
-* The violin outline is a smooth bout-and-corner construction, not a traced pattern. The arch is separable
-  (long × cross). The scroll is a logarithmic volute without carved fluting. The f-holes are dark shapes on
-  the surface; they are not cut through.
-* The varnish is one flat colour per surface, with spruce grain only on the tops: there is no flame on the
-  maple, and no wear or shading.
-* The flute's keywork has no needle springs, trill keys or clutches. Its cups are distributed along the
-  engine's lengths, not at a maker's exact hole positions.
-* The trumpet's wrap is laid out from typical proportions and has not been measured on one instrument. The
-  bell pipe passes beside the valve block, offset 22 mm.
-* Lighting is one shadowed key light plus unshadowed fills. There is no ambient occlusion, so the inside of
-  the case is lit by the fill rather than darkened.
-* None of this is photoreal. It is a lit, proportioned model in the site's dark, minimal style.
+* **Close up, nothing passes as a photograph.** At hero distance the cello, violin, viola, grand and
+  trumpet read as their instruments.
+* **Bowed instruments:**
+  * The scroll is a swept section, not a carved one: its volute is too smooth.
+  * The chinrest reads as a dark dish.
+  * The plate arching is analytic, not measured.
+  * The varnish is painted from noise, not from an instrument.
+* **Grand:**
+  * The plate goes champagne under the studio's overhead light at the hero angle. It is gold-bronze from
+    the treble side and in close-ups.
+  * The treble window is a technician's cut-away, not a product shot.
+  * The hammers are hard to see in the default actuated view, because they sit under the web, as they do.
+  * Surfaces are clean: there is no dust or wear.
+* **Upright:** its action reads as a busy cage at hero distance, not the clean cream band of the
+  photographs. It is the weakest of the seven.
+* **Flute:**
+  * The keywork is simplified: no clutches or F♯ bridge, no right-hand B♭ lever, and a partial thumb
+    mechanism.
+  * Fingering follows the engine's single bore length, so it is not true Boehm (LH1 stays open on B4).
+* **Trumpet:** perfectly clean lacquer (no fingerprints or patina), and no solder fillets or engraving.
+* **No assets:** everything is built procedurally in code. There are no models or texture files.
 
+## References (3D)
+
+* **Measured dimensions** with a source for each: `docs/3d-reference.md`. It covers the Davidov and Messiah
+  Strads and other measured cellos, the Steinway D and B, the Yamaha U1, grand action regulation, McGee's
+  flute and the NMM's Bach trumpets.
+* **Reference photographs:** listed in `.cache/refs-3d/SOURCES.md` (not committed). Those inside the
+  committed contact sheets are credited in `final/README.md`.
 
 ## What changed: cello audio (cello only)
 
@@ -330,53 +338,41 @@ re-blessed, both times.
 * **Violin and viola** keep the old chain and the point bow, including the inverted high band. They would likely
   gain from the same changes, but they were not touched.
 
-## Shots
+## Shots and contact sheets
 
-In `shots/`, before (`af4f97e`) and after, at 1440×900 (desktop) and on a Pixel 7. The images are JPEG at
-half the device pixels. Each instrument has three views:
+* `final/before-after.jpg`: every instrument's default view at `624c0bf`, next to the same view now.
+* `final/contact-{bowed,pianos,winds}.jpg`: reference photographs next to the hero, close-up and actuated
+  renders.
+* `final/shots/`: desktop 1440×900 (JPEG at half the device pixels):
+  * hero, close and actuated for all seven;
+  * the cello's detail and scroll views;
+  * phone heroes.
+* The first stage's shots (before = `af4f97e`, after = `624c0bf`) stay in `shots/`.
 
-* `whole`: the default view, playing;
-* `close`: the mechanism or keywork;
-* `act`: actuated (keys down, pedals, a stopped and bowed string, valves down, cups closed).
-
-To regenerate them, build both versions and serve them on two ports. Then run:
-
-```
-BASE=http://localhost:<before> PREFIX=before node scripts/shots-realistic-3d.mjs
-BASE=http://localhost:<after>  PREFIX=after  node scripts/shots-realistic-3d.mjs
-python3 scripts/shots-compress.py artifacts/realistic-3d/shots
-```
+To regenerate, start a dev server and run `BASE=http://localhost:<port> scripts/final-3d.sh`.
 
 ## Checks: exact commands and results
 
-All of these were run on the final branch, with the cello merged:
+Final branch, everything merged:
 
-* `pnpm build`: passes. The worklet bundle is "ok for Safari 14.1+".
+* `pnpm build`: passes; the worklet bundle is "ok for Safari 14.1+".
 * `pnpm typecheck` (engine and web): clean.
-* `npx vitest run` (the full unit suite): 21 files, **97/97 pass**, including:
-  * the new `apps/web/test/models3d.test.ts` (6 tests);
-  * the new `packages/engine/test/cello.test.ts`;
-  * golden (cello re-blessed, others unchanged), blocksize, bow, worklet and the rest.
-* Playwright, the full e2e suite on desktop and Pixel 7: **43 pass, 7 skipped**. The skips are the
-  pre-existing phone-only ones (scope, start-up paths, file drop, `?debug`, drags, computer keys).
-  * It ran through a copy of `playwright.config.ts` pointed at port 4291. Another session holds :4199, and
-    `reuseExistingServer` would otherwise have tested that stale server.
-* `npx tsx scripts/judge.ts --instrument cello --before <af4f97e engine>`: **BETTER**.
-* Bit-identity of the non-cello instruments against `af4f97e`: 20/20 identical.
+* `npx vitest run`: 21 files, **99/99 pass** (including `models3d.test.ts`, 7 tests, under 1 s; blocksize; golden, with only `cello.json` re-blessed; `cello.test.ts`).
+* `npx playwright test` (desktop + Pixel 7): **43 pass, 7 skipped** (the existing phone-only skips). The fresh preview build was on :4199 and nothing else was holding the port. This includes the 3D stage on every instrument, single-key inspect in 3D, the no-WebGL2 fallback and the 390×844 layout.
+* Cello judge against `af4f97e` (production): **BETTER** (2.68 → 1.91); against `624c0bf`: NO CLEAR CHANGE
+  (Δ 0.19 ± 0.11).
+* Bit-identity of the non-cello instruments against `624c0bf`: 24/24.
 
-After the cello polish (`a6baebd`), in its own worktree:
+Earlier, per stage (kept for the record):
 
-* `pnpm build`: passes, "ok for Safari 14.1+". `pnpm typecheck`: clean.
-* `npx vitest run`: 21 files, **98/98 pass** (`cello.test.ts` gains a pp-not-brighter-than-ff check; a
-  drafted sample-rate check was dropped, see the limitations; the controllers test's brighter-with-force
-  margin is 1.05, was 1.1, because D4 now stays in Helmholtz motion at both ends and brightens by 9 %).
-* Block size: `blocksize.test.ts` bit-identical at 128/37/500 frames per call.
-* Judge: against `af4f97e` **BETTER** (2.68 → 1.91); against `624c0bf` **NO CLEAR CHANGE** (2.05 → 1.86,
-  Δ 0.19 ± 0.11), no guard broken.
-* Bit-identity against `624c0bf` (violin, viola, flute, trumpet, grand, upright; 44.1 and 48 kHz; dry and
-  with room): 24/24 identical. Only `test/golden/cello.json` re-blessed.
-* The e2e suite was not re-run for the polish: it changes no UI, and another session may hold the
-  Playwright port.
+* First stage: 97/97 unit tests; e2e 43 pass, 7 skipped; cello judge **BETTER** against `af4f97e`;
+  bit-identity of the non-cello instruments against `af4f97e`, 20/20.
+* Cello polish (`a6baebd`), in its own worktree:
+  * 98/98 unit tests.
+  * `cello.test.ts` gains a pp-not-brighter-than-ff check.
+  * A drafted sample-rate check was dropped (see the limitations).
+  * The controllers test's brighter-with-force margin is 1.05, down from 1.1: D4 now stays in Helmholtz
+    motion at both ends and brightens by 9 %.
 
 ## How to verify
 
@@ -384,12 +380,12 @@ After the cello polish (`a6baebd`), in its own worktree:
 
 * drag to orbit, scroll or pinch to zoom, double-click to reset;
 * hold keys or the pedal: keys dip, hammers rise and fall, dampers lift;
-* orbit to the grand's treble side to see the action through the cutaway;
+* look through the grand's treble window to see the action;
 * click a string to open that key's action;
 * on the bowed instruments, play a stopped note and watch the bar on the fingerboard and the bow;
-* on the flute, watch the cups; on the trumpet, play C♯4 to press all three valves.
+* on the flute, watch the keys close; on the trumpet, play C♯4 to press all three valves.
 
-Or look at `shots/`.
+Or look at `final/`.
 
-**Audio.** Play the before/after MP3 pairs in `cello-audio/`. To re-measure, run
+**Audio.** Play the before/after MP3 pairs in `final/cello-audio/`. To re-measure, run
 `npx tsx scripts/calibrate-ensemble.ts --only cello` and the judge above.
