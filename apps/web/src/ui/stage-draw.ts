@@ -2121,7 +2121,7 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
   const dbLo = -115;
   const dbHi = -25;
   const Y = (db: number) => y0 + h * (1 - (db - dbLo) / (dbHi - dbLo));
-  ctx.font = '9px "IBM Plex Mono", monospace';
+  ctx.font = '10px "IBM Plex Mono", monospace';
   ctx.fillStyle = rgba(INK.ivory, 0.3);
   for (const [f, t] of [
     [100, '100'],
