@@ -5,7 +5,7 @@
 // action, a section cutting away the keys in front of it (`zoomTo`, `zoomOut`; the stage wires them).
 // Where WebGL2 is missing the toggle never appears and the 2D stage carries on (`webgl2.ts`).
 import { Batch, project, type Mat4, type Vec3 } from './gl3d.ts';
-import { buildScene, newScene3State, viewFor, type SceneIn, type View3 } from './scenes3d.ts';
+import { buildScene, narrowStep, newScene3State, viewFor, type SceneIn, type View3 } from './scenes3d.ts';
 import { zoomFrame } from './piano3d.ts';
 import { Renderer3 } from './three3d.ts';
 
@@ -280,7 +280,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
         view.dist *= FRAME;
         // a narrow or square screen: step back so the instrument fits the width
         const aspect = W / H;
-        if (aspect < 1.4) view.dist *= Math.min(2.6, 1.4 / Math.max(0.45, aspect)) * 0.92;
+        if (aspect < 1.4) view.dist *= Math.min(2.6, 1.4 / Math.max(0.45, aspect)) * 0.92 * narrowStep(si);
         resetView();
       }
       // camera: orbiting the target, eased (τ ≈ 70 ms), never below the floor; or flying (a key's

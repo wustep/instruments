@@ -289,7 +289,7 @@ main {
 }
 .pick-name {
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 10px;
   letter-spacing: 0.04em;
 }
 .presets {
@@ -438,7 +438,7 @@ main {
 }
 .p-name {
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 .pedal[aria-pressed='true'] .p-name {
   color: var(--amber);
@@ -508,7 +508,7 @@ main {
 .k-name,
 .k-read {
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 10px;
   line-height: 1.2;
   color: var(--muted);
   white-space: nowrap;
@@ -626,7 +626,7 @@ main {
   bottom: 30px;
   text-align: center;
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10px;
   color: #b8ac95;
   pointer-events: none;
 }
@@ -690,7 +690,7 @@ code {
 }
 .label {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
@@ -844,7 +844,7 @@ figure svg {
 figcaption {
   margin-top: 10px;
   font-family: var(--serif);
-  font-size: 15.5px;
+  font-size: 15px;
   line-height: 1.5;
   color: var(--ink-2);
   font-variation-settings: 'opsz' 14;
@@ -991,7 +991,7 @@ table.rounds th {
 }
 .chart svg .panel-title {
   font-family: var(--sans);
-  font-size: 11.5px;
+  font-size: 12px;
   fill: var(--ink-2);
 }
 .tip {
@@ -1036,7 +1036,7 @@ table.rounds th {
 }
 details.data {
   margin-top: 8px;
-  font-size: 12.5px;
+  font-size: 13px;
 }
 details.data summary {
   cursor: pointer;
@@ -1077,7 +1077,7 @@ details.data .scroll {
   line-height: 1.1;
 }
 .tile .s {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--muted);
   margin-top: 4px;
 }
@@ -1263,7 +1263,7 @@ figure[title] {
   border: 1px solid var(--rule-2);
   border-radius: 4px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-2);
 }
 .diag pre {
@@ -1592,6 +1592,6 @@ figure[title] {
     font-size: 25px;
   }
   .notes .eq {
-    font-size: 12.5px;
+    font-size: 13px;
   }
 }

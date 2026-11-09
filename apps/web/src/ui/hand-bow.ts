@@ -28,6 +28,8 @@ const REST_MS = 60;
 export interface HandBow {
   /** the pointer went down at (x, y): take the bow? (true: the caller leaves this pointer alone) */
   down(e: PointerEvent): boolean;
+  /** would a pointer here take the bow? (for the cursor) */
+  over(e: PointerEvent): boolean;
   /** let go (an instrument switch, the page hidden) */
   drop(): void;
   readonly held: boolean;
@@ -73,6 +75,22 @@ export function createHandBow(el: HTMLElement, line: () => BowLine | null, reach
     h.rest = window.setTimeout(still, REST_MS);
     e.preventDefault();
   });
+  /** the hair's line, if there is a bow and the pointer is within reach of it */
+  const within = (e: PointerEvent): BowLine | null => {
+    const l = line();
+    if (!l) return null;
+    const dx = l.tx - l.fx;
+    const dy = l.ty - l.fy;
+    const len = Math.hypot(dx, dy);
+    if (len < 8) return null;
+    const r = reach(e);
+    if (Number.isFinite(r)) {
+      // the distance to the hair's line (the stick and frog reach a little past its ends)
+      const t = Math.min(1.08, Math.max(-0.12, ((e.clientX - l.fx) * dx + (e.clientY - l.fy) * dy) / (len * len)));
+      if (Math.hypot(e.clientX - (l.fx + t * dx), e.clientY - (l.fy + t * dy)) > r) return null;
+    }
+    return l;
+  };
   const end = (e: PointerEvent) => {
     if (h && e.pointerId === h.id) drop();
   };
@@ -82,18 +100,11 @@ export function createHandBow(el: HTMLElement, line: () => BowLine | null, reach
   return {
     down(e) {
       if (h || (e.pointerType === 'mouse' && e.button !== 0)) return false;
-      const l = line();
+      const l = within(e);
       if (!l) return false;
       const dx = l.tx - l.fx;
       const dy = l.ty - l.fy;
       const len = Math.hypot(dx, dy);
-      if (len < 8) return false;
-      const r = reach(e);
-      if (Number.isFinite(r)) {
-        // the distance to the hair's line (the stick and frog reach a little past its ends)
-        const t = Math.min(1.08, Math.max(-0.12, ((e.clientX - l.fx) * dx + (e.clientY - l.fy) * dy) / (len * len)));
-        if (Math.hypot(e.clientX - (l.fx + t * dx), e.clientY - (l.fy + t * dy)) > r) return false;
-      }
       h = { id: e.pointerId, x: e.clientX, y: e.clientY, ux: dx / len, uy: dy / len, len, hair: l.hair, pos0: l.pos, pos: l.pos, t: e.timeStamp || performance.now(), rest: 0 };
       try {
         el.setPointerCapture(e.pointerId);
@@ -107,6 +118,7 @@ export function createHandBow(el: HTMLElement, line: () => BowLine | null, reach
       e.preventDefault();
       return true;
     },
+    over: (e) => within(e) !== null,
     drop,
     get held() {
       return h !== null;
