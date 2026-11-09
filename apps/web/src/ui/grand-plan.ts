@@ -569,8 +569,8 @@ function layout(W: number, H: number, pts: Pt[], dpr: number, zTop: number): Lay
         const z = s.bZ + (s.p.wound ? Math.cos(BASS_ANGLE) : 1) * 0.052;
         return [at(s, z), Y(z)];
       });
-      o.strokeStyle = rgba(C.red, 0.6);
-      o.lineWidth = Math.max(1.5, 0.012 * sv);
+      o.strokeStyle = rgba('186,50,38', 0.75);
+      o.lineWidth = Math.max(1.6, 0.012 * sv);
       o.stroke(path(hp, false));
     }
     o.fillStyle = rgba(C.pin, 0.6);
@@ -620,10 +620,15 @@ function layout(W: number, H: number, pts: Pt[], dpr: number, zTop: number): Lay
         const fz = Math.min(Math.max(w.reduce((a, b) => a + b, 0) / w.length, own[k] + 0.012), s.aZ - 0.014);
         return [at(s, s.aZ), Y(fz)];
       });
-      o.strokeStyle = rgba(C.red, 0.85);
-      o.lineWidth = Math.max(2, 0.012 * sv);
+      // (a woven band, 14 mm wide: bright where it catches the light, its far edge in shadow)
       o.lineCap = 'butt';
+      o.lineJoin = 'round';
+      o.strokeStyle = rgba('96,22,18', 0.9);
+      o.lineWidth = Math.max(3, 0.016 * sv);
       o.stroke(path(fl, false));
+      o.strokeStyle = rgba('206,56,42', 0.9);
+      o.lineWidth = Math.max(1.6, 0.009 * sv);
+      o.stroke(path(fl.map(([x, y]): P => [x, y + 0.002 * sv]), false));
     }
     // agraffes (brass studs, the unison through them) and, over the top treble, the capo bar
     for (const s of strs) {

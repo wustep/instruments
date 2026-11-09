@@ -438,7 +438,7 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
   // the section shown (mm): key front to the underlever's rail, keybed to the dampers' heads; a tall
   // panel (a phone) shows the action from behind the key's front
   const narrow = cw / Math.max(1, ch) < 1.3;
-  const z0 = narrow ? 170 : -14;
+  const z0 = narrow ? 215 : -14;
   const z1 = 712;
   const y0 = 640;
   const y1 = 950;
