@@ -1,0 +1,198 @@
+{
+ "pieces": [
+  {
+   "name": "phrase",
+   "what": "the round-3 audit phrase: C3 E3 G3 C4 B3 A3 G3, vibrato 17 ¢"
+  },
+  {
+   "name": "bach-prelude",
+   "what": "Bach, Suite No. 1, Prelude, bars 1–4 (string crossings, slurs of four)"
+  },
+  {
+   "name": "sustained",
+   "what": "long tones with vibrato: C2 pp, G2 mf, D3 ff, A3 mf, E4 ff, A4 pp (2.2 s each)"
+  },
+  {
+   "name": "sustained-novib",
+   "what": "G2 mf, D3 ff, A3 mf, D4 mf without vibrato (pitch stability)"
+  },
+  {
+   "name": "transitions",
+   "what": "legato D3–A3 on one string; slurred crossings G2↔D3; détaché repeated notes; one long ff note with bow changes"
+  }
+ ],
+ "metrics": {
+  "before": {
+   "pitch": [
+    {
+     "midi": 43,
+     "offsetCents": 1.5,
+     "jitterMadCents": 0,
+     "rangeCents": 1.5,
+     "sdCents": 0.32
+    },
+    {
+     "midi": 50,
+     "offsetCents": -2,
+     "jitterMadCents": 1.5,
+     "rangeCents": 64,
+     "sdCents": 13.8
+    },
+    {
+     "midi": 57,
+     "offsetCents": 0,
+     "jitterMadCents": 0.5,
+     "rangeCents": 2.5,
+     "sdCents": 0.52
+    },
+    {
+     "midi": 62,
+     "offsetCents": -0.5,
+     "jitterMadCents": 0,
+     "rangeCents": 1.5,
+     "sdCents": 0.25
+    }
+   ],
+   "clicks:phrase": {
+    "clicks": 2.5,
+    "worstDb": 11,
+    "perSecond": 0.29,
+    "seeds": 12
+   },
+   "grain:phrase": {
+    "spikesPerSecond": 0,
+    "roughnessDb": 1.19,
+    "seconds": 2.8,
+    "interHarmonicDb": -24.07
+   },
+   "clicks:bach-prelude": {
+    "clicks": 0.92,
+    "worstDb": 12.4,
+    "perSecond": 0.1,
+    "seeds": 12
+   },
+   "clicks:sustained": {
+    "clicks": 4.33,
+    "worstDb": 12.4,
+    "perSecond": 0.28,
+    "seeds": 12
+   },
+   "grain:sustained": {
+    "spikesPerSecond": 0,
+    "roughnessDb": 0.63,
+    "seconds": 8.7,
+    "interHarmonicDb": -31.32
+   },
+   "clicks:sustained-novib": {
+    "clicks": 0.42,
+    "worstDb": 11.6,
+    "perSecond": 0.04,
+    "seeds": 12
+   },
+   "grain:sustained-novib": {
+    "spikesPerSecond": 0,
+    "roughnessDb": 0.49,
+    "seconds": 6.6,
+    "interHarmonicDb": -28.11
+   },
+   "clicks:transitions": {
+    "clicks": 0.58,
+    "worstDb": 10.3,
+    "perSecond": 0.05,
+    "seeds": 12
+   },
+   "grain:transitions": {
+    "spikesPerSecond": 0,
+    "roughnessDb": 0.94,
+    "seconds": 3.6,
+    "interHarmonicDb": -25.38
+   }
+  },
+  "after": {
+   "pitch": [
+    {
+     "midi": 43,
+     "offsetCents": 2.5,
+     "jitterMadCents": 0,
+     "rangeCents": 1,
+     "sdCents": 0.29
+    },
+    {
+     "midi": 50,
+     "offsetCents": 0,
+     "jitterMadCents": 0.5,
+     "rangeCents": 118,
+     "sdCents": 11.03
+    },
+    {
+     "midi": 57,
+     "offsetCents": 1.5,
+     "jitterMadCents": 0,
+     "rangeCents": 1,
+     "sdCents": 0.33
+    },
+    {
+     "midi": 62,
+     "offsetCents": 0,
+     "jitterMadCents": 0,
+     "rangeCents": 1,
+     "sdCents": 0.31
+    }
+   ],
+   "clicks:phrase": {
+    "clicks": 2,
+    "worstDb": 11.7,
+    "perSecond": 0.23,
+    "seeds": 12
+   },
+   "grain:phrase": {
+    "spikesPerSecond": 0,
+    "roughnessDb": 1.16,
+    "seconds": 2.8,
+    "interHarmonicDb": -25.73
+   },
+   "clicks:bach-prelude": {
+    "clicks": 1.17,
+    "worstDb": 12.1,
+    "perSecond": 0.13,
+    "seeds": 12
+   },
+   "clicks:sustained": {
+    "clicks": 7.42,
+    "worstDb": 12.3,
+    "perSecond": 0.48,
+    "seeds": 12
+   },
+   "grain:sustained": {
+    "spikesPerSecond": 0,
+    "roughnessDb": 0.54,
+    "seconds": 8.7,
+    "interHarmonicDb": -33.24
+   },
+   "clicks:sustained-novib": {
+    "clicks": 0.33,
+    "worstDb": 10.4,
+    "perSecond": 0.03,
+    "seeds": 12
+   },
+   "grain:sustained-novib": {
+    "spikesPerSecond": 0.06,
+    "roughnessDb": 0.52,
+    "seconds": 6.6,
+    "interHarmonicDb": -28.57
+   },
+   "clicks:transitions": {
+    "clicks": 0.58,
+    "worstDb": 11.9,
+    "perSecond": 0.05,
+    "seeds": 12
+   },
+   "grain:transitions": {
+    "spikesPerSecond": 0,
+    "roughnessDb": 0.97,
+    "seconds": 3.6,
+    "interHarmonicDb": -24.14
+   }
+  }
+ }
+}
