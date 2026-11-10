@@ -1,16 +1,18 @@
 // Frame rate of the 3D stage (requestAnimationFrame cadence over 300 frames, the frame rate unlimited) per
 // instrument, desktop 1440×900 @2x. `mean` is the one to compare (ms a frame, all of its work, the GPU's
 // included); the cadence itself comes in bursts, so its median and p90 jump about.
-//   BASE=http://localhost:5311 [ZOOM=60] [PHONE=1] node scripts/fps-3d.mjs
+//   BASE=http://localhost:5311 [ZOOM=60] [PHONE=1] [ONLY=cello,bass] node scripts/fps-3d.mjs
 // ZOOM=<midi>: the pianos in that key's action close-up (the others are skipped).
 import { chromium } from '@playwright/test';
 const BASE = process.env.BASE ?? 'http://localhost:5311';
 const DSF = Number(process.env.DSF ?? 2);
 const ZOOM = process.env.ZOOM ? Number(process.env.ZOOM) : null;
 const PHONE = process.env.PHONE === '1';
+const ONLY = process.env.ONLY?.split(',');
 const browser = await chromium.launch({ channel: 'chrome', headless: process.env.HEADED ? false : true, args: ['--use-angle=metal', '--enable-gpu', '--disable-gpu-vsync', '--disable-frame-rate-limit'] });
-for (const [inst, preset] of [['piano', 'grand'], ['piano', 'upright'], ['violin'], ['cello'], ['flute'], ['trumpet']]) {
+for (const [inst, preset] of [['piano', 'grand'], ['piano', 'upright'], ['violin'], ['cello'], ['bass'], ['flute'], ['trumpet']]) {
   if (ZOOM !== null && inst !== 'piano') continue;
+  if (ONLY && !ONLY.includes(preset ?? inst)) continue;
   const ctx = await browser.newContext(PHONE ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true } : { viewport: { width: 1440, height: 900 }, deviceScaleFactor: DSF });
   await ctx.addInitScript((i) => { localStorage.setItem('piano-model.instrument', i); localStorage.setItem('piano-model.3d', '1'); }, inst);
   const page = await ctx.newPage();

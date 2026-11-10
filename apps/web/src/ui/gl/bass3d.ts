@@ -248,7 +248,7 @@ export function buildMachines(mb: MeshBuilder, hf: HeadFrame, rollers: Roller[],
       // dome-headed screw in its centre
       const dC = R_WORM + 1.4 * mm + T_PLATE;
       mb.with(frameM(at(u, 0, T_PLATE), X, nC, Yb), () => lathe(mb, [[0.00001, 0], [6.4 * mm, 0], [6.4 * mm, dC - T_COG / 2 - T_PLATE], [0.00001, dC - T_COG / 2 - T_PLATE]], 22, M.brass));
-      mb.with(frameM(at(u, 0, dC - T_COG / 2), X, Yb, nC), () => slab(mb, gearOutline(R_COG, 26, 0.85 * mm), T_COG, 0.3 * mm, M.brass));
+      mb.with(frameM(at(u, 0, dC - T_COG / 2), X, Yb, nC), () => slab(mb, gearOutline(R_COG, 26, 0.85 * mm), T_COG, 0.3 * mm, M.brassDull));
       mb.with(frameM(at(u, 0, dC + T_COG / 2), X, nC, Yb), () => lathe(mb, [[0.00001, 1.6 * mm], [1.9 * mm, 1.35 * mm], [3.2 * mm, 0.7 * mm], [3.8 * mm, 0], [0.00001, 0]], 16, M.nickelSatin));
       // the worm beside the cog (on its scroll side), its axis along e2, meshing at the cog's edge
       const uw = u + R_COG + R_WORM - 0.7 * mm;
