@@ -91,37 +91,45 @@ if (!PHONE && SET !== 'before' && want('hero-2x')) {
   console.log('horn-hero-2x.png');
   await ctx2.close();
 }
+// a note sounding, from the stage's own view: the levers down for it, the rotors turned, the bore alight
+// along the air's path (before any close-up: setView moves the home view's target)
+if (want('actuated')) {
+  await view(null);
+  await note(NOTE_F, true);
+  await shoot('actuated');
+  await note(NOTE_F, false);
+  if (!PHONE && SET !== 'before') {
+    await note(NOTE_BB, true);
+    await shoot('actuated-Bb');
+    await note(NOTE_BB, false);
+  }
+}
 if (!PHONE && SET !== 'before') {
   for (const which of Object.keys(V)) {
     if (!want(which)) continue;
     await view(V[which]);
     await shoot(which);
   }
-}
-// a note sounding: the levers down for it, the rotors turned, the bore alight along the air's path
-if (want('actuated')) {
-  await view(null);
-  await note(NOTE_F, true);
-  await shoot('actuated');
-  if (!PHONE && SET !== 'before') for (const v of ['valves', 'linkage']) if (V[v]) {
-    await view(V[v]);
-    await shoot(`actuated-F-${v}`);
-  }
-  await note(NOTE_F, false);
-  if (!PHONE && SET !== 'before') {
-    await view(null);
-    await note(NOTE_BB, true);
-    await shoot('actuated-Bb');
-    for (const v of ['valves', 'linkage']) if (V[v]) {
-      await view(V[v]);
-      await shoot(`actuated-Bb-${v}`);
+  // the mechanism close up with each note sounding
+  if (want('actuated'))
+    for (const [m, side] of [[NOTE_F, 'F'], [NOTE_BB, 'Bb']]) {
+      await note(m, true);
+      for (const v of ['valves', 'linkage']) if (V[v]) {
+        await view(V[v]);
+        await shoot(`actuated-${side}-${v}`);
+      }
+      await note(m, false);
     }
-    await note(NOTE_BB, false);
-  }
 }
 // the Orchestra: a wind section and strings, the horn among them
 if (want('orchestra')) {
-  await view(null);
+  await page.reload();
+  await page.waitForFunction(() => !!window.__stage3d && window.__stage3d.stats.frames > 3, null, { timeout: 30000 });
+  await page.evaluate(async () => {
+    await window.__piano.start();
+    await window.__piano.setInstrument('horn');
+  });
+  await page.waitForTimeout(1200);
   await page.locator('.ens-toggle').click();
   await page.evaluate(() => window.__orchestra.ensemble.setLineup(['violin', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'cello']));
   await page.waitForTimeout(1800);

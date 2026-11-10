@@ -445,14 +445,17 @@ function fLoopLine(ib: number): Vec3[] {
     const a = (a0 + ((a1 - a0) * k) / n) * DEG;
     return [cx + r * Math.cos(a), cy + r * Math.sin(a), zz] as Vec3;
   });
-  const outer = [
-    ...arc((L0 + R0) / 2, top - ro, ro, 180, 0, z),
-    ...arc((L0 + R0) / 2, bot + ro, ro, 0, -180, z).map((q) => q),
-  ];
+  // (the outer oval entered on its top's arc, 150° round from its right: the leg below stays open for the
+  // turn inwards)
+  const A0 = 148;
+  const outer = [...arc((L0 + R0) / 2, top - ro, ro, A0, 0, z, 24), ...arc((L0 + R0) / 2, bot + ro, ro, 0, -180, z)];
+  const e0 = outer[0];
+  const et: Vec3 = [Math.sin(A0 * DEG), -Math.cos(A0 * DEG), 0];
   const inner = [...arc((I0 + w) / 2, itop - ri, ri, 180, 0, z), ...arc((I0 + w) / 2, ibot + ri, ri, 0, -180, z)];
   const pts: Vec3[] = [
-    ...bend([[XR + 5, YR[0] + RC - 2, ZF], [XR + 5, YR[0] + 26, 18], [L0, top - ro - 18, z]], [12], 12),
-    ...refine(outer, 8),
+    ...refine([[XR + 5, YR[0] + RC - 2, ZF], [XR + 5, YR[0] + RC + 6, ZF + 2]], 4),
+    ...bezier([XR + 5, YR[0] + RC + 6, ZF + 2], [0, 1, 0.35], e0, et, 22).slice(1),
+    ...refine(outer, 8).slice(1),
     ...refine([[L0, bot + ro, z], [L0, 34, z]], 8).slice(1),
     ...bezier([L0, 34, z], [0, 1, 0], [I0, top - ro - 10, z], [0, 1, 0], 18).slice(1),
     ...refine(inner, 8).slice(1),
@@ -832,7 +835,7 @@ export function buildHornModel(): HornModel {
     const a = Math.round(bellPieces[j] * 120);
     const b = Math.round(bellPieces[j + 1] * 120);
     const prof = bellProf.slice(a, b + 1);
-    const mesh = make((mb) => latheOn(mb, str0, AXIS, prof, j === 2 ? 128 : 96, j === 2 ? BELL : BR));
+    const mesh = make((mb) => latheOn(mb, str0, AXIS, prof, j === 2 ? 128 : 96, BR));
     segs.push({ route: 'bell', s0: prof[0][1] / mm, s1: prof[prof.length - 1][1] / mm, mesh });
   }
   lengths.bell = STRAIGHT;
@@ -950,12 +953,11 @@ export function buildHornModel(): HornModel {
     }
     fingerHook(mb);
     handRest(mb);
-    // braces: the leadpipe to the coil, the F loop to the wrap, the tail to the leadpipe's wrap
+    // braces: the leadpipe to the coil; the F loop's two ovals to each other (their legs side by side);
+    // the bell branch's wrap to the leadpipe's at the coil's foot
     brace(mb, [...add(RCV, scale(LP_DIR, 92)).slice(0, 2), 16 - RT + 1] as Vec3, [spP(495)[0], spP(495)[1], spP(495)[2] + RT - 1], 1.7);
-    brace(mb, [104, 0, -24 + RT - 1], [RL * Math.cos(-2 * DEG), RL * Math.sin(-2 * DEG), ZL - RT + 1], 1.5);
-    brace(mb, [96, 104, -24 + RT - 1], [RL * Math.cos(47 * DEG), RL * Math.sin(47 * DEG), ZL - RT + 1], 1.5);
-    brace(mb, [spP(300)[0] * 0.985, spP(300)[1] * 0.985, spP(300)[2] + 2], [RL * Math.cos(300 * DEG) * 1.03, RL * Math.sin(300 * DEG) * 1.03, ZL], 1.5);
-    brace(mb, [spP(395)[0] * 0.985, spP(395)[1] * 0.985, spP(395)[2] + 2], [RL * Math.cos(35 * DEG) * 1.03, RL * Math.sin(35 * DEG) * 1.03, ZL], 1.5);
+    for (const [x0, x1, y] of [[84, 62, -40], [84, 62, 40], [-22, 3, -70]] as const) brace(mb, [x0 + Math.sign(x1 - x0) * (RT - 0.6), y, ZFL], [x1 - Math.sign(x1 - x0) * (RT - 0.6), y, ZFL], 1.4);
+    brace(mb, [spP(300)[0] * 0.95, spP(300)[1] * 0.95, spP(300)[2] + 1], [RL * Math.cos(300 * DEG) * 1.06, RL * Math.sin(300 * DEG) * 1.06, ZL], 1.5);
   });
   // ---- the valves' moving parts and the four-bar tables
   LEVER_TRAVEL = solveTravel();
@@ -1055,18 +1057,18 @@ function handRest(mb: MeshBuilder): void {
   cyl(mb, V(...add(at, [0, 0, 6])), V(...sc), 0.0018, 0.0018, 14, NS, true);
   latheOn(mb, V(...sc), [0, 0, 1], fillet([[0, 0], [0.0034, 0], [0.0034, 0.0032], [0, 0.0034]] as P2[], [0, 0.0006, 0.0008, 0], 3), 24, NSS);
   // the stem: out and a little down from the clamp
-  const foot: Vec3 = [at[0] - 26, at[1] - 22, at[2] + 4];
+  const foot: Vec3 = [at[0] - 22, at[1] - 18, at[2] + 4];
   tubeAlong(mb, refine(bend([add(at, [-6, 0, 1]), [at[0] - 16, at[1] - 10, at[2] + 3], foot], 8, 10), 2).map((q) => V(...q)), () => 0.0021, NS, 14, { cap1: true });
-  // the plate: a rounded paddle 34 × 17 mm, curved to the hand, its face towards the player's side and
+  // the plate: a rounded paddle 26 × 13 mm, curved to the hand, its face towards the player's side and
   // out; a black rubber pad over it
   const ux = norm([-0.86, -0.5, 0.1]);
   const uy = norm(cross([0, 0, 1], ux));
   const nz = cross(ux, uy);
   const P = (u: number, v: number, top: boolean, pad: boolean): Vec3 => {
-    const L = 34;
-    const halfW = 8.5 * Math.sqrt(Math.max(0, 1 - (2 * u - 1) ** 6));
-    const curl = 3.2 * (2 * u - 1) ** 2;
-    const th = (pad ? 2.4 : 0.9) * Math.sqrt(Math.max(0, 1 - v * v)) * (0.6 + 0.4 * Math.sqrt(Math.max(0, 1 - (2 * u - 1) ** 2)));
+    const L = 26;
+    const halfW = 6.6 * Math.sqrt(Math.max(0, 1 - (2 * u - 1) ** 6));
+    const curl = 2.6 * (2 * u - 1) ** 2;
+    const th = (pad ? 1.6 : 0.9) * Math.sqrt(Math.max(0, 1 - v * v)) * (0.6 + 0.4 * Math.sqrt(Math.max(0, 1 - (2 * u - 1) ** 2)));
     const x = u * L;
     const yy = v * halfW * (pad ? 0.86 : 1);
     const zz = curl + (top ? th : -0.9) + (pad ? 1 : 0);
@@ -1209,7 +1211,7 @@ export function poseHorn(b: Batch, hm: HornModel, fr: VisualFrame | null, pose: 
     if (off !== undefined && total > 0) {
       const f = clamp01((off + (s.s0 + s.s1) / 2) / total);
       const j = Math.min(shape!.length - 1, Math.round(f * (shape!.length - 1)));
-      g = 0.075 * Math.min(1, blow * 1.4) * (Math.abs(shape![j]) / peak);
+      g = 0.095 * Math.min(1, blow * 1.4) * (Math.abs(shape![j]) / peak);
     }
     b.mesh(s.mesh, T, setGlow(g));
   }
