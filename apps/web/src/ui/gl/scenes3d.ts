@@ -61,6 +61,9 @@ export interface View3 {
   dist: number;
   yaw: number;
   pitch: number;
+  /** on a narrow stage (a phone held upright) the bearing may turn up to this much further round, to
+   *  whichever angle shows the instrument largest (stage3d's home view) */
+  swing?: number;
 }
 
 export interface Scene3State {
@@ -203,22 +206,14 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): void {
   return;
 }
 
-/** On a narrow stage (a phone held upright) every view steps back to fit the width; these step back
- *  further: the flute and trumpet are all width, and the violin and viola keep the whole bow in the
- *  picture, as they did before the wide stage's view moved in. */
-export function narrowStep(si: SceneIn): number {
-  if (si.ensemble?.length) return 1;
-  if (si.family === 'wind' || si.family === 'brass') return 1.28;
-  if (si.family === 'bowed' && si.bowed && si.bowed.id !== 'cello') return 1.16;
-  return 1;
-}
-
 /** default cameras: a three-quarter view from the audience's side, a little above */
 export function viewFor(si: SceneIn, st: Scene3State): View3 {
   if (si.ensemble?.length) return ensembleView(si.ensemble, si.aspect);
   // the grand from the treble front corner (as in Steinway's own photographs), above the rim so the
   // plate and strings show; the upright from the treble side, a little above the keys, into the action
-  if (si.family === 'piano') return si.kind === 'grand' ? { target: [-0.12, 0.58, 1.0], dist: 3.8, yaw: 0.74, pitch: 0.33 } : { target: [0, 0.62, 0.25], dist: 2.8, yaw: 0.45, pitch: 0.26 };
+  // (an upright is wider than it is tall: on a phone held upright it is seen from further round its
+  // treble end, where it is as tall as the stage)
+  if (si.family === 'piano') return si.kind === 'grand' ? { target: [-0.12, 0.58, 1.0], dist: 3.8, yaw: 0.74, pitch: 0.33 } : { target: [0, 0.62, 0.25], dist: 2.8, yaw: 0.45, pitch: 0.26, swing: 0.36 };
   if (si.family === 'bowed' && si.bowed) {
     const id = si.bowed.id;
     // the cello: from its bass side, a little below centre, the scroll against the rim light

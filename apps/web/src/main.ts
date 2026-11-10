@@ -56,7 +56,8 @@ const fallboard = h(
   knobToggle,
   knobSlot,
 );
-const dock = h('footer', { class: 'dock' }, fallboard, keyboard.el);
+// (over the keys, a thin strip of all 88 with a window on those in view: it slides them)
+const dock = h('footer', { class: 'dock' }, fallboard, keyboard.map, keyboard.el);
 
 // ---------------------------------------------------------------- header: pilot lamp and two quiet links
 const lampText = h('span', { class: 'lamp-text' }, 'tap a key');
@@ -102,16 +103,24 @@ route();
 // ---------------------------------------------------------------- computer keyboard
 keys.attach();
 let lastBase = keys.base;
+let slid = false;
 const syncOctave = () => {
   keyboard.setLabels(keys.labels());
   octLabel.textContent = midiName(keys.base);
   octLabel.dataset.tip = `computer keys from ${midiName(keys.base)}`;
   octLabel.setAttribute('aria-label', `computer keys start at ${midiName(keys.base)}`);
-  if (keys.base !== lastBase) keyboard.scrollToMidi(keys.base + 6, true);
+  if (keys.base !== lastBase && !slid) keyboard.scrollToMidi(keys.base + 6, true);
   lastBase = keys.base;
 };
 keys.onChange(syncOctave);
 syncOctave();
+// the keys slid by hand (the position strip): the octave is the one now in view, so its arrows and
+// the computer keys carry on from there (the keys stay where the hand left them)
+keyboard.onSlide((centre) => {
+  slid = true;
+  keys.setBase(centre - 6);
+  slid = false;
+});
 requestAnimationFrame(() => keyboard.scrollToMidi(keys.base + 6));
 
 // ---------------------------------------------------------------- status

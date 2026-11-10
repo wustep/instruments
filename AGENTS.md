@@ -20,6 +20,7 @@ Each rule comes with the check that enforces it. Run the check before you push.
 | The audio thread never fails silently: a constructor or `process()` that throws posts one error, then silence. | `packages/engine/test/worklet.test.ts` (fake `AudioWorkletGlobalScope`) |
 | The stage stays nearly wordless. Icon-only controls get a `data-tip` and an `aria-label`, not visible labels. Banned fonts: Inter, Instrument Serif, Fraunces, Bricolage Grotesque, Space Grotesk, Sora, Young Serif, Bodoni, Geist, Syne. | e2e tooltip test; `grep -riE 'Inter\|Fraunces\|Geist\|Syne\|Sora' apps/web/src` stays clean |
 | The phone layout works at 390×844 with no horizontal scroll. | e2e "layout fits the viewport" (Pixel 7 project) |
+| On touch the keys carry no computer-key letters and slide only from the position strip over them: a drag on the keys is a glissando. A phone held upright frames its 3D instrument whole, clear of the file player (`gl/fit3d.ts`); a wide stage keeps the scenes' own views. | e2e "phone keys …", "3D on a phone held upright …"; `apps/web/test/fit3d.test.ts`; `node scripts/measure-phone-3d.mjs` prints each instrument's share of the stage |
 | The 3D stage draws without one WebGL error or warning. A pass never samples a texture it is drawing into (the browser drops that draw; other GPUs differ). | e2e "3D draws without one WebGL warning" (console and `gl.getError()` every frame); `node scripts/webgl-warnings.mjs` counts them per instrument |
 
 ## Deploying

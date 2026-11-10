@@ -214,6 +214,14 @@ export class Batch {
   /** a transform applied to everything added while it is set (an ensemble places each instrument on
    *  its seat; null: the instrument's own frame is the world) */
   world: Mat4 | null = null;
+  /** framing (fit3d.ts). The stage sets `wantFit` on the frames it frames the scene from; on those a
+   *  scene names what it draws that the framing leaves out (`noFit`: a bow, wherever its stroke has
+   *  carried it) and what the framing counts though it is not drawn (`fitAlso`: the bow at rest, a
+   *  piano's case and lid while they are hidden), so an instrument is framed the same whenever it is
+   *  asked for */
+  wantFit = false;
+  noFit = new Set<Mesh>();
+  fitAlso: { mesh: Mesh; m: Mat4 | null }[] = [];
   /** vertex count (for the performance budget) */
   get vertices(): number {
     let n = this.glow.nv + this.inkL.nv + this.wireL.nv;
@@ -231,6 +239,9 @@ export class Batch {
     this.keepOut = null;
     this.mirrors.length = 0;
     this.world = null;
+    this.wantFit = false;
+    if (this.noFit.size) this.noFit.clear();
+    this.fitAlso.length = 0;
   }
   /** a glowing polyline (additive) of `width` px; colour per point or one for all */
   line(pts: Vec3[], color: RGBA | RGBA[], width = 1.2): void {

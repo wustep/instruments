@@ -344,6 +344,32 @@
   color: var(--v-frame);
 }
 
+/* the keys' position strip: the same lines */
+:root[data-style='vector'] .keymap {
+  background: #000;
+}
+:root[data-style='vector'] .km-w {
+  fill: var(--v-blue-dim);
+}
+:root[data-style='vector'] .km-b {
+  fill: #000;
+}
+:root[data-style='vector'] .km-w.out {
+  fill: var(--v-frame);
+}
+:root[data-style='vector'] .km-k.on {
+  fill: var(--v-amber);
+}
+:root[data-style='vector'] .km-lens {
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.5);
+}
+:root[data-style='vector'] .km-win,
+:root[data-style='vector'] .keymap.dragging .km-win {
+  border-color: var(--v-blue);
+  border-radius: 0;
+  box-shadow: 0 0 6px rgba(79, 182, 242, 0.5);
+}
+
 /* the pianos' action close-up: a framed black panel (ui/vector/pen.ts draws the section in lines) */
 :root[data-style='vector'] .action-view {
   background: rgba(0, 0, 0, 0.6);

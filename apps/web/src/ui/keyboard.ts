@@ -1,5 +1,7 @@
 // 88-key on-screen keyboard with multi-touch, glissando and touch velocity
-// (strike nearer the front edge of a key to play louder).
+// (strike nearer the front edge of a key to play louder). Where the keys do not all fit (a phone, a
+// narrow window) a thin strip over them shows all 88 in miniature with a window on the ones in view:
+// dragging on the strip slides the keys, and a drag on the keys themselves stays a glissando.
 
 import { audio, SOUNDING_GRACE_MS } from '../audio.ts';
 import { midiName } from '@piano-model/engine';
@@ -10,6 +12,10 @@ const HI = 108;
 
 export interface KeyboardHandle {
   el: HTMLElement;
+  /** the position strip: all 88 keys in miniature and a window on those in view (it goes over the keys) */
+  map: HTMLElement;
+  /** the keys were slid by hand (the strip, its arrow keys, a wheel): the note now in the middle */
+  onSlide(cb: (centre: number) => void): void;
   setLabels(map: Map<number, string>): void;
   setPrepared(midis: Set<number>): void;
   /** dim keys the current instrument cannot play */
@@ -65,6 +71,126 @@ export function createKeyboard(): KeyboardHandle {
     keyEls.set(m, el);
   }
 
+  // ---- the position strip
+  const SVG = 'http://www.w3.org/2000/svg';
+  const map = document.createElement('div');
+  map.className = 'keymap';
+  kb.id = 'keys';
+  // (a scrollbar for the keys: no tooltip, like the file player's position line)
+  for (const [k, v] of Object.entries({ role: 'scrollbar', tabindex: '0', 'aria-label': 'Keyboard position', 'aria-controls': 'keys', 'aria-orientation': 'horizontal', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0' })) map.setAttribute(k, v);
+  const track = document.createElement('div');
+  track.className = 'km-track';
+  const mini = document.createElementNS(SVG, 'svg');
+  mini.setAttribute('class', 'km-keys');
+  mini.setAttribute('viewBox', `0 0 ${whites.length} 10`);
+  mini.setAttribute('preserveAspectRatio', 'none');
+  mini.setAttribute('aria-hidden', 'true');
+  const miniEls = new Map<number, SVGRectElement>();
+  const miniKey = (m: number, x: number, w: number, hgt: number) => {
+    const r = document.createElementNS(SVG, 'rect');
+    r.setAttribute('class', `km-k ${isBlack(m) ? 'km-b' : 'km-w'}`);
+    r.setAttribute('x', x.toFixed(3));
+    r.setAttribute('width', String(w));
+    r.setAttribute('height', String(hgt));
+    miniEls.set(m, r);
+    return r;
+  };
+  // (the black keys last: over the white ones)
+  const blacks: SVGRectElement[] = [];
+  wi = 0;
+  for (let m = LO; m <= HI; m++) {
+    if (isBlack(m)) blacks.push(miniKey(m, wi - 0.3, 0.6, 6));
+    else mini.appendChild(miniKey(m, wi++ + 0.08, 0.84, 10));
+  }
+  mini.append(...blacks);
+  // the window: what is outside it is shaded (the lens's shadow, cut off at the strip's ends), its frame over all
+  const shade = document.createElement('div');
+  shade.className = 'km-shade';
+  const lens = document.createElement('i');
+  lens.className = 'km-lens';
+  shade.appendChild(lens);
+  const win = document.createElement('i');
+  win.className = 'km-win';
+  track.append(mini, shade, win);
+  map.appendChild(track);
+  const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+  /** the window follows the keys: its left edge and width as shares of the strip (a scrollbar's thumb) */
+  const syncMap = () => {
+    const sw = scroll.scrollWidth || 1;
+    const over = sw - scroll.clientWidth;
+    track.style.setProperty('--l', `${((100 * scroll.scrollLeft) / sw).toFixed(3)}%`);
+    track.style.setProperty('--w', `${((100 * Math.min(sw, scroll.clientWidth)) / sw).toFixed(3)}%`);
+    map.setAttribute('aria-valuenow', String(over > 0 ? Math.round((100 * scroll.scrollLeft) / over) : 0));
+  };
+  // sliding by hand tells the page which note is now in the middle, once the keys have come to rest
+  const slideCbs = new Set<(centre: number) => void>();
+  let byHand = false;
+  let settle = 0;
+  const settled = () => {
+    const kr = kb.getBoundingClientRect();
+    const sr = scroll.getBoundingClientRect();
+    if (!kr.width) return;
+    const i = Math.min(whites.length - 1, Math.max(0, Math.floor(((sr.left + sr.width / 2 - kr.left) / kr.width) * whites.length)));
+    slideCbs.forEach((cb) => cb(whites[i]));
+  };
+  scroll.addEventListener(
+    'scroll',
+    () => {
+      syncMap();
+      if (!byHand) return;
+      window.clearTimeout(settle);
+      settle = window.setTimeout(settled, 140);
+    },
+    { passive: true },
+  );
+  scroll.addEventListener('wheel', () => (byHand = true), { passive: true });
+  if (typeof ResizeObserver === 'function') new ResizeObserver(syncMap).observe(scroll);
+  // a drag on the strip: the window is held where it was taken; off the window, it comes under the
+  // finger first. The keys follow at once (the strip's own pointer: the keys keep theirs for notes)
+  let held: { id: number; off: number } | null = null;
+  const fracAt = (x: number) => {
+    const r = track.getBoundingClientRect();
+    return (x - r.left) / Math.max(1, r.width);
+  };
+  const windowTo = (left: number) => {
+    const sw = scroll.scrollWidth;
+    scroll.scrollLeft = clamp01(left) * sw;
+  };
+  map.addEventListener('pointerdown', (e) => {
+    if (e.button || held) return;
+    e.preventDefault();
+    map.setPointerCapture(e.pointerId);
+    const sw = scroll.scrollWidth || 1;
+    const l = scroll.scrollLeft / sw;
+    const w = scroll.clientWidth / sw;
+    const f = fracAt(e.clientX);
+    const on = f >= l && f <= l + w;
+    held = { id: e.pointerId, off: on ? f - l : w / 2 };
+    byHand = true;
+    map.classList.add('dragging');
+    if (!on) windowTo(f - w / 2);
+  });
+  map.addEventListener('pointermove', (e) => {
+    if (held?.id === e.pointerId) windowTo(fracAt(e.clientX) - held.off);
+  });
+  const letGo = (e: PointerEvent) => {
+    if (held?.id !== e.pointerId) return;
+    held = null;
+    map.classList.remove('dragging');
+  };
+  map.addEventListener('pointerup', letGo);
+  map.addEventListener('pointercancel', letGo);
+  map.addEventListener('lostpointercapture', letGo);
+  // from the keyboard: an octave a press, or to either end
+  map.addEventListener('keydown', (e) => {
+    const oct = (7 * kb.getBoundingClientRect().width) / whites.length;
+    const to = e.key === 'ArrowRight' ? scroll.scrollLeft + oct : e.key === 'ArrowLeft' ? scroll.scrollLeft - oct : e.key === 'Home' ? 0 : e.key === 'End' ? scroll.scrollWidth : null;
+    if (to === null) return;
+    e.preventDefault();
+    byHand = true;
+    scroll.scrollLeft = to;
+  });
+
   // pointer handling: each pointer holds at most one key
   const pointerKey = new Map<number, { midi: number; vel: number }>();
   const keyAt = (x: number, y: number): { midi: number; vel: number } | null => {
@@ -116,6 +242,8 @@ export function createKeyboard(): KeyboardHandle {
     const s = audio.isSounding(m);
     el.classList.toggle('down', audio.down.has(m));
     el.classList.toggle('sounding', s);
+    // (the strip shows it too: a note off the screen's edge is seen there)
+    miniEls.get(m)!.classList.toggle('on', s || audio.down.has(m));
     if (s) lit.add(m);
     else lit.delete(m);
   };
@@ -130,6 +258,10 @@ export function createKeyboard(): KeyboardHandle {
 
   return {
     el: scroll,
+    map,
+    onSlide(cb) {
+      slideCbs.add(cb);
+    },
     strip: kb,
     scroller: scroll,
     keyFrac: (m) => fracs.get(m) ?? { c: 0, w: 0 },
@@ -143,10 +275,14 @@ export function createKeyboard(): KeyboardHandle {
     },
     setRange(lo, hi) {
       keyEls.forEach((el, m) => el.classList.toggle('out', m < lo || m > hi));
+      miniEls.forEach((el, m) => el.classList.toggle('out', m < lo || m > hi));
     },
     scrollToMidi(m, smooth = false) {
       const el = keyEls.get(m);
       if (!el) return;
+      // (the page's own move: not a slide by hand)
+      byHand = false;
+      window.clearTimeout(settle);
       const r = el.getBoundingClientRect();
       const sr = scroll.getBoundingClientRect();
       scroll.scrollTo({ left: scroll.scrollLeft + r.left - sr.left - sr.width / 2 + r.width / 2, behavior: smooth ? 'smooth' : 'auto' });
@@ -238,6 +374,9 @@ export class ComputerKeys {
       if (e.code in ComputerKeys.MAP) e.preventDefault();
       return;
     }
+    // a touch screen shows no letters on its keys (styles.css) until a keyboard that is plugged in
+    // plays a note or moves the octave
+    if (e.code in ComputerKeys.MAP || e.code === 'KeyZ' || e.code === 'KeyX') document.documentElement.toggleAttribute('data-hardkeys', true);
     if (e.code === 'KeyZ' || e.code === 'Minus' || e.code === 'NumpadSubtract') return this.octave(-1);
     if (e.code === 'KeyX' || e.code === 'Equal' || e.code === 'NumpadAdd') return this.octave(1);
     if (e.code === 'KeyC') return this.vel(-12);

@@ -707,6 +707,9 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     } else scopeCap.textContent = family() === 'wind' ? 'jet' : family() === 'brass' ? `lips · ${e.meta}` : '';
   };
 
+  /** how far down from the instrument area's top the file player's row lies over it (px): a narrow
+   *  3D stage frames its instrument clear of it */
+  const overTop = () => (player.el.hidden ? 0 : Math.max(0, (player.el.firstElementChild ?? player.el).getBoundingClientRect().bottom - top.getBoundingClientRect().bottom));
   let raf = 0;
   const loop = (now: number) => {
     const { ctx, w, h: hh } = fitCanvas(canvas);
@@ -788,7 +791,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
         sounding: (m) => audio.isSounding(m),
         caseHidden,
         ensemble: ens ? ensIn() : null,
-      });
+      }, overTop());
     }
     gripRoom.hidden = in3d || ens;
     // the MIDI file player sits at the top middle, just under this band (a fixed overlay)
