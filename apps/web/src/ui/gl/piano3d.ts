@@ -38,6 +38,7 @@ import { ShapeUtils, Vector2 } from 'three';
 import { stepAction, type PianoState, type Pt } from '../piano-draw.ts';
 import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, dissolve, lerp3, norm, xform } from './gl3d.ts';
 import { M, MeshBuilder, area, cyl, ellipsoid, fanCap, lathe, offset, spline, tube, type Mat } from './mesh.ts';
+import { LID_HALF as HALF, lidRest } from '../lid.ts';
 
 // ---------------------------------------------------------------- keyboard
 export const WHITE = 0.0235;
@@ -619,7 +620,10 @@ export interface PianoModel {
   /** the polished underside of a grand's lid (plan outline, height), in the lid's own frame: it mirrors
    *  the plate and strings (the renderer's planar reflection) */
   lidMirror?: { poly: [number, number][]; y: number };
-  prop: { base: Vec3; tipLocal: Vec3 } | null;
+  /** the lid as a slab for pointing at it (plan outline and its two faces, in the lid's own frame) */
+  lidSlab?: { poly: [number, number][]; y0: number; y1: number };
+  /** a grand's prop sticks: the long one (the lid on full stick) and the short one (half stick) */
+  props: PropStick[];
   pedals: { mesh: Mesh; pivot: Vec3 }[];
   bounds: { c: Vec3; r: number };
   floorY: number;
@@ -977,9 +981,8 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
   slab(lm, PLAN, flap, [], y0 + LID_T + 0.0008, y0 + 2 * LID_T + 0.0008, M.lacquer, { bevel: 0.006, smooth: 0.9 });
   rbox(lm, [xL + 0.02, y0 + LID_T - 0.001, LID_FOLD - 0.008], [xR - 0.06, y0 + LID_T + 0.0016, LID_FOLD + 0.008], M.brass, 0.0008);
   for (const z of [0.75, 1.25, 1.75]) cyl(lm, [xL - 0.002, y0 + 0.001, z - 0.032], [xL - 0.002, y0 + 0.001, z + 0.032], 0.0055, 0.0055, 14, M.brass);
-  const bentAt = (z: number) => outer.filter((p) => p[0] > 0).reduce((a, p) => (Math.abs(p[1] - z) < Math.abs(a[1] - z) ? p : a));
-  const pb = bentAt(0.98);
-  const prop = { base: [pb[0] - G.RIM * 0.55, G.rimTop, pb[1] + 0.02] as Vec3, tipLocal: [pb[0] - 0.09, G.rimTop, pb[1] + 0.03] as Vec3 };
+  const hinge: Vec3 = [xL, G.rimTop + 0.012, 0];
+  const props = propSticks(outer, caseOutline, hinge, y0, cb, lm);
   // (no music desk: taken off, with its rail and posts, the pins and the fallboard in plain view)
   // ---- pedals: brass, from the lyre's box
   const pedals: { mesh: Mesh; pivot: Vec3 }[] = [];
@@ -1002,9 +1005,10 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
     parts,
     wires: wiresOf(geo),
     lid: lm.build(),
-    lidHinge: [xL, G.rimTop + 0.012, 0],
+    lidHinge: hinge,
     lidMirror: { poly: lidMain.map(([x, z]): [number, number] => [x, z]), y: y0 - 0.0004 },
-    prop,
+    lidSlab: { poly: lidMain, y0, y1: y0 + LID_T },
+    props,
     pedals,
     bounds: { c: [0, 0.6, 1.0], r: 1.35 },
     floorY: 0,
@@ -1667,7 +1671,7 @@ export function buildUprightModel(keys: KeySummary[]): PianoModel {
     wires: wiresOf(geo),
     lid: null,
     lidHinge: [0, 0, 0],
-    prop: null,
+    props: [],
     pedals,
     bounds: { c: [0, 0.62, 0.28], r: 1.0 },
     floorY: 0,
@@ -1698,6 +1702,197 @@ function ribbonX(mb: MeshBuilder, path: P2[], x: number, w: number, m: Mat): voi
     }
   }
 }
+// ---------------------------------------------------------------- the grand's lid and its prop sticks
+// The lid is held up by one of two sticks: the long one (the lid wide open: "full stick") or the
+// short one ("half stick"). Grands carry two lid props, the short one often inset in the long one; the
+// short stick's cup is the one nearer the lid's edge, the long stick's further in, and a Steinway-style
+// stick is 31″ (0.79 m) long [relativekeys 2011, "Piano lid props"; luxury-pianos.com, "How to open a
+// piano lid"; Steve's Piano Service, grand hardware: "Grand Prop Stick, Steinway style, with short
+// stick inset, 31″ long"]. Here the two pivot side by side on one brass bracket inside the bentside;
+// each folds down into a felt cradle along the rim (the long one towards the tail, the short one
+// towards the keys) and swings up into its own cup.
+// A stick is a fixed length on a fixed pivot, so it holds the lid at one opening only: in between,
+// the hand holds the lid (the stage's drag), and a lid let go of comes down onto the highest stick
+// under it, or shut (`lidRest`). The lid's opening is the engine's lid parameter (post.ts: what the
+// lid does to the sound), 0 shut … 1 on the long stick.
+/** the lid's opening on its long stick (rad): the engine's lid = 1. About 40°, as a concert grand's
+ *  full stick */
+export const LID_OPEN = 0.7;
+/** the lid's pose: a rotation by `ang` (rad) about the hinge's axis (along z, through `h`) */
+export function lidMatrix(h: Vec3, ang: number, out: Mat4 = new Float32Array(16)): Mat4 {
+  const c = Math.cos(ang);
+  const s = Math.sin(ang);
+  out[0] = c;
+  out[1] = s;
+  out[2] = 0;
+  out[3] = 0;
+  out[4] = -s;
+  out[5] = c;
+  out[6] = 0;
+  out[7] = 0;
+  out[8] = 0;
+  out[9] = 0;
+  out[10] = 1;
+  out[11] = 0;
+  out[12] = h[0] - (c * h[0] - s * h[1]);
+  out[13] = h[1] - (s * h[0] + c * h[1]);
+  out[14] = 0;
+  out[15] = 1;
+  return out;
+}
+export interface PropStick {
+  /** the pivot (the knuckle at its foot), inside the bentside a little under the rim's top */
+  foot: Vec3;
+  /** foot to the leather of its tip (m) */
+  len: number;
+  /** unit directions from the foot: folded in its cradle, and up in its cup (the lid at its rest) */
+  flat: Vec3;
+  up: Vec3;
+  /** the swing's axis: flat × up (unit) */
+  axis: Vec3;
+  /** the opening it holds the lid at (the engine's lid) */
+  rest: number;
+  /** its cup under the lid (the lid's own frame) */
+  cup: Vec3;
+  /** the stick, standing on its foot at the origin along +y, its pivot pin along z */
+  mesh: Mesh;
+}
+/** a stick's tip sits this far up into its cup (under the lid's underside, m) */
+const CUP_IN = 0.003;
+/** the bentside (x > 0) of a plan outline: x where it crosses z (it runs front to tail there) */
+function bentX(line: P2[], z: number): number {
+  for (let i = 0; i + 1 < line.length; i++) {
+    const [x0, z0] = line[i];
+    const [x1, z1] = line[i + 1];
+    if (x0 <= 0 || x1 <= 0) continue;
+    if ((z0 - z) * (z1 - z) <= 0 && z0 !== z1) return x0 + ((x1 - x0) * (z - z0)) / (z1 - z0);
+  }
+  return line.filter((p) => p[0] > 0).reduce((a, p) => (Math.abs(p[1] - z) < Math.abs(a[1] - z) ? p : a))[0];
+}
+/** the two sticks, their bracket and cradles (into the case) and their cups (into the lid) */
+function propSticks(outer: P2[], lidOutline: P2[], hinge: Vec3, yU: number, cb: MeshBuilder, lm: MeshBuilder): PropStick[] {
+  // the feet 26 mm in from the rim's inner face (the knuckle clear of the bracket), 14 mm under its
+  // top (a stick folded down lies just under the shut lid)
+  const IN = G.RIM + 0.026;
+  const footY = G.rimTop - 0.014;
+  const face = offset(outer, G.RIM);
+  const line = offset(outer, IN);
+  const out: PropStick[] = [];
+  for (const [z, rest, towards, inset] of [[0.99, 1, 1, 0.2], [0.935, HALF, -1, 0.08]] as const) {
+    const foot: Vec3 = [bentX(line, z), footY, z];
+    // the cup: level with the foot, in from the lid's edge (the long stick's 20 cm, the short one's
+    // 8 cm); the stick's length is foot to cup with the lid at the stick's rest (the long one 0.85 m:
+    // a 31″ stick holds a lid a little lower than this one's 40°)
+    const cup: Vec3 = [bentX(lidOutline, z) - inset, yU - CUP_IN, z];
+    const top = xform(lidMatrix(hinge, rest * LID_OPEN), cup);
+    const len = Math.hypot(top[0] - foot[0], top[1] - foot[1], top[2] - foot[2]);
+    const up = norm([top[0] - foot[0], top[1] - foot[1], top[2] - foot[2]]);
+    // folded: along the rim's inside (the chord to the point a stick's length away on the feet's line)
+    let zz = z;
+    let px = foot[0];
+    while (Math.hypot(px - foot[0], zz - z) < len && zz > 0.2 && zz < 2.0) {
+      zz += towards * 0.002;
+      px = bentX(line, zz);
+    }
+    const flat = norm([px - foot[0], 0, zz - z]);
+    const axis = norm(cross3(flat, up));
+    // the stick: a brass knuckle on its pivot pin, a ferrule, the lacquered shaft tapering to a brass
+    // tip with a leather pad
+    const sb = new MeshBuilder();
+    ellipsoid(sb, [0, 0, 0], [0.0105, 0.0105, 0.0105], 14, M.brass);
+    cyl(sb, [0, 0, -0.016], [0, 0, 0.016], 0.0042, 0.0042, 10, M.brass);
+    cyl(sb, [0, 0.006, 0], [0, 0.036, 0], 0.0118, 0.0116, 16, M.brass);
+    cyl(sb, [0, 0.036, 0], [0, len - 0.034, 0], 0.0114, 0.0086, 16, M.lacquer);
+    cyl(sb, [0, len - 0.034, 0], [0, len - 0.006, 0], 0.0088, 0.0094, 16, M.brass);
+    cyl(sb, [0, len - 0.006, 0], [0, len, 0], 0.0094, 0.0088, 16, M.leather);
+    const mesh = sb.build();
+    mesh.fade = true;
+    out.push({ foot, len, flat, up, axis, rest, cup, mesh });
+    // its cup under the lid: a turned brass cup the tip seats in
+    cyl(lm, [cup[0], yU - 0.0095, cup[2]], [cup[0], yU - 0.0002, cup[2]], 0.0165, 0.021, 18, M.brass);
+    // its cradle: a felt-topped block on the rim's inside, under the folded stick's upper end
+    const c: Vec3 = [foot[0] + flat[0] * (len - 0.07), footY, foot[2] + flat[2] * (len - 0.07)];
+    const fx = bentX(face, c[2]);
+    const nx = c[0] - fx;
+    const t: P2 = [flat[0] * 0.016, flat[2] * 0.016];
+    const quad: P2[] = [[fx - t[0], c[2] - t[1]], [fx + t[0], c[2] + t[1]], [c[0] - nx * 0.25 + t[0], c[2] + t[1]], [c[0] - nx * 0.25 - t[0], c[2] - t[1]]];
+    slab(cb, PLAN, quad, [], footY - 0.03, footY - 0.0118, M.lacquerSatin, { bevel: 0.002, topMat: M.redFelt });
+  }
+  // the bracket: a brass plate on the rim's inside behind the two feet, a lug out to each knuckle
+  {
+    const zs = [0.9, 1.03];
+    const quad: P2[] = [[bentX(face, zs[0]), zs[0]], [bentX(face, zs[1]), zs[1]], [bentX(face, zs[1]) - 0.004, zs[1]], [bentX(face, zs[0]) - 0.004, zs[0]]];
+    slab(cb, PLAN, quad, [], footY - 0.024, G.rimTop - 0.004, M.brass, { bevel: 0.0012 });
+    for (const p of out) cyl(cb, [bentX(face, p.foot[2]) - 0.003, footY, p.foot[2]], [p.foot[0] + 0.006, footY, p.foot[2]], 0.0065, 0.0058, 12, M.brass);
+  }
+  return out;
+}
+const cross3 = (a: Vec3, b: Vec3): Vec3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+/** a stick swung `k` of the way from folded (0) to up (1): its direction from the foot (unit) */
+export function stickDir(p: PropStick, k: number, out: Vec3 = [0, 0, 0]): Vec3 {
+  const cosO = Math.max(-1, Math.min(1, p.flat[0] * p.up[0] + p.flat[1] * p.up[1] + p.flat[2] * p.up[2]));
+  const O = Math.acos(cosO);
+  const s = Math.sin(O) || 1;
+  const a = Math.sin((1 - k) * O) / s;
+  const b = Math.sin(k * O) / s;
+  for (let i = 0; i < 3; i++) out[i] = a * p.flat[i] + b * p.up[i];
+  return out;
+}
+const sd = [0, 0, 0] as Vec3;
+/** how far the stick's tip is over the lid's underside (m; > 0: through it), the lid at `ang` */
+function overLid(p: PropStick, k: number, h: Vec3, yU: number, ang: number): number {
+  stickDir(p, k, sd);
+  const tx = p.foot[0] + p.len * sd[0] - h[0];
+  const ty = p.foot[1] + p.len * sd[1] - h[1];
+  return -Math.sin(ang) * tx + Math.cos(ang) * ty - (yU - h[1]) + CUP_IN;
+}
+/** A stick swung `k` up, the lid at `ang`: as far up as the lid lets it. A lid lower than the
+ *  stick's top presses it down (it folds just enough to stay under the lid). */
+export function stickSwing(p: PropStick, k: number, h: Vec3, yU: number, ang: number): number {
+  if (overLid(p, k, h, yU, ang) <= 0) return k;
+  let lo = 0;
+  let hi = k;
+  for (let i = 0; i < 22; i++) {
+    const m = (lo + hi) / 2;
+    if (overLid(p, m, h, yU, ang) > 0) hi = m;
+    else lo = m;
+  }
+  return lo;
+}
+/** the stick's pose: +y along its direction, its pin along the swing's axis, at its foot */
+export function stickMatrix(p: PropStick, k: number, o: Mat4 = new Float32Array(16)): Mat4 {
+  const Y = stickDir(p, k);
+  const Z = p.axis;
+  const X = cross3(Y, Z);
+  o.set([X[0], X[1], X[2], 0, Y[0], Y[1], Y[2], 0, Z[0], Z[1], Z[2], 0, p.foot[0], p.foot[1], p.foot[2], 1]);
+  return o;
+}
+/** Where a ray (the piano's frame: origin `o`, direction `d`) first meets the lid at opening `lid`
+ *  (the engine's): its distance along the ray and the point in the lid's own frame; null if it misses.
+ *  The lid is a slab between its two faces, inside its plan outline. */
+export function lidRay(pm: PianoModel, lid: number, o: Vec3, d: Vec3): { t: number; local: Vec3 } | null {
+  const sl = pm.lidSlab;
+  if (!sl) return null;
+  const h = pm.lidHinge;
+  const c = Math.cos(lid * LID_OPEN);
+  const s = Math.sin(lid * LID_OPEN);
+  // into the lid's own frame: the inverse rotation about the hinge
+  const ox = o[0] - h[0];
+  const oy = o[1] - h[1];
+  const ol: Vec3 = [h[0] + c * ox + s * oy, h[1] - s * ox + c * oy, o[2]];
+  const dl: Vec3 = [c * d[0] + s * d[1], -s * d[0] + c * d[1], d[2]];
+  let best: { t: number; local: Vec3 } | null = null;
+  for (const y of [sl.y0, sl.y1]) {
+    if (Math.abs(dl[1]) < 1e-9) continue;
+    const t = (y - ol[1]) / dl[1];
+    if (t <= 0 || (best && t >= best.t)) continue;
+    const P: Vec3 = [ol[0] + t * dl[0], y, ol[2] + t * dl[2]];
+    if (inPoly([P[0], P[2]], sl.poly)) best = { t, local: P };
+  }
+  return best;
+}
+/** a point of the lid (its own frame) where the lid at opening `lid` puts it (the piano's frame) */
+export const lidPoint = (pm: PianoModel, local: Vec3, lid: number): Vec3 => xform(lidMatrix(pm.lidHinge, lid * LID_OPEN), local);
 /** a case mesh: built like any other, marked to dissolve */
 function caseMesh(cb: MeshBuilder): Mesh {
   const m = cb.build();
@@ -1720,8 +1915,10 @@ export interface PianoPose {
   pedal: [number, number, number];
   /** the case's visibility (1 shown … 0 hidden), eased */
   caseVis: number;
+  /** each prop stick's swing (0 folded … 1 up; −1: not yet posed, it starts where the lid wants it) */
+  props: number[];
 }
-export const newPianoPose = (): PianoPose => ({ keyPos: new Float32Array(88), jack: new Float32Array(88), trip: new Uint8Array(88), pedal: [0, 0, 0], caseVis: 1 });
+export const newPianoPose = (): PianoPose => ({ keyPos: new Float32Array(88), jack: new Float32Array(88), trip: new Uint8Array(88), pedal: [0, 0, 0], caseVis: 1, props: [-1, -1] });
 
 export interface PianoIn {
   piano: PianoState;
@@ -1916,47 +2113,35 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
     if (pm.pedalsCase && cv <= 0) return;
     b.mesh(p.mesh, aboutX(MS[3], p.pivot[1], p.pivot[2], -0.12 * v), pm.pedalsCase ? caseGlow : null);
   });
-  // the lid on its hinge, and its prop
+  // the lid on its hinge, and its prop sticks
   if (pm.lid && (cv > 0 || b.wantFit)) {
-    const ang = si.lid * 0.7;
-    const h = pm.lidHinge;
-    const c = Math.cos(ang);
-    const s = Math.sin(ang);
-    // rotation about the z-parallel axis through the hinge
-    const lidM = new Float32Array([c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, h[0] - (c * h[0] - s * h[1]), h[1] - (s * h[0] + c * h[1]), 0, 1]);
-    if (cv <= 0) {
-      // (hidden with the case: framed all the same)
-      b.fitAlso.push({ mesh: pm.lid, m: lidM });
-      return;
+    const ang = si.lid * LID_OPEN;
+    const lidM = lidMatrix(pm.lidHinge, ang);
+    if (b.wantFit) {
+      // framed with the lid wide open, whatever its opening now (and with the case hidden): moving the
+      // lid never moves the camera
+      b.fitAlso.push({ mesh: pm.lid, m: lidMatrix(pm.lidHinge, LID_OPEN) });
+      if (cv > 0) {
+        b.noFit.add(pm.lid);
+        for (const p of pm.props) b.noFit.add(p.mesh);
+      }
     }
+    if (cv <= 0) return;
     b.mesh(pm.lid, lidM, caseGlow);
     // open far enough to see under, and not in a key's close-up section (which cuts the scene)
     if (pm.lidMirror && si.lid > 0.08 && !si.lite && !si.cut) b.mirrors.push({ m: lidM, poly: pm.lidMirror.poly, y: pm.lidMirror.y, k: cv, body: pm.lid });
-    if (pm.prop && si.lid > 0.03) {
-      const tip = xform(lidM, pm.prop.tipLocal);
-      propStick(b, pm.prop.base, tip, caseGlow);
-    }
+    // the stick for the rest under the lid swings up (≈ 0.2 s), the other folds down into its cradle;
+    // a lid lower than a stick's top presses it down
+    const hold = lidRest(si.lid);
+    const yU = pm.lidSlab!.y0;
+    pm.props.forEach((p, i) => {
+      const want = p.rest === hold ? 1 : 0;
+      const k0 = pose.props[i];
+      const k = k0 < 0 ? want : Math.abs(k0 - want) < 1e-3 ? want : ease(k0, want, si.dt, 0.07);
+      pose.props[i] = k;
+      b.mesh(p.mesh, stickMatrix(p, stickSwing(p, k, pm.lidHinge, yU, ang), MS[9]), caseGlow);
+    });
   }
-}
-
-const propCache = new Map<string, Mesh>();
-function propStick(b: Batch, a: Vec3, c: Vec3, glow: RGBA | null): void {
-  const key = `${a.map((v) => v.toFixed(3))}${c.map((v) => v.toFixed(3))}`;
-  let m = propCache.get(key);
-  if (!m) {
-    const mb = new MeshBuilder();
-    const d: Vec3 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
-    const L = Math.hypot(...d);
-    const at = (t: number): Vec3 => [a[0] + (d[0] * t) / L, a[1] + (d[1] * t) / L, a[2] + (d[2] * t) / L];
-    cyl(mb, at(0.0), at(0.03), 0.011, 0.011, 16, M.brass);
-    cyl(mb, at(0.03), at(L - 0.03), 0.0115, 0.0085, 16, M.lacquer);
-    cyl(mb, at(L - 0.03), at(L), 0.009, 0.012, 16, M.brass);
-    m = mb.build();
-    m.fade = true;
-    if (propCache.size > 32) propCache.clear();
-    propCache.set(key, m);
-  }
-  b.mesh(m, null, glow);
 }
 
 /** the largest excursion drawn for a vibrating string (m): the loudest string's live shape, scaled to

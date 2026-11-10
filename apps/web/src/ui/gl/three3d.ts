@@ -132,10 +132,22 @@ void main() {
   gl_FragColor = vec4(c.rgb * F * 1.3 * uK, 0.0);
 }`;
 
-// the floor: a lit, shadowed surface whose coverage (alpha) fades into the ground with distance
+// the floor: a lit, shadowed surface whose coverage (alpha) fades into the ground with distance; on
+// it, the room's light (a pool as large as the room, its rim the room's handle: gl3d's Pool). uPool:
+// its radius, its rim's half-width, the light past it (a share of the pool's) and the pool's lift
+// with the sound; uPoolHot: the rim brightened while the pointer is on it or drags it
 const FLOOR_FADE = /* glsl */ `
-uniform vec3 uFloorC; uniform vec2 uFloorR;
+uniform vec3 uFloorC; uniform vec2 uFloorR; uniform vec4 uPool; uniform float uPoolHot;
 varying vec3 vWorldP;`;
+const FLOOR_FS = /* glsl */ `
+{
+  float rr = length((vWorldP - uFloorC).xz);
+  float inPool = 1.0 - smoothstep(uPool.x - uPool.y, uPool.x + uPool.y, rr);
+  float e = (rr - uPool.x) / max(uPool.y, 1e-3);
+  float k = mix(uPool.z, 1.0 + uPool.w, inPool) + uPoolHot * 0.55 * exp(-e * e);
+  gl_FragColor.rgb *= k;
+  gl_FragColor.a *= 1.0 - smoothstep(uFloorR.x, uFloorR.y, rr);
+}`;
 
 /** a studio to light the scene with (and to see reflected in lacquer and brass) */
 function studio(): THREE.Scene {
@@ -235,7 +247,9 @@ export class Renderer3 {
   private rim: THREE.DirectionalLight;
   private fill: THREE.DirectionalLight;
   private floor: THREE.Mesh;
-  private floorU = { uFloorC: { value: new THREE.Vector3() }, uFloorR: { value: new THREE.Vector2(1, 2) } };
+  private floorU = { uFloorC: { value: new THREE.Vector3() }, uFloorR: { value: new THREE.Vector2(1, 2) }, uPool: { value: new THREE.Vector4(1e3, 1, 1, 0) }, uPoolHot: { value: 0 } };
+  /** the room's light pool's rim, brightened (0 … 1: the pointer on it, or dragging it) */
+  poolHot = 0;
   private entries = new Map<Mesh, Entry>();
   private lineScene = new THREE.Scene();
   private inkL: LineLayer;
@@ -311,7 +325,7 @@ export class Renderer3 {
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWorldP;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWorldP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', `#include <common>\n${FLOOR_FADE}`)
-        .replace('#include <dithering_fragment>', `#include <dithering_fragment>\n{ float rr = length((vWorldP - uFloorC).xz); gl_FragColor.a *= 1.0 - smoothstep(uFloorR.x, uFloorR.y, rr); }`);
+        .replace('#include <dithering_fragment>', `#include <dithering_fragment>\n${FLOOR_FS}`);
     };
     this.floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), fm);
     this.floor.rotation.x = -Math.PI / 2;
@@ -502,6 +516,11 @@ export class Renderer3 {
       this.floor.position.set(f.c[0], f.y, f.c[2]);
       this.floorU.uFloorC.value.set(-f.c[0], f.y, f.c[2]);
       this.floorU.uFloorR.value.set(f.r0, f.r1);
+      // (no pool: the whole floor as one, as an ensemble's)
+      const p = f.pool;
+      if (p) this.floorU.uPool.value.set(p.R, p.soft, 0.42, p.lift);
+      else this.floorU.uPool.value.set(1e3, 1, 1, 0);
+      this.floorU.uPoolHot.value = p ? this.poolHot : 0;
     }
     // camera (in the mirrored world)
     this.cam.fov = fovDeg;

@@ -88,6 +88,8 @@ export interface Scene3State {
   /** an ensemble's instruments, by seat: each its own pose (the meshes are shared with the single
    *  instrument's model: two violins are one violin's meshes drawn twice) */
   ens: EnsSeat[];
+  /** the room's light: the output's level, eased (0 … 1) */
+  poolLevel: number;
 }
 interface EnsSeat {
   key: string;
@@ -111,6 +113,7 @@ export const newScene3State = (): Scene3State => ({
   picks: [],
   bowLine: null,
   ens: [],
+  poolLevel: 0,
 });
 
 
@@ -158,9 +161,27 @@ function caseParts(pm: PianoModel): PianoModel {
   return pm;
 }
 
-/** the floor under the instrument (the renderer draws it: shadowed, fading into the ground) */
-function floor(b: Batch, _st: Scene3State, _key: string, c: Vec3, r: number): void {
-  b.floor = { y: 0, c: [c[0], 0, c[2]], r0: r * 0.45, r1: r * 1.6 };
+/** The room's light pool round an instrument of radius `r` (its bounds): its radius for the room
+ *  parameter (0 … 1, the reverberation time 0.7 … 2.4 s), and back. A pool 0.75 r across in the
+ *  driest room (the instrument just inside it), 1.5 r in the largest; the default rooms (0.14 … 0.25)
+ *  about where the floor's glow fell before it was a handle. */
+export const poolRadius = (r: number, room: number): number => r * (0.75 + 0.75 * Math.min(1, Math.max(0, room)));
+export const poolRoom = (r: number, R: number): number => Math.min(1, Math.max(0, (R / r - 0.75) / 0.75));
+/** the floor under the instrument (the renderer draws it: shadowed, fading into the ground), and the
+ *  room's light on it (none in an ensemble: its parts' rooms are their own) */
+function floor(b: Batch, st: Scene3State, _key: string, c: Vec3, r: number, si: SceneIn | null): void {
+  if (!si) {
+    b.floor = { y: 0, c: [c[0], 0, c[2]], r0: r * 0.45, r1: r * 1.6, pool: null };
+    return;
+  }
+  // the pool's light follows the sound in the room: the output's level (its reverberation's tail
+  // too), quick up and a little smoothed down (the room's own decay is in the level already)
+  const db = 20 * Math.log10(Math.max(1e-6, si.rms));
+  const lvl = Math.min(1, Math.max(0, (db + 50) / 36));
+  st.poolLevel += (lvl - st.poolLevel) * (1 - Math.exp(-si.dt / (lvl > st.poolLevel ? 0.03 : 0.12)));
+  const R = poolRadius(r, si.room);
+  // the floor is whole inside the pool and fades into the ground past it
+  b.floor = { y: 0, c: [c[0], 0, c[2]], r0: R * 0.92, r1: R + 0.6 * r, pool: { R, soft: Math.max(0.02, R * 0.07), lift: 0.22 * st.poolLevel } };
 }
 
 /** build this frame's scene */
@@ -178,7 +199,7 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): void {
     st.picks = pianoPickSegments(pm);
     b.bounds = pm.bounds;
     b.keepOut = modelBox(pm);
-    floor(b, st, pm.kind, pm.bounds.c, pm.bounds.r);
+    floor(b, st, pm.kind, pm.bounds.c, pm.bounds.r, si);
     return;
   }
   if (si.family === 'bowed' && si.bowed) {
@@ -191,20 +212,20 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): void {
     poseBowed(b, bm, si.fr, st.str);
     st.bowLine = bm.bowLine;
     b.bounds = bm.bounds;
-    floor(b, st, bm.id, bm.bounds.c, bm.bounds.r);
+    floor(b, st, bm.id, bm.bounds.c, bm.bounds.r, si);
     return;
   }
   if (si.family === 'brass') {
     if (!st.trumpet) st.trumpet = timed(st, () => buildTrumpetModel());
     poseTrumpet(b, st.trumpet, si.fr, st.windPose, si.dt, si.now, si.rms);
     b.bounds = st.trumpet.bounds;
-    floor(b, st, 'trumpet', st.trumpet.bounds.c, st.trumpet.bounds.r);
+    floor(b, st, 'trumpet', st.trumpet.bounds.c, st.trumpet.bounds.r, si);
     return;
   }
   if (!st.flute) st.flute = timed(st, () => buildFluteModel());
   poseFlute(b, st.flute, si.fr, st.windPose, si.dt, si.now);
   b.bounds = st.flute.bounds;
-  floor(b, st, 'flute', st.flute.bounds.c, st.flute.bounds.r);
+  floor(b, st, 'flute', st.flute.bounds.c, st.flute.bounds.r, si);
   return;
 }
 
@@ -331,7 +352,7 @@ function buildEnsemble(b: Batch, si: SceneIn, parts: EnsPartIn[], st: Scene3Stat
   const c: Vec3 = [(lo[0] + hi[0]) / 2, 0.6, (lo[2] + hi[2]) / 2];
   const r = Math.max(1, 0.5 * Math.hypot(hi[0] - lo[0], hi[2] - lo[2], 1.5));
   b.bounds = { c, r };
-  floor(b, st, 'ensemble', c, r);
+  floor(b, st, 'ensemble', c, r, null);
 }
 
 /** the camera for an ensemble: from the audience, a little above the players, every instrument in
