@@ -52,8 +52,8 @@ const DEG = Math.PI / 180;
 // ---------------------------------------------------------------- materials
 const WOOD = M.bassoonMaple;
 const DARK = M.hole;
-/** the bell's throat: the varnish's colour on the bore's end grain, in shadow */
-const THROAT = variant(M.bassoonMaple, { col: [0.06, 0.025, 0.015], tint: true });
+/** the bell's throat: the bore's oiled maple, dark and matte, the light reaching a little way in */
+const THROAT = variant(M.interior, { col: [0.075, 0.032, 0.018], tint: true });
 /** the countersink round a tone hole: the end grain under the varnish, darker */
 const SINK = variant(M.bassoonMaple, { col: [0.13, 0.045, 0.022], tint: true });
 const AG = M.silverKeys;
@@ -619,16 +619,16 @@ const KEYS: KeyDef[] = [
     extra: (mb) => {
       const from = rodP(RW_FL, h0 + 2);
       // (over the C♯ key's hinge tube)
-      touch(mb, 'wing', from, [S('wing', lerp(h0, yt, 0.3), 200 - 2 * k, 7.0), S('wing', lerp(h0, yt, 0.75), 194 - 4 * k, 7.8)], [S('wing', yt + 6, 184 - 6 * k, 8.0), S('wing', yt + 2, 174 - 6 * k, 8.2), S('wing', yt - 1, 166 - 6 * k, 8.0)], 0.0033);
+      touch(mb, 'wing', from, [S('wing', lerp(h0, yt, 0.3), 200 - 2 * k, 7.0), S('wing', lerp(h0, yt, 0.75), 194 - 4 * k, 7.8)], [S('wing', yt + 7, 186 - 6 * k, 8.0), S('wing', yt + 3, 175 - 6 * k, 8.4), S('wing', yt - 1, 164 - 6 * k, 8.4)], 0.0039);
     },
   })),
   // the left thumb's long keys: touches at the long joint's foot (B♭, B, C side by side, D's long pear
   // below them), their pads up the joint's back (D, C, B) and on the bell (B♭), each closed by its own
   // touch and the touches below it
   { name: 'tLD', kind: 'touch', rod: RL_D, hb: [643, 699], open: has(LD), lift: 2.6, at: at('long', 632, 214, 6), extra: (mb) => touch(mb, 'long', rodP(RL_D, 646), [S('long', 640, 186, 5.5)], [S('long', 652, 216, 6.0), S('long', 640, 218, 6.4), S('long', 624, 218, 6.4), S('long', 606, 216, 6.2)], 0.0058) },
-  { name: 'tLC', kind: 'touch', rod: RL_C, hb: [643, 699], open: has(LC), lift: 2.6, at: at('long', 680, 238, 6), extra: (mb) => touch(mb, 'long', rodP(RL_C, 662), [S('long', 660, 214, 5.0)], [S('long', 662, 237, 5.8), S('long', 674, 239, 6.2), S('long', 692, 239, 6.2)], 0.0041) },
-  { name: 'tLB', kind: 'touch', rod: RL_B, hb: [643, 699], open: has(LB), lift: 2.6, at: at('long', 685, 222, 6), extra: (mb) => touch(mb, 'long', rodP(RL_B, 668), [S('long', 666, 204, 5.0)], [S('long', 668, 221, 5.8), S('long', 680, 222, 6.2), S('long', 698, 222, 6.2)], 0.0041) },
-  { name: 'tLBB', kind: 'touch', rod: RL_BB, hb: [643, 699], open: has(LBB), lift: 2.6, at: at('long', 692, 205, 6), extra: (mb) => touch(mb, 'long', rodP(RL_BB, 674), [S('long', 672, 199, 5.0)], [S('long', 676, 204, 5.8), S('long', 688, 205, 6.2), S('long', 706, 205, 6.2)], 0.0041) },
+  { name: 'tLC', kind: 'touch', rod: RL_C, hb: [643, 699], open: has(LC), lift: 2.6, at: at('long', 680, 238, 6), extra: (mb) => touch(mb, 'long', rodP(RL_C, 662), [S('long', 660, 214, 5.0)], [S('long', 658, 237, 5.8), S('long', 667, 238, 6.4), S('long', 681, 238, 6.4)], 0.00385) },
+  { name: 'tLB', kind: 'touch', rod: RL_B, hb: [643, 699], open: has(LB), lift: 2.6, at: at('long', 685, 222, 6), extra: (mb) => touch(mb, 'long', rodP(RL_B, 668), [S('long', 666, 204, 5.0)], [S('long', 670, 221, 5.8), S('long', 679, 222, 6.4), S('long', 693, 222, 6.4)], 0.00385) },
+  { name: 'tLBB', kind: 'touch', rod: RL_BB, hb: [643, 699], open: has(LBB), lift: 2.6, at: at('long', 692, 205, 6), extra: (mb) => touch(mb, 'long', rodP(RL_BB, 674), [S('long', 672, 199, 5.0)], [S('long', 682, 204, 5.8), S('long', 691, 205, 6.4), S('long', 705, 205, 6.4)], 0.00385) },
   { name: 'pD', kind: 'cup', rod: RL_D, hb: [703, 754], y: 742, th: 140, r: 0.0088, hole: 0.0048, open: not(LD | LC | LB | LBB), lift: 3.2 },
   { name: 'pC', kind: 'cup', rod: RL_C, hb: [703, 859], y: 848, th: 140, r: 0.0092, hole: 0.005, open: not(LC | LB | LBB), lift: 3.4 },
   { name: 'pB', kind: 'cup', rod: RL_B, hb: [703, 965], y: 954, th: 141, r: 0.0096, hole: 0.0052, open: not(LB | LBB), lift: 3.4 },

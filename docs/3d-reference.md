@@ -239,12 +239,40 @@ to scale both ways (its diameters at 8.71 px/mm agree with the joints' and the b
 The tone holes' bore positions (Debut's Table 3: 23 holes, register vent Ø 2.8 at 152.7 from the reed tip)
 were used to check the photograph's places, not to place the keys: the paper does not say which hole is which.
 
+## Bassoon (Heckel system)
+
+Modelled as a Heckel-system bassoon of the Fox / Heckel / Yamaha class, laid out from Gregory Maxwell's
+photograph of a Fox Renard 220 seen from both sides (`bassoon-fox-renard220-front.jpg`, 1920 × 4392): its
+1340 mm from the boot's foot (row 4290) to the bell's rim (row 56) is 3.16 px/mm, so a height is
+1340 − (row − 56) / 3.16 mm. The photograph is to scale both ways (its joints' widths at 3.16 px/mm agree
+with the museum's and Yamaha's proportions). The keys' order and names follow the bassoon key diagram
+(`bassoon-keys-diagram.png`); where the photograph does not show a pad, its place is the diagram's order
+along the joint (**laid out, not measured**).
+
+| part | value | source |
+|---|---|---|
+| Overall, boot's foot to the bell's rim | 1340 (the photograph); "1.34 m tall"; 1334 and 1343 (two maple Heckel-system bassoons) | photograph, [Wikipedia-bassoon], [NMM-5893] |
+| Sounding length (bore, reed tip to bell) | 2588 modelled (the reed and the bocal 323, down the wing and the boot's small bore 883, the U-tube 64, up the large bore, the long joint and the bell 1318); "2.54 m" | [Wikipedia-bassoon] |
+| Boot | 419 with its 38 mm ring (NMM: butt 407–414 without its ring); 71 × 42 across under the ring, 62 at the foot; the U-tube's cap 57 tall, its plate held by two screws at the ends | photograph, [NMM-5893], `bassoon-wlm-5688.jpg` |
+| Wing joint | 486 out of the boot to the top of its 36 mm cap (NMM 480–484); Ø 28.5; the wing (the fin the finger holes are drilled through) from 505 to 725, reaching 26 across from the wing's axis in front of the long joint | photograph, [NMM-5893] |
+| Long joint | 580 out of the boot to its 34.5 mm ring (NMM 568–580); Ø 43 | photograph, [NMM-5893] |
+| Bell | 307 over the long joint's ring (NMM 352–356 with its tenon); a swell over the ring (Ø 49), a waist (Ø 46), a swell a third of the way up (Ø 52.5), the neck (Ø 44.6) and the bead ring (Ø 55, 11 tall, ivory-like: Yamaha's, Heckel's); the mouth Ø 40 | photograph, `bassoon-yamaha-yfg812-front.jpg`, `bassoon-001.jpg`; the mouth [Fletcher-Rossing] (engine) |
+| Joints' axes | 35.5 apart (the long joint and the wing touching, Ø 43 and Ø 28.5) | photograph (the thumbs' side: 42.7 + 28.5 = 71 across the boot's ring) |
+| Bocal | rises 57 over the wing's cap, falls away 206 sideways to the reed (the photograph's curve, traced at 18 points); Ø 10 at its cork tapering to Ø 5.2; ≈ 290 along its curve out of the cork (Heckel bocals 0–3 are ≈ 300–330 overall: **typical, unsourced**); the whisper key's nipple 24 above the cap | photograph, `bassoon-heckel-bocal.jpg` |
+| Reed | 55 long ("around 5.5 cm"), the blades 28 above the first wire ("27–30 mm"), 14.8 wide at the tip, 9.6 at the first wire; the tip open 1.44 at rest; three wires (the first at the blades, the second at 20.5, the third under the turban); the turban 17.7 of red thread | [Wikipedia-bassoon], `bassoon-reed-binding.jpg`; widths **typical, unsourced** |
+| Finger holes (mm from the foot) | L1 640 (small: the half-hole), L2 598, L3 560 in its ring; R1 348, R2 301 in its ring | photograph |
+| Keys modelled (mm from the foot) | the left thumb's low D, C, B, B♭ touches (606–706 on the long joint's back) and their pads (D 742, C 848, B 954 on the long joint, B♭ 1112 on the bell); the whisper key (its touch 606–619, its pad on the bocal's nipple); the C♯ key (touch 652, vent 744); the A, C and D flick keys (vents 790, 816, 846 on the wing's back); the E♭ key (touch 619, vent 708) and the high E touch (667); the left little finger's E♭ and C♯ touches (525–552) and their pads on the long joint (484, 766); the right thumb's E plate (314, Ø 27, in its guard), B♭ key (vent 352), F♯ and A♭ touches (282, 262); the G key (R3: touch 268, pad 274 on the boot's side); the little finger's F plate with two rollers (244, its pad 141), F♯ (253 → 210) and A♭ (237 → 84); the C♯-trill key (324) and the B♭ sliver (284); the hand rest (356) | photograph, `bassoon-keys-diagram.png`, `bassoon-thumb-keys.jpg`, `bassoon-boot-thumb-keys.jpg` |
+| Key travel (modelled) | rings 1.4–1.5 (they stand 1.5 off the wood); vents 1.8–2.4; the big pads 2.6–3.6; touches 2.4–2.6 | **typical, unsourced** |
+| Fingerings modelled | the Heckel-system basic chart, B♭1–E5 (`apps/web/src/ui/bassoon-fingering.ts`, shared with the 2D stage) | [WFG-bassoon] |
+| Wood, keys | flamed maple stained red-brown under a hard varnish (the flame 3–6 mm bands round the joint); silver-plated nickel silver | [Yamaha-YFG812], photographs |
+
 ## Reference photos
 
 The photos are in `.cache/refs-3d/`, which is not committed. Full attributions are in `.cache/refs-3d/SOURCES.md`.
 The double bass's are in `.cache/refs-bass/` (`bass/` below), the oboe's in `.cache/refs-oboe/` (`oboe/` below,
 fetched from Wikimedia Commons' API, the 1920 px thumbnails), the clarinet's in `.cache/refs-clarinet/`
-(`clarinet/` below, with its own `SOURCES.md`), also not committed.
+(`clarinet/` below, with its own `SOURCES.md`), the bassoon's in `.cache/refs-bassoon/photos/` (`bassoon/` below,
+fetched from Wikimedia Commons' API, the original or its 1920 px thumbnail), also not committed.
 
 | file | license | shows |
 |---|---|---|
@@ -295,6 +323,15 @@ fetched from Wikimedia Commons' API, the 1920 px thumbnails), the clarinet's in 
 | `clarinet/clarinet-{upper-joint,lower-joint,bell}-with-tape-selmer-signet.jpg` | CC BY-SA 4.0, Jud McCranie | Signet 100 joints and bell beside a tape measure (L3 plain, L1 and L2 ringed) |
 | `clarinet/clarinet-five-pieces-labeled.jpg` (`Parts_of_clarinet_6.jpg`) | CC0, Gisbert König | a clarinet in its five pieces, labelled lengths |
 | `Clarinette_auriculaire_droit.jpg` (not saved; on Commons) | CC BY-SA 1.0, Clarioio | the right little finger's four spatulas and the long rods, close up |
+| `bassoon/bassoon-fox-renard220-front.jpg` (`FoxBassoon.jpg`) | GFDL 1.2, Gregory F. Maxwell | a Fox Renard 220, full length, from the fingers' side and from the thumbs' side, white background: the outline, the joints and the keys' places were measured off it |
+| `bassoon/bassoon-yamaha-yfg812-front.jpg` (`Yamaha_Bassoon_YFG-812_II.tif`) | CC BY-SA 4.0, Yamaha Corporation | YFG-812 II, full length, the thumbs' side, white background (the TIFF converted to JPEG at its 305 × 2027): the bell's bead ring, the varnish |
+| `bassoon/bassoon-wlm-5687…5692.jpg` (`Wiki_loves_Music_-_Hamburg-5687…5692.jpg`) | CC BY-SA 4.0, Wuselig | a Yamaha bassoon taken apart, close up: the boot and its U-tube's cap, the flamed maple, the joints' rings |
+| `bassoon/bassoon-001.jpg` (`Bassoon_001.jpg`) | CC BY 2.0, mark.drummer | a bassoon lying on a piano: the bell's bead ring, the bocal and reed |
+| `bassoon/bassoon-heckel-bocal.jpg` (`Heckel_Biebrich_Bassoon_Bocal.jpg`) | CC BY 2.0, themusicgrove | a Heckel bocal: its curve, its cork |
+| `bassoon/bassoon-thumb-keys.jpg`, `bassoon-finger-side.jpg`, `bassoon-boot-thumb-keys.jpg` | CC BY-SA 4.0, John Yesberg | a bassoon's left and right thumb keys, its finger holes, its hand rest and the right thumb's keys close up |
+| `bassoon/bassoon-handrest-front.jpg`, `bassoon-handrest-behind.jpg` | CC BY-SA 4.0, Jeremy Visser | the hand rest from the front and behind |
+| `bassoon/bassoon-reed-binding.jpg` (`Bassoon_reed_binding.jpg`) | CC BY-SA 3.0, Jeremy Visser | a bassoon reed's binding: the wires, the turban |
+| `bassoon/bassoon-keys-diagram.png` (`Standard_Bassoon_Fingering_Keys_Diagram.png`) | CC BY-SA 3.0, 京市 | the keys by finger: their names and order |
 
 [HJ-vc]: https://www.hansjohannsson.com/resources/mescello.html
 [HJ-vn]: https://hansjohannsson.com/resources/mesvioli.html
@@ -358,3 +395,8 @@ fetched from Wikimedia Commons' API, the 1920 px thumbnails), the clarinet's in 
 [Thomann-reed]: https://www.thomann.co.uk/pilgerstorfer_morr_french_cut_bb_clar_4.0.htm
 [clarinets-keys]: https://www.the-clarinets.net/clarinet-keys.html
 [WFG-clarinet]: https://www.wfg.woodwind.org/clarinet/cl_fing.html
+[Wikipedia-bassoon]: https://en.wikipedia.org/wiki/Bassoon
+[NMM-5893]: https://emuseum.nmmusd.org/objects/5893/bassoon-c
+[WFG-bassoon]: https://www.wfg.woodwind.org/bassoon/basn_bas_1.html
+[Yamaha-YFG812]: https://commons.wikimedia.org/wiki/File:Yamaha_Bassoon_YFG-812_II.tif
+[Fletcher-Rossing]: https://doi.org/10.1007/978-0-387-21603-4

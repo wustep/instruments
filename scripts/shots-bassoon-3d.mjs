@@ -33,17 +33,19 @@ const V = {
   side: { yaw: 0.838, pitch: 0.06, dist: 2.95, target: MID },
   back: { yaw: 2.41, pitch: 0.06, dist: 2.95, target: MID },
   // the reed and the bocal from the fingers' side, a little above
-  reed: { yaw: -0.45, pitch: 0.22, dist: 0.5, target: [0.02, 0.975, 0.08] },
+  reed: { yaw: -0.7, pitch: 0.15, dist: 0.24, target: [-0.075, 0.943, 0.165] },
+  // the bocal leaving the wing's cap: its cork, its collar, the whisper key's pad on its nipple
+  whisper: { yaw: -2.0, pitch: 0.25, dist: 0.19, target: [0.097, 0.975, 0.014] },
   // the wing joint's three finger holes, square on
-  wing: { yaw: -0.6, pitch: 0.1, dist: 0.42, target: [0.061, 0.615, -0.02] },
+  wing: { yaw: -0.6, pitch: 0.1, dist: 0.36, target: [0.063, 0.63, -0.02] },
   // the long joint's left-thumb keys, from behind
-  thumb: { yaw: 2.6, pitch: 0.1, dist: 0.5, target: [0.095, 0.71, 0.01] },
+  thumb: { yaw: 2.55, pitch: 0.1, dist: 0.36, target: [0.096, 0.725, 0.014] },
   // the boot: its right-hand side (holes, ring, little fingers), its back (the right thumb's keys)
   boot: { yaw: -0.6, pitch: 0.15, dist: 0.6, target: [0.035, 0.27, 0] },
   bootback: { yaw: 2.45, pitch: 0.12, dist: 0.6, target: [0.045, 0.3, 0.004] },
   // the boot's foot and the U-tube's cap
   cap: { yaw: -0.25, pitch: -0.02, dist: 0.32, target: [0.007, 0.085, 0] },
-  bell: { yaw: 0.35, pitch: 0.28, dist: 0.42, target: [0.162, 1.27, -0.01] },
+  bell: { yaw: 0.3, pitch: 0.5, dist: 0.36, target: [0.175, 1.35, -0.012] },
 };
 const browser = await chromium.launch({ channel: 'chrome', args: ['--autoplay-policy=no-user-gesture-required', '--use-angle=metal', '--enable-gpu'] });
 const TALL = process.env.TALL === '1';
@@ -97,7 +99,7 @@ if (want('actuated')) {
   await page.waitForTimeout(900);
   await shoot('actuated');
   if (!PHONE && SET !== 'before' && TALL) {
-    for (const v of ['wing', 'thumb', 'boot', 'bootback', 'reed']) {
+    for (const v of ['wing', 'thumb', 'boot', 'bootback', 'reed', 'whisper']) {
       if (!V[v]) continue;
       await view(V[v]);
       await shoot(`actuated-${v}`);
