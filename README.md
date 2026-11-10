@@ -1,10 +1,10 @@
 # instruments
 
-Seven acoustic instruments, physically modelled and computed in real time in the
+Eight acoustic instruments, physically modelled and computed in real time in the
 browser: a **piano**, a **violin**, a **viola**, a **cello**, a **double bass**, a
-**flute** and a **trumpet**.
+**flute**, an **oboe** and a **trumpet**.
 No samples are ever played as the sound. Every note is a simulation of felt
-hammers, bows and air jets driving strings and tubes, which in turn drive a
+hammers, bows, air jets, reeds and lips driving strings and tubes, which in turn drive a
 soundboard or body.
 
 **Production URL (planned):** https://piano-model-wustep.vercel.app. `main` is
@@ -23,7 +23,7 @@ README does not claim it is live. `vercel.json` makes this a static build
 * **Controllers and pedals.**
   * **Sustain (CC64)** is continuous, so half-pedalling works.
   * **Una corda (CC67)** and **sostenuto (CC66)** apply to the piano.
-  * **Vibrato (CC1)** and **expression (CC11 / CC2)** apply to strings and flute.
+  * **Vibrato (CC1)** and **expression (CC11 / CC2)** apply to strings and winds.
   * **A MIDI file's dynamics**: its volume (CC7) and expression (CC11) are a gain on the
     instrument playing each part (General MIDI's curve), its mod wheel (CC1) where it moves
     goes to the bowed and wind instruments. A part with none (one velocity, nothing that
@@ -119,6 +119,17 @@ README does not claim it is live. `vercel.json` makes this a static build
     makes even harmonics. Vortices shed at the edge limit the amplitude before
     the jet saturates, and both openings radiate as monopoles: the sound is the
     rate of change of their air flow.
+* **Oboe.**
+  * **Reed and cone.** Two cane blades blown closed let air into a conical bore,
+    modelled as a cylinder open at both ends driven where the cone's missing tip
+    would end (the "cylindrical saxophone"): every harmonic, overblowing at the
+    octave. The reed's flow and the pressure in the staple are solved together
+    every sample.
+  * **Dynamics in the lips.** Oboists blow at nearly the same pressure soft or
+    loud; a soft note closes the reed's opening, which lowers its closing pressure
+    and with it the sound. Tonguing holds the blades shut while the breath builds.
+  * **Compass.** B♭3–A6 at concert pitch (the oboe is in C); the keys in 2D and 3D
+    follow the Woodwind Fingering Guide's standard fingerings.
 * **Where it runs.** Everything runs in an AudioWorklet written in TypeScript; no
   WASM was needed, as measured below. The DSP core has no Web Audio dependency,
   so the same code runs in Node for tests, calibration and offline rendering.
@@ -137,6 +148,7 @@ CPU and latency: [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
 | **Dampers / pedals** | continuous damper contact with half-pedal, undamped top keys, sostenuto, pitched damper noise | key and action noises are short synthetic pulses |
 | **Bowed strings** | stick–slip friction with hysteresis, Helmholtz motion, bow position/force/speed (Schelleng), one shared bow with length, direction and automatic bow changes, stopped strings with vibrato, four strings on one bridge, modal body with A0/B1 modes, sympathetic open strings | torsional waves, bow width and the bridge hill on the cello only; body modes from the literature, their radiation **fitted to Iowa MIS recordings** (violin and viola note by note on held-out-checked halves, with the Helmholtz corner's brightness following the bow force), not measured |
 | **Flute** | jet-drive feedback with jet delay from blowing pressure, overblowing, Strouhal-limited jet, offset jet (even harmonics), vortex-shedding amplitude limit, monopole radiation, turbulence noise, open–open bore; voicing **fitted to Iowa MIS recordings** | no tone holes or bore taper; low-register H2 at mf/ff still ~10 dB short of a real flute; per-note tuning uses a measured voicing table |
+| **Oboe** | double reed blown closed (quasi-static Bernoulli flow, closing at pM), conical bore as two waveguides meeting at the reed (cylindrical saxophone), dynamics through the reed's opening (lips), tonguing, turbulence noise; voicing and radiation **fitted to Iowa MIS recordings** | no tone holes, octave vents or reed resonance; each note is played on the tube whose fundamental it is; low notes at ff speak slowly (the fundamental takes over from the 4th–6th harmonics in about 0.3 s); per-note tuning uses a measured voicing table |
 | **Listener** | close "microphones" from mode shapes | lid shelf, small FDN room, safety limiter (audio effects, not physics) |
 
 ## Realism, candidly
@@ -221,6 +233,7 @@ pnpm calibrate [--fit] [--decay-only]   # measure (and fit) the piano against th
 pnpm refs:ensemble            # download + segment Iowa violin/viola/cello/flute runs (.cache/iowa-ens, ~500 MB)
 pnpm calibrate:ensemble       # strings and flute vs those recordings [--engine <other checkout> for baselines]
 npx tsx scripts/fit-flute.ts  # fit the flute voicing; scripts/fit-strings.ts <violin|viola|cello> for the bodies
+npx tsx scripts/fit-oboe.ts   # fit the oboe voicing (fit half), then scripts/tune-oboe.ts; scripts/oboe-regimes.ts surveys its registers
 npx tsx scripts/render-demos.ts   # re-render artifacts/audio (round 1)
 npx tsx scripts/render-round2.ts  # round-2 MP3 demos into artifacts/round2/audio
 node scripts/screenshots.mjs      # re-capture artifacts/shots (ROUND=2 → artifacts/round2/shots; needs `pnpm preview --port 4199`)

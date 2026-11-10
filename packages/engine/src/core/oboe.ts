@@ -30,15 +30,16 @@
 // Every note is played on the tube whose fundamental it is (fingering shortens the tube; the overblown
 // notes' octave vents are not modelled: the short tube's resonances are the overblown one's at the note's
 // harmonics). Radiation is the flow leaving the open end, differentiated (a small opening radiates ∝ f),
-// then the radiation's colour: the oboe's formant near 1.1 kHz and its second near 2.8 kHz are fixed in
-// frequency whatever the note (Meyer 2009, "Acoustics and the Performance of Music", the oboe's
-// formants), as the open-hole lattice and the bell radiate them, fitted to the recordings.
+// then the radiation's colour, fitted to the recordings: the oboe's formant, near 1.15 kHz whatever the
+// note (Meyer 2009, "Acoustics and the Performance of Music": the oboe's main formant is fixed in
+// frequency), as the open-hole lattice and the bell radiate it, and a fall above a corner that follows
+// the note and the dynamic.
 
 import { Pump } from './pump.ts';
 import { CC_DYNAMICS, DYN_TAU, type ExciteTrace, type InstrumentCore } from './instrument.ts';
 import type { KeySummary } from '../api/messages.ts';
 import type { PianoEvent } from './piano-core.ts';
-import { biquadHighpass, biquadHighShelf, biquadLowpass, biquadPeaking } from './filters.ts';
+import { biquadHighpass, biquadHighShelf, biquadLowShelf, biquadLowpass, biquadPeaking } from './filters.ts';
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { clamp, interp, mulberry32, playerCents, playerSeed, playerVibrato } from './util.ts';
 import oboeTuning from './oboe-tuning.json';
@@ -73,20 +74,39 @@ export interface OboeVoice {
   /** embouchure parameter ζ at B♭3 and at A6 (the player pinches the blades for the high notes) */
   zeta: number;
   zetaTop: number;
-  /** blowing pressure γ = pm / pM at velocity 1 and 127, and the curve between */
+  /** the mouth's pressure, in units of the closing pressure of the reed as opened for a loud note, at
+   *  velocity 1 and 127, and the curve between (velocity^gammaCurve) */
   gammaLo: number;
   gammaHi: number;
   gammaCurve: number;
+  /** The dynamic is mostly in the lips. Oboists' mouth pressure follows the pitch far more than the
+   *  dynamic (Fuks & Sundberg 1999, Acustica 85, 267: oboe 3–9 kPa); a soft note is played with the
+   *  lips pressing the blades closer, the reed's rest opening H₀ down to `openPp` of a loud note's at
+   *  velocity 1 (the same curve). The closing pressure pM ∝ H₀ (a spring) falls with it, so the swing
+   *  the reed drives, in pascals, scales with H₀, ζ ∝ √H₀, and the blowing pressure in units of pM rises
+   *  (the reed nearer shut). In the beating (Helmholtz-like) regime the swing in units of pM barely
+   *  depends on γ or ζ (Ollivier, Dalmont & Kergomard 2004): the lips are what makes it quieter. */
+  openPp: number;
+  /** the breath's rise (s, a time constant) for a soft note and a loud one */
+  riseLo: number;
+  riseHi: number;
   /** the missing apex x₀ (m): the staple's cone carried on to its point */
   apex: number;
-  /** both ends' reflection: a low-pass (Hz; radiation and wall losses), and the round trip's gain */
+  /** both ends' reflection: a low-pass (Hz; radiation and wall losses), and the round trip's gain at
+   *  audio frequencies (an open end reflects the mean pressure whole: −1 at 0 Hz, the loss above ~20 Hz;
+   *  a scalar loss there held the bore's mean pressure for seconds and the reed's working point crept) */
   cutoff: number;
   wall: number;
-  /** turbulence in the reed's channel: noise in the flow, ∝ the flow */
+  /** turbulence in the reed's channel: noise in the flow, ∝ the flow, and a floor ∝ the breath (the jet
+   *  through the slit, there at pp where the swing is small) */
   noise: number;
-  /** the radiation's colour: below `hp` it falls (Hz); the formant (Hz, dB, Q) and the second; above
-   *  `lp` a second-order fall (Hz, Q); a shelf above `shelfF` (dB) */
+  noiseFloor: number;
+  /** the radiation's colour: below `hp` it falls (Hz); a shelf below 400 Hz (dB, the low fundamentals);
+   *  the formant (Hz, dB, Q) and the second; above `lp` × (f₀ / 440 Hz)^lpExp a second-order fall (Hz,
+   *  Q: the corner follows the note, as the open holes below it change; the recordings keep harmonics
+   *  to 1.6–2 kHz on B♭3–A4 and to 4–6 kHz on the top octave); a shelf above `shelfF` (dB) */
   hp: number;
+  lowG: number;
   f1: number;
   g1: number;
   q1: number;
@@ -95,6 +115,11 @@ export interface OboeVoice {
   q2: number;
   lp: number;
   lpQ: number;
+  lpExp: number;
+  /** …and the dynamic: the corner is lpDyn octaves lower at velocity 1 than at 127 (on the dynamic's
+   *  curve). A loud note's reed shuts harder each cycle, its closing sharper: the recordings' centroid
+   *  rises 40 % from pp to ff at the same note (as the bowed bodies' corner follows the bow's force) */
+  lpDyn: number;
   shelfF: number;
   shelfG: number;
   /** the tongue's release: a transient wider opening (×(1 + attackBoost), decaying with attackTau, s) */
@@ -107,35 +132,44 @@ export interface OboeVoice {
 }
 
 export const OBOE_VOICE: OboeVoice = {
-  zeta: 0.6,
-  zetaTop: 0.6,
-  gammaLo: 0.45,
-  gammaHi: 0.8,
-  gammaCurve: 1,
-  apex: 0.035,
-  cutoff: 9000,
-  wall: 0.995,
-  noise: 0.004,
+  zeta: 1.45,
+  zetaTop: 1.77,
+  gammaLo: 0.08,
+  gammaHi: 0.851,
+  gammaCurve: 1.3,
+  openPp: 0.333,
+  riseLo: 0.203,
+  riseHi: 0.0475,
+  apex: 0.0418,
+  cutoff: 7181,
+  wall: 0.9981,
+  noise: 0.238,
+  noiseFloor: 0.00657,
   hp: 300,
-  f1: 1150,
-  g1: 0,
-  q1: 1,
-  f2: 2800,
-  g2: 0,
-  q2: 1.5,
-  lp: 4000,
-  lpQ: 0.7,
+  lowG: -3.99,
+  f1: 1146,
+  g1: 14.4,
+  q1: 2.01,
+  f2: 3421,
+  g2: 0.642,
+  q2: 1.71,
+  lp: 2279,
+  lpQ: 0.87,
+  lpExp: 0.899,
+  lpDyn: 1.81,
   shelfF: 6000,
-  shelfG: 0,
-  attackBoost: 0,
+  shelfG: -17.4,
+  attackBoost: 0.296,
   attackTau: 0.05,
   tongueHold: 0.03,
-  tongueRel: 1,
+  tongueRel: 0.631,
 };
 
-/** the shortest tongued note: the breath stays on this long after the tongue's release (s), as on the
- *  flute and trumpet (a 50 ms tap must still speak) */
+/** the shortest tongued note: the breath stays on this long (s) from the key, as on the flute and
+ *  trumpet, so a 50 ms tap still speaks: longer for a soft note, which takes longer to speak (its breath
+ *  swells, riseLo: the recordings' soft notes do), from MIN_BLOW_PP at velocity 1 to MIN_BLOW at 127 */
 const MIN_BLOW = 0.1;
+const MIN_BLOW_PP = 0.3;
 
 const et = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -174,6 +208,10 @@ export class OboeCore implements InstrumentCore {
   private sx2 = 0;
   private sy1 = 0;
   private sy2 = 0;
+  /** each end's reflected wave, averaged below ~20 Hz (the part reflected whole) */
+  private m1 = 0;
+  private m2 = 0;
+  private kDc = 0.003;
   /** the flow leaving the open end, for the radiation's derivative */
   private outPrev = 0;
   /** the last sample's √|Δ| (Newton's starting point) */
@@ -222,9 +260,15 @@ export class OboeCore implements InstrumentCore {
   private gain = 1;
   /** ζ for the note (OboeVoice zeta … zetaTop) */
   private zetaNote = 1;
+  /** the radiation's corner for the note at ff (Hz), and the corner its section now has */
+  private lpNote = 4000;
+  private lpSet = -1;
   /** the reed's opening now (0 shut, 1 at rest), and the blowing pressure, for the stage */
   private xNow = 1;
   private gammaNow = 0;
+  /** the reed's rest opening for the dynamic (of a loud note's), now and as the output last had it */
+  private open = 1;
+  private openOut = 1;
 
   constructor(opts: { sampleRate: number; params?: Partial<OboeParams>; dry?: boolean; player?: number }) {
     this.fs = opts.sampleRate;
@@ -250,15 +294,19 @@ export class OboeCore implements InstrumentCore {
     const lp = biquadLowpass(Math.min(0.45 * fs, V.cutoff), 0.707, fs);
     this.rc.set([lp[0], lp[1], lp[2], lp[3], lp[4]]);
     this.D2 = Math.max(1, (2 * V.apex * fs) / C_AIR);
+    this.kDc = 1 - Math.exp((-2 * Math.PI * 20) / fs);
     this.eq.set([
       biquadHighpass(V.hp, 0.7, fs),
+      biquadLowShelf(400, V.lowG, fs),
       biquadPeaking(V.f1, V.q1, V.g1, fs),
       biquadPeaking(V.f2, V.q2, V.g2, fs),
       biquadLowpass(Math.min(0.45 * fs, V.lp), V.lpQ, fs),
       biquadHighShelf(Math.min(0.4 * fs, V.shelfF), V.shelfG, fs),
     ]);
     this.room.configure(this.params.room, this.params.seat);
-    this.gain = 0.05 * this.params.volume;
+    // matched to the flute: the median mf note B♭4–E6 as loud as the flute's (the recordings' absolute
+    // levels are their microphone's gain; the two winds sit side by side in the woodwind section)
+    this.gain = 0.266 * this.params.volume;
   }
 
   /** measured voicing table (scripts/tune-oboe.ts): cents the bare model plays sharp, by sample rate */
@@ -281,6 +329,9 @@ export class OboeCore implements InstrumentCore {
     this.D1target = Math.max(2, (fs / f) * this.tuningCorrection(m) - this.D2 - 2 * lag - 1);
     if (immediate) this.D1 = this.D1target;
     this.zetaNote = V.zeta + (V.zetaTop - V.zeta) * clamp((m - OBOE_LO) / (OBOE_HI - OBOE_LO), 0, 1);
+    // the radiation's corner for this note (the dynamic moves it further: render())
+    this.lpNote = V.lp * Math.pow(f / 440, V.lpExp);
+    this.lpSet = -1;
     this.note = m;
     for (let k = 0; k < 16; k++) this.modeFreqs[k] = (k + 1) * f;
   }
@@ -304,7 +355,7 @@ export class OboeCore implements InstrumentCore {
         this.velocity = ev.velocity;
         this.setNote(m, !legato && this.level < 1e-3);
         this.pTarget = 1;
-        this.attackTau = legato ? 0.01 : 0.035 - 0.025 * (ev.velocity / 127);
+        this.attackTau = legato ? 0.01 : this.V.riseLo + (this.V.riseHi - this.V.riseLo) * (ev.velocity / 127);
         if (!legato) {
           // tongued: the blades held shut while the breath builds, then let go
           this.tongueN = Math.round(this.V.tongueHold * this.fs);
@@ -312,7 +363,7 @@ export class OboeCore implements InstrumentCore {
           this.tongueI = 0;
           this.vibPhase = this.vib0;
           this.noteStart = this.frame;
-          this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
+          this.blowUntil = this.frame + Math.round((MIN_BLOW_PP + (MIN_BLOW - MIN_BLOW_PP) * (ev.velocity / 127)) * this.fs);
         }
         this.releasePending = false;
         break;
@@ -383,6 +434,7 @@ export class OboeCore implements InstrumentCore {
     this.longB.fill(0);
     this.apexB.fill(0);
     this.rx1 = this.rx2 = this.ry1 = this.ry2 = this.sx1 = this.sx2 = this.sy1 = this.sy2 = 0;
+    this.m1 = this.m2 = 0;
     this.outPrev = this.sPrev = 0;
     this.tongueN = 0;
     this.tongueI = this.tongueLen;
@@ -447,11 +499,24 @@ export class OboeCore implements InstrumentCore {
       if (Math.abs(this.dynTarget - this.dyn) < 1e-3) this.dyn = this.dynTarget;
     }
     const v01 = this.dyn ? clamp(this.velocity + this.dyn, 1, 127) / 127 : this.velocity / 127;
-    const gNote = V.gammaLo + (V.gammaHi - V.gammaLo) * Math.pow(v01, V.gammaCurve);
+    const vc = Math.pow(v01, V.gammaCurve);
+    // the reed's rest opening (of a loud note's): the swing scales with it, ζ with its root, and the
+    // mouth's pressure counts for more against a reed set nearer shut
+    const open = V.openPp + (1 - V.openPp) * vc;
+    this.open = open;
+    const gNote = (V.gammaLo + (V.gammaHi - V.gammaLo) * vc) / open;
     const gamma = gNote * this.pressure * vib * P.breath * this.expression;
     this.gammaNow = gamma;
     // the tongue's release: a transient wider opening (the lips not yet settled), decaying
-    const zeta = this.zetaNote * P.embouchure * (1 + V.attackBoost * Math.exp(-age / V.attackTau));
+    const zeta = this.zetaNote * Math.sqrt(open) * P.embouchure * (1 + V.attackBoost * Math.exp(-age / V.attackTau));
+    // the radiation's corner for the note and the dynamic, written into its section in place (only when
+    // it moves: a swell's glide)
+    const lpF = Math.min(0.45 * fs, this.lpNote * Math.pow(2, V.lpDyn * (vc - 1)));
+    if (Math.abs(lpF - this.lpSet) > 0.5) {
+      lowpassInto(this.eq.c, 5 * LP_SECTION, lpF, V.lpQ, fs);
+      this.lpSet = lpF;
+    }
+    const nzF = V.noiseFloor * P.noise * gamma;
     // (Newton's method below needs zeta/2 < 1: the flow's slope never turns the solution back)
     const zh = Math.min(0.95, 0.5 * zeta);
     const nz = V.noise * P.noise;
@@ -463,6 +528,7 @@ export class OboeCore implements InstrumentCore {
     const d2f = D2 - d2i;
     const rc = this.rc;
     const g = V.wall;
+    const kDc = this.kDc;
     const longB = this.longB;
     const apexB = this.apexB;
     const mask = BUF - 1;
@@ -484,14 +550,16 @@ export class OboeCore implements InstrumentCore {
       this.rx1 = e;
       this.ry2 = this.ry1;
       this.ry1 = y1;
-      const a1 = -g * y1;
+      this.m1 += (y1 - this.m1) * kDc;
+      const a1 = -(g * y1 + (1 - g) * this.m1);
       const e2 = apexB[(w - d2i) & mask] * (1 - d2f) + apexB[(w - d2i - 1) & mask] * d2f;
       const y2 = rc[0] * e2 + rc[1] * this.sx1 + rc[2] * this.sx2 - rc[3] * this.sy1 - rc[4] * this.sy2;
       this.sx2 = this.sx1;
       this.sx1 = e2;
       this.sy2 = this.sy1;
       this.sy1 = y2;
-      const a2 = -g * y2;
+      this.m2 += (y2 - this.m2) * kDc;
+      const a2 = -(g * y2 + (1 - g) * this.m2);
       // the reed and the bore together: p = a₁ + a₂ + u/2 (the flow splits between two branches of
       // equal impedance), Δ = γ − p, u = ζ(1 − Δ)√Δ (Δ < 0: the blades pushed apart, the flow back).
       // In s = √|Δ|: s² ± ζ/2·(s ∓ s³) = |γ − a₁ − a₂|, solved by Newton from the last sample's s
@@ -544,7 +612,7 @@ export class OboeCore implements InstrumentCore {
         u = -zeta * (1 - Dl) * s;
       }
       if (tg < 1) u *= tg;
-      if (nz) u += nz * u * (this.rng() * 2 - 1);
+      if (nz || nzF) u += (nz * u + (u !== 0 ? nzF : 0)) * (this.rng() * 2 - 1);
       const p = a1 + a2 + 0.5 * u;
       longB[w & mask] = p - a1;
       apexB[w & mask] = p - a2;
@@ -566,8 +634,13 @@ export class OboeCore implements InstrumentCore {
     }
     this.sPrev = s;
     this.level = Math.max(peak, this.level * 0.9);
-    const gn = this.gain;
+    // (in pascals: the swing in units of pM, times pM ∝ the reed's opening; eased across the block, so a
+    // swell's steps never click)
+    const g0 = this.gain * this.openOut;
+    const g1 = this.gain * open;
+    this.openOut = open;
     for (let t = 0; t < n; t++) {
+      const gn = g0 + ((g1 - g0) * (t + 1)) / n;
       oL[t] *= gn;
       oR[t] *= gn;
     }
@@ -660,6 +733,22 @@ export class OboeCore implements InstrumentCore {
       gainReduction: this.dry ? 1 : this.limiter.reduction,
     };
   }
+}
+
+/** the radiation chain's low-pass section (voiced(): high-pass, low shelf, two formants, low-pass, shelf) */
+const LP_SECTION = 4;
+/** RBJ low-pass coefficients [b0,b1,b2,a1,a2] written into c at `at` (no allocation: a note change on the
+ *  audio thread) */
+function lowpassInto(c: Float64Array, at: number, f: number, q: number, fs: number): void {
+  const w = (2 * Math.PI * f) / fs;
+  const alpha = Math.sin(w) / (2 * q);
+  const cs = Math.cos(w);
+  const a0 = 1 + alpha;
+  c[at] = (1 - cs) / 2 / a0;
+  c[at + 1] = (1 - cs) / a0;
+  c[at + 2] = (1 - cs) / 2 / a0;
+  c[at + 3] = (-2 * cs) / a0;
+  c[at + 4] = (1 - alpha) / a0;
 }
 
 /** phase delay (samples) of a biquad [b0,b1,b2,a1,a2] at ω (rad/sample) */

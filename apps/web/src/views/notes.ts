@@ -105,7 +105,7 @@ export function notesView(): View {
       id: 'overview',
       title: 'What this is',
       body: [
-        p('Seven acoustic instruments — piano (grand and upright), violin, viola, cello, double bass, flute and trumpet — computed as physics, sample by sample, in your browser. No recorded sound is ever played as the instrument. Each is a small set of coupled physical parts: something that carries waves (a string, an air column), something that drives it (a felt hammer, a bow, a jet of breath, buzzing lips) and something that radiates (a soundboard, a wooden body, an open end, a bell), heard in a modelled room.'),
+        p('Eight acoustic instruments — piano (grand and upright), violin, viola, cello, double bass, flute, oboe and trumpet — computed as physics, sample by sample, in your browser. No recorded sound is ever played as the instrument. Each is a small set of coupled physical parts: something that carries waves (a string, an air column), something that drives it (a felt hammer, a bow, a jet of breath, a double reed, buzzing lips) and something that radiates (a soundboard, a wooden body, an open end, a bell), heard in a modelled room.'),
         p('Everything runs in an AudioWorklet written in TypeScript. The same DSP core runs in Node for the tests, calibration and offline renders, so every number on this page comes from the code you are hearing. What moves on the stage — strings, hammers, bows, holes, valves, wavefronts — is drawn from the same simulation, live.'),
       ],
     },
@@ -166,6 +166,15 @@ export function notesView(): View {
       ],
     },
     {
+      id: 'oboe',
+      title: 'Oboe',
+      body: [
+        p('Two blades of cane, bound to a metal staple, are the oboe’s valve: the mouth’s pressure pushes them shut and the pressure in the staple pushes them apart, so the air let through rises and falls with the sound (a reed “blown closed”, as a clarinet’s is). The bore is a cone, about 0.6 m long, and a cone plays every harmonic and overblows at the octave, where a clarinet’s cylinder plays odd ones and overblows at the twelfth. A cone is the same, to the waves in it, as a cylinder open at both ends driven where the missing tip of the cone would end (the “cylindrical saxophone”, Ollivier, Dalmont & Kergomard 2004): two delay lines meet at the reed, one down the bore to its first open hole, one the few centimetres up to the cone’s apex.'),
+        eq('x = 1 − Δ,   u = ζ · x · √|Δ| · sgn Δ,   p = a₁ + a₂ + u/2', 'Δ: mouth − staple pressure in units of the closing pressure; shut at Δ ≥ 1. Solved exactly each sample.'),
+        p('The dynamic is mostly in the lips. Oboists blow at nearly the same pressure soft or loud (it rises with pitch: Fuks & Sundberg 1999); a soft note is played with the lips pressing the blades closer. The closing pressure falls with the opening, so the sound the reed drives does too: in the model the lips set the reed’s rest opening, from about a third of a loud note’s at pianissimo. The tongue holds the blades shut while the breath builds and lets them go over one period of the note, which is what keeps a low note on its own register rather than its octave. Each note is played on the tube whose fundamental it is (the octave keys’ vents are not modelled), and the radiation’s colour — the oboe’s formant near 1 kHz, whatever the note — is fitted to the recordings. It is monophonic, B♭3 to A6 at concert pitch (the oboe is in C: written as it sounds).'),
+      ],
+    },
+    {
       id: 'trumpet',
       title: 'Trumpet',
       body: [
@@ -194,7 +203,7 @@ export function notesView(): View {
       id: 'stage',
       title: 'The stage',
       body: [
-        p('The stage draws the engine’s own state, about 30 times a second: every sounding string’s shape (each voice’s, not just the last note’s), the hammers and dampers, the soundboard’s or body’s modes as a Chladni-like field, the bow and its contact point, each string’s stopping point rocking with the vibrato, the flute’s covered and open holes pulsing with the breath vibrato, the trumpet’s pistons, lips and the standing wave in its bore, and wavefronts leaving the instrument and returning from the walls, fading with the room’s T₆₀. Keys light only for notes the engine is really sounding.'),
+        p('The stage draws the engine’s own state, about 30 times a second: every sounding string’s shape (each voice’s, not just the last note’s), the hammers and dampers, the soundboard’s or body’s modes as a Chladni-like field, the bow and its contact point, each string’s stopping point rocking with the vibrato, the flute’s covered and open holes pulsing with the breath vibrato, the oboe’s keys under the fingering and its reed’s blades closing once a cycle, the trumpet’s pistons, lips and the standing wave in its bore, and wavefronts leaving the instrument and returning from the walls, fading with the room’s T₆₀. Keys light only for notes the engine is really sounding.'),
         p('The same frames drive a 3D view (the 3d button; drag to turn, pinch or scroll to zoom): the instruments built to their real measures in three.js, physically based materials under a studio light, the strings drawn as wires of their real gauges, moving and glowing as they sound. The waves and mode fields are the 2D view’s; the 3D view keeps to what an eye could see. It costs under a millisecond of CPU per frame; phones draw at reduced resolution and a lighter scene, and one held upright frames the instrument to its stage: whole, as large as fits, clear of the file player; without WebGL2 the button never appears.'),
         p('Where the keys do not all fit (a phone, a narrow window) a thin strip over them shows all 88 with a window on the ones in view. Dragging on the strip slides the keys; a drag on the keys themselves stays a glissando. A touch screen’s keys carry no computer-key letters.'),
         p('On the pianos, a click on a key or its strings opens that key’s action close up: in 2D a section drawn to scale, replayed slowly from the engine’s own record of the strike; in 3D the camera flies to the key and a section cuts away the keys in front of it (Esc, or a click off the keys, flies back). The I key, or the icon beside 3d, lifts the case away and leaves the plate, strings, soundboard and action playing.'),
@@ -222,7 +231,7 @@ export function notesView(): View {
       id: 'calibration',
       title: 'Calibration: measured against real instruments',
       body: [
-        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, double bass, flute and trumpet — used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
+        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, double bass, flute, oboe and trumpet — used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
         h3('Like with like, and a judge'),
         ul(
           'Each model note is rendered exactly as long as the part of the recording that is analysed, with vibrato only where the player used it; a note’s pitch with vibrato is the centre of its fine pitch track.',
@@ -249,6 +258,7 @@ export function notesView(): View {
             ['cello', '11.2', '15.5', '0.60', '−0.2', '1.18', '3.1'],
             ['double bass', '6.9', '4.9', '0.95', '+1.7', '1.37', '2.1'],
             ['flute', '7.1', '4.7', '0.97', '+5.4', '1.14', '1.0'],
+            ['oboe', '8.0', '10.5', '0.92', '+2.0', '1.31', '0.8'],
             ['trumpet', '4.2', '3.3', '0.93', '+0.8', '1.43', '2.7'],
           ],
         ),

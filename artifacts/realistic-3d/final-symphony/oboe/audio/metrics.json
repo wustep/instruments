@@ -1,0 +1,274 @@
+{
+ "pieces": [
+  {
+   "name": "oboe-long-tones",
+   "what": "B♭3, F4, C5, G5, D6, A6, each at pp, mf, ff (velocity 30, 70, 112), 1.4 s"
+  },
+  {
+   "name": "oboe-phrase",
+   "what": "an original legato line from A4 (D minor), a swell to ff and back"
+  },
+  {
+   "name": "oboe-brandenburg",
+   "what": "Bach, Brandenburg Concerto No. 1, Adagio (the oboe’s line) (Mutopia, CC BY 3.0), as the play icon plays it"
+  }
+ ],
+ "metrics": {
+  "before": [
+   {
+    "midi": 58,
+    "velocity": 30,
+    "centroidHz": 2291,
+    "rmsDb": -38.4,
+    "cents": 7.5
+   },
+   {
+    "midi": 58,
+    "velocity": 70,
+    "centroidHz": 2401,
+    "rmsDb": -37.2,
+    "cents": 7.8
+   },
+   {
+    "midi": 58,
+    "velocity": 112,
+    "centroidHz": 2443,
+    "rmsDb": -37.2,
+    "cents": 7.8
+   },
+   {
+    "midi": 65,
+    "velocity": 30,
+    "centroidHz": 2221,
+    "rmsDb": -39.1,
+    "cents": 11.3
+   },
+   {
+    "midi": 65,
+    "velocity": 70,
+    "centroidHz": 2468,
+    "rmsDb": -38,
+    "cents": 11.3
+   },
+   {
+    "midi": 65,
+    "velocity": 112,
+    "centroidHz": 2188,
+    "rmsDb": -37.9,
+    "cents": 11.1
+   },
+   {
+    "midi": 72,
+    "velocity": 30,
+    "centroidHz": 2355,
+    "rmsDb": -38.7,
+    "cents": 16.8
+   },
+   {
+    "midi": 72,
+    "velocity": 70,
+    "centroidHz": 2244,
+    "rmsDb": -37.6,
+    "cents": 17
+   },
+   {
+    "midi": 72,
+    "velocity": 112,
+    "centroidHz": 2145,
+    "rmsDb": -36.6,
+    "cents": 17.2
+   },
+   {
+    "midi": 79,
+    "velocity": 30,
+    "centroidHz": 2081,
+    "rmsDb": -38.4,
+    "cents": 26.1
+   },
+   {
+    "midi": 79,
+    "velocity": 70,
+    "centroidHz": 1949,
+    "rmsDb": -37.2,
+    "cents": 26.5
+   },
+   {
+    "midi": 79,
+    "velocity": 112,
+    "centroidHz": 2422,
+    "rmsDb": -37.9,
+    "cents": 25.4
+   },
+   {
+    "midi": 86,
+    "velocity": 30,
+    "centroidHz": 2541,
+    "rmsDb": -38.7,
+    "cents": 38.3
+   },
+   {
+    "midi": 86,
+    "velocity": 70,
+    "centroidHz": 2434,
+    "rmsDb": -37.5,
+    "cents": 38.6
+   },
+   {
+    "midi": 86,
+    "velocity": 112,
+    "centroidHz": 2358,
+    "rmsDb": -36.4,
+    "cents": 38.9
+   },
+   {
+    "midi": 93,
+    "velocity": 30,
+    "centroidHz": 3205,
+    "rmsDb": -37.4,
+    "cents": 58.2
+   },
+   {
+    "midi": 93,
+    "velocity": 70,
+    "centroidHz": 3012,
+    "rmsDb": -37.2,
+    "cents": 59.1
+   },
+   {
+    "midi": 93,
+    "velocity": 112,
+    "centroidHz": 2889,
+    "rmsDb": -36.7,
+    "cents": 59
+   }
+  ],
+  "after": [
+   {
+    "midi": 58,
+    "velocity": 30,
+    "centroidHz": 891,
+    "rmsDb": -42.2,
+    "cents": -0.1
+   },
+   {
+    "midi": 58,
+    "velocity": 70,
+    "centroidHz": 937,
+    "rmsDb": -30.2,
+    "cents": 0.1
+   },
+   {
+    "midi": 58,
+    "velocity": 112,
+    "centroidHz": 1089,
+    "rmsDb": -18.7,
+    "cents": 0
+   },
+   {
+    "midi": 65,
+    "velocity": 30,
+    "centroidHz": 899,
+    "rmsDb": -37,
+    "cents": -0.2
+   },
+   {
+    "midi": 65,
+    "velocity": 70,
+    "centroidHz": 1019,
+    "rmsDb": -26.2,
+    "cents": 0.1
+   },
+   {
+    "midi": 65,
+    "velocity": 112,
+    "centroidHz": 1214,
+    "rmsDb": -18.3,
+    "cents": 0.2
+   },
+   {
+    "midi": 72,
+    "velocity": 30,
+    "centroidHz": 1018,
+    "rmsDb": -29.9,
+    "cents": -0.6
+   },
+   {
+    "midi": 72,
+    "velocity": 70,
+    "centroidHz": 1080,
+    "rmsDb": -20.2,
+    "cents": 0
+   },
+   {
+    "midi": 72,
+    "velocity": 112,
+    "centroidHz": 1193,
+    "rmsDb": -15.1,
+    "cents": -0.7
+   },
+   {
+    "midi": 79,
+    "velocity": 30,
+    "centroidHz": 1149,
+    "rmsDb": -32.9,
+    "cents": -0.4
+   },
+   {
+    "midi": 79,
+    "velocity": 70,
+    "centroidHz": 1369,
+    "rmsDb": -24.3,
+    "cents": 0
+   },
+   {
+    "midi": 79,
+    "velocity": 112,
+    "centroidHz": 1612,
+    "rmsDb": -18.8,
+    "cents": 0.2
+   },
+   {
+    "midi": 86,
+    "velocity": 30,
+    "centroidHz": 1203,
+    "rmsDb": -25.5,
+    "cents": 2.2
+   },
+   {
+    "midi": 86,
+    "velocity": 70,
+    "centroidHz": 1231,
+    "rmsDb": -18.5,
+    "cents": 1.4
+   },
+   {
+    "midi": 86,
+    "velocity": 112,
+    "centroidHz": 1262,
+    "rmsDb": -14.1,
+    "cents": 1.8
+   },
+   {
+    "midi": 93,
+    "velocity": 30,
+    "centroidHz": 1912,
+    "rmsDb": -36.4,
+    "cents": 2.6
+   },
+   {
+    "midi": 93,
+    "velocity": 70,
+    "centroidHz": 1947,
+    "rmsDb": -28.8,
+    "cents": -0.3
+   },
+   {
+    "midi": 93,
+    "velocity": 112,
+    "centroidHz": 2049,
+    "rmsDb": -24.4,
+    "cents": -2.6
+   }
+  ]
+ }
+}
