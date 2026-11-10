@@ -237,7 +237,10 @@ export interface TromboneVoice {
   noise: number;
   noiseTop: number;
   /** the radiation's colour: high-pass (Hz), a formant (Hz, dB, Q), a low-pass at lp × (f₀/220)^lpExp
-   *  (Hz, Q), lpDyn octaves lower at velocity 1, a shelf (Hz, dB) */
+   *  (Hz, Q), lpDyn octaves lower at velocity 1, and the bell's beam: a wide bell sends its highs forward (a
+   *  piston's on-axis gain rises about 6 dB an octave above ka ≈ 1, ~500 Hz for a tenor's 216 mm bell; Kinsler
+   *  et al., "Fundamentals of Acoustics" §7.4; the Iowa microphone stood in front of the bell), a shelf from
+   *  shelfF (Hz) up by shelfG (dB) */
   hp: number;
   f1: number;
   g1: number;
@@ -252,46 +255,47 @@ export interface TromboneVoice {
   tilt: number;
 }
 
+/** the fitted voicing (scripts/fit-trombone.ts on the fit half; NOTES.md) */
 export const TROMBONE_VOICE: TromboneVoice = {
-  lipQ: 50,
-  lipQTop: 50,
+  lipQ: 56.55,
+  lipQTop: 38.48,
   lipBelow: 0.7,
-  stiff: 4e6,
+  stiff: 2647720,
   stiffExp: 1.5,
-  h0: 1e-4,
-  hMax: 2.5e-3,
-  width: 0.012,
+  h0: 0.0001062,
+  hMax: 0.002124,
+  width: 0.01052,
   pLo: 600,
-  pHi: 5000,
-  gammaCurve: 1.6,
-  gammaExp: 0.35,
-  riseLo: 0.03,
-  riseHi: 0.015,
-  riseExp: -0.2,
-  tongueHold: 0.012,
-  tongueRel: 2,
-  kick: 1,
-  qAttack: 0.3,
-  qTau: 0.08,
-  cupScale: 1.6,
+  pHi: 4328,
+  gammaCurve: 1.375,
+  gammaExp: 0.3409,
+  riseLo: 0.2,
+  riseHi: 0.1,
+  riseExp: 0,
+  tongueHold: 0.02005,
+  tongueRel: 0.8649,
+  kick: 1.181,
+  qAttack: 0.09383,
+  qTau: 0.0552,
+  cupScale: 1.742,
   throatScale: 1,
-  wallScale: 1,
-  rimFc: 1,
-  rimQ: 0.6,
-  steep: 1,
-  noise: 0.05,
-  noiseTop: 0.05,
-  hp: 40,
-  f1: 500,
-  g1: 0,
-  q1: 0.7,
-  lp: 4000,
-  lpQ: 0.6,
-  lpExp: 0,
-  lpDyn: 1,
-  shelfF: 4000,
-  shelfG: 0,
-  tilt: 0,
+  wallScale: 1.099,
+  rimFc: 1.041,
+  rimQ: 0.6459,
+  steep: 3.217,
+  noise: 0.3214,
+  noiseTop: 0.2342,
+  hp: 49.44,
+  f1: 300,
+  g1: -6,
+  q1: 1.21,
+  lp: 8700,
+  lpQ: 0.7366,
+  lpExp: -0.3382,
+  lpDyn: 4.066,
+  shelfF: 1770,
+  shelfG: 13.94,
+  tilt: -0.5449,
 };
 
 const BUF = 1 << 13;
@@ -636,8 +640,10 @@ export class TromboneCore implements InstrumentCore {
     ]);
     this.lpSet = -1;
     this.room.configure(this.params.room, this.params.seat);
-    // (in pascals at the bell: scaled to the recordings' level)
-    this.gain = 7.5e-4 * this.params.volume;
+    // (in pascals at the bell) matched to the Iowa trombones: the median recorded note's level (tenor pp, mf, ff
+    // within 1.5 dB of it, the bass set's within 1.4; their ff, −26.4 and −28.4 dB, sit 9 dB under the Iowa
+    // horn's and trumpet's: the sessions' own gain, kept as the other instruments keep theirs)
+    this.gain = 6.46e-5 * this.params.volume;
   }
 
   /** measured tuning (scripts/tune-trombone.ts): cents the bare model plays sharp, by size and sample rate */

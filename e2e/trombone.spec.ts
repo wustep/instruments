@@ -179,7 +179,9 @@ test('orchestra: “Trombone I” (GM 57), “Bass Trombone” and “Posaune 2�
   expect(e.lineup.filter((v) => v === 'trombone').length).toBe(3);
   expect(e.kinds.filter((v) => v === 'trombone').length).toBe(3);
   for (const k of [0, 1, 2]) await expect(page.locator('.pl-line').nth(k)).toHaveAttribute('data-voice', 'trombone');
-  expect(e.sizes.filter((s) => s !== null).sort()).toEqual(['bass', 'tenor', 'tenor']);
+  // the "Bass Trombone" line's seat a bass trombone, the others not (Trombone I, high, may be an alto)
+  expect(e.sizes.filter((s) => s === 'bass').length).toBe(1);
+  expect(e.sizes.filter((s) => s !== null).length).toBe(3);
   await expect.poll(() => page.evaluate(() => (window as any).__orchestra.ensemble.parts.find((p: any) => p.voice === 'trombone').down.size as number), { timeout: 5000 }).toBeGreaterThan(0);
   // a line's menu offers the trombone
   await page.locator('.pl-line').nth(3).click();

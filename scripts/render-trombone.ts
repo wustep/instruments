@@ -30,7 +30,7 @@ type Ev = { time: number; event: Record<string, unknown> };
 type Note = [number, number, number, number];
 type Ev2 = Ev & { size?: string };
 const notes = (ns: Note[]): Ev[] => ns.flatMap(([m, t, d, v]) => [{ time: t, event: { type: 'noteOn', midi: m, velocity: v } }, { time: t + d, event: { type: 'noteOff', midi: m } }]);
-interface Piece { name: string; what: string; ns: Note[]; dur: number; size?: string }
+interface Piece { name: string; what: string; ns: Note[]; dur: number; size?: string; /** several trombones, each its size and its notes */ parts?: { size: string; ns: Note[] }[] }
 const PIECES: Piece[] = [];
 // 1. long tones across the tenor's compass at pp, mf, ff (its pedal B♭1 first)
 {
@@ -88,6 +88,27 @@ const PIECES: Piece[] = [];
   }
   PIECES.push({ name: 'trombone-air', what: `${d.composer}, ${d.title} (Mutopia, public domain), as the play icon plays it, its first 40 s`, ns: ns.filter((n) => n[1] < 40), dur: 42 });
 }
+// 5. the Air for four trombones (the Orchestra's piece): alto, tenor, tenor and bass, each its own size and player
+{
+  const b = readFileSync(join(import.meta.dirname, '..', 'apps/web/public/pieces', 'bach-bwv1068-air-trombones.mid'));
+  const song = parseMidi(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer);
+  const sizes = ['alto', 'tenor', 'tenor', 'bass'];
+  const parts = sizes.map((size, li) => {
+    const ns: Note[] = [];
+    const open = new Map<number, [number, number]>();
+    for (const e of song.events as { t: number; kind: string; midi: number; vel: number; line: number }[]) {
+      if (e.line !== li) continue;
+      if (e.kind === 'on') open.set(e.midi, [e.t, e.vel]);
+      else if (e.kind === 'off' && open.has(e.midi)) {
+        const [t0, v] = open.get(e.midi)!;
+        if (t0 < 34) ns.push([e.midi, t0 + 0.1, e.t - t0, Math.round(v * 0.55)]);
+        open.delete(e.midi);
+      }
+    }
+    return { size, ns };
+  });
+  PIECES.push({ name: 'trombone-quartet', what: 'Bach, Air (Mutopia 461, public domain) for four trombones: alto, tenor, tenor, bass trombone, each its own size and player, the first strain (34 s)', ns: parts.flatMap((q) => q.ns), dur: 36, parts });
+}
 
 const mono = (r: { left: ArrayLike<number>; right: ArrayLike<number> }) => Float32Array.from(r.left, (v, i) => 0.5 * (v + r.right[i]));
 const events = (p: Piece) => notes(p.ns).sort((a, b) => a.time - b.time);
@@ -104,7 +125,13 @@ for (const [tag, render] of engines) {
 
 // ---------------------------------------------------------------- audio and spectrograms
 for (const p of PIECES) {
-  const rs = engines.map(([tag, render]) => [tag, render({ sampleRate: FS, instrument: 'trombone', params: (p.size ? { size: p.size } : {}) as never, events: events(p) as never, duration: p.dur })] as const);
+  const one = (render: Render) => {
+    if (!p.parts) return render({ sampleRate: FS, instrument: 'trombone', params: (p.size ? { size: p.size } : {}) as never, events: events(p) as never, duration: p.dur });
+    // (each trombone its own engine and player, summed: an ensemble without the hall's seats)
+    const rs = p.parts.map((q, k) => render({ sampleRate: FS, instrument: 'trombone', player: k, params: { size: q.size } as never, events: notes(q.ns).sort((a, b) => a.time - b.time) as never, duration: p.dur }));
+    return { left: Float32Array.from(rs[0].left, (_, i) => rs.reduce((a, r) => a + r.left[i], 0)), right: Float32Array.from(rs[0].right, (_, i) => rs.reduce((a, r) => a + r.right[i], 0)) };
+  };
+  const rs = engines.map(([tag, render]) => [tag, one(render)] as const);
   let pk = 0;
   for (const [, r] of rs) for (let i = 0; i < r.left.length; i++) pk = Math.max(pk, Math.abs(r.left[i]), Math.abs(r.right[i]));
   const g = pk > 0 ? Math.pow(10, -1 / 20) / pk : 1;

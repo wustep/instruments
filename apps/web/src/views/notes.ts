@@ -105,7 +105,7 @@ export function notesView(): View {
       id: 'overview',
       title: 'What this is',
       body: [
-        p('Twelve acoustic instruments — piano (grand and upright), violin, viola, cello, double bass, flute, oboe, clarinet, bassoon, horn, trumpet and timpani — computed as physics, sample by sample, in your browser. No recorded sound is ever played as the instrument. Each is a small set of coupled physical parts: something that carries waves (a string, an air column, a stretched membrane), something that drives it (a felt hammer, a bow, a jet of breath, a double or a single reed, buzzing lips, a felt mallet) and something that radiates (a soundboard, a wooden body, an open end, a bell, the head itself), heard in a modelled room.'),
+        p('Thirteen acoustic instruments — piano (grand and upright), violin, viola, cello, double bass, flute, oboe, clarinet, bassoon, horn, trumpet, trombone and timpani — computed as physics, sample by sample, in your browser. No recorded sound is ever played as the instrument. Each is a small set of coupled physical parts: something that carries waves (a string, an air column, a stretched membrane), something that drives it (a felt hammer, a bow, a jet of breath, a double or a single reed, buzzing lips, a felt mallet) and something that radiates (a soundboard, a wooden body, an open end, a bell, the head itself), heard in a modelled room.'),
         p('Everything runs in an AudioWorklet written in TypeScript. The same DSP core runs in Node for the tests, calibration and offline renders, so every number on this page comes from the code you are hearing. What moves on the stage — strings, hammers, bows, holes, valves, wavefronts — is drawn from the same simulation, live.'),
       ],
     },
@@ -218,6 +218,16 @@ export function notesView(): View {
       ],
     },
     {
+      id: 'trombone',
+      title: 'Trombone',
+      body: [
+        p('The trombone is the brass instrument with no valves to choose its tube: a slide does. Two thirds of a tenor trombone’s 2.74 m are a cylinder 13.9 mm across — the leadpipe, the inner and outer slide tubes, the crook, the tuning slide — and the last metre widens into a bell 216 mm across. Each of the slide’s seven positions lowers the tube a semitone (the seventh is 57 cm out); the lips choose which resonance of the tube sounds. Players reach the low register’s long positions with a valve in the bell section instead, the F attachment, which adds a loop lowering the whole tube a fourth.'),
+        eq('m(ÿ + ω/Q · ẏ + ω² y) = S · (p_mouth − p_cup),   u = w · h · √(2|Δp|/ρ),   C · dp_cup/dt = u − u_throat,   M · du_throat/dt = p_cup − p_bore', 'the lips blown open into the mouthpiece’s cup (a volume: compliance C), joined to the bore by its throat (an inertance M): a Helmholtz resonator, everything in pascals and cubic metres per second'),
+        p('A cylinder closed at one end plays only odd harmonics. The trombone plays nearly every one because of its two ends: the bell turns low frequencies back early in its flare (a shorter tube for them) and the mouthpiece’s cup pulls the high resonances down, until the series is almost 2, 3, 4, 5 … times a pedal note that is not itself a resonance (the first resonance lies far below it, at about 0.7). The model builds exactly that — the cylinder as one delay line with its wall’s loss, the bell as a Bessel horn of scattering sections, the cup and throat as a resonator — and the series comes out of it: 0.70, 1.97, 2.97, 4.02, 5.06, 6.06, 7.09, 8.06 × the pedal for B♭3 in first position. The slide is set as a player sets it, by ear: so that the chosen resonance of the whole bore falls on the note.'),
+        p('Loud, a trombone turns brassy because its long cylinder steepens the wave: a crest travels faster than a trough, and at fortissimo a shock forms before the bell (Hirschberg et al. 1996). The model computes it from the air’s own constants over the slide’s length, in pascals, and lets the harmonics it makes out through the bell. A slur that moves the slide is masked by a soft legato tongue, as players do; asked to glide, it is a glissando, and the pitch wheel moves the slide. One model plays three trombones at their own measures: the alto in E♭ (a fourth shorter, 7-inch bell, A2–G5), the tenor in B♭ with its F valve (E1–F5, pedals included) and the bass in B♭ with F and G♭ valves (9½-inch bell, C1–C5); the stage’s trombone is the tenor, its size a knob, and in the Orchestra each trombone takes the size its part needs.'),
+      ],
+    },
+    {
       id: 'timpani',
       title: 'Timpani',
       body: [
@@ -267,7 +277,7 @@ export function notesView(): View {
       id: 'calibration',
       title: 'Calibration: measured against real instruments',
       body: [
-        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, double bass, flute, oboe, B♭ clarinet, bassoon, horn and trumpet — and, for the timpani (Iowa has none), the VSCO 2 Community Edition’s (Versilian Studios, CC0), used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
+        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, double bass, flute, oboe, B♭ clarinet, bassoon, horn, trumpet, and tenor and bass trombones — and, for the timpani (Iowa has none), the VSCO 2 Community Edition’s (Versilian Studios, CC0), used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
         h3('Like with like, and a judge'),
         ul(
           'Each model note is rendered exactly as long as the part of the recording that is analysed, with vibrato only where the player used it; a note’s pitch with vibrato is the centre of its fine pitch track.',
