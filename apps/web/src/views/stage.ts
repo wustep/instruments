@@ -410,6 +410,16 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     const at = (b: { x0: number; y0: number; x1: number; y1: number }) => ({ x0: r.left + b.x0, x1: r.left + b.x1, y0: y0 + b.y0, y1: y0 + b.y1 });
     return { id: bowedGeom!.id, body: at(d.body), bow: at(d.bow), stage: { x0: r.left, x1: r.right, y0, y1: r.bottom } };
   };
+  // tests: where the 2D stage last drew the oboe (client px: reed tip to bell rim and its keys' reach, the
+  // reed's tip, the keywork), and the stage it was drawn in
+  (window as unknown as { __oboe2d?: () => unknown }).__oboe2d = () => {
+    const d = family() === 'reed' && !(want3d && s3) && !ensemble.active ? oboeState.drawn : null;
+    if (!d) return null;
+    const r = canvas.getBoundingClientRect();
+    const y0 = r.top + top.getBoundingClientRect().height;
+    const at = (b: { x0: number; y0: number; x1: number; y1: number }) => ({ x0: r.left + b.x0, x1: r.left + b.x1, y0: y0 + b.y0, y1: y0 + b.y1 });
+    return { body: at(d.body), keys: at(d.keys), reed: { x: r.left + d.reed.x, y: y0 + d.reed.y }, vertical: d.vertical, fingers: d.fingers, stage: { x0: r.left, x1: r.right, y0, y1: r.bottom } };
+  };
   canvas.addEventListener('pointerdown', (e) => {
     downAt = { x: e.clientX, y: e.clientY };
     hand2d.down(e);
@@ -795,7 +805,11 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       if (vec) drawBowedV(ctx, w, ih, bowedGeom, frame, bowedState, vfields!.bowed, now, false, undefined, pl);
       else drawBowed(ctx, w, ih, bowedGeom, frame, bowedState, fields.bowed, now, false, undefined, pl);
     } else if (family() === 'brass') (vec ? drawTrumpetV : drawTrumpet)(ctx, w, ih, frame, trumpetState);
-    else if (family() === 'reed') (vec ? drawOboeV : drawOboe)(ctx, w, ih, frame, oboeState);
+    else if (family() === 'reed') {
+      // (the oboe keeps clear of the file player at the top of the stage, as the bass does)
+      const pl = player.el.hidden ? 0 : Math.max(0, Math.round(player.el.getBoundingClientRect().bottom - top.getBoundingClientRect().bottom));
+      (vec ? drawOboeV : drawOboe)(ctx, w, ih, frame, oboeState, pl);
+    }
     else (vec ? drawFluteV : drawFlute)(ctx, w, ih, frame, fluteState);
     // the room: wavefronts from the instrument, reflections, the lid's throw
     let rms = 0;
