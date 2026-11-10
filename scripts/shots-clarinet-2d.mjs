@@ -21,6 +21,8 @@ const browser = await chromium.launch({ channel: 'chrome', args: ['--autoplay-po
 const DEVICES = {
   laptop: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 },
   phone: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true },
+  // (the close-ups: the laptop's stage at 4×)
+  zoom: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 4 },
 };
 /** the stage's band (CSS px: under the readout, above the controls), for the shots that need no more */
 const BAND = { laptop: { x: 0, y: 120, width: 1440, height: 570 }, phone: { x: 0, y: 200, width: 390, height: 440 } };
@@ -30,7 +32,7 @@ const shot = async (page, name, clip) => {
   if (!want(name)) return;
   const dev = name.includes('phone') ? 'phone' : 'laptop';
   const c = clip ?? (/-A4$/.test(name) ? null : BAND[dev]);
-  await page.screenshot({ path: `${OUT}/${TAG}-${name}.jpg`, type: 'jpeg', quality: clip ? 72 : 45, ...(c ? { clip: c } : {}) });
+  await page.screenshot({ path: `${OUT}/${TAG}-${name}.jpg`, type: 'jpeg', quality: clip ? 62 : /-A4$/.test(name) ? 34 : 36, ...(c ? { clip: c } : {}) });
   console.log(name);
 };
 async function open(dev, path, style) {
@@ -108,26 +110,30 @@ if (SETS.includes('orchestra'))
     }
 
 if (SETS.includes('close')) {
-  // close-ups on the laptop's stage: the mouthpiece (the reed's tip opening, shut once a cycle at ff) and
-  // the keywork under a chalumeau note (every hole shut) and a clarion note (the register key)
+  // close-ups on the laptop's stage: the mouthpiece at 4× (the reed's tip opening, shut once a cycle at ff)
+  // and, at 2×, the keywork under a chalumeau note (every hole shut) and a clarion note (the register key)
   for (const style of ['classic', 'vector']) {
-    const { ctx, page } = await open('laptop', '/clarinet', style);
-    await page.evaluate(() => window.__piano.setInstrument('clarinet'));
-    await page.waitForTimeout(800);
-    const d = await page.evaluate(() => window.__clarinet2d?.());
     const s = style === 'classic' ? '2d' : 'vector';
-    if (d) {
-      await hold(page, 53, 120);
-      const m = d.mouth;
-      await shot(page, `close-${s}-mouthpiece`, { x: m.x0 - 40, y: m.y0 - 34, width: m.x1 - m.x0 + 80, height: m.y1 - m.y0 + 68 });
-      const k = d.keys;
-      await shot(page, `close-${s}-keys-F3`, { x: k.x0, y: k.y0 - 8, width: k.x1 - k.x0, height: k.y1 - k.y0 + 16 });
-      await release(page, 53);
-      await hold(page, 79, 100);
-      await shot(page, `close-${s}-keys-G5`, { x: k.x0, y: k.y0 - 8, width: k.x1 - k.x0, height: k.y1 - k.y0 + 16 });
-      await release(page, 79);
+    for (const dev of ['zoom', 'laptop']) {
+      const { ctx, page } = await open(dev, '/clarinet', style);
+      await page.evaluate(() => window.__piano.setInstrument('clarinet'));
+      await page.waitForTimeout(800);
+      const d = await page.evaluate(() => window.__clarinet2d?.());
+      if (d && dev === 'zoom') {
+        await hold(page, 53, 120);
+        const m = d.mouth;
+        await shot(page, `close-${s}-mouthpiece`, { x: m.x0 - 40, y: m.y0 - 34, width: m.x1 - m.x0 + 80, height: m.y1 - m.y0 + 68 });
+      } else if (d) {
+        const k = d.keys;
+        const clip = { x: k.x0, y: k.y0 - 8, width: k.x1 - k.x0, height: k.y1 - k.y0 + 16 };
+        await hold(page, 53, 100);
+        await shot(page, `close-${s}-keys-F3`, clip);
+        await release(page, 53);
+        await hold(page, 79, 100);
+        await shot(page, `close-${s}-keys-G5`, clip);
+      }
+      await ctx.close();
     }
-    await ctx.close();
   }
 }
 await browser.close();

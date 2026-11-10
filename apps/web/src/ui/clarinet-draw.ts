@@ -251,9 +251,9 @@ export const CL_TOUCHES: ClTouch[] = [
   { id: 'tr2', bit: 0, x0: 0.3085, v0: 0.0164, x1: 0.3235, v1: 0.0288, w: 0.0023, fixed: true },
   { id: 'tr3', bit: 0, x0: 0.3135, v0: 0.0164, x1: 0.3325, v1: 0.024, w: 0.0023, fixed: true },
   { id: 'seb', bit: SEB, x0: 0.3185, v0: 0.0164, x1: 0.3415, v1: 0.024, w: 0.0024 },
-  // the left little finger: the C♯/G♯ key's teardrop under L3 (its lever across the front from the right
-  // rod), then by the lower joint's head the F♯/C♯ and E/B spatulas (long rods down to their pads)
-  { id: 'lcs', bit: LCS, x0: 0.3145, v0: 0.0146, x1: 0.3095, v1: -0.0128, w: 0.0036 },
+  // the left little finger: the C♯/G♯ key's teardrop just past L3 (its lever across the front from the
+  // right rod), then by the lower joint's head the F♯/C♯ and E/B spatulas (long rods down to their pads)
+  { id: 'lcs', bit: LCS, x0: 0.3215, v0: 0.0146, x1: 0.3185, v1: -0.0126, w: 0.0034 },
   { id: 'lfs', bit: LFS, x0: 0.3255, v0: -0.0146, x1: 0.3425, v1: -0.0284, w: 0.0047 },
   { id: 'le', bit: LE, x0: 0.3365, v0: -0.0154, x1: 0.3575, v1: -0.0306, w: 0.0049 },
   // the B/F♯ sliver between R2 and R3, across the front from the right rod
