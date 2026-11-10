@@ -170,8 +170,9 @@ export function drawOboeV(ctx: CanvasRenderingContext2D, W: number, H: number, f
     }
   }
   // the lips' handle (green: the breath), and round it the vibrato's ring (white), breathing with it
-  const xh = X(xb) - hr - 2;
-  seg(ctx, xh + hr, Y(0), X(xb), Y(0), V.green, 1, { alpha: 0.5 * live });
+  // (kept inside the box: an Orchestra cell leaves a narrow margin past the reed)
+  const xh = Math.max(hr + 10, X(xb) - hr - 2);
+  if (X(xb) > xh + hr) seg(ctx, xh + hr, Y(0), X(xb), Y(0), V.green, 1, { alpha: 0.5 * live });
   handle(ctx, xh, Y(0), V.green, hr, live);
   ring(ctx, xh, Y(0), hr + 3.5 + clamp(lv.vib * 60, -2.5, 6), V.white, 1, { alpha: 0.5 + 0.5 * Math.min(1, Math.abs(lv.vib) * 30 + lv.blow) });
   // the embouchure (red): the lips' pinch on the blades, a little from the tip, its handle beside the reed
