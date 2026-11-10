@@ -1497,11 +1497,16 @@ figure[title] {
   outline: 1px solid rgba(242, 166, 70, 0.8);
   outline-offset: -1px;
 }
-/* a line's instruments: a row of glyphs under its chip */
+/* a line's instruments: a row of glyphs under its chip (on a phone, two rows: thirteen voices and their
+   extras are wider than its screen) */
 .pl-menu {
   position: absolute;
   z-index: 6;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: calc(100vw - 12px);
+  box-sizing: border-box;
   gap: 1px;
   padding: 3px;
   border: 1px solid var(--rule-2);

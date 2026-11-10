@@ -526,7 +526,29 @@ test('all twelve instruments: selectable in the UI and rendered through the work
       let best = -Infinity, bl = 0;
       for (let lag = Math.floor(fs / (f * 1.05)); lag <= Math.ceil(fs / (f * 0.95)); lag++) { const v = ac(lag); if (v > best) { best = v; bl = lag; } }
       const a = ac(bl - 1), b = ac(bl), c = ac(bl + 1);
-      const fm = fs / (bl + (0.5 * (a - c)) / (a - 2 * b + c));
+      let fm = fs / (bl + (0.5 * (a - c)) / (a - 2 * b + c));
+      // (a drum's partials are not harmonics of one period: its principal tone is the spectrum's peak near
+      // the note, the (1,1) mode)
+      if (inst === 'timpani') {
+        const mag = (hz: number) => {
+          let re = 0;
+          let im = 0;
+          for (let i = 0; i < W; i++) {
+            const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (W - 1));
+            re += x[s0 + i] * w * Math.cos((2 * Math.PI * hz * i) / fs);
+            im += x[s0 + i] * w * Math.sin((2 * Math.PI * hz * i) / fs);
+          }
+          return Math.hypot(re, im);
+        };
+        let bv = 0;
+        for (let c2 = -40; c2 <= 40; c2++) {
+          const v = mag(f * 2 ** (c2 / 1200));
+          if (v > bv) {
+            bv = v;
+            fm = f * 2 ** (c2 / 1200);
+          }
+        }
+      }
       let peak = 0;
       for (let i = 0; i < x.length; i++) peak = Math.max(peak, Math.abs(x[i]));
       return { cents: 1200 * Math.log2(fm / f), peak };

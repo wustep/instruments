@@ -116,7 +116,7 @@ Judged on drums 2 and 4 (`npx tsx scripts/judge.ts --instrument timpani --before
 
 \* the start design had no `detune` (it played the nearest semitone); the verdict holds without pitch.
 
-All 24 strokes (fitted): brightness ×0.97 of the recordings', (1,1) decay ×0.99, (2,1) decay ×0.98.
+All 24 strokes (fitted, medians): brightness ×0.98 of the recordings', (1,1) decay ×1.00, (2,1) decay ×0.98.
 
 | model / recording | pp | mf | ff |
 |---|---|---|---|

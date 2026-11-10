@@ -303,7 +303,7 @@ export function notesView(): View {
         ),
         table(
           ['VSCO 2 CE, a room', 'partials’ frequencies ¢', 'partials’ levels dB', 'spectrum dB', 'brightness ×', '(1,1) decay ×', 'pitch ¢'],
-          [['timpani', '31', '8.1', '14.8', '0.97', '0.99', '0.3']],
+          [['timpani', '31', '8.1', '14.8', '0.98', '1.00', '0.3']],
           'Five pedal drums struck pp, mf and ff, two takes each (24 strokes; drums 2 and 4 held out of the fit: judge BETTER, held-out 9.25 → 3.50). Brightness pp 151 / 148 Hz, mf 195 / 201, ff 272 / 363 (model / recording).',
         ),
         p('Full histories are in the repository (', code('docs/calibration-rounds.json'), ', ', code('docs/ensemble-rounds.json'), ', ', code('artifacts/round3/'), '), and the Measurements page charts the details.'),
