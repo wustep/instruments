@@ -17,10 +17,12 @@ export type { OboeParams } from './core/oboe.ts';
 export type { ClarinetParams } from './core/clarinet.ts';
 export type { BassoonParams } from './core/bassoon.ts';
 export type { HornParams, HornFingering } from './core/horn.ts';
+export type { TromboneParams, TromboneFingering, TromboneSize, TromboneBore } from './core/trombone.ts';
+export { tromboneFingering, tromboneTubeLength, tromboneSlideOut, sizeOf as tromboneSizeOf, TROMBONE_SIZES, TROMBONE_SIZE_IDS, TROMBONE_LO, TROMBONE_HI } from './core/trombone.ts';
 export { hornFingering, hornTubeLength, HORN_LO, HORN_HI, HORN_F_LENGTH, HORN_BB_LENGTH } from './core/horn.ts';
 export type { TimpaniParams, TimpaniDrum } from './core/timpani.ts';
 export { TIMPANI_LO, TIMPANI_HI, TIMPANI_DRUMS, besselJ } from './core/timpani.ts';
-export type { KeySummary, Stats, VisualFrame, TimpaniVisual, TimpaniDrumVisual } from './api/messages.ts';
+export type { KeySummary, Stats, VisualFrame, TimpaniVisual, TimpaniDrumVisual, TromboneVisual } from './api/messages.ts';
 export {
   DEFAULT_PARAMS,
   PRESETS,

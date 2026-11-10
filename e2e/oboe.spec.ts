@@ -174,7 +174,7 @@ test('ten instruments on a phone: the picker keeps to its band (no taller with a
     await page.evaluate(() => (window as any).__piano.noteOff(81, 'keys'));
     expect(during, `${size?.width ?? 'Pixel 7'}`).toBe(before);
     const boxes = await page.locator('.instruments .pick').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ l: r.left, r: r.right, t: r.top })));
-    expect(boxes.length).toBe(12);
+    expect(boxes.length).toBe(13);
     for (let i = 1; i < boxes.length; i++) {
       expect(boxes[i].l).toBeGreaterThanOrEqual(boxes[i - 1].r - 0.5);
       expect(boxes[i].t).toBeCloseTo(boxes[0].t, 0);

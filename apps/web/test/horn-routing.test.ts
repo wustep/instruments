@@ -38,8 +38,9 @@ describe('orchestra: the horn', () => {
     for (const [n, v] of [['English Horn', 'oboe'], ['Cor anglais', 'oboe'], ['Corno inglese', 'oboe'], ['Englischhorn', 'oboe'], ['Basset horn', 'clarinet'], ['Corno di bassetto', 'clarinet'], ['Flugelhorn', 'trumpet'], ['Flügelhorn', 'trumpet'], ['Posthorn', 'trumpet'], ['Cornet', 'trumpet'], ['Trumpet in B♭', 'trumpet'], ['Tromba', 'trumpet'], ['Basso', 'bass'], ['Viola', 'viola'], ['Alto', 'viola'], ['Fagotto', 'bassoon']] as const)
       expect(voiceFromName(n), n).toBe(v);
     expect(voiceFromProgram(60)).toBe('horn');
-    // the rest of the brass stay the trumpet's (no trombone or tuba yet)
-    for (const p of [56, 57, 58, 59, 61, 62, 63]) expect(voiceFromProgram(p), String(p)).toBe('trumpet');
+    // the rest of the brass stay the trumpet's but the trombone's 57 (no tuba)
+    for (const p of [56, 58, 59, 61, 62, 63]) expect(voiceFromProgram(p), String(p)).toBe('trumpet');
+    expect(voiceFromProgram(57)).toBe('trombone');
   });
 
   it('its compass is the engine’s (B♭1–F5 sounding: the horn in F’s written F2–C6); a line above it moves down an octave', () => {

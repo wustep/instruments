@@ -65,6 +65,14 @@ const HORN_KNOBS: KnobSpec[] = [
   { key: 'noise', label: 'Breath noise', short: 'noise', sub: 'turbulence in the lips’ slit', min: 0, max: 4, step: 0.01, fmt: (v) => fmt(v, 2) },
   { key: 'vibrato', label: 'Vibrato', short: 'vibrato', sub: 'lip vibrato depth (horn players mostly play without)', min: 0, max: 0.01, step: 0.0005, fmt: (v) => fmt(v * 1000, 1) },
 ];
+const TROMBONE_KNOBS: KnobSpec[] = [
+  { key: 'breath', label: 'Breath pressure', short: 'breath', sub: '× the dynamic’s blowing pressure: harder, the wave steepens down the slide and the tone turns brassy', min: 0.6, max: 1.4, step: 0.01, fmt: (v) => `×${fmt(v, 2)}` },
+  { key: 'lip', label: 'Lip tension', short: 'lips', sub: 'semitones above or below the note; far enough, the next partial speaks', min: -3, max: 3, step: 0.05, fmt: (v) => `${v > 0 ? '+' : ''}${fmt(v, 2)} st` },
+  { key: 'noise', label: 'Breath noise', short: 'noise', sub: 'turbulence in the lips’ slit', min: 0, max: 4, step: 0.01, fmt: (v) => fmt(v, 2) },
+  { key: 'vibrato', label: 'Vibrato', short: 'vibrato', sub: 'lip vibrato depth', min: 0, max: 0.01, step: 0.0005, fmt: (v) => fmt(v * 1000, 1) },
+  { key: 'gliss', label: 'Slide', short: 'slide', sub: 'a slur that moves the slide: a soft legato tongue (0) … a glissando (1)', min: 0, max: 1, step: 1, fmt: (v) => (v >= 0.5 ? 'gliss' : 'legato') },
+  { key: 'size', label: 'Size', short: 'size', sub: 'alto in E♭ · tenor in B♭/F · bass in B♭/F/G♭: one model at each one’s measures', min: 0, max: 2, step: 1, fmt: (v) => ['alto', 'tenor', 'bass'][Math.round(v)] ?? 'tenor' },
+];
 const TIMPANI_KNOBS: KnobSpec[] = [
   { key: 'mallet', label: 'Mallet', short: 'mallet', sub: 'the felt’s hardness: soft and round … hard, a short bright stroke', min: 0.25, max: 4, step: 0.01, log: true, fmt: (v) => `×${fmt(v, 2)}` },
   { key: 'spot', label: 'Strike point', short: 'spot', sub: 'out from the head’s centre (a fraction of its radius): the middle thumps, near the rim rings thin', min: 0.2, max: 0.9, step: 0.01, fmt: (v) => fmt(v, 2) },
@@ -73,7 +81,7 @@ const TIMPANI_KNOBS: KnobSpec[] = [
 ];
 /** a phone's names under the picks, where the whole name is too long for its pick: the score's abbreviation
  *  (twelve picks share the band six took) */
-const SHORT: Partial<Record<InstrumentId, string>> = { violin: 'vln.', clarinet: 'clar.', bassoon: 'bsn.', trumpet: 'tpt.', timpani: 'timp.' };
+const SHORT: Partial<Record<InstrumentId, string>> = { violin: 'vln.', clarinet: 'clar.', bassoon: 'bsn.', trumpet: 'tpt.', trombone: 'tbn.', timpani: 'timp.' };
 const PRESET_SHORT: Record<string, string> = { grand: 'grand', upright: 'upright', 'honky-tonk': 'honky-tonk', prepared: 'prepared' };
 /** presets offered on the stage; 'honky-tonk' and 'prepared' still exist in the engine
  *  (PRESETS) and come back by adding them here */
@@ -81,10 +89,10 @@ const VISIBLE_PRESETS = ['grand', 'upright'];
 
 /** the order instruments take in a lineup picked by hand: score order (winds, brass, strings, piano),
  *  which is also their seats from the audience's left */
-const SCORE_ORDER: Voice[] = ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'timpani', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
+const SCORE_ORDER: Voice[] = ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'timpani', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
 /** how many of each one lineup may have (a tap on its button adds one, past this it has none; the
  *  routing grid adds more, up to the stage's cap) */
-const MOST: Record<Voice, number> = { flute: 2, oboe: 2, clarinet: 2, bassoon: 2, horn: 4, trumpet: 2, timpani: 2, violin: 3, viola: 2, cello: 2, bass: 2, grand: 2, upright: 2 };
+const MOST: Record<Voice, number> = { flute: 2, oboe: 2, clarinet: 2, bassoon: 2, horn: 4, trumpet: 2, trombone: 3, timpani: 2, violin: 3, viola: 2, cello: 2, bass: 2, grand: 2, upright: 2 };
 const familyOf = (v: Voice) => INSTRUMENT_INFO[VOICE_INFO[v].instrument].family;
 
 export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: MidiPlayer): View {
@@ -530,7 +538,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   // ---------------------------------------------------------------- knobs
   const knobsFor = (id: InstrumentId) => {
     const f = INSTRUMENT_INFO[id].family;
-    return f === 'piano' ? PIANO_KNOBS : f === 'bowed' ? BOWED_KNOBS : f === 'percussion' ? TIMPANI_KNOBS : id === 'horn' ? HORN_KNOBS : f === 'brass' ? TRUMPET_KNOBS : f === 'reed' ? OBOE_KNOBS : FLUTE_KNOBS;
+    return f === 'piano' ? PIANO_KNOBS : f === 'bowed' ? BOWED_KNOBS : f === 'percussion' ? TIMPANI_KNOBS : id === 'horn' ? HORN_KNOBS : id === 'trombone' ? TROMBONE_KNOBS : f === 'brass' ? TRUMPET_KNOBS : f === 'reed' ? OBOE_KNOBS : FLUTE_KNOBS;
   };
   let knobEls: { c: KnobSpec; k: ReturnType<typeof knob> }[] = [];
   const currentParams = (): Record<string, number> => ({ ...(inst === 'piano' ? DEFAULT_PARAMS : {}), ...(audio.piano?.params ?? {}) }) as Record<string, number>;
@@ -636,7 +644,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       return {
         family: familyOf(p.voice),
         reed: p.voice === 'clarinet' || p.voice === 'bassoon' ? p.voice : 'oboe',
-        brass: p.voice === 'horn' ? 'horn' : 'trumpet',
+        brass: p.voice === 'horn' ? 'horn' : p.voice === 'trombone' ? 'trombone' : 'trumpet',
         kind: p.voice === 'upright' ? 'upright' : 'grand',
         fr: p.frame,
         keys: isKeyboard(p.voice) ? ensemble.keysOf(p) : [],
@@ -880,7 +888,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
         fr: frame,
         family: fam,
         reed: inst === 'clarinet' || inst === 'bassoon' ? inst : 'oboe',
-        brass: inst === 'horn' ? 'horn' : 'trumpet',
+        brass: inst === 'horn' ? 'horn' : inst === 'trombone' ? 'trombone' : 'trumpet',
         kind: grand ? 'grand' : 'upright',
         keys,
         piano: pianoState,

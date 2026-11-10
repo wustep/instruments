@@ -3,8 +3,8 @@
 
 import type { KeySummary } from '../api/messages.ts';
 
-export type InstrumentId = 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'timpani';
-export const INSTRUMENT_IDS: InstrumentId[] = ['piano', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'timpani'];
+export type InstrumentId = 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'timpani';
+export const INSTRUMENT_IDS: InstrumentId[] = ['piano', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'timpani'];
 /** the bowed strings (bowed.ts), high to low */
 export type BowedId = 'violin' | 'viola' | 'cello' | 'bass';
 export const isBowed = (id: string): id is BowedId => id === 'violin' || id === 'viola' || id === 'cello' || id === 'bass';
@@ -12,7 +12,8 @@ export const isBowed = (id: string): id is BowedId => id === 'violin' || id === 
 /** the instrument families: the piano, the bowed strings, the flute (an air jet), the reeds (the oboe: a
  *  double reed on a conical bore; the clarinet: a single reed on a cylinder; the bassoon: the oboe's double
  *  reed on a cone two and a half metres long) and the brass (the trumpet; the horn: the trumpet's buzzing lips
- *  on a tube two and a half times as long, wound in a circle, played high in its harmonic series) and the
+ *  on a tube two and a half times as long, wound in a circle, played high in its harmonic series; the
+ *  trombone: the lips in a cup mouthpiece on a cylindrical slide and a wide bell) and the
  *  percussion (the timpani: membranes over kettles, struck with felt mallets) */
 export type Family = 'piano' | 'bowed' | 'wind' | 'reed' | 'brass' | 'percussion';
 export const INSTRUMENT_INFO: Record<InstrumentId, { label: string; family: Family; lo: number; hi: number; blurb: string }> = {
@@ -27,6 +28,7 @@ export const INSTRUMENT_INFO: Record<InstrumentId, { label: string; family: Fami
   bassoon: { label: 'Bassoon', family: 'reed', lo: 34, hi: 76, blurb: 'A double reed on a long, narrow conical bore folded in two: a dark, reedy bass, overblown at the octave.' },
   horn: { label: 'Horn', family: 'brass', lo: 34, hi: 77, blurb: 'Buzzing lips on a long tube wound in a circle, the hand in its bell: the lips pick a partial high in its series.' },
   trumpet: { label: 'Trumpet', family: 'brass', lo: 52, hi: 86, blurb: 'Buzzing lips driving a bore; the valves lengthen it, the lips pick its partial.' },
+  trombone: { label: 'Trombone', family: 'brass', lo: 28, hi: 77, blurb: 'Buzzing lips on a cylindrical slide and a wide bell: the slide lengthens the tube, the lips pick its partial.' },
   timpani: { label: 'Timpani', family: 'percussion', lo: 36, hi: 57, blurb: 'Four kettledrums struck with felt mallets: the air on the heads draws their modes into a pitch; pedals tune them.' },
 };
 

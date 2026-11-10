@@ -64,6 +64,9 @@ export interface VisualFrame extends Stats {
   reed?: { open: number; gamma: number };
   /** horn: the lips' opening (0 shut; about 1 at a loud note's widest) and the blowing pressure */
   lips?: { open: number; blow: number };
+  /** trombone: its size, the slide (m out from first position on its side, now and where it is heading),
+   *  the position, the valves down (1 the F valve, 2 the bass's G♭ valve), the side and the partial */
+  trombone?: TromboneVisual;
   /** timpani: the drums (low to high: the player's left to right), the two mallets, the strike point */
   timpani?: TimpaniVisual;
   /** piano: the watched key's action and strings (see `watchKey`) */
@@ -74,6 +77,17 @@ export interface VisualFrame extends Stats {
   strings?: { open: number; stop: number; stopNow?: number; level: number; bowing: boolean }[];
   /** sent when the mode set follows the note (flute bore harmonics) */
   modeFreqs?: number[];
+}
+
+/** the trombone as drawn */
+export interface TromboneVisual {
+  size: 'alto' | 'tenor' | 'bass';
+  slide: number;
+  target: number;
+  position: number;
+  valves: number[];
+  side: string;
+  partial: number;
 }
 
 /** a drum of the timpani as drawn */

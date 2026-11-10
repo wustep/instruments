@@ -17,13 +17,13 @@
 // piano; a line that goes below the cello's C is a bass line (the double bass is a candidate for it). With a lineup chosen by hand, the lines are matched to it by register instead: the highest
 // line to the highest instrument, and so on down.
 
-export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'timpani';
-export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'timpani'];
+export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'timpani';
+export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'timpani'];
 
 export interface VoiceInfo {
   label: string;
   /** the engine's instrument and (pianos) preset */
-  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'timpani';
+  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'timpani';
   preset?: 'grand' | 'upright';
   /** playable range (MIDI notes) and where the instrument sings best */
   lo: number;
@@ -39,7 +39,9 @@ export interface VoiceInfo {
 // B♭1–F5 sounding (written F2–C6, a fifth higher; its parts mostly written C4–G5: sounding F3–C5, and a
 // classical part for a horn crooked lower, in E♭ or D, sounds lower still), trumpet F#3–D6), the timpani
 // C2–A3 (a set of four pedal drums; a classical pair is tuned to the tonic and the dominant, F2–D3, so its
-// parts mostly lie G2–D3; two mallets: two drums at once), where a part for it mostly lies
+// parts mostly lie G2–D3; two mallets: two drums at once), the trombone C1–G5 (one model in three sizes: the
+// bass trombone's pedal C1 to the alto's G5; a tenor's parts mostly lie E2–G4, centre F3; each seat takes the
+// size its lines need, tromboneSizeOf), where a part for it mostly lies
 export const VOICE_INFO: Record<Voice, VoiceInfo> = {
   grand: { label: 'grand piano', instrument: 'piano', preset: 'grand', lo: 21, hi: 108, centre: 60, poly: 88 },
   upright: { label: 'upright piano', instrument: 'piano', preset: 'upright', lo: 21, hi: 108, centre: 60, poly: 88 },
@@ -53,6 +55,7 @@ export const VOICE_INFO: Record<Voice, VoiceInfo> = {
   bassoon: { label: 'bassoon', instrument: 'bassoon', lo: 34, hi: 76, centre: 50, poly: 1 },
   horn: { label: 'horn', instrument: 'horn', lo: 34, hi: 77, centre: 60, poly: 1 },
   trumpet: { label: 'trumpet', instrument: 'trumpet', lo: 52, hi: 86, centre: 68, poly: 1 },
+  trombone: { label: 'trombone', instrument: 'trombone', lo: 24, hi: 79, centre: 53, poly: 1 },
   timpani: { label: 'timpani', instrument: 'timpani', lo: 36, hi: 57, centre: 46, poly: 2 },
 };
 export const isKeyboard = (v: Voice): boolean => v === 'grand' || v === 'upright';
@@ -122,6 +125,10 @@ export function voiceFromName(s: string): Voice | null {
     !/english|englisch|anglais|inglese|basset|fl[uü]gel|post ?horn/.test(t)
   )
     return 'horn';
+  // the trombone: trombone(s), tromboni, trombón, Posaune(n), the sackbut (saqueboute), "Tbn.", "Tbns", "Trb.",
+  // "Tromb.", "Pos.", and its sizes (alto, tenor, bass trombone; Alt-, Tenor-, Bassposaune: before the double
+  // bass's "bass" and the viola's "alto"). The tromba is the trumpet's; the tuba stays the double bass's
+  if (/trombon|posaun|sackbut|saqueboute|\btbns?\.?(?![a-z])|\btrbs?\.?(?![a-z])|\btromb\.?(?![a-z])|\bpos\.(?![a-z])/.test(t)) return 'trombone';
   if (/cello|violoncell|violincell|\bvc\.?\b|\bvlc\b|continuo/.test(t)) return 'cello';
   if (
     /contra-? ?b?bass|contrebasse|kontrabass|contrabajo|double ?bass|upright ?bass|string ?bass|acoustic ?bass|violone|\bcb\.?(?![a-z])|\bcbs\b|\bkb\.?(?![a-z])|\bd\. ?b\.|\bbass(o|e|i|es)?\b|tuba/.test(t) &&
@@ -139,7 +146,7 @@ export function voiceFromName(s: string): Voice | null {
   // (the Flügelhorn's "fl" before an umlaut would read as the flute's abbreviation)
   if (/fl[uü]gel|post ?horn/.test(t)) return 'trumpet';
   if (/flute|flauto|fl[oö]te|flûte|piccolo|recorder|\bfl\.?\b|sax/.test(t)) return 'flute';
-  if (/trumpet|tromba|trompete|trompette|cornet|trombone|posaune|brass|\btpt?\.?\b/.test(t)) return 'trumpet';
+  if (/trumpet|tromba|trompete|trompette|cornet|brass|\btpt?\.?\b/.test(t)) return 'trumpet';
   if (/piano|klavier|cembalo|harpsichord|clavecin|keyboard|organ|orgel|continuo|clavichord|celesta|harp|guitar|lute/.test(t)) return 'grand';
   return null;
 }
@@ -156,6 +163,7 @@ export function voiceFromProgram(p: number): Voice | null {
   if (p === 46) return 'grand'; // harp
   if (p === 47) return 'timpani';
   if (p <= 55) return null; // string and voice ensembles: by range
+  if (p === 57) return 'trombone';
   if (p === 60) return 'horn'; // French horn
   if (p <= 63) return 'trumpet'; // brass
   if (p === 68 || p === 69) return 'oboe'; // oboe, English horn
@@ -321,8 +329,11 @@ function rangeScore(l: LineInfo, v: Voice): number {
  * that goes below the cello; the winds and the piano when named, the piano also for chords.
  */
 export function guessVoice(l: LineInfo): Voice {
+  // (a name that is only a register, "alto", "tenor", "bass" — a quartet's voices — says less than an
+  // instrument or program that names the instrument: the Air's four trombones are "alto" … "bass")
+  const bare = /^\s*(soprano|alto|tenor|bass|basso|basse|baritone)\s*\d*\s*$/i.test(l.name) && (voiceFromName(l.instrument) !== null || l.program >= 0);
   const hints: [Voice | null, number][] = [
-    [voiceFromName(l.name), 3],
+    [voiceFromName(l.name), bare ? 1 : 3],
     [voiceFromName(l.instrument), 1.5],
     [voiceFromProgram(l.program), 1],
   ];
@@ -639,4 +650,32 @@ export function playersOf(plan: Plan): number[] {
     for (let j = 0; j < k; j++) if (plan.parts[j].voice === p.voice && plan.parts[j].lines.some((i) => p.lines.includes(i))) n++;
     return n;
   });
+}
+
+// ---------------------------------------------------------------- the trombones' sizes
+/** the trombone a seat needs for its lines (one model, three sizes: packages/engine core/trombone.ts): a line
+ *  named for one ("alto trombone", "Trombone basso", "Bassposaune", "Trombone I (alto)") is that one; else a
+ *  bass trombone for a part that lives low (its core reaches below E2 or its middle is under C3: a bass
+ *  trombone's parts sit an octave under the tenor's), an alto for one that stays high (nothing under A2, its
+ *  middle at or over E4: the classical alto parts, Mozart's and Beethoven's, lie G3–E♭5), the tenor
+ *  otherwise. Many lines: the lowest a bass needs wins, then the alto */
+export type TromboneSize = 'alto' | 'tenor' | 'bass';
+export function tromboneSizeOf(lines: Pick<LineInfo, 'name' | 'instrument' | 'lo' | 'hi' | 'median' | 'core'>[]): TromboneSize {
+  if (!lines.length) return 'tenor';
+  const named = (l: Pick<LineInfo, 'name' | 'instrument'>): TromboneSize | null => {
+    const t = `${l.name} ${l.instrument}`.toLowerCase();
+    if (/\bbass|basso|bassposaune|\bb\.? ?tbn|btbn/.test(t)) return 'bass';
+    if (/\balt(o|us|posaune)?\b/.test(t)) return 'alto';
+    if (/tenor/.test(t)) return 'tenor';
+    return null;
+  };
+  const sizes = lines.map((l) => {
+    const n = named(l);
+    if (n) return n;
+    const [lo] = l.core ?? [l.lo, l.hi];
+    if (lo < 40 || l.median < 48) return 'bass';
+    if (lo >= 45 && l.median >= 64) return 'alto';
+    return 'tenor';
+  });
+  return sizes.includes('bass') ? 'bass' : sizes.every((s) => s === 'alto') ? 'alto' : 'tenor';
 }

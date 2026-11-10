@@ -272,7 +272,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       lips: (v as { lips?: never }).lips,
       timpani: (v as { timpani?: never }).timpani,
       strings: (v as { strings?: never }).strings,
-      modeFreqs: core.id === 'flute' || core.id === 'oboe' || core.id === 'clarinet' || core.id === 'bassoon' || core.id === 'horn' || core.id === 'timpani' ? Array.from(core.modeFrequencies) : undefined,
+      modeFreqs: core.id === 'flute' || core.id === 'oboe' || core.id === 'clarinet' || core.id === 'bassoon' || core.id === 'horn' || core.id === 'trombone' || core.id === 'timpani' ? Array.from(core.modeFrequencies) : undefined,
     });
   }
 }
