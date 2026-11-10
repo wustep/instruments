@@ -1,0 +1,190 @@
+{
+ "pieces": [
+  {
+   "name": "bass-open-strings",
+   "what": "E1, A1, D2, G2 open, each at pp, mf, ff (velocity 30, 70, 112), 1.6 s"
+  },
+  {
+   "name": "bass-phrase",
+   "what": "an original legato line from E1 (E minor), crescendo to ff and back"
+  },
+  {
+   "name": "bass-menuet",
+   "what": "Bach, Cello Suite No. 1, Menuet II (public domain, Mutopia), the first 22 s as the play icon plays it"
+  }
+ ],
+ "metrics": {
+  "before": [
+   {
+    "midi": 28,
+    "velocity": 30,
+    "centroidHz": 396,
+    "rmsDb": -34.4,
+    "cents": 5.3
+   },
+   {
+    "midi": 28,
+    "velocity": 70,
+    "centroidHz": 503,
+    "rmsDb": -25.1,
+    "cents": 25.8
+   },
+   {
+    "midi": 28,
+    "velocity": 112,
+    "centroidHz": 292,
+    "rmsDb": -18.7,
+    "cents": 0
+   },
+   {
+    "midi": 33,
+    "velocity": 30,
+    "centroidHz": 338,
+    "rmsDb": -36.5,
+    "cents": 3.6
+   },
+   {
+    "midi": 33,
+    "velocity": 70,
+    "centroidHz": 346,
+    "rmsDb": -29,
+    "cents": 3.6
+   },
+   {
+    "midi": 33,
+    "velocity": 112,
+    "centroidHz": 341,
+    "rmsDb": -21.3,
+    "cents": 2.6
+   },
+   {
+    "midi": 38,
+    "velocity": 30,
+    "centroidHz": 1058,
+    "rmsDb": -36.2,
+    "cents": 3.3
+   },
+   {
+    "midi": 38,
+    "velocity": 70,
+    "centroidHz": 560,
+    "rmsDb": -33.6,
+    "cents": 2.6
+   },
+   {
+    "midi": 38,
+    "velocity": 112,
+    "centroidHz": 545,
+    "rmsDb": -25.8,
+    "cents": 1.8
+   },
+   {
+    "midi": 43,
+    "velocity": 30,
+    "centroidHz": 635,
+    "rmsDb": -40.8,
+    "cents": 2.3
+   },
+   {
+    "midi": 43,
+    "velocity": 70,
+    "centroidHz": 725,
+    "rmsDb": -32.9,
+    "cents": 2.7
+   },
+   {
+    "midi": 43,
+    "velocity": 112,
+    "centroidHz": 604,
+    "rmsDb": -26.3,
+    "cents": 1.8
+   }
+  ],
+  "after": [
+   {
+    "midi": 28,
+    "velocity": 30,
+    "centroidHz": 158,
+    "rmsDb": -33.2,
+    "cents": 5.3
+   },
+   {
+    "midi": 28,
+    "velocity": 70,
+    "centroidHz": 217,
+    "rmsDb": -27.8,
+    "cents": 12.9
+   },
+   {
+    "midi": 28,
+    "velocity": 112,
+    "centroidHz": 137,
+    "rmsDb": -17.3,
+    "cents": 2.3
+   },
+   {
+    "midi": 33,
+    "velocity": 30,
+    "centroidHz": 114,
+    "rmsDb": -34.7,
+    "cents": 3.4
+   },
+   {
+    "midi": 33,
+    "velocity": 70,
+    "centroidHz": 115,
+    "rmsDb": -28.4,
+    "cents": 3.4
+   },
+   {
+    "midi": 33,
+    "velocity": 112,
+    "centroidHz": 116,
+    "rmsDb": -21.9,
+    "cents": 2.9
+   },
+   {
+    "midi": 38,
+    "velocity": 30,
+    "centroidHz": 79,
+    "rmsDb": -29.9,
+    "cents": 2.5
+   },
+   {
+    "midi": 38,
+    "velocity": 70,
+    "centroidHz": 78,
+    "rmsDb": -23.5,
+    "cents": 2.3
+   },
+   {
+    "midi": 38,
+    "velocity": 112,
+    "centroidHz": 80,
+    "rmsDb": -17.4,
+    "cents": 3.2
+   },
+   {
+    "midi": 43,
+    "velocity": 30,
+    "centroidHz": 106,
+    "rmsDb": -33.3,
+    "cents": 2.2
+   },
+   {
+    "midi": 43,
+    "velocity": 70,
+    "centroidHz": 112,
+    "rmsDb": -28.8,
+    "cents": -0.5
+   },
+   {
+    "midi": 43,
+    "velocity": 112,
+    "centroidHz": 108,
+    "rmsDb": -19.3,
+    "cents": 1.8
+   }
+  ]
+ }
+}

@@ -217,6 +217,15 @@ interface BowedDesign {
    *  the fit half worse: the violin's E string sounds far brighter than its G). It rounds only what
    *  is heard: the string's own motion (its pitch, attack, the bow's traces) is unchanged. */
   body?: { bands: [number, number][]; q: number; corner: [number, number] };
+  /** The signature modes radiate in phase at both microphones (the double bass). The pair of
+   *  microphones takes every third mode with the right channel inverted, for width; the first of
+   *  them is A0, the f-hole air mode, which (with the B1 pair) is the body's monopole radiator and has
+   *  one phase in every direction (Bissinger 2008, JASA 124, on the violin's radiativity). On the
+   *  violin, viola and cello A0 sits above their fundamentals (275, 230, 102 Hz) and the inversion
+   *  stays as it was; on the bass it is at 60 Hz, among its fundamentals, and the mono sum of an
+   *  inverted A0 cancelled them by up to 23 dB (D2), which a fitted body then made up with a +24 dB
+   *  band that was all too loud in stereo. Absent: as before. */
+  inPhase?: boolean;
 }
 
 const VIOLIN: BowedDesign = {
@@ -369,15 +378,18 @@ const BASS: BowedDesign = {
   // Askenfelt, "Eigenmodes and tone quality of the double bass" (STL-QPSR 23(4), 1982): the f-hole
   // air mode near 60 Hz, the strong corpus modes from about 90 to 130 Hz, an octave above the open
   // E; the cello's set scaled by the body (×1.47 longer) and its larger, thinner plates. Modal masses
-  // scale with the strings' impedance (≈ 2.6× the cello's), so the strings load the body alike.
+  // scale with the strings' impedance (≈ 2.6× the cello's), so the strings load the body alike. Loss
+  // factors 2.5× the cello's (fitted): with the cello's, a note whose harmonic met a mode came out up
+  // to 10 dB louder than its neighbours (median step between neighbouring notes 6.4 dB at mf; the
+  // Iowa bass's 3.0 dB; 2.5×: 4.5 dB). A bass's large, thin plates radiate their low modes away fast.
   signature: [
-    { f: 60, eta: 0.04, m: 4.2, rad: 1.0 },
-    { f: 88, eta: 0.03, m: 6.8, rad: 0.1 },
-    { f: 105, eta: 0.022, m: 3.4, rad: 0.3 },
-    { f: 125, eta: 0.022, m: 3.6, rad: 1.0 },
-    { f: 115, eta: 0.035, m: 13, rad: 0.4 },
+    { f: 60, eta: 0.1, m: 4.2, rad: 1.0 },
+    { f: 88, eta: 0.075, m: 6.8, rad: 0.1 },
+    { f: 105, eta: 0.055, m: 3.4, rad: 0.3 },
+    { f: 125, eta: 0.055, m: 3.6, rad: 1.0 },
+    { f: 115, eta: 0.0875, m: 13, rad: 0.4 },
   ],
-  stat: { fLo: 150, fHi: 2800, spacing: 22, mass: 5.5, eta: 0.03 },
+  stat: { fLo: 150, fHi: 2800, spacing: 22, mass: 5.5, eta: 0.075 },
   bridgeY: 0.004,
   eq: [
     [900, 0, 1.2],
@@ -410,6 +422,7 @@ const BASS: BowedDesign = {
   rosinNoise: 0.226,
   // effective mass of the bridge hill at the notch (the bass bridge weighs about 3× the cello's)
   bridgeMass: 0.0065,
+  inPhase: true,
 };
 
 export const BOWED: Record<string, BowedDesign> = { violin: VIOLIN, viola: VIOLA, cello: CELLO, bass: BASS };
@@ -740,7 +753,7 @@ export class BowedCore implements InstrumentCore {
     modes.forEach((m, k) => {
       const pan = rand();
       this.radL[k] = m.rad * (0.55 + 0.45 * pan);
-      this.radR[k] = m.rad * (0.55 + 0.45 * (1 - pan)) * (k % 3 === 0 ? -1 : 1);
+      this.radR[k] = m.rad * (0.55 + 0.45 * (1 - pan)) * (k % 3 === 0 && !(d.inPhase && k < d.signature.length) ? -1 : 1);
     });
     this.b0 = new Float64Array(K);
     this.b2 = new Float64Array(K);
