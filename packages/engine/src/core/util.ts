@@ -48,6 +48,25 @@ export function nameToMidi(name: string): number {
   return base + acc + (parseInt(m[3], 10) + 1) * 12;
 }
 
+/**
+ * A player's own seed: player 0 is the instrument's seed itself (bit-identical); another player of
+ * the same instrument (orchestra mode: two violins on one tune) gets its own random stream, so its
+ * vibrato wander and bow, breath or hammer noise are its own and the two do not sum as one louder
+ * instrument.
+ */
+export const playerSeed = (seed: number, player = 0): number => (player ? (seed + Math.imul(player, 0x9e3779b1)) >>> 0 : seed);
+/** A player's vibrato: its starting phase (the golden angle apart, rad) and its rate as a factor. Two
+ *  players' rates differ by a few per cent (flute vibrato is 4–6 Hz across players, Fletcher 1975,
+ *  JASA 57, "Acoustical correlates of flute performance technique"; brass 5–7 Hz). Player 0: 0, 1. */
+export const playerVibrato = (player = 0): { phase: number; rate: number } =>
+  player ? { phase: player * 2.399963, rate: 1 + 0.04 * (player % 2 ? 1 : -1) * Math.ceil(player / 2) } : { phase: 0, rate: 1 };
+
+/** A player's intonation (cents): players of one section in unison are a few cents apart, which is
+ *  what makes a section sound like several players (pitch scatter of 5–15 ¢ among good choir singers,
+ *  Ternström 2003, "Choir acoustics: an overview of scientific research published to date", Int. J.
+ *  Research in Choral Singing 1). Player 0: 0; then +4, −4, +8, −8 ¢. */
+export const playerCents = (player = 0): number => (player ? 4 * (player % 2 ? 1 : -1) * Math.ceil(player / 2) : 0);
+
 /** Deterministic PRNG (mulberry32). Returns a function producing [0,1). */
 export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;

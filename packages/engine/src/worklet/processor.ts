@@ -30,6 +30,8 @@ interface ProcOptions {
   adaptive?: boolean;
   /** precomputed piano filter designs (computeDesigns), so start-up does no design work here */
   designs?: DesignEntry[];
+  /** orchestra mode: another player of the same instrument (factory.ts) */
+  player?: number;
 }
 
 type Core = InstrumentCore & { process: (L: Float32Array, R: Float32Array, n: number) => void };
@@ -54,6 +56,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
   private failed = false;
   /** every filter design received from the main thread, reused when the piano is (re)created */
   private designs = new Map<string, DesignEntry>();
+  private player = 0;
 
   private storeDesigns(entries: DesignEntry[] | undefined): void {
     if (!entries) return;
@@ -75,7 +78,8 @@ class InstrumentProcessor extends AudioWorkletProcessor {
     this.port.onmessage = (e: MessageEvent<ToProcessor>) => this.onMessage(e.data);
     try {
       this.storeDesigns(o.designs);
-      this.core = createCore({ sampleRate, instrument: o.instrument, preset: o.preset, params: o.params, maxVoices: o.maxVoices ?? 64, designs: o.designs }) as Core;
+      this.player = o.player ?? 0;
+      this.core = createCore({ sampleRate, instrument: o.instrument, preset: o.preset, params: o.params, maxVoices: o.maxVoices ?? 64, designs: o.designs, player: this.player }) as Core;
     } catch (err) {
       // never fail silently: tell the main thread why, then output silence
       this.failed = true;
@@ -124,7 +128,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
         const frame = this.core.frame;
         this.storeDesigns(m.designs);
         try {
-          this.core = createCore({ sampleRate, instrument: m.instrument, preset: m.preset, params: m.params, maxVoices: this.baseMaxVoices, designs: m.instrument === 'piano' ? [...this.designs.values()] : undefined }) as Core;
+          this.core = createCore({ sampleRate, instrument: m.instrument, preset: m.preset, params: m.params, maxVoices: this.baseMaxVoices, designs: m.instrument === 'piano' ? [...this.designs.values()] : undefined, player: this.player }) as Core;
         } catch (err) {
           this.post({ type: 'error', message: `the ${m.instrument} could not be built at ${sampleRate} Hz: ${String((err as Error)?.message ?? err)}` });
           break;

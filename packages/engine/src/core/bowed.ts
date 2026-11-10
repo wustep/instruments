@@ -19,7 +19,7 @@ import type { KeySummary } from '../api/messages.ts';
 import type { PianoEvent } from './piano-core.ts';
 import { designLossFilter, onePolePhaseDelay, biquadHighpass, biquadLowpass, biquadPeaking, biquadHighShelf } from './filters.ts';
 import { BiquadChain, Limiter, Room } from './post.ts';
-import { LN1000, clamp, gauss, mulberry32, nextPow2 } from './util.ts';
+import { LN1000, clamp, gauss, mulberry32, nextPow2, playerCents, playerSeed } from './util.ts';
 import bowedFit from './bowed-fit.json';
 
 export interface BowedParams {
@@ -513,6 +513,8 @@ export class BowedCore implements InstrumentCore {
   private pressureCC = 1;
   /** pitch bend, semitones */
   private bend = 0;
+  /** the player's intonation, semitones (util.ts playerCents), under any bend */
+  private tune = 0;
   private focus = 0;
   private pump = new Pump(64);
   private oL = new Float64Array(128);
@@ -545,7 +547,7 @@ export class BowedCore implements InstrumentCore {
   private gN = 1;
   private pT = 0.25;
 
-  constructor(opts: { sampleRate: number; instrument: 'violin' | 'viola' | 'cello'; params?: Partial<BowedParams>; dry?: boolean }) {
+  constructor(opts: { sampleRate: number; instrument: 'violin' | 'viola' | 'cello'; params?: Partial<BowedParams>; dry?: boolean; player?: number }) {
     this.fs = opts.sampleRate;
     this.design = BOWED[opts.instrument];
     this.id = this.design.id;
@@ -563,7 +565,11 @@ export class BowedCore implements InstrumentCore {
       ...this.design.defaults,
       ...opts.params,
     };
-    this.rng = mulberry32(this.design.seed);
+    // (the performer's randomness: vibrato phase, rate and wander, bow noise; another player's own)
+    this.rng = mulberry32(playerSeed(this.design.seed, opts.player));
+    // and the player's intonation: a constant bend (0 for the first player)
+    this.tune = playerCents(opts.player) / 100;
+    this.bend = this.tune;
     this.strings = this.design.strings.map((d) => new BowedString(d, this.design.L, this.fs));
     const tor = this.design.torsion;
     if (tor) for (const s of this.strings) {
@@ -882,7 +888,7 @@ export class BowedCore implements InstrumentCore {
         break;
       case 'bend':
         // the finger slides: every stopped or bowed string follows
-        this.bend = clamp(ev.value, -12, 12);
+        this.bend = clamp(ev.value, -12, 12) + this.tune;
         break;
       case 'allNotesOff':
         this.hand = null;

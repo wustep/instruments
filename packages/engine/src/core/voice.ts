@@ -23,7 +23,7 @@ import {
   onePolePhaseDelay,
   thiranForPhaseDelay,
 } from './filters.ts';
-import { LN1000, clamp, mulberry32, nextPow2 } from './util.ts';
+import { LN1000, clamp, mulberry32, nextPow2, playerSeed } from './util.ts';
 
 export const BK_MAX = 32;
 /** damper felt landing: force noise relative to the string's level, and its decay (s).
@@ -287,10 +287,10 @@ export class Voice {
   phS = new Float64Array(4);
   lastF = 0;
 
-  constructor(midi: number, light: boolean) {
+  constructor(midi: number, light: boolean, player = 0) {
     this.midi = midi;
     this.light = light;
-    this.rng = mulberry32(midi * 2654435761 + (light ? 17 : 0));
+    this.rng = mulberry32(playerSeed(midi * 2654435761 + (light ? 17 : 0), player));
     for (let i = 0; i < 6; i++) {
       this.vin.push(new Float64Array(BK_MAX));
       this.dispC.push(new Float64Array(2 * MAX_DISP));

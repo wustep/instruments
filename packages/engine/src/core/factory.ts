@@ -18,6 +18,9 @@ export interface InstrumentOptions {
   maxVoices?: number;
   dry?: boolean;
   designs?: CoreOptions['designs'];
+  /** orchestra mode: a second (third…) player of the same instrument, its own random stream (0: the
+   *  instrument as it is) */
+  player?: number;
 }
 
 export function createCore(opts: InstrumentOptions): InstrumentCore & { process: PianoCore['process'] } {
@@ -26,12 +29,12 @@ export function createCore(opts: InstrumentOptions): InstrumentCore & { process:
     case 'violin':
     case 'viola':
     case 'cello':
-      return new BowedCore({ sampleRate: opts.sampleRate, instrument: id, params: opts.params as Partial<BowedParams>, dry: opts.dry });
+      return new BowedCore({ sampleRate: opts.sampleRate, instrument: id, params: opts.params as Partial<BowedParams>, dry: opts.dry, player: opts.player });
     case 'flute':
-      return new FluteCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<FluteParams>, dry: opts.dry });
+      return new FluteCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<FluteParams>, dry: opts.dry, player: opts.player });
     case 'trumpet':
-      return new TrumpetCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<TrumpetParams>, dry: opts.dry });
+      return new TrumpetCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<TrumpetParams>, dry: opts.dry, player: opts.player });
     default:
-      return new PianoCore({ sampleRate: opts.sampleRate, preset: opts.preset, params: opts.params as Partial<PianoParams>, maxVoices: opts.maxVoices, dry: opts.dry, designs: opts.designs }) as unknown as InstrumentCore & { process: PianoCore['process'] };
+      return new PianoCore({ sampleRate: opts.sampleRate, preset: opts.preset, params: opts.params as Partial<PianoParams>, maxVoices: opts.maxVoices, dry: opts.dry, designs: opts.designs, player: opts.player }) as unknown as InstrumentCore & { process: PianoCore['process'] };
   }
 }

@@ -17,6 +17,9 @@ export interface PianoOptions {
   params?: Record<string, unknown>;
   /** struck-note polyphony limit (sympathetic strings are extra); default 64 */
   maxVoices?: number;
+  /** orchestra mode: a second (third…) player of the same instrument, with its own vibrato and
+   *  noise, so two violins on one tune are two players; default 0, the instrument as it is */
+  player?: number;
   /** override the worklet module URL (non-Vite bundlers) */
   processorUrl?: string;
   /** shed load automatically if the audio thread runs hot; default true */
@@ -178,6 +181,7 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
       preset,
       params: opts.params,
       maxVoices: opts.maxVoices ?? 64,
+      player: opts.player || undefined,
       adaptive: opts.adaptive,
       designs: designs ?? undefined,
       events: (opts.events ?? []).map((e) => ({ frame: Math.round(e.time * fs), event: e.event })),

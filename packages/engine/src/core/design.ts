@@ -2,7 +2,7 @@
 // inharmonicity-driven stretch tuning.
 
 import { DEFAULT_CALIBRATION, type Breakpoints, type Calibration } from './calibration.ts';
-import { clamp, gauss, interp, interpLog, midiToEtHz, mulberry32 } from './util.ts';
+import { clamp, gauss, interp, interpLog, midiToEtHz, mulberry32, playerCents, playerSeed } from './util.ts';
 
 export const KEY_LO = 21; // A0
 export const KEY_HI = 108; // C8
@@ -348,6 +348,9 @@ export function buildKeySpecs(
   design: PianoDesign,
   params: PianoParams,
   cal: Calibration = DEFAULT_CALIBRATION,
+  /** orchestra mode: another piano of the same make (util.ts playerSeed, playerCents): its own
+   *  unisons, hammers and a few cents of tuning; B and so the dispersion designs are unchanged */
+  player = 0,
 ): KeySpec[] {
   const Bs = new Float64Array(NUM_KEYS);
   const Ls = new Float64Array(NUM_KEYS);
@@ -362,13 +365,13 @@ export function buildKeySpecs(
   const specs: KeySpec[] = [];
   for (let m = KEY_LO; m <= KEY_HI; m++) {
     const i = m - KEY_LO;
-    const rand = mulberry32(design.seed * 1000 + m * 7919);
+    const rand = mulberry32(playerSeed(design.seed * 1000 + m * 7919, player));
     const nStrings = m <= design.unichordTop ? 1 : m <= design.bichordTop ? 2 : 3;
     const wound = m < design.bassBreak;
     const L = Ls[i];
     const T = stringTension(m, design.bassBreak) * design.tensionScale;
     const B = Bs[i];
-    const keyOffset = design.randomKeyDetune * gauss(rand);
+    const keyOffset = design.randomKeyDetune * gauss(rand) + playerCents(player);
     const f1 = f1s[i] * Math.pow(2, keyOffset / 1200);
     const f0 = f1 / Math.sqrt(1 + B);
     const Z = T / (2 * L * f0);

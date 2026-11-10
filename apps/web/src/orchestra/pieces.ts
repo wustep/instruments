@@ -2,7 +2,7 @@
 // (mutopiaproject.org), each placed in the public domain by its typesetter, compositions long out of
 // copyright. The MIDI files in public/pieces/ are Mutopia's own, byte for byte (sha256 below); what
 // plays what is set here, as a player would set out the parts.
-import { capParts, planOf, type LineInfo, type Plan, type Voice } from './assign.ts';
+import { capParts, planOf, shiftKey, type LineInfo, type Plan, type Shifts, type Voice } from './assign.ts';
 
 export interface Piece {
   id: string;
@@ -70,8 +70,8 @@ export const PIECES: Piece[] = [
 
 /** a piece's own plan for its lines, fitted to the stage's room (`cap` instruments) */
 export function piecePlan(piece: Piece, lines: LineInfo[], cap: number): Plan {
-  const shifts = new Map<number, { voice: Voice; shift: number }>();
-  for (const p of piece.parts) for (const [k, v] of Object.entries(p.shift ?? {})) shifts.set(Number(k), { voice: p.voice, shift: v });
+  const shifts: Shifts = new Map();
+  for (const p of piece.parts) for (const [k, v] of Object.entries(p.shift ?? {})) shifts.set(shiftKey(Number(k), p.voice), v);
   const parts = capParts(
     piece.parts.map((p) => ({ voice: p.voice, lines: p.lines.filter((i) => i < lines.length) })).filter((p) => p.lines.length),
     lines,
