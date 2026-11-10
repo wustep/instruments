@@ -281,7 +281,7 @@ function loopPieces(D: Dims, i: number): Vec3[][] {
     const a = Math.PI / 2 + (Math.PI * k) / 36;
     u.push([-dl + ru * Math.cos(a), (V.vHi + V.vLo) / 2 + ru * Math.sin(a), V.w]);
   }
-  const loEnd: Vec3 = [c[0] - 46, V.vLo, V.w];
+  const loEnd: Vec3 = [c[0] - 64, V.vLo, V.w];
   // a dependent valve sits on this loop's lower run: the run passes through it
   const child = D.L.valves.findIndex((v) => v.on === i);
   if (child >= 0) {
@@ -292,11 +292,11 @@ function loopPieces(D: Dims, i: number): Vec3[][] {
     const into = intoPort(D, child, PORT_OUT, lo1[lo1.length - 1], [1, 0, 0]);
     const outP = outOfPort(D, child, PORT_IN, [cc[0] + 34, V.vLo, V.w], [1, 0, 0]);
     const lo2 = run([cc[0] + 34, V.vLo, V.w], loEnd, 10);
-    const back = intoPort(D, i, LOOP_IN, loEnd, [1, 0, 0], 30);
+    const back = intoPort(D, i, LOOP_IN, loEnd, [1, 0, 0], 40);
     return [join(up, hi, u), join(lo1, into), join(outP, lo2, back)];
   }
   const lo = run([-dl, V.vLo, V.w], loEnd, 10);
-  const back = intoPort(D, i, LOOP_IN, loEnd, [1, 0, 0], 30);
+  const back = intoPort(D, i, LOOP_IN, loEnd, [1, 0, 0], 40);
   return [join(up, hi, u, lo, back)];
 }
 /** the open tube's length, lips to rim, slide closed (mm) */
@@ -919,13 +919,13 @@ export const TROMBONE_VIEW = { yaw: 0.55, pitch: 0.19, swing: 0.7 };
  *  audience: its centre `dz` forward of the player, its radius) and the height the framing allows for */
 export const TROMBONE_SEAT = { y: 1.16, turn: 0, dz: -0.5, r: 0.5, top: 1.5 };
 /** held as a seated player holds it (the U.S. Navy Band's section, a three-quarter from the front): the slide
- *  forward and down 27°, a little to the player's right, the bell section turned about the lock nut nearly a
+ *  forward and down 21°, a little to the player's right, the bell section turned about the lock nut nearly a
  *  right angle from the slide's plane (bellHeld) and the whole rolled 26° so the bell sits to the left of the
  *  face and the tuning slide's bow over the left shoulder; the lips at the seat's origin. The audience is at
  *  −z; the world is mirrored in x (the player's right is −x); the model is the true trombone with z flipped */
-const PITCH = 27 * DEG;
+const PITCH = 21 * DEG;
 const ROLL = 26 * DEG;
-const YAW = 7 * DEG;
+const YAW = 9 * DEG;
 function heldPose(lips: Vec3): Mat4 {
   const f0: Vec3 = [0, -Math.sin(PITCH), -Math.cos(PITCH)];
   const u0: Vec3 = [0, Math.cos(PITCH), -Math.sin(PITCH)];

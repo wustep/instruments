@@ -354,6 +354,8 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
   if (si.family === 'brass' && si.brass === 'trombone') {
     const tm = st.trombones.get(tromboneSizeIn(si.fr, si.tromboneSize));
     const c = tm ? tm.bounds.c : ([0, 0.3, 0] as Vec3);
+    // (a narrow stage, a phone held upright, frames the slide all the way out, and may turn round towards the
+    // bell's mouth, where its reach runs down the picture rather than across it: TROMBONE_VIEW.swing)
     return { target: [c[0], c[1], c[2]], dist: 1.6, yaw: TROMBONE_VIEW.yaw, pitch: TROMBONE_VIEW.pitch, swing: TROMBONE_VIEW.swing, whole: true };
   }
   if (si.family === 'brass') return { target: [0.0, 0.2, 0.0], dist: 0.6, yaw: 0.4, pitch: 0.28 };

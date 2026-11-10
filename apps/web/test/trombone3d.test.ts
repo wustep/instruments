@@ -264,5 +264,28 @@ describe('the trombone in 3D', () => {
       for (const a of clouds[k - 1]) for (const c of clouds[k]) d = Math.min(d, Math.hypot(a[0] - c[0], a[1] - c[1], a[2] - c[2]));
       expect(d, `trombones ${k - 1} and ${k}`).toBeGreaterThan(0.05);
     }
+    // nor on a phone held upright, where the four sit in two rows (the back row's slides reach forward past the
+    // front row's players), the slides all the way out
+    const tall = ensembleSeats(sizes.map(() => p('brass', { brass: 'trombone' })), 0.85);
+    const tallClouds = tall.map((seat, k) => {
+      const tm = built[sizes[k]].tm;
+      const b = new Batch();
+      b.world = seat.T;
+      play(tm, () => frame(sizes[k], 36, tm.travel), 3, newWindPose(), b, 0.05, tm.held);
+      const pts: [number, number, number][] = [];
+      for (const m of all(tm)) {
+        const inst = b.inst.get(m);
+        if (!inst) continue;
+        const W = new Float32Array(inst.a.subarray(0, 16));
+        for (let i = 0; i < m.count; i += 97) pts.push(xform(W, [m.data[i * 14], m.data[i * 14 + 1], m.data[i * 14 + 2]]));
+      }
+      return pts;
+    });
+    for (let a = 0; a < tallClouds.length; a++)
+      for (let c = a + 1; c < tallClouds.length; c++) {
+        let d = Infinity;
+        for (const x of tallClouds[a]) for (const y of tallClouds[c]) d = Math.min(d, Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]));
+        expect(d, `two rows: trombones ${a} and ${c}`).toBeGreaterThan(0.03);
+      }
   });
 });
