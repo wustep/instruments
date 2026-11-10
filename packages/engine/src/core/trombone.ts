@@ -216,6 +216,8 @@ export interface TromboneVoice {
   riseLo: number;
   riseHi: number;
   riseExp: number;
+  /** how much of the note's pressure the tongue's release gives at once (the rest swells in over attackTau) */
+  onset: number;
   /** the tongue: the lips held this long (s), then let go over this many periods, already swinging (kick,
    *  in units of the rest opening) */
   tongueHold: number;
@@ -257,45 +259,46 @@ export interface TromboneVoice {
 
 /** the fitted voicing (scripts/fit-trombone.ts on the fit half; NOTES.md) */
 export const TROMBONE_VOICE: TromboneVoice = {
-  lipQ: 56.55,
+  lipQ: 38.65,
   lipQTop: 38.48,
   lipBelow: 0.7,
   stiff: 2647720,
   stiffExp: 1.5,
-  h0: 0.0001062,
-  hMax: 0.002124,
-  width: 0.01052,
+  h0: 0.0001369,
+  hMax: 0.001863,
+  width: 0.009733,
   pLo: 600,
   pHi: 4328,
-  gammaCurve: 1.375,
+  gammaCurve: 1.424,
   gammaExp: 0.3409,
-  riseLo: 0.2,
-  riseHi: 0.1,
-  riseExp: 0,
-  tongueHold: 0.02005,
+  riseLo: 0.2283,
+  riseHi: 0.09594,
+  riseExp: -0.1122,
+  onset: 0.5,
+  tongueHold: 0.02143,
   tongueRel: 0.8649,
   kick: 1.181,
-  qAttack: 0.09383,
+  qAttack: 0,
   qTau: 0.0552,
-  cupScale: 1.742,
+  cupScale: 1.783,
   throatScale: 1,
-  wallScale: 1.099,
+  wallScale: 1.075,
   rimFc: 1.041,
-  rimQ: 0.6459,
-  steep: 3.217,
+  rimQ: 0.7066,
+  steep: 3.573,
   noise: 0.3214,
-  noiseTop: 0.2342,
-  hp: 49.44,
+  noiseTop: 0.1906,
+  hp: 40.43,
   f1: 300,
   g1: -6,
-  q1: 1.21,
-  lp: 8700,
-  lpQ: 0.7366,
+  q1: 1.511,
+  lp: 9176,
+  lpQ: 0.7048,
   lpExp: -0.3382,
   lpDyn: 4.066,
   shelfF: 1770,
   shelfG: 13.94,
-  tilt: -0.5449,
+  tilt: -0.2158,
 };
 
 const BUF = 1 << 13;
@@ -305,6 +308,8 @@ const et = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 const MIN_BLOW_PP = 0.25;
 const MIN_BLOW = 0.1;
 const LP_SECTION = 2;
+/** the tongue's release: the breath reaches its onset fraction this fast (s, a time constant) */
+const ONSET_TAU = 0.012;
 /** the slide's top speed (m/s) and its smoothing (s) */
 const SLIDE_SPEED = 4;
 const SLIDE_TAU = 0.012;
@@ -641,9 +646,9 @@ export class TromboneCore implements InstrumentCore {
     this.lpSet = -1;
     this.room.configure(this.params.room, this.params.seat);
     // (in pascals at the bell) matched to the Iowa trombones: the median recorded note's level (tenor pp, mf, ff
-    // within 1.5 dB of it, the bass set's within 1.4; their ff, −26.4 and −28.4 dB, sit 9 dB under the Iowa
+    // within 2.5 dB of it, the bass set's within 1.7; their ff, −26.4 and −28.4 dB, sit 9 dB under the Iowa
     // horn's and trumpet's: the sessions' own gain, kept as the other instruments keep theirs)
-    this.gain = 6.46e-5 * this.params.volume;
+    this.gain = 5.652e-05 * this.params.volume;
   }
 
   /** measured tuning (scripts/tune-trombone.ts): cents the bare model plays sharp, by size and sample rate */
@@ -912,7 +917,10 @@ export class TromboneCore implements InstrumentCore {
     const P = this.params;
     const V = this.V;
     const bt = this.built;
-    const k = 1 - Math.exp(-dt / (this.pTarget > this.pressure ? this.attackTau : 0.04));
+    // the breath: tongued into speech at once (to `onset` of the note's pressure in ONSET_TAU), then swelling to
+    // the rest slowly (attackTau: the recordings' long tones grow over 0.1–0.3 s); a slur, at once
+    const tau = this.pTarget > this.pressure ? (this.pressure < V.onset * this.pTarget ? ONSET_TAU : this.attackTau) : 0.04;
+    const k = 1 - Math.exp(-dt / tau);
     this.pressure += (this.pTarget - this.pressure) * k;
     if (this.pressure < 1e-5 && this.pTarget === 0) this.pressure = 0;
     const age = (this.frame - this.noteStart) / fs;

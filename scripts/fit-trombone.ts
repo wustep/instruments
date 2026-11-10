@@ -35,6 +35,7 @@ export const RANGES: Partial<Record<keyof TromboneVoice, [number, number]>> = {
   riseLo: [0.005, 0.4],
   riseHi: [0.003, 0.25],
   riseExp: [-1, 0.4],
+  onset: [0, 0.9],
   tongueHold: [0.004, 0.05],
   tongueRel: [0.3, 4],
   kick: [0, 3],
