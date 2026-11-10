@@ -291,6 +291,35 @@ show a part's place it is **laid out, not measured**. The model is `apps/web/src
 | Hand rest, finger hook, water key, braces | where the photographs and the drawing have them (3, 4) | laid out, not measured | drawing |
 | Hold (the Orchestra) | the coil standing in front of the player's left chest, the levers up under the left hand, the leadpipe rising to the lips, the bell down by the right thigh, its mouth behind (`horn-player-bradac.jpg`, `horn-section.jpg`) | the caps' side 37° to the audience, the bell's axis down 34°, back and to the player's right; the mouthpiece at 1.18 m | photographs |
 
+## Timpani (four pedal timpani, Dresden pattern, American order)
+
+Built in `apps/web/src/ui/gl/timpani3d.ts`; checked in `apps/web/test/timpani3d.test.ts`.
+
+Sources: Ludwig, *Timpani Parts Catalog* AV1454 (2003); the Adams/Reisser catalogue, pp. 38–39 (the
+American layout diagram); Adams' Philharmonic Classic and Professional Gen II product pages; Kolberg's
+*Symphonic timpano "International"* data sheet; Yamaha's TP-8300R lineup (sizes, weights); Wiener Pauken's
+technical data (proportions only); Vic Firth T1 and Thomann TMM3 mallets. Numbers marked (est.) are mine.
+
+| Measure | Source | Model |
+|---|---|---|
+| Heads / kettles 32″, 29″, 26″, 23″ | Kolberg: bowls 814 / 736 / 660 / 584 mm; the engine's `TIMPANI_DRUMS` | 0.813 / 0.737 / 0.660 / 0.584 m |
+| Playing height | Kolberg 82 cm on gliders (92 on casters); Yamaha TP-8300 85 cm overall; Adams Revolution 84–94 | 0.80 / 0.81 / 0.82 / 0.83 m (the small drums a little higher) |
+| Bowl depth | none published; Wiener Pauken kettle 440–570 mm (est. ≈ 0.55–0.6 × d) | 0.47 / 0.43 / 0.39 / 0.345 m, parabolic |
+| Tension screws | Ludwig AV1454: 6 on the 20″/23″, 8 on the 26″–32″ | 8 / 8 / 8 / 6, T-handles |
+| Casters | Ludwig: 3″; Adams: three, locking | three 76 mm wheels on swivel forks |
+| Counterhoop | Adams: chrome-plated; Kolberg: steel angle profile | a chrome channel, 16 mm wide, 44 mm tall, a flange for the lugs |
+| Suspension ring | Adams Gen II: single-flange chrome suspension ring, free-floating kettle | chrome flange 115 mm under the head, the rods' guides on it |
+| Gauge, fine tuner | Adams: all-metal tuning gauges; T-handle fine tuner on the player side | a gauge on the hoop 32° to the player's left (an arc of semitone ticks, its pointer at the note); a hand wheel 38° to the right |
+| Head | Remo Renaissance "hazy film"; heads ≈ 2″ larger than the drum (Yamaha) | off-white satin film, its collar 30 mm down over the edge on an aluminium flesh hoop |
+| Pedal | none published (est. 30–35 cm × 10–12 cm, 20–30° of travel) | 0.37 m × 0.105 m, +15° (heel down, lowest) … −9° (toe down, highest) |
+| Mallets | Vic Firth T1 36.8 cm, 38.1 mm head; Thomann TMM3 390 mm, 39 mm, maple | 0.36 m birch stick, 11 → 9 mm, a 38 mm felt ball |
+| Layout | Adams/Reisser diagram: 32″ on the player's left, then 29″, 26″, 23″ in an arc round the player | an arc about 2.5 m across, the hoops 0.12–0.2 m apart, the middle gap straight ahead |
+
+Live from the engine (`frame.timpani`): the pedals (`pedal`), the gauges (`note` in `lo … hi`), the heads
+(the first 14 modes `head`, envelope-followed, slowed to 1.6 Hz × j/j₁₁ and exaggerated to ≈ 2 cm on the
+32″ at ff, the dent first at the strike point `spot`), the mallets (`hands`: contact held one frame,
+rebound by velocity, lower in a roll).
+
 ## Reference photos
 
 The photos are in `.cache/refs-3d/`, which is not committed. Full attributions are in `.cache/refs-3d/SOURCES.md`.
@@ -436,3 +465,12 @@ fetched from Wikimedia Commons' API, the original or its 1920 px thumbnail), the
 [Conn-8D]: https://connselmer.com/instruments/horns/conn-connstellation-double-horn-in-f-bb-8d
 [Holton-H179]: https://connselmer.com/print/holton-farkas-double-horn-in-f-bb-h179
 [Hoyer-6801]: https://www.towsa.com/wp-content/uploads/2018/08/tubas-french-horns-hans-hoyer-catalogo.pdf
+
+### Timpani (Wikimedia Commons)
+* Moreau1, *Ludwig Professional timpani 01* — public domain (PD-self): https://commons.wikimedia.org/wiki/File:Ludwig_Professional_timpani_01.jpg
+* Eric Pancer, *Lefima Timpani* (Utah Symphony) — CC BY 2.0: https://commons.wikimedia.org/wiki/File:Lefima_Timpani.jpg
+* Jorge Royan, *Munich – A standard set of timpani* — CC BY-SA 3.0: https://commons.wikimedia.org/wiki/File:Munich_-_A_standard_set_of_timpani_Percussion_-_5647.jpg
+* sheila miguez, *Civic Orchestra of Chicago Timpani* — CC BY-SA 2.0: https://commons.wikimedia.org/wiki/File:Civic_Orchestra_of_Chicago_Timpani.jpg
+* Skoch3, *Timpani, Yamaha pedal timpani* (the mechanism underneath) — CC BY-SA 3.0: https://commons.wikimedia.org/wiki/File:Timpani,_Yamaha_pedal_timpani.jpg
+* ZooFari, *Timpani Mallets* — public domain: https://commons.wikimedia.org/wiki/File:Timpani_Mallets.JPG
+* John Tafoya, *Dresden pedal* and *Timpani tuning gauges* — CC BY-SA 3.0 / GFDL: https://commons.wikimedia.org/wiki/File:Dresden_pedal.jpg, https://commons.wikimedia.org/wiki/File:Timpani_tuning_gauges.jpg
