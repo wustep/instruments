@@ -18,7 +18,7 @@ import { type ExciteTrace, type InstrumentCore, type InstrumentId } from './inst
 import type { KeySummary } from '../api/messages.ts';
 import type { PianoEvent } from './piano-core.ts';
 import { designLossFilter, onePolePhaseDelay, biquadHighpass, biquadLowpass, biquadPeaking, biquadHighShelf } from './filters.ts';
-import { BiquadChain, Limiter, Room } from './post.ts';
+import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { LN1000, clamp, gauss, mulberry32, nextPow2, playerCents, playerSeed } from './util.ts';
 import bowedFit from './bowed-fit.json';
 
@@ -39,6 +39,8 @@ export interface BowedParams {
   bowChanges: boolean;
   /** duration of a bow change (speed reversal), s */
   bowChangeTime: number;
+  /** orchestra mode: where it sits on the stage (post.ts Seat); none, the single instrument's place */
+  seat?: Seat | null;
 }
 
 interface StringDef {
@@ -692,7 +694,7 @@ export class BowedCore implements InstrumentCore {
     this.eq.set([biquadHighpass(this.design.strings[0].open < 40 ? 40 : 70, 0.7, fs), ...this.design.eq.map(([f, g, q]) => biquadPeaking(f, q, g, fs)), ...bridge, biquadHighShelf(7000, -3, fs)]);
     this.dK = rad ? fs / (2 * Math.PI * rad.radRef) : 0;
     this.hfHp.set([biquadHighpass(this.design.hf[1], 0.7, fs)]);
-    this.room.configure(this.params.room);
+    this.room.configure(this.params.room, this.params.seat);
     this.gain = this.design.outputGain * this.params.volume;
   }
 
@@ -1047,6 +1049,7 @@ export class BowedCore implements InstrumentCore {
       this.setBodyDamping(this.params.bodyDamping);
     }
     if (this.params.room !== old.room || this.params.volume !== old.volume) this.updatePost();
+    else if (this.params.seat !== old.seat) this.room.configure(this.params.room, this.params.seat);
     if (this.params.bowPosition !== old.bowPosition || this.params.bowPressure !== old.bowPressure) {
       for (const s of this.strings) if (s.bowing) {
         const ratio = s.vBowTarget;

@@ -258,7 +258,7 @@ export class PianoCore {
     this.eq.set(buildEq(eq, this.calTilt(), this.dry ? 1 : this.params.lid, this.fs));
     // high-frequency board path: gentle high-pass so the modal path owns the lows
     this.hfEq.set([biquadHighpass(this.cal.hfCross, 0.6, this.fs)]);
-    this.room.configure(this.params.room);
+    this.room.configure(this.params.room, this.params.seat);
     // calibration renders (dry) match the reference recording's level; live playback adds
     // make-up gain (the limiter catches loud chords)
     this.outGain = this.cal.outputGain * this.params.volume * (this.dry ? 1 : Math.pow(10, PLAYBACK_GAIN_DB / 20));
@@ -297,6 +297,7 @@ export class PianoCore {
     }
     if (np.soundboardDamping !== old.soundboardDamping) this.board.setDamping(np.soundboardDamping);
     if (np.lid !== old.lid || np.room !== old.room || np.volume !== old.volume) this.updatePost();
+    else if (np.seat !== old.seat) this.room.configure(np.room, np.seat);
   }
 
   setCalibration(cal: Calibration): void {
