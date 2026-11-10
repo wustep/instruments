@@ -1,6 +1,6 @@
 # Orchestra, free-direction polish (Opus): notes
 
-Branch `improve/orchestra-opus`, from `main` at `0522d1e`. Brief:
+Branch `improve/orchestra-opus`, from `main` at `0522d1e`, rebased on `f8b5387` (#15). Brief:
 `.autopilot/briefs/NEXT5-ORCHESTRA-OPUS.md` (with `STANDING-PREFS.md` and `ART-DIRECTION.md`).
 
 ## What I chose, and why
@@ -14,15 +14,15 @@ one point, the middle. The 3D stage seats a quartet across 2.2 m and the Branden
 On `main` every part sits within 3.5 dB of the middle, and in no order. The first violin is no
 further left than the cello (`stage-chart.png`, hollow rings).
 
-On the way I found two bugs:
+On the way I found a bug in the room: its taps could spike. A delay gliding onto a whole sample
+from above read its sample 7,684 times too loud. The engine's limiter then ducked the whole sound under
+each spike, every 0.16 s. Seating set this off every time (a seated trumpet lost 9 dB instead of 5).
+`main`'s solo instruments did not hit it in the room changes I tried, but the same pattern was in four
+reads.
 
-* **The room's taps could spike.** A delay gliding onto a whole sample from above read its sample
-  7,684 times too loud. The engine's limiter then ducked the whole sound under each spike, every
-  0.16 s. Seating set this off every time (a seated trumpet lost 9 dB instead of 5). `main`'s solo
-  instruments did not hit it in the room changes I tried, but the same pattern was in four reads.
-* **The grand's polished lid showed no strings.** The mirror pass's line draws were all refused by
-  WebGL as a feedback loop: 183 console warnings in 3 s on a solo grand, 256 (Chrome's cap) with an
-  ensemble.
+I also found the grand's lid mirror drawing none of its strings: WebGL refused the draws as a
+feedback loop. I fixed it, but #15 landed the same fix first, so this branch keeps #15's and drops
+mine.
 
 I left alone what measured fine or wasn't mine to change. The parts' balance is each instrument's
 level matched to its Iowa recording, and the bus is 1/√n. The pieces, the assignment and routing,
@@ -134,40 +134,24 @@ multiplied by about 7,684.
 * **Measured.** A held 0.5 sine through a seated room peaked at 18–23 before and peaks under 0.8
   after.
 
-## 3. The lid's mirror draws the strings
-
-`ui/gl/three3d.ts`: the mirror pass drew the strings (lines) while sampling its own target's depth
-texture. WebGL refuses every such draw.
-
-* **The fix.** The pass's depth is copied to a float target first (`EXT_color_buffer_float`, which
-  desktop browsers have). The lines test against the copy. Phones draw no mirror, as before.
-* **Without the extension** the strings are left out of the lid: what every browser showed until now,
-  minus the warnings.
-* **Measured.** 0 refused draws, against 183 on `main` in 3 s on a solo grand. The 3D frame cost is
-  one full-screen copy per mirror.
-
-`before-after-lid-{grand,bach,handel}.jpg`: the lid twice its size, `main` above, this branch below.
-The strings' reflection fans across the lid's underside. `before-after-desktop-3d-*.jpg` are the whole
-frames.
-
 ## Files here
 
+* `stage-plan.png`: the hall from above. Before, every part from the stage's middle; after, each from
+  its seat. The microphones are 3.2 m in front.
 * `stage-chart.png`: where each part is heard, before (hollow) and after (filled).
 * `audio/`:
   * `{haydn,bach,handel}-{before,after}.mp3`: the first 45 s. "Before" is `main`.
   * `roll-{quartet,sextet}-{before,after}.mp3`: the roll calls. Best on headphones.
 * `handel-mono-spectrogram.png`: the mono sum's cost, as above.
-* `before-after-lid-*.jpg`, `before-after-desktop-3d-*.jpg` and the single frames
-  `desktop-3d-*-{before,after}.jpg`.
 * `data/*.json`: each part's numbers, from `render-orchestra.ts --json`.
 * Scripts:
   * `scripts/render-orchestra.ts` (`--flat`, `--json`);
   * `scripts/render-seats.ts`;
   * `scripts/stage-chart.mjs`;
-  * `scripts/stage-image.ts`;
-  * `scripts/shots-orchestra-opus.mjs`.
+  * `scripts/stage-plan.mjs`;
+  * `scripts/stage-image.ts`.
 
-  Before was `main` at `0522d1e`, built and served beside this branch.
+  "Before" renders are `main`'s renderer at `0522d1e`, byte for byte.
 
 ## Tests
 
@@ -180,10 +164,8 @@ frames.
   * the taps stay bounded (the sine case above).
 * **`apps/web/test/seats.test.ts`** (4): a quartet's order and symmetry, the piano behind, the sound's
   stage whatever the view, two of a kind apart.
-* **e2e:**
-  * **"orchestra seats"** (desktop and phone) measures the worklet's own output: the first violin's
-    note against the cello's. From the middle it is −3.75 dB, seated +3.89 dB offline, 4.1 dB live.
-  * **The 3D piano test** now fails on any refused GPU draw. It saw 33 on `main`'s build and none here.
+* **e2e "orchestra seats"** (desktop and phone) measures the worklet's own output: the first violin's
+  note against the cello's. From the middle it is −3.75 dB, seated +3.89 dB offline, 4.1 dB live.
 
 ## Left
 
