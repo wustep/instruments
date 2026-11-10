@@ -10,7 +10,7 @@ import { openActionView } from '../ui/action-view.ts';
 import type { Stage3D } from '../ui/gl/stage3d.ts';
 import { webgl2Available } from '../ui/gl/webgl2.ts';
 import { ensembleIcon, glyph, knob, type KnobSpec } from '../ui/controls.ts';
-import { ensemble, stageCap, type PartLive } from '../orchestra/ensemble.ts';
+import { ensemble, type PartLive } from '../orchestra/ensemble.ts';
 import { isKeyboard, planOf, VOICE_INFO, type Voice } from '../orchestra/assign.ts';
 import { enterOrchestra, leaveOrchestra } from '../orchestra/setup.ts';
 import { look } from '../look.ts';
@@ -88,11 +88,8 @@ const PRESET_SHORT: Record<string, string> = { grand: 'grand', upright: 'upright
  *  (PRESETS) and come back by adding them here */
 const VISIBLE_PRESETS = ['grand', 'upright'];
 
-/** the order instruments take in a lineup picked by hand: score order (winds, brass, strings, piano),
- *  which is also their seats from the audience's left */
-const SCORE_ORDER: Voice[] = ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'timpani', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
-/** how many of each one lineup may have (a tap on its button adds one, past this it has none; the
- *  routing grid adds more, up to the stage's cap) */
+/** how many of each one lineup may have (a tap on its button adds one, past this it has none; a
+ *  section's menu adds more desks, as far as the stage has room: assign.ts fitsStage) */
 const MOST: Record<Voice, number> = { flute: 2, oboe: 2, clarinet: 2, bassoon: 2, horn: 4, trumpet: 2, trombone: 3, timpani: 2, violin: 3, viola: 2, cello: 2, bass: 2, grand: 2, upright: 2 };
 const familyOf = (v: Voice) => INSTRUMENT_INFO[VOICE_INFO[v].instrument].family;
 
@@ -114,25 +111,22 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   });
   // ---------------------------------------------------------------- orchestra mode
   // the ensemble: on, the instrument buttons count instruments into the lineup (a tap adds one, past the
-  // most it may have none). (The pieces, a few public-domain scores that bring their own lineup, are in
-  // the player's overlay, with play and open: ui/player.ts.)
+  // most it may have, or with no room for another, it has none), every other seat's routing kept
+  // (orchestra/ensemble.ts addVoice). (The pieces, a few public-domain scores that bring their own
+  // lineup, are in the player's overlay, with play and open: ui/player.ts.)
   const ensBtn = h('button', { class: 'ens-toggle', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Ensemble: several instruments', 'data-tip': 'ensemble · tap instruments to add them' });
   ensBtn.append(ensembleIcon());
   const pianoVoice = (): Voice => (audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand');
   const voiceOfPick = (id: InstrumentId): Voice => (id === 'piano' ? pianoVoice() : (id as Voice));
   const countOf = (id: InstrumentId, lineup: Voice[]) => lineup.filter((v) => (id === 'piano' ? isKeyboard(v) : v === id)).length;
+  /** the seats of a pick's kind (the piano's: both pianos) */
+  const seatsOf = (id: InstrumentId, lineup: Voice[]) => lineup.flatMap((v, k) => ((id === 'piano' ? isKeyboard(v) : v === id) ? [k] : []));
+  /** what a tap on a pick does now: adds one, or takes them all off (past the most, or no room) */
+  const tapAdds = (id: InstrumentId) => countOf(id, ensemble.lineup) < MOST[voiceOfPick(id)] && ensemble.roomFor(voiceOfPick(id));
   const addToLineup = (id: InstrumentId) => {
-    const lineup = ensemble.lineup;
-    const v = voiceOfPick(id);
-    const n = countOf(id, lineup);
-    let next: Voice[];
-    if (n >= MOST[v] || lineup.length >= stageCap()) next = lineup.filter((x) => (id === 'piano' ? !isKeyboard(x) : x !== id));
-    else next = [...lineup, v];
-    if (!next.length) return;
-    next.sort((a, b) => SCORE_ORDER.indexOf(a) - SCORE_ORDER.indexOf(b));
-    // (a full stage, an instrument it does not have: nothing changes, the routing included)
-    if (next.length === lineup.length && next.every((v, i) => v === lineup[i])) return;
-    ensemble.setLineup(next);
+    if (tapAdds(id)) ensemble.addVoice(voiceOfPick(id));
+    // (the last instruments stay: the stage is never empty; a kind it does not have and no room: nothing)
+    else ensemble.removeSeats(seatsOf(id, ensemble.lineup));
   };
   // on: the lineup and routing it last had (else the quartet), a file already loaded shared out over
   // it (orchestra/setup.ts)
@@ -281,9 +275,16 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       at3 = { x: e.clientX, y: e.clientY };
     });
     cv3.addEventListener('pointerup', (e) => {
-      if (!at3 || !s3 || Math.hypot(e.clientX - at3.x, e.clientY - at3.y) > 6 || !closeUpOffered()) return;
+      if (!at3 || !s3 || Math.hypot(e.clientX - at3.x, e.clientY - at3.y) > 6) return;
       at3 = null;
       const r = cv3.getBoundingClientRect();
+      // an ensemble: a tap on an instrument opens its section's menu there (ui/player.ts)
+      if (ensemble.active) {
+        const k = s3.seatAt(e.clientX - r.left, e.clientY - r.top);
+        if (k !== null && k < ensemble.parts.length) player.tapSeat(k, e.clientX, e.clientY);
+        return;
+      }
+      if (!closeUpOffered()) return;
       const m = s3.pick(e.clientX - r.left, e.clientY - r.top);
       if (m !== null) s3.zoomTo(m);
       else if (s3.zoomed !== null) s3.zoomOut();
@@ -294,6 +295,11 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       const x = e.clientX - r.left;
       const y = e.clientY - r.top;
       if (e.buttons) return;
+      if (ensemble.active) {
+        // over an instrument: a tap opens its menu (elsewhere the stage turns)
+        cv3.style.cursor = s3.seatAt(x, y) !== null ? 'pointer' : '';
+        return;
+      }
       if (!closeUpOffered()) {
         // over the bow: it can be taken (elsewhere the stage turns)
         cv3.style.cursor = hand.over(e) ? 'pointer' : '';
@@ -468,8 +474,15 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     hand2d.down(e);
   });
   canvas.addEventListener('pointerup', (e) => {
-    if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6 || !closeUpOffered()) return;
+    if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6) return;
     downAt = null;
+    // an ensemble: a tap on an instrument opens its section's menu there (ui/player.ts)
+    if (ensemble.active) {
+      const k = seat2d(e.clientX, e.clientY);
+      if (k !== null) player.tapSeat(k, e.clientX, e.clientY);
+      return;
+    }
+    if (!closeUpOffered()) return;
     const r = canvas.getBoundingClientRect();
     const topH = top.getBoundingClientRect().height;
     const m = stringAt(pianoState, e.clientX - r.left, e.clientY - r.top - topH);
@@ -477,7 +490,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   });
   canvas.addEventListener('pointermove', (e) => {
     if (!closeUpOffered()) {
-      canvas.style.cursor = '';
+      canvas.style.cursor = ensemble.active && !e.buttons && seat2d(e.clientX, e.clientY) !== null ? 'pointer' : '';
       return;
     }
     const r = canvas.getBoundingClientRect();
@@ -646,6 +659,28 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       return { voice: p.voice, cell: { x, y, w: c.w, h: c.h, sc: c.sc ?? null }, bow: l && b ? { fx: x + l.fx, fy: y + l.fy, tx: x + l.tx, ty: y + l.ty, pos: l.pos, hair: b.geom.bowLength } : null };
     });
   };
+  /** the ensemble's seat drawn under a point on the 2D stage (client px), if any */
+  const seat2d = (cx: number, cy: number): number | null => {
+    if (!ensemble.active || (want3d && s3)) return null;
+    const r = canvas.getBoundingClientRect();
+    const x = cx - r.left;
+    const y = cy - r.top - top.getBoundingClientRect().height;
+    const i = cells.findIndex((c) => x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h);
+    return i >= 0 && i < ensemble.parts.length ? i : null;
+  };
+  // tests and review shots: where seat k's instrument is on the screen (client px), in 2D or 3D
+  (window as unknown as { __seatAt?: (k: number) => [number, number] | null }).__seatAt = (k) => {
+    if (!ensemble.active) return null;
+    if (want3d && s3) {
+      const q = s3.seatScreen(k);
+      const r = s3.el.getBoundingClientRect();
+      return q ? [r.left + q[0], r.top + q[1]] : null;
+    }
+    const c = cells[k];
+    if (!c) return null;
+    const r = canvas.getBoundingClientRect();
+    return [r.left + c.x + c.w / 2, r.top + top.getBoundingClientRect().height + c.y + c.h / 2];
+  };
   /** the part that began a note last (the readout, the spectrum's partials and the scope follow it) */
   const leadPart = (): PartLive | null => {
     let best: PartLive | null = null;
@@ -683,7 +718,10 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       const n = on ? countOf(id, lineup) : 0;
       b.setAttribute('aria-pressed', String(on ? n > 0 : inst === id));
       (b.querySelector('.pick-n') as HTMLElement).textContent = n > 1 ? `×${n}` : '';
-      b.dataset.tip = on ? (n ? `${INSTRUMENT_INFO[id].label.toLowerCase()} ×${n} · tap for another` : `add a ${INSTRUMENT_INFO[id].label.toLowerCase()}`) : '';
+      const name = INSTRUMENT_INFO[id].label.toLowerCase();
+      // (what a tap will do: another, or (past the most, or no room) none; a kind there is no room for)
+      const adds = on && tapAdds(id);
+      b.dataset.tip = on ? (n ? `${name} ×${n} · ${adds ? 'tap for another' : n > 1 ? 'tap to take them off' : 'tap to take it off'}` : adds ? `add a ${name}` : `${name} · the stage is full`) : '';
       if (!on) delete b.dataset.tip;
     });
     presets.hidden = on ? !lineup.some(isKeyboard) : inst !== 'piano';

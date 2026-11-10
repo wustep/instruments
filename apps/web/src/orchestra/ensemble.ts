@@ -12,12 +12,13 @@ import { createInstrument, pianoKeySummary, processorUrl, type KeySummary, type 
 import { audio, fetchDesigns, restLevel, sendLevel, type Route } from '../audio.ts';
 import { modLines, PartLevels, volumeRef } from '../expression.ts';
 import type { FileEvent, MidiLine, MidiSong } from '../midi-file.ts';
-import { addPart, autoPlan, deskOf, fitLineup, isKeyboard, lineupOf, lineupPlan, placeNote, playersOf, playsNote, reassign, removePart, setPartLines, setPartVoice, setRoute, tromboneSizeOf, VOICE_INFO, type Plan, type TromboneSize, type Voice } from './assign.ts';
-import { carryKeys, defaultKeys, keyParts, keysFor, keyTargets, setSplit, toggleKey, type KeysChoice, type KeyTarget } from './keys.ts';
+import { addPart, autoPlan, deskOf, fitLineup, fitsStage, isKeyboard, lineupOf, lineupPlan, mayBecome, placeNote, playersOf, playsNote, reassign, removePart, setPartLines, setPartVoice, setRoute, tromboneSizeOf, voiceFromName, voiceFromProgram, VOICE_INFO, VOICES, type Plan, type TromboneSize, type Voice } from './assign.ts';
+import { carryKeys, defaultKeys, keyParts, keysFor, keyTargets, setSplit, toggleKey, toggleKeys, type KeysChoice, type KeyTarget } from './keys.ts';
 import { busGain } from './mix.ts';
 import { piecePlan, type Piece } from './pieces.ts';
 import { planByRules, remapRules, rulesOf, type LineRule, type Setup } from './rules.ts';
 import { soundSeats } from './seats.ts';
+import { addDesk, addSeat, removeSeats, rulesThrough, sectionsOf, seatRules, setSeatsLines, setSeatsRoute, setSeatsVoice, type Reseat, type Section } from './sections.ts';
 
 /** the most instruments a file is shared out over by itself, and a piece's (each a few per cent of the
  *  audio thread: artifacts/realistic-3d/final-orchestra/NOTES.md) */
@@ -126,6 +127,9 @@ class Ensemble implements Route {
    *  takes up, and one they leave lets go of */
   private hand = { sustain: 0, soft: 0, sostenuto: 0, bend: 0, cc: new Map<number, number>() };
   private gen = 0;
+  /** the lines (with no file, an address's rules) that fell silent when the instruments that played them
+   *  left the stage, and those instruments: one of them added again takes them back (addVoice) */
+  private silenced = new Map<number, Voice[]>();
   /** the file's volume reference and the lines whose mod wheel moves (expression.ts) */
   private ref = 1;
   private wheels = new Set<number>();
@@ -151,6 +155,7 @@ class Ensemble implements Route {
     this.ref = song ? volumeRef(song) : 1;
     this.wheels = song ? modLines(song) : new Set();
     this.piece = piece;
+    this.silenced.clear();
     this.active = true;
     audio.route = this;
     this.watchSolo();
@@ -172,6 +177,7 @@ class Ensemble implements Route {
     this.piece = null;
     this.byUser = false;
     this.rules = null;
+    this.silenced.clear();
     // the single instrument back in the graph
     const ctx = audio.ctx;
     if (ctx && audio.piano) {
@@ -258,12 +264,68 @@ class Ensemble implements Route {
   partVoice(k: number, voice: Voice): boolean {
     return this.replan(setPartVoice(this.plan, this.lines, k, voice));
   }
-  /** is there room for one more instrument? */
+  /** is there room for one more instrument (of any kind)? The stage's room is its audio thread's
+   *  (assign.ts fitsStage): eight instruments of any kind, more as far as they cost no more */
   get roomForMore(): boolean {
-    return this.plan.parts.length < stageCap();
+    return VOICES.some((v) => this.roomFor(v));
+  }
+  /** is there room for another of this instrument? */
+  roomFor(v: Voice, n = 1): boolean {
+    return fitsStage([...this.lineup, ...Array<Voice>(n).fill(v)], stageCap());
+  }
+  /** may these seats become this instrument (as many pianos as the stage carries)? */
+  roomAs(seats: number[], v: Voice): boolean {
+    const next = this.lineup.map((x, k) => (seats.includes(k) ? v : x));
+    return mayBecome(this.lineup, next, stageCap());
   }
 
-  private replan(next: Plan | null): boolean {
+  // ------------------------------------------------------------- sections (orchestra/sections.ts)
+  /** the stage's sections: neighbouring seats of one instrument playing the same lines (with no file,
+   *  the same lines of the address) */
+  get sections(): Section[] {
+    return sectionsOf(this.lineup, this.song ? this.plan.parts.map((p) => p.lines) : seatRules(this.plan.parts.length, this.rules));
+  }
+  /** another desk for the section of these seats (like its last, playing its lines) */
+  addDesk(seats: number[]): boolean {
+    return this.reseat(addDesk(this.plan, this.lines, seats, stageCap()));
+  }
+  /** seats off the stage (a desk, a section, every one of a kind; never the last) */
+  removeSeats(seats: number[]): boolean {
+    return this.reseat(removeSeats(this.plan, this.lines, seats));
+  }
+  /** a section's seats changed to another instrument, each keeping its lines */
+  seatsVoice(seats: number[], v: Voice): boolean {
+    return this.reseat(setSeatsVoice(this.plan, this.lines, seats, v, stageCap()));
+  }
+  /** a section's seats play line `li` too, or no longer */
+  seatsRoute(seats: number[], li: number, on: boolean): boolean {
+    return this.replan(setSeatsRoute(this.plan, this.lines, seats, li, on));
+  }
+  /** a section's seats play exactly these lines */
+  seatsLines(seats: number[], lis: number[]): boolean {
+    return this.replan(setSeatsLines(this.plan, this.lines, seats, lis));
+  }
+  /**
+   * One more of an instrument, as the picker adds it, every other seat's routing kept: it takes back the
+   * lines that fell silent when its kind left the stage (else silent lines named for it); with none, a
+   * second of a kind already there is another desk of its last section; else it waits for a line. False
+   * when the stage has no room.
+   */
+  addVoice(v: Voice): boolean {
+    if (!this.roomFor(v)) return false;
+    const keys: { name: string; instrument: string; program: number }[] = this.song ? this.song.lines : (this.rules ?? []).map((r) => ({ name: r.name, instrument: '', program: r.program }));
+    const routed = this.song ? this.plan.lines.map((rs) => rs.length > 0) : (this.rules ?? []).map((r) => r.seats.length > 0);
+    const kin = (x: Voice | null) => !!x && (x === v || (isKeyboard(x) && isKeyboard(v)));
+    const back = keys.map((_, i) => i).filter((i) => !routed[i] && (this.silenced.has(i) ? this.silenced.get(i)!.some(kin) : kin(voiceFromName(keys[i].name) ?? voiceFromName(keys[i].instrument) ?? voiceFromProgram(keys[i].program))));
+    if (!back.length) {
+      const last = this.sections.filter((s) => s.voice === v).pop();
+      if (last) return this.addDesk(last.seats);
+    }
+    for (const i of back) this.silenced.delete(i);
+    return this.reseat(addSeat(this.plan, this.lines, v, this.song ? back : [], stageCap()), this.song ? [] : back);
+  }
+
+  private replan(next: Plan | null, rules?: LineRule[]): boolean {
     if (!next) return false;
     if (next === this.plan) return true;
     // (sync keeps the engines that stay; one whose lines change lets go of what it holds, else a note
@@ -273,12 +335,34 @@ class Ensemble implements Route {
     this.piece = null;
     // the routing by hand: the file's lines as they now go (with no file, a seat changed in place
     // keeps its lines)
-    if (this.song) this.rules = rulesOf(next, this.lines);
+    if (this.song) {
+      this.remember(prev.lines.map((rs) => rs.map((r) => prev.parts[r.part]?.voice).filter((v): v is Voice => !!v)), next.lines.map((rs) => rs.length > 0));
+      this.rules = rulesOf(next, this.lines);
+    } else if (rules) this.rules = rules;
     else if (this.rules && next.parts.length !== prev.parts.length) this.rules = remapRules(this.rules, lineupOf(prev), lineupOf(next));
     this.releaseLive();
     this.sync(prev);
     this.changed.emit();
     return true;
+  }
+  /** a change of seats (orchestra/sections.ts): with no file, an address's rules follow each seat to where
+   *  it now sits (a desk added plays its section's lines; a new instrument `extra`, rule indices) */
+  private reseat(r: Reseat | null, extra: number[] = []): boolean {
+    if (!r) return false;
+    if (this.song || !this.rules) return this.replan(r.plan);
+    const prev = this.lineup;
+    const rules = rulesThrough(this.rules, r.from, extra);
+    this.remember(
+      this.rules.map((q) => q.seats.map((k) => prev[k]).filter((v): v is Voice => !!v)),
+      rules.map((q) => q.seats.length > 0),
+    );
+    return this.replan(r.plan, rules);
+  }
+  /** lines (or rules) that played on `was` and now play nowhere: remembered, to come back with their kind */
+  private remember(was: Voice[][], now: boolean[]): void {
+    was.forEach((vs, i) => {
+      if (vs.length && !now[i]) this.silenced.set(i, [...new Set(vs)]);
+    });
   }
 
   // ------------------------------------------------------------- engines
@@ -574,6 +658,10 @@ class Ensemble implements Route {
   /** an instrument in or out of what the keys play (the last one stays) */
   toggleKey(k: number): void {
     this.setKeys(toggleKey(this.keys, k, this.parts.length));
+  }
+  /** a section's desks in or out of what the keys play, together */
+  toggleKeys(ks: number[]): void {
+    this.setKeys(toggleKeys(this.keys, ks, this.parts.length));
   }
   /** the keys dealt out by register over the ensemble (on), or back to the chosen instruments */
   splitKeys(on: boolean): void {

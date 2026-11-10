@@ -44,6 +44,18 @@ export function toggleKey(c: KeysChoice, k: number, n: number): KeysChoice {
   return { parts, split: false, byUser: true };
 }
 
+/** a section's desks in or out of the keys' choice together (orchestra/sections.ts): all in, they go
+ *  (unless that leaves nothing); some or none in, all come in; from split, the section alone */
+export function toggleKeys(c: KeysChoice, ks: number[], n: number): KeysChoice {
+  const seats = [...new Set(ks.filter((k) => k >= 0 && k < n))];
+  if (!seats.length) return c;
+  if (c.split) return { parts: seats.sort((a, b) => a - b), split: false, byUser: true };
+  const all = seats.every((k) => c.parts.includes(k));
+  const parts = all ? c.parts.filter((k) => !seats.includes(k)) : [...new Set([...c.parts, ...seats])].sort((a, b) => a - b);
+  if (!parts.length) return c;
+  return { parts, split: false, byUser: true };
+}
+
 /** split on (the chosen instruments are kept for when it goes off) or off */
 export const setSplit = (c: KeysChoice, on: boolean): KeysChoice => (c.split === on ? c : { ...c, split: on, byUser: true });
 

@@ -2,7 +2,7 @@
 // profiles are those of real files (Mutopia's Haydn Op. 76 No. 3, Mozart K. 525, Pachelbel's canon,
 // Brandenburg No. 2; LilyPond writes the viola as GM 42, the cello's program, so names come first).
 import { describe, expect, it } from 'vitest';
-import { addPart, autoPlan, fitShift, guessVoice, lineupOf, lineupPlan, placeNote, playersOf, reassign, removePart, setPartLines, setPartVoice, setRoute, voiceFromName, voiceFromProgram, voicesOfLine, type LineInfo, type Plan } from '../src/orchestra/assign.ts';
+import { addPart, autoPlan, fitShift, guessVoice, isKeyboard, lineupOf, lineupPlan, placeNote, playersOf, reassign, removePart, setPartLines, setPartVoice, setRoute, voiceFromName, voiceFromProgram, voicesOfLine, type LineInfo, type Plan } from '../src/orchestra/assign.ts';
 import { PIECES, piecePlan } from '../src/orchestra/pieces.ts';
 
 const L = (name: string, instrument: string, program: number, lo: number, hi: number, median: number, notes = 500, poly = 1): LineInfo => ({ name, instrument, program, lo, hi, median, notes, poly });
@@ -110,12 +110,15 @@ describe('orchestra: assigning lines to instruments', () => {
     // a shared piano's line taken out to a flute gets a flute of its own (room on the stage)
     const d = reassign(b, haydn, 0, 'flute', 6)!;
     expect(lineupOf(d)).toEqual(['flute', 'grand', 'viola', 'cello']);
-    // no room: refused for a single-note instrument
+    // the stage's room is its audio thread's (fitsStage): a light trumpet fits past four seats, a
+    // second piano does not (four seats at most cost two pianos and two double basses, 39.8 %)
     const full = autoPlan(brandenburg, { cap: 4 });
     const pianoLine = full.lines.findIndex((rs) => full.parts[rs[0].part].voice === 'grand');
-    expect(reassign(full, brandenburg, pianoLine, 'trumpet', 4)).toBeNull();
-    // (a bowed voice joins a like instrument when the stage is full: there is none here either)
-    expect(reassign(full, brandenburg, pianoLine, 'viola', 4)).toBeNull();
+    expect(lineupOf(reassign(full, brandenburg, pianoLine, 'trumpet', 4)!)).toHaveLength(5);
+    const two = { ...full, parts: full.parts.map((p) => (isKeyboard(p.voice) ? p : { ...p, voice: 'bass' as const })) };
+    expect(reassign(two, brandenburg, pianoLine, 'upright', 4)).toBeNull();
+    // (a bowed voice joins a like instrument when there is no room: here a double bass)
+    expect(lineupOf(reassign(two, brandenburg, pianoLine, 'bass', 1)!)).toEqual(lineupOf(two));
   });
 
   it('auto-assignment never doubles a line: one instrument each (or none), as before', () => {
@@ -192,14 +195,22 @@ describe('orchestra: routing by hand, many to many', () => {
     expect(playersOf(four)).toEqual([0, 1, 2, 0]);
   });
 
-  it('the stage has a cap: another instrument is refused when it is full', () => {
+  it('the stage has room for what its audio thread carries: eight of anything, more as far as they cost no more', () => {
+    // eight violins and violas, then more: light instruments are seated past eight (the symphony's eighteen)
     let p: Plan | null = quartet();
     for (let k = 0; k < 4; k++) p = addPart(p!, haydn, 'violin', [0], 8);
     expect(p!.parts.length).toBe(8);
-    expect(addPart(p!, haydn, 'cello', [3], 8)).toBeNull();
-    // (a phone's smaller stage)
-    expect(addPart(addPart(quartet(), haydn, 'cello', [], 6)!, haydn, 'viola', [], 6)).not.toBeNull();
-    expect(addPart(addPart(addPart(quartet(), haydn, 'cello', [], 6)!, haydn, 'viola', [], 6)!, haydn, 'flute', [], 6)).toBeNull();
+    expect(addPart(p!, haydn, 'cello', [3], 8)).not.toBeNull();
+    // two pianos and six others (51.4 %) is the most: a third piano is refused, a flute is not
+    let q: Plan | null = addPart(addPart(quartet(), haydn, 'grand', [], 8)!, haydn, 'grand', [], 8);
+    for (let k = 0; k < 2; k++) q = addPart(q!, haydn, 'bass', [], 8);
+    expect(q!.parts.length).toBe(8);
+    expect(addPart(q!, haydn, 'grand', [], 8)).toBeNull();
+    expect(addPart(q!, haydn, 'flute', [], 8)).not.toBeNull();
+    // (a phone's smaller stage: two pianos and four others, 45.6 %)
+    const phone = addPart(addPart(addPart(quartet(), haydn, 'grand', [], 6)!, haydn, 'grand', [], 6)!, haydn, 'cello', [], 6)!;
+    expect(addPart(phone, haydn, 'bass', [], 6)).toBeNull();
+    expect(addPart(phone, haydn, 'flute', [], 6)).not.toBeNull();
   });
 
   it('an instrument changed in its seat, or taken off: its lines follow, or fall silent', () => {

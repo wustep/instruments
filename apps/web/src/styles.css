@@ -1548,6 +1548,52 @@ figure[title] {
   border-left: 1px solid var(--rule-2);
   border-radius: 0 4px 4px 0;
 }
+/* a section's menu, in rows: its instruments; from the stage, the file's lines (numbered as the grid's
+   columns, lit where the section plays); another desk, one fewer, off */
+.pl-sep {
+  flex-basis: 100%;
+  height: 0;
+  margin: 2px 0;
+  border-top: 1px solid var(--rule);
+}
+/* (a section's menu is as wide as the fourteen instruments, seven a row on a phone; the line numbers
+   on the glyphs' pitch) */
+.pl-menu.pl-seat {
+  width: 442px;
+  justify-content: flex-start;
+}
+@media (max-width: 480px) {
+  .pl-menu.pl-seat {
+  width: 224px;
+  }
+}
+.pl-ln {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  font: 400 10px/1 var(--mono);
+  color: var(--muted);
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(138, 129, 114, 0.45);
+}
+.pl-ln:hover {
+  color: var(--ink);
+}
+.pl-ln[aria-checked='true'] {
+  color: var(--paper);
+  background: var(--amber);
+  box-shadow: none;
+}
+.pl-ln:focus-visible {
+  outline: 1px solid rgba(242, 166, 70, 0.8);
+  outline-offset: 1px;
+}
 .pl-route[hidden] {
   display: none;
 }
@@ -1577,7 +1623,7 @@ figure[title] {
   position: absolute;
   z-index: 6;
   display: grid;
-  grid-template-columns: 30px repeat(var(--n), minmax(18px, 26px)) 30px;
+  grid-template-columns: 34px repeat(var(--n), minmax(18px, 26px)) 30px;
   grid-auto-rows: 26px;
   grid-template-rows: 18px;
   align-items: center;
@@ -1637,6 +1683,40 @@ figure[title] {
 .pg-row:disabled {
   opacity: 0.3;
   cursor: default;
+}
+/* the families (woodwinds, brass, percussion, strings, keyboards) a little apart: a hairline between */
+.pg-gap {
+  grid-column: 1 / -1;
+  align-self: center;
+  width: 100%;
+  height: 1px;
+  background: var(--rule);
+}
+/* the corner: by section, or desk by desk */
+.pg-mode {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.pg-mode svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+.pg-mode:hover,
+.pg-mode[aria-pressed='true'] {
+  color: var(--amber);
+}
+.pg-mode:focus-visible {
+  outline: 1px solid rgba(242, 166, 70, 0.8);
+  outline-offset: -1px;
 }
 /* a cell: a ring, filled when this instrument plays this line */
 .pg-cell::before {
@@ -2279,6 +2359,14 @@ figure[title] {
 .kf-part[aria-pressed='true'] .glyph {
   stroke: var(--amber);
   filter: drop-shadow(0 0 4px rgba(242, 166, 70, 0.45));
+}
+/* a section some of whose desks the keys play (by default the first flute of two) */
+.kf-part[aria-pressed='mixed'] {
+  color: var(--ink-2);
+  background: rgba(236, 226, 206, 0.05);
+}
+.kf-part[aria-pressed='mixed'] .glyph {
+  stroke: rgba(242, 166, 70, 0.6);
 }
 .kf-split {
   margin-left: 6px;

@@ -74,20 +74,31 @@ export const heaviestCost = (n: number): number => {
   const other = Math.max(...VOICES.filter((v) => !isKeyboard(v)).map((v) => VOICE_COST[v]));
   return Math.min(2, n) * kb + Math.max(0, n - 2) * other;
 };
+/** the most seats an Orchestra has (an address is read for no more: address.ts) */
+export const MAX_SEATS = 24;
 /**
- * The seats of a lineup the stage takes, in order: any lineup of up to `cap` instruments (the most picked
- * by hand: ensemble.ts stageCap), and a longer one (a piece's, an address's) as far as it costs no more than
- * the heaviest of `cap` (heaviestCost): an orchestra of winds and strings seats twenty where two pianos
- * and six double basses were the most.
+ * The seats of a lineup the stage takes, in order: any lineup of up to `cap` instruments (ensemble.ts
+ * stageCap), and a longer one as far as it costs no more than the heaviest of `cap` (heaviestCost): an
+ * orchestra of winds and strings seats twenty where two pianos and six double basses were the most. The
+ * same for a piece, an address and a lineup made by hand, so what is made by hand reopens from its address.
  */
 export function fitLineup(lineup: Voice[], cap: number): Voice[] {
   if (lineup.length <= cap) return lineup;
   const budget = heaviestCost(cap);
   let sum = 0;
   let n = 0;
-  while (n < lineup.length && sum + VOICE_COST[lineup[n]] <= budget + 1e-9) sum += VOICE_COST[lineup[n++]];
+  while (n < lineup.length && n < MAX_SEATS && sum + VOICE_COST[lineup[n]] <= budget + 1e-9) sum += VOICE_COST[lineup[n++]];
   return lineup.slice(0, Math.max(cap, n));
 }
+/** does the stage take the whole of this lineup (fitLineup keeps every seat)? */
+export const fitsStage = (lineup: Voice[], cap: number): boolean => lineup.length <= MAX_SEATS && fitLineup(lineup, cap).length === lineup.length;
+/** may a lineup become another by hand? Always when it seats no more and costs no more (taking an
+ *  instrument off, a flute for an oboe); else only when the stage takes the new one (fitsStage) */
+export const mayBecome = (from: Voice[], to: Voice[], cap: number): boolean => (to.length <= from.length && lineupCost(to) <= lineupCost(from) + 1e-9) || fitsStage(to, cap);
+
+/** the score's order (woodwinds, brass, timpani, strings, then the keyboards): a new instrument's place in
+ *  a lineup, and the order of a lineup picked by hand (the seats from the audience's left) */
+export const SCORE_ORDER: Voice[] = ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'timpani', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
 
 /** what assignment needs to know of a line (midi-file.ts MidiLine) */
 export interface LineInfo {
@@ -592,7 +603,7 @@ export function reassign(plan: Plan, lines: LineInfo[], li: number, voice: Voice
       parts[alone].voice = voice;
       parts[alone].lines.push(li);
     } else if (same >= 0) parts[same].lines.push(li);
-    else if (parts.filter((p) => p.lines.length).length < cap) parts.push({ voice, lines: [li] });
+    else if (fitsStage([...parts.filter((p) => p.lines.length).map((p) => p.voice), voice], cap)) parts.push({ voice, lines: [li] });
     else {
       // full: join an instrument of that voice that holds more than one note
       const like = parts.findIndex((p) => p.voice === voice && VOICE_INFO[voice].poly > 2);
@@ -604,6 +615,8 @@ export function reassign(plan: Plan, lines: LineInfo[], li: number, voice: Voice
   for (const p of kept) p.lines.sort((a, b) => a - b);
   // keep the stage in the file's order (by each instrument's first line)
   kept.sort((a, b) => a.lines[0] - b.lines[0]);
+  // (an instrument changed in its seat may cost the stage more: a flute's line moved to a piano)
+  if (!mayBecome(lineupOf(plan), kept.map((p) => p.voice), cap)) return null;
   return planOf(kept, lines, shiftsOf(plan));
 }
 
@@ -632,21 +645,22 @@ export function setPartLines(plan: Plan, lines: LineInfo[], k: number, lis: numb
 }
 
 /** where a new instrument of `voice` sits: after the last of its own voice (two cellos side by side),
- *  else before the first that sits lower (the stage runs high to low, the pianos last) */
-function seatFor(parts: Part[], voice: Voice): number {
-  for (let k = parts.length - 1; k >= 0; k--) if (parts[k].voice === voice) return k + 1;
-  if (isKeyboard(voice)) return parts.length;
-  const c = VOICE_INFO[voice].centre;
-  const k = parts.findIndex((p) => isKeyboard(p.voice) || VOICE_INFO[p.voice].centre < c);
-  return k < 0 ? parts.length : k;
+ *  else at its place in the score's order (SCORE_ORDER: before the first that comes after it there; the
+ *  pianos last) */
+export function seatFor(voices: Voice[], voice: Voice): number {
+  const k0 = voices.lastIndexOf(voice);
+  if (k0 >= 0) return k0 + 1;
+  const r = SCORE_ORDER.indexOf(voice);
+  const k = voices.findIndex((v) => SCORE_ORDER.indexOf(v) > r);
+  return k < 0 ? voices.length : k;
 }
 
 /** a new instrument on the stage (another of a voice already there is its own engine and seat),
- *  playing `lis` (a line, the whole file, or none yet); null when the stage is full */
+ *  playing `lis` (a line, the whole file, or none yet); null when the stage has no room for it (fitsStage) */
 export function addPart(plan: Plan, lines: LineInfo[], voice: Voice, lis: number[], cap: number): Plan | null {
-  if (plan.parts.length >= cap) return null;
+  if (!fitsStage([...lineupOf(plan), voice], cap)) return null;
   const parts = partsCopy(plan);
-  parts.splice(seatFor(parts, voice), 0, { voice, lines: [...lis] });
+  parts.splice(seatFor(lineupOf(plan), voice), 0, { voice, lines: [...lis] });
   return planOf(parts, lines, shiftsOf(plan));
 }
 

@@ -115,6 +115,9 @@ export interface Scene3State {
   /** an ensemble's instruments, by seat: each its own pose (the meshes are shared with the single
    *  instrument's model: two violins are one violin's meshes drawn twice) */
   ens: EnsSeat[];
+  /** an ensemble's seats as placed this frame (world: the footprint's centre and radius, the instrument's
+   *  height), for a tap on one (stage3d.ts seatAt) */
+  seats: { c: Vec3; r: number; top: number }[];
   /** the room's light: the output's level, eased (0 … 1) */
   poolLevel: number;
 }
@@ -148,6 +151,7 @@ export const newScene3State = (): Scene3State => ({
   picks: [],
   bowLine: null,
   ens: [],
+  seats: [],
   poolLevel: 0,
 });
 
@@ -222,6 +226,7 @@ function floor(b: Batch, st: Scene3State, _key: string, c: Vec3, r: number, si: 
 export function buildScene(b: Batch, si: SceneIn, st: Scene3State): void {
   st.bowLine = null;
   st.picks = [];
+  st.seats = [];
   if (si.ensemble?.length) return buildEnsemble(b, si, si.ensemble, st);
   if (si.family === 'piano') {
     const pm = pianoModel(si, st);
@@ -455,6 +460,7 @@ function ensSeat(st: Scene3State, i: number, key: string): EnsSeat {
 
 function buildEnsemble(b: Batch, si: SceneIn, parts: EnsPartIn[], st: Scene3State): void {
   const seats = ensembleSeats(parts, si.aspect);
+  st.seats = seats.map((s) => ({ c: s.c, r: s.r, top: s.top }));
   st.ens.length = Math.min(st.ens.length, parts.length);
   const lo: Vec3 = [Infinity, 0, Infinity];
   const hi: Vec3 = [-Infinity, 1.5, -Infinity];
