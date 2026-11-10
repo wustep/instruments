@@ -596,9 +596,11 @@ export class Renderer3 {
     // −2fn/(f−n): how clip z moves with view depth (the lines' depth bias is in metres)
     const pz = this.cam.projectionMatrix.elements[14];
     const dt = this.rt.depthTexture!;
-    this.wireL.set(b.wireL, vpArr, w, h, py, pz, dt);
-    this.inkL.set(b.inkL, vpArr, w, h, py, pz, dt);
-    this.glowL.set(b.glow, vpArr, w, h, py, pz, dt);
+    // (a mirror's pass has sent them already)
+    const fresh = mirrored === 0;
+    this.wireL.set(b.wireL, vpArr, w, h, py, pz, dt, fresh);
+    this.inkL.set(b.inkL, vpArr, w, h, py, pz, dt, fresh);
+    this.glowL.set(b.glow, vpArr, w, h, py, pz, dt, fresh);
     r.render(this.lineScene, this.cam);
   }
 
@@ -617,7 +619,7 @@ export class Renderer3 {
       if (!posed[i]) continue;
       // (the first pass draws the shadow map; the others reuse it)
       if (drawn) this.r.shadowMap.autoUpdate = false;
-      this.drawMirror(i, b, w, h);
+      this.drawMirror(i, b, w, h, drawn === 0);
       drawn++;
     }
     this.r.shadowMap.autoUpdate = true;
@@ -690,8 +692,9 @@ export class Renderer3 {
     return true;
   }
 
-  /** render the i-th mirror (posed) into its target */
-  private drawMirror(i: number, b: Batch, w: number, h: number): void {
+  /** render the i-th mirror (posed) into its target; `first`: the frame's first pass (it sends the
+   *  lines' buffers, the later ones draw them again) */
+  private drawMirror(i: number, b: Batch, w: number, h: number, first: boolean): void {
     const mi = b.mirrors[i];
     const slot = this.mirrorSlots[i];
     const mesh = slot.mesh!;
@@ -742,9 +745,9 @@ export class Renderer3 {
       const pz = vc.projectionMatrix.elements[14];
       // (by the target's own depth test, not its depth texture: sampling the depth this pass is
       // bound to is a feedback loop, and the browser drops the draw)
-      this.wireL.set(b.wireL, a, mw, mh, py, pz, null);
-      this.inkL.set(b.inkL, a, mw, mh, py, pz, null);
-      this.glowL.set(b.glow, a, mw, mh, py, pz, null);
+      this.wireL.set(b.wireL, a, mw, mh, py, pz, null, first);
+      this.inkL.set(b.inkL, a, mw, mh, py, pz, null, first);
+      this.glowL.set(b.glow, a, mw, mh, py, pz, null, first);
       r.render(this.lineScene, vc);
     }
     if (body) body.visible = true;
@@ -900,16 +903,20 @@ class LineLayer {
     this.geo.setIndex(this.idx);
   }
   /** `depth`: the scene's depth texture to test against, or null inside a pass that has its depth
-   *  attached (then the buffer's own test) */
-  set(ls: LineSet, vp: Mat4, w: number, h: number, projY: number, projZ: number, depth: THREE.DepthTexture | null): void {
+   *  attached (then the buffer's own test). `fresh`: the lines are new this frame (a frame's later
+   *  passes draw the same ones from another camera: nothing to send again) */
+  set(ls: LineSet, vp: Mat4, w: number, h: number, projY: number, projZ: number, depth: THREE.DepthTexture | null, fresh = true): void {
     this.mesh.material = depth ? this.mat : this.matZ;
     if (depth) this.mat.uniforms.tDepth.value = depth;
     this.mat.uniforms.uProjY.value = projY;
     this.mat.uniforms.uProjZ.value = projZ;
+    (this.mat.uniforms.uVP.value as THREE.Matrix4).fromArray(vp);
+    this.mat.uniforms.uHalf.value.set(w / 2, h / 2);
+    this.mat.uniforms.uRes.value.set(w, h);
     const nf = ls.lv.n;
     const ni = ls.li.n;
     this.mesh.visible = ni > 0;
-    if (!ni) return;
+    if (!ni || !fresh) return;
     if (nf > this.ib.array.length || ni > this.idx.array.length) {
       this.geo.dispose();
       this.geo = new THREE.BufferGeometry();
@@ -929,9 +936,6 @@ class LineLayer {
     this.idx.addUpdateRange(0, ni);
     this.idx.needsUpdate = true;
     this.geo.setDrawRange(0, ni);
-    (this.mat.uniforms.uVP.value as THREE.Matrix4).fromArray(vp);
-    this.mat.uniforms.uHalf.value.set(w / 2, h / 2);
-    this.mat.uniforms.uRes.value.set(w, h);
   }
   dispose(): void {
     this.geo.dispose();

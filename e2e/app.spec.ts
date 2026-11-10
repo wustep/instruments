@@ -1659,6 +1659,8 @@ test('orchestra routing, many to many: a tune on two instruments, the whole file
     await page.locator('.dim-toggle').click();
     await expect(page.locator('.stage-3d')).toBeVisible();
     await expect.poll(() => page.evaluate(() => (window as any).__stage3d.stats.mirrors), { timeout: 8000 }).toBe(2);
+    // (each mirror is a pass of its own, strings and all: neither draws into a texture it samples)
+    expect(await glErrors(page, 10), 'two grands: WebGL errors').toBe(0);
     await page.locator('.dim-toggle').click();
     await page.locator('.pl-route').click();
     // a grand taken off from its row

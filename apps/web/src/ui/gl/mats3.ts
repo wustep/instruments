@@ -24,7 +24,9 @@ import { MAT_LIST, type Mat, type PaintSpec } from './mesh.ts';
 type Phys = THREE.MeshPhysicalMaterialParameters & {
   /** solid texture: 0 none, 1 spruce, 2 flamed maple, 3 plain wood, 4 ebony, 5 cast iron, 6 felt, 7 maple fleck, 8 brushed,
    *  9 gold-lacquered casting, 10 veneer round a wall,
-   *  11 flamed maple worn per vertex (uv.x: varnish rubbed through to the pale wood, satin; uv.y: grime) */
+   *  11 flamed maple worn per vertex (uv.x: varnish rubbed through to the pale wood, satin; uv.y: grime),
+   *  and a piano action's own: 12 pressed wool felt (fibres, nap), 13 a key stick's bare spruce, 14 hornbeam,
+   *  15 beech, 16 hard maple, 17 a white key (its facing; bare wood on its sides below it) */
   tex?: number;
   /** the grain/long axis in the part's own frame */
   axis?: [number, number, number];
@@ -55,20 +57,20 @@ const P: Record<string, Phys> = {
   spruce: { color: '#d8b175', roughness: 0.48, clearcoat: 0.55, clearcoatRoughness: 0.18, tex: 1, axis: [0.42, 0, 0.91], texScale: 2.2 },
   spruceBare: { color: '#d9b77e', roughness: 0.62, tex: 1, axis: [0, 0, 1], texScale: 1.5 },
   maple: { color: '#b88654', roughness: 0.5, clearcoat: 0.3, clearcoatRoughness: 0.3, tex: 7, axis: [1, 0, 0], texScale: 1.5 },
-  // A piano action's woods, each its own (seen a hand's width away in a key's close-up; Renner and
-  // Steinway parts, grand-action-side.jpg, upright-action-close.jpg):
+  // A piano action's woods, each its own (seen a hand's width away in a key's close-up; matched by eye
+  // to grand-action-side.jpg and upright-action-close.jpg, docs/3d-reference.md):
   //   hornbeam — wippens, jacks, repetition levers, shanks, flanges: pale, greyish cream, close and
   //     even with no ring lines to speak of, burnished to a low satin;
   //   key sticks — spruce (or basswood), bare: straw yellow, straight latewood lines along the stick;
   //   rails and levers — hard maple under a thin finish: golden, its rays as fine flecks;
   //   an upright's rails — beech (`railBeech`, below): pinkish, its rays as short dark dashes.
-  hornbeam: { color: '#e2d5bb', roughness: 0.5, specularIntensity: 0.7, tex: 14, axis: [0, 0, 1], texScale: 1 },
+  hornbeam: { color: '#e4d3b3', roughness: 0.5, specularIntensity: 0.7, tex: 14, axis: [0, 0, 1], texScale: 1 },
   keyWood: { color: '#dcc394', roughness: 0.8, specularIntensity: 0.5, tex: 13, axis: [0, 0, 1], texScale: 1 },
   actionWood: { color: '#bb9163', roughness: 0.55, clearcoat: 0.12, clearcoatRoughness: 0.5, tex: 16, axis: [1, 0, 0], texScale: 1 },
   // The felts: pressed wool, matte, no gloss at all — a fibre field (mottle and relief) under a soft
   // sheen at grazing angles, each its own colour (hammer felt a warm off-white, the dampers' whiter,
   // the cloths dyed).
-  hammerFelt: { color: '#e9e2d1', roughness: 1, specularIntensity: 0.15, sheen: 1, sheenColor: '#fff8ea', sheenRoughness: 0.6, tex: 12 },
+  hammerFelt: { color: '#ebe1cb', roughness: 1, specularIntensity: 0.15, sheen: 1, sheenColor: '#fff8ea', sheenRoughness: 0.6, tex: 12 },
   damperFelt: { color: '#e0ddd6', roughness: 1, specularIntensity: 0.15, sheen: 0.9, sheenColor: '#ffffff', sheenRoughness: 0.6, tex: 12 },
   redFelt: { color: '#84201c', roughness: 1, specularIntensity: 0.15, sheen: 1, sheenColor: '#d0605a', sheenRoughness: 0.5, tex: 12 },
   buckskin: { color: '#b39876', roughness: 0.95, specularIntensity: 0.3, sheen: 0.6, sheenColor: '#e8d8bf', sheenRoughness: 0.7, tex: 12, texScale: 0.6 },

@@ -102,6 +102,20 @@ Jóhannsson's "medium" column (405–415 mm) is the 16″ size. His "large" colu
 
 ¹ Quoted from the search-indexed text of the Steinway use-and-care manual and the Kawai GS-100 regulation manual. Both pages block scripted fetches.
 
+### Action materials (a key's close-up)
+
+Matched by eye to the two action photos; the species are the usual ones, **typical, unsourced** beyond the photos.
+
+| part | material in the model (`mats3.ts`) | seen in |
+|---|---|---|
+| Wippens, jacks, repetition levers, shanks, flanges | hornbeam: pale cream, close and even, a low satin (`hornbeam`) | `upright-action-close.jpg`, `grand-action-side.jpg` |
+| Key sticks; a white key's sides under its facing | bare spruce, straight latewood lines along the stick (`keyWood`, `keyIvory`) | `grand-action-side.jpg` (the key along the bottom) |
+| Rails, backcheck heads, underlevers (grand) | hard maple under a thin finish, golden (`actionWood`) | `grand-action-side.jpg` |
+| Rails (upright) | beech, its rays as short dark dashes (`railBeech`) | `upright-action-close.jpg` |
+| Hammer felt, damper felt, cloths | pressed wool: matte, a fibre mottle and nap, warm off-white / white / dyed (`hammerFelt`, `damperFelt`, `redFelt`, `greenFelt`, `underfelt`) | both |
+| Damper and backcheck wires | drawn steel, satin grey (`wire`) | `grand-action-side.jpg` |
+| A part cut open by the section | its own stuff, as the cut blocks show in `grand-action-side.jpg`: end grain across a part's grain, long grain along it; the wood under a case's lacquer; grey iron for the plate | `grand-action-side.jpg` (the sawn blocks at its left) |
+
 ## Yamaha U1 (upright)
 
 | part | value | source |

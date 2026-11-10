@@ -1,0 +1,22 @@
+# python3 scripts/pairs-next5-webgl.py — the 3D stage's pixels (min of r, g, b)
+shot                          >=250 before    after    >=235 before    after    top 0.1% before  after
+desktop-grand-a1                    0.057%   0.012%          0.262%   0.111%                243    235
+desktop-grand-c4                    0.039%   0.006%          0.204%   0.066%                238    234
+desktop-grand-c4-struck             0.048%   0.013%          0.278%   0.131%                239    235
+desktop-grand-c7                    0.003%   0.003%          0.501%   0.018%                243    213
+desktop-grand-hero                  0.016%   0.012%          0.267%   0.260%                239    239
+desktop-upright-a1                  0.000%   0.000%          0.033%   0.026%                224    204
+desktop-upright-c4                  0.000%   0.000%          0.209%   0.018%                238    232
+desktop-upright-c4-struck           0.044%   0.034%          0.234%   0.069%                239    234
+desktop-upright-c7                  0.000%   0.000%          0.205%   0.021%                239    232
+desktop-upright-hero                0.000%   0.000%          0.021%   0.021%                221    221
+phone-grand-a1                      0.000%   0.000%          0.062%   0.057%                226    219
+phone-grand-c4                      0.000%   0.000%          0.014%   0.006%                221    206
+phone-grand-c4-struck               0.012%   0.007%          0.058%   0.031%                230    217
+phone-grand-c7                      0.000%   0.000%          0.006%   0.006%                216    205
+phone-grand-hero                    0.009%   0.006%          0.168%   0.160%                237    237
+phone-upright-a1                    0.000%   0.000%          0.007%   0.005%                218    201
+phone-upright-c4                    0.000%   0.000%          0.046%   0.003%                229    224
+phone-upright-c4-struck             0.042%   0.017%          0.141%   0.084%                238    232
+phone-upright-c7                    0.000%   0.000%          0.063%   0.000%                232    212
+phone-upright-hero                  0.000%   0.000%          0.000%   0.000%                217    217
