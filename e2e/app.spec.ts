@@ -1389,6 +1389,51 @@ test('3D draws without one WebGL warning: the grand (its lid a mirror), the upri
   expect(errors).toEqual([]);
 });
 
+// Stephen's cello: blotchy orange speckle on the upper bout. The worn places on a painted plate were
+// strewn with small pale polygons ("islands" of bare ground), and the rosin was 2200 dots. A worn place
+// is now one soft, streaked thinning of the varnish: in the thumb's place on the treble upper bout, no
+// pixel of the top's painted map stands far from its neighbours along the grain. (On main the mean was
+// 1.5 and 1.2 levels, cello and violin, and one pixel in a hundred stood 10 and 8.5 off.)
+test('3D varnish: a bowed top’s worn places are soft, with no speckle (cello and violin)', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'a phone draws the same map at half the size');
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await startAudio(page);
+  await page.locator('.dim-toggle').click();
+  await expect(page.locator('.stage-3d')).toBeVisible();
+  for (const inst of ['cello', 'violin']) {
+    await page.evaluate((i) => (window as any).__piano.setInstrument(i), inst);
+    await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3);
+    const top = () =>
+      page.evaluate(() => {
+        // the top's painted map: the one drawn now that has its f-holes cut out
+        let cv: HTMLCanvasElement | null = null;
+        (window as any).__stage3d.r3.scene.traverse((o: any) => {
+          if (!o.visible) return;
+          for (const m of [].concat(o.material ?? []) as any[]) if (m.alphaTest && m.map?.image?.getContext) cv = m.map.image;
+        });
+        if (!cv) return null;
+        const c = cv as HTMLCanvasElement;
+        const w = c.width;
+        const h = c.height;
+        const d = c.getContext('2d')!.getImageData(0, 0, w, h).data;
+        const lum = (x: number, y: number) => (d[(y * w + x) * 4] + d[(y * w + x) * 4 + 1] + d[(y * w + x) * 4 + 2]) / 3;
+        const v: number[] = [];
+        for (let y = Math.round(0.186 * h); y < Math.round(0.346 * h); y++)
+          for (let x = Math.round(0.182 * w); x < Math.round(0.272 * w); x++) v.push(Math.abs(lum(x, y) - (lum(x - 6, y) + lum(x + 6, y)) / 2));
+        const mean = v.reduce((a, b) => a + b, 0) / v.length;
+        v.sort((a, b) => a - b);
+        return { w, mean, p99: v[Math.floor(v.length * 0.99)] };
+      });
+    await expect.poll(async () => (await top())?.w ?? 0).toBe(2048);
+    const m = (await top())!;
+    test.info().annotations.push({ type: `speckle ${inst}`, description: JSON.stringify(m) });
+    expect(m.mean, inst).toBeLessThan(0.8);
+    expect(m.p99, inst).toBeLessThan(5);
+  }
+  expect(errors).toEqual([]);
+});
+
 test('a key’s close-up in 3D: its own light, the near plane in, zoom about its framing, and the orbit kept on the open side of the section', async ({ page }, info) => {
   const phone = info.project.name === 'phone';
   await page.goto('/');
@@ -1717,6 +1762,89 @@ test('orchestra: a piece from the menu puts its ensemble on the stage, in 2D and
   expect(errors).toEqual([]);
 });
 
+test('the pieces are in the player’s overlay, with play and open: one icon, the same for one instrument and for an ensemble; its menu opens under it, on the screen', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  // (the phone: 390×844, where the menu has the least room)
+  if (info.project.name === 'phone') await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const player = page.locator('.player');
+  const btn = page.locator('.score-btn');
+  const menu = page.locator('.score-menu');
+  const box = async (l: ReturnType<Page['locator']>) => (await l.boundingBox())!;
+  const view = page.viewportSize()!;
+  /** the button sits in the player's row, and its menu, open, hangs under it, whole and uncovered */
+  const check = async (mode: string, row: string[]) => {
+    await expect(btn, mode).toHaveCount(1);
+    await expect(player.locator('.pl-row > .score-btn.pl-btn'), mode).toBeVisible();
+    await expect(page.locator('.picker .score-btn'), mode).toHaveCount(0);
+    // one row of icons, in this order, the pieces next to the file they are the alternative to
+    const shown = await player.locator('.pl-row button:visible').evaluateAll((bs) => bs.map((b) => [...b.classList].find((c) => /^pl-(play|stop|route|pieces|open)$/.test(c))));
+    expect(shown, mode).toEqual(row);
+    const [b, o] = [await box(btn), await box(page.locator('.pl-open'))];
+    expect(Math.abs(b.y - o.y), mode).toBeLessThan(1);
+    expect(o.x - (b.x + b.width), mode).toBeLessThanOrEqual(8);
+    expect([b.width, b.height], mode).toEqual([o.width, o.height]);
+    await btn.click();
+    await expect(menu, mode).toBeVisible();
+    await expect(player.locator('.score-menu'), mode).toHaveCount(1);
+    await expect(btn, mode).toHaveAttribute('aria-expanded', 'true');
+    await expect(menu.locator('.sm-item'), mode).toHaveCount(3);
+    const m = await box(menu);
+    expect(m.y, mode).toBeGreaterThanOrEqual(b.y + b.height);
+    expect(m.y, mode).toBeLessThan(b.y + b.height + 10);
+    expect(b.x + b.width / 2, mode).toBeGreaterThan(m.x);
+    expect(b.x + b.width / 2, mode).toBeLessThan(m.x + m.width);
+    expect(m.x, mode).toBeGreaterThanOrEqual(4);
+    expect(m.x + m.width, mode).toBeLessThanOrEqual(view.width - 4);
+    expect(m.y + m.height, mode).toBeLessThanOrEqual(view.height);
+    for (const it of await menu.locator('.sm-item, .sm-credit').all()) {
+      const r = await box(it);
+      expect(await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('.score-menu'), [r.x + r.width / 2, r.y + r.height / 2]), `${mode}: nothing over the menu`).toBe(true);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), mode).toBe(true);
+  };
+  // icon only, named for a screen reader and by its tip
+  await expect(btn).toHaveAttribute('aria-label', 'Pieces for the ensemble');
+  await expect(btn).toHaveAttribute('data-tip', 'pieces');
+  expect((await btn.innerText()).trim()).toBe('');
+  // one instrument, nothing loaded: play, the pieces, open
+  await check('one instrument, at rest', ['pl-play', 'pl-pieces', 'pl-open']);
+  // Escape closes the menu and the button has the focus again; so does a tap anywhere else
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+  await expect(btn).toBeFocused();
+  await expect(btn).toHaveAttribute('aria-expanded', 'false');
+  await btn.click();
+  await expect(menu).toBeVisible();
+  await page.locator('.spec-wrap').click();
+  await expect(menu).toBeHidden();
+  // a piece from it puts its ensemble on the stage; the button keeps its place in the row, by the routing
+  await btn.click();
+  await menu.locator('.sm-item').first().click();
+  await expect(menu).toBeHidden();
+  await expect.poll(() => page.evaluate(() => (window as any).__orchestra.ensemble.piece?.id ?? null), { timeout: 10_000 }).toBe('haydn');
+  await expect(page.locator('.pl-line')).toHaveCount(4);
+  await check('an ensemble, its piece loaded', ['pl-play', 'pl-stop', 'pl-route', 'pl-pieces', 'pl-open']);
+  // the routing grid and the pieces menu are not open together
+  await page.locator('.pl-route').click();
+  await expect(page.locator('.pl-grid')).toBeVisible();
+  await expect(menu).toBeHidden();
+  await btn.click();
+  await expect(menu).toBeVisible();
+  await expect(page.locator('.pl-grid')).toBeHidden();
+  await page.keyboard.press('Escape');
+  await player.getByRole('button', { name: 'Stop' }).click();
+  // the ensemble with nothing loaded (the file let go): the same three icons as for one instrument
+  await page.evaluate(() => (window as any).__player.unload());
+  await expect(player).toHaveClass(/idle/);
+  expect((await ens(page)).active).toBe(true);
+  await check('an ensemble, at rest', ['pl-play', 'pl-pieces', 'pl-open']);
+  await page.keyboard.press('Escape');
+  await page.locator('.ens-toggle').click();
+  expect((await ens(page)).active).toBe(false);
+  expect(errors).toEqual([]);
+});
+
 test('orchestra: with nothing loaded, the overlay’s play icon plays the built-in piece nearest the lineup; an instrument’s own piece makes way for the ensemble', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
@@ -1815,6 +1943,116 @@ test('orchestra by hand: the ensemble toggle, instruments counted in, a chord de
   expect((await ens(page)).held).toEqual([0, 0, 0, 0]);
   await page.locator('.ens-toggle').click();
   expect((await ens(page)).active).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+/**
+ * The bows of an ensemble on the 2D stage, measured on the canvas. The stage says where each bow's hair
+ * lies (`__ens2d`: its frog end and its tip end, client px); 48 stations along that line are then read
+ * from the canvas's own pixels, each a small patch across the hair, for the colours of a bow being
+ * played. On the stage's own style: light and warm, the hair's ivory and the lit side of the stick
+ * (the ground is near black, the varnish dark, strings and a flute's silver cool). On the vector
+ * lines: the red of the hair's two edges, or white where the stick's blue lies over it (an outline's
+ * blue has little red). `drawn` is the share of the stations that have it, `first` and `last` the
+ * outermost ones that do (0 the frog, 1 the tip).
+ */
+const bowsDrawn = (page: Page, vector: boolean) =>
+  page.evaluate((vector) => {
+    const cv = document.querySelector('.stage-cv') as HTMLCanvasElement;
+    const r = cv.getBoundingClientRect();
+    const k = cv.width / r.width;
+    const copy = document.createElement('canvas');
+    copy.width = cv.width;
+    copy.height = cv.height;
+    const c2 = copy.getContext('2d', { willReadFrequently: true })!;
+    c2.drawImage(cv, 0, 0);
+    const px = c2.getImageData(0, 0, cv.width, cv.height).data;
+    const ink = (x: number, y: number) => {
+      if (x < 0 || y < 0 || x >= cv.width || y >= cv.height) return false;
+      const i = 4 * (y * cv.width + x);
+      const [R, G, B] = [px[i], px[i + 1], px[i + 2]];
+      return vector ? R >= 110 && R + 20 >= G : Math.min(R, G, B) >= 100 && R >= B + 8;
+    };
+    type Part = { voice: string; cell: { x: number; y: number; w: number; h: number }; bow: { fx: number; fy: number; tx: number; ty: number; pos: number } | null } | null;
+    return ((window as any).__ens2d() as Part[])
+      .filter((p) => p?.bow)
+      .map((p) => {
+        const { fx, fy, tx, ty, pos } = p!.bow!;
+        const len = Math.hypot(tx - fx, ty - fy);
+        const [ux, uy] = [(tx - fx) / len, (ty - fy) / len];
+        const N = 48;
+        let hit = 0;
+        let first = 2;
+        let last = -1;
+        for (let s = 0; s < N; s++) {
+          const t = 0.02 + (0.96 * s) / (N - 1);
+          let on = false;
+          // 9 px either way along the hair (the glow where it meets the string, a neighbour's frog lying
+          // over it, hide no station), 7 px either side of it (the hair gives under the bow's force)
+          for (let a = -9; a <= 9 && !on; a++)
+            for (let b = -7; b <= 7 && !on; b += 0.5) on = ink(Math.round((fx + ux * (t * len + a) - uy * b - r.left) * k), Math.round((fy + uy * (t * len + a) + ux * b - r.top) * k));
+          if (!on) continue;
+          hit++;
+          first = Math.min(first, t);
+          last = Math.max(last, t);
+        }
+        return { voice: p!.voice, pos, len, drawn: hit / N, first, last, cell: p!.cell, line: { fx, fy, tx, ty } };
+      });
+  }, vector);
+
+test('orchestra in 2D: every bow is drawn whole, frog to tip, at either end of its travel and in the middle: over its neighbours, on the stage, in both styles', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  // (the phone: 390×844, the narrowest the layout is kept for)
+  if (info.project.name === 'phone') await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await startAudio(page);
+  // the lineup the bows were first seen cut in: a flute and the quartet
+  await page.locator('.ens-toggle').click();
+  await page.locator('.pick[aria-label="Flute"]').click();
+  await expect.poll(async () => (await ens(page)).frames, { timeout: 8000 }).toBe(5);
+  expect((await ens(page)).lineup).toEqual(['flute', 'violin', 'violin', 'viola', 'cello']);
+  const stage = (await page.locator('.stage-cv').boundingBox())!;
+  const under = (await page.locator('.player').boundingBox())!;
+  for (const vector of [false, true]) {
+    if (vector) {
+      await page.locator('.vec-toggle').click();
+      await expect(page.locator('html')).toHaveAttribute('data-style', 'vector');
+    }
+    for (const pos of [0, 1, 0.5]) {
+      // the bow in the hand on every bowed string (controllers 128 and 129: its speed, m/s, and the
+      // string's place along the hair), so each is played at the frog, at the tip and in the middle
+      await page.evaluate((pos) => {
+        for (const p of (window as any).__orchestra.ensemble.parts) {
+          if (!['violin', 'viola', 'cello'].includes(p.voice)) continue;
+          p.engine.control(128, 0.25);
+          p.engine.control(129, pos);
+        }
+      }, pos);
+      const where = `${vector ? 'vector lines' : 'the stage’s own style'}, the string ${pos * 100} % of the hair from the frog`;
+      await expect.poll(async () => (await bowsDrawn(page, vector)).map((b) => Math.round(b.pos * 100)), { message: `${where}: the bows are there`, timeout: 5000 }).toEqual([pos * 100, pos * 100, pos * 100, pos * 100]);
+      // (a bow set down on its string comes up to full strength in a few frames)
+      await expect.poll(async () => Math.min(...(await bowsDrawn(page, vector)).map((b) => b.drawn)), { message: `${where}: the least share of a bow’s length that is drawn`, timeout: 5000 }).toBeGreaterThan(0.9);
+      const bows = await bowsDrawn(page, vector);
+      expect(bows.map((b) => b.voice)).toEqual(['violin', 'violin', 'viola', 'cello']);
+      for (const b of bows) {
+        const who = `${where}: ${b.voice} in the cell at ${Math.round(b.cell.x)}, ${Math.round(b.cell.y)}`;
+        // drawn out to both its ends
+        expect(b.first, `${who}: drawn from the frog`).toBeLessThan(0.07);
+        expect(b.last, `${who}: drawn to the tip`).toBeGreaterThan(0.93);
+        // and all of it on the stage, clear of the file player above
+        for (const [x, y] of [[b.line.fx, b.line.fy], [b.line.tx, b.line.ty]]) {
+          expect(x, `${who}: on the stage`).toBeGreaterThan(stage.x + 2);
+          expect(x, `${who}: on the stage`).toBeLessThan(stage.x + stage.width - 2);
+          expect(y, `${who}: under the player`).toBeGreaterThan(under.y + under.height);
+          expect(y, `${who}: on the stage`).toBeLessThan(stage.y + stage.height - 2);
+        }
+      }
+    }
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  // the hands let go
+  await page.evaluate(() => (window as any).__orchestra.ensemble.parts.forEach((p: any) => p.engine.control(130, 0)));
+  await page.locator('.ens-toggle').click();
   expect(errors).toEqual([]);
 });
 

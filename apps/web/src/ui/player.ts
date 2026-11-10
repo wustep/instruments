@@ -1,6 +1,7 @@
-// The overlay at the top middle of the stage. With nothing loaded it is two icons: play (the
+// The overlay at the top middle of the stage. With nothing loaded it is three icons: play (the
 // instrument's own short piece, orchestra/pieces.ts DEMOS; in an ensemble, the built-in piece that
-// best fits its lineup) and open (a MIDI file from the device: phones have no drop). Drop a .mid file
+// best fits its lineup), the pieces (a menu of the ensemble's built-in pieces, each bringing its own
+// lineup) and open (a MIDI file from the device: phones have no drop). Drop a .mid file
 // anywhere, or open one: it plays. A file with several parts (a quartet, a concerto) puts an
 // ensemble on the stage, each line on an instrument of its own (orchestra/assign.ts); a piano piece
 // plays on the instrument shown. Loaded, the overlay is its icons and a hairline of progress; with an
@@ -34,6 +35,8 @@ const STOP = 'M7 7h10v10H7z';
 const OPEN = 'M3 6.6C3 5.7 3.7 5 4.6 5h4.7l2 2h8.1c.9 0 1.6.7 1.6 1.6v8.8c0 .9-.7 1.6-1.6 1.6H4.6c-.9 0-1.6-.7-1.6-1.6zM4.8 9.4v7.8h14.4V9.4z';
 /** routing: a grid of dots, some lit (instruments by lines) */
 const ROUTE = 'M5 5h3v3H5zM10.5 10.5h3v3h-3zM16 5h3v3h-3zM16 16h3v3h-3zM5 16h3v3H5z';
+/** the pieces: a list, and a note */
+const PIECES_ICON = 'M3 6h11.2v1.7H3zM3 10h11.2v1.7H3zM3 14h8v1.7H3zM17 6v7.6a2.6 2.6 0 1 0 1.6 2.4V8.6H21V6z';
 
 /** a line's name as the file writes it, tidied ("violinI:" → "violin I"; LilyPond's "\new" is none) */
 export const lineName = (name: string, inst: string, i: number): string => {
@@ -61,6 +64,8 @@ export class MidiPlayer {
   private chips: HTMLButtonElement[] = [];
   private menu: HTMLElement | null = null;
   private routeBtn: HTMLButtonElement;
+  private piecesBtn: HTMLButtonElement;
+  private pieces: HTMLElement | null = null;
   private grid: HTMLElement | null = null;
   /** the grid's row headers (one per instrument), lit while it sounds */
   private rowHeads: HTMLButtonElement[] = [];
@@ -105,7 +110,11 @@ export class MidiPlayer {
     this.strip = h('div', { class: 'pl-lines', role: 'group', 'aria-label': 'The file’s lines and their instruments', hidden: true });
     this.routeBtn = h('button', { class: 'pl-btn pl-route', type: 'button', 'aria-label': 'Routing: which instrument takes which line', 'data-tip': 'routing', 'aria-expanded': 'false', onclick: () => this.toggleGrid() });
     this.routeBtn.appendChild(icon(ROUTE));
-    this.el = h('div', { class: 'player idle', role: 'group', 'aria-label': 'MIDI file' }, h('div', { class: 'pl-row' }, h('div', { class: 'pl-btns' }, this.playBtn, this.stopBtn), this.bar, this.routeBtn, this.openBtn), this.strip, this.picker);
+    // the pieces that come with the stage, next to the file they are the alternative to: with one
+    // instrument or an ensemble on the stage alike, a piece brings its own ensemble
+    this.piecesBtn = h('button', { class: 'pl-btn pl-pieces score-btn', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': 'Pieces for the ensemble', 'data-tip': 'pieces', onclick: () => this.togglePieces() });
+    this.piecesBtn.appendChild(icon(PIECES_ICON));
+    this.el = h('div', { class: 'player idle', role: 'group', 'aria-label': 'MIDI file' }, h('div', { class: 'pl-row' }, h('div', { class: 'pl-btns' }, this.playBtn, this.stopBtn), this.bar, this.routeBtn, this.piecesBtn, this.openBtn), this.strip, this.picker);
     this.attachDrop();
     ensemble.changed.on(() => {
       this.buildStrip();
@@ -129,14 +138,54 @@ export class MidiPlayer {
       const t = e.target as Element;
       if (this.menu && !this.menu.contains(t) && !t.closest?.('[data-menu-anchor]')) this.closeMenu();
       if (this.grid && !this.grid.contains(t) && !this.routeBtn.contains(t) && !this.menu?.contains(t)) this.closeGrid();
+      if (this.pieces && !this.pieces.contains(t) && !this.piecesBtn.contains(t)) this.closePieces();
     });
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
-      if (this.menu) this.closeMenu(true);
+      if (this.pieces) this.closePieces(true);
+      else if (this.menu) this.closeMenu(true);
       else if (this.grid) this.closeGrid(true);
       else return;
       e.stopPropagation();
     });
+  }
+
+  // ------------------------------------------------------------- the pieces
+  /** the menu of built-in pieces under its button, kept on the screen: each a composer, a title and
+   *  its lineup; one tap plays it on its own ensemble */
+  private togglePieces(): void {
+    if (this.pieces) return this.closePieces();
+    this.closeMenu();
+    this.closeGrid();
+    const items = PIECES.map((pc, i) => {
+      const b = h('button', { class: 'sm-item', type: 'button', role: 'menuitem', 'data-piece': pc.id }, h('span', { class: 'sm-who' }, pc.composer), h('span', { class: 'sm-what' }, pc.title), h('span', { class: 'sm-lineup', 'aria-hidden': 'true' }, ...pc.parts.map((q) => voiceGlyph(q.voice))));
+      b.setAttribute('aria-label', `${pc.composer}, ${pc.title}: ${pc.parts.map((q) => VOICE_INFO[q.voice].label).join(', ')}`);
+      b.addEventListener('click', () => {
+        this.closePieces();
+        void this.loadPiece(i).catch((e) => console.warn('piece:', e));
+      });
+      return b;
+    });
+    const credit = h('a', { class: 'sm-credit', href: '#/notes', 'data-route': 'notes' }, 'public domain · Mutopia Project');
+    credit.addEventListener('click', () => this.closePieces());
+    const m = h('div', { class: 'score-menu', role: 'menu', 'aria-label': 'Pieces' }, ...items, credit);
+    this.el.append(m);
+    const r = this.piecesBtn.getBoundingClientRect();
+    const pr = this.el.getBoundingClientRect();
+    const w = m.offsetWidth;
+    m.style.left = `${Math.max(6 - pr.left, Math.min(window.innerWidth - 6 - pr.left - w, r.left + r.width / 2 - pr.left - w / 2))}px`;
+    m.style.top = `${r.bottom - pr.top + 4}px`;
+    this.pieces = m;
+    this.piecesBtn.setAttribute('aria-expanded', 'true');
+    (items[0] as HTMLElement | undefined)?.focus();
+  }
+
+  private closePieces(refocus = false): void {
+    if (!this.pieces) return;
+    this.pieces.remove();
+    this.pieces = null;
+    this.piecesBtn.setAttribute('aria-expanded', 'false');
+    if (refocus) this.piecesBtn.focus();
   }
 
   /** the file loaded (playing or not) */
@@ -436,6 +485,7 @@ export class MidiPlayer {
   private openMenu(key: string, anchor: HTMLElement, label: string, checked: (v: Voice | null) => boolean, ok: (v: Voice | null) => boolean, pick: (v: Voice | null) => void, opts: { silent?: boolean; extra?: HTMLElement[] } = {}): void {
     const again = this.menu?.dataset.key === key;
     this.closeMenu();
+    this.closePieces();
     if (again) return;
     const item = (v: Voice | null) => {
       const can = checked(v) || ok(v);
@@ -503,6 +553,7 @@ export class MidiPlayer {
    *  instrument playing every line */
   private toggleGrid(): void {
     if (this.grid) return this.closeGrid();
+    this.closePieces();
     const song = this.song;
     if (!song) return;
     if (!ensemble.active || ensemble.song !== song) {

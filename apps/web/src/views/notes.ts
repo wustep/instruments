@@ -209,7 +209,7 @@ export function notesView(): View {
         h3('The pieces'),
         ul(...PIECES.map((pc) => [h('a', { href: pc.source, target: '_blank', rel: 'noopener' }, `${pc.composer}, ${pc.title}`), '. ', pc.credit] as Kid[])),
         h3('Each instrument’s own piece'),
-        p('With nothing loaded, the play icon at the top of the stage plays a short piece on the instrument shown, and the next instrument’s when you change it while it plays (in an ensemble, the built-in piece nearest its lineup). The folder beside it opens a MIDI file from the device, for phones, where nothing can be dropped.'),
+        p('With nothing loaded, the play icon at the top of the stage plays a short piece on the instrument shown, and the next instrument’s when you change it while it plays (in an ensemble, the built-in piece nearest its lineup). Beside it, the list holds the ensemble’s pieces above, and the folder opens a MIDI file from the device, for phones, where nothing can be dropped.'),
         ul(...INSTRUMENT_IDS.map((id) => DEMOS[id]).map((d) => [h('a', { href: d.source, target: '_blank', rel: 'noopener' }, `${INSTRUMENT_INFO[d.instrument].label}: ${d.composer}, ${d.title}`), '. ', d.credit] as Kid[])),
         p('The MIDI files are the Mutopia Project’s own (mutopiaproject.org), unchanged; each typesetting is placed in the public domain by its typesetter. What a player would change (a line left out, a transposition, a tempo where the file has none, where it stops) is set beside the file, not in it.'),
       ],

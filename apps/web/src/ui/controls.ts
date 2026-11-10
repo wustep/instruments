@@ -331,12 +331,3 @@ export function ensembleIcon(): SVGElement {
   g.push(svg('path', { d: 'M7.4 13.4 H10.6', 'stroke-width': 1.1 }));
   return svg('svg', { viewBox: '0 0 18 16', width: 18, height: 16, class: 'ens-icon', 'aria-hidden': 'true' }, ...g);
 }
-
-/** a page of music: the built-in pieces */
-export function scoreIcon(): SVGElement {
-  const g: SVGElement[] = [svg('path', { d: 'M2.5 1.5 H11.5 L14.5 4.5 V14.5 H2.5 Z', fill: 'none' })];
-  for (let i = 0; i < 4; i++) g.push(svg('path', { d: `M4.5 ${6 + i * 2} H12.5`, 'stroke-width': 0.8 }));
-  g.push(svg('circle', { cx: 7, cy: 11.6, r: 1.15 }));
-  g.push(svg('path', { d: 'M8.1 11.6 V6.4', 'stroke-width': 0.9 }));
-  return svg('svg', { viewBox: '0 0 17 16', width: 17, height: 16, class: 'score-icon', 'aria-hidden': 'true' }, ...g);
-}

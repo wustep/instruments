@@ -1528,7 +1528,8 @@ figure[title] {
 .pl-route[hidden] {
   display: none;
 }
-.pl-route[aria-expanded='true'] {
+.pl-route[aria-expanded='true'],
+.pl-pieces[aria-expanded='true'] {
   color: var(--amber);
 }
 /* routing: instruments (rows) by lines (columns), a last column for every line, a row to add one */
@@ -1892,9 +1893,8 @@ figure[title] {
 .case-toggle[hidden] {
   display: none;
 }
-/* orchestra mode: the ensemble toggle and the pieces */
-.ens-toggle,
-.score-btn {
+/* orchestra mode: the ensemble toggle (the pieces are in the player's overlay: .pl-pieces) */
+.ens-toggle {
   display: inline-flex;
   align-items: center;
   padding: 2px 5px;
@@ -1907,24 +1907,17 @@ figure[title] {
 .ens-icon circle {
   fill: currentColor;
 }
-.ens-icon path,
-.score-icon path,
-.score-icon {
+.ens-icon path {
   stroke: currentColor;
   fill: none;
   stroke-linecap: round;
 }
-.score-icon circle {
-  fill: currentColor;
-}
-.ens-toggle[aria-pressed='true'],
-.score-btn[aria-expanded='true'] {
+.ens-toggle[aria-pressed='true'] {
   color: var(--ground, #0e0d0b);
   background: rgba(236, 226, 206, 0.82);
   border-color: transparent;
 }
-.ens-toggle:focus-visible,
-.score-btn:focus-visible {
+.ens-toggle:focus-visible {
   outline: 1px solid rgba(242, 166, 70, 0.8);
 }
 /* how many of an instrument the ensemble has (two or more) */

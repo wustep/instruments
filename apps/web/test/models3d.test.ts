@@ -169,6 +169,31 @@ describe('3D instruments', () => {
     expect(len.cello).toBeCloseTo(0.755, 2);
   });
 
+  // The varnish is a mirror coat: where one facet of the top turns its normal far, the studio's
+  // reflection breaks along the mesh in steps (a hard, stepped smear across a bout's highlight: the
+  // facets over the arch's shoulder turned up to 17° on the cello, 20° on the viola, 22° on the violin).
+  // Above the edge's round and the channel (which do turn), no facet turns more than 12° (they are at
+  // 8° to 9°).
+  it('a bowed instrument’s top is a smooth arch: no facet turns the reflection by more than 12°', () => {
+    for (const id of ['violin', 'viola', 'cello'] as const) {
+      const d = BOWED[id];
+      const m = buildBowedModel({ id, L: d.L, bowLength: d.bowLength, strings: d.strings.map((s) => ({ name: s.name, open: s.open })) });
+      const v = m.top.data;
+      let hi = 0;
+      for (let i = 0; i < m.top.count; i++) hi = Math.max(hi, v[i * 14 + 1]);
+      let worst = 1;
+      for (let t = 0; t < m.top.count; t += 3) {
+        const o = [t * 14, (t + 1) * 14, (t + 2) * 14];
+        if (o.some((k) => v[k + 1] < 0.4 * hi)) continue;
+        for (let a = 0; a < 3; a++) {
+          const b = (a + 1) % 3;
+          worst = Math.min(worst, v[o[a] + 3] * v[o[b] + 3] + v[o[a] + 4] * v[o[b] + 4] + v[o[a] + 5] * v[o[b] + 5]);
+        }
+      }
+      expect((Math.acos(worst) * 180) / Math.PI, id).toBeLessThan(12);
+    }
+  });
+
   // the measured sizes in docs/3d-reference.md, within ~3%: a Boehm C flute is 670–672 mm overall
   // (McGee); the Bach Strad B♭ is 480 mm from the receiver to the bell rim (NMM 9107) with a 122 mm
   // bell, and its 7C mouthpiece (88 mm long, 22 mm of it in the receiver) adds 66 mm

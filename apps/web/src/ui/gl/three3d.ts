@@ -547,7 +547,11 @@ export class Renderer3 {
       }
       // (close up, the occlusion of a part by its neighbour: centimetres, not the case's decimetres)
       this.gtao.updateGtaoMaterial({ radius: mix(rad * 0.09, CLOSE.ao), distanceExponent: 1.5, thickness: mix(rad * 0.06, CLOSE.ao * 0.7), scale: 1.1, samples: 12 });
-      this.gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
+      // (the denoiser blurs only along a surface: a neighbour more than 1 % of the instrument's size off
+      // the pixel's own plane is left out. At the pass's default, 2 m, it mixed the occlusion of whatever
+      // stood in front into what lay behind, a different mix at every pixel: an upright's damper levers,
+      // seen between the hammer shanks, were peppered grey)
+      this.gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: mix(rad * 0.01, CLOSE.ao * 0.1), normalPhi: 3, radius: 6, rings: 2, samples: 12 });
       this.gtao.render(r, null as unknown as THREE.WebGLRenderTarget, this.rt, 0, false);
       aoTex = this.gtao.pdRenderTarget.texture;
     }

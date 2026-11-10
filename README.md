@@ -37,7 +37,7 @@ README does not claim it is live. `vercel.json` makes this a static build
   is dealt out by register, one note per instrument. Drop a MIDI file with several
   parts and each part gets an instrument by its name, General MIDI program and range;
   the row under the player shows each part's instrument (tap one to change or silence
-  it). The page icon beside it holds three public-domain pieces from the Mutopia
+  it). The list icon in the player, next to the folder, holds three public-domain pieces from the Mutopia
   Project: Haydn's "Emperor" quartet (II), Brandenburg No. 5 (III) and Handel's
   Réjouissance. Pieces and assignment: `apps/web/src/orchestra/`.
 * **Look inside.** See what each instrument is doing as it plays:
