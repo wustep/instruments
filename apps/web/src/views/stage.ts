@@ -162,9 +162,9 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
         'aria-pressed': String(audio.preset === id),
         onclick: async () => {
           if (ensemble.active) {
-            const v = id === 'upright' ? 'upright' : 'grand';
-            const lineup = ensemble.lineup.map((x) => (isKeyboard(x) ? (v as Voice) : x));
-            if (lineup.join() !== ensemble.lineup.join()) ensemble.setLineup(lineup);
+            // each piano becomes the other kind in its own seat, its lines (the routing) kept
+            const v: Voice = id === 'upright' ? 'upright' : 'grand';
+            ensemble.lineup.forEach((x, k) => isKeyboard(x) && x !== v && ensemble.partVoice(k, v));
           }
           await audio.setPreset(id);
           fadeIn();

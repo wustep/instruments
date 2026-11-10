@@ -70,7 +70,7 @@ export class MidiPlayer {
       this.seek(((e.clientX - r.left) / r.width) * this.song.duration);
     });
     this.strip = h('div', { class: 'pl-lines', role: 'group', 'aria-label': 'The file’s lines and their instruments', hidden: true });
-    this.routeBtn = h('button', { class: 'pl-btn pl-route', type: 'button', 'aria-label': 'Routing: which instruments play which lines', 'data-tip': 'routing', 'aria-expanded': 'false', onclick: () => this.toggleGrid() });
+    this.routeBtn = h('button', { class: 'pl-btn pl-route', type: 'button', 'aria-label': 'Routing: which instrument takes which line', 'data-tip': 'routing', 'aria-expanded': 'false', onclick: () => this.toggleGrid() });
     this.routeBtn.appendChild(icon(ROUTE));
     this.el = h('div', { class: 'player', hidden: true, role: 'group', 'aria-label': 'MIDI file' }, h('div', { class: 'pl-row' }, h('div', { class: 'pl-btns' }, this.playBtn, stop), this.bar, this.routeBtn), this.strip);
     this.attachDrop();
