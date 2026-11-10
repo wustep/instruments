@@ -192,6 +192,9 @@ const P: Record<string, Phys> = {
   cane: { color: '#ddb865', roughness: 0.36, clearcoat: 0.5, clearcoatRoughness: 0.18, sheen: 0.25, sheenColor: '#fff0c8', sheenRoughness: 0.5, tex: 3, axis: [1, 0, 0], texScale: 0.25 },
   caneScraped: { color: '#e6cd92', roughness: 0.62, sheen: 0.5, sheenColor: '#fff6dc', sheenRoughness: 0.5, tex: 3, axis: [1, 0, 0], texScale: 0.25 },
   reedThread: { color: '#2f6542', roughness: 0.5, sheen: 1, sheenColor: '#9ae6b8', sheenRoughness: 0.35, tex: 6 },
+  // the clarinet (clarinet3d.ts): the mouthpiece's hard rubber, a near-black with a faint warm cast,
+  // satin-polished (a broad, soft highlight, not the wood's sharp clearcoat), no grain
+  ebonite: { color: '#100e0e', roughness: 0.34, clearcoat: 0.45, clearcoatRoughness: 0.28, specularIntensity: 0.8 },
 };
 
 // GLSL: hashes, value noise and fbm (all in the part's own metres)

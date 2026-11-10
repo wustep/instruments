@@ -70,7 +70,7 @@ const deg = (d: number) => (d * Math.PI) / 180;
 const TOX = new Float32Array([0, 1, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1]);
 
 /** a frame at p whose local y runs along `dir` */
-function frameY(p: Vec3, dir: Vec3): Mat4 {
+export function frameY(p: Vec3, dir: Vec3): Mat4 {
   const y = norm(dir);
   let x = cross(y, [0, 0, 1]);
   if (len3(x) < 1e-6) x = cross(y, [1, 0, 0]);
@@ -80,7 +80,7 @@ function frameY(p: Vec3, dir: Vec3): Mat4 {
 }
 
 /** a solid of revolution about local y (profile [radius, y]) */
-function revolve(mb: MeshBuilder, prof: P2[], seg: number, m: Mat): void {
+export function revolve(mb: MeshBuilder, prof: P2[], seg: number, m: Mat): void {
   const n = prof.length;
   const pn: P2[] = prof.map((_, i) => {
     const a = prof[Math.max(0, i - 1)];
@@ -102,10 +102,10 @@ function revolve(mb: MeshBuilder, prof: P2[], seg: number, m: Mat): void {
   }
 }
 /** revolve about the model's x axis (profile [radius, x]) */
-const lx = (mb: MeshBuilder, prof: P2[], seg: number, m: Mat) => mb.with(TOX, () => revolve(mb, prof, seg, m));
+export const lx = (mb: MeshBuilder, prof: P2[], seg: number, m: Mat) => mb.with(TOX, () => revolve(mb, prof, seg, m));
 
 /** a 2D polyline with its corners rounded (radius per point; the ends are kept) */
-function fillet(pts: P2[], rad: number | number[], n = 5): P2[] {
+export function fillet(pts: P2[], rad: number | number[], n = 5): P2[] {
   const out: P2[] = [pts[0]];
   for (let i = 1; i < pts.length - 1; i++) {
     const r = typeof rad === 'number' ? rad : (rad[i] ?? 0);
@@ -146,7 +146,7 @@ function fillet(pts: P2[], rad: number | number[], n = 5): P2[] {
 }
 
 /** a Catmull-Rom curve through the points */
-function spline3(pts: readonly Vec3[], per: number): Vec3[] {
+export function spline3(pts: readonly Vec3[], per: number): Vec3[] {
   const n = pts.length;
   const P = (i: number) => pts[Math.max(0, Math.min(n - 1, i))];
   const out: Vec3[] = [];
@@ -167,7 +167,7 @@ function spline3(pts: readonly Vec3[], per: number): Vec3[] {
 
 /** a bar swept along a path: a rounded-rectangle section (superellipse, exponent `ex`) of half-width
  *  w(f) across and half-height h(f) along `up` (f = 0..1 along the path) */
-function sweep(mb: MeshBuilder, path: Vec3[], upAt: (p: Vec3, t: Vec3) => Vec3, w: (f: number) => number, h: (f: number) => number, m: Mat, seg = 14, ex = 2.4): void {
+export function sweep(mb: MeshBuilder, path: Vec3[], upAt: (p: Vec3, t: Vec3) => Vec3, w: (f: number) => number, h: (f: number) => number, m: Mat, seg = 14, ex = 2.4): void {
   const N = path.length;
   const acc = [0];
   for (let i = 1; i < N; i++) acc.push(acc[i - 1] + len3(sub(path[i], path[i - 1])));
@@ -212,10 +212,10 @@ function sweep(mb: MeshBuilder, path: Vec3[], upAt: (p: Vec3, t: Vec3) => Vec3, 
   }
 }
 /** a round tube along a path */
-const pipe = (mb: MeshBuilder, path: Vec3[], r: number, m: Mat, seg = 14) => sweep(mb, path, (_p, t) => (Math.abs(t[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]), () => r, () => r, m, seg, 2);
+export const pipe = (mb: MeshBuilder, path: Vec3[], r: number, m: Mat, seg = 14) => sweep(mb, path, (_p, t) => (Math.abs(t[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]), () => r, () => r, m, seg, 2);
 
 /** monotone cubic interpolation through (xs, ys) */
-function pchip(xs: number[], ys: number[]): (x: number) => number {
+export function pchip(xs: number[], ys: number[]): (x: number) => number {
   const n = xs.length;
   const h: number[] = [];
   const dl: number[] = [];
@@ -246,7 +246,7 @@ function pchip(xs: number[], ys: number[]): (x: number) => number {
 
 /** a damped spring towards `target` (0 seated / at rest, 1 open / pressed) that stops at both ends
  *  with a small bounce, as a pad seats; integrated in fixed 2 ms steps (winds3d's) */
-function springTo(pos: Float32Array, vel: Float32Array, i: number, target: number, dt: number, hz: number, zeta: number): number {
+export function springTo(pos: Float32Array, vel: Float32Array, i: number, target: number, dt: number, hz: number, zeta: number): number {
   const w = TAU * hz;
   let p = pos[i];
   let v = vel[i];
@@ -373,7 +373,7 @@ type CupStyle = 'perf' | 'plain' | 'ring' | 'screw';
 const cupTop = (r: number) => (0.0016 + 0.12 * r) * (r > 0.0055 ? 1 : 0.92);
 
 /** a spherical cap's profile from radius r0 (height y0 at the middle) to r1 (height y1) */
-function dome(r0: number, r1: number, y0: number, y1: number): P2[] {
+export function dome(r0: number, r1: number, y0: number, y1: number): P2[] {
   const k = (y0 - y1) / (r1 * r1);
   return Array.from({ length: 9 }, (_, i) => {
     const r = lerp(r0, r1, i / 8);
@@ -849,7 +849,7 @@ function bridge(mb: MeshBuilder): void {
 }
 
 /** a rotation by `a` about the line through p with unit direction u, written into `out` */
-function aboutAxis(out: Float32Array, p: Vec3, u: Vec3, a: number): Float32Array {
+export function aboutAxis(out: Float32Array, p: Vec3, u: Vec3, a: number): Float32Array {
   const c = Math.cos(a);
   const s = Math.sin(a);
   const C = 1 - c;
