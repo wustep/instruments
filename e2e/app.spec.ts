@@ -153,8 +153,8 @@ test('measurements: charts render and the A/B model renders in the browser', asy
   await expect(page.locator('figure svg').first()).toBeVisible({ timeout: 15_000 });
   expect(await page.locator('figure svg').count()).toBeGreaterThanOrEqual(10);
   await expect(page.getByText('Where it falls short')).toBeVisible();
-  // round 2: strings and flute compared with their own recordings
-  await expect(page.getByRole('heading', { name: 'Strings and flute against recordings' })).toBeVisible({ timeout: 15_000 });
+  // round 2: strings and flute compared with their own recordings (and the oboe, since it came)
+  await expect(page.getByRole('heading', { name: 'Strings, flute and oboe against recordings' })).toBeVisible({ timeout: 15_000 });
   expect(await page.locator('.ensemble figure svg').count()).toBeGreaterThanOrEqual(8);
   const btn = page.locator('.ab-item').filter({ hasText: 'C#4' }).getByRole('button', { name: 'model' });
   await btn.click();
