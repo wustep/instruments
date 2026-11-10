@@ -291,6 +291,42 @@ show a part's place it is **laid out, not measured**. The model is `apps/web/src
 | Hand rest, finger hook, water key, braces | where the photographs and the drawing have them (3, 4) | laid out, not measured | drawing |
 | Hold (the Orchestra) | the coil standing in front of the player's left chest, the levers up under the left hand, the leadpipe rising to the lips, the bell down by the right thigh, its mouth behind (`horn-player-bradac.jpg`, `horn-section.jpg`) | the caps' side 37° to the audience, the bell's axis down 34°, back and to the player's right; the mouthpiece at 1.18 m | photographs |
 
+## Trombone (2D): slide trombones, alto, tenor with F attachment, bass with two valves
+
+The 2D stage's trombone (`apps/web/src/ui/trombone-plan.ts`, drawn by `trombone-draw.ts` and
+`vector/trombone.ts`; checked in `apps/web/test/trombone2d.test.ts`). Laid out from Yamaha's own side
+photographs, each scaled by its bell's published diameter: the YSL-620 tenor in B♭/F (bell 214.4 mm, bore
+13.89 mm: its rim 335 px across, **0.640 mm/px**), the YBL-830 bass (bell 241 mm: 236 px, 1.02 mm/px) and the
+YSL-871 alto in E♭ (380 px, 0.46 mm/px). The photographs show the slide a few degrees off the bell section's
+axis (3.4° on the YSL-891Z, 4.3° on the YSL-620, none on the YSL-871); the drawing keeps it parallel, and its
+measures are taken along the slide. Origin: the mouthpiece's receiver (the inner slide's upper tube).
+The engine's measures (`TROMBONE_SIZES`) set the bells, bores, open tubes and the slide's travel; the
+photographs set the layout. Where a size's photograph does not show a part's place it is **laid out, not
+measured**.
+
+| part | measured | drawn | source |
+|---|---|---|---|
+| Slide: tubes apart (centres) | tenor 112 px = 72 mm; bass 69 px = 70 mm; alto 101 px = 46.5 mm | 72 / 70 / 46.5 mm | [YSL-620], [YBL-830], [YSL-871] |
+| Slide: outer tube | tenor 25 px = 16.0 mm (bore 13.89 mm) | outside Ø bore + 2.4 mm; the inner tubes bore + 0.8 mm | [YSL-620] |
+| Slide: the crook's arc, down the slide from the receiver | tenor 1140 px = 730 mm; alto 1240 px = 570 mm; bass 692 px = 706 mm (low resolution) | 730 / 570 / 683 mm (the bass's fitted, its outer slide kept on the stockings to 0.60 m: past its seventh position) | photographs |
+| Outer slide's top, hand brace, inner brace | tenor 103, 126, 25 px = 66, 81, 16 mm; alto 78, 83, 18 mm | the same | photographs |
+| Bell: rim and its place | tenor: the rim 272 mm along the slide, its centre 45–51 mm above the slide's upper tube (the bell's axis falls 0.8° to the rim); alto 232 mm, 69 mm; bass 272 mm, 71 mm | rim Ø 178 / 216 / 241 mm (the engine's), at 232 / 272 / 272 mm, axis 69 / 51 / 71 mm above | photographs; [YSL-620-specs] |
+| Bell's flare (outside Ø, tenor) | 147 mm 17 mm in from the rim, 112 at 33, 90 at 49, 74 at 65, 59 at 97, 50 at 129, 44 at 161, 38 at 225, 33.5 at 289, 25 at 385, 20 at 480 | a Bessel horn r = R·(d₀/(d + d₀))^0.75, d₀ 22 mm on a 214 mm bell (the others scaled by their bells); on the engine's 216 mm tenor bell: 141, 109, 90, 77, 61, 51, 44, 35, 30, 24, 21 | [YSL-620] |
+| Mouthpiece | rim Ø 62 px = 40 mm; 41 mm out of the receiver (tenor) | a 6½AL outline (rim Ø 40, cup 25.4, 88 long), the others by their cups; 42 / 58 / 46 mm out | [YSL-620], [YSL-871]; the engine's cups |
+| Tuning slide | tenor: legs 116 mm apart (51 above, 65 below the slide), its bow's outside 388 mm behind the receiver; sleeves 110 mm long | legs as measured, the bow placed so the open tube is the engine's 2.740 m: its outside 387 mm behind (alto 2.060 m, bass 2.740 m: 433 mm, as the YBL-830's 428) | [YSL-620], [YBL-830]; core/trombone.ts |
+| F attachment (tenor) | the YSL-620's traditional wrap: a rotor 99 mm behind the receiver and 49 below, cap Ø 32 mm; its loop up out of the rotor, over along a leg 28 mm above the slide, round a small oval (its tuning slide, legs 28 and −21 mm), back behind along 36.5 mm, round a bow inside the tuning slide's (its outside 345 mm behind) and back along −53 mm and up an S into the rotor | as photographed, the big bow placed so the loop is the engine's fourth: 0.9175 m (its outside 347 mm behind) | [YSL-620], [Greenhoe-42G] (the rotor and its J-hook trigger) |
+| Bass valves | the YBL-830: two rotors in line 49 mm apart, nested loops at the back and an upright hairpin in the middle | the F rotor where the tenor's is, the G♭ rotor 49 mm behind it; the F loop's bow inside the tuning slide's, its hairpin (its tuning slide) sized to 0.9175 m; the G♭ loop's bow inside the F loop's, its hairpin sized to 0.692 m (with F: the engine's D side, a minor sixth) | [YBL-830], [bass-dependent] (the paired thumb triggers) |
+| Trigger | the J hook on a bar from the bell brace, 21–53 mm under the slide's upper tube | a hook on a pivot at the bell brace turning 14° under the thumb; its link turns the rotor's crank a quarter turn | [YSL-620], [Greenhoe-42G] |
+| Bell brace, water key, bumper | the brace 104 px = 67 mm behind the receiver, its leaf on the bell's tail; the water key on the crook's lower leg; a rubber bumper on the crook | as measured; the water key's lever 36 mm, its cup Ø 12 mm (**laid out, not measured**) | photographs |
+| Positions | the slide's n-th position: half the tube n−1 semitones add (the engine's `tromboneSlideOut`): the tenor's seventh 0.567 m | ticked faintly under the slide at the hand brace's place for each, the one held brighter | core/trombone.ts |
+
+[YSL-620]: https://commons.wikimedia.org/wiki/File:Yamaha_Tenor_trombone_YSL-620.tif
+[YSL-620-specs]: https://usa.yamaha.com/products/musical_instruments/winds/trombones/ysl-620_640/specs.html
+[YBL-830]: https://commons.wikimedia.org/wiki/File:Yamaha_Bass_trombone_YBL-830_horizontal.tif
+[YSL-871]: https://commons.wikimedia.org/wiki/File:Yamaha_Alto_trombone_YSL-871_recrop.jpg
+[Greenhoe-42G]: https://commons.wikimedia.org/wiki/File:Greenhoe-Bach-42G-4.jpg
+[bass-dependent]: https://commons.wikimedia.org/wiki/File:Rotary_valves_(dependent)_on_bass_trombone.jpg
+
 ## Timpani (four pedal timpani, Dresden pattern, American order)
 
 Built in `apps/web/src/ui/gl/timpani3d.ts`; checked in `apps/web/test/timpani3d.test.ts`.
@@ -474,3 +510,13 @@ fetched from Wikimedia Commons' API, the original or its 1920 px thumbnail), the
 * Skoch3, *Timpani, Yamaha pedal timpani* (the mechanism underneath) — CC BY-SA 3.0: https://commons.wikimedia.org/wiki/File:Timpani,_Yamaha_pedal_timpani.jpg
 * ZooFari, *Timpani Mallets* — public domain: https://commons.wikimedia.org/wiki/File:Timpani_Mallets.JPG
 * John Tafoya, *Dresden pedal* and *Timpani tuning gauges* — CC BY-SA 3.0 / GFDL: https://commons.wikimedia.org/wiki/File:Dresden_pedal.jpg, https://commons.wikimedia.org/wiki/File:Timpani_tuning_gauges.jpg
+
+### Trombone, 2D (Wikimedia Commons; in `.cache/refs-trombone-2d/`, not committed)
+* Yamaha Corporation, *Yamaha Tenor trombone YSL-620* — CC BY-SA 4.0: https://commons.wikimedia.org/wiki/File:Yamaha_Tenor_trombone_YSL-620.tif
+* Yamaha Corporation, *Yamaha Tenor trombone YSL-891Z (re-crop)* — CC BY-SA 4.0: https://commons.wikimedia.org/wiki/File:Yamaha_Tenor_trombone_YSL-891Z_(re-crop).jpg
+* Yamaha Corporation, *Yamaha Bass trombone YBL-830 horizontal* — CC BY-SA 4.0: https://commons.wikimedia.org/wiki/File:Yamaha_Bass_trombone_YBL-830_horizontal.tif
+* Yamaha Corporation, *Yamaha Alto trombone YSL-871 recrop* — CC BY-SA 4.0: https://commons.wikimedia.org/wiki/File:Yamaha_Alto_trombone_YSL-871_recrop.jpg
+* Samiclaus (collage of Yamaha's), *Yamaha Trombone comparison of open and traditional wrap* — CC BY-SA 4.0: https://commons.wikimedia.org/wiki/File:Yamaha_Trombone_comparison_of_open_and_traditional_wrap.jpg
+* www.swisstbone.com, *Greenhoe-Bach-42G-4* (the F rotor and its trigger) — CC BY 4.0: https://commons.wikimedia.org/wiki/File:Greenhoe-Bach-42G-4.jpg
+* Jonathan Harker, *Rotary valves (dependent) on bass trombone* — CC BY 4.0: https://commons.wikimedia.org/wiki/File:Rotary_valves_(dependent)_on_bass_trombone.jpg
+* Jonathan Harker, *Trombone family composite 2* — CC BY-SA 4.0: https://commons.wikimedia.org/wiki/File:Trombone_family_composite_2.jpg
