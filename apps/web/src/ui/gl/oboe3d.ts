@@ -54,7 +54,8 @@ const SINK = variant(M.grenadillaX, { col: [0.045, 0.032, 0.028], tint: true });
 const AG = M.silverKeys;
 const STEEL = M.steel;
 const CORK = M.cork;
-const SKIN = M.leather;
+/** the big keys' pads: black leather (oboe-yamaha-side.jpg: a dark ring under each low key) */
+const SKIN = variant(M.leather, { col: [0.035, 0.028, 0.025], tint: true });
 const CANE = M.cane;
 const SCRAPE = M.caneScraped;
 const CANE_IN = variant(M.cane, { col: [0.42, 0.3, 0.14], tint: true });

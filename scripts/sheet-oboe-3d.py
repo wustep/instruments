@@ -94,7 +94,7 @@ def main():
         cells.append(label(fit_h(top, H), 'ref: top joint'))
         for v in ['reed', 'actuated-reed']:
             if os.path.exists(R(f'oboe-{v}.png')):
-                cells.append(label(fit_h(Image.open(R(f'oboe-{v}.png')).convert('RGB').crop((380, 0, 1060, 547)), H), f'render: {v}'))
+                cells.append(label(fit_h(Image.open(R(f'oboe-{v}.png')).convert('RGB').crop((640, 60, 1320, 547)), H), f'render: {v}'))
         rows.append(cells)
     if 'keys' in rows_wanted:
         # square on to the plates, turned upright beside the photograph's same stretch of the body
