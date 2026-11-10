@@ -1,21 +1,24 @@
 // Orchestra mode in 2D: every instrument of the ensemble in a cell of its own, each drawn as the
 // single instrument is (stage-draw.ts, piano-draw.ts: the same plans, strings and waves), from its own
 // engine's frames. The pianos take a band across the whole width (their plan is as wide as their
-// keyboard); the others share the rest in the grid that draws them largest and, with bowed strings
-// among them, leaves every bow room on the stage: the bows are drawn last, over the whole stage.
+// keyboard); the others share the rest: with bowed strings among them, all at one scale, their true
+// sizes, spaced so that no bow reaches another instrument, the group centred; the bows are drawn last,
+// over the whole stage.
 
 import { bowedGeometry, type VisualFrame } from '@piano-model/engine';
 import { isKeyboard, VOICE_INFO, type Voice } from '../orchestra/assign.ts';
 import type { PartLive } from '../orchestra/ensemble.ts';
 import { drawPiano, newPianoState, type PianoState } from './piano-draw.ts';
 import { Contours, drawBowedV, drawFluteV, drawPianoV, drawTrumpetV } from './vector/index.ts';
-import { AutoScale, BOWED_PLAN, ModeField, bowReach, bowedLayout, bowedShapes, drawBowed, drawFlute, drawTrumpet, type BowedGeom, type BowedState, type FluteState, type TrumpetState } from './stage-draw.ts';
+import { AutoScale, BOWED_PLAN, FL_LEN, ModeField, bowReach, bowedShapes, bowedSpan, drawBowed, drawFlute, drawTrumpet, trumpetBox, type BowedGeom, type BowedState, type FluteState, type TrumpetState } from './stage-draw.ts';
 
 export interface Cell {
   x: number;
   y: number;
   w: number;
   h: number;
+  /** px per metre, one for the whole group (its instruments drawn at their true relative sizes) */
+  sc?: number;
 }
 
 /** what each part's drawing keeps between frames */
@@ -53,13 +56,28 @@ function grid(n: number, W: number, H: number, cols: number): Cell[] {
   });
 }
 
-// ---- room for the bows. A bow is longer than its instrument: the violin's hair is 0.64 m, its body
-// 0.36 m. Drawn in its instrument's cell alone it showed as a stub cut at the cell's edge, so the bows
-// are drawn over the whole stage, after every instrument (drawEnsemble), and the cells are set where
-// each bow, at either end of its travel, still ends on the stage.
+// ---- the strings at one scale. Each instrument used to fill an equal cell of its own, so a violin or
+// a viola was drawn at about twice a cello's px/m, and its 0.64 m bow at that scale ran three times the
+// length of the cello's beside it, over both cellos; and the row was pushed right to keep the violins'
+// long bows on the stage (Stephen's Daylight quintet, Nov 2026). Now the group is drawn at one px/m:
+// each seat's box is its own instrument's at that scale (a cello twice a violin's length), the seats are
+// spaced so that no bow, frog or tip on the string, reaches another instrument, and the whole group,
+// bodies and bows at full reach, is centred on the stage. The bows are drawn last, over the whole stage.
 
 /** px a bow's far end keeps from the edge of the stage */
 const BOW_EDGE = 6;
+/** px round a bowed instrument's box (its drawing is clipped to the box: its outline's line and glow) */
+const PAD = 3;
+/** px a bow's far end keeps from the next instrument's box, and two boxes side by side from each other */
+const CLEAR = 6;
+const AISLE = 14;
+/** px between two rows of instruments (upright) or two columns (lying) */
+const LINE_GAP = 14;
+/** an upright group is preferred unless lying draws it this much larger (a row of players reads as a
+ *  section; lying, the strings' bows stand up the stage) */
+const LYING = 0.8;
+/** the flute's box across (m): the tube with its keys, and its standing wave either side */
+const FLUTE_ACROSS = 0.3;
 const geoms = new Map<BowedGeom['id'], BowedGeom>();
 const geomOf = (id: BowedGeom['id']): BowedGeom => {
   let g = geoms.get(id);
@@ -71,74 +89,119 @@ const bowedId = (v: Voice): BowedGeom['id'] | null => {
   return id === 'violin' || id === 'viola' || id === 'cello' ? id : null;
 };
 
-/** How far a voice's bow reaches from the centre of its w×h cell (px), at the far ends of its travel:
- *  `lo` towards the cell's left (the instrument upright, its bow lying across) or its top (the
- *  instrument lying, its bow upright), `hi` the other way. null: it has no bow. */
-export function bowRoom(v: Voice, w: number, h: number): { upright: boolean; lo: number; hi: number } | null {
+/** An instrument's box at one px per metre: `across` it (m, along the line of seats) and `along` it, plus
+ *  `pad` px round it; `lo` and `hi`, how far its bow reaches from its centre line (m) towards the line's
+ *  start and its end, at the far ends of its travel (0: no bow). Upright, the line runs across the stage
+ *  and the frog (the bass side) is towards its start, on the left; lying, the line runs down the stage
+ *  and the tip is towards its start, at the top (bwPlace). */
+interface Seat {
+  across: number;
+  along: number;
+  pad: number;
+  lo: number;
+  hi: number;
+}
+function seatOf(v: Voice, upright: boolean): Seat {
   const id = bowedId(v);
-  if (!id) return null;
-  const g = geomOf(id);
-  const p = BOWED_PLAN[id];
-  const lay = bowedLayout(g, p, bowedShapes(id, p, g.L), w, h);
-  const r = bowReach(g, p);
-  // (bwPlace: upright, the bass side, where the frog goes, is to the left; lying, it is below)
-  return lay.vertical ? { upright: true, lo: r.frog * lay.sc, hi: r.tip * lay.sc } : { upright: false, lo: r.tip * lay.sc, hi: r.frog * lay.sc };
+  if (id) {
+    const g = geomOf(id);
+    const p = BOWED_PLAN[id];
+    const { x0, x1 } = bowedSpan(g, p);
+    const r = bowReach(g, p);
+    return { across: 2 * bowedShapes(id, p, g.L).hwMax, along: x1 - x0, pad: PAD, lo: upright ? r.frog : r.tip, hi: upright ? r.tip : r.frog };
+  }
+  // the winds' own layouts leave a margin round them (fluteLayout, trumpetLayout); the trumpet is drawn
+  // from its side either way, its bell to the right
+  if (VOICE_INFO[v].instrument === 'trumpet') {
+    const b = trumpetBox();
+    return { across: upright ? b.w : b.h, along: upright ? b.h : b.w, pad: 0, lo: 0, hi: 0 };
+  }
+  return { across: FLUTE_ACROSS, along: FL_LEN / (upright ? 0.86 : 0.9), pad: 0, lo: 0, hi: 0 };
 }
 
+/** the stage kept clear round the group (px) */
+const margin = (W: number, H: number) => Math.max(BOW_EDGE, Math.round(0.02 * Math.min(W, H)));
+
 /**
- * The cells of `mel`, `cols` to a row over a W×H band, with room for every bow at full travel.
- * `upright`: the instruments stand side by side and their bows lie across the band; otherwise they lie
- * in rows and their bows stand. The cells keep their size the other way and close up along the bows
- * (a bow may lie over its neighbours, not leave the stage) until every bow, frog or tip on the
- * string, ends inside the band; what room is left goes either side as the bows need it. null: no room.
+ * The group `mel` at `sc` px/m on a W×H band, `per` to a line, upright (rows across the stage) or lying
+ * (columns down it), the group's box centred on the band; null if it does not fit. Along a line each
+ * instrument stands far enough from the one before that neither's bow reaches the other's box.
  */
-function bowGrid(mel: Voice[], W: number, H: number, cols: number, upright: boolean): Cell[] | null {
+function placeGroup(mel: Voice[], per: number, upright: boolean, sc: number, W: number, H: number): Cell[] | null {
   const n = mel.length;
-  const rows = Math.ceil(n / cols);
-  const cw = W / cols;
-  const ch = H / rows;
-  const E = upright ? W : H;
-  const count = upright ? cols : rows;
-  // (an instrument stands upright in a cell taller than 1.05 × its width: bowedLayout)
-  const cap = upright ? ch / 1.05 - 2 : cw * 1.05 - 2;
-  const place = (pitch: number): Cell[] | null => {
-    const ext = Math.round(Math.min(pitch, cap));
-    if (ext < 16) return null;
-    // (no longer than the bowed strings can fill, 3.4 × its width for a violin lying: a flute in a
-    // cell closed up for the bows is not drawn twice their length)
-    const w = upright ? ext : Math.round(Math.min(cw, 3.4 * ext));
-    const h = upright ? Math.round(Math.min(ch, 3.4 * ext)) : ext;
-    let lo = 0;
-    let hi = E - count * pitch;
-    const at = mel.map((v, k) => {
-      const r = Math.floor(k / cols);
-      const c = k - r * cols;
-      const inRow = r === rows - 1 ? n - r * cols : cols;
-      // the cell's centre along the bows, from where the grid starts
-      const d = upright ? ((cols - inRow) / 2 + c + 0.5) * pitch : (r + 0.5) * pitch;
-      const room = bowRoom(v, w, h);
-      if (room) {
-        lo = Math.max(lo, BOW_EDGE + room.lo - d);
-        hi = Math.min(hi, E - BOW_EDGE - room.hi - d);
-      }
-      return { r, c, inRow, d };
-    });
-    if (lo > hi) return null;
-    const start = Math.min(hi, Math.max(lo, (E - count * pitch) / 2));
-    return at.map(({ r, c, inRow, d }) => (upright ? { x: Math.round(start + d - ext / 2), y: Math.round(r * ch + (ch - h) / 2), w, h } : { x: Math.round((W - inRow * cw) / 2 + c * cw + (cw - w) / 2), y: Math.round(start + d - ext / 2), w, h }));
-  };
-  const full = upright ? cw : ch;
-  const whole = place(full);
-  if (whole) return whole;
-  // (the closer the cells, the smaller the instruments and their bows: the largest pitch that fits)
-  let a = 0;
-  let b = full;
-  for (let i = 0; i < 24; i++) {
-    const m = (a + b) / 2;
-    if (place(m)) a = m;
-    else b = m;
+  const Eu = upright ? W : H;
+  const Ev = upright ? H : W;
+  const m = margin(W, H);
+  const seats = mel.map((v) => seatOf(v, upright));
+  // half the box, across and along (px); how far the box or the bow reaches either way along the line
+  const hu = seats.map((s) => (s.across * sc) / 2 + s.pad);
+  const hv = seats.map((s) => (s.along * sc) / 2 + s.pad);
+  const lo = seats.map((s, i) => Math.max(hu[i], s.lo * sc));
+  const hi = seats.map((s, i) => Math.max(hu[i], s.hi * sc));
+  const cu: number[] = new Array(n);
+  const lines: { a: number; b: number; lo: number; hi: number; th: number }[] = [];
+  for (let a = 0; a < n; a += per) {
+    const b = Math.min(n, a + per);
+    cu[a] = 0;
+    for (let i = a + 1; i < b; i++) {
+      const j = i - 1;
+      // the boxes clear of each other; the one before's bow (its far end towards this one) clear of this
+      // box, and this one's bow clear of the box before
+      cu[i] = cu[j] + Math.max(hu[j] + hu[i] + AISLE, seats[j].hi * sc + CLEAR + hu[i], seats[i].lo * sc + CLEAR + hu[j]);
+    }
+    let l = Infinity;
+    let h = -Infinity;
+    let th = 0;
+    for (let i = a; i < b; i++) {
+      l = Math.min(l, cu[i] - lo[i]);
+      h = Math.max(h, cu[i] + hi[i]);
+      th = Math.max(th, 2 * hv[i]);
+    }
+    lines.push({ a, b, lo: l, hi: h, th });
   }
-  return a > 0 ? place(a) : null;
+  const U = Math.max(...lines.map((L) => L.hi - L.lo));
+  const V = lines.reduce((t, L) => t + L.th, 0) + (lines.length - 1) * LINE_GAP;
+  if (U > Eu - 2 * m || V > Ev - 2 * m) return null;
+  const cells: Cell[] = new Array(n);
+  let v0 = (Ev - V) / 2;
+  for (const L of lines) {
+    // each line's box (bodies and bows) centred along the band, the lines' stack centred across it
+    const u0 = Eu / 2 - (L.lo + L.hi) / 2;
+    const vc = v0 + L.th / 2;
+    for (let i = L.a; i < L.b; i++) {
+      const w = Math.round(2 * (upright ? hu[i] : hv[i]));
+      const h = Math.round(2 * (upright ? hv[i] : hu[i]));
+      const [xc, yc] = upright ? [u0 + cu[i], vc] : [vc, u0 + cu[i]];
+      cells[i] = { x: Math.round(xc - w / 2), y: Math.round(yc - h / 2), w, h, sc };
+    }
+    v0 += L.th + LINE_GAP;
+  }
+  return cells;
+}
+
+/** the group with strings at the largest scale that fits, in the arrangement that draws it largest
+ *  (fewer lines and upright, unless another is clearly larger); null if nothing fits */
+function fitGroup(mel: Voice[], W: number, H: number): Cell[] | null {
+  const n = mel.length;
+  let best: Cell[] | null = null;
+  let bs = 0;
+  for (const upright of [true, false])
+    for (let per = n; per >= 1; per--) {
+      let a = 0;
+      let b = Math.max(W, H) / 0.3;
+      if (!placeGroup(mel, per, upright, 1, W, H)) continue;
+      for (let i = 0; i < 32; i++) {
+        const mid = (a + b) / 2;
+        if (placeGroup(mel, per, upright, mid, W, H)) a = mid;
+        else b = mid;
+      }
+      const s = a * (upright ? 1 : LYING);
+      if (s > bs * 1.02) {
+        bs = s;
+        best = placeGroup(mel, per, upright, a, W, H);
+      }
+    }
+  return best;
 }
 
 /** the cells for a lineup on a W×H stage, in the lineup's order */
@@ -155,31 +218,21 @@ export function ensembleCells(voices: Voice[], W: number, H: number): Cell[] {
   const mh = H - kbH;
   if (mel.length) {
     const n = mel.length;
-    // the grid that draws an instrument largest
-    let best = 1;
-    let bs = -1;
-    for (let cols = 1; cols <= n; cols++) {
-      const s = drawnSize(W / cols, mh / Math.ceil(n / cols));
-      if (s > bs * 1.02) {
-        bs = s;
-        best = cols;
-      }
-    }
-    let cells = grid(n, W, mh, best);
     const melV = mel.map((i) => voices[i]);
-    if (melV.some(bowedId)) {
-      // with bowed strings: the grid, upright or lying, that draws them largest with room for their bows
-      let bb = -1;
+    // with bowed strings: the group at one scale, its bows clear of the others, centred
+    let cells = melV.some(bowedId) ? fitGroup(melV, W, mh) : null;
+    if (!cells) {
+      // the winds alone: each fills an equal cell, in the grid that draws an instrument largest
+      let best = 1;
+      let bs = -1;
       for (let cols = 1; cols <= n; cols++) {
-        for (const upright of [false, true]) {
-          const g = bowGrid(melV, W, mh, cols, upright);
-          const s = g ? drawnSize(g[0].w, g[0].h) : -1;
-          if (g && s > bb * 1.02) {
-            bb = s;
-            cells = g;
-          }
+        const s = drawnSize(W / cols, mh / Math.ceil(n / cols));
+        if (s > bs * 1.02) {
+          bs = s;
+          best = cols;
         }
       }
+      cells = grid(n, W, mh, best);
     }
     mel.forEach((i, k) => (out[i] = cells[k]));
   }
@@ -231,7 +284,7 @@ export function drawEnsemble(ctx: CanvasRenderingContext2D, cells: Cell[], parts
     ctx.clip();
     // (the vector display: the same cells, each instrument as its lines; its plates traced coarser)
     if (d.bowed) {
-      const bow = vector ? drawBowedV(ctx, c.w, c.h, d.bowed.geom, fr, d.bowed.st, (d.bowed.vfield ??= new Contours(48, 28, 1.8, 0.6)), now, true) : drawBowed(ctx, c.w, c.h, d.bowed.geom, fr, d.bowed.st, d.bowed.field, now, true);
+      const bow = vector ? drawBowedV(ctx, c.w, c.h, d.bowed.geom, fr, d.bowed.st, (d.bowed.vfield ??= new Contours(48, 28, 1.8, 0.6)), now, true, c.sc) : drawBowed(ctx, c.w, c.h, d.bowed.geom, fr, d.bowed.st, d.bowed.field, now, true, c.sc);
       if (bow) bows.push(bow);
     } else if (d.flute) (vector ? drawFluteV : drawFlute)(ctx, c.w, c.h, fr, d.flute);
     else if (d.trumpet) (vector ? drawTrumpetV : drawTrumpet)(ctx, c.w, c.h, fr, d.trumpet);

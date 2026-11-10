@@ -33,10 +33,10 @@ interface Statics {
 }
 const statics = new Map<string, Statics>();
 
-function build(g: BowedGeom, W: number, H: number): Statics {
+function build(g: BowedGeom, W: number, H: number, scale?: number): Statics {
   const p = BOWED_PLAN[g.id];
   const sh = bowedShapes(g.id, p, g.L);
-  const lay = bowedLayout(g, p, sh, W, H);
+  const lay = bowedLayout(g, p, sh, W, H, scale);
   const sc = lay.sc;
   const X = (x: number) => x * sc;
   const B = p.body;
@@ -210,15 +210,15 @@ function build(g: BowedGeom, W: number, H: number): Statics {
   return { lay, body, plate, holes, board, head, scroll, pegs, tail, bridge, inside, strings };
 }
 
-/** (`bowLater`, as the stage's own drawBowed: the bow is handed back, to be drawn with no clip after
- *  every instrument of an ensemble) */
-export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, g: BowedGeom, fr: VisualFrame | null, st: BowedState, field: Contours, now: number, bowLater = false): (() => void) | null {
+/** (`bowLater` and `scale`, as the stage's own drawBowed: the bow is handed back, to be drawn with no
+ *  clip after every instrument of an ensemble, all drawn at the ensemble's one scale) */
+export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, g: BowedGeom, fr: VisualFrame | null, st: BowedState, field: Contours, now: number, bowLater = false, scale?: number): (() => void) | null {
   const p = BOWED_PLAN[g.id];
   const sh = bowedShapes(g.id, p, g.L);
-  const key = `${g.id}|${g.L}|${W}|${H}`;
+  const key = `${g.id}|${g.L}|${W}|${H}|${scale ?? ''}`;
   let s = statics.get(key);
   if (!s) {
-    s = build(g, W, H);
+    s = build(g, W, H, scale);
     statics.set(key, s);
     for (const k of statics.keys()) {
       if (statics.size <= 8) break;
@@ -468,9 +468,9 @@ export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, 
     if (!small && playing) {
       // (beside the bow where it leaves the plate on the treble side, clear of the strings and f-holes)
       const [sx, sy] = P(lv.cx, -sh.hwMax);
-      // (never off the top of the stage or an ensemble's cell; in an ensemble's cell, closed up for
-      // the bows, not far into the next instrument's)
-      const [x, y] = vertical ? [bowLater ? Math.min(sx + 10, W - 30) : sx + 10, sy - 10] : [sx + 12, Math.max(34, sy - 12)];
+      // (never off the top of the stage; in an ensemble, its box the instrument's own, in the aisle its
+      // bow keeps clear of the next instrument)
+      const [x, y] = vertical ? [bowLater && !scale ? Math.min(sx + 10, W - 30) : sx + 10, sy - 10] : [sx + 12, scale ? sy - 12 : Math.max(34, sy - 12)];
       label(ctx, lv.beta.toFixed(3), x, y, { color: GREEN, size: 11 });
       label(ctx, `${F.toFixed(2)} N`, x, y - 15, { color: RED, size: 11 });
     }

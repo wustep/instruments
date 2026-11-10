@@ -2314,8 +2314,11 @@ test('orchestra in 2D: every bow is drawn whole, frog to tip, at either end of i
       }, pos);
       const where = `${vector ? 'vector lines' : 'the stage’s own style'}, the string ${pos * 100} % of the hair from the frog`;
       await expect.poll(async () => (await bowsDrawn(page, vector)).map((b) => Math.round(b.pos * 100)), { message: `${where}: the bows are there`, timeout: 5000 }).toEqual([pos * 100, pos * 100, pos * 100, pos * 100]);
-      // (a bow set down on its string comes up to full strength in a few frames)
-      await expect.poll(async () => Math.min(...(await bowsDrawn(page, vector)).map((b) => b.drawn)), { message: `${where}: the least share of a bow’s length that is drawn`, timeout: 5000 }).toBeGreaterThan(0.9);
+      // (a bow set down on its string comes up to full strength in a few frames. At the ensemble's one
+      // scale a violin's bow is a third of the length it was in a cell of its own, its hair 2–3 px wide:
+      // where it crosses its own instrument's varnish a few stations blend into the plate; a bow cut at
+      // its cell's edge loses an end, which `first` and `last` below catch)
+      await expect.poll(async () => Math.min(...(await bowsDrawn(page, vector)).map((b) => b.drawn)), { message: `${where}: the least share of a bow’s length that is drawn`, timeout: 5000 }).toBeGreaterThan(0.85);
       const bows = await bowsDrawn(page, vector);
       expect(bows.map((b) => b.voice)).toEqual(['violin', 'violin', 'viola', 'cello']);
       for (const b of bows) {
@@ -2337,6 +2340,72 @@ test('orchestra in 2D: every bow is drawn whole, frog to tip, at either end of i
   // the hands let go
   await page.evaluate(() => (window as any).__orchestra.ensemble.parts.forEach((p: any) => p.engine.control(130, 0)));
   await page.locator('.ens-toggle').click();
+  expect(errors).toEqual([]);
+});
+
+test('orchestra in 2D, the Daylight quintet (two violins, viola, two cellos): every bow its own length at the one scale, clear of the others, the group in the middle of the stage', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  if (info.project.name === 'phone') await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await startAudio(page);
+  await page.locator('.ens-toggle').click();
+  await page.locator('.pick[aria-label="Cello"]').click();
+  await expect.poll(async () => (await ens(page)).lineup).toEqual(['violin', 'violin', 'viola', 'cello', 'cello']);
+  await expect.poll(async () => (await ens(page)).frames, { timeout: 8000 }).toBe(5);
+  await page.locator('.vec-toggle').click();
+  await expect(page.locator('html')).toHaveAttribute('data-style', 'vector');
+  const stage = (await page.locator('.stage-cv').boundingBox())!;
+  const under = (await page.locator('.player').boundingBox())!;
+  type Part = { voice: string; cell: { x: number; y: number; w: number; h: number; sc: number | null }; bow: { fx: number; fy: number; tx: number; ty: number; pos: number; hair: number } };
+  const ends: Part[][] = [];
+  for (const pos of [0, 1]) {
+    await page.evaluate((pos) => {
+      for (const p of (window as any).__orchestra.ensemble.parts) {
+        p.engine.control(128, 0.25);
+        p.engine.control(129, pos);
+      }
+    }, pos);
+    await expect.poll(() => page.evaluate(() => ((window as any).__ens2d() as Part[]).map((p) => p.bow?.pos)), { timeout: 5000 }).toEqual([pos, pos, pos, pos, pos]);
+    ends.push(await page.evaluate(() => (window as any).__ens2d()));
+  }
+  for (const parts of ends) {
+    // the hair as drawn over its real length: one px/m for all five (a viola's bow as long as a
+    // violin's, a cello's 0.6/0.64 of it; in Stephen's shot the viola's was twice a cello's scale)
+    const pxm = parts.map((p) => Math.hypot(p.bow.tx - p.bow.fx, p.bow.ty - p.bow.fy) / p.bow.hair);
+    for (const [i, p] of parts.entries()) {
+      const who = `${p.voice} ${i}, the string ${p.bow.pos * 100} % from the frog`;
+      expect(pxm[i] / pxm[3], `${who}: its bow at ${(pxm[i] / pxm[3]).toFixed(2)} × the cello's scale`).toBeGreaterThan(0.95);
+      expect(pxm[i] / pxm[3], `${who}: its bow at ${(pxm[i] / pxm[3]).toFixed(2)} × the cello's scale`).toBeLessThan(1.05);
+      expect(p.cell.sc).toBe(parts[0].cell.sc);
+      // on the stage, under the player, and through no other instrument
+      for (const [x, y] of [[p.bow.fx, p.bow.fy], [p.bow.tx, p.bow.ty]]) {
+        expect(x, who).toBeGreaterThan(stage.x + 2);
+        expect(x, who).toBeLessThan(stage.x + stage.width - 2);
+        expect(y, who).toBeGreaterThan(under.y + under.height);
+        for (const [j, o] of parts.entries())
+          if (j !== i) {
+            // the hair's line against the other's box (its line sampled every 2 px)
+            const n = Math.ceil(Math.hypot(p.bow.tx - p.bow.fx, p.bow.ty - p.bow.fy) / 2);
+            for (let k = 0; k <= n; k++) {
+              const [qx, qy] = [p.bow.fx + ((p.bow.tx - p.bow.fx) * k) / n, p.bow.fy + ((p.bow.ty - p.bow.fy) * k) / n];
+              expect(qx > o.cell.x && qx < o.cell.x + o.cell.w && qy > o.cell.y && qy < o.cell.y + o.cell.h, `${who}: its bow through ${o.voice} ${j}`).toBe(false);
+            }
+          }
+      }
+    }
+    // the cellos the larger: their length 2.3 × a violin's
+    const len = (c: Part['cell']) => Math.max(c.w, c.h);
+    expect(len(parts[3].cell) / len(parts[0].cell)).toBeGreaterThan(2.1);
+  }
+  // the group (the instruments and their hair at both ends of the bows' travel) in the middle of the
+  // stage under the player: either side alike, within the frog's length (its far end is left out here)
+  const xs = ends.flat().flatMap((p) => [p.cell.x, p.cell.x + p.cell.w, p.bow.fx, p.bow.tx]);
+  const ys = ends.flat().flatMap((p) => [p.cell.y, p.cell.y + p.cell.h, p.bow.fy, p.bow.ty]);
+  const [L, R] = [Math.min(...xs) - stage.x, stage.x + stage.width - Math.max(...xs)];
+  const [T, B] = [Math.min(...ys) - (under.y + under.height), stage.y + stage.height - Math.max(...ys)];
+  expect(Math.abs(L - R), `left ${L.toFixed(0)} px, right ${R.toFixed(0)} px`).toBeLessThan(0.04 * stage.width);
+  expect(Math.abs(T - B), `top ${T.toFixed(0)} px, bottom ${B.toFixed(0)} px`).toBeLessThan(0.04 * stage.height);
+  await page.evaluate(() => (window as any).__orchestra.ensemble.parts.forEach((p: any) => p.engine.control(130, 0)));
   expect(errors).toEqual([]);
 });
 
