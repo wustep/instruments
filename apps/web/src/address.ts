@@ -51,7 +51,7 @@ export interface Address {
 export const emptyAddress = (): Address => ({ page: 'stage', instrument: null, preset: null, orchestra: null, look: null, expr: null, rest: [] });
 
 /** the most of anything an address is read for (a longer one is cut there) */
-const MAX_SEATS = 16;
+const MAX_SEATS = 24;
 const MAX_LINES = 128;
 const MAX_NAME = 80;
 

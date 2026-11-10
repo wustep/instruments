@@ -60,6 +60,35 @@ export const VOICE_INFO: Record<Voice, VoiceInfo> = {
 };
 export const isKeyboard = (v: Voice): boolean => v === 'grand' || v === 'upright';
 
+/** what each instrument costs the audio thread, per cent of one core's real time at 48 kHz (an M-series
+ *  Mac, offline: scripts/stage-cost.ts, the busier of its own piece and idle, rounded up; a piano with 32
+ *  voices, as two on the stage have): what decides how many instruments a piece or an address may seat
+ *  (fitLineup) */
+export const VOICE_COST: Record<Voice, number> = { grand: 16, upright: 17, violin: 2, viola: 2, cello: 2.6, bass: 2.9, flute: 1.3, oboe: 1.3, clarinet: 1.3, bassoon: 1.3, horn: 1.2, trumpet: 1.2, trombone: 1.8, timpani: 2 };
+/** a lineup's cost (VOICE_COST summed) */
+export const lineupCost = (lineup: Voice[]): number => lineup.reduce((s, v) => s + (VOICE_COST[v] ?? 0), 0);
+/** the heaviest lineup of `n` instruments the stage has seated by count: two pianos (the most it takes)
+ *  and the heaviest of the others */
+export const heaviestCost = (n: number): number => {
+  const kb = Math.max(...VOICES.filter(isKeyboard).map((v) => VOICE_COST[v]));
+  const other = Math.max(...VOICES.filter((v) => !isKeyboard(v)).map((v) => VOICE_COST[v]));
+  return Math.min(2, n) * kb + Math.max(0, n - 2) * other;
+};
+/**
+ * The seats of a lineup the stage takes, in order: any lineup of up to `cap` instruments (the most picked
+ * by hand: ensemble.ts stageCap), and a longer one (a piece's, an address's) as far as it costs no more than
+ * the heaviest of `cap` (heaviestCost): an orchestra of winds and strings seats twenty where two pianos
+ * and six double basses were the most.
+ */
+export function fitLineup(lineup: Voice[], cap: number): Voice[] {
+  if (lineup.length <= cap) return lineup;
+  const budget = heaviestCost(cap);
+  let sum = 0;
+  let n = 0;
+  while (n < lineup.length && sum + VOICE_COST[lineup[n]] <= budget + 1e-9) sum += VOICE_COST[lineup[n++]];
+  return lineup.slice(0, Math.max(cap, n));
+}
+
 /** what assignment needs to know of a line (midi-file.ts MidiLine) */
 export interface LineInfo {
   name: string;
@@ -651,6 +680,27 @@ export function playersOf(plan: Plan): number[] {
     return n;
   });
 }
+
+// ---------------------------------------------------------------- a pair on one staff (divisi)
+/**
+ * The voice of line `li` that part `k` plays (its notes' `div`: midi-file.ts divide), or −1: all of them.
+ * A wind or brass instrument holds one note, so on a line that holds two or more at once (two flutes on one
+ * staff, as Mutopia's symphonies write them) the line's first instrument of a kind plays its top voice
+ * (Flauto I), the second the next (Flauto II), and any more double them in turn (four horns on a staff of
+ * two); a single note is the first player's, a unison written twice is both. A line of one voice is
+ * played whole by each (two flutes on one tune double it), as are every line on a bowed string, a piano
+ * and the timpani (two mallets).
+ */
+export function deskOf(plan: Plan, lines: Pick<LineInfo, 'poly'>[], li: number, k: number): number {
+  const v = plan.parts[k]?.voice;
+  const l = lines[li];
+  if (!v || !l || VOICE_INFO[v].poly !== 1 || l.poly < 2 || !plan.parts[k].lines.includes(li)) return -1;
+  let d = 0;
+  for (let j = 0; j < k; j++) if (plan.parts[j].voice === v && plan.parts[j].lines.includes(li)) d++;
+  return d % l.poly;
+}
+/** does a part at desk `desk` (deskOf) play this note? */
+export const playsNote = (e: { div?: number }, desk: number): boolean => desk < 0 || (e.div ?? 0) === desk;
 
 // ---------------------------------------------------------------- the trombones' sizes
 /** the trombone a seat needs for its lines (one model, three sizes: packages/engine core/trombone.ts): a line

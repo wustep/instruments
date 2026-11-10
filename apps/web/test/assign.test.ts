@@ -124,9 +124,11 @@ describe('orchestra: assigning lines to instruments', () => {
     const lines = (n: number) => Array.from({ length: n }, (_, i) => L(`l${i}`, '', -1, 55, 79, 67));
     for (const pc of PIECES) {
       const n = Math.max(...pc.parts.flatMap((q) => q.lines)) + 1;
-      const p = piecePlan(pc, lines(n), 6);
+      const p = piecePlan(pc, lines(n), Math.max(6, pc.parts.length));
       expect(lineupOf(p)).toEqual(pc.parts.map((q) => q.voice));
-      expect(playersOf(p).every((x) => x === 0)).toBe(true);
+      // (one player each, but the symphony's second wind of each pair on its staff: Flauto II, its own player)
+      expect(playersOf(p), pc.id).toEqual(pc.parts.map((q, k) => (pc.parts.slice(0, k).some((o) => o.voice === q.voice && o.lines.some((i) => q.lines.includes(i))) ? 1 : 0)));
+      if (pc.parts.length <= 6) expect(playersOf(p).every((x) => x === 0), pc.id).toBe(true);
     }
   });
 });

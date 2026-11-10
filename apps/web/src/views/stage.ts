@@ -130,6 +130,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     else next = [...lineup, v];
     if (!next.length) return;
     next.sort((a, b) => SCORE_ORDER.indexOf(a) - SCORE_ORDER.indexOf(b));
+    // (a full stage, an instrument it does not have: nothing changes, the routing included)
+    if (next.length === lineup.length && next.every((v, i) => v === lineup[i])) return;
     ensemble.setLineup(next);
   };
   // on: the lineup and routing it last had (else the quartet), a file already loaded shared out over

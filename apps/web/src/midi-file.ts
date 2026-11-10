@@ -9,8 +9,9 @@
 // (expression.ts).
 
 export type FileEvent =
-  | { t: number; kind: 'on'; midi: number; vel: number; line?: number }
-  | { t: number; kind: 'off'; midi: number; line?: number }
+  /** `div`: the note's voice in its line (divide): 0 the top one, 1 the next … */
+  | { t: number; kind: 'on'; midi: number; vel: number; line?: number; div?: number }
+  | { t: number; kind: 'off'; midi: number; line?: number; div?: number }
   | { t: number; kind: 'pedal'; cc: 64 | 66 | 67; value: number; line?: number }
   /** a controller that carries dynamics, 0…1 (value / 127): CC7 volume, CC11 expression, CC1 mod wheel */
   | { t: number; kind: 'cc'; cc: FileCC; value: number; line?: number }
@@ -261,5 +262,64 @@ export function parseMidi(buf: ArrayBuffer): MidiSong {
   let last = events.length - 1;
   while (last > 0 && events[last].kind === 'cc') last--;
   const duration = last >= 0 ? events[last].t : 0;
+  divide(events);
   return { events, duration, lines, bars: smpte ? undefined : bars.filter((b) => b <= duration + 1e-9) };
+}
+
+/**
+ * Each note's voice in its line (`div` on its on and off): a staff that two players share (Mutopia's
+ * symphonies write two flutes, two horns on one staff: their chords are the two parts, a unison is the
+ * same note twice, a single note the first player's) read as its players read it. The notes a line begins
+ * together go, from the top down, to the voices that are free (0 first): a voice is busy while its note
+ * sounds, unless that note ends within POLY_HOLD (a legato overlap, not a second part). The orchestra
+ * gives each voice to one of the line's wind players (orchestra/assign.ts deskOf).
+ */
+export function divide(events: FileEvent[]): void {
+  // each note's end: its off, first in first out per line and pitch
+  const open = new Map<string, number[]>();
+  const end = new Float64Array(events.length).fill(Infinity);
+  const onOf = new Int32Array(events.length).fill(-1);
+  events.forEach((e, i) => {
+    if (e.kind !== 'on' && e.kind !== 'off') return;
+    const k = `${e.line}:${e.midi}`;
+    if (e.kind === 'on') {
+      const q = open.get(k);
+      if (q) q.push(i);
+      else open.set(k, [i]);
+    } else {
+      const j = open.get(k)?.shift();
+      if (j === undefined) return;
+      end[j] = e.t;
+      onOf[i] = j;
+    }
+  });
+  const sounding = new Map<number | undefined, { div: number; end: number }[]>();
+  const done = new Uint8Array(events.length);
+  for (let i = 0; i < events.length; i++) {
+    const e = events[i];
+    if (e.kind === 'off') {
+      const j = onOf[i];
+      if (j >= 0) e.div = (events[j] as { div?: number }).div;
+      continue;
+    }
+    if (e.kind !== 'on' || done[i]) continue;
+    // the notes the line begins at this moment, from the top down
+    const group: number[] = [];
+    for (let j = i; j < events.length && events[j].t === e.t; j++) {
+      const f = events[j];
+      if (f.kind === 'on' && f.line === e.line) group.push(j);
+    }
+    group.sort((a, b) => (events[b] as { midi: number }).midi - (events[a] as { midi: number }).midi || a - b);
+    const held = (sounding.get(e.line) ?? []).filter((n) => n.end > e.t + POLY_HOLD);
+    const busy = new Set(held.map((n) => n.div));
+    let d = 0;
+    for (const j of group) {
+      while (busy.has(d)) d++;
+      (events[j] as { div?: number }).div = d;
+      held.push({ div: d, end: end[j] });
+      busy.add(d);
+      done[j] = 1;
+    }
+    sounding.set(e.line, held);
+  }
 }
