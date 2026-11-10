@@ -955,6 +955,9 @@ interface TromPoseState {
   /** the slide as drawn (mm out), the engine's last frame's slide, when it came (ms), its slide then */
   s: number;
   last: object | null;
+  /** the drawn slide's run from one frame's to the next: where it started (mm) and over how long (ms) */
+  from: number;
+  dur: number;
   tFrame: number;
   base: number;
   W: Float32Array;
@@ -968,7 +971,7 @@ const poses = new WeakMap<WindPose, TromPoseState>();
 function tromPose(pose: WindPose): TromPoseState {
   let p = poses.get(pose);
   if (!p) {
-    p = { pos: new Float32Array(2), vel: new Float32Array(2), quiet: 10, s: 0, last: null, tFrame: 0, base: 0, W: new Float32Array(16), R: new Float32Array(16), L: new Float32Array(16), S: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]), glow: [0, 0, 0, 0], lipGap: 0 };
+    p = { pos: new Float32Array(2), vel: new Float32Array(2), quiet: 10, s: 0, last: null, from: 0, dur: 33, tFrame: 0, base: 0, W: new Float32Array(16), R: new Float32Array(16), L: new Float32Array(16), S: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]), glow: [0, 0, 0, 0], lipGap: 0 };
     poses.set(pose, p);
   }
   return p;
@@ -1008,6 +1011,11 @@ export function poseTrombone(b: Batch, tm: TromboneModel, fr: VisualFrame | null
           views: tromboneViews(tm),
           measures: tm.measures,
           slide: () => (stageState ? +(stageState.s * mm).toFixed(4) : null),
+          /** the engine's own last frame: its slide (m), where it is heading, the valves down */
+          engine: () => {
+            const t = stageState?.last as { slide?: number; target?: number; valves?: number[] } | null;
+            return t ? { slide: t.slide, target: t.target, valves: t.valves } : null;
+          },
           levers: () => (stageState ? Array.from(stageState.pos.subarray(0, tm.valves.length)) : null),
           rotors: () => (stageState ? tm.valves.map((_, i) => tromboneRotorTurn(tm, i, stageState!.pos[i])) : null),
         };
@@ -1023,15 +1031,19 @@ export function poseTrombone(b: Batch, tm: TromboneModel, fr: VisualFrame | null
   if (tb) {
     const target = Math.max(0, Math.min(travel, tb.target / mm));
     if (Number.isFinite(tb.slide)) {
-      // (each frame from the worklet is a new object)
+      // (each frame from the worklet is a new object.) The engine's slide, drawn a frame behind it: from where
+      // it is drawn to the frame's over the time between frames (they come at ≈30 Hz, the stage draws at 60),
+      // so it moves as smoothly as the engine's own and never past where the engine has it
       if (tb !== st.last) {
+        st.dur = Math.max(10, Math.min(100, now - st.tFrame));
         st.last = tb;
         st.tFrame = now;
+        st.from = st.s;
         st.base = Math.max(0, Math.min(travel, tb.slide / mm));
       }
-      const reach = (SLIDE_SPEED / mm) * Math.max(0, Math.min(0.1, (now - st.tFrame) / 1000));
-      const want = st.base + Math.max(-reach, Math.min(reach, target - st.base));
-      st.s += (want - st.s) * (1 - Math.exp(-dt / 0.012));
+      // (counting this draw's own step: a frame that comes with every draw is drawn where it says)
+      const k = Math.max(0, Math.min(1, (now - st.tFrame + dt * 1000) / st.dur));
+      st.s = st.from + (st.base - st.from) * k;
     } else {
       // (a frame read from its note has no slide of its own: it runs from where it was drawn)
       const step = (SLIDE_SPEED / mm) * dt;

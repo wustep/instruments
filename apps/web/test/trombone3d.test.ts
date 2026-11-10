@@ -90,7 +90,7 @@ describe('the trombone in 3D', () => {
     }
   });
 
-  it('stands its outer slide out by the frame’s slide, running on to its target at the engine’s speed, inside its travel', () => {
+  it('stands its outer slide out by the frame’s slide, smoothly between frames, inside its travel', () => {
     const at = (b: Batch, m: Mesh) => b.inst.get(m)!.a[12];
     // first position, then the slide where the frame has it
     for (const s of [0, 0.081, 0.356, 0.567]) {
@@ -101,19 +101,30 @@ describe('the trombone in 3D', () => {
     // never past its travel
     const far = play(tenor, () => ({ ...frame('tenor', 60), trombone: { ...frame('tenor', 60).trombone!, slide: 2, target: 2 } }) as VisualFrame, 20);
     expect(tromboneSlideState(far.pose)!).toBeCloseTo(tenor.travel, 4);
-    // between frames (one frame object held 0.1 s), on towards the target at no more than 4 m/s
+    // between frames: the engine's slide moving at 3 m/s, its frames 30 a second, the stage drawing at 120: the
+    // drawn slide runs on smoothly with it (no step over 6 m/s: the engine's 4 and some to catch up; never
+    // back), never past the frame's target, and
+    // it stops where the engine's stops
     const pose = newWindPose();
     const b = new Batch();
-    const fr = frame('tenor', 36, 0);
+    const target = tromboneSlideOut(tromboneFingering(36, 'tenor'), 'tenor');
     const path: number[] = [];
-    for (let k = 0; k < 12; k++) {
+    let fr = frame('tenor', 36, 0);
+    for (let k = 0; k < 120; k++) {
+      const t = k / 120;
+      if (k % 4 === 0) fr = frame('tenor', 36, Math.min(0.56, 3 * t));
       b.clear();
-      poseTrombone(b, tenor, fr, pose, 1 / 120, k * (1000 / 120), 0.05);
+      poseTrombone(b, tenor, fr, pose, 1 / 120, t * 1000, 0.05);
       path.push(tromboneSlideState(pose)!);
     }
-    expect(path[path.length - 1]).toBeGreaterThan(0.2);
-    for (let k = 1; k < path.length; k++) expect(path[k] - path[k - 1]).toBeLessThan(4 / 120 + 1e-6);
-    expect(path[path.length - 1]).toBeLessThanOrEqual(tromboneSlideOut(tromboneFingering(36, 'tenor'), 'tenor') + 1e-6);
+    for (let k = 1; k < path.length; k++) {
+      expect(path[k] - path[k - 1]).toBeLessThan(4 / 120 + 1e-6);
+      expect(path[k] - path[k - 1]).toBeGreaterThan(-1e-6);
+      expect(path[k]).toBeLessThanOrEqual(target + 1e-6);
+    }
+    // (at 0.1 s the engine's is at 0.3 m: the drawn one a frame behind it)
+    expect(Math.abs(path[12] - 0.3)).toBeLessThan(0.11);
+    expect(path[path.length - 1]).toBeCloseTo(0.56, 3);
   });
 
   it('presses the valves of the engine’s chart and turns their rotors a quarter turn, then lets them go', () => {
