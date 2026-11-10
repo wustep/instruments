@@ -1,0 +1,316 @@
+{
+ "pieces": [
+  {
+   "name": "horn-long-tones",
+   "what": "B1, F2, C3, G3, D4, A4, E5, each at pp, mf, ff (velocity 30, 70, 112), 1.4 s"
+  },
+  {
+   "name": "horn-phrase",
+   "what": "an original line in F: a tongued call up the arpeggio from F2 to C5, then legato down through the middle register to the low F, a swell to ff and back"
+  },
+  {
+   "name": "horn-sonata",
+   "what": "Beethoven, Horn Sonata, Allegro moderato (the horn’s line) (Mutopia, public domain), as the play icon plays it"
+  }
+ ],
+ "metrics": {
+  "before": [
+   {
+    "midi": 35,
+    "velocity": 30,
+    "centroidHz": 225,
+    "rmsDb": -32.1,
+    "cents": 4.5
+   },
+   {
+    "midi": 35,
+    "velocity": 70,
+    "centroidHz": 281,
+    "rmsDb": -27.5,
+    "cents": 4.6
+   },
+   {
+    "midi": 35,
+    "velocity": 112,
+    "centroidHz": 335,
+    "rmsDb": -23.7,
+    "cents": 4.8
+   },
+   {
+    "midi": 41,
+    "velocity": 30,
+    "centroidHz": 219,
+    "rmsDb": -29,
+    "cents": 5.9
+   },
+   {
+    "midi": 41,
+    "velocity": 70,
+    "centroidHz": 279,
+    "rmsDb": -24.8,
+    "cents": 6
+   },
+   {
+    "midi": 41,
+    "velocity": 112,
+    "centroidHz": 340,
+    "rmsDb": -21.2,
+    "cents": 6
+   },
+   {
+    "midi": 48,
+    "velocity": 30,
+    "centroidHz": 286,
+    "rmsDb": -24.4,
+    "cents": 5.7
+   },
+   {
+    "midi": 48,
+    "velocity": 70,
+    "centroidHz": 325,
+    "rmsDb": -20,
+    "cents": 5.7
+   },
+   {
+    "midi": 48,
+    "velocity": 112,
+    "centroidHz": 357,
+    "rmsDb": -16.6,
+    "cents": 5.8
+   },
+   {
+    "midi": 55,
+    "velocity": 30,
+    "centroidHz": 298,
+    "rmsDb": -25,
+    "cents": 15
+   },
+   {
+    "midi": 55,
+    "velocity": 70,
+    "centroidHz": 358,
+    "rmsDb": -21,
+    "cents": 14.3
+   },
+   {
+    "midi": 55,
+    "velocity": 112,
+    "centroidHz": 416,
+    "rmsDb": -17.5,
+    "cents": 13.4
+   },
+   {
+    "midi": 62,
+    "velocity": 30,
+    "centroidHz": 337,
+    "rmsDb": -20.8,
+    "cents": 13.6
+   },
+   {
+    "midi": 62,
+    "velocity": 70,
+    "centroidHz": 370,
+    "rmsDb": -16.9,
+    "cents": 12.6
+   },
+   {
+    "midi": 62,
+    "velocity": 112,
+    "centroidHz": 415,
+    "rmsDb": -13.8,
+    "cents": 11.7
+   },
+   {
+    "midi": 69,
+    "velocity": 30,
+    "centroidHz": 452,
+    "rmsDb": -13.2,
+    "cents": 4.7
+   },
+   {
+    "midi": 69,
+    "velocity": 70,
+    "centroidHz": 459,
+    "rmsDb": -8.9,
+    "cents": 4.6
+   },
+   {
+    "midi": 69,
+    "velocity": 112,
+    "centroidHz": 471,
+    "rmsDb": -6,
+    "cents": 4.5
+   },
+   {
+    "midi": 76,
+    "velocity": 30,
+    "centroidHz": 661,
+    "rmsDb": -13,
+    "cents": 4.1
+   },
+   {
+    "midi": 76,
+    "velocity": 70,
+    "centroidHz": 661,
+    "rmsDb": -8.2,
+    "cents": 4
+   },
+   {
+    "midi": 76,
+    "velocity": 112,
+    "centroidHz": 662,
+    "rmsDb": -5,
+    "cents": 3.9
+   }
+  ],
+  "after": [
+   {
+    "midi": 35,
+    "velocity": 30,
+    "centroidHz": 450,
+    "rmsDb": -39.2,
+    "cents": 0
+   },
+   {
+    "midi": 35,
+    "velocity": 70,
+    "centroidHz": 498,
+    "rmsDb": -35.1,
+    "cents": 0.3
+   },
+   {
+    "midi": 35,
+    "velocity": 112,
+    "centroidHz": 589,
+    "rmsDb": -29.1,
+    "cents": -0.1
+   },
+   {
+    "midi": 41,
+    "velocity": 30,
+    "centroidHz": 467,
+    "rmsDb": -37.1,
+    "cents": -0.1
+   },
+   {
+    "midi": 41,
+    "velocity": 70,
+    "centroidHz": 520,
+    "rmsDb": -32.8,
+    "cents": 0
+   },
+   {
+    "midi": 41,
+    "velocity": 112,
+    "centroidHz": 620,
+    "rmsDb": -26.8,
+    "cents": 0.2
+   },
+   {
+    "midi": 48,
+    "velocity": 30,
+    "centroidHz": 402,
+    "rmsDb": -33.2,
+    "cents": -0.2
+   },
+   {
+    "midi": 48,
+    "velocity": 70,
+    "centroidHz": 463,
+    "rmsDb": -29.1,
+    "cents": -0.1
+   },
+   {
+    "midi": 48,
+    "velocity": 112,
+    "centroidHz": 567,
+    "rmsDb": -23.2,
+    "cents": 0
+   },
+   {
+    "midi": 55,
+    "velocity": 30,
+    "centroidHz": 379,
+    "rmsDb": -27.9,
+    "cents": -0.2
+   },
+   {
+    "midi": 55,
+    "velocity": 70,
+    "centroidHz": 426,
+    "rmsDb": -24,
+    "cents": -0.1
+   },
+   {
+    "midi": 55,
+    "velocity": 112,
+    "centroidHz": 521,
+    "rmsDb": -18.4,
+    "cents": 0
+   },
+   {
+    "midi": 62,
+    "velocity": 30,
+    "centroidHz": 400,
+    "rmsDb": -23.3,
+    "cents": -0.1
+   },
+   {
+    "midi": 62,
+    "velocity": 70,
+    "centroidHz": 445,
+    "rmsDb": -19.5,
+    "cents": 0
+   },
+   {
+    "midi": 62,
+    "velocity": 112,
+    "centroidHz": 536,
+    "rmsDb": -14.3,
+    "cents": 0.1
+   },
+   {
+    "midi": 69,
+    "velocity": 30,
+    "centroidHz": 474,
+    "rmsDb": -21,
+    "cents": 0
+   },
+   {
+    "midi": 69,
+    "velocity": 70,
+    "centroidHz": 499,
+    "rmsDb": -17,
+    "cents": 0
+   },
+   {
+    "midi": 69,
+    "velocity": 112,
+    "centroidHz": 581,
+    "rmsDb": -11.8,
+    "cents": -0.1
+   },
+   {
+    "midi": 76,
+    "velocity": 30,
+    "centroidHz": 664,
+    "rmsDb": -21.4,
+    "cents": 0.2
+   },
+   {
+    "midi": 76,
+    "velocity": 70,
+    "centroidHz": 668,
+    "rmsDb": -16.4,
+    "cents": 0
+   },
+   {
+    "midi": 76,
+    "velocity": 112,
+    "centroidHz": 689,
+    "rmsDb": -10.3,
+    "cents": -0.6
+   }
+  ]
+ }
+}

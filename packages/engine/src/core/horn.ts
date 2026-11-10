@@ -34,8 +34,10 @@
 // horn's colour, fitted to the recordings: the hand in the bell and the bell turned away from the listener
 // darken it, and the horn's harmonics gather near 450–600 Hz whatever the note (the University of Iowa
 // horn: the strongest harmonic is the 7th–9th at B♭1, the 3rd at E♭3, the 2nd at C4, the fundamental above
-// F4); a loud note's lips close sharply each cycle and the bore steepens it, so ff is brassy (the corner of
-// the fall moves up with the dynamic).
+// F4). Loud, the horn turns brassy: its lips close sharply each cycle, and the wave steepens on its way down
+// the long narrow tube (a crest travels faster than a trough; Hirschberg et al. 1996), so what reaches the
+// bell is read earlier or later by its own pressure: a loud note radiates high harmonics a soft one does not
+// (the corner of the fall moves up with the dynamic too).
 
 import { Pump } from './pump.ts';
 import type { KeySummary } from '../api/messages.ts';
@@ -63,7 +65,6 @@ export interface HornParams {
   voice?: Partial<HornVoice>;
 }
 
-const C_AIR = 343;
 const BUF = 1 << 13;
 const TRACE = 2048;
 const et = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
@@ -128,8 +129,12 @@ export const hornTubeLength = (f: HornFingering): number => (f.side === 'F' ? HO
  *  MIS horn (pp/mf/ff, B♭1–F5) with scripts/fit-horn.ts on the fit half of its notes (even MIDI numbers),
  *  judged on the held-out half (scripts/judge.ts); artifacts/realistic-3d/final-symphony/horn/NOTES.md. */
 export interface HornVoice {
-  /** the lips: their quality factor (their own resonance's sharpness; measured on players 3–10: Newton,
-   *  Campbell & Gilbert 2008, JASA 123, 3592) at the low end of the compass and at the top */
+  /** the lips: their quality factor (their own resonance's sharpness) at the low end of the compass and at
+   *  the top. Fitted near 50, far above the 3–10 measured on players' lips (Newton, Campbell & Gilbert 2008,
+   *  JASA 123, 3592): one mass on a spring stands in for an embouchure a player keeps adjusting, and only a
+   *  sharp resonance holds a note on its partial with the next one a tone away (at Q 6–16 the low notes fell
+   *  to the pedal or did not speak, and high ones cracked: scripts/horn-regimes.ts). The cost is a slower
+   *  start, eased by qAttack */
   lipQ: number;
   lipQTop: number;
   /** the lips' resonance below the note (semitones) */
@@ -147,9 +152,11 @@ export interface HornVoice {
   gammaCurve: number;
   /** …and how it follows the note (a high note needs firmer lips and more pressure): × (f/f(B♭1))^gammaExp */
   gammaExp: number;
-  /** the breath's rise (s, a time constant) for a soft note and a loud one */
+  /** the breath's rise (s, a time constant) for a soft note and a loud one, × (f/f(B♭1))^riseExp up the
+   *  compass (the recordings' top notes speak in 10–20 ms) */
   riseLo: number;
   riseHi: number;
+  riseExp: number;
   /** the tongue: the lips held still this long (s) while the breath builds, then let go over this many
    *  periods */
   tongueHold: number;
@@ -165,19 +172,29 @@ export interface HornVoice {
   qTau: number;
   attackBoost: number;
   attackTau: number;
-  /** the missing apex x₀, as how many partials above the note the cone's resonances leave their gap
-   *  ((L + x₀)/x₀ − n): an effective length, not a measured one (the horn is not a cone: its mouthpiece's
-   *  volume and its mouthpipe make its low resonances strong, and above ~700 Hz its bell lets them go). A
-   *  long apex (few partials) gives a low note strong resonances and a quick start; a high note, played
-   *  near the 12th partial, needs a short one, or its own resonance is the weak one */
-  apexGap: number;
+  /** the missing apex x₀, as where the cone's resonances leave their gap: the (L + x₀)/x₀-th resonance of
+   *  the tube is weak, here apexRel × the note's partial, so the gaps fall at the same places in every
+   *  note's spectrum (apexRel × the note, and its multiples: kept off the low harmonics). An effective
+   *  length, not a measured one (the horn is not a cone: its mouthpiece's volume and its mouthpipe make its
+   *  low resonances strong, and above ~700 Hz its bell lets them go): long on a low note (strong
+   *  resonances, a quick start), short on a high one, played near its tube's 12th partial. A gap a fixed
+   *  number of partials above the note fell on the second harmonic of the notes on the sixth */
+  apexRel: number;
+  /** the wave steepening on its way down the tube (nonlinear propagation: a crest travels faster than a
+   *  trough, Hirschberg et al. 1996, JASA 99, 1754; "brassiness", Campbell 1999): what reaches the bell is
+   *  read this fraction of the round trip earlier per unit of its pressure, so a loud note radiates its
+   *  high harmonics far more strongly than a soft one (in the radiated sound: the reflection, a low-pass, is
+   *  left as it is) */
+  steep: number;
   /** the bell's reflection: a second-order low-pass (Hz, Q) and the round trip's loss at audio frequencies
    *  (the mean pressure reflected whole) */
   bellFc: number;
   bellQ: number;
   wall: number;
-  /** turbulence in the lips' slit: noise in the flow, ∝ the flow */
+  /** turbulence in the lips' slit: noise in the flow, ∝ the flow, at B♭1 and at F5 (between, on the note:
+   *  the recordings' harmonics-to-noise ratio rises from ~32 dB at B♭1 to ~48 at F5) */
   noise: number;
+  noiseTop: number;
   /** the radiation's colour: a high-pass (Hz); a formant (Hz, dB, Q: the horn's harmonics gather near
    *  500 Hz); a low-pass at lp × (f₀/440 Hz)^lpExp (Hz, Q), lpDyn octaves lower at velocity 1 than at 127;
    *  a shelf above shelfF (dB) */
@@ -195,44 +212,47 @@ export interface HornVoice {
   tilt: number;
 }
 
-/** the start design (unfitted: the literature's numbers and the recordings' broad shape) */
+/** the fitted voicing (scripts/fit-horn.ts, fit 4: the fit half 10.9 → 2.81, held-out 3.68; NOTES.md) */
 export const HORN_VOICE: HornVoice = {
-  lipQ: 45,
-  lipQTop: 45,
-  lipBelow: 0.5,
-  h0: 0.05,
-  hMax: 2,
-  zeta: 0.4,
-  zetaTop: 0.3,
+  lipQ: 46.97,
+  lipQTop: 54.91,
+  lipBelow: 0.6092,
+  h0: 0.0249,
+  hMax: 2.14,
+  zeta: 1.9,
+  zetaTop: 0.4556,
   gammaLo: 0.25,
-  gammaHi: 0.7,
-  gammaCurve: 1,
-  gammaExp: 0.15,
-  riseLo: 0.05,
-  riseHi: 0.02,
-  tongueHold: 0.02,
-  tongueRel: 1.5,
-  kick: 0.5,
-  qAttack: 0.8,
-  qTau: 0.05,
-  attackBoost: 0.6,
-  attackTau: 0.05,
-  apexGap: 5,
-  bellFc: 1200,
-  bellQ: 0.7,
-  wall: 0.97,
-  noise: 0.03,
-  hp: 60,
-  f1: 500,
-  g1: 6,
-  q1: 0.9,
-  lp: 900,
-  lpQ: 0.7,
-  lpExp: 0.3,
-  lpDyn: 1.2,
+  gammaHi: 0.6398,
+  gammaCurve: 2.156,
+  gammaExp: 0.07153,
+  riseLo: 0.01711,
+  riseHi: 0.04787,
+  riseExp: 0.01243,
+  tongueHold: 0.01205,
+  tongueRel: 2.621,
+  kick: 1.035,
+  qAttack: 0.3887,
+  qTau: 0.1129,
+  attackBoost: 1.054,
+  attackTau: 0.08686,
+  apexRel: 3.457,
+  steep: 0.02051,
+  bellFc: 1213,
+  bellQ: 0.5402,
+  wall: 0.9463,
+  noise: 0.1743,
+  noiseTop: 0.1697,
+  hp: 267,
+  f1: 663,
+  g1: 1.473,
+  q1: 0.3206,
+  lp: 1914,
+  lpQ: 0.5541,
+  lpExp: -0.07217,
+  lpDyn: 1.88,
   shelfF: 3000,
-  shelfG: -6,
-  tilt: 0,
+  shelfG: -18.63,
+  tilt: 2.34,
 };
 
 /** the shortest tongued note: the breath stays on this long after the tongue's release, at velocity 1 and
@@ -308,6 +328,8 @@ export class HornCore implements InstrumentCore {
   private tiltNote = 1;
   private tiltOut = 1;
   private zetaNote = 0.5;
+  private noiseNote = 0.03;
+  private riseNote = 1;
   private qNote = 6;
   private gNote = 1;
   private room: Room;
@@ -363,7 +385,9 @@ export class HornCore implements InstrumentCore {
     ]);
     this.lpSet = -1;
     this.room.configure(this.params.room, this.params.seat);
-    this.gain = 1 * this.params.volume;
+    // matched to the Iowa horn: the median note's level as recorded (pp, mf and ff each within 0.3 dB of it;
+    // its ff, −17.5 dB, sits with the Iowa trumpet's −16.9 and bassoon's −18.1)
+    this.gain = 0.5617 * this.params.volume;
   }
 
   /** measured voicing table (scripts/tune-horn.ts): cents the bare model plays sharp, by sample rate */
@@ -389,13 +413,15 @@ export class HornCore implements InstrumentCore {
     const w0 = (2 * Math.PI * f) / fs;
     const lag = biquadPhaseDelay(this.bc, w0);
     const T = ((fg.partial * fs) / f) * c;
-    this.D2 = Math.max(1, T / (fg.partial + V.apexGap));
+    this.D2 = Math.max(1, T / (fg.partial * V.apexRel));
     this.Dtarget = Math.max(2, T - this.D2 - 2 * lag - 1);
     if (immediate) this.D = this.Dtarget;
     this.lipFTarget = f / c;
     if (immediate) this.lipF = this.lipFTarget * Math.pow(2, -V.lipBelow / 12);
     const u = clamp((m - HORN_LO) / (HORN_HI - HORN_LO), 0, 1);
     this.zetaNote = V.zeta + (V.zetaTop - V.zeta) * u;
+    this.noiseNote = V.noise + (V.noiseTop - V.noise) * u;
+    this.riseNote = Math.pow(f / et(HORN_LO), V.riseExp);
     this.qNote = V.lipQ + (V.lipQTop - V.lipQ) * u;
     this.gNote = Math.pow(f / et(HORN_LO), V.gammaExp);
     this.lpNote = V.lp * Math.pow(f / 440, V.lpExp);
@@ -426,7 +452,7 @@ export class HornCore implements InstrumentCore {
         this.velocity = ev.velocity;
         this.setNote(m, !legato && this.level < 1e-3);
         this.pTarget = 1;
-        this.attackTau = legato ? 0.01 : this.V.riseLo + (this.V.riseHi - this.V.riseLo) * (ev.velocity / 127);
+        this.attackTau = legato ? 0.01 : (this.V.riseLo + (this.V.riseHi - this.V.riseLo) * (ev.velocity / 127)) * this.riseNote;
         if (!legato) {
           // tongued: the lips held while the breath builds, then let go
           this.tongueN = Math.round(this.V.tongueHold * this.fs);
@@ -588,7 +614,7 @@ export class HornCore implements InstrumentCore {
     const zeta = this.zetaNote * boost;
     const h0 = V.h0;
     const hMax = V.hMax;
-    const nz = V.noise * P.noise;
+    const nz = this.noiseNote * P.noise;
     // the radiation's corner for the note and the dynamic, written into its section in place
     const lpF = Math.min(0.45 * fs, this.lpNote * Math.pow(2, V.lpDyn * (vc - 1)));
     if (Math.abs(lpF - this.lpSet) > 0.5) {
@@ -604,6 +630,9 @@ export class HornCore implements InstrumentCore {
     const bore = this.bore;
     const apexB = this.apexB;
     const D2 = this.D2;
+    // (the steepening: samples earlier per unit pressure, ∝ the tube's round trip; and its limit)
+    const stp = V.steep * DT;
+    const dMax = fs / (6 * et(this.note));
     const d2i = Math.floor(D2);
     const d2f = D2 - d2i;
     const mask = BUF - 1;
@@ -684,7 +713,17 @@ export class HornCore implements InstrumentCore {
       bore[w & mask] = p - a1;
       apexB[w & mask] = p - a2;
       // radiated: what the bell lets through (the complement of its reflection)
-      rad = e - rb;
+      // the wave the bell lets out, steepened on its way: read earlier (a crest) or later (a trough) by
+      // its own pressure, at most a sixth of the note's period
+      let es = e;
+      if (stp) {
+        const sh = Math.max(-dMax, Math.min(dMax, stp * e));
+        const Ds = D - sh;
+        const si = Math.floor(Ds);
+        const sf = Ds - si;
+        es = bore[(w - si) & mask] * (1 - sf) + bore[(w - si - 1) & mask] * sf;
+      }
+      rad = es - rb;
       const out = rad * this.tiltOut;
       oL[t] = out;
       oR[t] = 0.92 * out;
@@ -796,9 +835,6 @@ export class HornCore implements InstrumentCore {
     };
   }
 }
-
-/** the speed of sound the tube lengths assume (m/s) */
-export const HORN_C = C_AIR;
 
 /** RBJ low-pass coefficients [b0,b1,b2,a1,a2] written into c at `at` (no allocation: a note change on the
  *  audio thread) */

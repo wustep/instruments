@@ -46,6 +46,28 @@ describe('the address', () => {
     expect(at(formatAddress(b))).toEqual(b);
   });
 
+  it('the horn: /horn and /french-horn open it; four horns seated and routed by name in the Orchestra round-trip', () => {
+    for (const path of ['/horn', '/french-horn']) expect(at(path).instrument, path).toBe('horn');
+    expect(formatAddress({ ...emptyAddress(), instrument: 'horn' })).toBe('/horn');
+    const a: Address = {
+      ...emptyAddress(),
+      orchestra: {
+        seats: ['horn', 'horn', 'horn', 'horn', 'violin', 'viola', 'cello'],
+        lines: [
+          { name: 'Corno I in Es', program: 60, seats: [0, 2] },
+          { name: 'Corno II in Es', program: 60, seats: [1, 3] },
+          { name: 'Violino', program: 40, seats: [4] },
+          { name: 'Viola', program: 41, seats: [5] },
+          { name: 'Basso', program: 42, seats: [6] },
+        ],
+        keys: null,
+      },
+    };
+    const url = formatAddress(a);
+    expect(url).toContain('seats=horn,horn,horn,horn,violin,viola,cello');
+    expect(at(url)).toEqual(a);
+  });
+
   it('the quintet preset reads as five seats, each line on its own by name and program', () => {
     const a = at(QUINTET);
     expect(a.page).toBe('stage');
