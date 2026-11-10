@@ -78,6 +78,8 @@ export interface TimpaniParams {
   roll: number;
   room: number;
   volume: number;
+  /** the set's tuning against A = 440 (semitones; the fit tunes each note to its recording's pitch) */
+  detune?: number;
   /** orchestra mode: where it sits on the stage (post.ts Seat); none, the single instrument's place */
   seat?: Seat | null;
   /** fitting only (scripts/fit-timpani.ts): the voicing below, overridden */
@@ -95,6 +97,10 @@ export interface TimpaniVoice {
   kettle: number;
   /** × the radiation damping computed from the head's far field (physically 1) */
   rad: number;
+  /** the support's loss (1/s): only the m = 1 modes push a net moment on the rim, rocking the kettle on its
+   *  struts and casters, and only the m = 0 modes a net force, lifting it; the others leave the rim still */
+  rim1: number;
+  rim0: number;
   /** damping floor (1/s, amplitude) and its rise with frequency: dFloor + dInt·(f/1 kHz)^dExp */
   dFloor: number;
   dInt: number;
@@ -103,13 +109,29 @@ export interface TimpaniVoice {
    *  line from the strike point across the head (rad) */
   listen: number;
   spread: number;
+  /** the listener's azimuth round the head from the strike point (rad): the audience, opposite the player, π;
+   *  the recordings' microphones where they stood */
+  azim: number;
   /** × the tension's rise with the head's strain (Mylar: 1) */
   stretch: number;
+  /** each nodal diameter's radiation × this (dB): the baffled head's far field falls as (ka)^m; the real
+   *  drum's edge and kettle radiate its higher orders more (fitted) */
+  radM: number;
+  /** the head's unresolved modes above the computed ones (a statistical band): its level (dB re the
+   *  force) and the corner above which the mallet's force no longer reaches (Hz) */
+  hiGain: number;
+  hiFc: number;
+  /** its decay (1/s): the dense modes up there radiate and lose fast */
+  hiDecay: number;
   /** the mallet: its moving mass (kg), the felt's stiffness K (N/m^p), exponent p and Hunt–Crossley loss λ (s/m) */
   mass: number;
   felt: number;
   feltExp: number;
   hyst: number;
+  /** the felt's thickness (m) over the mallet's core, and the core's Hertzian stiffness (N/m^1.5): a loud
+   *  stroke bottoms the felt out on the core, a short hard spike on the long soft push */
+  thick: number;
+  core: number;
   /** the stroke's speed (m/s) at velocity 1 and 127, and the curve between (log-linear in velocity^vCurve) */
   vLo: number;
   vHi: number;
@@ -124,32 +146,48 @@ export interface TimpaniVoice {
   gainDb: number;
 }
 
-/** the start design (literature values; scripts/fit-timpani.ts) */
+/** the voicing fitted to the VSCO 2 CE timpani (scripts/fit-timpani.ts, then scripts/polish-timpani.ts, on
+ *  drums 1, 3 and 5; drums 2 and 4 held out for the judge): the start design (the literature's values, at
+ *  9c9256f) was μ₁₁ 2, a 30 g mallet without a core, the radiation as computed, the listener at 60°; see
+ *  artifacts/realistic-3d/final-symphony/timpani/NOTES.md */
 export const TIMPANI_VOICE: TimpaniVoice = {
-  mu11: 2.0,
-  muExp: 1,
-  kettle: 1,
-  rad: 1,
-  dFloor: 0.6,
-  dInt: 3,
-  dExp: 1.5,
-  listen: 1.05,
-  spread: 0.5,
-  stretch: 1,
-  mass: 0.03,
-  felt: 1e8,
-  feltExp: 2.5,
-  hyst: 0.05,
-  vLo: 0.25,
-  vHi: 4,
-  vCurve: 1,
-  f1: 1000,
-  q1: 0.7,
-  g1: 0,
-  shelfF: 4000,
-  shelfG: 0,
-  gainDb: 0,
+  mu11: 3.073,
+  muExp: 0.798,
+  kettle: 1.132,
+  rad: 0.6663,
+  rim1: 0.7345,
+  rim0: 1.206,
+  dFloor: 0.892,
+  dInt: 0.05338,
+  dExp: 2.21,
+  listen: 1.194,
+  spread: 0.03875,
+  azim: Math.PI,
+  stretch: 0.8062,
+  radM: -1.876,
+  hiGain: 35,
+  hiFc: 3896,
+  hiDecay: 25,
+  mass: 0.01191,
+  felt: 3e+06,
+  feltExp: 1.933,
+  hyst: 0.09306,
+  thick: 0.0015,
+  core: 9.97e+07,
+  vLo: 0.2111,
+  vHi: 4.598,
+  vCurve: 0.7265,
+  f1: 923.1,
+  q1: 0.9946,
+  g1: 11.88,
+  shelfF: 5227,
+  shelfG: 3.131,
+  gainDb: -36.67,
 };
+
+/** the strike point the players use, fitted (a fraction of the radius from the centre: about a third of
+ *  the radius in from the rim) */
+export const TIMPANI_SPOT = 0.628;
 
 /** the compass: C2–A3 (MIDI 36–57) */
 export const TIMPANI_LO = 36;
@@ -325,9 +363,19 @@ class Drum {
   held = false;
   /** a roll in progress: the next stroke's frame */
   rollNext = -1;
+  /** the unresolved modes' band: its envelope, its decay per sample, two noise filters (left, right: a
+   *  high-pass at the last computed mode, a one-pole low-pass at the force's corner) and their noise */
+  hiEnv = 0;
+  hiR = 1;
+  hiDecay = 8;
+  readonly hb = new Float64Array(5);
+  hiLp = 0;
+  readonly hs = new Float64Array(8);
+  hiRng: () => number;
 
-  constructor(spec: TimpaniDrum, V: TimpaniVoice, fs: number) {
+  constructor(spec: TimpaniDrum, V: TimpaniVoice, fs: number, seed = 1) {
     this.spec = spec;
+    this.hiRng = mulberry32(seed);
     this.a = spec.d / 2;
     const Z = besselZeros();
     const a = this.a;
@@ -374,7 +422,7 @@ class Drum {
       this.kap[i] = m === 0 ? (4 * Math.PI * RHO * C_AIR * C_AIR * a * a) / (Vk * SIGMA * j * j) : 0;
     }
     this.note = this.noteNow = spec.rest;
-    this.tune(spec.rest, V, fs, 0.7);
+    this.tune(spec.rest, V, fs, TIMPANI_SPOT);
   }
 
   /** the pedal set for MIDI note `m` (fractional): the tension, then every mode's radiation and weights */
@@ -395,8 +443,8 @@ class Drum {
     // the far field: the listener at `listen` from the normal, the channels at azimuths π ∓ spread from the
     // strike point (across the head, on the audience's side)
     const sinL = Math.sin(V.listen);
-    const thL = Math.PI - V.spread;
-    const thR = Math.PI + V.spread;
+    const thL = V.azim - V.spread;
+    const thR = V.azim + V.spread;
     const NPH = 24;
     for (let i = 0; i < this.n; i++) {
       const mo = this.mm[i];
@@ -420,13 +468,20 @@ class Drum {
       }
       I *= (Math.PI / 2 / NPH) * (mo === 0 ? 2 * Math.PI : Math.PI);
       this.aRad[i] = (w2 * RHO * I) / (8 * Math.PI * Math.PI * C_AIR * this.mass[i]);
-      this.alpha0[i] = V.rad * this.aRad[i] + V.dFloor + V.dInt * Math.pow(om / (2 * Math.PI) / 1000, V.dExp);
-      const sl = S(sinL);
+      this.alpha0[i] = V.rad * this.aRad[i] + (mo === 1 ? V.rim1 : mo === 0 ? V.rim0 : 0) + V.dFloor + V.dInt * Math.pow(om / (2 * Math.PI) / 1000, V.dExp);
+      const sl = S(sinL) * Math.pow(10, (V.radM * mo) / 20);
       // (the pressure at 1 m per unit of the mode's acceleration: ρ/2π times the far field)
       this.sL[i] = (RHO / (2 * Math.PI)) * sl * Math.cos(mo * thL);
       this.sR[i] = (RHO / (2 * Math.PI)) * sl * Math.cos(mo * thR);
     }
     this.live = live;
+    // the band above the last computed mode: it decays as the damping law says there
+    const fTop = Math.min(0.4 * fs, Math.sqrt((this.c2T * this.k2[live - 1] + this.kap[live - 1]) / this.mu[live - 1]) / (2 * Math.PI));
+    this.hiDecay = V.hiDecay;
+    this.hiR = Math.exp(-this.hiDecay / fs);
+    const hp = biquadHighpass(fTop, 0.7, fs);
+    for (let k = 0; k < 5; k++) this.hb[k] = hp[k];
+    this.hiLp = 1 - Math.exp((-2 * Math.PI * Math.min(0.45 * fs, Math.max(fTop, V.hiFc))) / fs);
     this.strikeAt(spot);
     this.cExtra = -1;
   }
@@ -457,6 +512,7 @@ class Drum {
       if (damp) {
         this.alpha[i] = this.alpha0[i] + this.extra;
         this.r[i] = Math.exp(-this.alpha[i] * dt);
+        if (i === 0) this.hiR = Math.exp(-(this.hiDecay + this.extra) * dt);
       }
       const al = this.alpha[i];
       const r = this.r[i];
@@ -495,6 +551,43 @@ class Drum {
     this.y2.fill(0);
     this.level = this.peak = 0;
     this.eps = 0;
+    this.hiEnv = 0;
+    this.hs.fill(0);
+  }
+
+  /** the unresolved modes' band over [t0, n): noise through its filters, at its envelope, which the
+   *  mallet's force (`force`, at each sample, or none) drives by its own content above the last computed
+   *  mode (a long soft stroke has little there; a short hard one much) */
+  band(oL: Float64Array, oR: Float64Array, t0: number, n: number, kHi: number, force: Float64Array | null): void {
+    if (this.hiEnv < 1e-12 && !force) return;
+    const b = this.hb;
+    const h = this.hs;
+    const lp = this.hiLp;
+    let e = this.hiEnv;
+    for (let t = t0; t < n; t++) {
+      if (force) {
+        const f = force[t];
+        const fh = b[0] * f + h[6];
+        h[6] = b[1] * f - b[3] * fh + h[7];
+        h[7] = b[2] * f - b[4] * fh;
+        e += kHi * Math.abs(fh);
+      }
+      e *= this.hiR;
+      // two noises (the channels apart), high-passed, then low-passed
+      const uL = this.hiRng() * 2 - 1;
+      const uR = this.hiRng() * 2 - 1;
+      const yL = b[0] * uL + h[0];
+      h[0] = b[1] * uL - b[3] * yL + h[1];
+      h[1] = b[2] * uL - b[4] * yL;
+      const yR = b[0] * uR + h[2];
+      h[2] = b[1] * uR - b[3] * yR + h[3];
+      h[3] = b[2] * uR - b[4] * yR;
+      h[4] += lp * (yL - h[4]);
+      h[5] += lp * (yR - h[5]);
+      oL[t] += e * h[4];
+      oR[t] += e * h[5];
+    }
+    this.hiEnv = e < 1e-14 ? 0 : e;
   }
 
   /** rung down to nothing (140 dB under its loudest) and no mallet on it */
@@ -556,11 +649,14 @@ export class TimpaniCore implements InstrumentCore {
   private trW = new Float32Array(TRACE);
   private trN = 0;
   private modeFreqs = new Float64Array(16);
+  private force = new Float64Array(64);
+  private player: number;
 
   constructor(opts: { sampleRate: number; params?: Partial<TimpaniParams>; dry?: boolean; player?: number }) {
     this.fs = opts.sampleRate;
     this.dry = !!opts.dry;
-    this.params = { mallet: 1, spot: 0.7, damp: 0, roll: 0, room: 0.3, volume: 1, ...opts.params };
+    this.player = opts.player ?? 0;
+    this.params = { mallet: 1, spot: TIMPANI_SPOT, damp: 0, roll: 0, room: 0.3, volume: 1, ...opts.params };
     this.V = { ...TIMPANI_VOICE, ...this.params.voice };
     this.rng = mulberry32(playerSeed(47, opts.player));
     this.tune = playerCents(opts.player) / 100;
@@ -574,9 +670,9 @@ export class TimpaniCore implements InstrumentCore {
   private build(notes?: number[]): Drum[] {
     const spot = clamp(this.params.spot, 0.05, 0.95);
     return TIMPANI_DRUMS.map((spec, i) => {
-      const d = new Drum(spec, this.V, this.fs);
-      const m = notes ? notes[i] : spec.rest + this.tune;
-      if (m !== d.note || spot !== 0.7) d.tune(m, this.V, this.fs, spot);
+      const d = new Drum(spec, this.V, this.fs, playerSeed(4700 + i, this.player));
+      const m = notes ? notes[i] : spec.rest + this.off();
+      if (m !== d.note || spot !== TIMPANI_SPOT) d.tune(m, this.V, this.fs, spot);
       d.noteNow = m;
       return d;
     });
@@ -612,9 +708,9 @@ export class TimpaniCore implements InstrumentCore {
     for (let i = 0; i < ds.length; i++) {
       const d = ds[i];
       if (m < d.spec.lo || m > d.spec.hi) continue;
-      const tuned = Math.abs(d.note - (m + this.tune)) < 0.01;
+      const tuned = Math.abs(d.note - (m + this.off())) < 0.01;
       const ringing = d.peak > 0 && d.level > 0.03 * d.peak;
-      const cost = (tuned ? -100 : 0) + (ringing && !tuned ? 3 : 0) + 0.25 * Math.abs(d.note - this.tune - m) + 0.15 * Math.abs(m - (d.spec.lo + d.spec.hi) / 2);
+      const cost = (tuned ? -100 : 0) + (ringing && !tuned ? 3 : 0) + 0.25 * Math.abs(d.note - this.off() - m) + 0.15 * Math.abs(m - (d.spec.lo + d.spec.hi) / 2);
       if (cost < bestCost) {
         bestCost = cost;
         best = i;
@@ -668,7 +764,7 @@ export class TimpaniCore implements InstrumentCore {
         const di = this.drumFor(m);
         if (di < 0) return;
         const d = this.drums[di];
-        const target = m + this.tune;
+        const target = m + this.off();
         if (Math.abs(d.note - target) > 0.01) {
           // retuned: the player has stopped it first
           for (const mm of this.mallets) if (mm.drum === di) mm.drum = -1;
@@ -712,6 +808,11 @@ export class TimpaniCore implements InstrumentCore {
     }
   }
 
+  /** the player's intonation and the set's tuning (semitones) */
+  private off(): number {
+    return this.tune + (this.params.detune ?? 0);
+  }
+
   private rolling(): boolean {
     return Math.max(this.params.roll, this.modWheel) > 0.02;
   }
@@ -743,7 +844,7 @@ export class TimpaniCore implements InstrumentCore {
     const ls: number[] = [];
     for (const d of this.drums)
       if (d.peak > 0 && d.level > 0.02 * d.peak) {
-        out.push(Math.round(d.note - this.tune));
+        out.push(Math.round(d.note - this.off()));
         ls.push(d.level);
       }
     if (out.length > 1) out = out.map((m, i) => [m, ls[i]] as const).sort((a, b) => b[1] - a[1]).map((x) => x[0]);
@@ -822,10 +923,15 @@ export class TimpaniCore implements InstrumentCore {
     }
     const K = V.felt * this.params.mallet;
     const p = V.feltExp;
+    // (a harder mallet: its felt stiffer and thinner over the core)
+    const thick = V.thick / Math.sqrt(this.params.mallet);
+    const Kc = V.core;
     const hy = V.hyst;
     const im = 1 / V.mass;
     const h = 1 / fs;
-    const maxContact = Math.round(0.05 * fs);
+    const maxContact = Math.round(0.03 * fs);
+    const kHi = Math.pow(10, V.hiGain / 20) / fs;
+    const force = this.force;
     for (let di = 0; di < this.drums.length; di++) {
       const d = this.drums[di];
       const ml = this.mallets[0].drum === di ? this.mallets[0] : this.mallets[1].drum === di ? this.mallets[1] : null;
@@ -861,6 +967,7 @@ export class TimpaniCore implements InstrumentCore {
         let F = ml.F;
         let prev = ml.prev;
         const traced = this.mallets[this.traced] === ml;
+        for (let t = 0; t < n; t++) force[t] = 0;
         for (; t0 < n; ) {
           let w = 0;
           let sl = 0;
@@ -881,10 +988,12 @@ export class TimpaniCore implements InstrumentCore {
           const dlt = x - w;
           if (dlt > 0) {
             const rate = (dlt - prev) * fs;
-            F = K * Math.pow(dlt, p) * Math.max(0, 1 + hy * rate);
+            const c = dlt - thick;
+            F = (K * Math.pow(dlt, p) + (c > 0 ? Kc * c * Math.sqrt(c) : 0)) * Math.max(0, 1 + hy * rate);
             ml.touched = true;
           } else F = 0;
           prev = dlt;
+          force[t0] = F;
           v -= F * im * h;
           x += v * h;
           if (traced && this.trN < TRACE) {
@@ -893,8 +1002,10 @@ export class TimpaniCore implements InstrumentCore {
             this.trN++;
           }
           t0++;
-          // let go: the felt has left the head (the stick is away: no second bounce), or a stroke too long
-          if ((ml.touched && F === 0) || this.frame + t0 - ml.start > maxContact) {
+          // let go: the felt has left the head and the mallet is on its way back up (or 2 mm clear of it:
+          // the stick is away), or a stroke too long; a head that ran away from a mallet still coming down
+          // meets it again (a hard felt's double touch)
+          if ((ml.touched && F === 0 && (v < 0 || dlt < -0.002)) || this.frame + t0 - ml.start > maxContact) {
             ml.drum = -1;
             F = 0;
             break;
@@ -904,7 +1015,8 @@ export class TimpaniCore implements InstrumentCore {
         ml.v = v;
         ml.F = F;
         ml.prev = prev;
-      }
+        d.band(oL, oR, 0, n, kHi, force);
+      } else d.band(oL, oR, 0, n, kHi, null);
       if (t0 < n) {
         // free: each mode on its own (the mode loop outside, the samples inside)
         for (let i = 0; i < L; i++) {
@@ -1017,8 +1129,8 @@ export class TimpaniCore implements InstrumentCore {
         inches: x.spec.inches,
         lo: x.spec.lo,
         hi: x.spec.hi,
-        note: x.note - this.tune,
-        pedal: clamp((x.noteNow - this.tune - x.spec.lo) / (x.spec.hi - x.spec.lo), 0, 1),
+        note: x.note - this.off(),
+        pedal: clamp((x.noteNow - this.off() - x.spec.lo) / (x.spec.hi - x.spec.lo), 0, 1),
         level: x.peak > 0 ? x.level : 0,
         ago: (this.frame - x.struckAt) / this.fs,
         vel: x.vel,
@@ -1031,7 +1143,7 @@ export class TimpaniCore implements InstrumentCore {
       voices: this.activeVoiceCount,
       sympathetic: 0,
       focus: {
-        midi: Math.round(d.note - this.tune),
+        midi: Math.round(d.note - this.off()),
         nStrings: 1,
         shapes: [shape],
         hammerAt: 0.5 - 0.5 * this.params.spot,

@@ -2,21 +2,21 @@
 
 This codebase is yours: what it's for and how it's built are your call, and you'll keep building on it.
 
-`instruments` is a browser app of eleven acoustic instruments, each computed as physics in an AudioWorklet (TypeScript), never as samples. The instruments on `main` are the piano, the violin, the viola, the cello, the double bass, the flute, the oboe, the clarinet, the bassoon, the horn and the trumpet. Production is https://instruments-wustep.vercel.app (`wustep/instruments`). `main` deploys there automatically.
+`instruments` is a browser app of twelve acoustic instruments, each computed as physics in an AudioWorklet (TypeScript), never as samples. The instruments on `main` are the piano, the violin, the viola, the cello, the double bass, the flute, the oboe, the clarinet, the bassoon, the horn, the trumpet and the timpani. Production is https://instruments-wustep.vercel.app (`wustep/instruments`). `main` deploys there automatically.
 
 ## Architecture
 
 A pnpm workspace: `packages/*` and `apps/*`.
 
 * **`packages/engine`** — the model. It has no Web Audio dependency in the core, so the same code runs in the worklet and in Node (tests, calibration, offline renders).
-  * `src/core` — the DSP: `instrument.ts` (ids, families, ranges), `factory.ts`, `pump.ts` (cores render their own blocks), then one module per family (`piano-core.ts`, `bowed.ts`, `flute.ts`, `oboe.ts`, `clarinet.ts`, `bassoon.ts`, `brass.ts`, `horn.ts`) with its fitted voicing beside it (`*-tuning.json`, `bowed-fit.json`, `calibration-fit.json`). Shared: filters, soundboard, design, precompute, render, voice, post.
+  * `src/core` — the DSP: `instrument.ts` (ids, families, ranges), `factory.ts`, `pump.ts` (cores render their own blocks), then one module per family (`piano-core.ts`, `bowed.ts`, `flute.ts`, `oboe.ts`, `clarinet.ts`, `bassoon.ts`, `brass.ts`, `horn.ts`, `timpani.ts`) with its fitted voicing beside it (`*-tuning.json`, `bowed-fit.json`, `calibration-fit.json`). Shared: filters, soundboard, design, precompute, render, voice, post.
   * `src/worklet` — the AudioWorklet host (`processor.ts`).
   * `src/api` — the main-thread API (`createPiano`, `createInstrument`, `renderOffline`).
   * `src/analysis` — helpers for measurements and judges.
 * **`apps/web`** — the Vite page (`@piano-model/web`).
-  * `main.ts`, `nav.ts`, `address.ts` — the shell, history, and the real paths (`/piano`, `/piano/upright`, `/violin`, `/viola`, `/cello`, `/bass`, `/flute`, `/oboe`, `/clarinet`, `/bassoon`, `/horn`, `/trumpet`, `/orchestra`, `/measurements`, `/notes`, plus aliases `/grand`, `/upright`, `/double-bass`, `/contrabass`, `/french-horn`, `/ensemble`). `address.ts` also writes the Orchestra's compact versioned query (`?v=1&seats=…&lines=…`).
+  * `main.ts`, `nav.ts`, `address.ts` — the shell, history, and the real paths (`/piano`, `/piano/upright`, `/violin`, `/viola`, `/cello`, `/bass`, `/flute`, `/oboe`, `/clarinet`, `/bassoon`, `/horn`, `/trumpet`, `/timpani`, `/orchestra`, `/measurements`, `/notes`, plus aliases `/grand`, `/upright`, `/double-bass`, `/contrabass`, `/french-horn`, `/kettledrums`, `/ensemble`). `address.ts` also writes the Orchestra's compact versioned query (`?v=1&seats=…&lines=…`).
   * `audio.ts` — talks to the worklet. `midi-file.ts`, `expression.ts`, `clock.ts`, `look.ts` (2D / vector / 3D).
-  * `ui/` — the 2D drawers (`stage-draw.ts`, `piano-draw.ts`, `oboe-draw.ts`, `clarinet-draw.ts`, `bassoon-draw.ts`, `horn-draw.ts`, `ensemble-draw.ts`, …), the keyboard, the player, the action close-up, tooltips.
+  * `ui/` — the 2D drawers (`stage-draw.ts`, `piano-draw.ts`, `oboe-draw.ts`, `clarinet-draw.ts`, `bassoon-draw.ts`, `horn-draw.ts`, `timpani-draw.ts`, `ensemble-draw.ts`, …), the keyboard, the player, the action close-up, tooltips.
   * `ui/vector/` — the vector (Chimera) 2D style, a second drawing of the same instruments.
   * `ui/gl/` — the 3D stage (`stage3d.ts`, `scenes3d.ts`, `gl3d.ts`, `fit3d.ts`, `fholes.ts`, and a module per instrument: `piano3d.ts`, `strings3d.ts`, `bass3d.ts`, `winds3d.ts`, `oboe3d.ts`, `clarinet3d.ts`, `bassoon3d.ts`, `horn3d.ts`, …).
   * `orchestra/` — seats, assignment, line-matching rules, the set list (`pieces.ts`), mix, the URL setup. Auto-routing matches a line by its name, then its General MIDI program, then its place or range (`assign.ts`, `rules.ts`). A part named for its key ("Horn in F", "Corni in Es", "Clarinetto in A", "Tromba in D"; a bare "Horn" is in F) and typed at written pitch is shifted to concert pitch; a part already sounding stays. Lines are judged by their core range, so a few pedal notes do not send a horn to the double bass.

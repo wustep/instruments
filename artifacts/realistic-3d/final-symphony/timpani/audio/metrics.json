@@ -1,0 +1,346 @@
+{
+ "pieces": [
+  {
+   "name": "timpani-strokes",
+   "what": "C2, F2, A2, C3, E3, A3, each at pp, mf, ff (velocity 30, 70, 112), 2 s apart, left to ring"
+  },
+  {
+   "name": "timpani-passage",
+   "what": "an original passage for a pair in C: strokes on C3 and G2, a roll on G2 swelling pp → ff → p (the mod wheel and the file’s dynamics), a pedal glissando under the ringing G2, a double stop ff"
+  },
+  {
+   "name": "timpani-dies-irae",
+   "what": "Mozart, Requiem, Dies irae (the timpani’s line) (Mutopia, public domain), as the play icon plays it"
+  }
+ ],
+ "metrics": {
+  "before": [
+   {
+    "midi": 36,
+    "velocity": 30,
+    "cents": -0.4,
+    "centroidHz": 73,
+    "levelDb": -14.6,
+    "decay11DbPerS": 8.1,
+    "l21Db": -19.6
+   },
+   {
+    "midi": 36,
+    "velocity": 70,
+    "cents": 0.7,
+    "centroidHz": 76,
+    "levelDb": -6,
+    "decay11DbPerS": 8.1,
+    "l21Db": -18.1
+   },
+   {
+    "midi": 36,
+    "velocity": 112,
+    "cents": 9.6,
+    "centroidHz": 82,
+    "levelDb": 2.7,
+    "decay11DbPerS": 8,
+    "l21Db": -17.1
+   },
+   {
+    "midi": 41,
+    "velocity": 30,
+    "cents": -0.3,
+    "centroidHz": 90,
+    "levelDb": -12.8,
+    "decay11DbPerS": 13.5,
+    "l21Db": -18.5
+   },
+   {
+    "midi": 41,
+    "velocity": 70,
+    "cents": -0.1,
+    "centroidHz": 92,
+    "levelDb": -3.8,
+    "decay11DbPerS": 13.5,
+    "l21Db": -15.7
+   },
+   {
+    "midi": 41,
+    "velocity": 112,
+    "cents": 1.7,
+    "centroidHz": 95,
+    "levelDb": 5,
+    "decay11DbPerS": 13.5,
+    "l21Db": -14.3
+   },
+   {
+    "midi": 45,
+    "velocity": 30,
+    "cents": 0.1,
+    "centroidHz": 111,
+    "levelDb": -14.6,
+    "decay11DbPerS": 19.9,
+    "l21Db": -23.9
+   },
+   {
+    "midi": 45,
+    "velocity": 70,
+    "cents": 0.1,
+    "centroidHz": 113,
+    "levelDb": -4.5,
+    "decay11DbPerS": 19.9,
+    "l21Db": -17.5
+   },
+   {
+    "midi": 45,
+    "velocity": 112,
+    "cents": 1,
+    "centroidHz": 115,
+    "levelDb": 4.7,
+    "decay11DbPerS": 19.9,
+    "l21Db": -14.9
+   },
+   {
+    "midi": 48,
+    "velocity": 30,
+    "cents": 0.2,
+    "centroidHz": 131,
+    "levelDb": -15.6,
+    "decay11DbPerS": 25.4,
+    "l21Db": -22
+   },
+   {
+    "midi": 48,
+    "velocity": 70,
+    "cents": 0.3,
+    "centroidHz": 132,
+    "levelDb": -4.4,
+    "decay11DbPerS": 25.4,
+    "l21Db": -24.4
+   },
+   {
+    "midi": 48,
+    "velocity": 112,
+    "cents": 0.7,
+    "centroidHz": 134,
+    "levelDb": 5.5,
+    "decay11DbPerS": 25.4,
+    "l21Db": -18.9
+   },
+   {
+    "midi": 52,
+    "velocity": 30,
+    "cents": 0,
+    "centroidHz": 170,
+    "levelDb": -21.1,
+    "decay11DbPerS": 38.2,
+    "l21Db": -8.8
+   },
+   {
+    "midi": 52,
+    "velocity": 70,
+    "cents": 0,
+    "centroidHz": 167,
+    "levelDb": -6.9,
+    "decay11DbPerS": 38.2,
+    "l21Db": -13.9
+   },
+   {
+    "midi": 52,
+    "velocity": 112,
+    "cents": 0.1,
+    "centroidHz": 166,
+    "levelDb": 4.2,
+    "decay11DbPerS": 38.2,
+    "l21Db": -20.1
+   },
+   {
+    "midi": 57,
+    "velocity": 30,
+    "cents": -0.1,
+    "centroidHz": 185,
+    "levelDb": -24.6,
+    "decay11DbPerS": 101.7,
+    "l21Db": 6.1
+   },
+   {
+    "midi": 57,
+    "velocity": 70,
+    "cents": -0.1,
+    "centroidHz": 234,
+    "levelDb": -9,
+    "decay11DbPerS": 101.7,
+    "l21Db": -1.5
+   },
+   {
+    "midi": 57,
+    "velocity": 112,
+    "cents": -0.1,
+    "centroidHz": 226,
+    "levelDb": 3.6,
+    "decay11DbPerS": 101.7,
+    "l21Db": -7
+   }
+  ],
+  "after": [
+   {
+    "midi": 36,
+    "velocity": 30,
+    "cents": -0.4,
+    "centroidHz": 116,
+    "levelDb": -51.6,
+    "decay11DbPerS": 15.3,
+    "l21Db": -10.3
+   },
+   {
+    "midi": 36,
+    "velocity": 70,
+    "cents": 0.1,
+    "centroidHz": 143,
+    "levelDb": -42.9,
+    "decay11DbPerS": 15.3,
+    "l21Db": -9.9
+   },
+   {
+    "midi": 36,
+    "velocity": 112,
+    "cents": 3.1,
+    "centroidHz": 214,
+    "levelDb": -34.6,
+    "decay11DbPerS": 15.3,
+    "l21Db": -9.6
+   },
+   {
+    "midi": 41,
+    "velocity": 30,
+    "cents": 0.2,
+    "centroidHz": 112,
+    "levelDb": -50.8,
+    "decay11DbPerS": 17.8,
+    "l21Db": -8
+   },
+   {
+    "midi": 41,
+    "velocity": 70,
+    "cents": 0.4,
+    "centroidHz": 151,
+    "levelDb": -41.5,
+    "decay11DbPerS": 17.8,
+    "l21Db": -7.2
+   },
+   {
+    "midi": 41,
+    "velocity": 112,
+    "cents": 1.3,
+    "centroidHz": 280,
+    "levelDb": -32.4,
+    "decay11DbPerS": 17.8,
+    "l21Db": -6.6
+   },
+   {
+    "midi": 45,
+    "velocity": 30,
+    "cents": 0.1,
+    "centroidHz": 125,
+    "levelDb": -49.3,
+    "decay11DbPerS": 20.8,
+    "l21Db": -7.7
+   },
+   {
+    "midi": 45,
+    "velocity": 70,
+    "cents": 0.2,
+    "centroidHz": 182,
+    "levelDb": -39.9,
+    "decay11DbPerS": 20.8,
+    "l21Db": -6.3
+   },
+   {
+    "midi": 45,
+    "velocity": 112,
+    "cents": 1,
+    "centroidHz": 325,
+    "levelDb": -30.8,
+    "decay11DbPerS": 20.8,
+    "l21Db": -5.3
+   },
+   {
+    "midi": 48,
+    "velocity": 30,
+    "cents": 0.2,
+    "centroidHz": 138,
+    "levelDb": -48.6,
+    "decay11DbPerS": 23.4,
+    "l21Db": -8.6
+   },
+   {
+    "midi": 48,
+    "velocity": 70,
+    "cents": 0.3,
+    "centroidHz": 167,
+    "levelDb": -39.1,
+    "decay11DbPerS": 23.4,
+    "l21Db": -6.5
+   },
+   {
+    "midi": 48,
+    "velocity": 112,
+    "cents": 1.1,
+    "centroidHz": 270,
+    "levelDb": -30.3,
+    "decay11DbPerS": 23.4,
+    "l21Db": -4.9
+   },
+   {
+    "midi": 52,
+    "velocity": 30,
+    "cents": 0,
+    "centroidHz": 168,
+    "levelDb": -48.4,
+    "decay11DbPerS": 29.6,
+    "l21Db": -11.2
+   },
+   {
+    "midi": 52,
+    "velocity": 70,
+    "cents": 0,
+    "centroidHz": 199,
+    "levelDb": -38.2,
+    "decay11DbPerS": 29.6,
+    "l21Db": -6.7
+   },
+   {
+    "midi": 52,
+    "velocity": 112,
+    "cents": 0.5,
+    "centroidHz": 255,
+    "levelDb": -29.1,
+    "decay11DbPerS": 29.6,
+    "l21Db": -3.9
+   },
+   {
+    "midi": 57,
+    "velocity": 30,
+    "cents": 0,
+    "centroidHz": 219,
+    "levelDb": -49.7,
+    "decay11DbPerS": 60.7,
+    "l21Db": -14.1
+   },
+   {
+    "midi": 57,
+    "velocity": 70,
+    "cents": 0,
+    "centroidHz": 296,
+    "levelDb": -36.4,
+    "decay11DbPerS": 60.7,
+    "l21Db": -0.3
+   },
+   {
+    "midi": 57,
+    "velocity": 112,
+    "cents": 0.1,
+    "centroidHz": 334,
+    "levelDb": -26.5,
+    "decay11DbPerS": 60.7,
+    "l21Db": 2.9
+   }
+  ]
+ }
+}

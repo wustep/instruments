@@ -108,7 +108,7 @@ export function voiceFromName(s: string): Voice | null {
   // the timpani: timpani/timpano, kettledrum(s), Pauke(n), timbales (French, Spanish), timballes, "Timp.",
   // "Timb.", "Tmp.", "Pk." (a score's "Percussion (Timpani)" too; a plain "Percussion" or a drum kit is not
   // a timpani part)
-  if (/timpan|kettle ?drum|pauken?|timbales|timballes|timp\.?(?![a-z])|timb\.?(?![a-z])|tmp\.?(?![a-z])|pk\.(?![a-z])/.test(t)) return 'timpani';
+  if (/timpan|kettle ?drum|\bpauken?\b|timbales|timballes|\btimp\.?(?![a-z])|\btimb\.?(?![a-z])|\btmp\.?(?![a-z])|\bpk\.(?![a-z])/.test(t)) return 'timpani';
   // the bassoon: bassoon(s), fagotto/-i, Fagott, basson(s), fagot (Spanish), bajón, "Bn.", "Bsn.", "Fg.",
   // "Fag." (the contrabassoon is caught above: it is not this instrument)
   if (/bassoon|fagott|\bfagot\b|\bbassons?\b|baj[oó]n|\bbsns?\.?(?![a-z])|\bbns?\.?(?![a-z])|\bfg\.?(?![a-z])|\bfag\.?(?![a-z])/.test(t)) return 'bassoon';
