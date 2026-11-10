@@ -127,6 +127,8 @@ class AudioApp {
   readonly midiStatus = new Emitter<MidiStatus>();
   readonly keysChanged = new Emitter<KeySummary[]>();
   readonly instrumentChanged = new Emitter<InstrumentId>();
+  /** about to change (the file player pauses an instrument's own piece before the engine swaps) */
+  readonly instrumentChanging = new Emitter<InstrumentId>();
   /** fires on every incoming MIDI message (for an activity light) */
   readonly midiActivity = new Emitter<void>();
   midi: MidiStatus = { supported: typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator, inputs: [] };
@@ -512,6 +514,7 @@ class AudioApp {
 
   async setInstrument(id: InstrumentId): Promise<void> {
     if (!INSTRUMENT_INFO[id]) return;
+    if (id !== this.instrument) this.instrumentChanging.emit(id);
     this.instrument = id;
     try {
       localStorage.setItem(STORE_KEY, id);

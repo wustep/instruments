@@ -1,6 +1,9 @@
-// Drop a .mid file anywhere: it plays. A file with several parts (a quartet, a concerto) puts an
+// The overlay at the top middle of the stage. With nothing loaded it is two icons: play (the
+// instrument's own short piece, orchestra/pieces.ts DEMOS; in an ensemble, the built-in piece that
+// best fits its lineup) and open (a MIDI file from the device: phones have no drop). Drop a .mid file
+// anywhere, or open one: it plays. A file with several parts (a quartet, a concerto) puts an
 // ensemble on the stage, each line on an instrument of its own (orchestra/assign.ts); a piano piece
-// plays on the instrument shown. The overlay is three icons and a hairline of progress; with an
+// plays on the instrument shown. Loaded, the overlay is its icons and a hairline of progress; with an
 // ensemble, a row of the file's lines under it, each showing its instrument (tap one to move it).
 // The routing button opens a grid of instruments by lines, many to many: a line on several
 // instruments, the whole file on one, a second cello or grand of its own.
@@ -9,9 +12,10 @@ import { audio } from '../audio.ts';
 import { parseMidi, type MidiSong } from '../midi-file.ts';
 import { canReassign, voicesOfLine, VOICE_INFO, VOICES, type Voice } from '../orchestra/assign.ts';
 import { ensemble, stageCap } from '../orchestra/ensemble.ts';
-import { PIECES, type Piece } from '../orchestra/pieces.ts';
+import { DEMOS, demoSong, PIECES, pieceForLineup, type Demo, type Piece } from '../orchestra/pieces.ts';
 import { voiceGlyph } from './controls.ts';
 import { h } from './dom.ts';
+import type { InstrumentId } from '@piano-model/engine';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const icon = (d: string) => {
@@ -26,6 +30,8 @@ const icon = (d: string) => {
 const PLAY = 'M8 5.5v13l10.5-6.5z';
 const PAUSE = 'M7 5.5h3.5v13H7zM13.5 5.5H17v13h-3.5z';
 const STOP = 'M7 7h10v10H7z';
+/** open a file: a folder */
+const OPEN = 'M3 6.6C3 5.7 3.7 5 4.6 5h4.7l2 2h8.1c.9 0 1.6.7 1.6 1.6v8.8c0 .9-.7 1.6-1.6 1.6H4.6c-.9 0-1.6-.7-1.6-1.6zM4.8 9.4v7.8h14.4V9.4z';
 /** routing: a grid of dots, some lit (instruments by lines) */
 const ROUTE = 'M5 5h3v3H5zM10.5 10.5h3v3h-3zM16 5h3v3h-3zM16 16h3v3h-3zM5 16h3v3H5z';
 
@@ -46,6 +52,9 @@ export class MidiPlayer {
   private raf = 0;
   playing = false;
   private playBtn: HTMLButtonElement;
+  private stopBtn: HTMLButtonElement;
+  private openBtn: HTMLButtonElement;
+  private picker: HTMLInputElement;
   private bar: HTMLElement;
   private fill: HTMLElement;
   private strip: HTMLElement;
@@ -56,11 +65,35 @@ export class MidiPlayer {
   /** the grid's row headers (one per instrument), lit while it sounds */
   private rowHeads: HTMLButtonElement[] = [];
 
+  /** the instrument's own piece, when that is what is loaded (it follows the instrument shown) */
+  demo: Demo | null = null;
+  /** the instrument is changing: whether an own piece was playing (or on its way), so the next
+   *  instrument's plays; null when no change is under way (a knob reset re-sets the same one) */
+  private follow: boolean | null = null;
+  /** the latest request for a piece (a slower earlier fetch must not replace it), and the one for
+   *  an instrument's own piece still on its way, if any */
+  private asked = 0;
+  private wanting = 0;
+  private files = new Map<string, Promise<ArrayBuffer>>();
+
   constructor() {
-    this.playBtn = h('button', { class: 'pl-btn', type: 'button', 'aria-label': 'Play', 'data-tip': 'play', onclick: () => (this.playing ? this.pause() : void this.play()) });
+    this.playBtn = h('button', { class: 'pl-btn pl-play', type: 'button', 'aria-label': 'Play', 'data-tip': 'play', onclick: () => (this.playing ? this.pause() : this.song ? void this.play() : void this.playOwn().catch((e) => console.warn('piece:', e))) });
     this.playBtn.appendChild(icon(PLAY));
-    const stop = h('button', { class: 'pl-btn', type: 'button', 'aria-label': 'Stop', 'data-tip': 'stop', onclick: () => this.stop() });
-    stop.appendChild(icon(STOP));
+    this.stopBtn = h('button', { class: 'pl-btn pl-stop', type: 'button', 'aria-label': 'Stop', 'data-tip': 'stop', onclick: () => (this.demo ? this.unload() : this.stop()) });
+    this.stopBtn.appendChild(icon(STOP));
+    // open a file: the device's own picker (a phone's Files, a computer's dialog)
+    this.picker = h('input', { type: 'file', accept: '.mid,.midi,.kar,.smf,audio/midi,audio/x-midi,audio/mid', hidden: true, tabindex: '-1', 'aria-hidden': 'true' });
+    this.picker.addEventListener('change', () => {
+      const f = this.picker.files?.[0];
+      this.picker.value = '';
+      if (f) void f.arrayBuffer().then((b) => this.load(b));
+    });
+    this.openBtn = h('button', { class: 'pl-btn pl-open', type: 'button', 'aria-label': 'Open a MIDI file', 'data-tip': 'open a MIDI file', onclick: () => {
+      // (the sound starts inside the tap: the file arrives later, outside it)
+      void audio.start().catch(() => undefined);
+      this.picker.click();
+    } });
+    this.openBtn.appendChild(icon(OPEN));
     this.fill = h('i', { class: 'pl-fill' });
     // (the hairline has no tooltip: its fill says where the file is; it still scrubs)
     this.bar = h('div', { class: 'pl-bar', role: 'slider', 'aria-label': 'Position', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0', tabindex: '0' }, this.fill);
@@ -72,9 +105,26 @@ export class MidiPlayer {
     this.strip = h('div', { class: 'pl-lines', role: 'group', 'aria-label': 'The file’s lines and their instruments', hidden: true });
     this.routeBtn = h('button', { class: 'pl-btn pl-route', type: 'button', 'aria-label': 'Routing: which instrument takes which line', 'data-tip': 'routing', 'aria-expanded': 'false', onclick: () => this.toggleGrid() });
     this.routeBtn.appendChild(icon(ROUTE));
-    this.el = h('div', { class: 'player', hidden: true, role: 'group', 'aria-label': 'MIDI file' }, h('div', { class: 'pl-row' }, h('div', { class: 'pl-btns' }, this.playBtn, stop), this.bar, this.routeBtn), this.strip);
+    this.el = h('div', { class: 'player idle', role: 'group', 'aria-label': 'MIDI file' }, h('div', { class: 'pl-row' }, h('div', { class: 'pl-btns' }, this.playBtn, this.stopBtn), this.bar, this.routeBtn, this.openBtn), this.strip, this.picker);
     this.attachDrop();
-    ensemble.changed.on(() => this.buildStrip());
+    ensemble.changed.on(() => {
+      this.buildStrip();
+      this.sync();
+    });
+    // an instrument's own piece follows the instrument shown: paused before the engine swaps, the new
+    // one's piece played once it is there (paused or stopped, the overlay just comes back to rest)
+    audio.instrumentChanging.on(() => {
+      this.follow = (!!this.demo && this.playing) || (this.wanting !== 0 && this.wanting === this.asked);
+      if (this.demo) this.pause();
+    });
+    audio.instrumentChanged.on((id) => {
+      const go = this.follow;
+      this.follow = null;
+      if (go !== null && this.demo) this.unload();
+      if (go) void this.loadDemo(id).catch((e) => console.warn('piece:', e));
+      this.sync();
+    });
+    this.sync();
     document.addEventListener('pointerdown', (e) => {
       const t = e.target as Element;
       if (this.menu && !this.menu.contains(t) && !t.closest?.('[data-menu-anchor]')) this.closeMenu();
@@ -134,14 +184,86 @@ export class MidiPlayer {
       console.warn('not a playable MIDI file:', err);
       return;
     }
+    this.asked++;
     this.stop();
-    this.song = song;
+    this.song = song.events.length ? song : null;
+    this.demo = null;
     const plan = ensemble.planFor(song, piece);
     // (a lineup picked by hand stays picked: the file was matched to it)
     if (piece || ensemble.active || plan.parts.length > 1) ensemble.enter(plan, song, piece, !piece && ensemble.active && ensemble.byUser);
-    this.el.hidden = !song.events.length;
     this.buildStrip();
-    if (song.events.length) await this.play();
+    this.sync();
+    if (this.song) await this.play();
+  }
+
+  /** a file of public/pieces/, fetched once */
+  private fetchFile(file: string): Promise<ArrayBuffer> {
+    let p = this.files.get(file);
+    if (!p) {
+      p = fetch(`/pieces/${file}`).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status} for ${file}`);
+        return r.arrayBuffer();
+      });
+      p.catch(() => this.files.delete(file));
+      this.files.set(file, p);
+    }
+    return p;
+  }
+
+  /** nothing loaded: the play icon plays the instrument's own piece, or the ensemble's */
+  async playOwn(): Promise<void> {
+    if (ensemble.active) return this.loadPiece(pieceForLineup(ensemble.lineup));
+    return this.loadDemo(audio.instrument);
+  }
+
+  /** an instrument's own short piece, played on it alone (no ensemble) */
+  async loadDemo(id: InstrumentId = audio.instrument): Promise<void> {
+    const d = DEMOS[id];
+    if (!d) return;
+    const ask = ++this.asked;
+    this.wanting = ask;
+    // start the sound inside the gesture that asked for it (the fetch would lose it)
+    void audio.start().catch(() => undefined);
+    const buf = await this.fetchFile(d.file).finally(() => {
+      if (this.wanting === ask) this.wanting = 0;
+    });
+    // (the stage moved on while it came: another piece asked for, another instrument, an ensemble)
+    if (ask !== this.asked || ensemble.active || audio.instrument !== id) return;
+    const song = demoSong(parseMidi(buf), d);
+    this.stop();
+    this.song = song;
+    this.demo = d;
+    this.buildStrip();
+    this.sync();
+    await this.play();
+  }
+
+  /** back to rest: nothing loaded (the overlay's two icons) */
+  unload(): void {
+    this.stop();
+    this.song = null;
+    this.demo = null;
+    this.buildStrip();
+    this.sync();
+  }
+
+  /** the overlay's icons for what is loaded: at rest, play (the piece it would play, in its tip) and
+   *  open; loaded, play or pause, stop, the hairline, routing (a file's lines) and open */
+  private sync(): void {
+    const rest = !this.song;
+    this.el.classList.toggle('idle', rest);
+    this.stopBtn.hidden = rest;
+    this.bar.hidden = rest;
+    this.routeBtn.hidden = rest || !this.song!.lines.length || !!this.demo;
+    if (rest) {
+      const pc = ensemble.active ? PIECES[pieceForLineup(ensemble.lineup)] : DEMOS[audio.instrument];
+      const name = pc ? `${pc.composer}, ${pc.title}` : '';
+      this.playBtn.dataset.tip = name ? `play · ${name}` : 'play';
+      this.playBtn.setAttribute('aria-label', name ? `Play ${name}` : 'Play');
+    } else if (!this.playing) {
+      this.playBtn.dataset.tip = 'play';
+      this.playBtn.setAttribute('aria-label', 'Play');
+    }
   }
 
   /** a built-in piece (orchestra/pieces.ts), fetched and played */
@@ -150,9 +272,10 @@ export class MidiPlayer {
     if (!piece) return;
     // start the sound inside the gesture that asked for it (the fetch would lose it)
     void audio.start().catch(() => undefined);
-    const r = await fetch(`/pieces/${piece.file}`);
-    if (!r.ok) throw new Error(`HTTP ${r.status} for ${piece.file}`);
-    await this.load(await r.arrayBuffer(), piece);
+    const ask = ++this.asked;
+    const buf = await this.fetchFile(piece.file);
+    if (ask !== this.asked) return;
+    await this.load(buf, piece);
   }
 
   /** the ensemble left the stage: what is scheduled stops (the file stays, for the one instrument) */
@@ -205,7 +328,11 @@ export class MidiPlayer {
       this.idx++;
     }
     this.pos = Math.max(0, this.pos0 + (now - this.t0));
-    if (this.idx >= ev.length && this.pos > this.song.duration + 1) this.stop();
+    // the end: an instrument's own piece leaves the overlay at rest; a file stays, rewound
+    if (this.idx >= ev.length && this.pos > this.song.duration + 1) {
+      if (this.demo) this.unload();
+      else this.stop();
+    }
   }
 
   /** the song position being heard (the progress line, and where a pause resumes) */
@@ -245,6 +372,7 @@ export class MidiPlayer {
     this.playBtn.replaceChildren(icon(this.playing ? PAUSE : PLAY));
     this.playBtn.setAttribute('aria-label', this.playing ? 'Pause' : 'Play');
     this.playBtn.dataset.tip = this.playing ? 'pause' : 'play';
+    if (!this.playing) this.sync();
   }
 
   private paint(): void {
@@ -262,7 +390,7 @@ export class MidiPlayer {
     this.strip.hidden = !show;
     this.chips = [];
     // routing: a file with lines (on the ensemble, or on the one instrument shown, which it brings on)
-    this.routeBtn.hidden = !song || !song.lines.length;
+    this.routeBtn.hidden = !song || !song.lines.length || !!this.demo;
     if (!show) {
       this.strip.replaceChildren();
       this.closeGrid();

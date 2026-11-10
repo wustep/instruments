@@ -2,7 +2,8 @@
 // The one page allowed to be long; the stage itself stays nearly wordless.
 
 import { h, type View } from '../ui/dom.ts';
-import { PIECES } from '../orchestra/pieces.ts';
+import { INSTRUMENT_IDS, INSTRUMENT_INFO } from '@piano-model/engine';
+import { DEMOS, PIECES } from '../orchestra/pieces.ts';
 
 type Kid = string | Node;
 const p = (...c: Kid[]) => h('p', {}, ...c);
@@ -206,7 +207,10 @@ export function notesView(): View {
         p('Routing is many to many. The grid button by the player sets out the instruments (rows) against the file’s parts (columns): a dot puts a part on an instrument as well, so a tune can play on a violin and a flute at once, or the whole file on two pianos (the last column takes every part). The row below adds an instrument, and another of a kind already there — a second cello, a second grand — is its own engine and seat, up to eight on a computer and six on a phone; a row’s glyph changes its instrument or takes it off. The bus stays at 1/√n of the instruments that play. Two of a kind on one part would be one instrument twice as loud, so the second is a second player: its own vibrato, bow, breath or hammer noise (another random stream) and its own intonation, a few cents off the first (players of one section in unison are 5–15 cents apart: Ternström 2003); a second grand is another piano of the same make, its unisons and tuning its own. Their sum then grows as power, not amplitude: La Réjouissance on two trumpets and two grands is as loud as on one of each (0.4 dB apart), where one player twice would be 3 dB louder.'),
         h3('The pieces'),
         ul(...PIECES.map((pc) => [h('a', { href: pc.source, target: '_blank', rel: 'noopener' }, `${pc.composer}, ${pc.title}`), '. ', pc.credit] as Kid[])),
-        p('The MIDI files are the Mutopia Project’s own (mutopiaproject.org), unchanged; each typesetting is placed in the public domain by its typesetter.'),
+        h3('Each instrument’s own piece'),
+        p('With nothing loaded, the play icon at the top of the stage plays a short piece on the instrument shown, and the next instrument’s when you change it while it plays (in an ensemble, the built-in piece nearest its lineup). The folder beside it opens a MIDI file from the device, for phones, where nothing can be dropped.'),
+        ul(...INSTRUMENT_IDS.map((id) => DEMOS[id]).map((d) => [h('a', { href: d.source, target: '_blank', rel: 'noopener' }, `${INSTRUMENT_INFO[d.instrument].label}: ${d.composer}, ${d.title}`), '. ', d.credit] as Kid[])),
+        p('The MIDI files are the Mutopia Project’s own (mutopiaproject.org), unchanged; each typesetting is placed in the public domain by its typesetter. What a player would change (a line left out, a transposition, a tempo where the file has none, where it stops) is set beside the file, not in it.'),
       ],
     },
     {

@@ -638,6 +638,66 @@ test('the MIDI file player sits at the top middle of the stage, over nothing it 
   await player.getByRole('button', { name: 'Stop' }).click();
 });
 
+test('the app plays itself: at rest the overlay is play and open; play plays the instrument’s own piece, the next one’s when the instrument changes; stop comes back to rest', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  const player = page.locator('.player');
+  // at rest, before any sound: two icons, no words, no hairline
+  await expect(player).toBeVisible();
+  await expect(player).toHaveClass(/idle/);
+  await expect(page.locator('.pl-play')).toBeVisible();
+  await expect(page.locator('.pl-open')).toBeVisible();
+  for (const sel of ['.pl-stop', '.pl-bar', '.pl-route', '.pl-lines']) await expect(page.locator(sel), sel).toBeHidden();
+  expect((await player.innerText()).trim()).toBe('');
+  await expect(page.locator('.pl-play')).toHaveAttribute('data-tip', /^play · Chopin/);
+  // where the player sits: the top middle, just under the stage's top band, clear of the picker
+  const p = (await player.boundingBox())!;
+  const stage = (await page.locator('.stage').boundingBox())!;
+  const band = (await page.locator('.stage-top').boundingBox())!;
+  expect(Math.abs(p.x + p.width / 2 - (stage.x + stage.width / 2))).toBeLessThan(3);
+  expect(p.y).toBeGreaterThanOrEqual(band.y + band.height);
+  const pk = (await page.locator('.picker').boundingBox())!;
+  expect(p.x < pk.x + pk.width && pk.x < p.x + p.width && p.y < pk.y + pk.height && pk.y < p.y + p.height).toBe(false);
+  // one tap: the sound starts and the piano plays its piece
+  await page.locator('.pl-play').click();
+  await expect(player.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 15_000 });
+  await expect(player).not.toHaveClass(/idle/);
+  await expect(page.locator('.key.down')).not.toHaveCount(0, { timeout: 4000 });
+  expect(await page.evaluate(() => (window as any).__player.demo?.instrument)).toBe('piano');
+  // (an instrument's own piece is a solo: no routing)
+  await expect(page.locator('.pl-route')).toBeHidden();
+  // another instrument while it plays: that instrument's own piece, on it
+  await page.locator('.pick[aria-label="Cello"]').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__player.demo?.instrument ?? null), { timeout: 10_000 }).toBe('cello');
+  await expect.poll(() => page.evaluate(() => (window as any).__player.playing)).toBe(true);
+  await expect.poll(() => page.evaluate(() => (window as any).__piano.piano.instrument)).toBe('cello');
+  await expect(page.locator('.key.down')).not.toHaveCount(0, { timeout: 4000 });
+  // stop: back to rest, the play icon now the cello's piece
+  await player.getByRole('button', { name: 'Stop' }).click();
+  await expect(player).toHaveClass(/idle/);
+  await expect(page.locator('.pl-play')).toHaveAttribute('data-tip', /^play · Bach, Cello Suite No\. 1, Prélude/);
+  await expect(page.locator('.key.down')).toHaveCount(0);
+  await page.evaluate(() => (window as any).__piano.setInstrument('piano'));
+  expect(errors).toEqual([]);
+});
+
+test('the folder icon opens the device’s file picker (a phone has nothing to drop); the file chosen plays', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await expect(page.locator('.player input[type="file"]')).toHaveAttribute('accept', /\.mid,\.midi/);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('.pl-open').click()]);
+  expect(chooser.isMultiple()).toBe(false);
+  await chooser.setFiles({ name: 'd.mid', mimeType: 'audio/midi', buffer: Buffer.from(smf(480, [[[0, 0x90, 50, 90], [3840, 0x80, 50, 0]]])) });
+  await expect(page.locator('.key[data-midi="50"]')).toHaveClass(/down/, { timeout: 15_000 });
+  await expect(page.locator('.player')).not.toHaveClass(/idle/);
+  // a file is not an instrument's own piece: stopped, it stays, rewound
+  expect(await page.evaluate(() => (window as any).__player.demo)).toBeNull();
+  await page.locator('.player').getByRole('button', { name: 'Stop' }).click();
+  await expect(page.locator('.pl-bar')).toBeVisible();
+  await expect(page.locator('.pl-bar')).toHaveAttribute('aria-valuenow', '0');
+  expect(errors).toEqual([]);
+});
+
 test('?debug shows the start-up log, step by step, ending in ready', async ({ page }, info) => {
   test.skip(info.project.name === 'phone', 'desktop covers the diagnostics');
   await page.goto('/?debug');
@@ -825,7 +885,7 @@ test('icon-only stage controls say what they are: a short tooltip and an accessi
   await page.keyboard.press('ArrowUp');
   await expect(tip).not.toHaveText(t0!);
   // the other icon-only controls
-  for (const [sel, text] of [['.oct-btn >> nth=0', 'octave down · Z'], ['.oct-btn >> nth=1', 'octave up · X'], ['.knob-toggle', 'knobs'], ['.ens-toggle', 'ensemble · tap instruments to add them'], ['.score-btn', 'pieces'], ['.vec-toggle', 'vector lines'], ['.pl-route', 'routing']] as const) {
+  for (const [sel, text] of [['.oct-btn >> nth=0', 'octave down · Z'], ['.oct-btn >> nth=1', 'octave up · X'], ['.knob-toggle', 'knobs'], ['.ens-toggle', 'ensemble · tap instruments to add them'], ['.score-btn', 'pieces'], ['.vec-toggle', 'vector lines'], ['.pl-route', 'routing'], ['.pl-open', 'open a MIDI file'], ['.pl-play', 'play · Chopin, Prelude in C minor, Op. 28 No. 20']] as const) {
     const el = page.locator(sel);
     if (!(await el.isVisible())) continue;
     await el.hover();
@@ -1493,6 +1553,27 @@ test('orchestra: a piece from the menu puts its ensemble on the stage, in 2D and
   await page.evaluate(() => (window as any).__piano.noteOn(67, 90, 'keys'));
   await expect.poll(() => page.evaluate(() => (window as any).__piano.sounding.size), { timeout: 2000 }).toBeGreaterThan(0);
   await page.evaluate(() => (window as any).__piano.noteOff(67, 'keys'));
+  expect(errors).toEqual([]);
+});
+
+test('orchestra: with nothing loaded, the overlay’s play icon plays the built-in piece nearest the lineup; an instrument’s own piece makes way for the ensemble', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await startAudio(page);
+  // the violin's own piece playing, then the ensemble: the overlay back to rest, its play icon the quartet's
+  await page.evaluate(() => (window as any).__piano.setInstrument('violin'));
+  await page.locator('.pl-play').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__player.demo?.instrument ?? null), { timeout: 10_000 }).toBe('violin');
+  await page.locator('.ens-toggle').click();
+  await expect(page.locator('.player')).toHaveClass(/idle/);
+  await expect(page.locator('.pl-play')).toHaveAttribute('data-tip', /^play · Haydn/);
+  await page.locator('.pl-play').click();
+  await expect(page.locator('.pl-line')).toHaveCount(4, { timeout: 10_000 });
+  expect(await page.evaluate(() => (window as any).__orchestra.ensemble.piece?.id)).toBe('haydn');
+  await expect.poll(async () => (await ens(page)).held.reduce((a, b) => a + b, 0), { timeout: 8000 }).toBeGreaterThan(0);
+  await page.locator('.player').getByRole('button', { name: 'Stop' }).click();
+  await page.locator('.ens-toggle').click();
+  await page.evaluate(() => (window as any).__piano.setInstrument('piano'));
   expect(errors).toEqual([]);
 });
 
