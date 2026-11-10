@@ -35,6 +35,13 @@ export interface MidiLine {
   median: number;
   /** most notes held at once */
   poly: number;
+  /** the range of all but its outermost 2 % of notes at each end (a horn part's few pedal notes do not
+   *  make it a bass part) */
+  core: [number, number];
+  /** how many of its notes fall on each pitch class (C = 0 … B = 11): the key it is written in, which
+   *  tells a transposing part written as it is read from one written as it sounds (orchestra/assign.ts
+   *  concertShift) */
+  pcs: number[];
 }
 
 export interface MidiSong {
@@ -246,6 +253,8 @@ export function parseMidi(buf: ArrayBuffer): MidiSong {
       hi: sorted[sorted.length - 1],
       median: sorted[sorted.length >> 1],
       poly: polyOf(s),
+      core: [sorted[Math.floor(0.02 * sorted.length)], sorted[sorted.length - 1 - Math.floor(0.02 * sorted.length)]],
+      pcs: s.pitches.reduce((h, m) => (h[m % 12]++, h), new Array<number>(12).fill(0)),
     };
   });
   // (the length is the music's: a controller after the last note does not make it longer)
