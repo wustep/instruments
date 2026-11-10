@@ -16,7 +16,7 @@ import { express, PartLevels, type Expressed } from '../expression.ts';
 import { parseMidi, type FileEvent, type MidiSong } from '../midi-file.ts';
 import { canReassign, voicesOfLine, VOICE_INFO, VOICES, type Voice } from '../orchestra/assign.ts';
 import { ensemble, stageCap } from '../orchestra/ensemble.ts';
-import { DEMOS, demoSong, PIECES, pieceForLineup, type Demo, type Piece } from '../orchestra/pieces.ts';
+import { DEMOS, demoSong, PIECES, pieceForLineup, pieceSong, type Demo, type Piece } from '../orchestra/pieces.ts';
 import { tidyName } from '../orchestra/rules.ts';
 import { voiceGlyph } from './controls.ts';
 import { h } from './dom.ts';
@@ -39,6 +39,25 @@ const STOP = 'M7 7h10v10H7z';
 const OPEN = 'M3 6.6C3 5.7 3.7 5 4.6 5h4.7l2 2h8.1c.9 0 1.6.7 1.6 1.6v8.8c0 .9-.7 1.6-1.6 1.6H4.6c-.9 0-1.6-.7-1.6-1.6zM4.8 9.4v7.8h14.4V9.4z';
 /** routing: a grid of dots, some lit (instruments by lines) */
 const ROUTE = 'M5 5h3v3H5zM10.5 10.5h3v3h-3zM16 5h3v3h-3zM16 16h3v3h-3zM5 16h3v3H5z';
+/** a piece's lineup in the menu, a glyph per instrument; a large orchestra's (more than ten) a glyph per
+ *  instrument kind, with how many (the symphony's two flutes: one flute, ×2), so it fits the menu */
+function lineupGlyphs(voices: Voice[]): HTMLElement {
+  const row = h('span', { class: 'sm-lineup', 'aria-hidden': 'true' });
+  if (voices.length <= 10) {
+    row.append(...voices.map((v) => voiceGlyph(v)));
+    return row;
+  }
+  row.classList.add('sm-many');
+  for (let i = 0; i < voices.length; ) {
+    let j = i;
+    while (j < voices.length && voices[j] === voices[i]) j++;
+    const g = h('span', { class: 'sm-v' }, voiceGlyph(voices[i]));
+    if (j - i > 1) g.append(h('span', { class: 'sm-n' }, `×${j - i}`));
+    row.append(g);
+    i = j;
+  }
+  return row;
+}
 /** the pieces: a list, and a note */
 const PIECES_ICON = 'M3 6h11.2v1.7H3zM3 10h11.2v1.7H3zM3 14h8v1.7H3zM17 6v7.6a2.6 2.6 0 1 0 1.6 2.4V8.6H21V6z';
 /** automatic expression: a messa di voce as a score writes it, crescendo then diminuendo, the open
@@ -193,7 +212,7 @@ export class MidiPlayer {
     this.closeMenu();
     this.closeGrid();
     const items = PIECES.map((pc, i) => {
-      const b = h('button', { class: 'sm-item', type: 'button', role: 'menuitem', 'data-piece': pc.id }, h('span', { class: 'sm-who' }, pc.composer), h('span', { class: 'sm-what' }, pc.title), h('span', { class: 'sm-lineup', 'aria-hidden': 'true' }, ...pc.parts.map((q) => voiceGlyph(q.voice))));
+      const b = h('button', { class: 'sm-item', type: 'button', role: 'menuitem', 'data-piece': pc.id }, h('span', { class: 'sm-who' }, pc.composer), h('span', { class: 'sm-what' }, pc.title), lineupGlyphs(pc.parts.map((q) => q.voice)));
       b.setAttribute('aria-label', `${pc.composer}, ${pc.title}: ${pc.parts.map((q) => VOICE_INFO[q.voice].label).join(', ')}`);
       b.addEventListener('click', () => {
         this.closePieces();
@@ -314,7 +333,7 @@ export class MidiPlayer {
   async load(buf: ArrayBuffer, piece: Piece | null = null): Promise<void> {
     let song: MidiSong;
     try {
-      song = parseMidi(buf);
+      song = pieceSong(parseMidi(buf), piece);
     } catch (err) {
       console.warn('not a playable MIDI file:', err);
       return;

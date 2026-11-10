@@ -9,6 +9,10 @@
 // --wav: keep the WAV next to the MP3 (for scripts/spectrogram.ts)
 // --flat: every part from the single instrument's place (no seats: the mix as it was before seating)
 // --json: also write <name>.json, each part's numbers (for scripts/stage-chart.mjs)
+// --undivided: a wind staff two players share sent whole to each (as before they divided it: a chord asked
+// of one wind; the comparison)
+// --start <s>: from this time of the piece (at its tempo), to --seconds after it
+// A built-in piece of more than six instruments is seated whole (as the stage seats it: ensemble.ts).
 // Each part's place in the picture is printed: its level difference between the channels (L − R, dB)
 // and the time lag between them (positive: the right channel later, the part on the left).
 import { execFileSync } from 'node:child_process';
@@ -17,8 +21,8 @@ import { join } from 'node:path';
 import { renderInstrument, type TimedEvent } from '../packages/engine/src/core/render.ts';
 import { encodeWav } from '../packages/engine/src/analysis/wav.ts';
 import { parseMidi } from '../apps/web/src/midi-file.ts';
-import { autoPlan, placeNote, planOf, playersOf, shiftsOf, VOICE_INFO, VOICES, type Plan, type Voice } from '../apps/web/src/orchestra/assign.ts';
-import { PIECES, piecePlan } from '../apps/web/src/orchestra/pieces.ts';
+import { autoPlan, deskOf, placeNote, planOf, playersOf, playsNote, shiftsOf, VOICE_INFO, VOICES, type Plan, type Voice } from '../apps/web/src/orchestra/assign.ts';
+import { PIECES, piecePlan, pieceSong } from '../apps/web/src/orchestra/pieces.ts';
 import { busGain } from '../apps/web/src/orchestra/mix.ts';
 import { soundSeats } from '../apps/web/src/orchestra/seats.ts';
 
@@ -41,6 +45,8 @@ const ONE = args.includes('--one-player') ? (args.splice(args.indexOf('--one-pla
 const WAV = args.includes('--wav') ? (args.splice(args.indexOf('--wav'), 1), true) : false;
 const FLAT = args.includes('--flat') ? (args.splice(args.indexOf('--flat'), 1), true) : false;
 const JSON_OUT = args.includes('--json') ? (args.splice(args.indexOf('--json'), 1), true) : false;
+const UNDIVIDED = args.includes('--undivided') ? (args.splice(args.indexOf('--undivided'), 1), true) : false;
+const START = Number(opt('--start', '0'));
 const FS = 48000;
 mkdirSync(OUT, { recursive: true });
 
@@ -55,9 +61,9 @@ const handPlan = (l: Parameters<typeof autoPlan>[0], base: Plan): Plan =>
     l,
     shiftsOf(base),
   );
-let jobs: { name: string; buf: Buffer; plan: (l: Parameters<typeof autoPlan>[0]) => Plan }[] = args.length
+let jobs: { name: string; buf: Buffer; plan: (l: Parameters<typeof autoPlan>[0]) => Plan; piece?: (typeof PIECES)[number] }[] = args.length
   ? args.map((f) => ({ name: f.split('/').pop()!.replace(/\.midi?$/i, ''), buf: readFileSync(f), plan: (l) => autoPlan(l, { cap: CAP }) }))
-  : PIECES.map((p) => ({ name: p.id, buf: readFileSync(join('apps/web/public/pieces', p.file)), plan: (l) => piecePlan(p, l, CAP) }));
+  : PIECES.map((p) => ({ name: p.id, buf: readFileSync(join('apps/web/public/pieces', p.file)), plan: (l) => piecePlan(p, l, Math.max(CAP, p.parts.length > 6 ? p.parts.length : 0)), piece: p }));
 if (PIECE) jobs = jobs.filter((j) => j.name === PIECE);
 if (PARTS) jobs = jobs.map((j) => ({ ...j, name: NAME || `${j.name}-routed`, plan: (l) => handPlan(l, j.plan(l)) }));
 
@@ -86,10 +92,10 @@ function image(l: Float32Array, r: Float32Array): { ild: number; lag: number } {
   return { ild: 10 * Math.log10((el + 1e-30) / (er + 1e-30)), lag: (best / FS) * 1000 };
 }
 for (const job of jobs) {
-  const song = parseMidi(job.buf.buffer.slice(job.buf.byteOffset, job.buf.byteOffset + job.buf.byteLength) as ArrayBuffer);
+  const song = pieceSong(parseMidi(job.buf.buffer.slice(job.buf.byteOffset, job.buf.byteOffset + job.buf.byteLength) as ArrayBuffer), job.piece ?? null);
   const plan: Plan = SOLO ? { parts: [{ voice: SOLO, lines: song.lines.map((_, i) => i) }], lines: song.lines.map(() => [{ part: 0, shift: 0 }]) } : job.plan(song.lines);
   const players = ONE ? plan.parts.map(() => 0) : playersOf(plan);
-  const dur = Math.min(SECONDS, song.duration + 2);
+  const dur = Math.min(SECONDS, song.duration - START + 2);
   const n = Math.ceil(dur * FS);
   const L = new Float32Array(n);
   const R = new Float32Array(n);
@@ -102,13 +108,22 @@ for (const job of jobs) {
   for (const [k, part] of plan.parts.entries()) {
     const info = VOICE_INFO[part.voice];
     const events: TimedEvent[] = [];
+    /** notes this part is sent at one moment (a wind asked for a chord: more than one) */
+    const at = new Map<number, number>();
     for (const e of song.events) {
-      if (e.t > dur - 1 || e.line === undefined || !part.lines.includes(e.line)) continue;
+      if (e.t < START || e.t - START > dur - 1 || e.line === undefined || !part.lines.includes(e.line)) continue;
+      // (a wind of a pair on one staff plays its own voice: orchestra/ensemble.ts schedule)
+      if ((e.kind === 'on' || e.kind === 'off') && !SOLO && !UNDIVIDED && !playsNote(e, deskOf(plan, song.lines, e.line, k))) continue;
       const sh = plan.lines[e.line].find((r) => r.part === k)?.shift ?? 0;
-      if (e.kind === 'on') events.push({ time: e.t + 0.05, event: { type: 'noteOn', midi: placeNote(e.midi, sh, part.voice), velocity: e.vel } });
-      else if (e.kind === 'off') events.push({ time: e.t + 0.05, event: { type: 'noteOff', midi: placeNote(e.midi, sh, part.voice) } });
-      else if (e.kind === 'pedal' && e.cc === 64 && (SOLO || part.voice === 'grand' || part.voice === 'upright')) events.push({ time: e.t + 0.05, event: { type: 'sustain', value: e.value } });
+      const time = e.t - START + 0.05;
+      if (e.kind === 'on') {
+        events.push({ time, event: { type: 'noteOn', midi: placeNote(e.midi, sh, part.voice), velocity: e.vel } });
+        at.set(e.t, (at.get(e.t) ?? 0) + 1);
+      } else if (e.kind === 'off') events.push({ time, event: { type: 'noteOff', midi: placeNote(e.midi, sh, part.voice) } });
+      else if (e.kind === 'pedal' && e.cc === 64 && (SOLO || part.voice === 'grand' || part.voice === 'upright')) events.push({ time, event: { type: 'sustain', value: e.value } });
     }
+    const notes = [...at.values()].reduce((a, b) => a + b, 0);
+    const chords = [...at.values()].filter((n) => n > 1).length;
     const r = renderInstrument({ sampleRate: FS, instrument: info.instrument, preset: info.preset, events, duration: dur, player: players[k], params: seats ? { seat: seats[k] } : undefined, maxVoices: info.instrument === 'piano' ? (plan.parts.filter((q) => q.voice === 'grand' || q.voice === 'upright').length > 1 ? 32 : 48) : undefined });
     cpu += r.cpuMs;
     outs.push(r.left);
@@ -122,7 +137,7 @@ for (const job of jobs) {
     }
     const im = image(r.left, r.right);
     rows.push({ voice: part.voice, lines: part.lines, seat: seats ? [...seats[k]] : null, peakDb: +db(pk), rmsDb: +db(Math.sqrt(s2 / n)), ildDb: +im.ild.toFixed(2), lagMs: +im.lag.toFixed(3) });
-    console.log(`  ${part.voice.padEnd(8)} peak ${db(pk)} dBFS  rms ${db(Math.sqrt(s2 / n))} dBFS  L−R ${im.ild.toFixed(1).padStart(5)} dB  lag ${im.lag.toFixed(2).padStart(5)} ms${seats ? `  seat ${seats[k].map((v) => v.toFixed(2)).join(', ')}` : ''}  (${(r.cpuMs / dur / 10).toFixed(1)} % of real time)`);
+    console.log(`  ${part.voice.padEnd(8)} peak ${db(pk)} dBFS  rms ${db(Math.sqrt(s2 / n))} dBFS  L−R ${im.ild.toFixed(1).padStart(5)} dB  lag ${im.lag.toFixed(2).padStart(5)} ms${seats ? `  seat ${seats[k].map((v) => v.toFixed(2)).join(', ')}` : ''}  ${notes} notes${VOICE_INFO[part.voice].poly === 1 ? `, ${chords} chords` : ''}  (${(r.cpuMs / dur / 10).toFixed(1)} % of real time)`);
   }
   // two of a voice on one line: how alike they sound (1: one instrument twice; two players less)
   for (let a = 0; a < plan.parts.length; a++)
@@ -147,7 +162,7 @@ for (const job of jobs) {
     s2 += L[i] * L[i];
   }
   console.log(`  mix      peak ${db(pk)} dBFS  rms ${db(Math.sqrt(s2 / n))} dBFS  (all parts ${(cpu / dur / 10).toFixed(1)} % of real time)`);
-  const name = SOLO ? `${job.name}-before-one-${SOLO}` : ONE ? `${job.name}-one-player` : FLAT ? `${job.name}-flat` : job.name;
+  const name = SOLO ? `${job.name}-before-one-${SOLO}` : ONE ? `${job.name}-one-player` : FLAT ? `${job.name}-flat` : UNDIVIDED ? `${job.name}-undivided` : job.name;
   if (JSON_OUT) writeFileSync(join(OUT, `${name}.json`), JSON.stringify({ piece: job.name, seconds: dur, flat: FLAT, bus: g, parts: rows, mix: { peakDb: +db(pk), rmsDb: +db(Math.sqrt(s2 / n)) } }, null, 1));
   const wav = join(OUT, `${name}.wav`);
   writeFileSync(wav, encodeWav({ sampleRate: FS, channels: [L, R] }));

@@ -48,9 +48,11 @@ README does not claim it is live. `vercel.json` makes this a static build
   instrument. `apps/web/src/orchestra/keys.ts`. Drop a MIDI file with several
   parts and each part gets an instrument by its name, General MIDI program and range;
   the row under the player shows each part's instrument (tap one to change or silence
-  it). The list icon in the player, next to the folder, holds three public-domain pieces from the Mutopia
-  Project: Haydn's "Emperor" quartet (II), Brandenburg No. 5 (III) and Handel's
-  Réjouissance. Pieces and assignment: `apps/web/src/orchestra/`.
+  it). The list icon in the player, next to the folder, holds public-domain pieces from the Mutopia
+  Project: Haydn's "Emperor" quartet (II), Brandenburg No. 5 (III), Handel's
+  Réjouissance, Bach's Air for four trombones, and Beethoven's Fifth Symphony (I and II) on
+  its eighteen instruments, each wind staff divided between its two players. Pieces and
+  assignment: `apps/web/src/orchestra/`.
 * **Addresses.** Every tab has its own address (`/violin`, `/piano/upright`, `/orchestra`,
   `/notes`…), so back and forward walk the tabs and a reload stays put. The Orchestra's
   address carries its whole setup, kept up to date as it changes: the instruments in
@@ -60,6 +62,9 @@ README does not claim it is live. `vercel.json` makes this a static build
   quintet that plays a file with Violin I/II, Viola, Cello (or Violoncello) and Contrabass
   tracks:
   `/orchestra?v=1&seats=violin,violin,viola,cello,bass&lines=Violin+I~40:1,Violin+II~40:2,Viola~41:3,Cello~42:4,Contrabass~43:5`.
+  Beethoven's Fifth, seated and routed (its play icon plays the first movement; Mutopia's
+  own files dropped on it play the same way, staff by staff):
+  `/orchestra?v=1&seats=flute,flute,oboe,oboe,clarinet,clarinet,bassoon,bassoon,horn,horn,trumpet,trumpet,timpani,violin,violin,viola,cello,bass&lines=one~73:1.2,two~68:3.4,three~71:5.6,four~70:7.8,five~69:9.10,six~69:11.12,seven~47:13,eight~40:14,nine~40:15,ten~41:16,eleven~42:17,twelve~43:18`.
   Format: `apps/web/src/address.ts`; matching: `apps/web/src/orchestra/rules.ts`.
 * **Look inside.** See what each instrument is doing as it plays:
   * the string displacement or bore pressure, live;

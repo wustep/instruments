@@ -12,7 +12,7 @@ import { createInstrument, pianoKeySummary, processorUrl, type KeySummary, type 
 import { audio, fetchDesigns, restLevel, sendLevel, type Route } from '../audio.ts';
 import { modLines, PartLevels, volumeRef } from '../expression.ts';
 import type { FileEvent, MidiLine, MidiSong } from '../midi-file.ts';
-import { addPart, autoPlan, isKeyboard, lineupOf, lineupPlan, placeNote, playersOf, reassign, removePart, setPartLines, setPartVoice, setRoute, tromboneSizeOf, VOICE_INFO, type Plan, type TromboneSize, type Voice } from './assign.ts';
+import { addPart, autoPlan, deskOf, fitLineup, isKeyboard, lineupOf, lineupPlan, placeNote, playersOf, playsNote, reassign, removePart, setPartLines, setPartVoice, setRoute, tromboneSizeOf, VOICE_INFO, type Plan, type TromboneSize, type Voice } from './assign.ts';
 import { carryKeys, defaultKeys, keyParts, keysFor, keyTargets, setSplit, toggleKey, type KeysChoice, type KeyTarget } from './keys.ts';
 import { busGain } from './mix.ts';
 import { piecePlan, type Piece } from './pieces.ts';
@@ -32,6 +32,9 @@ export const stageCap = (): number => {
     return 6;
   }
 };
+/** the seats of a lineup the stage takes (assign.ts fitLineup): up to stageCap, and a piece's or an
+ *  address's longer orchestra as far as it costs the audio thread no more than the heaviest stageCap did */
+export const stageLineup = (lineup: Voice[]): Voice[] => fitLineup(lineup, stageCap());
 /** each piano's polyphony: one piano 48 voices; with two on the stage 32 each, 24 on a phone (the
  *  audio thread's heaviest part is a piano's ringing strings: two grands and six others came to 35 %
  *  of a desktop's audio thread, scripts/perf-orchestra.mjs ROUTED=1) */
@@ -181,10 +184,11 @@ class Ensemble implements Route {
   /** a file's lines over the current lineup (picked by hand: by its rules, if it has them, else by
    *  register) or on instruments of their own */
   planFor(song: MidiSong, piece: Piece | null): Plan {
-    if (piece) return piecePlan(piece, song.lines, AUTO_CAP);
+    // (a piece seats as much of its orchestra as the stage can carry, the whole symphony included)
+    if (piece) return piecePlan(piece, song.lines, Math.max(AUTO_CAP, stageLineup(piece.parts.map((p) => p.voice)).length));
     const rules = this.rulesFor(piece);
     if (rules) return planByRules(song.lines, this.lineup, rules);
-    return this.active && this.byUser ? autoPlan(song.lines, { cap: stageCap(), lineup: this.lineup }) : autoPlan(song.lines, { cap: AUTO_CAP });
+    return this.active && this.byUser ? this.planForLineup(song, this.lineup) : autoPlan(song.lines, { cap: AUTO_CAP });
   }
   /** the rules a file dropped now is placed by (planFor), kept with its plan */
   rulesFor(piece: Piece | null): LineRule[] | null {
@@ -206,16 +210,16 @@ class Ensemble implements Route {
 
   /** a file's lines over a given lineup */
   planForLineup(song: MidiSong, lineup: Voice[]): Plan {
-    return autoPlan(song.lines, { cap: stageCap(), lineup });
+    return autoPlan(song.lines, { cap: Math.max(stageCap(), lineup.length), lineup });
   }
 
   /** a new lineup (picked by hand); a loaded file's lines are matched to it */
   setLineup(voices: Voice[]): void {
-    const v = voices.slice(0, stageCap());
+    const v = stageLineup(voices);
     const was = this.lineup;
     this.byUser = true;
     this.piece = null;
-    this.plan = this.song ? autoPlan(this.song.lines, { cap: stageCap(), lineup: v }) : lineupPlan(v);
+    this.plan = this.song ? this.planForLineup(this.song, v) : lineupPlan(v);
     // (with a file the lines were matched again by register; with none, the routing set stays with
     // its instruments)
     this.rules = this.song ? rulesOf(this.plan, this.song.lines) : this.rules && remapRules(this.rules, was, v);
@@ -500,6 +504,8 @@ class Ensemble implements Route {
         else eng.softPedal(e.value, at);
         continue;
       }
+      // (a wind of a pair on one staff plays its own voice of the line: Flauto I the top one)
+      if (!playsNote(e, deskOf(this.plan, this.lines, e.line!, r.part))) continue;
       const pitch = placeNote(e.midi, r.shift, p.voice);
       // two lines on one instrument in unison: one string, let go when the last line lets go
       const n = p.sched.get(pitch) ?? 0;

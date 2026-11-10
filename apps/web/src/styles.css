@@ -2033,6 +2033,7 @@ figure[title] {
   grid-area: what;
   font: 400 11px/1.3 var(--mono);
   color: var(--muted);
+  white-space: nowrap;
 }
 .sm-lineup {
   grid-area: lineup;
@@ -2044,6 +2045,23 @@ figure[title] {
   width: 20px;
   height: 20px;
   stroke: var(--ink-2);
+}
+/* a large orchestra: each kind once, its count over its shoulder */
+.sm-many .sm-v {
+  position: relative;
+  display: inline-flex;
+  margin-right: 1px;
+}
+.sm-many .glyph {
+  width: 17px;
+  height: 17px;
+}
+.sm-n {
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  font: 400 8px/1 var(--mono);
+  color: var(--muted);
 }
 .sm-credit {
   padding: 6px 8px 3px;

@@ -106,7 +106,8 @@ describe('orchestra: the horn', () => {
       const p = autoPlan(k191.lines, { cap });
       expect(p.lines[2].map((r) => [p.parts[r.part].voice, r.shift])).toEqual([['cello', 0]]);
     }
-    for (const f of readdirSync(PIECE_DIR).filter((x) => x.endsWith('.mid') && x !== 'beethoven-op17.mid' && x !== 'mozart-k191-ii.mid')) {
+    // (the files shipped before the core; the symphony's came after, its plan is its piece's own: beethoven5.test.ts)
+    for (const f of readdirSync(PIECE_DIR).filter((x) => x.endsWith('.mid') && x !== 'beethoven-op17.mid' && x !== 'mozart-k191-ii.mid' && !x.startsWith('beethoven-op67'))) {
       const song = load(f);
       const bare = song.lines.map(({ core: _c, pcs: _p, ...l }) => l);
       for (const cap of [4, 8]) expect(autoPlan(song.lines, { cap }), `${f} cap ${cap}`).toEqual(autoPlan(bare, { cap }));

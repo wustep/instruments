@@ -3,7 +3,7 @@
 
 import type { MidiPlayer } from '../ui/player.ts';
 import { lineupPlan } from './assign.ts';
-import { ensemble, QUARTET, stageCap } from './ensemble.ts';
+import { ensemble, QUARTET, stageLineup } from './ensemble.ts';
 import { planByRules, type Setup } from './rules.ts';
 
 /** the ensemble on, with a setup (null or no seats: the one it last had, else the quartet). A file
@@ -15,7 +15,7 @@ export function enterOrchestra(player: MidiPlayer, s: Setup | null): void {
   if (player.demo) player.unload();
   const song = player.loaded;
   player.stop();
-  const lineup = setup.seats.slice(0, stageCap());
+  const lineup = stageLineup(setup.seats);
   const rules = setup.lines;
   const plan = song ? (rules ? planByRules(song.lines, lineup, rules) : ensemble.planForLineup(song, lineup)) : lineupPlan(lineup);
   ensemble.enter(plan, song, null, true, rules);

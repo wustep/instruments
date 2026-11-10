@@ -20,9 +20,36 @@ export interface Piece {
   credit: string;
   sha256: string;
   /** the instruments in seating order, the lines each plays (others are silent), and any line's own
-   *  transposition (semitones) on that instrument */
+   *  transposition (semitones) on that instrument. Two winds of a kind on one line (a pair on one staff)
+   *  divide it: the first plays its top voice (assign.ts deskOf) */
   parts: { voice: Voice; lines: number[]; shift?: Record<number, number> }[];
+  /** tempo, × the file's (a tempo the score marks, where the file has another) */
+  rate?: number;
 }
+
+/** the symphony's orchestra, in the score's order: two each of flutes, oboes, clarinets, bassoons, horns
+ *  and trumpets on their staff's two voices, the timpani, the first and second violins, the violas, the
+ *  cellos and the basses (Mutopia's files: one staff, one line each, in this order) */
+const BEETHOVEN_5: Piece['parts'] = [
+  { voice: 'flute', lines: [0] },
+  { voice: 'flute', lines: [0] },
+  { voice: 'oboe', lines: [1] },
+  { voice: 'oboe', lines: [1] },
+  { voice: 'clarinet', lines: [2] },
+  { voice: 'clarinet', lines: [2] },
+  { voice: 'bassoon', lines: [3] },
+  { voice: 'bassoon', lines: [3] },
+  { voice: 'horn', lines: [4] },
+  { voice: 'horn', lines: [4] },
+  { voice: 'trumpet', lines: [5] },
+  { voice: 'trumpet', lines: [5] },
+  { voice: 'timpani', lines: [6] },
+  { voice: 'violin', lines: [7] },
+  { voice: 'violin', lines: [8] },
+  { voice: 'viola', lines: [9] },
+  { voice: 'cello', lines: [10] },
+  { voice: 'bass', lines: [11] },
+];
 
 export const PIECES: Piece[] = [
   {
@@ -85,7 +112,36 @@ export const PIECES: Piece[] = [
       { voice: 'trombone', lines: [3] },
     ],
   },
+  {
+    id: 'beethoven5-i',
+    composer: 'Beethoven',
+    title: 'Symphony No. 5, I',
+    file: 'beethoven-op67-i.mid',
+    source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=941',
+    credit: 'Symphony No. 5 in C minor, Op. 67, I. Allegro con brio, for two each of flutes, oboes, clarinets in B♭, bassoons, horns in E♭ and trumpets in C, timpani and strings. Each wind staff of the file holds its pair, divided here between two players; the file names its staves "one" to "twelve" and calls its horns and trumpets "english horn". Played at Beethoven’s own metronome mark (half note = 108; the file’s 96), without the exposition’s repeat. Typeset by Stelios Samelis (adapted by Johannes Heinecke) from the Breitkopf & Härtel edition (1862–1865); Mutopia-2017/11/05-941; public domain.',
+    sha256: '0ce1bca911ba8e6234fd2e474a9b6da4c968c5cfe85b0cccfe7e56505df52046',
+    parts: BEETHOVEN_5,
+    rate: 108 / 96,
+  },
+  {
+    id: 'beethoven5-ii',
+    composer: 'Beethoven',
+    title: 'Symphony No. 5, II',
+    file: 'beethoven-op67-ii.mid',
+    source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1437',
+    credit: 'Symphony No. 5 in C minor, Op. 67, II. Andante con moto, for the same orchestra, its horns and trumpets in C. The file gives the horns their written pitch, an octave above their sound (the horn in C basso); they play an octave lower here. Played at Beethoven’s own metronome mark (eighth note = 92; the file’s 62). Typeset by Stelios Samelis (adapted by Johannes Heinecke) from the Breitkopf & Härtel edition (1862–1865); Mutopia-2017/12/08-1437; public domain.',
+    sha256: '3f360acfb2e3c4608fb396d0b2ca82d06921ea9fc3946ece46294f24461d7bac',
+    parts: BEETHOVEN_5.map((p) => (p.voice === 'horn' ? { ...p, shift: { 4: -12 } } : p)),
+    rate: 92 / 62,
+  },
 ];
+
+/** a piece's file as it plays: at its tempo (`rate`); its lines, notes and voices as written */
+export function pieceSong(song: MidiSong, piece: Piece | null): MidiSong {
+  const r = piece?.rate ?? 1;
+  if (r === 1) return song;
+  return { ...song, events: song.events.map((e) => ({ ...e, t: e.t / r })), duration: song.duration / r, bars: song.bars?.map((b) => b / r) };
+}
 
 /** a piece's own plan for its lines, fitted to the stage's room (`cap` instruments) */
 export function piecePlan(piece: Piece, lines: LineInfo[], cap: number): Plan {
