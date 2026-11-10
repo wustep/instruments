@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseMidi } from '../src/midi-file.ts';
 import { addPart, autoPlan, guessVoice, lineupOf, matchLineup, placeNote, playersOf, reassign, setPartVoice, setRoute, voiceFromName, voiceFromProgram, VOICE_INFO, type LineInfo } from '../src/orchestra/assign.ts';
+import { keysFor, keysRange, keyTargets, setSplit } from '../src/orchestra/keys.ts';
 import { smf } from './smf.ts';
 
 /** a format-1 file: a tempo track, then one track per part (its name, program, channel, a few notes) */
@@ -92,6 +93,23 @@ describe('orchestra: the double bass', () => {
     // a line moved to the bass by the chip (reassign)
     const p3 = reassign(autoPlan(lines, { cap: 6 }), lines, 3, 'bass', 6)!;
     expect(p3.lines[3].map((r) => p3.parts[r.part].voice)).toEqual(['bass']);
+  });
+
+  it('the keys by hand: a quintet’s keys default to its first violin; split, the lowest key goes to the bass; chosen, the keys span its compass', () => {
+    const q = ['violin', 'violin', 'viola', 'cello', 'bass'] as const;
+    expect(keysFor([...q]).parts).toEqual([0]);
+    const c = setSplit(keysFor([...q]), true);
+    const busy = new Set<number>();
+    const got = [33, 48, 62, 70, 81].map((m) => {
+      const [t] = keyTargets(m, c, [...q], busy);
+      busy.add(t.part);
+      return t.part;
+    });
+    expect(got[0]).toBe(4);
+    expect(got[1]).toBe(3);
+    expect(keysRange({ parts: [4], split: false, byUser: true }, [...q])).toEqual([28, 67]);
+    // a key above its compass, chosen on the bass: moved down by octaves into it
+    expect(keyTargets(79, { parts: [4], split: false, byUser: true }, [...q], new Set())).toEqual([{ part: 4, pitch: 67 }]);
   });
 
   it('a hand-picked lineup with a bass: the lowest line goes to it', () => {
