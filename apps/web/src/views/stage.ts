@@ -53,10 +53,10 @@ const VISIBLE_PRESETS = ['grand', 'upright'];
 
 /** the order instruments take in a lineup picked by hand: score order (winds, brass, strings, piano),
  *  which is also their seats from the audience's left */
-const SCORE_ORDER: Voice[] = ['flute', 'trumpet', 'violin', 'viola', 'cello', 'grand', 'upright'];
+const SCORE_ORDER: Voice[] = ['flute', 'trumpet', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
 /** how many of each one lineup may have (a tap on its button adds one, past this it has none; the
  *  routing grid adds more, up to the stage's cap) */
-const MOST: Record<Voice, number> = { flute: 2, trumpet: 2, violin: 3, viola: 2, cello: 2, grand: 2, upright: 2 };
+const MOST: Record<Voice, number> = { flute: 2, trumpet: 2, violin: 3, viola: 2, cello: 2, bass: 2, grand: 2, upright: 2 };
 const familyOf = (v: Voice) => INSTRUMENT_INFO[VOICE_INFO[v].instrument].family;
 
 export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: MidiPlayer): View {
@@ -68,8 +68,10 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   const closeUpOffered = () => family() === 'piano' && !ensemble.active;
 
   // ---------------------------------------------------------------- picker
+  // (the double bass's name under its glyph is "bass", one word as the others are; its full name is its
+  // accessible name and tooltip)
   const instBtns = INSTRUMENT_IDS.map((id) => {
-    const b = h('button', { class: 'pick', type: 'button', 'aria-label': INSTRUMENT_INFO[id].label, title: INSTRUMENT_INFO[id].blurb, 'aria-pressed': String(inst === id), onclick: () => (ensemble.active ? addToLineup(id) : void audio.setInstrument(id)) }, h('span', { class: 'pick-name' }, INSTRUMENT_INFO[id].label.toLowerCase()), h('span', { class: 'pick-n', 'aria-hidden': 'true' }));
+    const b = h('button', { class: 'pick', type: 'button', 'aria-label': INSTRUMENT_INFO[id].label, title: INSTRUMENT_INFO[id].blurb, 'aria-pressed': String(inst === id), onclick: () => (ensemble.active ? addToLineup(id) : void audio.setInstrument(id)) }, h('span', { class: 'pick-name' }, (id === 'bass' ? 'bass' : INSTRUMENT_INFO[id].label).toLowerCase()), h('span', { class: 'pick-n', 'aria-hidden': 'true' }));
     b.prepend(glyph(id) as unknown as HTMLElement);
     return b;
   });
@@ -356,6 +358,16 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   hands.push(hand2d);
   // tests: where the 2D stage last drew the hair (client px) and the contact point along it
   (window as unknown as { __bow2d?: () => unknown }).__bow2d = () => hand2dLine();
+  // tests: where the 2D stage last drew the bowed instrument and the box its bow sweeps at the far ends
+  // of its travel (client px), and the stage it was drawn in
+  (window as unknown as { __bowed2d?: () => unknown }).__bowed2d = () => {
+    const d = family() === 'bowed' && bowedGeom && !(want3d && s3) && !ensemble.active ? bowedState.drawn : null;
+    if (!d) return null;
+    const r = canvas.getBoundingClientRect();
+    const y0 = r.top + top.getBoundingClientRect().height;
+    const at = (b: { x0: number; y0: number; x1: number; y1: number }) => ({ x0: r.left + b.x0, x1: r.left + b.x1, y0: y0 + b.y0, y1: y0 + b.y1 });
+    return { id: bowedGeom!.id, body: at(d.body), bow: at(d.bow), stage: { x0: r.left, x1: r.right, y0, y1: r.bottom } };
+  };
   canvas.addEventListener('pointerdown', (e) => {
     downAt = { x: e.clientX, y: e.clientY };
     hand2d.down(e);
@@ -726,8 +738,10 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       if (vec) drawPianoV(ctx, w, ih, pg, frame, pianoState, vfields!.piano, now);
       else drawPiano(ctx, w, ih, pg, frame, pianoState, fields.piano, now);
     } else if (family() === 'bowed' && bowedGeom) {
-      if (vec) drawBowedV(ctx, w, ih, bowedGeom, frame, bowedState, vfields!.bowed, now);
-      else drawBowed(ctx, w, ih, bowedGeom, frame, bowedState, fields.bowed, now);
+      // (the double bass keeps clear of the file player at the top of the stage: bowedLayout)
+      const pl = bowedGeom.id === 'bass' && !player.el.hidden ? Math.max(0, Math.round(player.el.getBoundingClientRect().bottom - top.getBoundingClientRect().bottom)) : 0;
+      if (vec) drawBowedV(ctx, w, ih, bowedGeom, frame, bowedState, vfields!.bowed, now, false, undefined, pl);
+      else drawBowed(ctx, w, ih, bowedGeom, frame, bowedState, fields.bowed, now, false, undefined, pl);
     } else if (family() === 'brass') (vec ? drawTrumpetV : drawTrumpet)(ctx, w, ih, frame, trumpetState);
     else (vec ? drawFluteV : drawFlute)(ctx, w, ih, frame, fluteState);
     // the room: wavefronts from the instrument, reflections, the lid's throw

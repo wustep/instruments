@@ -1,8 +1,9 @@
-// Reference recordings for the violin, viola, cello and flute, used ONLY for
+// Reference recordings for the violin, viola, cello, double bass and flute, used ONLY for
 // analysis (never as the instruments' sound): University of Iowa Musical
 // Instrument Samples (pre-2012 sets), anechoic chamber, Neumann KM 84 at ~5 ft,
 // 16-bit/44.1 kHz mono. Violin: J. Jean-Francois; viola: C. Taylor (1996);
-// cello: J. Montes on a 1736 Stradivarius (2001); flute: S. Feig (2000), non-vibrato.
+// cello: J. Montes on a 1736 Stradivarius (2001); double bass: the MIS "Double Bass" arco set
+// (https://theremin.music.uiowa.edu/MISdoublebass.html); flute: S. Feig (2000), non-vibrato.
 // Terms: "may be downloaded and used for any projects, without restrictions" —
 // https://theremin.music.uiowa.edu/MIS.html
 //
@@ -15,7 +16,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { join } from 'node:path';
 import { analyzeSustained, decodeWav, identifyNote, segmentNotes, type SustainedAnalysis } from '../packages/engine/src/analysis/index.ts';
 
-export type EnsInstrument = 'violin' | 'viola' | 'cello' | 'flute' | 'trumpet';
+export type EnsInstrument = 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet';
 export type Dyn = 'pp' | 'mf' | 'ff';
 export const ENS_DYN: Dyn[] = ['pp', 'mf', 'ff'];
 export const ENS_CACHE = join(import.meta.dirname, '..', '.cache', 'iowa-ens');
@@ -46,13 +47,14 @@ export interface RefFile {
 }
 
 const BASE = 'https://theremin.music.uiowa.edu/sound%20files/MIS';
-function strings(instrument: 'violin' | 'cello', spec: Record<Dyn, [string, string, number, number][]>): RefFile[] {
+function strings(instrument: 'violin' | 'cello' | 'bass', spec: Record<Dyn, [string, string, number, number][]>): RefFile[] {
   const out: RefFile[] = [];
-  const Cap = instrument === 'violin' ? 'Violin' : 'Cello';
+  const Cap = instrument === 'violin' ? 'Violin' : instrument === 'cello' ? 'Cello' : 'Bass';
+  const dir = instrument === 'bass' ? 'doublebass' : instrument;
   for (const dyn of ENS_DYN)
     for (const [str, tag, lo, hi] of spec[dyn]) {
       const file = `${Cap}.arco.${dyn}.sul${str}.${tag}.aiff`;
-      out.push({ instrument, dyn, file, url: `${BASE}/Strings/${instrument}/${file}`, range: rangeOf(tag), use: [lo, hi] });
+      out.push({ instrument, dyn, file, url: `${BASE}/Strings/${dir}/${file}`, range: rangeOf(tag), use: [lo, hi] });
     }
   return out;
 }
@@ -69,6 +71,12 @@ export const REF_FILES: RefFile[] = [
     pp: [['C', 'C2Gb2', 36, 42], ['G', 'G2Bb2', 43, 49], ['D', 'D3B3', 50, 56], ['A', 'A3B3', 57, 59], ['A', 'C4Bb4', 60, 64]],
     mf: [['C', 'C2Ab2', 36, 42], ['G', 'G2Bb2', 43, 49], ['D', 'D3B3', 50, 56], ['A', 'A3B3', 57, 59], ['A', 'C4C5', 60, 64]],
     ff: [['C', 'C2A2', 36, 42], ['G', 'G2B2', 43, 49], ['D', 'D3B3', 50, 56], ['A', 'A3B3', 57, 59], ['A', 'C4B4', 60, 64]],
+  }),
+  // double bass: E 28–32, A 33–37, D 38–42, G 43+ (the MIS has no mf run above B3 on the G string)
+  ...strings('bass', {
+    pp: [['E', 'E1B1', 28, 32], ['A', 'A1B1', 33, 35], ['A', 'C2B2', 36, 37], ['D', 'D2B2', 38, 42], ['G', 'G2B2', 43, 47], ['G', 'C3B3', 48, 59], ['G', 'C4G4', 60, 67]],
+    mf: [['E', 'E1B1', 28, 32], ['A', 'A1B1', 33, 35], ['A', 'C2B2', 36, 37], ['D', 'D2B2', 38, 42], ['G', 'G2B2', 43, 47], ['G', 'C3B3', 48, 59]],
+    ff: [['E', 'E1B1', 28, 32], ['A', 'A1B1', 33, 35], ['A', 'C2B2', 36, 37], ['D', 'D2B2', 38, 42], ['G', 'G2B2', 43, 47], ['G', 'C3B3', 48, 59], ['G', 'C4G4', 60, 67]],
   }),
   // viola (file names put the string before the dynamic): C 48–54, G 55–61, D 62–68, A 69+
   ...ENS_DYN.flatMap((dyn) =>

@@ -17,6 +17,8 @@ export interface Mat {
   paint?: PaintSpec;
   /** use `col` instead of the family's own colour */
   tint?: boolean;
+  /** scale the family's solid texture (1 = as the family has it) */
+  texScale?: number;
 }
 /** maps painted on a canvas over a plate's local (x, z) rectangle: colour (+ alpha cut-outs) and an
  *  auxiliary map (r: figure/flame for the angle-dependent sheen, g: distance from the edge) */

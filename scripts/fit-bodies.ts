@@ -17,7 +17,11 @@
 // (λ = 3, chosen by cross-validation inside the fit half: notes ≡ 0 vs 2 mod 4), solved by least
 // squares; the corner by a grid. The bands are then refitted to the new envelope, the fit half
 // re-rendered, and the whole repeated until it settles.
-//   npx tsx scripts/fit-bodies.ts violin [--iters 7] [--keep-speed] [--keep-hf] [--corner-floor] [--write]
+// --levels w (the double bass): each note's overall level is fitted too, not only its harmonics' shape:
+// recording − model level = an offset per dynamic (the microphone's gain) + the envelope's change
+// weighted by the note's own harmonics' powers, w rows' worth per note. Without it a band may sit on
+// a few notes' fundamentals and make them 15 dB louder than their neighbours (the bass's 71 Hz did).
+//   npx tsx scripts/fit-bodies.ts violin [--iters 7] [--keep-speed] [--keep-hf] [--corner-floor] [--levels w] [--write]
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { join } from 'node:path';
@@ -30,7 +34,7 @@ import { isHeldOut } from './judge.ts';
 
 const FIT = join(import.meta.dirname, '..', 'packages/engine/src/core/bowed-fit.json');
 const FS = 44100;
-type Inst = 'violin' | 'viola' | 'cello';
+type Inst = 'violin' | 'viola' | 'cello' | 'bass';
 type Body = { bands: [number, number][]; q: number; corner: [number, number] };
 interface Over {
   body: Body;
@@ -208,10 +212,37 @@ function rowsOf(refs: RefNote[], got: Got[]): Row[] {
   });
   return rows;
 }
+/** --levels: one row per note, its level (recording − model, dB) against the envelope's change weighted
+ *  by the note's harmonics' powers, and the dynamic whose offset it shares */
+interface LevelRow {
+  dyn: number;
+  basis: number[];
+  y: number;
+}
+let LEVELS: { rows: LevelRow[]; w: number } | null = null;
+function levelRowsOf(refs: RefNote[], got: Got[]): LevelRow[] {
+  const out: LevelRow[] = [];
+  refs.forEach((r, n) => {
+    const g = got[n];
+    if (!g || !g.harmAbs.length || !Number.isFinite(g.f0) || !Number.isFinite(g.rmsDb) || !Number.isFinite(r.rmsDb)) return;
+    const basis = new Array(KNOTS.length).fill(0);
+    let tot = 0;
+    for (let k = 1; k <= 16; k++) {
+      const a = g.harmAbs[k - 1];
+      if (!Number.isFinite(a) || k * g.f0 > 10000) continue;
+      const pw = Math.pow(10, a / 10);
+      basisRow(k * g.f0).forEach((v, j) => (basis[j] += pw * v));
+      tot += pw;
+    }
+    if (!(tot > 0)) return;
+    out.push({ dyn: ['pp', 'mf', 'ff'].indexOf(r.dyn), basis: basis.map((v) => v / tot), y: r.rmsDb - g.rmsDb });
+  });
+  return out;
+}
 /** ΔC on the knots (and each note's level) for rows whose y has the corner change taken off */
 function fitEnvelope(rows: Row[], nNotes: number, ys: number[], lambda = 3): { dC: number[]; rms: number } {
   const nk = KNOTS.length;
-  const N = nNotes + nk;
+  const N = nNotes + nk + (LEVELS ? 3 : 0);
   const A = Array.from({ length: N }, () => new Array(N).fill(0));
   const b = new Array(N).fill(0);
   rows.forEach((r, i) => {
@@ -229,8 +260,19 @@ function fitEnvelope(rows: Row[], nNotes: number, ys: number[], lambda = 3): { d
     const c = [1, -2, 1];
     for (let p = 0; p < 3; p++) for (let q = 0; q < 3; q++) A[nNotes + i + p][nNotes + i + q] += s * c[p] * c[q];
   }
+  if (LEVELS)
+    for (const r of LEVELS.rows) {
+      const idx = [nNotes + nk + r.dyn, ...r.basis.map((_, j) => nNotes + j)];
+      const val = [1, ...r.basis];
+      for (let p = 0; p < idx.length; p++) {
+        if (!val[p]) continue;
+        b[idx[p]] += LEVELS.w * val[p] * r.y;
+        for (let q = 0; q < idx.length; q++) if (val[q]) A[idx[p]][idx[q]] += LEVELS.w * val[p] * val[q];
+      }
+    }
   for (let j = 0; j < nk; j++) A[nNotes + j][nNotes + j] += 1e-4;
   for (let j = 0; j < nNotes; j++) A[j][j] += 1e-6;
+  if (LEVELS) for (let j = 0; j < 3; j++) A[nNotes + nk + j][nNotes + nk + j] += 1e-6;
   const sol = solveSym(A, b);
   let e = 0;
   rows.forEach((r, i) => {
@@ -244,11 +286,13 @@ function fitEnvelope(rows: Row[], nNotes: number, ys: number[], lambda = 3): { d
 }
 const dCat = (dC: number[], f: number) => basisRow(f).reduce((a, v, j) => a + v * dC[j], 0);
 
-/** half-octave peaking sections, 100 Hz–12.8 kHz, gains fitted (Gauss–Newton) to a target curve */
-const BAND_F = Array.from({ length: 15 }, (_, i) => 100 * Math.pow(2, i / 2));
+/** half-octave peaking sections, 100 Hz–12.8 kHz (the double bass, whose E is 41 Hz: from 50 Hz),
+ *  gains fitted (Gauss–Newton) to a target curve */
+let BAND_F = Array.from({ length: 15 }, (_, i) => 100 * Math.pow(2, i / 2));
+const bandsFor = (inst: string) => (inst === 'bass' ? Array.from({ length: 17 }, (_, i) => 50 * Math.pow(2, i / 2)) : BAND_F);
 const BAND_Q = Math.SQRT2 ** 0.5 / (Math.SQRT2 - 1); // a half-octave bandwidth
 function fitBands(target: (f: number) => number, start: number[]): number[] {
-  const grid = Array.from({ length: 120 }, (_, i) => 70 * Math.pow(12000 / 70, i / 119));
+  const grid = Array.from({ length: 120 }, (_, i) => 0.7 * BAND_F[0] * Math.pow(12000 / (0.7 * BAND_F[0]), i / 119));
   const T = grid.map(target);
   const resp = (g: number[]) => grid.map((f) => g.reduce((s, gi, i) => s + biquadDb(biquadPeaking(BAND_F[i], BAND_Q, gi, FS), f), 0));
   let g = start.slice();
@@ -288,6 +332,7 @@ if (!isMainThread && (workerData as { fitBodies?: boolean })?.fitBodies) {
 } else if (import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2);
   const inst = args[0] as Inst;
+  BAND_F = bandsFor(inst);
   const iters = args.includes('--iters') ? +args[args.indexOf('--iters') + 1] : 7;
   const floor = args.includes('--corner-floor');
   const d = BOWED[inst];
@@ -317,8 +362,21 @@ if (!isMainThread && (workerData as { fitBodies?: boolean })?.fitBodies) {
     pp: lvl(refs, 'pp') - lvl(refs, 'mf'),
     ff: lvl(refs, 'ff') - lvl(refs, 'mf'),
   };
+  const levelW = args.includes('--levels') ? +args[args.indexOf('--levels') + 1] : 0;
+  const levelSd = (g: Got[]) => {
+    const rs = levelRowsOf(refs, g);
+    const sd: string[] = [];
+    for (let d = 0; d < 3; d++) {
+      const ys = rs.filter((r) => r.dyn === d).map((r) => r.y);
+      const m = ys.reduce((a, v) => a + v, 0) / ys.length;
+      sd.push(Math.sqrt(ys.reduce((a, v) => a + (v - m) ** 2, 0) / ys.length).toFixed(1));
+    }
+    return sd.join('/');
+  };
   for (let it = 0; it < iters; it++) {
     const rows = rowsOf(refs, got);
+    LEVELS = levelW ? { rows: levelRowsOf(refs, got), w: levelW } : null;
+    console.log(`  notes' levels against the recording's, SD about each dynamic's offset (pp/mf/ff): ${levelSd(got)} dB`);
     const base = rows.map((r) => r.y);
     console.log(`it ${it}: ${rows.length} harmonics; recording − model RMS (each note's level and a tilt removed) ${fitEnvelope(rows, refs.length, base, 1e6).rms.toFixed(2)} dB`);
     // corner: grid over the cutoff (harmonics at 1 m/s) and the exponent, each with its best envelope
@@ -394,6 +452,8 @@ if (!isMainThread && (workerData as { fitBodies?: boolean })?.fitBodies) {
     }
   }
   const rows = rowsOf(refs, got);
+  LEVELS = null;
+  console.log(`final: notes' levels against the recording's, SD about each dynamic's offset (pp/mf/ff): ${levelSd(got)} dB`);
   console.log(
     `final: recording − model RMS (each note's level and a tilt removed) ${fitEnvelope(
       rows,

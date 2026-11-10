@@ -18,6 +18,7 @@
 // the bass side; the treble side is its mirror image. A new instrument needs one `FHole` (a double
 // bass: its own eyes, turns, stem and widths).
 import { CELLO, VIOLIN, type Outline } from './outlines.ts';
+import { BASS } from './bass-outline.ts';
 
 type P2 = [number, number];
 
@@ -59,6 +60,18 @@ const CELLO_F: FHole = {
   stem: [[0.47, 0.1085], [0.5205, 0.1115], [0.568, 0.1168]],
   width: [0.0042, 0.007, 0.0105, 0.0142, 0.0108, 0.0072, 0.0048],
   nick: [0.0021, 0.0034],
+};
+
+/** A 3/4 double bass (1110 mm body; bass-outline.ts): the cello's hole drawn longer and more upright, as
+ *  a bass's are: 245 mm from end to end, eyes 22 and 30 mm across, the stem 15 mm at the nicks, which
+ *  sit on the bridge line 125 mm out from the centre (makers' figures for orchestral 3/4 basses) */
+export const BASS_F: FHole = {
+  upper: [0.472, 0.073, 0.0099],
+  lower: [0.644, 0.163, 0.0135],
+  turn: [[0.468, 0.091, 0.0155], [0.648, 0.145, 0.019]],
+  stem: [[0.493, 0.1117], [0.56, 0.115], [0.623, 0.1208]],
+  width: [0.004, 0.0067, 0.01, 0.0135, 0.0103, 0.0068, 0.0046],
+  nick: [0.002, 0.0032],
 };
 
 const sub = (a: P2, b: P2): P2 => [a[0] - b[0], a[1] - b[1]];
@@ -213,7 +226,7 @@ export function fholeOutline(f: FHole): P2[] {
 const made = new Map<FHole, P2[]>();
 /** the f-hole of the instrument an outline was traced from (the bass side, in body lengths) */
 export function fholeOf(ol: Outline): P2[] {
-  const f = ol === CELLO ? CELLO_F : ol === VIOLIN ? VIOLIN_F : null;
+  const f = ol === CELLO ? CELLO_F : ol === VIOLIN ? VIOLIN_F : ol === BASS ? BASS_F : null;
   if (!f) return ol.fhole;
   let p = made.get(f);
   if (!p) made.set(f, (p = fholeOutline(f)));

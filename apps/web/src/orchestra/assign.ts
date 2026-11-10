@@ -11,19 +11,19 @@
 // the stage more than once (two cellos, two grands), each its own engine. Auto-assignment never
 // doubles a line; doubling is done by hand (setRoute, addPart, setPartLines).
 //
-// Auto-assignment, per line: its name (track or instrument name: "Violin I", "violoncello"), else
-// its General MIDI program, else its range and polyphony. A line that its instrument cannot play
-// (chords on a flute, a part below the cello) is moved by whole octaves into range, or goes to the
-// piano. With a lineup chosen by hand, the lines are matched to it by register instead: the highest
+// Auto-assignment, per line: its name (track or instrument name: "Violin I", "violoncello",
+// "Contrabass"), else its General MIDI program, else its range and polyphony. A line that its
+// instrument cannot play (chords on a flute) is moved by whole octaves into range, or goes to the
+// piano; a line that goes below the cello's C is a bass line (the double bass is a candidate for it). With a lineup chosen by hand, the lines are matched to it by register instead: the highest
 // line to the highest instrument, and so on down.
 
-export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'flute' | 'trumpet';
-export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'flute', 'trumpet'];
+export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet';
+export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'bass', 'flute', 'trumpet'];
 
 export interface VoiceInfo {
   label: string;
   /** the engine's instrument and (pianos) preset */
-  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'flute' | 'trumpet';
+  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet';
   preset?: 'grand' | 'upright';
   /** playable range (MIDI notes) and where the instrument sings best */
   lo: number;
@@ -33,14 +33,15 @@ export interface VoiceInfo {
   poly: number;
 }
 // ranges: the engine's (packages/engine/src/core/instrument.ts INSTRUMENT_INFO); centres: the
-// middle of each instrument's usual written range (violin G3–A6, viola C3–E6, cello C2–A5, flute
-// C4–C7, trumpet F#3–D6), where a part for it mostly lies
+// middle of each instrument's usual written range (violin G3–A6, viola C3–E6, cello C2–A5, double
+// bass E1–G3 sounding, flute C4–C7, trumpet F#3–D6), where a part for it mostly lies
 export const VOICE_INFO: Record<Voice, VoiceInfo> = {
   grand: { label: 'grand piano', instrument: 'piano', preset: 'grand', lo: 21, hi: 108, centre: 60, poly: 88 },
   upright: { label: 'upright piano', instrument: 'piano', preset: 'upright', lo: 21, hi: 108, centre: 60, poly: 88 },
   violin: { label: 'violin', instrument: 'violin', lo: 55, hi: 100, centre: 74, poly: 4 },
   viola: { label: 'viola', instrument: 'viola', lo: 48, hi: 88, centre: 63, poly: 4 },
   cello: { label: 'cello', instrument: 'cello', lo: 36, hi: 81, centre: 52, poly: 4 },
+  bass: { label: 'double bass', instrument: 'bass', lo: 28, hi: 67, centre: 40, poly: 4 },
   flute: { label: 'flute', instrument: 'flute', lo: 60, hi: 96, centre: 79, poly: 1 },
   trumpet: { label: 'trumpet', instrument: 'trumpet', lo: 52, hi: 86, centre: 68, poly: 1 },
 };
@@ -76,12 +77,23 @@ export interface Plan {
 }
 
 // ---------------------------------------------------------------- hints
-/** an instrument named in the track: Italian, German, French and English names, and abbreviations */
+/** an instrument named in the track: Italian, German, French, Spanish and English names, and
+ *  abbreviations. The double bass: contrabass, double bass, contrebasse, Kontrabass, contrabbasso,
+ *  contrabajo, violone, "Cb.", "Kb.", "D.B.", and a plain "bass"/"basso"/"basse"/"bassi" (a string
+ *  orchestra's bass line; a bass guitar's too), the tuba and the contrabassoon (the lowest line);
+ *  the cello keeps "Violoncello", a continuo and a bassoon, and a bass clarinet, bass trombone or bass
+ *  drum is not a bass. */
 export function voiceFromName(s: string): Voice | null {
   const t = s.toLowerCase();
   if (!t.trim()) return null;
-  if (/upright|honky/.test(t)) return 'upright';
-  if (/cello|violoncell|violincell|\bvc\.?\b|\bvlc\b|contrabass|double ?bass|\bbass(o|e)?\b|violone|kontrabass|bassoon|fagott|tuba/.test(t)) return 'cello';
+  if (/contra-?bassoon|kontrafagott|contrafagotto|contrebasson/.test(t)) return 'bass';
+  if (/upright(?! ?bass)|honky/.test(t)) return 'upright';
+  if (/cello|violoncell|violincell|\bvc\.?\b|\bvlc\b|continuo|bassoon|fagott/.test(t)) return 'cello';
+  if (
+    /contra-? ?b?bass|contrebasse|kontrabass|contrabajo|double ?bass|upright ?bass|string ?bass|acoustic ?bass|violone|\bcb\.?(?![a-z])|\bcbs\b|\bkb\.?(?![a-z])|\bd\. ?b\.|\bbass(o|e|i|es)?\b|tuba/.test(t) &&
+    !/clarinet|klarinett|clarinette|trombone|posaune|drum/.test(t)
+  )
+    return 'bass';
   if (/viola|\bvla?\.?\b|bratsche|\balto\b/.test(t) && !/viola da gamba/.test(t)) return 'viola';
   if (/viol|vln|fiddle|geige|violon\b/.test(t)) return 'violin';
   if (/flute|flauto|fl[oö]te|flûte|piccolo|recorder|\bfl\.?\b|oboe|hautbois|clarinet|klarinette|clarinette|\bob\.?\b|\bcl\.?\b|sax/.test(t)) return 'flute';
@@ -94,10 +106,11 @@ export function voiceFromName(s: string): Voice | null {
 export function voiceFromProgram(p: number): Voice | null {
   if (p < 0) return null;
   if (p <= 31) return 'grand'; // pianos, chromatic percussion, organs, guitars
-  if (p <= 39) return 'cello'; // basses
+  if (p <= 39) return 'bass'; // basses: acoustic (32), electric, fretless, slap, synth
   if (p === 40 || p === 44 || p === 45) return 'violin'; // violin, tremolo and pizzicato strings
   if (p === 41) return 'viola';
-  if (p === 42 || p === 43) return 'cello';
+  if (p === 42) return 'cello';
+  if (p === 43) return 'bass'; // contrabass
   if (p === 46) return 'grand'; // harp
   if (p <= 55) return null; // timpani, string and voice ensembles: by range
   if (p <= 63) return 'trumpet'; // brass
@@ -162,8 +175,8 @@ function rangeScore(l: LineInfo, v: Voice): number {
  * what the file says: a track name (written by a person: "Viola") counts most, an instrument name (a
  * notation program's default, often wrong) less, the General MIDI program least; a name counts only
  * when that instrument can play the line as written (a "violin" track going below the G string is
- * not a violin part). The bowed strings are always candidates; the winds and the piano when named,
- * the piano also for chords.
+ * not a violin part). The violin, viola and cello are always candidates, the double bass for a line
+ * that goes below the cello; the winds and the piano when named, the piano also for chords.
  */
 export function guessVoice(l: LineInfo): Voice {
   const hints: [Voice | null, number][] = [
@@ -176,6 +189,8 @@ export function guessVoice(l: LineInfo): Voice {
     ['viola', 0],
     ['cello', 0],
   ]);
+  // a line below the cello's C: a bass line, the double bass's
+  if (l.lo < VOICE_INFO.cello.lo) cands.set('bass', 0);
   for (const [v, w] of hints) if (v && (isKeyboard(v) || fits0(l, v) >= 0.9)) cands.set(v, (cands.get(v) ?? 0) + w);
   // chords: four notes at once are a keyboard's; three may be a string's triple stop
   if (l.poly >= 3) cands.set('grand', (cands.get('grand') ?? 0) + (l.poly >= 4 ? 2.5 : 0.6));

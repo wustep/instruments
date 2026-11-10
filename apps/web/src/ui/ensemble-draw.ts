@@ -32,7 +32,7 @@ export interface PartDraw {
 
 export function newPartDraw(v: Voice): PartDraw {
   const inst = VOICE_INFO[v].instrument;
-  if (inst === 'violin' || inst === 'viola' || inst === 'cello')
+  if (inst === 'violin' || inst === 'viola' || inst === 'cello' || inst === 'bass')
     // (a coarser mode field than the single instrument's: six of them are drawn every frame)
     return { voice: v, bowed: { geom: { id: inst, ...bowedGeometry(inst) }, st: { strScale: new AutoScale(2e-6), lvlScale: new AutoScale(1e-6, 0.995) }, field: new ModeField(96, 54, 1.8, 0.6) } };
   if (inst === 'flute') return { voice: v, flute: { pScale: new AutoScale(1e-6), jetScale: new AutoScale(1e-9), env: new Float32Array(0) } as FluteState };
@@ -86,7 +86,7 @@ const geomOf = (id: BowedGeom['id']): BowedGeom => {
 };
 const bowedId = (v: Voice): BowedGeom['id'] | null => {
   const id = VOICE_INFO[v].instrument;
-  return id === 'violin' || id === 'viola' || id === 'cello' ? id : null;
+  return id === 'violin' || id === 'viola' || id === 'cello' || id === 'bass' ? id : null;
 };
 
 /** An instrument's box at one px per metre: `across` it (m, along the line of seats) and `along` it, plus

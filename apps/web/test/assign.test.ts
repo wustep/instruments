@@ -15,8 +15,8 @@ const partOf = (p: Plan, li: number) => p.lines[li][0]?.part ?? -1;
 
 describe('orchestra: assigning lines to instruments', () => {
   it('reads instruments from names (several languages) and General MIDI programs', () => {
-    expect(['Violin I', 'violoncello:', 'Viola', 'Flauto traverso', 'Tromba', 'Cembalo', 'Kontrabass', 'violinII:'].map(voiceFromName)).toEqual(['violin', 'cello', 'viola', 'flute', 'trumpet', 'grand', 'cello', 'violin']);
-    expect([0, 40, 41, 42, 43, 56, 60, 68, 73, 48, -1].map(voiceFromProgram)).toEqual(['grand', 'violin', 'viola', 'cello', 'cello', 'trumpet', 'trumpet', 'flute', 'flute', null, null]);
+    expect(['Violin I', 'violoncello:', 'Viola', 'Flauto traverso', 'Tromba', 'Cembalo', 'Kontrabass', 'violinII:'].map(voiceFromName)).toEqual(['violin', 'cello', 'viola', 'flute', 'trumpet', 'grand', 'bass', 'violin']);
+    expect([0, 32, 40, 41, 42, 43, 56, 60, 68, 73, 48, -1].map(voiceFromProgram)).toEqual(['grand', 'bass', 'violin', 'viola', 'cello', 'bass', 'trumpet', 'trumpet', 'flute', 'flute', null, null]);
   });
 
   it('a string quartet file becomes a string quartet (the name beats a wrong program)', () => {

@@ -10,13 +10,23 @@ import { isKeyboard, type Voice } from '../src/orchestra/assign.ts';
 import type { PartLive } from '../src/orchestra/ensemble.ts';
 import { drawEnsemble, ensembleCells, newPartDraw, type Cell } from '../src/ui/ensemble-draw.ts';
 import { BOWED_PLAN, FL_LEN, bowReach, bowedShapes, bowedSpan, type BowedGeom } from '../src/ui/stage-draw.ts';
+import { installCanvas, recorder } from './recording-ctx.ts';
 
-/** the instrument area of the stage under the file player: a laptop, a large window, Stephen's window,
- *  a phone held upright (390×844 and a Pixel 7) and on its side, a wide monitor */
-const STAGES: [number, number][] = [[1440, 505], [1535, 918], [2245, 918], [390, 422], [412, 400], [844, 190], [2560, 1100]];
+/** the instrument area of the stage under the file player: a laptop (and 1440×900's), a large window,
+ *  Stephen's window, a phone held upright (390×844 and a Pixel 7) and on its side, a wide monitor */
+const STAGES: [number, number][] = [[1440, 505], [1440, 490], [1535, 918], [2245, 918], [390, 422], [412, 400], [844, 190], [2560, 1100]];
 const DAYLIGHT: Voice[] = ['violin', 'violin', 'viola', 'cello', 'cello'];
+/** a string quintet with the double bass (Daylight's lineup, its second cello a bass), and with two */
+const QUINTET: Voice[] = ['violin', 'violin', 'viola', 'cello', 'bass'];
+const TWO_BASSES: Voice[] = ['violin', 'violin', 'viola', 'cello', 'bass', 'bass'];
 const LINEUPS: Voice[][] = [
   DAYLIGHT,
+  QUINTET,
+  TWO_BASSES,
+  ['bass'],
+  ['cello', 'bass'],
+  ['bass', 'bass'],
+  ['flute', 'violin', 'viola', 'cello', 'bass', 'grand'],
   ['violin', 'violin', 'viola', 'cello'],
   ['flute', 'violin', 'viola', 'violin', 'cello'],
   ['flute', 'violin', 'violin', 'viola', 'cello', 'grand'],
@@ -30,7 +40,7 @@ const LINEUPS: Voice[][] = [
   ['viola', 'viola', 'cello', 'cello', 'grand', 'upright'],
 ];
 type Id = BowedGeom['id'];
-const isBowed = (v: Voice): v is Id => v === 'violin' || v === 'viola' || v === 'cello';
+const isBowed = (v: Voice): v is Id => v === 'violin' || v === 'viola' || v === 'cello' || v === 'bass';
 const geom = (id: Id) => ({ id, ...bowedGeometry(id) });
 /** the instrument's length as drawn (m): the scroll's top to the end button (the cello's first 0.16 m
  *  of endpin) */
@@ -156,75 +166,8 @@ describe('the ensemble’s cells', () => {
 
 // ---- the bows as drawn: the vector style's drawing, through a context that records its lines
 
-/** a 2D context that keeps its transform and, for every line drawn with no clip set (the bows, drawn
- *  after every instrument), the segment in stage px, grouped by the bow that drew it */
-function recorder() {
-  type M = [number, number, number, number, number, number];
-  let m: M = [1, 0, 0, 1, 0, 0];
-  let clipped = false;
-  const stack: { m: M; clipped: boolean }[] = [];
-  const mul = (a: M, b: M): M => [a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1], a[0] * b[2] + a[2] * b[3], a[1] * b[2] + a[3] * b[3], a[0] * b[4] + a[2] * b[5] + a[4], a[1] * b[4] + a[3] * b[5] + a[5]];
-  const at = (x: number, y: number): [number, number] => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
-  const bows: [number, number, number, number][][] = [];
-  let pen: [number, number] | null = null;
-  let start: [number, number] | null = null;
-  const seg = (p: [number, number]) => {
-    if (pen && !clipped && bows.length) bows[bows.length - 1].push([pen[0], pen[1], p[0], p[1]]);
-    pen = p;
-  };
-  const noop = () => undefined;
-  const grad = { addColorStop: noop };
-  const own: Record<string, unknown> = {
-    save: () => stack.push({ m: [...m] as M, clipped }),
-    restore: () => {
-      const s = stack.pop();
-      if (s) ({ m, clipped } = s);
-    },
-    translate: (x: number, y: number) => (m = mul(m, [1, 0, 0, 1, x, y])),
-    scale: (x: number, y: number) => (m = mul(m, [x, 0, 0, y, 0, 0])),
-    rotate: (t: number) => (m = mul(m, [Math.cos(t), Math.sin(t), -Math.sin(t), Math.cos(t), 0, 0])),
-    transform: (a: number, b: number, c: number, d: number, e: number, f: number) => (m = mul(m, [a, b, c, d, e, f])),
-    setTransform: (a: number | { a: number; b: number; c: number; d: number; e: number; f: number }, b?: number, c?: number, d?: number, e?: number, f?: number) => {
-      m = typeof a === 'number' ? [a, b!, c!, d!, e!, f!] : [a.a, a.b, a.c, a.d, a.e, a.f];
-      // (a bow's drawing begins by setting the stage's transform back, outside every clip; it sets it
-      // back again for its readings, after its lines)
-      if (!clipped && !(bows.length && !bows[bows.length - 1].length)) bows.push([]);
-    },
-    getTransform: () => ({ a: m[0], b: m[1], c: m[2], d: m[3], e: m[4], f: m[5] }),
-    clip: () => (clipped = true),
-    beginPath: () => (pen = start = null),
-    moveTo: (x: number, y: number) => (pen = start = at(x, y)),
-    lineTo: (x: number, y: number) => seg(at(x, y)),
-    quadraticCurveTo: (_a: number, _b: number, x: number, y: number) => seg(at(x, y)),
-    bezierCurveTo: (_a: number, _b: number, _c: number, _d: number, x: number, y: number) => seg(at(x, y)),
-    closePath: () => start && seg(start),
-    arc: (x: number, y: number, r: number) => {
-      pen = start = at(x + r, y);
-      for (let k = 1; k <= 12; k++) seg(at(x + r * Math.cos((k * Math.PI) / 6), y + r * Math.sin((k * Math.PI) / 6)));
-    },
-    createLinearGradient: () => grad,
-    createRadialGradient: () => grad,
-    measureText: () => ({ width: 0 }),
-  };
-  const ctx = new Proxy(own, { get: (o, k: string) => (k in o ? o[k] : noop), set: () => true }) as unknown as CanvasRenderingContext2D;
-  return { ctx, bows: () => bows.filter((b) => b.length) };
-}
-
 describe('the bows as drawn (vector lines)', () => {
-  // (the vector drawing makes its paths and its plate's mode field ahead; nothing of them is read here)
-  const g = globalThis as unknown as Record<string, unknown>;
-  g.Path2D ??= class {
-    addPath() {}
-    moveTo() {}
-    lineTo() {}
-    closePath() {}
-    arc() {}
-    ellipse() {}
-    rect() {}
-    quadraticCurveTo() {}
-    bezierCurveTo() {}
-  };
-  g.document ??= { createElement: () => ({ width: 0, height: 0, getContext: () => recorder().ctx }) };
+  installCanvas();
 
   const frameAt = (pos: number) => ({ bow: { pos, speed: 0, dir: 1, changing: false } }) as unknown as VisualFrame;
   /** the lineup drawn with every bow set down at `pos` along its hair (0: the frog on the string) */
@@ -232,9 +175,24 @@ describe('the bows as drawn (vector lines)', () => {
     const cells = ensembleCells(lineup, W, H);
     const parts = lineup.map((voice) => ({ voice, frame: frameAt(pos), down: new Set(), strikes: [], vels: new Map() }) as unknown as PartLive);
     const draws = lineup.map(newPartDraw);
-    const { ctx, bows } = recorder();
+    const { ctx, bows, outlines } = recorder();
     drawEnsemble(ctx, cells, parts, draws, () => [], 1000, true);
-    return { cells, bows: bows(), draws };
+    return { cells, bows: bows(), draws, outlines };
+  };
+  /** the plate as drawn in a cell: of the outlines stroked inside it, the widest across the instrument;
+   *  its length along the instrument (px) */
+  const plateLength = (outlines: [number, number][][], c: Cell) => {
+    const up = upright(c);
+    let best = { across: -1, along: 0 };
+    for (const o of outlines) {
+      const xs = o.map((q) => q[0]);
+      const ys = o.map((q) => q[1]);
+      const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+      if (x0 < c.x - 1 || x1 > c.x + c.w + 1 || y0 < c.y - 1 || y1 > c.y + c.h + 1) continue;
+      const across = up ? x1 - x0 : y1 - y0;
+      if (across > best.across) best = { across, along: up ? y1 - y0 : x1 - x0 };
+    }
+    return best.along;
   };
   const extent = (segs: [number, number, number, number][]) => ({
     x0: Math.min(...segs.flatMap((s) => [s[0], s[2]])),
@@ -261,11 +219,22 @@ describe('the bows as drawn (vector lines)', () => {
     return true;
   };
 
-  for (const [W, H] of [[2245, 918], [1440, 505], [1535, 918], [390, 422]] as [number, number][])
-    it(`${W}×${H}, the Daylight quintet: each bow its own instrument’s length at the one scale, clear of the others, the group centred`, () => {
+  for (const [name, LINE] of [['the Daylight quintet', DAYLIGHT], ['a string quintet with the double bass', QUINTET], ['the quintet with two basses', TWO_BASSES]] as [string, Voice[]][])
+  for (const [W, H] of [[2245, 918], [1440, 505], [1440, 490], [1535, 918], [390, 422]] as [number, number][])
+    it(`${W}×${H}, ${name}: each bow its own instrument’s length at the one scale, clear of the others, the group centred`, () => {
+      const DAYLIGHT = LINE;
       const ends = [0, 1].map((pos) => draw(DAYLIGHT, W, H, pos));
-      const { cells, draws } = ends[0];
-      for (const { bows } of ends) expect(bows).toHaveLength(5);
+      const { cells, draws, outlines } = ends[0];
+      for (const { bows } of ends) expect(bows).toHaveLength(DAYLIGHT.length);
+      // the bass at the cello's px/m, so its plate as drawn 1110/755 = 1.47 × the cello's (within 3 %)
+      const ci = DAYLIGHT.indexOf('cello');
+      DAYLIGHT.forEach((v, i) => {
+        if (v !== 'bass') return;
+        expect(cells[i].sc, `bass ${i}: the cello's px/m`).toBe(cells[ci].sc);
+        const r = plateLength(outlines, cells[i]) / plateLength(outlines, cells[ci]);
+        expect(Math.abs(r / (1.11 / 0.755) - 1), `bass ${i}: its plate drawn ${r.toFixed(3)} × the cello's`).toBeLessThan(0.03);
+        expect(plateLength(outlines, cells[i]) / (1.11 * cells[i].sc!), `bass ${i}: its plate at the group's scale`).toBeCloseTo(1, 2);
+      });
       // the scale each bow is drawn at: its hair as drawn (frog to tip, at the bridge's arch over the
       // string it rests on) over its real length. One for all five, the cells' own; so the viola's bow is
       // as long as a violin's (equal hair) and a cello's 0.6/0.64 of it, never three times a cello's
@@ -284,17 +253,20 @@ describe('the bows as drawn (vector lines)', () => {
         const who = `${v} ${i}`;
         // the whole bow as drawn, frog to head, at the two ends of its travel: within its reach (the
         // reach is the outermost string's, the bow level; on the second string, tilted on the bridge's
-        // arch, it is a few per cent less)
+        // arch, it is less by up to two strings' spacing and by the tilt's cosine: a few per cent, the
+        // double bass's 11 %, its strings 31 mm apart under 0.58 m of hair)
         const frogEnd = extent(ends[1].bows[i]);
         const tipEnd = extent(ends[0].bows[i]);
         const r = bowReach(g, BOWED_PLAN[id]);
         const c = cells[i];
         const mid = upright(c) ? c.x + c.w / 2 : c.y + c.h / 2;
         const [lo, hi] = upright(c) ? [frogEnd.x0, tipEnd.x1] : [tipEnd.y0, frogEnd.y1];
+        const sp = BOWED_PLAN[id].spreadB;
+        const least = (reach: number) => 0.98 * (reach - 2 * sp) * Math.cos(Math.atan((0.5 * sp) / BOWED_PLAN[id].bridgeR)) * sc;
         expect(mid - lo, `${who}: the frog's end`).toBeLessThanOrEqual(r.frog * sc + 1);
-        expect(mid - lo, `${who}: the frog's end`).toBeGreaterThan(0.9 * r.frog * sc);
+        expect(mid - lo, `${who}: the frog's end`).toBeGreaterThan(least(r.frog));
         expect(hi - mid, `${who}: the tip's end`).toBeLessThanOrEqual(r.tip * sc + 1);
-        expect(hi - mid, `${who}: the tip's end`).toBeGreaterThan(0.9 * r.tip * sc);
+        expect(hi - mid, `${who}: the tip's end`).toBeGreaterThan(least(r.tip));
         // no line of it through another instrument
         for (const { bows } of ends)
           for (const s of bows[i])

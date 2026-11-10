@@ -1,8 +1,12 @@
 // The vector display's kit, without a canvas: the plate's modes traced as lines (marching squares)
-// and the colour roles.
+// and the colour roles; and the violin family drawn in its lines, through a context that records them.
 import { describe, expect, it } from 'vitest';
+import { bowedGeometry, type VisualFrame } from '@piano-model/engine';
+import { AutoScale, BOWED_PLAN, bowedLayout, bowedShapes } from '../src/ui/stage-draw.ts';
+import { drawBowedV } from '../src/ui/vector/bowed.ts';
 import { Contours, SLOTS, V, heat, mix, slotColor } from '../src/ui/vector/kit.ts';
 import { linePen } from '../src/ui/vector/pen.ts';
+import { installCanvas, recorder } from './recording-ctx.ts';
 
 type Seg = [number, number, number, number];
 const trace = (c: Contours, level: number): Seg[] => {
@@ -121,4 +125,60 @@ describe('the line pen (the action close-up drawn in lines)', () => {
     pen.stroke();
     expect(log).toEqual(['begin', `stroke rgba(${blue},0.372) 1`, 'begin', `stroke rgba(${amber},0.950) 1.3`]);
   });
+});
+
+// ---- the violin family in lines, alone on the stage: violin, viola, cello and double bass alike
+describe('the violin family in lines, alone on the stage', () => {
+  installCanvas();
+  /** the stage under the top band (W×H) and the file player's px at its top: a laptop's (1440×900), a
+   *  phone's held upright (390×844: the box lies) and the Pixel 7's, and a taller box (the instrument
+   *  stands) */
+  const BOXES: [number, number, number][] = [[1440, 532, 42], [390, 366, 84], [412, 424, 42], [390, 560, 42]];
+  const frameAt = (pos: number) => ({ bow: { pos, speed: 0, dir: 1, changing: false } }) as unknown as VisualFrame;
+  const bbox = (pts: [number, number][]) => {
+    const xs = pts.map((q) => q[0]);
+    const ys = pts.map((q) => q[1]);
+    return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+  };
+  for (const id of ['violin', 'viola', 'cello', 'bass'] as const)
+    for (const [W, H, top] of BOXES)
+      it(`${id} in ${W}×${H}: its plate drawn at its layout's scale and whole, its scroll on the stage${id === 'bass' ? '; all of it, to the endpin’s point; its bow clear of the file player, and on a phone at both ends of its travel' : ''}`, () => {
+        const g = { id, ...bowedGeometry(id) };
+        const p = BOWED_PLAN[id];
+        const sh = bowedShapes(id, p, g.L);
+        const lay = bowedLayout(g, p, sh, W, H, undefined, top);
+        for (const pos of [0, 1]) {
+          const st = { strScale: new AutoScale(2e-6), lvlScale: new AutoScale(1e-6, 0.995) };
+          const { ctx, bows, outlines } = recorder();
+          drawBowedV(ctx, W, H, g, frameAt(pos), st, new Contours(48, 28, 1.8, 0.6), 1000, true, undefined, top)!();
+          const boxes = outlines.map(bbox);
+          // the plate: the widest outline drawn, its length the body's at the layout's scale
+          const across = (b: ReturnType<typeof bbox>) => (lay.vertical ? b.x1 - b.x0 : b.y1 - b.y0);
+          const along = (b: ReturnType<typeof bbox>) => (lay.vertical ? b.y1 - b.y0 : b.x1 - b.x0);
+          const plate = boxes.reduce((a, b) => (across(b) > across(a) ? b : a));
+          expect(along(plate) / (p.body * lay.sc), `${id}: its plate's length`).toBeCloseTo(1, 2);
+          expect(across(plate) / (2 * sh.hwMax * lay.sc), `${id}: its plate's width`).toBeCloseTo(1, 1);
+          const inside = (b: ReturnType<typeof bbox>, y0 = 0) => b.x0 >= -0.5 && b.x1 <= W + 0.5 && b.y0 >= y0 - 0.5 && b.y1 <= H + 0.5;
+          expect(inside(plate), `${id}: its plate on the stage`).toBe(true);
+          // the scroll's end (the outlines' farthest point towards the head) on the stage
+          const all = bbox(outlines.flat());
+          expect(lay.vertical ? all.y0 : all.x0, `${id}: its scroll on the stage`).toBeGreaterThanOrEqual(-0.5);
+          if (id !== 'bass') continue;
+          // the bass: everything it draws on the stage under the file player, its endpin's point too
+          for (const b of boxes) expect(inside(b, top), `the bass: an outline at ${b.x0.toFixed(0)}…${b.x1.toFixed(0)}, ${b.y0.toFixed(0)}…${b.y1.toFixed(0)} on the stage`).toBe(true);
+          expect((lay.vertical ? all.y1 - all.y0 : all.x1 - all.x0) / (lay.vertical ? H - top : W), 'the bass: its share of the stage').toBeGreaterThan(0.9);
+          // its bow (handed back, drawn with no clip): never over the file player (the top middle of the
+          // stage, 120 px wide); on a phone, frog or tip on the string, all of it on the stage
+          const segs = bows().flat();
+          expect(segs.length).toBeGreaterThan(20);
+          for (const [x0, y0, x1, y1] of segs) {
+            const overPlayer = Math.max(x0, x1) > W / 2 - 60 && Math.min(x0, x1) < W / 2 + 60 && Math.min(y0, y1) < top;
+            expect(overPlayer, 'the bass: its bow over the file player').toBe(false);
+          }
+          if (W < 500) {
+            const b = bbox(segs.flatMap(([a, c, d, e]) => [[a, c], [d, e]] as [number, number][]));
+            expect(inside(b, top), `the bass's bow at ${pos}: ${b.x0.toFixed(0)}…${b.x1.toFixed(0)}, ${b.y0.toFixed(0)}…${b.y1.toFixed(0)} on the stage`).toBe(true);
+          }
+        }
+      });
 });

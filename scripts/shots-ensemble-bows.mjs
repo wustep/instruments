@@ -4,7 +4,8 @@
 // both ends of its travel, the two frames' ink together (`-reach.png`, its box drawn over it) and the
 // empty stage either side of it measured from the pixels.
 //   BASE=https://instruments-wustep.vercel.app OUT=artifacts/.../before node scripts/shots-ensemble-bows.mjs
-//   (LINEUP=violin,violin,viola,cello,cello  VIEWS=wide,laptop,phone  STYLES=vector,default  PLAY=2,3,4)
+//   (LINEUP=violin,violin,viola,cello,cello  VIEWS=wide,laptop,phone  STYLES=vector,default  PLAY=2,3,4;
+//    the string quintet with a double bass: LINEUP=violin,violin,viola,cello,bass)
 import { chromium } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
 const BASE = process.env.BASE ?? 'http://localhost:4199';
@@ -16,6 +17,8 @@ const STYLES = (process.env.STYLES ?? 'vector,default').split(',');
 const PLAY = (process.env.PLAY ?? '2,3,4').split(',').map(Number);
 const POS = Number(process.env.POS ?? 0.5);
 const DEVS = {
+  // a laptop's window as the lead reviews it (1440×900 at 2×)
+  desktop: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 },
   // Stephen's window (4490×2804 at 2×, less Safari's bar)
   wide: { viewport: { width: 2245, height: 1350 }, deviceScaleFactor: 1 },
   laptop: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 },
@@ -41,11 +44,11 @@ for (const view of VIEWS) {
   await page.waitForFunction(() => window.__orchestra.ensemble.lineup.length === 4, null, { timeout: 8000 });
   // the lineup from the picker: each instrument tapped in until the count is right
   const want = (v) => LINEUP.filter((x) => x === v).length;
-  for (const v of ['violin', 'viola', 'cello', 'flute', 'trumpet', 'grand']) {
+  for (const v of ['violin', 'viola', 'cello', 'bass', 'flute', 'trumpet', 'grand']) {
     for (let k = 0; k < 4; k++) {
       const have = await page.evaluate((v) => window.__orchestra.ensemble.lineup.filter((x) => x === v).length, v);
       if (have === want(v)) break;
-      await page.locator(`.pick[aria-label="${v === 'grand' ? 'Piano' : v[0].toUpperCase() + v.slice(1)}"]`).click();
+      await page.locator(`.pick[aria-label="${v === 'grand' ? 'Piano' : v === 'bass' ? 'Double bass' : v[0].toUpperCase() + v.slice(1)}"]`).click();
       await page.waitForTimeout(150);
     }
   }
@@ -63,7 +66,7 @@ for (const view of VIEWS) {
       await page.evaluate(
         ([play, pos]) =>
           window.__orchestra.ensemble.parts.forEach((p, i) => {
-            if (!['violin', 'viola', 'cello'].includes(p.voice)) return;
+            if (!['violin', 'viola', 'cello', 'bass'].includes(p.voice)) return;
             if (play.includes(i)) {
               p.engine.control(128, 0.25);
               p.engine.control(129, pos);
@@ -91,7 +94,7 @@ for (const view of VIEWS) {
     // middle drawn over it
     for (const pos of [0, 1]) {
       await page.evaluate((pos) => window.__orchestra.ensemble.parts.forEach((p) => {
-        if (!['violin', 'viola', 'cello'].includes(p.voice)) return;
+        if (!['violin', 'viola', 'cello', 'bass'].includes(p.voice)) return;
         p.engine.control(128, 0.25);
         p.engine.control(129, pos);
       }), pos);

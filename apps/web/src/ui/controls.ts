@@ -169,8 +169,8 @@ export function pedal(name: string, title: string, onValue: (v: number) => void)
 
 // ---------------------------------------------------------------- glyphs
 // Line drawings in the stage's style: thin ivory strokes, dark lacquer/ebony fills.
-// The violin family is drawn at true relative size (violin 356, viola 410, cello
-// 755 mm bodies), so the picker shows the instruments' scale.
+// The violin family is drawn in order of size (violin 356, viola 410, cello 755, double bass
+// 1110 mm bodies), so the picker shows the instruments' scale.
 
 // half-width of a violin-family body against position (fractions of body length),
 // with the upper and lower corners of the C-bouts
@@ -181,9 +181,17 @@ const OUTLINE: [number, number][] = [
   [0.6, 0.218], // lower corner
   [0.615, 0.21], [0.67, 0.262], [0.76, 0.29], [0.85, 0.284], [0.93, 0.24], [0.98, 0.15], [1, 0.05],
 ];
-function bodyPath(cx: number, top: number, len: number): string {
-  const pts = OUTLINE.map(([u, w]) => [cx - w * len, top + u * len]);
-  const right = OUTLINE.map(([u, w]) => [cx + w * len, top + u * len]).reverse();
+// the double bass: sloped shoulders (the upper bout widest a quarter of the way down), a broad lower bout
+const BASS_OUTLINE: [number, number][] = [
+  [0, 0.07], [0.03, 0.095], [0.1, 0.155], [0.18, 0.205], [0.26, 0.232], [0.31, 0.226],
+  [0.335, 0.214], // upper corner
+  [0.36, 0.178], [0.43, 0.168], [0.5, 0.172], [0.535, 0.188],
+  [0.555, 0.226], // lower corner
+  [0.575, 0.252], [0.66, 0.28], [0.76, 0.298], [0.86, 0.286], [0.94, 0.238], [0.98, 0.16], [1, 0.06],
+];
+function bodyPath(cx: number, top: number, len: number, outline = OUTLINE): string {
+  const pts = outline.map(([u, w]) => [cx - w * len, top + u * len]);
+  const right = outline.map(([u, w]) => [cx + w * len, top + u * len]).reverse();
   const all = [...pts, ...right];
   // smooth through the points (Catmull–Rom as cubic Béziers)
   let d = `M${all[0][0].toFixed(2)} ${all[0][1].toFixed(2)}`;
@@ -201,15 +209,17 @@ function bodyPath(cx: number, top: number, len: number): string {
 
 function bowedGlyph(id: InstrumentId): SVGElement[] {
   const g: SVGElement[] = [];
-  const len = id === 'violin' ? 20 : id === 'viola' ? 23 : 29.5;
+  const bass = id === 'bass';
+  // (the bass's body is the longest; its neck and head shorter for their size, to fit the tile)
+  const len = id === 'violin' ? 20 : id === 'viola' ? 23 : bass ? 30.5 : 29.5;
   const cx = 24;
-  const endpin = id === 'cello' ? 3 : 0;
+  const endpin = id === 'cello' ? 3 : bass ? 2.5 : 0;
   const top = 46.5 - len - endpin;
-  const neck = len * 0.36;
-  const head = len * 0.2;
+  const neck = len * (bass ? 0.29 : 0.36);
+  const head = len * (bass ? 0.15 : 0.2);
   const nut = top - neck;
   // body, purfling, f-holes
-  g.push(svg('path', { d: bodyPath(cx, top, len), class: 'g-body' }));
+  g.push(svg('path', { d: bodyPath(cx, top, len, bass ? BASS_OUTLINE : OUTLINE), class: 'g-body' }));
   const k = len / 24;
   for (const s of [-1, 1]) {
     const x = cx + s * 0.105 * len;
@@ -226,12 +236,22 @@ function bowedGlyph(id: InstrumentId): SVGElement[] {
     const t = (i - 1.5) / 1.5;
     g.push(svg('path', { d: `M${cx + t * 0.8 * k} ${nut} L${cx + t * 1.6 * k} ${top + 0.55 * len} L${cx + t * 1.2 * k} ${top + 0.64 * len}`, class: 'g-str' }));
   }
-  // pegbox with pegs, and the scroll
+  // pegbox with pegs (the bass: machine heads, a brass plate down each cheek and a key out to each
+  // side), and the scroll
   g.push(svg('path', { d: `M${cx - 1.1 * k} ${nut} L${cx - 0.9 * k} ${nut - head * 0.7} M${cx + 1.1 * k} ${nut} L${cx + 0.9 * k} ${nut - head * 0.7}`, class: 'g-thin' }));
-  for (let i = 0; i < 2; i++) {
-    const y = nut - head * (0.2 + 0.28 * i);
-    g.push(svg('path', { d: `M${cx - 2.6 * k} ${y} H${cx + 2.6 * k}`, class: 'g-thin' }));
-  }
+  if (bass) {
+    for (const sd of [-1, 1]) g.push(svg('path', { d: `M${cx + sd * 1.45 * k} ${nut - head * 0.08} V${nut - head * 0.66}`, class: 'g-steel' }));
+    for (let i = 0; i < 4; i++) {
+      const sd = i % 2 ? 1 : -1;
+      const y = nut - head * (0.14 + 0.15 * i);
+      g.push(svg('path', { d: `M${cx + sd * 1.45 * k} ${y} H${cx + sd * 2.9 * k}`, class: 'g-steel' }));
+      g.push(svg('circle', { cx: cx + sd * 3.3 * k, cy: y, r: 0.45 * k, class: 'g-key' }));
+    }
+  } else
+    for (let i = 0; i < 2; i++) {
+      const y = nut - head * (0.2 + 0.28 * i);
+      g.push(svg('path', { d: `M${cx - 2.6 * k} ${y} H${cx + 2.6 * k}`, class: 'g-thin' }));
+    }
   const sy = nut - head * 0.85;
   g.push(svg('path', { d: `M${cx + 0.2 * k} ${sy} a${1.4 * k} ${1.4 * k} 0 1 1 ${-0.1 * k} ${-0.01 * k} M${cx} ${sy} m${-0.5 * k} 0 a${0.6 * k} ${0.6 * k} 0 1 0 ${0.9 * k} 0`, class: 'g-thin' }));
   if (endpin) g.push(svg('path', { d: `M${cx} ${top + len} V${top + len + endpin}`, class: 'g-steel' }));
@@ -316,7 +336,7 @@ export function glyph(id: InstrumentId | 'upright'): SVGElement {
 }
 
 /** an orchestra voice's glyph (the grand is the piano's) */
-export const voiceGlyph = (v: 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'flute' | 'trumpet'): SVGElement => glyph(v === 'grand' ? 'piano' : v);
+export const voiceGlyph = (v: 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet'): SVGElement => glyph(v === 'grand' ? 'piano' : v);
 
 /** the ensemble: four players' chairs on an arc around the conductor's place */
 export function ensembleIcon(): SVGElement {

@@ -70,6 +70,31 @@ Jóhannsson's "medium" column (405–415 mm) is the 16″ size. His "large" colu
 | Scroll length | ≈125 (the page writes "12,5", in cm) | [HJ-va] |
 | Fingerboard length / bridge height | 305 / ≈39 | [HJ-va] |
 
+## Double bass (3/4 orchestral)
+
+No maker publishes a full table for the bass as Jóhannsson does for the cello. The body and its bouts
+come from retail specification sheets for 3/4 basses and from two measured antiques at the Met. The
+fittings come from blanks and parts sold for 3/4 basses. The model (`strings3d.ts` `SPEC.bass`,
+`bass-outline.ts`, `bass3d.ts`) is built to the middle of these figures.
+
+| part | value | model | source |
+|---|---|---|---|
+| Body length | 1090–1110 (modern 3/4); Plumerel: **1125 / 1120** (top / back); Eberle: **1162** | 1110 | [Gewa-Ideale], [Thomann-11], [Walther-Solo]; [Met-Plumerel]; [Met-Eberle] |
+| Upper / C / lower bout | 487 / 370 / 645 (Gewa); 502 / – / 682 (Walther); Plumerel **530 / 357 / 658** | 520 / 375 / 665 | [Gewa-Ideale], [Walther-Solo], [Met-Plumerel] |
+| Rib height | 200–203 (modern, one figure); Plumerel **156 / 200 / 197** (upper / centre / tail); Eberle 207 / 224 / 220 | 148 at the neck block, 194 at the break, 200 at the tail | [Thomann-11], [Gewa-Ideale]; [Met-Plumerel]; [Met-Eberle] |
+| Back | flat, bent towards the top at the break (the upper bout tapers into the neck block) | flat, 3 mm crown; break at 24 % of the length, canted 10.5° | [TB-flatback], [Brown-2004] |
+| Top arching | Plumerel **25.6** | 30 | [Met-Plumerel] |
+| String length | 1042–1050 (modern); Plumerel 1070; Eberle 1115 | 1050 (the engine's) | [Walther-Solo], [Gewa-Premium]; [Met-Plumerel]; [Met-Eberle] |
+| Overall length | 1830–1840 without the endpin; 1900 with it (Gewa Ideale); Eberle 1966 | 1870 scroll to tail | [Thomann-11], [Gewa-Premium], [Gewa-Ideale]; [Met-Eberle] |
+| Height at the bridge (back to the bridge's top) | 440–460 (as sold, the bridge uncut or nearly) | 400 (a 160 mm bridge) | [Gewa-Ideale], [Gewa-Premium] |
+| Bridge blank (3/4): height / feet outside / feet inside | 160–191 / 142–155 / 59–72; with height adjusters (wheels or screws) | 160 / 150 / 72, wheel adjusters | [Despiau-adj], [Teller-wheels], [Aubert-34], [Aubert-feet] |
+| Machines | worm-and-cog sets, brass or steel plates (one per machine, ≈45 mm wide, or one per side), brass, ebony or bone keys; ratios 19–22 : 1 | full-cheek brass plates, 26-tooth cogs ⌀25, rollers ⌀10 at 40 mm, brass keys | [RJ-machines], [Rubner-machines], [Strad-mechanics]; the French set in `contrebasse-clefs.jpg` |
+| Fingerboard, string action, bow | 880 long, ≈44 / 108 wide; 5–7 mm (G) and 7–10 mm (E) off the end; French bow 71–75 cm, hair ≈ 58 cm | 880; 6.5–7.4 mm; hair 0.58 m (the engine's) | **typical, unsourced** |
+| Endpin | steel rod ⌀10–12, socket with a thumbscrew | ⌀12, 45 mm collar, thumbscrew | **typical, unsourced** |
+
+The model stands on its endpin with the socket 0.22 m off the floor, leaning back 15.5°, so the
+scroll's top is 1.97 m up.
+
 ## Steinway Model D (concert grand)
 
 | part | value | source |
@@ -165,6 +190,7 @@ record text, so check them at the links.
 ## Reference photos
 
 The photos are in `.cache/refs-3d/`, which is not committed. Full attributions are in `.cache/refs-3d/SOURCES.md`.
+The double bass's are in `.cache/refs-bass/` (`bass/` below), also not committed.
 
 | file | license | shows |
 |---|---|---|
@@ -194,6 +220,11 @@ The photos are in `.cache/refs-3d/`, which is not committed. Full attributions a
 | `trumpet-34-modern.jpg` | CC BY-SA 4.0, Rube451 | modern silver B♭ trumpet, three-quarter (soft) |
 | `trumpet-valves.jpg` | CC BY-SA 3.0, Amada44 | valve casings and caps |
 | `trumpet-mouthpiece.jpg` | CC BY-SA 3.0, Didelu | Bach mouthpiece, side |
+| `bass/met-plumerel-*.jpg` (`MUS1340B1`, `MUS1340B`, `MUS289A`) | CC0 (The Met) | Plumerel double bass (Paris, 18th c.): front, beside a cello and violins, and lying on its side (the sloped shoulders) |
+| `bass/met-cristofori-*.jpg` (`DP217153–5`) | CC0 (The Met) | Cristofori double bass: front, back, scroll in profile |
+| `bass/met-eberle.jpg` (`231788`) | CC0 (The Met) | Eberle double bass (1734), front |
+| `bass/contrebasse-clefs.jpg` | CC BY-SA 1.0, Ruizo | French bass machines: a full-cheek brass plate, cogs, worms, a butterfly key |
+| `bass/kay-scroll.jpg` | CC BY 2.0, Philip Newton | Kay bass scroll: single machine plates, keys behind the pegbox |
 
 [HJ-vc]: https://www.hansjohannsson.com/resources/mescello.html
 [HJ-vn]: https://hansjohannsson.com/resources/mesvioli.html
@@ -227,3 +258,19 @@ The photos are in `.cache/refs-3d/`, which is not committed. Full attributions a
 [NMM-13509]: https://emuseum.nmmusd.org/objects/13509/trumpet-bflat
 [Wikipedia-trumpet]: https://en.wikipedia.org/wiki/Trumpet
 [Kirstein-7C]: https://www.kirstein.de/en/Wind-Instruments/Accessories/Mouthpieces/Mouthpieces-Brass/Bach-Trumpet-Mouthpiece-7C.html
+[Gewa-Ideale]: https://www.thomannmusic.com/gewa_ideale_double_bass_3_4.htm
+[Gewa-Premium]: https://www.thomann.co.uk/gewa_premium_line_solid_bass_3_4.htm
+[Thomann-11]: https://www.thomannmusic.com/thomann_11_5str_3_4_europe_double_bass.htm
+[Walther-Solo]: https://www.thomannmusic.com/georg_walther_solo_double_bass_3_4_am.htm
+[Met-Plumerel]: https://www.metmuseum.org/art/collection/search/501551
+[Met-Eberle]: https://www.metmuseum.org/art/collection/search/504228
+[Met-Cristofori]: https://www.metmuseum.org/art/collection/search/503176
+[TB-flatback]: https://www.talkbass.com/threads/flatback-vs-roundback.1049827/
+[Brown-2004]: https://doublebassblog.org/downloads/2004_Brown_WEB_Dissertation.pdf
+[Despiau-adj]: https://www.thomannmusic.com/despiau_bass_bridge_34_adjustable.htm
+[Teller-wheels]: https://www.thomannmusic.com/teller_bass_bridge_3_4_with_wheels.htm
+[Aubert-34]: https://www.thomannmusic.com/aubert_bass_steg_34.htm
+[Aubert-feet]: https://www.thomannmusic.com/aubert_bass_bridge_3_4_movable_feet.htm
+[RJ-machines]: https://www.thomannmusic.com/roth_junius_single_machines_bass_3_4_br.htm
+[Rubner-machines]: https://www.thomannmusic.com/rubner_bass_machines_140_114o_eh_5.htm
+[Strad-mechanics]: https://www.thestrad.com/lutherie/trade-secrets-using-baker-style-mechanics-on-a-double-bass/14611.article
