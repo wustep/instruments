@@ -1,15 +1,86 @@
 # Working in this repo (agents and people)
 
-`instruments`: eleven acoustic instruments computed as physics in an AudioWorklet (TypeScript). Engine:
-`packages/engine/src/core` (DSP), `packages/engine/src/worklet` (the AudioWorklet host),
-`packages/engine/src/api` (the main-thread API). App: `apps/web` (Vite). Scripts for calibration,
-renders and audits: `scripts/`.
+This codebase is yours: what it's for and how it's built are your call, and you'll keep building on it.
 
-Each rule comes with the check that enforces it. Run the check before you push.
+`instruments` is a browser app of eleven acoustic instruments, each computed as physics in an AudioWorklet (TypeScript), never as samples. The instruments on `main` are the piano, the violin, the viola, the cello, the double bass, the flute, the oboe, the clarinet, the bassoon, the horn and the trumpet. Production is https://instruments-wustep.vercel.app (`wustep/instruments`). `main` deploys there automatically.
+
+## Architecture
+
+A pnpm workspace: `packages/*` and `apps/*`.
+
+* **`packages/engine`** — the model. It has no Web Audio dependency in the core, so the same code runs in the worklet and in Node (tests, calibration, offline renders).
+  * `src/core` — the DSP: `instrument.ts` (ids, families, ranges), `factory.ts`, `pump.ts` (cores render their own blocks), then one module per family (`piano-core.ts`, `bowed.ts`, `flute.ts`, `oboe.ts`, `clarinet.ts`, `bassoon.ts`, `brass.ts`, `horn.ts`) with its fitted voicing beside it (`*-tuning.json`, `bowed-fit.json`, `calibration-fit.json`). Shared: filters, soundboard, design, precompute, render, voice, post.
+  * `src/worklet` — the AudioWorklet host (`processor.ts`).
+  * `src/api` — the main-thread API (`createPiano`, `createInstrument`, `renderOffline`).
+  * `src/analysis` — helpers for measurements and judges.
+* **`apps/web`** — the Vite page (`@piano-model/web`).
+  * `main.ts`, `nav.ts`, `address.ts` — the shell, history, and the real paths (`/piano`, `/piano/upright`, `/violin`, `/viola`, `/cello`, `/bass`, `/flute`, `/oboe`, `/clarinet`, `/bassoon`, `/horn`, `/trumpet`, `/orchestra`, `/measurements`, `/notes`, plus aliases `/grand`, `/upright`, `/double-bass`, `/contrabass`, `/french-horn`, `/ensemble`). `address.ts` also writes the Orchestra's compact versioned query (`?v=1&seats=…&lines=…`).
+  * `audio.ts` — talks to the worklet. `midi-file.ts`, `expression.ts`, `clock.ts`, `look.ts` (2D / vector / 3D).
+  * `ui/` — the 2D drawers (`stage-draw.ts`, `piano-draw.ts`, `oboe-draw.ts`, `clarinet-draw.ts`, `bassoon-draw.ts`, `horn-draw.ts`, `ensemble-draw.ts`, …), the keyboard, the player, the action close-up, tooltips.
+  * `ui/vector/` — the vector (Chimera) 2D style, a second drawing of the same instruments.
+  * `ui/gl/` — the 3D stage (`stage3d.ts`, `scenes3d.ts`, `gl3d.ts`, `fit3d.ts`, `fholes.ts`, and a module per instrument: `piano3d.ts`, `strings3d.ts`, `bass3d.ts`, `winds3d.ts`, `oboe3d.ts`, `clarinet3d.ts`, `bassoon3d.ts`, `horn3d.ts`, …).
+  * `orchestra/` — seats, assignment, line-matching rules, the set list (`pieces.ts`), mix, the URL setup. Auto-routing matches a line by its name, then its General MIDI program, then its place or range (`assign.ts`, `rules.ts`). A part named for its key ("Horn in F", "Corni in Es", "Clarinetto in A", "Tromba in D"; a bare "Horn" is in F) and typed at written pitch is shifted to concert pitch; a part already sounding stays. Lines are judged by their core range, so a few pedal notes do not send a horn to the double bass.
+  * `views/` — the stage, the Measurements page, the Notes page.
+* **`e2e/`** — Playwright, desktop (1440×900) and Pixel 7. Shared cases live in `app.spec.ts`; an instrument usually adds `e2e/<id>.spec.ts`, `<id>-2d.spec.ts` and `<id>-3d.spec.ts`.
+* **`scripts/`** — calibration, judges, fits, renders, screenshots, and `check-worklet-syntax.mjs`.
+* **`docs/`** — research, calibration, performance, 3D reference.
+* **`vercel.json`** — a static build (`pnpm build` → `apps/web/dist`) and the SPA rewrites that make every path above serve `index.html`.
+
+## Commands
+
+Run these from the repo root (`pnpm@10`):
+
+| Command | What it does |
+|---|---|
+| `pnpm dev` | Vite dev server for `apps/web` |
+| `pnpm typecheck` | `tsc -p packages/engine && tsc -p apps/web` |
+| `pnpm build` | production Vite build, then the Safari 14.1 worklet syntax check |
+| `pnpm preview` | preview the build |
+| `pnpm test` | Vitest unit suite (engine and `apps/web/test`, including `vercel-paths.test.ts`) |
+| `pnpm e2e` | `pnpm build && playwright test` (desktop and Pixel 7, default port 4199) |
+| `pnpm refs:fetch` / `pnpm calibrate` | Iowa MIS references and the piano calibration |
+| `pnpm refs:ensemble` / `pnpm calibrate:ensemble` | the same for the ensemble instruments |
+
+A second checkout's Playwright run can use another port: `E2E_PORT=<port> npx playwright test` (after a build; `playwright.config.ts` reads `E2E_PORT`).
+
+## The gate, before a merge
+
+There are no GitHub Actions on this repo. The gate is local, then Vercel:
+
+1. `pnpm typecheck`
+2. `pnpm build` (the Safari 14.1 worklet check is part of this)
+3. `pnpm test` (Vitest). This includes `apps/web/test/vercel-paths.test.ts`: every path `INSTRUMENT_PATHS` / `formatAddress` can write, and `/orchestra`, `/ensemble`, `/measurements`, `/notes`, must be rewritten to `/index.html` in **both** `vercel.json` rewrite groups. A missing rewrite is a 404 on a reload or a shared link in production; Vite's own server answers every path, so nothing local sees it unless this test fails.
+4. Playwright: `pnpm e2e`, or `E2E_PORT=<port> npx playwright test` as above. Desktop and Pixel 7. Two known flakes — rerun them, do not loosen them: desktop “bow in the hand”; the phone or desktop action close-up `.av-speed` is sometimes empty.
+5. `main` deploys to Vercel automatically. Do not log in to the Vercel CLI. Do not rename the repo, the Vercel project or the domain. A branch named `claude/*`, `codex/*` or `agent/*` builds no preview (`vercel.json` `ignoreCommand`). After a merge, confirm the production paths return HTTP 200 with no `x-vercel-error: NOT_FOUND`.
+
+Push small commits, each with its numbers in the message. Squash-merge only when the gate is green.
+
+## A new instrument
+
+One pull request, the same shape each time:
+
+* A core in `packages/engine/src/core`, registered on `INSTRUMENT_IDS` / `INSTRUMENT_INFO` / the factory. Fit it to the University of Iowa MIS (or another licensable source) with a held-out judge of BETTER (`npx tsx scripts/judge.ts --instrument <id> --before <old engine>`); keep the change only with that verdict. Cite the physical sources in comments.
+* 2D in **both** styles: the default filled drawing and the vector style.
+* 3D, including how a seated player holds it in the Orchestra, and the phone frame (`gl/fit3d.ts`) so the instrument is whole and clear of the player.
+* An Orchestra voice and routing: its names and aliases, its General MIDI program, in `orchestra/assign.ts` and `orchestra/rules.ts`. Lines are matched by name, then program, then place or range. Transposing parts named for a key and typed at written pitch are shifted to concert; parts already sounding stay.
+* Paths: add the id and any aliases so `INSTRUMENT_PATHS` in `address.ts` stays in lockstep with both rewrite groups in `vercel.json`. `apps/web/test/vercel-paths.test.ts` must stay green. (The oboe shipped in #30 without `/oboe` in `vercel.json`; #31 added the test so that cannot happen again.)
+* Unit tests for the core, the drawers, the 3D module and the routing, plus e2e alone (both 2D styles and 3D) and among the others, including the Orchestra.
+* The phone picker stays inside the 271 px band; abbreviate the label if it would not otherwise fit.
+* Notes and Measurements as the instrument needs them; before/after pictures and audio, and a `NOTES.md`, with the PR.
+* The stage stays nearly wordless: no new permanent explanatory text, no position-line tooltip. The action close-up / per-string zoom is piano-only.
+
+## MIDI and recordings
+
+* Pieces bundled under `apps/web/public/pieces` must be public domain (Mutopia and the like), with their source, credit and sha256 in `orchestra/pieces.ts`. Never commit a copyrighted MIDI. Local-only files stay local (they are not in the repo).
+* University of Iowa MIS reference recordings are for analysis only: never played as the instrument, never committed. They live in `.cache/` (typically `.cache/iowa` and `.cache/iowa-ens`). `git ls-files | grep -iE '\.(aiff?|wav|flac)$'` prints nothing.
+
+## Rules, each with the check that enforces it
+
+Run the check before you push.
 
 | Rule | Check |
 |---|---|
-| Tests stay fast. No new test over ~10 s; build one instrument and reuse it. | `pnpm test` (unit, ~3 min), `pnpm e2e` (build plus Playwright desktop and Pixel 7, ~1.5 min) |
+| Tests stay fast. No new test over ~10 s; build one instrument and reuse it. | `pnpm test` (unit, a few minutes), `pnpm e2e` (build plus Playwright desktop and Pixel 7, several minutes) |
 | The host's block size never changes the sound. Cores render their own blocks (`core/pump.ts`). Smoothing is a time constant, never a fraction per block. | `packages/engine/test/blocksize.test.ts`: bit-identical at 128/37/500 frames per call |
 | A refactor must not silently change the sound. A deliberate change is blessed, with before/after audio in the commit. | `packages/engine/test/golden.test.ts`; bless with `UPDATE_GOLDEN=1 npx vitest run packages/engine/test/golden.test.ts` |
 | Calibration is measured, not tuned by ear. A change is kept only with a verdict against the recordings, held-out notes included. | `npx tsx scripts/judge.ts --instrument <i> --before <old engine>` (BETTER / WORSE / NO CLEAR CHANGE); `scripts/calibrate.ts`, `scripts/attack-judge.ts` for the piano |
