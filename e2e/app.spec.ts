@@ -2857,7 +2857,7 @@ test('the vector display: off by default; the toggle redraws every family in blu
   expect(await page.evaluate(() => document.fonts.load('500 12px Hershey').then((f) => f.length))).toBeGreaterThan(0);
   // one instrument of each family, sounding: the instrument's lines are blue, the sound amber, and
   // nothing is filled (most of the stage stays black)
-  for (const [id, midi] of [['piano', 60], ['violin', 67], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['bassoon', 50], ['horn', 53], ['trumpet', 67]] as const) {
+  for (const [id, midi] of [['piano', 60], ['violin', 67], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['bassoon', 50], ['horn', 53], ['timpani', 48], ['trumpet', 67]] as const) {
     await page.evaluate(async ([i, m]) => {
       const a = (window as any).__piano;
       await a.setInstrument(i);
