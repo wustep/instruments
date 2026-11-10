@@ -825,7 +825,7 @@ test('icon-only stage controls say what they are: a short tooltip and an accessi
   await page.keyboard.press('ArrowUp');
   await expect(tip).not.toHaveText(t0!);
   // the other icon-only controls
-  for (const [sel, text] of [['.oct-btn >> nth=0', 'octave down · Z'], ['.oct-btn >> nth=1', 'octave up · X'], ['.knob-toggle', 'knobs'], ['.ens-toggle', 'ensemble · tap instruments to add them'], ['.score-btn', 'pieces'], ['.pl-route', 'routing']] as const) {
+  for (const [sel, text] of [['.oct-btn >> nth=0', 'octave down · Z'], ['.oct-btn >> nth=1', 'octave up · X'], ['.knob-toggle', 'knobs'], ['.ens-toggle', 'ensemble · tap instruments to add them'], ['.score-btn', 'pieces'], ['.vec-toggle', 'vector lines'], ['.pl-route', 'routing']] as const) {
     const el = page.locator(sel);
     if (!(await el.isVisible())) continue;
     await el.hover();
@@ -1773,3 +1773,75 @@ test('orchestra routing: a file on the one instrument shown goes onto several fr
   expect(errors).toEqual([]);
 });
 
+
+test('the vector display: off by default; the toggle redraws every family in blue and amber with the chrome, is remembered, fits the page, and steps aside in 3D', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await startAudio(page);
+  const root = page.locator('html');
+  const toggle = page.getByRole('button', { name: 'Vector lines' });
+  // the stage as it was is the default
+  await expect(root).not.toHaveAttribute('data-style', /.+/);
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  const ground = () => page.evaluate(() => getComputedStyle(document.querySelector('.stage')!).backgroundColor + ' / ' + getComputedStyle(document.querySelector('.pick-name')!).fontFamily);
+  const classic = await ground();
+  await toggle.click();
+  await expect(root).toHaveAttribute('data-style', 'vector');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  expect(await ground()).not.toBe(classic);
+  expect(await ground()).toMatch(/^rgb\(0, 0, 0\) \/ "?Hershey/);
+  expect(await page.evaluate(() => document.fonts.load('500 12px Hershey').then((f) => f.length))).toBeGreaterThan(0);
+  // one instrument of each family, sounding: the instrument's lines are blue, the sound amber, and
+  // nothing is filled (most of the stage stays black)
+  for (const [id, midi] of [['piano', 60], ['violin', 67], ['flute', 74], ['trumpet', 67]] as const) {
+    await page.evaluate(async ([i, m]) => {
+      const a = (window as any).__piano;
+      await a.setInstrument(i);
+      a.noteOn(m, 100, 'keys');
+    }, [id, midi] as const);
+    await page.waitForTimeout(700);
+    const px = await page.evaluate(() => {
+      const cv = document.querySelector('.stage-cv') as HTMLCanvasElement;
+      const d = cv.getContext('2d')!.getImageData(0, 0, cv.width, cv.height).data;
+      let blue = 0, amber = 0, lit = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 40) continue;
+        const [r, g, b] = [d[i], d[i + 1], d[i + 2]];
+        if (r + g + b > 150) lit++;
+        if (b > 150 && b > r + 60) blue++;
+        if (r > 180 && g > 90 && r > b + 90) amber++;
+      }
+      return { blue, amber, lit: lit / (d.length / 4) };
+    });
+    expect(px.blue, `${id}: blue lines`).toBeGreaterThan(1500);
+    expect(px.amber, `${id}: amber sound`).toBeGreaterThan(300);
+    expect(px.lit, `${id}: lines, not fills`).toBeLessThan(0.25);
+    await page.evaluate((m) => (window as any).__piano.noteOff(m, 'keys'), midi);
+  }
+  // each knob wears its slot colour
+  const slots = await page.evaluate(() => Array.from(document.querySelectorAll('.knob')).map((k) => (k as HTMLElement).style.getPropertyValue('--slot')));
+  expect(slots).toEqual(['#5be381', '#ff5d40', '#ff73cf']);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 'no horizontal scroll').toBeLessThanOrEqual(1);
+  // the other pages keep their own look; back on the stage the choice is remembered (and across a reload)
+  await page.goto('/#/notes');
+  await expect(root).not.toHaveAttribute('data-style', /.+/);
+  await page.goto('/#/');
+  await expect(root).toHaveAttribute('data-style', 'vector');
+  await page.reload();
+  await expect(root).toHaveAttribute('data-style', 'vector');
+  // 3D is the stage as it was; asking for the vector display from there comes back to 2D
+  const dim = page.getByRole('button', { name: '3D view' });
+  if (await dim.isVisible()) {
+    await dim.click();
+    await expect(root).not.toHaveAttribute('data-style', /.+/);
+    await expect(page.getByRole('button', { name: 'Vector lines' })).toHaveAttribute('aria-pressed', 'false');
+    await page.getByRole('button', { name: 'Vector lines' }).click();
+    await expect(dim).toHaveAttribute('aria-pressed', 'false');
+    await expect(root).toHaveAttribute('data-style', 'vector');
+  }
+  await page.getByRole('button', { name: 'Vector lines' }).click();
+  await expect(root).not.toHaveAttribute('data-style', /.+/);
+  expect(await ground()).toBe(classic);
+  expect(await page.evaluate(() => localStorage.getItem('piano-model.style'))).toBe('classic');
+  expect(errors).toEqual([]);
+});

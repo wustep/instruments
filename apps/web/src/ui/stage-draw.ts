@@ -159,7 +159,7 @@ export interface BowedState {
 // those photographs (gl/outlines.ts). The still parts are painted once per size into two layers (the
 // plate; the fittings over it) and blitted each frame; only the strings, fingers and bow are drawn live.
 
-interface BowedPlan {
+export interface BowedPlan {
   body: number;
   ol: Outline;
   /** nut to the body's edge; fingerboard length; its width at the nut and at its end */
@@ -190,11 +190,11 @@ interface BowedPlan {
    *  deeper red-browns) */
   varnish: [number, number, number];
 }
-const MM = 0.001;
+export const MM = 0.001;
 // Stick diameters: Tourte's taper as Vuillaume measured it, 8.6 mm for the first 110 mm, falling to
 // 5.3 mm at the head (violin); viola and cello sticks are proportionally heavier. Soundpost and bass bar
 // after Strobel (violin post 6.2 mm, bar 5.5 × 270 mm), scaled for the viola and cello.
-const BOWED_PLAN: Record<BowedGeom['id'], BowedPlan> = {
+export const BOWED_PLAN: Record<BowedGeom['id'], BowedPlan> = {
   violin: {
     body: 0.356, ol: VIOLIN, neck: 0.13, fbLen: 0.27, fbW: [0.024, 0.042], head: 0.108, pbW: 0.0255, eyeW: 0.041,
     spreadB: 0.0113, spreadN: 0.0055, bridgeW: 0.041, bridgeR: 0.042, dia: [0.8 * MM, 0.8 * MM, 0.6 * MM, 0.26 * MM], wound: [true, true, true, false],
@@ -212,8 +212,8 @@ const BOWED_PLAN: Record<BowedGeom['id'], BowedPlan> = {
   },
 };
 type Pt = [number, number];
-const bwClamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
-const bwSstep = (a: number, b: number, x: number) => {
+export const bwClamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+export const bwSstep = (a: number, b: number, x: number) => {
   const t = bwClamp((x - a) / (b - a), 0, 1);
   return t * t * (3 - 2 * t);
 };
@@ -288,7 +288,7 @@ function bwHookCorners(pts: Pt[]): Pt[] {
   return out;
 }
 
-interface BowedShapes {
+export interface BowedShapes {
   /** the plate outline (metres: x from the body's neck end, z towards the bass side) */
   body: Pt[];
   /** bass and treble f-holes */
@@ -296,7 +296,7 @@ interface BowedShapes {
   hwMax: number;
 }
 const bowedShapeCache = new Map<string, BowedShapes>();
-function bowedShapes(id: BowedGeom['id'], p: BowedPlan, L: number): BowedShapes {
+export function bowedShapes(id: BowedGeom['id'], p: BowedPlan, L: number): BowedShapes {
   const key = `${id}|${L}`;
   const hit = bowedShapeCache.get(key);
   if (hit) return hit;
@@ -348,12 +348,12 @@ function bowedShapes(id: BowedGeom['id'], p: BowedPlan, L: number): BowedShapes 
  *  eyes): the pegbox's cheeks taper to 0.86 of their width at the nut and end at the throat (a ≈ 0.66);
  *  above it the crown (the back of the scroll curling over towards us, fluted either side of a spine)
  *  rises to a rounded top, and either side the volute's turns stand out as ears round the eyes (a ≈ 0.79). */
-const bwPegboxW = (p: BowedPlan, a: number) => (p.pbW / 2) * (1 - 0.14 * Math.min(1, a / 0.68));
-const HEAD_EAR = { a: 0.8, w: 0.58, r: 0.42 };
+export const bwPegboxW = (p: BowedPlan, a: number) => (p.pbW / 2) * (1 - 0.14 * Math.min(1, a / 0.68));
+export const HEAD_EAR = { a: 0.8, w: 0.58, r: 0.42 };
 /** the head's length as a front view shows it: the pegbox and scroll lean back from the neck, so the
  *  photographs show nut to crown as 0.85 of the head's length (violin-front.jpg: 90 of 108 mm) */
-const HEAD_PROJ = 0.85;
-function bwHeadParts(p: BowedPlan): { box: Pt[]; crown: Pt[]; ear: Pt[] } {
+export const HEAD_PROJ = 0.85;
+export function bwHeadParts(p: BowedPlan): { box: Pt[]; crown: Pt[]; ear: Pt[] } {
   const e = p.eyeW / 2;
   const box: Pt[] = [];
   for (let k = 0; k <= 12; k++) box.push([(0.7 * k) / 12, bwPegboxW(p, (0.7 * k) / 12)]);
@@ -380,18 +380,18 @@ function bwHeadParts(p: BowedPlan): { box: Pt[]; crown: Pt[]; ear: Pt[] } {
 // the pegs' places along the pegbox (fractions of the head, nearest the nut first: strings3d.ts) and,
 // for each string (lowest first), its peg and side: the bass side carries the nearest peg and the third,
 // the treble side the second and the fourth (all three front photographs)
-const PEG_A = [0.08, 0.205, 0.38, 0.5];
-const PEG_OF = [2, 0, 1, 3];
-const PEG_SIDE = [1, 1, -1, -1];
+export const PEG_A = [0.08, 0.205, 0.38, 0.5];
+export const PEG_OF = [2, 0, 1, 3];
+export const PEG_SIDE = [1, 1, -1, -1];
 
-interface BowedLayout {
+export interface BowedLayout {
   vertical: boolean;
   /** pixels per metre; where the body's neck end sits on the centre line */
   sc: number;
   ox: number;
   oy: number;
 }
-function bowedLayout(g: BowedGeom, p: BowedPlan, sh: BowedShapes, W: number, H: number): BowedLayout {
+export function bowedLayout(g: BowedGeom, p: BowedPlan, sh: BowedShapes, W: number, H: number): BowedLayout {
   const vertical = H > W * 1.05;
   const x0 = -p.neck - p.head * HEAD_PROJ - 0.003;
   const x1 = p.body + (g.id === 'cello' ? 0.16 : 0.012);
@@ -404,11 +404,11 @@ function bowedLayout(g: BowedGeom, p: BowedPlan, sh: BowedShapes, W: number, H: 
   return vertical ? { vertical, sc, ox: W / 2, oy: along } : { vertical, sc, ox: along, oy: H / 2 };
 }
 /** local drawing frame: x along the strings (px from the body's neck end), y towards the bass side */
-function bwPlace(c: CanvasRenderingContext2D, lay: BowedLayout): void {
+export function bwPlace(c: CanvasRenderingContext2D, lay: BowedLayout): void {
   c.translate(lay.ox, lay.oy);
   if (lay.vertical) c.transform(0, 1, -1, 0, 0, 0);
 }
-const bwPoly = (pts: Pt[], sc: number, close = true): Path2D => {
+export const bwPoly = (pts: Pt[], sc: number, close = true): Path2D => {
   const path = new Path2D();
   pts.forEach(([x, z], i) => (i ? path.lineTo(x * sc, z * sc) : path.moveTo(x * sc, z * sc)));
   if (close) path.closePath();
@@ -1014,7 +1014,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   return { key, lay, plate: A.box, fit: F.box, body, glow };
 }
 
-interface BowedLive {
+export interface BowedLive {
   id: string;
   t: number;
   /** the bow's eased contact (m along, m across), its inclination over the strings, how far it is lifted */
@@ -1034,7 +1034,7 @@ interface BowedLive {
 }
 
 /** the frame's bow force (N), from the bow trace's caption (the visual frame carries it nowhere else) */
-const bwForce = (meta: string | undefined): number => {
+export const bwForce = (meta: string | undefined): number => {
   const m = meta ? /·\s*([\d.]+)\s*N\b/.exec(meta) : null;
   return m ? parseFloat(m[1]) : 0.5;
 };
@@ -1507,7 +1507,7 @@ export interface BoreWave {
 }
 export const newBoreWave = (): BoreWave => ({ amp: new Float32Array(0), num: new Float32Array(0), den: 0, ref: -1, last: null });
 /** fold one snapshot (a new frame's shape) into the running standing wave; returns the peak |amp| */
-function trackBoreWave(w: BoreWave, s: Float32Array | null): number {
+export function trackBoreWave(w: BoreWave, s: Float32Array | null): number {
   if (s && s !== w.last && s.length > 1) {
     if (w.num.length !== s.length) {
       w.amp = new Float32Array(s.length);
@@ -1552,7 +1552,7 @@ function trackBoreWave(w: BoreWave, s: Float32Array | null): number {
   return peak;
 }
 /** the wave's amplitude at u (0..1 along the bore), linearly interpolated */
-const boreAt = (amp: Float32Array, u: number): number => {
+export const boreAt = (amp: Float32Array, u: number): number => {
   if (amp.length < 2 || u < 0 || u > 1) return 0;
   const f = u * (amp.length - 1);
   const i = Math.min(amp.length - 2, Math.floor(f));
@@ -1560,13 +1560,13 @@ const boreAt = (amp: Float32Array, u: number): number => {
 };
 /** a standing wave is drawn slowed: its true period (milliseconds) becomes about a second, a little
  *  quicker for higher notes, so the lobes visibly swing between compression and rarefaction */
-const slowPhase = (f1: number, now: number): number => 2 * Math.PI * (0.55 * Math.sqrt(Math.max(0.25, f1 / 262))) * (now / 1000);
+export const slowPhase = (f1: number, now: number): number => 2 * Math.PI * (0.55 * Math.sqrt(Math.max(0.25, f1 / 262))) * (now / 1000);
 /** compression warm, rarefaction cool */
 const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
 
 /** a damped spring towards `target` that stops at 0 and 1 with a small bounce (a pad seating, a
  *  piston meeting its felt), in fixed 2 ms steps: the same motion as the 3D keys (winds3d springTo) */
-function spring01(pos: Float32Array, vel: Float32Array, i: number, target: number, dt: number, hz: number, zeta: number): number {
+export function spring01(pos: Float32Array, vel: Float32Array, i: number, target: number, dt: number, hz: number, zeta: number): number {
   const w = 2 * Math.PI * hz;
   let p = pos[i];
   let v = vel[i];
@@ -1607,26 +1607,26 @@ export const tubeFor = (m: number) => 343 / (2 * et(m)) - 0.03;
 // The flute seen from above, the keys towards the audience (down the page): a Boehm C flute laid
 // out as the 3D model is (gl/winds3d.ts: a Yamaha YFL-482H measured off flute-side.jpg, scaled to
 // McGee's 670 mm), in metres from the crown's end. `v` is across the tube, towards the audience.
-const FL_LEN = 0.67;
-const FL_EMB = 0.0705; // the embouchure hole's centre (→ 599.5 mm to the foot's end)
-const FL_CORK = FL_EMB - 0.017; // the cork's face (17 mm from the hole's centre, standard)
-const FL_RB = 0.0098; // body and foot, outer radius (19 mm bore)
-const FL_BORE = 0.0095;
+export const FL_LEN = 0.67;
+export const FL_EMB = 0.0705; // the embouchure hole's centre (→ 599.5 mm to the foot's end)
+export const FL_CORK = FL_EMB - 0.017; // the cork's face (17 mm from the hole's centre, standard)
+export const FL_RB = 0.0098; // body and foot, outer radius (19 mm bore)
+export const FL_BORE = 0.0095;
 const FL_HEAD = 0.1885; // the head tube enters the body's socket
 const FL_FOOT = 0.5355; // the foot's socket ring
-const flHead = (x: number) => 0.0089 + 0.0008 * Math.pow(Math.max(0, Math.min(1, (x - 0.012) / (FL_HEAD - 0.012))), 0.65);
-const FL_YC = FL_RB + 0.0016; // a closed pad's face from the axis
-const FL_ROD_V = 0.0137 * Math.sin((79.5 * Math.PI) / 180); // the main rod, seen from above
-const FL_FOOT_V = 0.0148 * Math.sin((10 * Math.PI) / 180); // the foot's rod
+export const flHead = (x: number) => 0.0089 + 0.0008 * Math.pow(Math.max(0, Math.min(1, (x - 0.012) / (FL_HEAD - 0.012))), 0.65);
+export const FL_YC = FL_RB + 0.0016; // a closed pad's face from the axis
+export const FL_ROD_V = 0.0137 * Math.sin((79.5 * Math.PI) / 180); // the main rod, seen from above
+export const FL_FOOT_V = 0.0148 * Math.sin((10 * Math.PI) / 180); // the foot's rod
 const FL_MAIN_POSTS = [0.2965, 0.348, 0.412, 0.4605, 0.5375];
 const FL_FOOT_POSTS = [0.5505, 0.608, 0.6455];
 /** The total end correction of the 3D model's holes, c/2f less the embouchure-to-hole distance, is
  *  56 mm at the open foot and 59–64 mm at the tone holes (the C♯ vent's small hole 73): an open
  *  pipe end's 0.61·a ≈ 6 mm (Levine & Schwinger) at the far end leaves ≈ 50 mm at the embouchure
  *  (its small, lip-shaded hole and the cork cavity). */
-const FL_EMB_CORR = 0.05;
-type FlCup = 'open' | 'plain' | 'dome' | 'crown';
-interface FlKey {
+export const FL_EMB_CORR = 0.05;
+export type FlCup = 'open' | 'plain' | 'dome' | 'crown';
+export interface FlKey {
   x: number;
   /** the note the bore sounds when this is the first open hole */
   note: number;
@@ -1642,7 +1642,7 @@ interface FlKey {
   foot?: boolean;
 }
 /** the keys and the mechanism that moves them (winds3d FKEYS; OSU flute repair manual fig. 2.2) */
-const FL_KEYS: FlKey[] = [
+export const FL_KEYS: FlKey[] = [
   { x: 0.307, note: 73, r: 0.0062, style: 'plain', phi: 0, open: (f) => !(f & L1), hinge: [0.2987, 0.3458] },
   { x: 0.35, note: 72, r: 0.008, style: 'plain', phi: -140, open: (f) => !(f & (TB | TBB)) },
   { x: 0.3575, note: 71, r: 0.00975, style: 'plain', phi: 0, open: (f) => !(f & (TBB | L2 | R1)), hinge: [0.3502, 0.3678] },
@@ -1660,7 +1660,7 @@ const FL_KEYS: FlKey[] = [
 ];
 /** which of the 2D flute's keys stand open for a note (the test holds them to the 3D model's) */
 export const fluteKeysOpen = (m: number): { x: number; open: boolean }[] => FL_KEYS.map((k) => ({ x: k.x, open: k.open(fingersFor(m)) }));
-const D2R = Math.PI / 180;
+export const D2R = Math.PI / 180;
 /** the tube's outline, radius against x (the crown's dome, the tapered head, the socket's two rings,
  *  the foot's ring and the end ring; winds3d buildFluteModel's profiles) */
 const FL_PROFILE: [number, number][] = (() => {
@@ -1712,7 +1712,7 @@ function teardrop(p: Path2D, X: (x: number) => number, Y: (v: number) => number,
   pts.forEach(([x, y], i) => (i ? p.lineTo(x, y) : p.moveTo(x, y)));
   p.closePath();
 }
-interface FluteLayout {
+export interface FluteLayout {
   key: string;
   sc: number;
   x0: number;
@@ -1730,7 +1730,7 @@ interface FluteLayout {
   rollers: Path2D;
 }
 let flLayout: FluteLayout | null = null;
-function fluteLayout(Lw: number, Cw: number, vertical: boolean): FluteLayout {
+export function fluteLayout(Lw: number, Cw: number, vertical: boolean): FluteLayout {
   const key = `${Lw}x${Cw}`;
   if (flLayout && flLayout.key === key) return flLayout;
   const sc = (vertical ? 0.86 : 0.9) * Lw / FL_LEN;
@@ -2123,15 +2123,24 @@ function flArm(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number,
 }
 
 // ---------------------------------------------------------------- spectrum hairline
-export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, an: AnalyserNode | null, buf: Float32Array, focus: VisualFrame['focus'] | null, family: string): void {
+/** the spectrum's colours (rgb triplets) and its label font: the stage's own, or the vector display's */
+export interface SpectrumInk {
+  line: string;
+  label: string;
+  ideal: string;
+  partial: string;
+  font: string;
+}
+const SPECTRUM_INK: SpectrumInk = { line: INK.ivory, label: INK.ivory, ideal: INK.steel, partial: INK.vermilion, font: '10px "IBM Plex Mono", monospace' };
+export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, an: AnalyserNode | null, buf: Float32Array, focus: VisualFrame['focus'] | null, family: string, ink: SpectrumInk = SPECTRUM_INK): void {
   const f0 = 30;
   const f1 = 12000;
   const X = (f: number) => x0 + (w * Math.log(f / f0)) / Math.log(f1 / f0);
   const dbLo = -115;
   const dbHi = -25;
   const Y = (db: number) => y0 + h * (1 - (db - dbLo) / (dbHi - dbLo));
-  ctx.font = '10px "IBM Plex Mono", monospace';
-  ctx.fillStyle = rgba(INK.ivory, 0.3);
+  ctx.font = ink.font;
+  ctx.fillStyle = rgba(ink.label, 0.3);
   for (const [f, t] of [
     [100, '100'],
     [1000, '1k'],
@@ -2146,7 +2155,7 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
     const data = (bins <= buf.length ? buf.subarray(0, bins) : new Float32Array(bins)) as Float32Array<ArrayBuffer>;
     an.getFloatFrequencyData(data);
     const binHz = an.context.sampleRate / an.fftSize;
-    ctx.strokeStyle = rgba(INK.ivory, 0.55);
+    ctx.strokeStyle = rgba(ink.line, ink === SPECTRUM_INK ? 0.55 : 0.9);
     ctx.lineWidth = 1;
     ctx.beginPath();
     let started = false;
@@ -2176,11 +2185,11 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
       const fk = k * fz * Math.sqrt(1 + focus.B * k * k);
       const fh = k * focus.f1;
       if (fh < f1 && family === 'piano') {
-        ctx.fillStyle = rgba(INK.steel, 0.5);
+        ctx.fillStyle = rgba(ink.ideal, 0.5);
         ctx.fillRect(X(fh) - 0.5, y0 - 2, 1, 4);
       }
       if (fk > f1) break;
-      ctx.fillStyle = rgba(INK.vermilion, 0.9);
+      ctx.fillStyle = rgba(ink.partial, 0.9);
       ctx.fillRect(X(fk) - 0.75, y0 + 3, 1.5, 6);
     }
   }
@@ -2215,36 +2224,36 @@ export const VALVE_DOWN: Record<string, [boolean, boolean, boolean]> = {
 // z away from the viewer (the player's left, the leadpipe's side, is nearest). Drawn in an
 // orthographic view from a little in front of the bell and above, so the bell's mouth opens as an
 // ellipse and the bell pipe shows above the leadpipe.
-type V3 = [number, number, number];
-const TR_RT = 0.00635; // tubing: 11.66 mm bore, 12.7 mm outside
-const TR_VX = [-0.026, 0, 0.026];
-const TR_RC = 0.0099; // valve casings Ø19.8
-const TR_CY = 0.052; // casing half-length
-const TR_ZL = -0.017; // the leadpipe and slides' side
-const TR_ZB = 0.017; // the bell section's side
+export type V3 = [number, number, number];
+export const TR_RT = 0.00635; // tubing: 11.66 mm bore, 12.7 mm outside
+export const TR_VX = [-0.026, 0, 0.026];
+export const TR_RC = 0.0099; // valve casings Ø19.8
+export const TR_CY = 0.052; // casing half-length
+export const TR_ZL = -0.017; // the leadpipe and slides' side
+export const TR_ZB = 0.017; // the bell section's side
 const TR_XR = -0.15; // the receiver's end
-const TR_XB = 0.33; // the bell rim, 480 mm from the receiver
-const TR_MP = 0.066; // the 7C mouthpiece out of the receiver
-const trLeadY = (x: number) => 0.036 + ((x - TR_XR) * 0.011) / 0.255;
+export const TR_XB = 0.33; // the bell rim, 480 mm from the receiver
+export const TR_MP = 0.066; // the 7C mouthpiece out of the receiver
+export const trLeadY = (x: number) => 0.036 + ((x - TR_XR) * 0.011) / 0.255;
 const TR_LEAD_END = 0.098;
-const TR_CAP_TOP = TR_CY + 0.0104;
-const TR_STEM = 0.017;
-const TR_STROKE = 0.0155; // piston travel
-const TR_SLIDE_TRAVEL = [0.012, 0, 0.017];
+export const TR_CAP_TOP = TR_CY + 0.0104;
+export const TR_STEM = 0.017;
+export const TR_STROKE = 0.0155; // piston travel
+export const TR_SLIDE_TRAVEL = [0.012, 0, 0.017];
 const TR_VALVE_PASSAGES = 0.11;
 const TR_BOW_C: V3 = [-0.103, 0.0055, TR_ZB];
 const TR_BOW_R = 0.0255;
-const TR_BELL0: V3 = [-0.103, 0.031, TR_ZB];
-const TR_BELL_END: V3 = [TR_XB, 0.0492, TR_ZB];
+export const TR_BELL0: V3 = [-0.103, 0.031, TR_ZB];
+export const TR_BELL_END: V3 = [TR_XB, 0.0492, TR_ZB];
 const TR_MS_TOP = trLeadY(TR_LEAD_END);
 const TR_MS_LOW = -0.034;
 const TR_MS_X = 0.15;
-const TR_RIM = 0.0611; // 122 mm bell
+export const TR_RIM = 0.0611; // 122 mm bell
 /** the bell's radius by distance from the rim: the side photograph's profile at a Bessel horn's rate */
 const TR_BELL_D = [0, 0.002, 0.005, 0.01, 0.016, 0.025, 0.04, 0.06, 0.085, 0.115, 0.15, 0.2, 0.26, 0.33, 0.434];
-const TR_BELL_R = [TR_RIM, 0.0585, 0.0538, 0.0466, 0.0405, 0.0345, 0.0262, 0.0195, 0.0152, 0.0125, 0.0108, 0.0094, 0.0083, 0.0075, 0.0068];
+export const TR_BELL_R = [TR_RIM, 0.0585, 0.0538, 0.0466, 0.0405, 0.0345, 0.0262, 0.0195, 0.0152, 0.0125, 0.0108, 0.0094, 0.0083, 0.0075, 0.0068];
 /** monotone cubic through the bell's table (Fritsch–Carlson), as the 3D model's */
-const trBellR = (() => {
+export const trBellR = (() => {
   const xs = TR_BELL_D;
   const ys = TR_BELL_R;
   const n = xs.length;
@@ -2272,9 +2281,9 @@ const trBellR = (() => {
     return (2 * t3 - 3 * t2 + 1) * ys[i] + (t3 - 2 * t2 + t) * h * m[i] + (-2 * t3 + 3 * t2) * ys[i + 1] + (t3 - t2) * h * m[i + 1];
   };
 })();
-const v3add = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-const v3lerp = (a: V3, b: V3, t: number): V3 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-const v3len = (a: V3, b: V3) => Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+export const v3add = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+export const v3lerp = (a: V3, b: V3, t: number): V3 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+export const v3len = (a: V3, b: V3) => Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
 /** a polyline with its corners rounded (quadratic, radius r), sampled about every `step` m */
 function trRound(pts: V3[], r: number, step = 0.003): V3[] {
   const out: V3[] = [];
@@ -2303,7 +2312,7 @@ function trRound(pts: V3[], r: number, step = 0.003): V3[] {
 /** the view: yaw towards the bell's mouth, pitch from above */
 const TR_YAW = 11 * D2R;
 const TR_PITCH = 13 * D2R;
-const trProj = (p: V3): [number, number] => {
+export const trProj = (p: V3): [number, number] => {
   const depth = -p[0] * Math.sin(TR_YAW) + p[2] * Math.cos(TR_YAW);
   return [p[0] * Math.cos(TR_YAW) + p[2] * Math.sin(TR_YAW), -(p[1] * Math.cos(TR_PITCH) + depth * Math.sin(TR_PITCH))];
 };
@@ -2312,7 +2321,7 @@ const trDir = (() => {
   return [1 / l, 0.011 / 0.255 / l, 0] as V3;
 })();
 const TR_RECV: V3 = [TR_XR, trLeadY(TR_XR), TR_ZL];
-const trAlong = (s: number): V3 => [TR_RECV[0] + trDir[0] * s, TR_RECV[1] + trDir[1] * s, TR_ZL];
+export const trAlong = (s: number): V3 => [TR_RECV[0] + trDir[0] * s, TR_RECV[1] + trDir[1] * s, TR_ZL];
 /** the main tuning slide's crook: a half turn from the leadpipe's level down to the third valve's */
 const TR_CROOK: V3[] = (() => {
   const msR = (TR_MS_TOP - TR_MS_LOW) / 2;
@@ -2325,14 +2334,14 @@ const TR_CROOK: V3[] = (() => {
 })();
 /** each valve's slide: the fixed tubes out of the casing (out, back) and the slide's U, the player's
  *  way to its port order (air out of the lower port, back by the upper) */
-interface TrSlide {
+export interface TrSlide {
   out: V3[];
   back: V3[];
   sleeve: V3[];
   dir: V3;
   group: number;
 }
-const TR_SLIDES: TrSlide[] = (() => {
+export const TR_SLIDES: TrSlide[] = (() => {
   const s: TrSlide[] = [];
   // 1st: back towards the player
   {
@@ -2370,24 +2379,24 @@ const TR_SLIDES: TrSlide[] = (() => {
   }
   return s;
 })();
-const TR_TAIL = trRound([[TR_VX[0], -0.02, 0.003], [TR_VX[0], -0.02, TR_ZB], [TR_BOW_C[0], -0.02, TR_ZB]], 0.009);
-const TR_BOW: V3[] = Array.from({ length: 31 }, (_, i) => {
+export const TR_TAIL = trRound([[TR_VX[0], -0.02, 0.003], [TR_VX[0], -0.02, TR_ZB], [TR_BOW_C[0], -0.02, TR_ZB]], 0.009);
+export const TR_BOW: V3[] = Array.from({ length: 31 }, (_, i) => {
   const t = (i / 30) * Math.PI;
   return [TR_BOW_C[0] - TR_BOW_R * Math.sin(t), TR_BOW_C[1] - TR_BOW_R * Math.cos(t), TR_ZB] as V3;
 });
-const TR_BELL_LEN = v3len(TR_BELL0, TR_BELL_END);
-const TR_LEAD: V3[] = trRound([trAlong(0.024), [TR_LEAD_END, TR_MS_TOP, TR_ZL]], 0, 0.004);
+export const TR_BELL_LEN = v3len(TR_BELL0, TR_BELL_END);
+export const TR_LEAD: V3[] = trRound([trAlong(0.024), [TR_LEAD_END, TR_MS_TOP, TR_ZL]], 0, 0.004);
 /** the main slide: its top leg from the leadpipe, the crook, the lower leg back into the third valve */
-const TR_MAIN: V3[] = [...trRound([[TR_LEAD_END, TR_MS_TOP, TR_ZL], TR_CROOK[0]], 0), ...TR_CROOK.slice(1), ...trRound([TR_CROOK[TR_CROOK.length - 1], [TR_VX[2] + 0.004, TR_MS_LOW, -0.002]], 0).slice(1)];
+export const TR_MAIN: V3[] = [...trRound([[TR_LEAD_END, TR_MS_TOP, TR_ZL], TR_CROOK[0]], 0), ...TR_CROOK.slice(1), ...trRound([TR_CROOK[TR_CROOK.length - 1], [TR_VX[2] + 0.004, TR_MS_LOW, -0.002]], 0).slice(1)];
 /** the mouthpiece (Bach 7C) as [radius, distance from its rim]: rim, cup, throat, the shank's taper */
-const TR_MPIECE: [number, number][] = [
+export const TR_MPIECE: [number, number][] = [
   [0.0081, 0.0012], [0.0103, 0], [0.0128, 0.0016], [0.013, 0.0038], [0.013, 0.0078], [0.0124, 0.0092], [0.0118, 0.0104], [0.0104, 0.0145], [0.0084, 0.0192],
   [0.0066, 0.0236], [0.0054, 0.0272], [0.0051, 0.03], [0.0055, 0.031], [0.0051, 0.0322], [0.0055, 0.0334], [0.0052, 0.0346], [0.0053, 0.039], [0.006, 0.0402],
   [0.0061, 0.046], [0.0059, 0.0475], [0.0048, 0.088],
 ];
 /** one segment of the air's path: points, the drawing group it is seen in, hidden (inside a casing),
  *  and which slide it rides with (they kick out) */
-interface TrRun {
+export interface TrRun {
   pts: V3[];
   group: number;
   hidden?: boolean;
@@ -2434,7 +2443,7 @@ function trAirRuns(down: readonly boolean[]): TrRun[] {
 }
 const trAirCache = new Map<string, { runs: TrRun[]; runLen: number[]; total: number }>();
 /** the air's path for a fingering, with each run's length and the whole (cached per fingering) */
-function trAir(key: string, down: readonly boolean[]): { runs: TrRun[]; runLen: number[]; total: number } {
+export function trAir(key: string, down: readonly boolean[]): { runs: TrRun[]; runLen: number[]; total: number } {
   let a = trAirCache.get(key);
   if (!a) {
     const runs = trAirRuns(down);
@@ -2456,7 +2465,7 @@ function trAir(key: string, down: readonly boolean[]): { runs: TrRun[]; runLen: 
 export const trumpetAirLength = (valves: string): number => trAir(valves, VALVE_DOWN[valves] ?? VALVE_DOWN.open).total;
 /** a projected strip of tube: the screen polyline (unit metres) for a 3D one */
 const trPoly = (pts: V3[], off: V3 = [0, 0, 0]) => pts.map((p) => trProj(v3add(p, off)));
-interface TrLayout {
+export interface TrLayout {
   key: string;
   S: number;
   ox: number;
@@ -2481,7 +2490,7 @@ const TR_BOUNDS = (() => {
   const ys = pts.map((p) => p[1]);
   return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
 })();
-function trumpetLayout(W: number, H: number): TrLayout {
+export function trumpetLayout(W: number, H: number): TrLayout {
   const key = `${W}x${H}`;
   if (trLayout && trLayout.key === key) return trLayout;
   const b = TR_BOUNDS;

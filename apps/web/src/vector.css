@@ -1,0 +1,373 @@
+/* The vector display: the 2D stage's other style (ui/vector/kit.ts has the drawing and the colour
+   roles). Everything here is scoped to :root[data-style='vector'], which the stage sets only while
+   that style shows (2D, the stage's route): with the attribute absent nothing below applies.
+
+   Chrome follows the drawing: black ground, hairline frames instead of filled panels, blue for the
+   instrument's furniture, amber for what sounds, and each knob in its slot colour (--slot, set per
+   knob by the stage). Type is Hershey Simplex, single-stroke capitals. */
+@font-face {
+  /* AVHershey Simplex by Stewart C. Russell (CC0 / WTFPL), from A. V. Hershey's public-domain
+     vector fonts (US Naval Weapons Laboratory, 1967) */
+  font-family: 'Hershey';
+  src: url('/fonts/AVHersheySimplexLight.otf') format('opentype');
+  font-weight: 300;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hershey';
+  src: url('/fonts/AVHersheySimplexMedium.otf') format('opentype');
+  font-weight: 500;
+  font-display: swap;
+}
+
+:root[data-style='vector'] {
+  --v-blue: #4fb6f2;
+  --v-blue-mid: #3487c4;
+  --v-blue-dim: #1f5f8c;
+  --v-frame: #133954;
+  --v-amber: #ffb340;
+  --v-text: #d9f1ff;
+  --ground: #000;
+  --paper: #000;
+  --paper-2: #000;
+  --paper-3: #03121c;
+  --ink: var(--v-text);
+  --ink-2: var(--v-blue);
+  --muted: var(--v-blue-mid);
+  --rule: var(--v-frame);
+  --rule-2: var(--v-blue-dim);
+  --accent: var(--v-amber);
+  --accent-soft: rgba(255, 179, 64, 0.18);
+  --ref: var(--v-blue);
+  --amber: var(--v-amber);
+  --brass: var(--v-blue);
+  --lacquer: #000;
+  --hershey: 'Hershey', 'IBM Plex Mono', ui-monospace, monospace;
+  --serif: var(--hershey);
+  --sans: var(--hershey);
+  --mono: var(--hershey);
+  --radius: 0px;
+}
+:root[data-style='vector'] body {
+  font-weight: 500;
+}
+
+/* ------------------------------------------------------------ header */
+:root[data-style='vector'] .top {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 500;
+}
+:root[data-style='vector'] .lamp,
+:root[data-style='vector'][data-audio='running'] .lamp {
+  background: none;
+  border: 1.5px solid var(--v-amber);
+  box-shadow: 0 0 6px rgba(255, 179, 64, 0.6);
+}
+:root[data-style='vector'][data-audio='running'] .lamp {
+  background: var(--v-amber);
+}
+:root[data-style='vector'] .midi::before {
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------ the stage: a framed screen */
+:root[data-style='vector'] .stage {
+  background: #000;
+}
+:root[data-style='vector'] .stage::after {
+  content: '';
+  position: absolute;
+  inset: 0 6px 6px;
+  border: 1px solid var(--v-frame);
+  pointer-events: none;
+  z-index: 1;
+}
+:root[data-style='vector'] .pick {
+  text-transform: uppercase;
+  color: var(--v-blue-dim);
+}
+:root[data-style='vector'] .pick:hover {
+  color: var(--v-blue-mid);
+}
+:root[data-style='vector'] .pick[aria-pressed='true'] {
+  color: var(--v-text);
+}
+:root[data-style='vector'] .pick-name {
+  letter-spacing: 0.1em;
+}
+/* the picker's glyphs lose their fills: outlines only */
+:root[data-style='vector'] .glyph .g-body,
+:root[data-style='vector'] .glyph .g-ebony,
+:root[data-style='vector'] .glyph .g-keys,
+:root[data-style='vector'] .glyph .g-tube-body,
+:root[data-style='vector'] .glyph .g-key {
+  fill: none;
+}
+:root[data-style='vector'] .glyph .g-bridge,
+:root[data-style='vector'] .glyph .g-steel {
+  stroke: currentColor;
+}
+:root[data-style='vector'] .pick[aria-pressed='true'] .glyph {
+  stroke: var(--v-blue);
+  filter: drop-shadow(0 0 3px rgba(79, 182, 242, 0.7));
+}
+/* chips: a framed label, lit when on (never a filled block) */
+:root[data-style='vector'] .presets {
+  gap: 4px;
+  padding-left: 0;
+}
+:root[data-style='vector'] .presets button,
+:root[data-style='vector'] .dim-toggle,
+:root[data-style='vector'] .vec-toggle,
+:root[data-style='vector'] .case-toggle,
+:root[data-style='vector'] .ens-toggle,
+:root[data-style='vector'] .score-btn {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--v-blue-mid);
+  background: none;
+  border: 1px solid var(--v-frame);
+  border-radius: 0;
+}
+:root[data-style='vector'] .presets button {
+  padding: 3px 6px 2px;
+}
+:root[data-style='vector'] .presets button[aria-pressed='true'],
+:root[data-style='vector'] .dim-toggle[aria-pressed='true'],
+:root[data-style='vector'] .vec-toggle[aria-pressed='true'],
+:root[data-style='vector'] .case-toggle[aria-pressed='true'],
+:root[data-style='vector'] .ens-toggle[aria-pressed='true'],
+:root[data-style='vector'] .score-btn[aria-expanded='true'] {
+  color: var(--v-text);
+  background: none;
+  border-color: var(--v-blue);
+  box-shadow: 0 0 6px rgba(79, 182, 242, 0.45), inset 0 0 6px rgba(79, 182, 242, 0.25);
+}
+:root[data-style='vector'] .pick-n {
+  color: var(--v-amber);
+}
+/* the note is the sound: amber */
+:root[data-style='vector'] .r-note {
+  font-style: normal;
+  font-weight: 300;
+  font-size: 40px;
+  letter-spacing: 0.04em;
+  color: var(--v-amber);
+  text-shadow: 0 0 10px rgba(255, 179, 64, 0.45);
+}
+:root[data-style='vector'] .r-hz {
+  color: var(--v-amber);
+  opacity: 0.75;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+:root[data-style='vector'] .scope-cap {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+:root[data-style='vector'] .grip {
+  border-radius: 0;
+  background: none;
+  border-color: var(--v-blue-mid);
+}
+:root[data-style='vector'] .grip::after {
+  border-color: var(--v-blue-mid);
+}
+:root[data-style='vector'] .grip:hover,
+:root[data-style='vector'] .grip.dragging,
+:root[data-style='vector'] .grip:focus-visible {
+  background: rgba(79, 182, 242, 0.12);
+  border-color: var(--v-text);
+}
+:root[data-style='vector'] .tip {
+  font: 500 11px/1.3 var(--hershey);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  border-radius: 0;
+  background: #000;
+  border-color: var(--v-blue-dim);
+}
+:root[data-style='vector'] .player {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--v-frame);
+  border-radius: 0;
+}
+:root[data-style='vector'] .score-menu,
+:root[data-style='vector'] .pl-menu,
+:root[data-style='vector'] .pl-grid {
+  background: #000;
+  border-color: var(--v-blue-dim);
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ------------------------------------------------------------ fallboard: pedals, octave, encoders */
+:root[data-style='vector'] .fallboard {
+  background: #000;
+  border-top: 1px solid var(--v-frame);
+  box-shadow: none;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+:root[data-style='vector'] .pedal,
+:root[data-style='vector'] .knob-toggle {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+:root[data-style='vector'] .p-foot {
+  fill: none;
+  stroke: var(--v-blue-mid);
+  stroke-width: 1.1;
+  filter: none;
+}
+:root[data-style='vector'] .p-shine {
+  stroke: var(--v-blue-dim);
+}
+:root[data-style='vector'] .pedal[aria-pressed='true'] .p-foot {
+  stroke: var(--v-text);
+  filter: drop-shadow(0 0 3px rgba(79, 182, 242, 0.8));
+}
+:root[data-style='vector'] .pedal[aria-pressed='true'] .p-name {
+  color: var(--v-text);
+}
+:root[data-style='vector'] .oct-btn {
+  border: 1px solid var(--v-frame);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--v-blue);
+}
+:root[data-style='vector'] .oct-btn:active {
+  border-color: var(--v-blue);
+  box-shadow: none;
+}
+/* a knob is an encoder in its slot colour: ring, pointer and reading */
+:root[data-style='vector'] .k-ticks line {
+  stroke: var(--v-blue-dim);
+}
+:root[data-style='vector'] .k-track {
+  stroke: var(--v-frame);
+  stroke-width: 1.2;
+}
+:root[data-style='vector'] .k-val-arc {
+  stroke: var(--slot, var(--v-blue));
+  stroke-width: 1.6;
+  filter: drop-shadow(0 0 2px var(--slot, var(--v-blue)));
+}
+:root[data-style='vector'] .k-cap,
+:root[data-style='vector'] .knob:hover .k-cap,
+:root[data-style='vector'] .knob.turning .k-cap,
+:root[data-style='vector'] .knob:focus-within .k-cap {
+  fill: none;
+  stroke: var(--v-blue-dim);
+}
+:root[data-style='vector'] .knob:hover .k-cap,
+:root[data-style='vector'] .knob.turning .k-cap,
+:root[data-style='vector'] .knob:focus-within .k-cap {
+  stroke: var(--slot, var(--v-blue));
+}
+:root[data-style='vector'] .k-ptr {
+  stroke: var(--slot, var(--v-blue));
+  stroke-width: 1.4;
+}
+:root[data-style='vector'] .k-name {
+  color: var(--slot, var(--v-blue));
+  opacity: 0.8;
+}
+:root[data-style='vector'] .k-read {
+  color: var(--slot, var(--v-blue));
+}
+:root[data-style='vector'] .knobs {
+  background: #000;
+}
+
+/* ------------------------------------------------------------ keyboard: keys in outline */
+:root[data-style='vector'] .dock {
+  background: #000;
+}
+:root[data-style='vector'] .kbd-scroll {
+  background: #000;
+}
+:root[data-style='vector'] .keyboard {
+  box-shadow: inset 1px 0 0 var(--v-blue-dim), inset 0 1px 0 var(--v-blue-dim);
+}
+:root[data-style='vector'] .key.white {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: inset -1px 0 0 var(--v-blue-dim), inset 0 -1px 0 var(--v-blue-dim);
+  transition: none;
+}
+/* the black keys: an outline, hatched so they read as the raised row */
+:root[data-style='vector'] .key.black {
+  background: repeating-linear-gradient(135deg, rgba(79, 182, 242, 0.34) 0 1px, transparent 1px 5px), #000;
+  border-radius: 0;
+  box-shadow: inset 0 0 0 1px var(--v-blue-mid);
+  transition: none;
+}
+/* pressed: the outline brightens; sounding (the engine's own allocation): amber */
+:root[data-style='vector'] .key.down.white {
+  transform: none;
+  background: rgba(79, 182, 242, 0.14);
+  box-shadow: inset 0 0 0 1px var(--v-text);
+}
+:root[data-style='vector'] .key.down.black {
+  transform: none;
+  box-shadow: inset 0 0 0 1px var(--v-text);
+}
+:root[data-style='vector'] .key.sounding.white {
+  background: rgba(255, 179, 64, 0.16);
+  box-shadow: inset 0 0 0 1px var(--v-amber), inset 0 0 12px rgba(255, 179, 64, 0.35);
+}
+:root[data-style='vector'] .key.sounding.black {
+  background: repeating-linear-gradient(135deg, rgba(255, 179, 64, 0.7) 0 1px, transparent 1px 5px), #000;
+  box-shadow: inset 0 0 0 1px var(--v-amber), 0 0 8px rgba(255, 179, 64, 0.4);
+}
+:root[data-style='vector'] .key.out.white {
+  background: none;
+  box-shadow: inset -1px 0 0 var(--v-frame), inset 0 -1px 0 var(--v-frame);
+}
+:root[data-style='vector'] .key.out.black {
+  background: #000;
+  box-shadow: inset 0 0 0 1px var(--v-frame);
+}
+:root[data-style='vector'] .key .lbl,
+:root[data-style='vector'] .key.black .lbl,
+:root[data-style='vector'] .key .cname {
+  color: var(--v-blue-mid);
+  font-weight: 500;
+}
+:root[data-style='vector'] .key.out .lbl,
+:root[data-style='vector'] .key.out .cname {
+  color: var(--v-frame);
+}
+
+/* the toggle itself, in either style (it sits beside the 3D toggle and looks like it) */
+.vec-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 5px;
+  color: var(--ink-2, #c9bfab);
+  background: transparent;
+  border: 1px solid rgba(236, 226, 206, 0.18);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.vec-toggle:focus-visible {
+  outline: 1px solid rgba(242, 166, 70, 0.8);
+}
+
+@media (max-width: 760px) {
+  :root[data-style='vector'] .stage::after {
+    inset: 0 3px 3px;
+  }
+  :root[data-style='vector'] .r-note {
+    font-size: 32px;
+  }
+  :root[data-style='vector'] .knobs {
+    background: #000;
+    border-top-color: var(--v-blue-dim);
+  }
+}

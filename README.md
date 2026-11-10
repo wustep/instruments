@@ -24,6 +24,12 @@ README does not claim it is live. `vercel.json` makes this a static build
   * On the computer keyboard, hold `Space` for sustain and `Shift` for una corda.
 * **Instruments.** Choose one with the selector on the Play page. The piano has
   four presets: concert grand, upright, honky-tonk and prepared.
+* **Vector lines.** The crosshair button beside `3d` redraws the 2D stage as a vector
+  display: thin glowing lines on black, the instrument in blue, the sound in amber, and
+  each knob in a colour of its own that also marks what it moves on the drawing. The
+  stage as it was stays the default; the choice is remembered, and `?style=vector` in
+  the address sets it. After Jameson Hodge's Chimera vocal synth; the drawing kit and
+  the colour roles are in `apps/web/src/ui/vector/kit.ts`.
 * **Ensemble.** The ensemble button (four dots on an arc) puts several instruments on
   the stage, each its own engine; tap an instrument to add one. A chord played by hand
   is dealt out by register, one note per instrument. Drop a MIDI file with several

@@ -322,6 +322,7 @@ export function notesView(): View {
         'J. B. Allen & D. A. Berkley, “Image method for efficiently simulating small-room acoustics,” JASA 65(4), 1979',
         'J.-M. Jot & A. Chaigne, “Digital delay networks for designing artificial reverberators,” AES 90th Convention, 1991',
         'University of Iowa Musical Instrument Samples (analysis only; never played as the instrument)',
+        'The stage’s vector lines follow the screens of J. Hodge’s Chimera vocal synth (github.com/jamesondh/chimera-vocal-synth); their type is AVHershey Simplex by S. C. Russell (CC0), from A. V. Hershey’s vector fonts, US Naval Weapons Laboratory, 1967',
       ].map((r) => h('li', {}, r)),
     ),
   );

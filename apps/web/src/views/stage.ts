@@ -16,10 +16,11 @@ import { PIECES } from '../orchestra/pieces.ts';
 import { drawEnsemble, ensembleCells, newPartDraw, syncPianoState, type Cell, type PartDraw } from '../ui/ensemble-draw.ts';
 import type { EnsPartIn } from '../ui/gl/scenes3d.ts';
 import type { MidiPlayer } from '../ui/player.ts';
-import { AutoScale, INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, type BowedGeom, type BowedState } from '../ui/stage-draw.ts';
+import { AutoScale, INK as STAGE_INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, type BowedGeom, type BowedState } from '../ui/stage-draw.ts';
 import { drawPiano, newPianoState, stringAt } from '../ui/piano-draw.ts';
 import { drawRoom, newRoomState, roomRect } from '../ui/room-draw.ts';
 import { createHandBow, type HandBow } from '../ui/hand-bow.ts';
+import { Contours, SCOPE_INK_V, SPECTRUM_INK_V, SPECTRUM_INK_V_PIANO, drawBowedV, drawFluteV, drawPianoV, drawRoomV, drawTrumpetV, glow, loadVectorFont, slotColor } from '../ui/vector/index.ts';
 
 const PIANO_KNOBS: KnobSpec[] = [
   { key: 'hammerHardness', label: 'Hammer hardness', short: 'hammer', sub: 'felt stiffness K in F = K·xᵖ', min: 0.25, max: 4, step: 0.01, log: true, fmt: (v) => `×${fmt(v, 2)}` },
@@ -187,6 +188,17 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   }
   const dimBtn = h('button', { class: 'dim-toggle', type: 'button', 'aria-pressed': String(want3d), 'aria-label': '3D view', 'data-tip': '3D · drag to turn, pinch to zoom' }, '3d');
   dimBtn.hidden = !has3d;
+  // the vector display: the 2D stage's other style (ui/vector/kit.ts). The stage as it was stays the
+  // default; the choice is remembered, and ?style=vector (or =classic) in the address sets it.
+  let wantVector = false;
+  try {
+    const q = new URLSearchParams(location.search).get('style') ?? new URLSearchParams(location.hash.split('?')[1] ?? '').get('style');
+    wantVector = q ? q === 'vector' : localStorage.getItem('piano-model.style') === 'vector';
+  } catch {
+    /* storage blocked */
+  }
+  const vecBtn = h('button', { class: 'vec-toggle', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Vector lines', 'data-tip': 'vector lines' });
+  vecBtn.innerHTML = '<svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="3.4" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M7 .8v2.4M7 10.8v2.4M.8 7h2.4M10.8 7h2.4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>';
   // pianos in 3D: hide the case (the plate, strings, soundboard, keys and the whole action stay);
   // remembered for the session; the I key ("inside") toggles it too (no note or octave key uses I)
   let caseHidden = false;
@@ -216,7 +228,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     e.preventDefault();
     setCase(!caseHidden);
   });
-  const picker = h('div', { class: 'picker' }, h('div', { class: 'instruments', role: 'group', 'aria-label': 'Instrument' }, instBtns), h('div', { class: 'picker-row' }, presets, dimBtn, caseBtn, ensBtn, scoreBtn));
+  const picker = h('div', { class: 'picker' }, h('div', { class: 'instruments', role: 'group', 'aria-label': 'Instrument' }, instBtns), h('div', { class: 'picker-row' }, presets, dimBtn, vecBtn, caseBtn, ensBtn, scoreBtn));
 
   // ---------------------------------------------------------------- readout, spectrum, scope
   const noteEl = h('div', { class: 'r-note' }, '');
@@ -327,10 +339,35 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     }
     show3d();
   };
+  /** the vector display shows on the 2D stage only: in 3D the stage and its chrome are as they were */
+  const vectorOn = () => wantVector && !want3d;
+  const showStyle = () => {
+    const on = vectorOn();
+    vecBtn.setAttribute('aria-pressed', String(on));
+    if (on) {
+      document.documentElement.dataset.style = 'vector';
+      loadVectorFont();
+    } else delete document.documentElement.dataset.style;
+    // (the page's ground follows: the body keeps its own copy for the overscroll colour)
+    document.body.style.setProperty('--ground', cssVar('--ground'));
+  };
+  vecBtn.addEventListener('click', () => {
+    wantVector = !vectorOn();
+    try {
+      localStorage.setItem('piano-model.style', wantVector ? 'vector' : 'classic');
+    } catch {
+      /* storage blocked */
+    }
+    // asked for from the 3D stage: back to 2D, where it shows
+    if (wantVector && want3d) set3d(false);
+    showStyle();
+    fadeIn();
+  });
   const show3d = () => {
     caseBtn.hidden = !(want3d && family() === 'piano') || ensemble.active;
     if (s3) s3.el.hidden = !want3d;
     el.classList.toggle('is-3d', want3d && !!s3);
+    showStyle();
     (window as unknown as { __stage3d?: Stage3D | null }).__stage3d = want3d ? s3 : null;
   };
   dimBtn.addEventListener('click', () => {
@@ -444,6 +481,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       });
       return { c, k };
     });
+    // each knob's slot colour (the vector display draws what the knob moves in it)
+    knobEls.forEach((x, i) => x.k.el.style.setProperty('--slot', slotColor(i)));
     const reset = h(
       'button',
       {
@@ -482,6 +521,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   const roomState = newRoomState();
   const tdBuf = new Float32Array(2048);
   const fields = { piano: new ModeField(208, 100, 2.2, 3), bowed: new ModeField(150, 84, 1.8, 0.6) };
+  // the same plates on the vector display, traced as lines (made when first shown)
+  let vfields: { piano: Contours; bowed: Contours } | null = null;
   let bowedGeom: BowedGeom | null = null;
   const specBuf = new Float32Array(4096);
   const forceScale = new AutoScale(1e-6);
@@ -575,6 +616,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   // ---------------------------------------------------------------- drawing
   const drawScope = (frame: VisualFrame | null, fam: string, strike: VisualFrame['strike'], bowedGeom: BowedGeom | null) => {
     const family = () => fam;
+    // (the vector display: the excitation is sound, amber; its second trace the structure's blue)
+    const INK = vectorOn() ? SCOPE_INK_V : STAGE_INK;
     const { ctx, w, h: hh } = fitCanvas(scopeCv);
     ctx.clearRect(0, 0, w, hh);
     const mid = hh / 2;
@@ -670,6 +713,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     ctx.save();
     ctx.translate(0, topH);
     const in3d = want3d && !!s3;
+    const vec = vectorOn();
+    if (vec) vfields ??= { piano: new Contours(72, 36, 2.2, 3), bowed: new Contours(64, 36, 1.8, 0.6) };
     const ens = ensemble.active && ensemble.parts.length > 0;
     if (ens && draws.length !== ensemble.parts.length) syncDraws();
     if (in3d) {
@@ -682,7 +727,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
         cellsKey = key;
         cells = ensembleCells(ensemble.lineup, w, ih - pl).map((c) => ({ ...c, y: c.y + pl }));
       }
-      drawEnsemble(ctx, cells, ensemble.parts, draws, (p) => ensemble.keysOf(p), now);
+      drawEnsemble(ctx, cells, ensemble.parts, draws, (p) => ensemble.keysOf(p), now, vec);
     } else if (family() === 'piano') {
       const sr = canvas.getBoundingClientRect();
       const kr = kb.strip.getBoundingClientRect();
@@ -693,10 +738,14 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       pianoState.upright = audio.preset === 'upright' || audio.preset === 'honky-tonk';
       const keys = audio.piano && audio.piano.instrument === 'piano' && audio.piano.keys.length ? audio.piano.keys : keysFallback;
       const kind = audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand';
-      drawPiano(ctx, w, ih, { keys, kind, lid: lidVal(), keyX: (m) => ({ x: kr.left - sr.left + kb.keyFrac(m).c * kr.width, w: kb.keyFrac(m).w * kr.width }) }, frame, pianoState, fields.piano, now);
-    } else if (family() === 'bowed' && bowedGeom) drawBowed(ctx, w, ih, bowedGeom, frame, bowedState, fields.bowed, now);
-    else if (family() === 'brass') drawTrumpet(ctx, w, ih, frame, trumpetState);
-    else drawFlute(ctx, w, ih, frame, fluteState);
+      const pg = { keys, kind, lid: lidVal(), keyX: (m: number) => ({ x: kr.left - sr.left + kb.keyFrac(m).c * kr.width, w: kb.keyFrac(m).w * kr.width }) } as const;
+      if (vec) drawPianoV(ctx, w, ih, pg, frame, pianoState, vfields!.piano, now);
+      else drawPiano(ctx, w, ih, pg, frame, pianoState, fields.piano, now);
+    } else if (family() === 'bowed' && bowedGeom) {
+      if (vec) drawBowedV(ctx, w, ih, bowedGeom, frame, bowedState, vfields!.bowed, now);
+      else drawBowed(ctx, w, ih, bowedGeom, frame, bowedState, fields.bowed, now);
+    } else if (family() === 'brass') (vec ? drawTrumpetV : drawTrumpet)(ctx, w, ih, frame, trumpetState);
+    else (vec ? drawFluteV : drawFlute)(ctx, w, ih, frame, fluteState);
     // the room: wavefronts from the instrument, reflections, the lid's throw
     let rms = 0;
     if (audio.analyser) {
@@ -709,8 +758,10 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     const grand = fam === 'piano' && !(audio.preset === 'upright' || audio.preset === 'honky-tonk') && !ens;
     const src = ens ? { x: w / 2, y: ih / 2 } : fam === 'piano' ? pianoState.src : fam === 'bowed' ? { x: w * 0.62, y: ih / 2 } : fam === 'brass' ? (trumpetState.src ?? { x: w * 0.85, y: ih * 0.55 }) : { x: w * 0.5, y: ih * 0.45 };
     // (an ensemble's cells have no room drawn round them: its outline would cross the instruments)
-    const rg = in3d || ens ? { x0: 0, y0: 0, x1: 0, y1: 0 } : drawRoom(ctx, w, ih, roomState, src, roomVal(), rms, now, grand ? { open: lidVal(), dir: -Math.PI / 4 } : null);
+    const rg = in3d || ens ? { x0: 0, y0: 0, x1: 0, y1: 0 } : (vec ? drawRoomV : drawRoom)(ctx, w, ih, roomState, src, roomVal(), rms, now, grand ? { open: lidVal(), dir: -Math.PI / 4 } : null);
     ctx.restore();
+    // the display's glow, over everything drawn this frame
+    if (vec) glow(ctx);
     if (in3d && s3) {
       pianoState.down = new Set(audio.down.keys());
       pianoState.sustain = audio.lastStats?.sustain ?? audio.sustainValue;
@@ -759,11 +810,11 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     if (lead) {
       const lf = lead.frame;
       const lfam = familyOf(lead.voice);
-      drawSpectrum(sp.ctx, 0, 6, sp.w, sp.h - 8, audio.analyser, specBuf, lf?.focus ?? null, lfam);
+      drawSpectrum(sp.ctx, 0, 6, sp.w, sp.h - 8, audio.analyser, specBuf, lf?.focus ?? null, lfam, vec ? (lfam === 'piano' ? SPECTRUM_INK_V_PIANO : SPECTRUM_INK_V) : undefined);
       const ld = draws[ensemble.parts.indexOf(lead)];
       drawScope(lf, lfam, lead.strike, ld?.bowed?.geom ?? null);
     } else {
-      drawSpectrum(sp.ctx, 0, 6, sp.w, sp.h - 8, audio.analyser, specBuf, focus, family());
+      drawSpectrum(sp.ctx, 0, 6, sp.w, sp.h - 8, audio.analyser, specBuf, focus, family(), vec ? (family() === 'piano' ? SPECTRUM_INK_V_PIANO : SPECTRUM_INK_V) : undefined);
       drawScope(frame, family(), strike, bowedGeom);
     }
     if (focus && !noteEl.textContent && !ens) {
@@ -813,11 +864,13 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       applyInstrument(audio.instrument);
       applyEnsemble();
       if (want3d) set3d(true);
-      document.body.style.setProperty('--ground', cssVar('--ground'));
+      showStyle();
       raf = requestAnimationFrame(loop);
     },
     unmount() {
       action?.close();
+      delete document.documentElement.dataset.style;
+      document.body.style.setProperty('--ground', cssVar('--ground'));
       s3?.dispose();
       s3 = null;
       cancelAnimationFrame(raf);

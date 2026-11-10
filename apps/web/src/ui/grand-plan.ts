@@ -18,7 +18,7 @@ import { INK, type ModeField, rgba } from './stage-draw.ts';
 type P = [number, number];
 
 /** the 3D grand's plan (metres; z from the key fronts towards the tail) */
-const GZ = {
+export const GZ = {
   /** the stage's bottom edge: the rim's front face */
   front: 0.17,
   strike: 0.47,
@@ -113,7 +113,7 @@ export function damperMark(ctx: CanvasRenderingContext2D, x: number, y: number, 
   ctx.stroke();
 }
 
-function catmull(pts: P[], per: number): P[] {
+export function catmull(pts: P[], per: number): P[] {
   const n = pts.length;
   const out: P[] = [];
   const at = (i: number) => pts[Math.max(0, Math.min(n - 1, i))];
@@ -130,14 +130,14 @@ function catmull(pts: P[], per: number): P[] {
   out.push(pts[n - 1]);
   return out;
 }
-const path = (ps: P[], close = true) => {
+export const path = (ps: P[], close = true) => {
   const into = new Path2D();
   ps.forEach(([x, y], k) => (k ? into.lineTo(x, y) : into.moveTo(x, y)));
   if (close) into.closePath();
   return into;
 };
 
-interface GStr {
+export interface GStr {
   p: Pt;
   /** the action's x (the strike point, at rest) */
   x: number;
@@ -148,7 +148,7 @@ interface GStr {
   b: P;
   off: number[];
 }
-interface Layout {
+export interface Layout {
   key: string;
   Y: (z: number) => number;
   pxm: number;
@@ -164,7 +164,7 @@ const base = new Layer();
 
 /** where the stage's top edge sits in depth: the rim's tail when the whole keyboard shows; on a
  *  narrow screen, a little past the longest visible strings */
-function grandDepth(W: number, pts: Pt[]): number {
+export function grandDepth(W: number, pts: Pt[]): number {
   const kx0 = pts[0].x - pts[0].w / 2;
   const kx1 = pts[pts.length - 1].x + pts[pts.length - 1].w / 2;
   const pitch = (kx1 - kx0) / 88;
@@ -187,7 +187,8 @@ function grandDepth(W: number, pts: Pt[]): number {
   return Math.max(0.6, Math.min(Math.max(zo, 0.6), zs + 0.2));
 }
 
-function layout(W: number, H: number, pts: Pt[], dpr: number, zTop: number): Layout {
+/** the grand's plan on a W×H stage (cached; the vector display draws from the same one) */
+export function layout(W: number, H: number, pts: Pt[], dpr: number, zTop: number): Layout {
   const key = `${W}|${H}|${dpr}|${pts[0].x.toFixed(1)}|${pts[pts.length - 1].x.toFixed(1)}|${zTop.toFixed(4)}|${pts.map((p) => p.L.toFixed(3)).join('')}`;
   if (cache && cache.key === key) return cache;
   const kx0 = pts[0].x - pts[0].w / 2;
@@ -243,8 +244,16 @@ function layout(W: number, H: number, pts: Pt[], dpr: number, zTop: number): Lay
   }
   const outline = path(outer);
   const inner = path(innerPts);
-  // ---- the still picture: rim, board, struts, bridges, the strings at rest
-  base.paint(W, H, dpr, key, (c) => {
+  cache = { key, Y, pxm, pitch, strs, inner, outline, outer, box: { x0: xMin, x1: xMax, y0: yTail, y1: H - 2 } };
+  return cache;
+}
+
+/** the still picture: rim, board, struts, bridges, the strings at rest (repainted when the layout changes) */
+function paintBase(lay: Layout, W: number, H: number, dpr: number): void {
+  const { strs, inner, outline } = lay;
+  const bass = strs.filter((s) => s.p.wound);
+  const treb = strs.filter((s) => !s.p.wound);
+  base.paint(W, H, dpr, lay.key, (c) => {
     c.fillStyle = rgba(INK.ebony, 1);
     c.fill(outline);
     c.fillStyle = rgba(INK.wood, 0.42);
@@ -286,8 +295,6 @@ function layout(W: number, H: number, pts: Pt[], dpr: number, zTop: number): Lay
     c.lineWidth = 1;
     c.stroke(inner);
   });
-  cache = { key, Y, pxm, pitch, strs, inner, outline, outer, box: { x0: xMin, x1: xMax, y0: yTail, y1: H - 2 } };
-  return cache;
 }
 
 /** the grand, live. Returns each key's speaking length and its unison's offsets (for the shapes). */
@@ -298,6 +305,7 @@ export function drawGrandPlan(ctx: CanvasRenderingContext2D, W: number, H: numbe
   if (Math.abs(st.maxL - target) < 4e-4) st.maxL = target;
   const dpr = ctx.getTransform().a || 1;
   const lay = layout(W, H, pts, dpr, st.maxL);
+  paintBase(lay, W, H, dpr);
   const { Y, pxm, pitch, strs } = lay;
   const { x0: xL, x1: xR, y0: yTop, y1: yKey } = lay.box;
   const vis = (s: GStr) => s.x > -pitch * 2 && s.x < W + pitch * 2;

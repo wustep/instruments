@@ -7,6 +7,7 @@ import { bowedGeometry, type VisualFrame } from '@piano-model/engine';
 import { isKeyboard, VOICE_INFO, type Voice } from '../orchestra/assign.ts';
 import type { PartLive } from '../orchestra/ensemble.ts';
 import { drawPiano, newPianoState, type PianoState } from './piano-draw.ts';
+import { Contours, drawBowedV, drawFluteV, drawPianoV, drawTrumpetV } from './vector/index.ts';
 import { AutoScale, ModeField, drawBowed, drawFlute, drawTrumpet, type BowedGeom, type BowedState, type FluteState, type TrumpetState } from './stage-draw.ts';
 
 export interface Cell {
@@ -19,10 +20,10 @@ export interface Cell {
 /** what each part's drawing keeps between frames */
 export interface PartDraw {
   voice: Voice;
-  bowed?: { geom: BowedGeom; st: BowedState; field: ModeField };
+  bowed?: { geom: BowedGeom; st: BowedState; field: ModeField; vfield?: Contours };
   flute?: FluteState;
   trumpet?: TrumpetState;
-  piano?: { st: PianoState; field: ModeField };
+  piano?: { st: PianoState; field: ModeField; vfield?: Contours };
 }
 
 export function newPartDraw(v: Voice): PartDraw {
@@ -107,7 +108,7 @@ export function syncPianoState(st: PianoState, p: PartLive): void {
 }
 
 /** draw the ensemble: each part in its cell (stage coordinates, the top band already translated) */
-export function drawEnsemble(ctx: CanvasRenderingContext2D, cells: Cell[], parts: PartLive[], draws: PartDraw[], keysOf: (p: PartLive) => import('@piano-model/engine').KeySummary[], now: number): void {
+export function drawEnsemble(ctx: CanvasRenderingContext2D, cells: Cell[], parts: PartLive[], draws: PartDraw[], keysOf: (p: PartLive) => import('@piano-model/engine').KeySummary[], now: number, vector = false): void {
   parts.forEach((p, i) => {
     const c = cells[i];
     const d = draws[i];
@@ -118,15 +119,20 @@ export function drawEnsemble(ctx: CanvasRenderingContext2D, cells: Cell[], parts
     ctx.beginPath();
     ctx.rect(0, 0, c.w, c.h);
     ctx.clip();
-    if (d.bowed) drawBowed(ctx, c.w, c.h, d.bowed.geom, fr, d.bowed.st, d.bowed.field, now);
-    else if (d.flute) drawFlute(ctx, c.w, c.h, fr, d.flute);
-    else if (d.trumpet) drawTrumpet(ctx, c.w, c.h, fr, d.trumpet);
+    // (the vector display: the same cells, each instrument as its lines; its plates traced coarser)
+    if (d.bowed) {
+      if (vector) drawBowedV(ctx, c.w, c.h, d.bowed.geom, fr, d.bowed.st, (d.bowed.vfield ??= new Contours(48, 28, 1.8, 0.6)), now);
+      else drawBowed(ctx, c.w, c.h, d.bowed.geom, fr, d.bowed.st, d.bowed.field, now);
+    } else if (d.flute) (vector ? drawFluteV : drawFlute)(ctx, c.w, c.h, fr, d.flute);
+    else if (d.trumpet) (vector ? drawTrumpetV : drawTrumpet)(ctx, c.w, c.h, fr, d.trumpet);
     else if (d.piano) {
       const st = d.piano.st;
       syncPianoState(st, p);
       // a little room either side of the keys
       const m = Math.max(10, c.w * 0.03);
-      drawPiano(ctx, c.w, c.h, { keys: keysOf(p), kind: p.voice === 'upright' ? 'upright' : 'grand', lid: 1, keyX: keysAcross(m, c.w - 2 * m) }, fr, st, d.piano.field, now);
+      const pg = { keys: keysOf(p), kind: p.voice === 'upright' ? 'upright' : 'grand', lid: 1, keyX: keysAcross(m, c.w - 2 * m) } as const;
+      if (vector) drawPianoV(ctx, c.w, c.h, pg, fr, st, (d.piano.vfield ??= new Contours(56, 28, 2.2, 3)), now);
+      else drawPiano(ctx, c.w, c.h, pg, fr, st, d.piano.field, now);
     }
     ctx.restore();
   });
