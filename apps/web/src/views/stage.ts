@@ -22,7 +22,8 @@ import { drawPiano, newPianoState, stringAt } from '../ui/piano-draw.ts';
 import { drawRoom, newRoomState, roomRect } from '../ui/room-draw.ts';
 import { createHandBow, type HandBow } from '../ui/hand-bow.ts';
 import { lidRest, lidSettle, lidStep } from '../ui/lid.ts';
-import { Contours, SCOPE_INK_V, SPECTRUM_INK_V, SPECTRUM_INK_V_PIANO, drawBowedV, drawFluteV, drawPianoV, drawRoomV, drawTrumpetV, glow, loadVectorFont, slotColor } from '../ui/vector/index.ts';
+import { Contours, SCOPE_INK_V, SPECTRUM_INK_V, SPECTRUM_INK_V_PIANO, drawBowedV, drawFluteV, drawOboeV, drawPianoV, drawRoomV, drawTrumpetV, glow, loadVectorFont, slotColor } from '../ui/vector/index.ts';
+import { drawOboe, newOboeState } from '../ui/oboe-draw.ts';
 
 const PIANO_KNOBS: KnobSpec[] = [
   { key: 'hammerHardness', label: 'Hammer hardness', short: 'hammer', sub: 'felt stiffness K in F = K·xᵖ', min: 0.25, max: 4, step: 0.01, log: true, fmt: (v) => `×${fmt(v, 2)}` },
@@ -44,6 +45,12 @@ const FLUTE_KNOBS: KnobSpec[] = [
   { key: 'noise', label: 'Breath noise', short: 'noise', sub: 'turbulence of the jet', min: 0, max: 3, step: 0.01, fmt: (v) => fmt(v, 2) },
   { key: 'vibrato', label: 'Vibrato', short: 'vibrato', sub: 'breath pressure modulation', min: 0, max: 0.2, step: 0.005, fmt: (v) => fmt(v, 3) },
 ];
+const OBOE_KNOBS: KnobSpec[] = [
+  { key: 'breath', label: 'Breath pressure', short: 'breath', sub: '× the dynamic’s blowing pressure: harder, the blades beat and the tone brightens', min: 0.6, max: 1.4, step: 0.01, fmt: (v) => `×${fmt(v, 2)}` },
+  { key: 'embouchure', label: 'Embouchure', short: 'reed', sub: 'the lips on the reed: pinched (darker, softer) … open', min: 0.6, max: 1.5, step: 0.01, fmt: (v) => `×${fmt(v, 2)}` },
+  { key: 'noise', label: 'Breath noise', short: 'noise', sub: 'turbulence in the reed’s channel', min: 0, max: 4, step: 0.01, fmt: (v) => fmt(v, 2) },
+  { key: 'vibrato', label: 'Vibrato', short: 'vibrato', sub: 'breath pressure modulation', min: 0, max: 0.12, step: 0.005, fmt: (v) => fmt(v, 3) },
+];
 const TRUMPET_KNOBS: KnobSpec[] = [
   { key: 'breath', label: 'Breath pressure', short: 'breath', sub: '× nominal blowing pressure', min: 0.4, max: 1.8, step: 0.01, fmt: (v) => `×${fmt(v, 2)}` },
   { key: 'lip', label: 'Lip tension', short: 'lips', sub: 'semitones above or below the note; far enough, the next partial speaks', min: -3, max: 3, step: 0.05, fmt: (v) => `${v > 0 ? '+' : ''}${fmt(v, 2)} st` },
@@ -56,10 +63,10 @@ const VISIBLE_PRESETS = ['grand', 'upright'];
 
 /** the order instruments take in a lineup picked by hand: score order (winds, brass, strings, piano),
  *  which is also their seats from the audience's left */
-const SCORE_ORDER: Voice[] = ['flute', 'trumpet', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
+const SCORE_ORDER: Voice[] = ['flute', 'oboe', 'trumpet', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
 /** how many of each one lineup may have (a tap on its button adds one, past this it has none; the
  *  routing grid adds more, up to the stage's cap) */
-const MOST: Record<Voice, number> = { flute: 2, trumpet: 2, violin: 3, viola: 2, cello: 2, bass: 2, grand: 2, upright: 2 };
+const MOST: Record<Voice, number> = { flute: 2, oboe: 2, trumpet: 2, violin: 3, viola: 2, cello: 2, bass: 2, grand: 2, upright: 2 };
 const familyOf = (v: Voice) => INSTRUMENT_INFO[VOICE_INFO[v].instrument].family;
 
 export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: MidiPlayer): View {
@@ -486,7 +493,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   // ---------------------------------------------------------------- knobs
   const knobsFor = (id: InstrumentId) => {
     const f = INSTRUMENT_INFO[id].family;
-    return f === 'piano' ? PIANO_KNOBS : f === 'bowed' ? BOWED_KNOBS : f === 'brass' ? TRUMPET_KNOBS : FLUTE_KNOBS;
+    return f === 'piano' ? PIANO_KNOBS : f === 'bowed' ? BOWED_KNOBS : f === 'brass' ? TRUMPET_KNOBS : f === 'reed' ? OBOE_KNOBS : FLUTE_KNOBS;
   };
   let knobEls: { c: KnobSpec; k: ReturnType<typeof knob> }[] = [];
   const currentParams = (): Record<string, number> => ({ ...(inst === 'piano' ? DEFAULT_PARAMS : {}), ...(audio.piano?.params ?? {}) }) as Record<string, number>;
@@ -541,6 +548,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   const bowedState: BowedState = { strScale: new AutoScale(2e-6), lvlScale: new AutoScale(1e-6, 0.995) };
   const fluteState = { pScale: new AutoScale(1e-6), jetScale: new AutoScale(1e-9), env: new Float32Array(0) };
   const trumpetState: { pScale: AutoScale; env: Float32Array; src?: { x: number; y: number } } = { pScale: new AutoScale(1e-6), env: new Float32Array(0) };
+  const oboeState = newOboeState();
   const roomState = newRoomState();
   const tdBuf = new Float32Array(2048);
   const fields = { piano: new ModeField(208, 100, 2.2, 3), bowed: new ModeField(150, 84, 1.8, 0.6) };
@@ -736,7 +744,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       const si = frame?.strings?.findIndex((s) => s.bowing) ?? -1;
       const name = si >= 0 ? bowedGeom.strings[si].name : (/^(\S+) string/.exec(e.meta)?.[1] ?? '');
       scopeCap.textContent = `${name} string · ${b.changing ? 'bow change' : b.dir > 0 ? 'down-bow' : 'up-bow'} · ${Math.round(100 * b.pos)} % from the frog`;
-    } else scopeCap.textContent = family() === 'wind' ? 'jet' : family() === 'brass' ? `lips · ${e.meta}` : '';
+    } else scopeCap.textContent = family() === 'wind' ? 'jet' : family() === 'brass' ? `lips · ${e.meta}` : family() === 'reed' ? `reed · ${e.meta}` : '';
   };
 
   /** how far down from the instrument area's top the file player's row lies over it (px): a narrow
@@ -787,6 +795,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       if (vec) drawBowedV(ctx, w, ih, bowedGeom, frame, bowedState, vfields!.bowed, now, false, undefined, pl);
       else drawBowed(ctx, w, ih, bowedGeom, frame, bowedState, fields.bowed, now, false, undefined, pl);
     } else if (family() === 'brass') (vec ? drawTrumpetV : drawTrumpet)(ctx, w, ih, frame, trumpetState);
+    else if (family() === 'reed') (vec ? drawOboeV : drawOboe)(ctx, w, ih, frame, oboeState);
     else (vec ? drawFluteV : drawFlute)(ctx, w, ih, frame, fluteState);
     // the room: wavefronts from the instrument, reflections, the lid's throw
     let rms = 0;
@@ -798,7 +807,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     }
     const fam = family();
     const grand = fam === 'piano' && !(audio.preset === 'upright' || audio.preset === 'honky-tonk') && !ens;
-    const src = ens ? { x: w / 2, y: ih / 2 } : fam === 'piano' ? pianoState.src : fam === 'bowed' ? { x: w * 0.62, y: ih / 2 } : fam === 'brass' ? (trumpetState.src ?? { x: w * 0.85, y: ih * 0.55 }) : { x: w * 0.5, y: ih * 0.45 };
+    const src = ens ? { x: w / 2, y: ih / 2 } : fam === 'piano' ? pianoState.src : fam === 'bowed' ? { x: w * 0.62, y: ih / 2 } : fam === 'brass' ? (trumpetState.src ?? { x: w * 0.85, y: ih * 0.55 }) : fam === 'reed' ? (oboeState.src ?? { x: w * 0.8, y: ih * 0.5 }) : { x: w * 0.5, y: ih * 0.45 };
     // (an ensemble's cells have no room drawn round them: its outline would cross the instruments)
     const rg = in3d || ens ? { x0: 0, y0: 0, x1: 0, y1: 0 } : (vec ? drawRoomV : drawRoom)(ctx, w, ih, roomState, src, roomVal(), rms, now, grand ? { open: lidVal(), dir: -Math.PI / 4 } : null);
     ctx.restore();
@@ -822,7 +831,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       const keys = audio.piano && audio.piano.instrument === 'piano' && audio.piano.keys.length ? audio.piano.keys : keysFallback;
       s3.frame(now, topH, {
         fr: frame,
-        family: fam as 'piano' | 'bowed' | 'wind' | 'brass',
+        family: fam,
         kind: grand ? 'grand' : 'upright',
         keys,
         piano: pianoState,

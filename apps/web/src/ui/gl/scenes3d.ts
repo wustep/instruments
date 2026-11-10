@@ -10,6 +10,7 @@ import { chain, rotY, translate, type Batch, type Mat4, type Mesh, type Vec3 } f
 import { buildGrandModel, buildUprightModel, newPianoPose, pianoPickSegments, pianoStrings, posePiano, type PianoModel, type PianoPose } from './piano3d.ts';
 import { buildBowedModel, poseBowed, type BowedModel } from './strings3d.ts';
 import { buildFluteModel, buildTrumpetModel, newWindPose, poseFlute, poseTrumpet, type FluteModel, type TrumpetModel, type WindPose } from './winds3d.ts';
+import { buildOboeModel, poseOboe, type OboeModel } from './oboe3d.ts';
 import { seatPlaces } from '../../orchestra/seats.ts';
 
 export { keyX3 } from './piano3d.ts';
@@ -19,7 +20,7 @@ export interface SceneIn {
   now: number;
   /** seconds since the last frame */
   dt: number;
-  family: 'piano' | 'bowed' | 'wind' | 'brass';
+  family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass';
   kind: 'grand' | 'upright';
   keys: KeySummary[];
   piano: PianoState;
@@ -44,7 +45,7 @@ export interface SceneIn {
 
 /** one instrument of an ensemble on the 3D stage */
 export interface EnsPartIn {
-  family: 'piano' | 'bowed' | 'wind' | 'brass';
+  family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass';
   kind: 'grand' | 'upright';
   fr: VisualFrame | null;
   keys: KeySummary[];
@@ -76,6 +77,7 @@ export interface Scene3State {
   bowedM: Map<string, BowedModel>;
   flute: FluteModel | null;
   trumpet: TrumpetModel | null;
+  oboe: OboeModel | null;
   floors: Map<string, Mesh>;
   pianoPose: PianoPose;
   windPose: WindPose;
@@ -106,6 +108,7 @@ export const newScene3State = (): Scene3State => ({
   bowedM: new Map(),
   flute: null,
   trumpet: null,
+  oboe: null,
   floors: new Map(),
   pianoPose: newPianoPose(),
   windPose: newWindPose(),
@@ -222,6 +225,13 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): void {
     floor(b, st, 'trumpet', st.trumpet.bounds.c, st.trumpet.bounds.r, si);
     return;
   }
+  if (si.family === 'reed') {
+    if (!st.oboe) st.oboe = timed(st, () => buildOboeModel());
+    poseOboe(b, st.oboe, si.fr, st.windPose, si.dt, si.now, si.rms);
+    b.bounds = st.oboe.bounds;
+    floor(b, st, 'oboe', st.oboe.bounds.c, st.oboe.bounds.r, si);
+    return;
+  }
   if (!st.flute) st.flute = timed(st, () => buildFluteModel());
   poseFlute(b, st.flute, si.fr, st.windPose, si.dt, si.now);
   b.bounds = st.flute.bounds;
@@ -253,6 +263,10 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
     return { target: [c[0], c[1] - 0.025, c[2]], dist: id === 'viola' ? 0.95 : 0.86, yaw: -0.5, pitch: 0.42 };
   }
   if (si.family === 'brass') return { target: [0.0, 0.2, 0.0], dist: 0.6, yaw: 0.4, pitch: 0.28 };
+  if (si.family === 'reed') {
+    const c = st.oboe ? st.oboe.bounds.c : ([0, 0.17, 0] as Vec3);
+    return { target: c, dist: 0.68, yaw: 0.24, pitch: 0.5 };
+  }
   return { target: [0.0, 0.17, 0.0], dist: 0.68, yaw: 0.24, pitch: 0.5 };
 }
 
@@ -339,6 +353,9 @@ function buildEnsemble(b: Batch, si: SceneIn, parts: EnsPartIn[], st: Scene3Stat
     } else if (p.family === 'brass') {
       if (!st.trumpet) st.trumpet = timed(st, () => buildTrumpetModel());
       poseTrumpet(b, st.trumpet, p.fr, e.windPose, si.dt, si.now, si.rms);
+    } else if (p.family === 'reed') {
+      if (!st.oboe) st.oboe = timed(st, () => buildOboeModel());
+      poseOboe(b, st.oboe, p.fr, e.windPose, si.dt, si.now, si.rms);
     } else {
       if (!st.flute) st.flute = timed(st, () => buildFluteModel());
       poseFlute(b, st.flute, p.fr, e.windPose, si.dt, si.now);

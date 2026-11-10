@@ -13,3 +13,4 @@ export * from './factory.ts';
 export { BowedCore, BOWED, CC_HAND_BOW_OFF, CC_HAND_BOW_POS, CC_HAND_BOW_SPEED, type BowedParams } from './bowed.ts';
 export { FluteCore, fluteFingering, type FluteParams } from './flute.ts';
 export { TrumpetCore, trumpetFingering, type TrumpetParams } from './brass.ts';
+export { OboeCore, OBOE_VOICE, oboeRegister, type OboeParams, type OboeVoice } from './oboe.ts';

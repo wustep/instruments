@@ -78,7 +78,7 @@ export function noiseFloorDb(x: ArrayLike<number>, fs: number): number {
  * max(floor + 12 dB, peak − 40 dB), gaps < 120 ms merged, segments ≥ 0.35 s kept.
  * Starts are moved back to where the envelope first rises 6 dB above the floor.
  */
-export function segmentNotes(x: ArrayLike<number>, fs: number, opts: { minSec?: number; rangeDb?: number } = {}): Segment[] {
+export function segmentNotes(x: ArrayLike<number>, fs: number, opts: { minSec?: number; rangeDb?: number; /** gaps shorter than this many 10 ms frames are bridged (default 12) */ merge?: number } = {}): Segment[] {
   const hop = Math.round(0.01 * fs);
   const env = envelopeDb(x, fs, 0.01);
   let peak = -200;
@@ -98,7 +98,7 @@ export function segmentNotes(x: ArrayLike<number>, fs: number, opts: { minSec?: 
   const merged: [number, number][] = [];
   for (const g of segs) {
     const last = merged[merged.length - 1];
-    if (last && g[0] - last[1] < 12) last[1] = g[1];
+    if (last && g[0] - last[1] < (opts.merge ?? 12)) last[1] = g[1];
     else merged.push([g[0], g[1]]);
   }
   const minFrames = Math.round((opts.minSec ?? 0.35) / 0.01);

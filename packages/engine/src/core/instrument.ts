@@ -3,19 +3,23 @@
 
 import type { KeySummary } from '../api/messages.ts';
 
-export type InstrumentId = 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet';
-export const INSTRUMENT_IDS: InstrumentId[] = ['piano', 'violin', 'viola', 'cello', 'bass', 'flute', 'trumpet'];
+export type InstrumentId = 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'trumpet';
+export const INSTRUMENT_IDS: InstrumentId[] = ['piano', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'trumpet'];
 /** the bowed strings (bowed.ts), high to low */
 export type BowedId = 'violin' | 'viola' | 'cello' | 'bass';
 export const isBowed = (id: string): id is BowedId => id === 'violin' || id === 'viola' || id === 'cello' || id === 'bass';
 
-export const INSTRUMENT_INFO: Record<InstrumentId, { label: string; family: 'piano' | 'bowed' | 'wind' | 'brass'; lo: number; hi: number; blurb: string }> = {
+/** the instrument families: the piano, the bowed strings, the flute (an air jet), the reeds (the oboe: a
+ *  double reed on a conical bore) and the brass */
+export type Family = 'piano' | 'bowed' | 'wind' | 'reed' | 'brass';
+export const INSTRUMENT_INFO: Record<InstrumentId, { label: string; family: Family; lo: number; hi: number; blurb: string }> = {
   piano: { label: 'Piano', family: 'piano', lo: 21, hi: 108, blurb: 'Felt hammers, 2–3 stiff strings per note, a shared soundboard.' },
   violin: { label: 'Violin', family: 'bowed', lo: 55, hi: 100, blurb: 'Four strings G3–E5, bowed with stick–slip friction, on a resonant body.' },
   viola: { label: 'Viola', family: 'bowed', lo: 48, hi: 88, blurb: 'Four strings C3–A4: longer, heavier, a darker and larger body.' },
   cello: { label: 'Cello', family: 'bowed', lo: 36, hi: 81, blurb: 'Four strings C2–A3 on a big body with low air and wood resonances.' },
   bass: { label: 'Double bass', family: 'bowed', lo: 28, hi: 67, blurb: 'Four strings tuned in fourths, E1–G2, on the largest body: sloped shoulders, a flat back.' },
   flute: { label: 'Flute', family: 'wind', lo: 60, hi: 96, blurb: 'An air jet driving a resonant tube; harder blowing jumps registers.' },
+  oboe: { label: 'Oboe', family: 'reed', lo: 58, hi: 93, blurb: 'A double reed blown closed, on a conical bore: every harmonic, overblown at the octave.' },
   trumpet: { label: 'Trumpet', family: 'brass', lo: 52, hi: 86, blurb: 'Buzzing lips driving a bore; the valves lengthen it, the lips pick its partial.' },
 };
 

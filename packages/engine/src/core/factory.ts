@@ -2,12 +2,13 @@
 
 import { BowedCore, type BowedParams } from './bowed.ts';
 import { FluteCore, type FluteParams } from './flute.ts';
+import { OboeCore, type OboeParams } from './oboe.ts';
 import { TrumpetCore, type TrumpetParams } from './brass.ts';
 import { type InstrumentCore, type InstrumentId } from './instrument.ts';
 import { PianoCore, type CoreOptions } from './piano-core.ts';
 import type { PianoParams } from './design.ts';
 
-export type AnyParams = Partial<PianoParams> | Partial<BowedParams> | Partial<FluteParams> | Partial<TrumpetParams>;
+export type AnyParams = Partial<PianoParams> | Partial<BowedParams> | Partial<FluteParams> | Partial<OboeParams> | Partial<TrumpetParams>;
 
 export interface InstrumentOptions {
   sampleRate: number;
@@ -33,6 +34,8 @@ export function createCore(opts: InstrumentOptions): InstrumentCore & { process:
       return new BowedCore({ sampleRate: opts.sampleRate, instrument: id, params: opts.params as Partial<BowedParams>, dry: opts.dry, player: opts.player });
     case 'flute':
       return new FluteCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<FluteParams>, dry: opts.dry, player: opts.player });
+    case 'oboe':
+      return new OboeCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<OboeParams>, dry: opts.dry, player: opts.player });
     case 'trumpet':
       return new TrumpetCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<TrumpetParams>, dry: opts.dry, player: opts.player });
     default:
