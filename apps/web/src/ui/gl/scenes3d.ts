@@ -27,9 +27,8 @@ export interface SceneIn {
   lid: number;
   room: number;
   rms: number;
-  /** which keys are held / really sounding (for the piano's keys) */
+  /** which keys are held (the piano's keys dip) */
   down: (m: number) => boolean;
-  sounding: (m: number) => boolean;
   /** lighter scenes for slow devices */
   lite: boolean;
   /** pianos: the case hidden (the plate, strings, soundboard, keys and action stay) */
@@ -52,7 +51,6 @@ export interface EnsPartIn {
   piano: PianoState;
   bowed: BowedGeom | null;
   down: (m: number) => boolean;
-  sounding: (m: number) => boolean;
 }
 
 /** where the camera looks and from how far, per instrument */
@@ -170,7 +168,7 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): void {
     const pm = pianoModel(si, st);
     if (!pm) return;
     const cut = si.cut ?? null;
-    posePiano(b, pm, { piano: si.piano, keys: si.keys, dt: si.dt, lid: si.lid, down: si.down, sounding: si.sounding, lite: si.lite, caseHidden: si.caseHidden, zoomKey: si.zoomKey, cut }, st.pianoPose);
+    posePiano(b, pm, { piano: si.piano, keys: si.keys, dt: si.dt, lid: si.lid, down: si.down, lite: si.lite, caseHidden: si.caseHidden, zoomKey: si.zoomKey, cut }, st.pianoPose);
     pianoStrings(b, pm, si.fr, (mx) => st.str.of(mx), si.lite, cut);
     b.clip = cut;
     st.picks = pianoPickSegments(pm);
@@ -291,7 +289,7 @@ function buildEnsemble(b: Batch, si: SceneIn, parts: EnsPartIn[], st: Scene3Stat
       const pm = pianoModel({ ...si, kind: p.kind, keys: p.keys }, st);
       if (pm) {
         const m0 = b.mirrors.length;
-        posePiano(b, pm, { piano: p.piano, keys: p.keys, dt: si.dt, lid: 1, down: p.down, sounding: p.sounding, lite: si.lite, caseHidden: false, zoomKey: null, cut: null }, e.pianoPose);
+        posePiano(b, pm, { piano: p.piano, keys: p.keys, dt: si.dt, lid: 1, down: p.down, lite: si.lite, caseHidden: false, zoomKey: null, cut: null }, e.pianoPose);
         pianoStrings(b, pm, p.fr, (mx) => e.str.of(mx), si.lite, null);
         // the lid's mirror is in the piano's own frame: placed on its seat
         for (let j = m0; j < b.mirrors.length; j++) b.mirrors[j] = { ...b.mirrors[j], m: chain(seat.T, b.mirrors[j].m) };

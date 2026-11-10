@@ -36,9 +36,8 @@
 import type { KeySummary, VisualFrame } from '@piano-model/engine';
 import { ShapeUtils, Vector2 } from 'three';
 import { stepAction, type PianoState, type Pt } from '../piano-draw.ts';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, dissolve, ink, lerp3, norm, xform } from './gl3d.ts';
-import { M, MeshBuilder, area, cyl, ellipsoid, lathe, offset, spline, tube, type Mat } from './mesh.ts';
-import { INK } from '../stage-draw.ts';
+import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, dissolve, lerp3, norm, xform } from './gl3d.ts';
+import { M, MeshBuilder, area, cyl, ellipsoid, fanCap, lathe, offset, spline, tube, type Mat } from './mesh.ts';
 
 // ---------------------------------------------------------------- keyboard
 export const WHITE = 0.0235;
@@ -462,6 +461,9 @@ function keyTop(m: number): Mesh {
     }
     const faces = tri2([top]);
     for (const [a, b, c] of faces) mb.stri([top[a][0], y1 + 0.001, top[a][1]], [top[b][0], y1 + 0.001, top[b][1]], [top[c][0], y1 + 0.001, top[c][1]], [0, 1, 0], [0, 1, 0], [0, 1, 0], M.ebony);
+    // its underside, ebony too: a sharp is a solid block glued on the key stick, and it overhangs the
+    // stick (13.7 mm over 10.4); open, the shell showed its inside from below and in a section
+    fanCap(mb, lo, y0, M.ebony, false);
   }
   mesh = mb.build();
   keyTops.set(id, mesh);
@@ -589,6 +591,12 @@ interface Wire {
   col: RGBA;
   d: number;
   odd: boolean;
+  /** its key (index from A0) and string run: a sounding string's speaking length takes its live shape */
+  i: number;
+  run: StringRun;
+  /** a copper winding: the part of the speaking length it covers (fractions from the agraffe); null:
+   *  the whole string, tuning pin to hitch pin */
+  wind: [number, number] | null;
 }
 export interface PianoModel {
   kind: 'grand' | 'upright';
@@ -638,21 +646,18 @@ function wiresOf(geo: KeyGeo[]): Wire[] {
     for (const r of g.strings) {
       if (!g.wound) {
         const d = 0.00082 + 0.00036 * clamp((108 - g.midi) / 62, 0, 1);
-        out.push({ pts: [r.pin, r.a, r.b, r.hitch], col: STEEL, d, odd });
+        out.push({ pts: [r.pin, r.a, r.b, r.hitch], col: STEEL, d, odd, i: g.i, run: r, wind: null });
       } else {
         const d = 0.0018 + 0.0032 * clamp((45 - g.midi) / 24, 0, 1);
-        out.push({ pts: [r.pin, r.a, r.b, r.hitch], col: CORE, d: 0.0013, odd });
+        out.push({ pts: [r.pin, r.a, r.b, r.hitch], col: CORE, d: 0.0013, odd, i: g.i, run: r, wind: null });
         const L = Math.hypot(r.b[0] - r.a[0], r.b[1] - r.a[1], r.b[2] - r.a[2]);
         const e = Math.min(0.03, L * 0.04) / L;
-        out.push({ pts: [lerp3(r.a, r.b, e), lerp3(r.a, r.b, 1 - e)], col: COPPER, d, odd });
+        out.push({ pts: [lerp3(r.a, r.b, e), lerp3(r.a, r.b, 1 - e)], col: COPPER, d, odd, i: g.i, run: r, wind: [e, 1 - e] });
       }
     }
   }
   return out;
 }
-
-/** the lit glow for a sounding key */
-const VERM: RGBA = [1, 0.37, 0.22, 0.32];
 
 // ================================================================ grand
 const G = {
@@ -1724,7 +1729,6 @@ export interface PianoIn {
   dt: number;
   lid: number;
   down: (m: number) => boolean;
-  sounding: (m: number) => boolean;
   lite: boolean;
   /** the case hidden (3D toggle): it dissolves over ≈ 0.35 s */
   caseHidden?: boolean;
@@ -1752,11 +1756,6 @@ export function zoomFrame(kind: 'grand' | 'upright', midi: number): { target: Ve
     ? { target: [x, 0.91, 0.31], side, cut, edge, w: 0.46, h: 0.37, lo: [x - half, 0.69, -0.005], hi: [x + half, 1.06, 0.49] }
     : { target: [x, 0.81, 0.3], side, cut, edge, w: 0.56, h: 0.26, lo: [x - half, 0.69, -0.005], hi: [x + half, 0.935, 0.53] };
 }
-
-const C = {
-  verm: (a: number) => ink(INK.vermilion, a),
-  amber: (a: number) => ink(INK.amber, a),
-};
 
 function ptsOf(keys: KeySummary[]): Pt[] {
   return keys.map((k) => ({ midi: k.midi, i: k.midi - 21, x: actX(k.midi), w: PITCH, L: k.lengthM, k, wound: isWound(k) }));
@@ -1802,12 +1801,11 @@ function aboutX(o: Mat4, py: number, pz: number, a: number): Mat4 {
   return trs(o, 0, py - (c * py - s * pz), pz - (s * py + c * pz), a);
 }
 
-const GLOW_HELD: RGBA = [0.95, 0.65, 0.27, 0.12];
-const GLOW_JACK: RGBA = [1, 0.37, 0.22, 0.25];
-const GLOW_DAMP: RGBA = [0.95, 0.65, 0.27, 0.18];
-const headGlow: RGBA = [1, 0.37, 0.22, 0];
-
 const FADE: RGBA = [0, 0, 0, 3];
+/** pose the piano for this frame. A played key, its action and its pedal are shown in their own
+ *  materials and by their motion alone (the key dips, the hammer flies and checks, the damper lifts):
+ *  no part is tinted for being played in 3D (the 2D views and the keyboard strip keep their
+ *  highlights). The only glow left is the case's dissolve. */
 export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose): void {
   const ps = si.piano;
   stepAction(ptsOf(si.keys), ps);
@@ -1846,18 +1844,16 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
     const held = si.down(g.midi);
     pose.keyPos[i] = ease(pose.keyPos[i], held ? 1 : 0, si.dt, held ? 0.018 : 0.04);
     const kp = pose.keyPos[i];
-    const sounding = si.sounding(g.midi);
     const hr = ps.hammer[i]; // 0 rest … 1 at the string (the stage's action state, from the engine's strikes)
-    const glow = sounding ? VERM : held ? GLOW_HELD : null;
     // the key rocks on its balance pin (front down)
     const kA = (kp * A.dip) / A.balZ;
     const R = aboutX(MS[0], A.pivY, A.balZ, -kA);
-    b.mesh(g.key, mul4(MS[1], R, trs(MS[2], g.xc + sh, 0, 0, 0)), glow);
+    b.mesh(g.key, mul4(MS[1], R, trs(MS[2], g.xc + sh, 0, 0, 0)));
     if (sh) {
       MS[9].set(g.shear);
       MS[9][12] += sh;
     }
-    b.mesh(P.stick, mul4(MS[1], R, sh ? MS[9] : g.shear), glow);
+    b.mesh(P.stick, mul4(MS[1], R, sh ? MS[9] : g.shear));
     // the linked rig: the capstan lifts the wippen; the wippen lifts the jack; the jack drives the
     // hammer through its knuckle (grand) or butt (upright) until let-off, where it trips and the
     // hammer flies free on the stage's action state (strike, rebound, check)
@@ -1879,39 +1875,37 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
     const near = si.zoomKey != null && Math.abs(g.midi - si.zoomKey) <= 10;
     if (si.lite && !near && g.midi % 2 && !held && hr < 0.05 && kp < 0.02) continue;
     const x = g.strike[0] + sh;
-    headGlow[3] = 0.6 * hr;
-    const jg = hr > 0.05 && pose.jack[i] < 0.5 ? GLOW_JACK : null;
     if (grand) {
       const W = trs(MS[3], x, G.wipY, G.wipZ, wA);
       b.mesh(P.wippen, W);
       // (tripped, the let-off button holds the jack's toe down and its top escapes towards the keys,
       // out from under the knuckle: a negative turn here)
-      b.mesh(P.jack, mul4(MS[5], W, trs(MS[4], 0, 0.004, G.jackZ - G.wipZ, -0.28 * pose.jack[i])), jg);
+      b.mesh(P.jack, mul4(MS[5], W, trs(MS[4], 0, 0.004, G.jackZ - G.wipZ, -0.28 * pose.jack[i])));
       // the repetition lever rides the wippen and, once the jack has tripped, holds the knuckle up
       b.mesh(P.rep, mul4(MS[5], W, trs(MS[4], 0, 0.028, -0.045, -0.06 * pose.jack[i] * Math.min(1, kp * 2))));
       const sA = Math.atan2(travel, G.shankLen);
       const S = trs(MS[6], x, G.hamY, G.hamZ, -sA);
       b.mesh(P.shank, S);
-      b.mesh(P.head, mul4(MS[8], S, trs(MS[7], 0, 0, G.shankLen, 0, 1, g.hy, g.hs)), hr > 0.6 ? headGlow : null);
+      b.mesh(P.head, mul4(MS[8], S, trs(MS[7], 0, 0, G.shankLen, 0, 1, g.hy, g.hs)));
       // damper: the underlever lifted by the key's tail (or the pedal's rail), the head off the strings
       if (g.damper) {
         const lift = ps.damper[i] * 0.0095;
         b.mesh(P.under, trs(MS[3], g.damper[0], G.ulY, G.ulPivotZ, lift / (G.ulPivotZ - G.damperZ)));
-        b.mesh(g.wound ? P.damperB : P.damperT, trs(MS[3], g.damper[0], g.damper[1] + 0.0012 + lift, g.damper[2], 0), ps.damper[i] > 0.3 ? GLOW_DAMP : null);
+        b.mesh(g.wound ? P.damperB : P.damperT, trs(MS[3], g.damper[0], g.damper[1] + 0.0012 + lift, g.damper[2], 0));
       }
     } else {
       const W = trs(MS[3], x, U.wipY, U.wipZ, wA);
       b.mesh(P.wippen, W);
-      b.mesh(P.jack, mul4(MS[5], W, trs(MS[4], 0, 0.006, U.jackZ - U.wipZ, -0.22 * pose.jack[i])), jg);
+      b.mesh(P.jack, mul4(MS[5], W, trs(MS[4], 0, 0.006, U.jackZ - U.wipZ, -0.22 * pose.jack[i])));
       // the soft pedal brings the hammers' rest position nearer the strings (the rail moves)
       const rest = pose.pedal[0] * 0.09;
       const hA = Math.max(rest, Math.asin(Math.min(0.95, travel / U.shank)));
       const S = trs(MS[6], x, U.buttY, U.buttZ, hA);
       b.mesh(P.shank, S);
-      b.mesh(P.head, mul4(MS[8], S, trs(MS[7], 0, U.shank, 0, 0, 1, g.hs, g.hy)), hr > 0.6 ? headGlow : null);
+      b.mesh(P.head, mul4(MS[8], S, trs(MS[7], 0, U.shank, 0, 0, 1, g.hs, g.hy)));
       if (g.damper) {
         const off = ps.damper[i];
-        b.mesh(P.damper, trs(MS[3], g.damper[0], U.dampY, U.dampZ + g.strike[2] - U.strZ, -off * 0.05), off > 0.3 ? GLOW_DAMP : null);
+        b.mesh(P.damper, trs(MS[3], g.damper[0], U.dampY, U.dampZ + g.strike[2] - U.strZ, -off * 0.05));
       }
     }
   }
@@ -1920,7 +1914,7 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
   pm.pedals.forEach((p, k) => {
     const v = k === 0 ? pose.pedal[0] : k === pm.pedals.length - 1 ? pose.pedal[1] : pose.pedal[2];
     if (pm.pedalsCase && cv <= 0) return;
-    b.mesh(p.mesh, aboutX(MS[3], p.pivot[1], p.pivot[2], -0.12 * v), pm.pedalsCase && caseGlow ? caseGlow : v > 0.3 ? PEDAL_GLOW : null);
+    b.mesh(p.mesh, aboutX(MS[3], p.pivot[1], p.pivot[2], -0.12 * v), pm.pedalsCase ? caseGlow : null);
   });
   // the lid on its hinge, and its prop
   if (pm.lid && (cv > 0 || b.wantFit)) {
@@ -1946,7 +1940,6 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
 }
 
 const propCache = new Map<string, Mesh>();
-const PEDAL_GLOW: RGBA = [0.95, 0.65, 0.27, 0.15];
 function propStick(b: Batch, a: Vec3, c: Vec3, glow: RGBA | null): void {
   const key = `${a.map((v) => v.toFixed(3))}${c.map((v) => v.toFixed(3))}`;
   let m = propCache.get(key);
@@ -1966,56 +1959,83 @@ function propStick(b: Batch, a: Vec3, c: Vec3, glow: RGBA | null): void {
   b.mesh(m, null, glow);
 }
 
-/** the strings: wires of their real diameters (steel, copper-wound in the bass), the sounding ones
- *  glowing over them, and every sounding string's live shape (the engine's) along its speaking length */
+/** the largest excursion drawn for a vibrating string (m): the loudest string's live shape, scaled to
+ *  this (exaggerated, as no eye sees a string's real 0.1–1 mm, but a wire's own few diameters: it reads
+ *  as the wire moving, not as a line drawn beside it) */
+const STRING_SWING = 0.004;
+/** per key, this frame: the index of its live shape in the visual frame (−1: none) */
+const shapeOf = new Int32Array(88);
+/** the strings: wires of their real diameters (steel, copper-wound in the bass). A sounding string (or,
+ *  with the dampers off, a sympathetic one) is the same wire in its live shape (the engine's) along its
+ *  speaking length: in 3D a played string moves, it does not light up (no vermilion or amber over it) */
 export function pianoStrings(b: Batch, pm: PianoModel, fr: VisualFrame | null, sc: (mx: number) => number, lite: boolean, cut: { at: number; side: 1 | -1 } | null = null): void {
   // the strings are drawn over the picture (not clipped): past a section's cut, none
   const past = (x: number) => !!cut && cut.side * (x - cut.at) > 0;
-  const lv = fr?.levels;
   const sym = fr?.symLevels;
-  let lvMax = 0;
-  if (lv) for (let i = 0; i < lv.length; i++) lvMax = Math.max(lvMax, lv[i]);
   const grand = pm.kind === 'grand';
+  shapeOf.fill(-1);
+  const shapes = fr?.pianoShapes;
+  let k = 0;
+  if (shapes && shapes.midi.length) {
+    let mx = 0;
+    for (let i = 0; i < shapes.shapes.length; i++) mx = Math.max(mx, Math.abs(shapes.shapes[i]));
+    k = STRING_SWING / sc(mx);
+    for (let j = 0; j < shapes.midi.length; j++) {
+      const i = shapes.midi[j] - 21;
+      if (i < 0 || i >= 88) continue;
+      // (a sympathetic string barely stirring stays straight)
+      if (shapes.light[j] === 1 && (sym?.[i] ?? 0) < 0.03) continue;
+      shapeOf[i] = j;
+    }
+  }
   for (const w of pm.wires) {
     // (the speaking length's middle decides: [pin, agraffe, bridge, hitch] or a winding's two ends)
     const n = w.pts.length;
     const x = n === 4 ? (w.pts[1][0] + w.pts[2][0]) / 2 : (w.pts[0][0] + w.pts[n - 1][0]) / 2;
-    if (!(lite && w.odd) && !past(x)) b.wire(w.pts, w.col, w.d);
-  }
-  for (const g of pm.keys) {
-    if (past(g.strike[0])) continue;
-    const l = lv && lvMax > 0 ? Math.sqrt(lv[g.i] / lvMax) : 0;
-    const s = sym ? Math.min(1, sym[g.i]) : 0;
-    if (l <= 0.03 && s <= 0.03) continue;
-    for (const r of g.strings) {
-      if (l > 0.03) b.line([r.a, r.b], C.verm(0.12 + 0.5 * l), 1.4);
-      else b.line([r.a, r.b], C.amber(0.06 + 0.35 * s), 1.2);
+    if (past(x)) continue;
+    const j = shapeOf[w.i];
+    // the light scene leaves out every other string, but never one that is moving
+    if (j < 0) {
+      if (!(lite && w.odd)) b.wire(w.pts, w.col, w.d);
+      continue;
     }
+    b.wire(shapedWire(w, shapes!.shapes, j * shapes!.points, shapes!.points, k, grand), w.col, w.d);
   }
-  const shapes = fr?.pianoShapes;
-  if (shapes && shapes.midi.length) {
-    let mx = 0;
-    for (let i = 0; i < shapes.shapes.length; i++) mx = Math.max(mx, Math.abs(shapes.shapes[i]));
-    const scl = sc(mx);
-    const P = shapes.points;
-    for (let j = 0; j < shapes.midi.length; j++) {
-      const g = pm.keys[shapes.midi[j] - 21];
-      if (!g || past(g.strike[0])) continue;
-      const symS = shapes.light[j] === 1;
-      const rel = symS ? (sym?.[g.i] ?? 0) : 1;
-      if (symS && rel < 0.03) continue;
-      const r = g.strings[Math.floor(g.strings.length / 2)];
-      const line: Vec3[] = [];
-      for (let i = 0; i < P; i++) {
-        const q = lerp3(r.a, r.b, i / (P - 1));
-        const d = (shapes.shapes[j * P + i] / scl) * 0.012;
-        if (grand) q[1] += d;
-        else q[2] -= d;
-        line.push(q);
-      }
-      b.line(line, symS ? C.amber(Math.min(0.55, 0.1 + 0.6 * rel)) : C.verm(0.95), symS ? 1.2 : 2.2);
-    }
+}
+/** a shaped wire's points, reused from frame to frame (the batch copies them as they are added) */
+const wirePool: Vec3[] = [];
+const wirePts: Vec3[] = [];
+/** a wire with its speaking length in a live shape: `S[o … o+P)` along agraffe → bridge, `k` metres per
+ *  unit; displaced across the soundboard (a grand's strings up, an upright's towards the keys) */
+function shapedWire(w: Wire, S: Float32Array, o: number, P: number, k: number, grand: boolean): Vec3[] {
+  const r = w.run;
+  let n = 0;
+  const put = (x: number, y: number, z: number) => {
+    const q = wirePool[n] ?? (wirePool[n] = [0, 0, 0]);
+    q[0] = x;
+    q[1] = y;
+    q[2] = z;
+    wirePts[n++] = q;
+  };
+  const at = (t: number) => {
+    const u = t * (P - 1);
+    const i0 = Math.min(P - 2, Math.max(0, Math.floor(u)));
+    const f = u - i0;
+    const d = (S[o + i0] * (1 - f) + S[o + i0 + 1] * f) * k;
+    put(r.a[0] + (r.b[0] - r.a[0]) * t, r.a[1] + (r.b[1] - r.a[1]) * t + (grand ? d : 0), r.a[2] + (r.b[2] - r.a[2]) * t - (grand ? 0 : d));
+  };
+  const t0 = w.wind ? w.wind[0] : 0;
+  const t1 = w.wind ? w.wind[1] : 1;
+  if (!w.wind) put(r.pin[0], r.pin[1], r.pin[2]);
+  at(t0);
+  for (let i = 1; i < P - 1; i++) {
+    const t = i / (P - 1);
+    if (t > t0 && t < t1) at(t);
   }
+  at(t1);
+  if (!w.wind) put(r.hitch[0], r.hitch[1], r.hitch[2]);
+  wirePts.length = n;
+  return wirePts;
 }
 
 /** for clicking a key: each key's speaking length in world space (first, one per key), then its
