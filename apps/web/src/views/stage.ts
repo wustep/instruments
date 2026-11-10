@@ -628,7 +628,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       if (d?.piano) syncPianoState(st, p);
       return {
         family: familyOf(p.voice),
-        reed: p.voice === 'clarinet' ? 'clarinet' : 'oboe',
+        reed: p.voice === 'clarinet' || p.voice === 'bassoon' ? p.voice : 'oboe',
         kind: p.voice === 'upright' ? 'upright' : 'grand',
         fr: p.frame,
         keys: isKeyboard(p.voice) ? ensemble.keysOf(p) : [],
@@ -873,7 +873,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       s3.frame(now, topH, {
         fr: frame,
         family: fam,
-        reed: inst === 'clarinet' ? 'clarinet' : 'oboe',
+        reed: inst === 'clarinet' || inst === 'bassoon' ? inst : 'oboe',
         kind: grand ? 'grand' : 'upright',
         keys,
         piano: pianoState,

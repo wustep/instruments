@@ -6,12 +6,13 @@
 import type { KeySummary, VisualFrame } from '@piano-model/engine';
 import { AutoScale, type BowedGeom } from '../stage-draw.ts';
 import type { PianoState } from '../piano-draw.ts';
-import { chain, rotY, translate, type Batch, type Mat4, type Mesh, type Vec3 } from './gl3d.ts';
+import { chain, rotY, rotZ, translate, type Batch, type Mat4, type Mesh, type Vec3 } from './gl3d.ts';
 import { buildGrandModel, buildUprightModel, newPianoPose, pianoPickSegments, pianoStrings, posePiano, type PianoModel, type PianoPose } from './piano3d.ts';
 import { buildBowedModel, poseBowed, type BowedModel } from './strings3d.ts';
 import { buildFluteModel, buildTrumpetModel, newWindPose, poseFlute, poseTrumpet, type FluteModel, type TrumpetModel, type WindPose } from './winds3d.ts';
 import { buildOboeModel, poseOboe, type OboeModel } from './oboe3d.ts';
 import { buildClarinetModel, poseClarinet, type ClarinetModel } from './clarinet3d.ts';
+import { BASSOON_SEAT, BASSOON_VIEW, BASSOON_WIDE, buildBassoonModel, poseBassoon, type BassoonModel } from './bassoon3d.ts';
 import { seatPlaces } from '../../orchestra/seats.ts';
 
 export { keyX3 } from './piano3d.ts';
@@ -23,7 +24,7 @@ export interface SceneIn {
   dt: number;
   family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass';
   /** the reed family's instrument (default the oboe) */
-  reed?: 'oboe' | 'clarinet';
+  reed?: 'oboe' | 'clarinet' | 'bassoon';
   kind: 'grand' | 'upright';
   keys: KeySummary[];
   piano: PianoState;
@@ -50,7 +51,7 @@ export interface SceneIn {
 export interface EnsPartIn {
   family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass';
   /** the reed family's instrument (default the oboe) */
-  reed?: 'oboe' | 'clarinet';
+  reed?: 'oboe' | 'clarinet' | 'bassoon';
   kind: 'grand' | 'upright';
   fr: VisualFrame | null;
   keys: KeySummary[];
@@ -84,6 +85,7 @@ export interface Scene3State {
   trumpet: TrumpetModel | null;
   oboe: OboeModel | null;
   clarinet: ClarinetModel | null;
+  bassoon: BassoonModel | null;
   floors: Map<string, Mesh>;
   pianoPose: PianoPose;
   windPose: WindPose;
@@ -116,6 +118,7 @@ export const newScene3State = (): Scene3State => ({
   trumpet: null,
   oboe: null,
   clarinet: null,
+  bassoon: null,
   floors: new Map(),
   pianoPose: newPianoPose(),
   windPose: newWindPose(),
@@ -239,6 +242,15 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): void {
     floor(b, st, 'clarinet', st.clarinet.bounds.c, st.clarinet.bounds.r, si);
     return;
   }
+  if (si.family === 'reed' && si.reed === 'bassoon') {
+    if (!st.bassoon) st.bassoon = timed(st, () => buildBassoonModel());
+    // (upright on a tall stage, leaned across as it is played on a wide one)
+    const wide = (si.aspect ?? 2) >= BASSOON_WIDE;
+    poseBassoon(b, st.bassoon, si.fr, st.windPose, si.dt, si.now, si.rms, wide ? st.bassoon.Tw : st.bassoon.T);
+    b.bounds = wide ? st.bassoon.boundsW : st.bassoon.bounds;
+    floor(b, st, 'bassoon', b.bounds.c, b.bounds.r, si);
+    return;
+  }
   if (si.family === 'reed') {
     if (!st.oboe) st.oboe = timed(st, () => buildOboeModel());
     poseOboe(b, st.oboe, si.fr, st.windPose, si.dt, si.now, si.rms);
@@ -284,6 +296,15 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
     const c = st.clarinet ? st.clarinet.bounds.c : ([0, 0.3, 0] as Vec3);
     return { target: [c[0], c[1], c[2]], dist: 0.82, yaw: 0.22, pitch: 0.16, whole: true };
   }
+  // the bassoon: standing, from the audience's side a little round towards its long joint's outside
+  // and a little above: the wing's finger holes and the long joint's thumb keys at its edge, the bocal
+  // arcing away (bassoon3d.ts sets its own pose)
+  if (si.family === 'reed' && si.reed === 'bassoon') {
+    const wide = (si.aspect ?? 2) >= BASSOON_WIDE;
+    const bd = st.bassoon ? (wide ? st.bassoon.boundsW : st.bassoon.bounds) : null;
+    const c = bd ? bd.c : ([0, 0.67, 0] as Vec3);
+    return { target: [c[0], c[1], c[2]], dist: 2.2, yaw: wide ? BASSOON_VIEW.wide : BASSOON_VIEW.tall, pitch: 0.12, whole: true };
+  }
   if (si.family === 'reed') {
     const c = st.oboe ? st.oboe.bounds.c : ([0, 0.3, 0] as Vec3);
     return { target: [c[0], c[1], c[2]], dist: 0.78, yaw: 0.22, pitch: 0.16, whole: true };
@@ -307,7 +328,7 @@ export interface Seat {
 }
 /** a held instrument's lift above its single-instrument pose (m) */
 const HELD = 0.42;
-type SeatIn = Pick<EnsPartIn, 'family' | 'kind' | 'bowed'>;
+type SeatIn = Pick<EnsPartIn, 'family' | 'kind' | 'bowed'> & { reed?: EnsPartIn['reed'] };
 export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
   const places = seatPlaces(
     parts.map((p) => ({ family: p.family, kind: p.kind, cello: p.family === 'bowed' && (p.bowed?.id === 'cello' || p.bowed?.id === 'bass'), bass: p.family === 'bowed' && p.bowed?.id === 'bass' })),
@@ -325,6 +346,9 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
     const cello = p.family === 'bowed' && (p.bowed?.id === 'cello' || p.bowed?.id === 'bass');
     const bass = p.family === 'bowed' && p.bowed?.id === 'bass';
     const wind = p.family !== 'bowed';
+    // (a bassoon is held diagonally, its boot by the seated player's right thigh, its bell up past the
+    // left shoulder: bassoon3d.ts BASSOON_SEAT)
+    if (p.family === 'reed' && p.reed === 'bassoon') return { T: chain(translate(x, BASSOON_SEAT.y, z), rotY(face + BASSOON_SEAT.turn), rotZ(BASSOON_SEAT.lean)), c: [x, 0, z], r: 0.42, top: BASSOON_SEAT.top };
     let T: Mat4;
     if (cello) T = chain(translate(x, 0, z), rotY(face - 0.62));
     else if (p.family === 'bowed') T = chain(translate(x, HELD, z), rotY(face + 0.5));
@@ -380,6 +404,9 @@ function buildEnsemble(b: Batch, si: SceneIn, parts: EnsPartIn[], st: Scene3Stat
     } else if (p.family === 'reed' && p.reed === 'clarinet') {
       if (!st.clarinet) st.clarinet = timed(st, () => buildClarinetModel());
       poseClarinet(b, st.clarinet, p.fr, e.windPose, si.dt, si.now, si.rms);
+    } else if (p.family === 'reed' && p.reed === 'bassoon') {
+      if (!st.bassoon) st.bassoon = timed(st, () => buildBassoonModel());
+      poseBassoon(b, st.bassoon, p.fr, e.windPose, si.dt, si.now, si.rms);
     } else if (p.family === 'reed') {
       if (!st.oboe) st.oboe = timed(st, () => buildOboeModel());
       poseOboe(b, st.oboe, p.fr, e.windPose, si.dt, si.now, si.rms);

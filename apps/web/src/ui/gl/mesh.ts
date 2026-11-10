@@ -162,6 +162,10 @@ export const M = {
   reedThread: { col: hex('#2d5e3e'), rough: 0.55, metal: 0 },
   // the clarinet (clarinet3d.ts): the mouthpiece's hard rubber (ebonite), black with a satin polish
   ebonite: { col: hex('#0c0b0b'), rough: 0.3, metal: 0 },
+  // the bassoon (bassoon3d.ts): flamed maple under a red-brown varnish (Heckel's, Fox's, Yamaha's
+  // bodies), its figure across the joints; the bell's pale bead ring
+  bassoonMaple: { col: hex('#6a2210'), rough: 0.3, metal: 0 },
+  bellBead: { col: hex('#e9e2d0'), rough: 0.3, metal: 0 },
 } satisfies Record<string, Mat>;
 for (const [k, m] of Object.entries(M)) (m as Mat).name = k;
 /** a variant of a shared material (same shading family, its own colour or maps) */

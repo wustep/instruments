@@ -26,7 +26,8 @@ type Phys = THREE.MeshPhysicalMaterialParameters & {
    *  9 gold-lacquered casting, 10 veneer round a wall,
    *  11 flamed maple worn per vertex (uv.x: varnish rubbed through to the pale wood, satin; uv.y: grime),
    *  and a piano action's own: 12 pressed wool felt (fibres, nap), 13 a key stick's bare spruce, 14 hornbeam,
-   *  15 beech, 16 hard maple, 17 a white key (its facing; bare wood on its sides below it) */
+   *  15 beech, 16 hard maple, 17 a white key (its facing; bare wood on its sides below it), 18 a turned joint of
+ *  flamed maple under a stained varnish (a bassoon's: the flame round the joint, in drifts) */
   tex?: number;
   /** the grain/long axis in the part's own frame */
   axis?: [number, number, number];
@@ -195,6 +196,12 @@ const P: Record<string, Phys> = {
   // the clarinet (clarinet3d.ts): the mouthpiece's hard rubber, a near-black with a faint warm cast,
   // satin-polished (a broad, soft highlight, not the wood's sharp clearcoat), no grain
   ebonite: { color: '#100e0e', roughness: 0.34, clearcoat: 0.45, clearcoatRoughness: 0.28, specularIntensity: 0.8 },
+  // the bassoon (bassoon3d.ts): flamed maple stained a deep red-brown under a thick, hard varnish (a
+  // clearcoat that carries the studio's reflections as long bands down each joint), its flame as fine
+  // stripes across the joint, 3–5 mm apart, that turn light and dark as the eye moves (bassoon-wlm-*.jpg,
+  // bassoon-fox-renard220-front.jpg); the bell's bead ring, an ivory-like plastic with a soft polish
+  bassoonMaple: { color: '#8c2410', roughness: 0.38, clearcoat: 1, clearcoatRoughness: 0.045, envMapIntensity: 1.25, tex: 18, axis: [0, 1, 0], texScale: 0.34 },
+  bellBead: { color: '#efe8d8', roughness: 0.34, clearcoat: 0.6, clearcoatRoughness: 0.12, sheen: 0.3, sheenColor: '#fff8e8', sheenRoughness: 0.4 },
 };
 
 // GLSL: hashes, value noise and fbm (all in the part's own metres)
@@ -209,7 +216,7 @@ float fbm(vec3 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a
 `;
 
 /** the textures that are wood (their cut faces show grain) */
-const WOODS = [1, 2, 3, 4, 7, 10, 11, 13, 14, 15, 16];
+const WOODS = [1, 2, 3, 4, 7, 10, 11, 13, 14, 15, 16, 18];
 /** one material per shared Mat (by object), built on first use */
 const cache = new Map<Mat, THREE.Material>();
 /** the studio environment. three (r186) replaces a material's envMapIntensity with the scene's
@@ -453,6 +460,21 @@ float wearCoat = 0.0;
     microR = 0.5;
     wearCoat = 1.0;
   }
+  #elif TEX == 18
+  // a turned joint of flamed maple under a stained varnish (a bassoon's): the flame as wavering bands
+  // round the joint, 3–6 mm apart and uneven, strong in drifts along it and faint between; dark where
+  // the stain sits in the dipping fibres whatever the angle, and lighter or darker again as the light
+  // rakes along them; the bands fade to their mean before they are finer than the pixels (no moiré)
+  float n = fbm(vec3(along * 6.0, across * 18.0, depth * 18.0));
+  float drift = smoothstep(0.28, 0.68, fbm(vec3(along * 2.4 + 3.1, across * 7.0, depth * 7.0)));
+  float ph = along * 470.0 + n * 11.0 + across * 55.0 + 2.6 * sin(along * 41.0 + across * 23.0);
+  float aa = 1.0 - smoothstep(0.7, 1.8, fwidth(ph));
+  float fl = mix(0.5, smoothstep(-0.55, 0.7, sin(ph)), aa) * (0.4 + 0.6 * drift);
+  float vdir = dot(normalize(vViewPosition), normalize(vAxisV));
+  diffuseColor.rgb *= vec3(1.0) - vec3(0.5, 0.62, 0.66) * fl;
+  diffuseColor.rgb *= 1.0 + 0.45 * fl * clamp(vdir * 2.5, -1.0, 1.0);
+  diffuseColor.rgb *= 0.84 + 0.32 * fbm(p * 4.0);
+  microR = 0.08 * fl;
   #endif
   #if PAINTED
   // the painted aux map: r = figure (flame) under the varnish, flipping with the view; g = 1 at the edge
