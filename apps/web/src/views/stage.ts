@@ -425,6 +425,21 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     const at = (b: { x0: number; y0: number; x1: number; y1: number }) => ({ x0: r.left + b.x0, x1: r.left + b.x1, y0: y0 + b.y0, y1: y0 + b.y1 });
     return { body: at(d.body), valves: at(d.valves), mouth: at(d.mouth), bell: at(d.bell), levers: d.levers, side: d.side, stage: { x0: r.left, x1: r.right, y0, y1: r.bottom } };
   };
+  (window as unknown as { __timpani2d?: () => unknown }).__timpani2d = () => {
+    const d = inst === 'timpani' && !(want3d && s3) && !ensemble.active ? timpaniState.drawn : null;
+    if (!d) return null;
+    const r = canvas.getBoundingClientRect();
+    const y0 = r.top + top.getBoundingClientRect().height;
+    const at = (b: { x0: number; y0: number; x1: number; y1: number }) => ({ x0: r.left + b.x0, x1: r.left + b.x1, y0: y0 + b.y0, y1: y0 + b.y1 });
+    return {
+      body: at(d.body),
+      heads: d.heads.map((hd) => ({ ...hd, x: r.left + hd.x, y: y0 + hd.y })),
+      mallets: d.mallets.map((m) => ({ ...m, x: r.left + m.x, y: y0 + m.y })),
+      gauges: d.gauges.map((g) => ({ box: at(g.box), at: g.at, x: r.left + g.x, y: y0 + g.y })),
+      pedals: d.pedals.map((p) => ({ at: p.at, x: r.left + p.x, y: y0 + p.y })),
+      stage: { x0: r.left, x1: r.right, y0, y1: r.bottom },
+    };
+  };
   canvas.addEventListener('pointerdown', (e) => {
     downAt = { x: e.clientX, y: e.clientY };
     hand2d.down(e);
