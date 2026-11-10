@@ -9,7 +9,9 @@ import { h, type View } from './ui/dom.ts';
 import { pedal } from './ui/controls.ts';
 import { MidiPlayer } from './ui/player.ts';
 import { ensemble } from './orchestra/ensemble.ts';
-import { isKeyboard, VOICE_INFO } from './orchestra/assign.ts';
+import { isKeyboard } from './orchestra/assign.ts';
+import { keysRange } from './orchestra/keys.ts';
+import { keysForControl } from './ui/keys-for.ts';
 import { PIECES } from './orchestra/pieces.ts';
 import { installTips } from './ui/tip.ts';
 import { stageView } from './views/stage.ts';
@@ -48,6 +50,8 @@ const octDown = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'O
 const octUp = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave up', 'data-tip': 'octave up · X', onclick: () => keys.octave(1) }, '›');
 const octLabel = h('span', { class: 'oct-label', 'aria-live': 'polite' });
 const octave = h('div', { class: 'octave', role: 'group', 'aria-label': 'Octave' }, octDown, octLabel, octUp);
+// an ensemble: in the knobs' place, the instruments the keys play (a phone: behind one button)
+const keysFor = keysForControl();
 const fallboard = h(
   'div',
   { class: 'fallboard' },
@@ -55,6 +59,8 @@ const fallboard = h(
   octave,
   knobToggle,
   knobSlot,
+  keysFor.toggle,
+  keysFor.el,
 );
 // (over the keys, a thin strip of all 88 with a window on those in view: it slides them)
 const dock = h('footer', { class: 'dock' }, fallboard, keyboard.map, keyboard.el);
@@ -182,18 +188,21 @@ const syncInstrument = (id: InstrumentId) => {
 };
 audio.instrumentChanged.on(syncInstrument);
 syncInstrument(audio.instrument);
-// an ensemble: the keys span every instrument's range; the pianos' other pedals while one plays
-ensemble.changed.on(() => {
+// an ensemble: the keys span the ranges of the instruments they play (split: every instrument's),
+// the computer keys kept inside it; a piano's other pedals while the keys play one
+const syncEnsembleKeys = () => {
   if (!ensemble.active) return syncInstrument(audio.instrument);
   const lu = ensemble.lineup;
-  const lo = Math.min(...lu.map((v) => VOICE_INFO[v].lo));
-  const hi = Math.max(...lu.map((v) => VOICE_INFO[v].hi));
+  const [lo, hi] = keysRange(ensemble.keys, lu);
   keyboard.setRange(lo, hi);
   keys.setRange(lo, hi);
-  const kbd = lu.some(isKeyboard);
+  keys.setBase(keys.base);
+  const kbd = ensemble.keyParts.some((k) => isKeyboard(lu[k]));
   softPedal.el.hidden = !kbd;
   middlePedal.el.hidden = !kbd;
-});
+};
+ensemble.changed.on(syncEnsembleKeys);
+ensemble.keysChanged.on(syncEnsembleKeys);
 void audio.initMidi();
 
 // Any gesture starts audio. Desktop browsers accept pointerdown/keydown, phones only

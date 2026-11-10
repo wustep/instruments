@@ -2,8 +2,9 @@
 // engine (an AudioWorkletNode) on the page's one AudioContext; they share a bus (orchestra/mix.ts) and
 // the analyser. A MIDI file's lines go to the parts by a plan (orchestra/assign.ts), many to many: a
 // line may sound on several parts, and a voice may be on the stage twice (two cellos, two grands, each
-// its own engine). Played by hand (keys, a MIDI keyboard) the notes are dealt out by register, each
-// melodic instrument one note.
+// its own engine). Played by hand (keys, a MIDI keyboard) the notes go to the instruments chosen on
+// the fallboard, one or several (orchestra/keys.ts: the piano, else the leading melodic instrument,
+// until one is chosen), or are dealt out by register, each melodic instrument one note (split).
 // While the ensemble plays, the single instrument's engine is taken out of the graph (it costs as
 // much idle as playing) and put back when the ensemble goes.
 
@@ -11,6 +12,7 @@ import { createInstrument, pianoKeySummary, processorUrl, type KeySummary, type 
 import { audio, fetchDesigns, type Route } from '../audio.ts';
 import type { FileEvent, MidiLine, MidiSong } from '../midi-file.ts';
 import { addPart, autoPlan, isKeyboard, lineupOf, lineupPlan, placeNote, playersOf, reassign, removePart, setPartLines, setPartVoice, setRoute, VOICE_INFO, type Plan, type Voice } from './assign.ts';
+import { carryKeys, keyParts, keysFor, keyTargets, setSplit, toggleKey, type KeysChoice, type KeyTarget } from './keys.ts';
 import { busGain } from './mix.ts';
 import { piecePlan, type Piece } from './pieces.ts';
 import { soundSeats } from './seats.ts';
@@ -93,11 +95,20 @@ class Ensemble implements Route {
   parts: PartLive[] = [];
   readonly changed = new Emitter<void>();
   readonly notes = new Emitter<PartNote>();
+  /** which instruments the keys play (orchestra/keys.ts); `keysChanged` when only that changes */
+  keys: KeysChoice = keysFor([]);
+  readonly keysChanged = new Emitter<void>();
   private bus: GainNode | null = null;
   private limiter: DynamicsCompressorNode | null = null;
   private timers = new Set<number>();
-  /** live keys → the part and pitch that took them */
-  private live = new Map<number, { part: number; pitch: number }>();
+  /** live keys → the parts and pitches that took them */
+  private live = new Map<number, KeyTarget[]>();
+  /** how many live keys hold each part's pitch (`part:pitch`; two keys an octave apart may both land
+   *  on one note of an instrument: it is let go with the last of them) */
+  private liveCount = new Map<string, number>();
+  /** the pedals, bend and controllers as the hand has them: what an instrument the keys come to
+   *  takes up, and one they leave lets go of */
+  private hand = { sustain: 0, soft: 0, sostenuto: 0, bend: 0, cc: new Map<number, number>() };
   private gen = 0;
 
   get lines(): MidiLine[] {
@@ -109,6 +120,10 @@ class Ensemble implements Route {
 
   /** the ensemble on the stage, with a plan (a file's, a piece's, or a lineup) */
   enter(plan: Plan, song: MidiSong | null, piece: Piece | null = null, byUser = false): void {
+    this.releaseLive();
+    // the keys play the new lineup's default (sync), with nothing held
+    this.keys = keysFor([]);
+    this.hand = { sustain: 0, soft: 0, sostenuto: 0, bend: 0, cc: new Map() };
     this.plan = plan;
     this.byUser = byUser;
     this.song = song;
@@ -128,6 +143,7 @@ class Ensemble implements Route {
     this.stopFile();
     for (const p of this.parts) this.disposePart(p);
     this.parts = [];
+    this.keys = keysFor([]);
     this.song = null;
     this.piece = null;
     this.byUser = false;
@@ -218,6 +234,7 @@ class Ensemble implements Route {
     const linesOf = new Map(this.parts.map((p, i) => [p, prev?.parts[i]?.lines.join() ?? '']));
     const players = playersOf(this.plan);
     const old = this.parts;
+    const handBefore = this.handParts();
     const next: PartLive[] = new Array(want.length);
     const free = [...old];
     // an engine stays where its voice and player stay: first the parts in the same seat, then any
@@ -241,6 +258,9 @@ class Ensemble implements Route {
     // (a whole new plan, no `prev`: every engine kept lets go)
     next.forEach((p, i) => linesOf.has(p) && (!prev || linesOf.get(p) !== this.plan.parts[i].lines.join()) && this.dropNotes(p));
     this.parts = next;
+    // the keys keep the instruments they played (wherever they now sit), or take the new default
+    this.keys = carryKeys(this.keys, next.map((p) => old.indexOf(p)), want);
+    this.handOver(handBefore);
     this.applyGain();
     this.applyVoices();
     this.applySeats();
@@ -331,6 +351,8 @@ class Ensemble implements Route {
         // the ensemble's room: the stage's reverb setting, the grand's lid as the single grand has it
         const room = (audio.piano?.params as Record<string, unknown> | undefined)?.room;
         if (typeof room === 'number') e.setParams({ room });
+        // the pedals or bend the hand holds, if the keys play it
+        if (this.handParts().includes(p)) this.handOn(p);
         p.unsubs.push(
           e.onVisual((v) => {
             p.frame = v;
@@ -446,57 +468,114 @@ class Ensemble implements Route {
   }
 
   // ------------------------------------------------------------- by hand
-  /** a key pressed: to the free melodic instrument nearest its register, else a piano, else the
-   *  instrument nearest in register that has been holding a note longest */
+  /** the instruments the keys play now (split: all of them) */
+  get keyParts(): number[] {
+    return keyParts(this.keys, this.parts.length);
+  }
+  /** an instrument in or out of what the keys play (the last one stays) */
+  toggleKey(k: number): void {
+    this.setKeys(toggleKey(this.keys, k, this.parts.length));
+  }
+  /** the keys dealt out by register over the ensemble (on), or back to the chosen instruments */
+  splitKeys(on: boolean): void {
+    this.setKeys(setSplit(this.keys, on));
+  }
+  private setKeys(c: KeysChoice): void {
+    if (c === this.keys) return;
+    const before = this.handParts();
+    this.releaseLive();
+    this.keys = c;
+    this.handOver(before);
+    this.keysChanged.emit();
+  }
+
+  /** a key pressed: on every instrument the keys play, or (split) on one, by register (keys.ts) */
   noteOn(midi: number, vel: number): void {
     if (!this.parts.length) return;
     this.noteOff(midi);
-    const busy = new Set([...this.live.values()].filter((x) => !isKeyboard(this.parts[x.part]?.voice ?? 'grand')).map((x) => x.part));
-    const dist = (v: Voice) => (midi < VOICE_INFO[v].lo ? VOICE_INFO[v].lo - midi + 24 : midi > VOICE_INFO[v].hi ? midi - VOICE_INFO[v].hi + 24 : Math.abs(midi - VOICE_INFO[v].centre));
-    let best = -1;
-    for (let k = 0; k < this.parts.length; k++) {
-      const v = this.parts[k].voice;
-      if (isKeyboard(v) || busy.has(k)) continue;
-      if (best < 0 || dist(v) < dist(this.parts[best].voice)) best = k;
+    const voices = this.parts.map((p) => p.voice);
+    const busy = new Set<number>();
+    for (const ts of this.live.values()) for (const t of ts) if (!isKeyboard(voices[t.part] ?? 'grand')) busy.add(t.part);
+    const ts = keyTargets(midi, this.keys, voices, busy);
+    // split, every melodic instrument busy: the one that takes it lets go of its old note
+    if (this.keys.split) for (const t of ts) if (busy.has(t.part)) for (const [m, xs] of [...this.live]) if (xs.some((x) => x.part === t.part)) this.noteOff(m);
+    this.live.set(midi, ts);
+    for (const t of ts) {
+      const p = this.parts[t.part];
+      const key = `${t.part}:${t.pitch}`;
+      this.liveCount.set(key, (this.liveCount.get(key) ?? 0) + 1);
+      p.engine?.noteOn(t.pitch, vel);
+      this.mark(p, t.pitch, vel, true);
     }
-    if (best < 0) best = this.parts.findIndex((p) => isKeyboard(p.voice));
-    if (best < 0) {
-      // every instrument busy: the nearest in register takes it over (its old note is let go)
-      for (let k = 0; k < this.parts.length; k++) if (best < 0 || dist(this.parts[k].voice) < dist(this.parts[best].voice)) best = k;
-      for (const [m, x] of this.live) if (x.part === best) this.noteOff(m);
-    }
-    const p = this.parts[best];
-    const pitch = placeNote(midi, 0, p.voice);
-    this.live.set(midi, { part: best, pitch });
-    p.engine?.noteOn(pitch, vel);
-    this.mark(p, pitch, vel, true);
   }
 
   noteOff(midi: number): void {
-    const x = this.live.get(midi);
-    if (!x) return;
+    const xs = this.live.get(midi);
+    if (!xs) return;
     this.live.delete(midi);
-    this.parts[x.part]?.engine?.noteOff(x.pitch);
-    this.mark(this.parts[x.part], x.pitch, 0, false);
+    for (const x of xs) {
+      const key = `${x.part}:${x.pitch}`;
+      const n = this.liveCount.get(key) ?? 1;
+      if (n > 1) {
+        this.liveCount.set(key, n - 1);
+        continue;
+      }
+      this.liveCount.delete(key);
+      this.parts[x.part]?.engine?.noteOff(x.pitch);
+      this.mark(this.parts[x.part], x.pitch, 0, false);
+    }
   }
 
   private releaseLive(): void {
     for (const m of [...this.live.keys()]) this.noteOff(m);
+    this.liveCount.clear();
   }
 
-  /** the pedals and controllers, to every part (the bowed strings' sustain holds the bow) */
+  /** the pedals and controllers go where the keys go (the bowed strings' sustain holds the bow) */
   pedal(kind: 'sustain' | 'soft' | 'sostenuto', v: number): void {
-    for (const p of this.parts) {
-      if (kind === 'sustain') p.engine?.sustain(v);
-      else if (isKeyboard(p.voice)) kind === 'soft' ? p.engine?.softPedal(v) : p.engine?.sostenuto(v);
-      if (kind === 'sustain') p.sustain = v;
-    }
+    this.hand[kind] = v;
+    for (const p of this.handParts()) this.pedalTo(p, kind, v);
   }
   control(cc: number, v: number): void {
-    for (const p of this.parts) if (!isKeyboard(p.voice)) p.engine?.control(cc, v);
+    this.hand.cc.set(cc, v);
+    for (const p of this.handParts()) if (!isKeyboard(p.voice)) p.engine?.control(cc, v);
   }
   bend(st: number): void {
-    for (const p of this.parts) if (!isKeyboard(p.voice)) p.engine?.bend(st);
+    this.hand.bend = st;
+    for (const p of this.handParts()) if (!isKeyboard(p.voice)) p.engine?.bend(st);
+  }
+  private pedalTo(p: PartLive, kind: 'sustain' | 'soft' | 'sostenuto', v: number): void {
+    if (kind === 'sustain') {
+      p.engine?.sustain(v);
+      p.sustain = v;
+    } else if (isKeyboard(p.voice)) kind === 'soft' ? p.engine?.softPedal(v) : p.engine?.sostenuto(v);
+  }
+  private handParts(): PartLive[] {
+    return keyParts(this.keys, this.parts.length).map((k) => this.parts[k]);
+  }
+  /** the keys moved from `before` to the instruments they play now: one left lets go of the pedals
+   *  and bend the hand holds, one come to takes them up (a controller, the wheel, stays where the
+   *  hand left it on an instrument it leaves) */
+  private handOver(before: PartLive[]): void {
+    const now = this.handParts();
+    for (const p of before) if (!now.includes(p) && this.parts.includes(p)) this.handOff(p);
+    for (const p of now) if (!before.includes(p)) this.handOn(p);
+  }
+  private handOff(p: PartLive): void {
+    const h = this.hand;
+    if (h.sustain) this.pedalTo(p, 'sustain', 0);
+    if (h.soft) this.pedalTo(p, 'soft', 0);
+    if (h.sostenuto) this.pedalTo(p, 'sostenuto', 0);
+    if (h.bend && !isKeyboard(p.voice)) p.engine?.bend(0);
+  }
+  private handOn(p: PartLive): void {
+    const h = this.hand;
+    if (h.sustain) this.pedalTo(p, 'sustain', h.sustain);
+    if (h.soft) this.pedalTo(p, 'soft', h.soft);
+    if (h.sostenuto) this.pedalTo(p, 'sostenuto', h.sostenuto);
+    if (isKeyboard(p.voice)) return;
+    if (h.bend) p.engine?.bend(h.bend);
+    for (const [cc, v] of h.cc) p.engine?.control(cc, v);
   }
   setParams(q: Record<string, unknown>): void {
     for (const p of this.parts) p.engine?.setParams(q);
