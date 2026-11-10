@@ -111,9 +111,10 @@ if (want('actuated')) {
   }
 }
 // (the slide back to first position before the still views: the engine leaves it where the last note put it)
-const home = async () => {
-  await note(46, true);
-  await note(46, false);
+// (first position: B♭2 on the tenor and the bass, E♭3 on the alto)
+const home = async (m = 46) => {
+  await note(m, true);
+  await note(m, false);
 };
 if (!PHONE && SET !== 'before') {
   await home();
@@ -137,7 +138,7 @@ if (!PHONE && SET !== 'before') {
   if (want('sizes')) {
     for (const [n, name] of [[0, 'alto'], [2, 'bass'], [1, 'tenor']]) {
       await size(n);
-      await home();
+      await home(name === 'alto' ? 51 : 46);
       await view(null);
       await shoot(`size-${name}`);
       const Vs = await page.evaluate(() => window.__trombone3d?.views ?? {});
