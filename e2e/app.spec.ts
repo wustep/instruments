@@ -1113,6 +1113,170 @@ test('click a note’s strings: that key’s action opens, plays from its own te
   await expect(panel).toHaveCount(0);
 });
 
+test('the action close-up follows the playing: whole on its panel, no old strike on opening, the damper with the key, held and tapped, another key and the other piano', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await startAudio(page);
+  await page.waitForTimeout(400);
+  const phone = info.project.name === 'phone';
+  const act = <T,>(f: string) => page.evaluate((src) => new Function('a', `return ${src}`)((window as any).__action), f) as Promise<T>;
+  const note = (on: boolean, midi: number) => page.evaluate(([o, m]) => (o ? (window as any).__piano.noteOn(m, 96, 'keys') : (window as any).__piano.noteOff(m, 'keys')), [on, midi] as const);
+  /** every frame's state until `until` holds (or `ms` pass) */
+  const record = (until: string, ms: number) =>
+    page.evaluate(
+      ([src, lim]) =>
+        new Promise<any[]>((resolve) => {
+          const done = new Function('s', `return ${src}`);
+          const out: any[] = [];
+          const t0 = performance.now();
+          const tick = () => {
+            const s = { ...(window as any).__action.state };
+            out.push(s);
+            if (done(s) || performance.now() - t0 > (lim as number)) resolve(out);
+            else requestAnimationFrame(tick);
+          };
+          requestAnimationFrame(tick);
+        }),
+      [until, ms] as const,
+    );
+  const whole = async (what: string) => {
+    await page.waitForFunction(() => (window as any).__action?.box);
+    const [b, cv] = await Promise.all([act<{ x0: number; y0: number; x1: number; y1: number }>('a.box'), page.locator('.av-cv').boundingBox()]);
+    // the section from the key's front to its far end, keybed to top, inside the panel (it used to
+    // start behind the key's front on a phone)
+    expect(b.x0, `${what}: left`).toBeGreaterThanOrEqual(0);
+    expect(b.x1, `${what}: right`).toBeLessThanOrEqual(cv!.width + 0.5);
+    expect(b.y0, `${what}: top`).toBeGreaterThanOrEqual(0);
+    expect(b.y1, `${what}: bottom`).toBeLessThanOrEqual(cv!.height + 0.5);
+    const vp = page.viewportSize()!;
+    expect(cv!.x, `${what}: panel`).toBeGreaterThanOrEqual(0);
+    expect(cv!.x + cv!.width, `${what}: panel`).toBeLessThanOrEqual(vp.width + 0.5);
+    // drawn: the key's ivory at its front, the far end's wood
+    const lit = await page.locator('.av-cv').evaluate((c) => {
+      const cv = c as HTMLCanvasElement;
+      const d = cv.getContext('2d')!.getImageData(0, 0, cv.width, cv.height).data;
+      let n = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 40) n++;
+      return n / (cv.width * cv.height);
+    });
+    expect(lit, `${what}: drawn`).toBeGreaterThan(0.03);
+  };
+  // the key is played and let go before its close-up is opened
+  await note(true, 48);
+  await page.waitForTimeout(200);
+  await note(false, 48);
+  await page.waitForTimeout(500);
+  const k = page.locator('.key[data-midi="48"]');
+  await k.scrollIntoViewIfNeeded();
+  const kb = (await k.boundingBox())!;
+  const cv = (await page.locator('.stage-cv').boundingBox())!;
+  if (phone) await page.touchscreen.tap(kb.x + kb.width / 2, cv.y + cv.height * 0.8);
+  else await page.mouse.click(kb.x + kb.width / 2, cv.y + cv.height * 0.8);
+  const panel = page.locator('.av-panel');
+  await expect(panel).toHaveAttribute('aria-label', 'C3: the grand action');
+  await whole('grand');
+  // that old strike is not replayed: the action is at rest (it used to fly at once, nothing played)
+  const idle = await record('false', 700);
+  expect(idle.length).toBeGreaterThan(10);
+  expect(idle.filter((s) => !(s.slow === 0 && s.phase === 'rest' && s.y === 0 && s.keyPos === 0 && s.damperOn > 0.99)).slice(0, 3)).toEqual([]);
+  await expect(page.locator('.av-speed')).toHaveText('');
+  // the upright, held: its damper stays on the strings until the drawn key lifts it (it used to jump
+  // off as the replay began), is off at the strike, and the hammer is caught in check
+  await page.evaluate(() => (window as any).__piano.setPreset('upright'));
+  await expect(panel).toHaveAttribute('aria-label', 'C3: the upright action');
+  expect(await act<string>('a.kind')).toBe('upright');
+  await whole('upright');
+  await page.waitForTimeout(300);
+  await note(true, 48);
+  const held = await record("s.phase === 'checked' && s.slow === 0", 8000);
+  const drive = held.filter((s) => s.phase === 'drive');
+  expect(drive.length).toBeGreaterThan(5);
+  expect(drive[0].damperOn, 'the damper as the key starts down').toBeGreaterThan(0.99);
+  expect(drive.every((s) => !s.escaped)).toBe(true);
+  expect(held.every((s) => s.phase !== 'rest' || s.damperOn > 0.99), 'the damper waits for the key').toBe(true);
+  const order = ['drive', 'free', 'contact', 'fall', 'checked'];
+  const seq = held.filter((s) => s.slow > 0).map((s) => order.indexOf(s.phase));
+  expect(seq.every((v, i) => i === 0 || v >= seq[i - 1]), 'drive, let-off, strike, fall, check: in that order').toBe(true);
+  expect(held.filter((s) => s.phase === 'free' || s.phase === 'contact').every((s) => s.damperOn < 0.01 && s.keyPos === 1 && s.escaped)).toBe(true);
+  const last = held[held.length - 1];
+  expect([last.phase, last.keyPos > 0.99, last.damperOn < 0.01, last.y > 20]).toEqual(['checked', true, true, true]);
+  await expect(page.locator('.av-speed')).toHaveText('');
+  // let go: everything returns
+  await note(false, 48);
+  await expect.poll(() => act<boolean>('a.state.phase === "rest" && a.state.y < 0.2 && a.state.keyPos < 0.02 && a.state.damperOn > 0.99 && !a.state.escaped')).toBe(true);
+  // another key played by hand: the close-up goes to it and replays its strike; a tap falls back to
+  // rest, never caught in check, the damper off through the strike though the key is long up
+  await note(true, 55);
+  await page.waitForTimeout(80);
+  await note(false, 55);
+  await expect(panel).toHaveAttribute('aria-label', 'G3: the upright action');
+  await expect(page.locator('.av-name')).toHaveText('G3');
+  expect(await act<number>('a.midi')).toBe(55);
+  const tap = await record("s.phase === 'fall' && s.keyPos < 0.8", 8000);
+  const flown = tap.filter((s) => s.phase === 'free' || s.phase === 'contact');
+  expect(flown.length).toBeGreaterThan(0);
+  expect(flown.every((s) => s.damperOn < 0.01 && s.keyPos === 1)).toBe(true);
+  // (falling back, the key and the damper with it: the whole return is in apps/web/test/action-motion.test.ts)
+  expect(tap.some((s) => s.phase === 'checked')).toBe(false);
+  const end = tap[tap.length - 1];
+  expect([end.phase, end.keyPos < 0.8, end.damperOn > 0]).toEqual(['fall', true, true]);
+  // closed: nothing left behind
+  await page.locator('.av-close').click();
+  await expect(panel).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).__action)).toBeUndefined();
+  expect(errors).toEqual([]);
+});
+
+test('a key’s close-up in 3D on a narrow stage: the action whole, key front to damper, under the file player; it outlives a change of piano', async ({ page }, info) => {
+  test.skip(info.project.name !== 'phone', 'a wide stage keeps the close-up’s own framing');
+  await page.goto('/');
+  await startAudio(page);
+  await page.locator('.dim-toggle').click();
+  await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3, null, { timeout: 30_000 });
+  const seen = () =>
+    page.evaluate(() => {
+      const s = (window as any).__stage3d;
+      const cv = s.el.getBoundingClientRect();
+      return { zoomed: s.zoomed as number | null, box: s.zoomBox() as { x0: number; y0: number; x1: number; y1: number } | null, w: cv.width, h: cv.height, over: document.querySelector('.player .pl-row')!.getBoundingClientRect().bottom - cv.top };
+    });
+  const whole = async (name: string, key: number) => {
+    await expect.poll(async () => (await seen()).zoomed, { timeout: 15_000 }).toBe(key);
+    // (landed: the box holds still)
+    let was = -1e9;
+    await expect
+      .poll(
+        async () => {
+          const b = (await seen()).box;
+          const still = !!b && Math.abs(b.x0 - was) < 0.05;
+          was = b ? b.x0 : -1e9;
+          return still;
+        },
+        { timeout: 15_000, intervals: [300] },
+      )
+      .toBe(true);
+    const v = await seen();
+    const b = v.box!;
+    // (it used to run out of both sides: the key's front off the one, the damper off the other)
+    expect(b.x0, `${name} ${key}: left`).toBeGreaterThanOrEqual(-0.5);
+    expect(b.x1, `${name} ${key}: right`).toBeLessThanOrEqual(v.w + 0.5);
+    expect(b.y1, `${name} ${key}: bottom`).toBeLessThanOrEqual(v.h + 0.5);
+    expect(b.y0, `${name} ${key}: top`).toBeGreaterThanOrEqual(v.over - 0.5);
+    // and as large as that allows: it binds on one axis
+    expect(Math.max((b.x1 - b.x0) / v.w, (b.y1 - b.y0) / (v.h - v.over)), `${name} ${key}: fills`).toBeGreaterThan(0.85);
+  };
+  await page.locator('.presets button', { hasText: 'grand' }).click();
+  await page.waitForTimeout(600);
+  for (const key of [60, 30]) {
+    await page.evaluate((k) => (window as any).__stage3d.zoomTo(k), key);
+    await whole('grand', key);
+  }
+  // the other piano under the close-up: the same key, that piano's action, framed again
+  await page.locator('.presets button', { hasText: 'upright' }).click();
+  await whole('upright', 30);
+  await page.evaluate(() => (window as any).__stage3d.zoomOut());
+  await expect.poll(async () => (await seen()).zoomed).toBeNull();
+});
+
 test('3D stage: every instrument draws in WebGL2 from live frames; orbit and zoom; 2D without WebGL2', async ({ page }, info) => {
   await page.goto('/');
   await startAudio(page);

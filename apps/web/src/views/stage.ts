@@ -380,7 +380,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   const openAction = (m: number) => {
     action?.close();
     if (!closeUpOffered()) return;
-    const kind = audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand';
+    const kind = () => (audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand');
     action = openActionView({ midi: m, kind, host: el, latest: () => frame, onClose: () => (action = null) });
   };
   const paramOf = (k: string, d: number) => {
