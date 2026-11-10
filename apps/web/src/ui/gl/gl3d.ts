@@ -183,7 +183,7 @@ export class LineSet {
 }
 
 /** The room's light: a pool of light on the floor round the instrument, as large as the room (the
- *  reverb: scenes3d `poolRadius`). Its rim is the room's handle on the 3D stage. `R`: its radius (m),
+ *  reverb: scenes3d `poolRadius`; the room's grip sets it). `R`: its radius (m),
  *  `soft`: the half-width of its rim (m), `lift`: how much brighter it is with the sound in the room
  *  (0 … ≈0.2: the output's level, the reverberation's tail included) */
 export interface Pool {

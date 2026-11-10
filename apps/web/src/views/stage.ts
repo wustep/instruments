@@ -21,7 +21,6 @@ import { AutoScale, INK as STAGE_INK, ModeField, drawBowed, drawFlute, drawSpect
 import { drawPiano, newPianoState, stringAt } from '../ui/piano-draw.ts';
 import { drawRoom, newRoomState, roomRect } from '../ui/room-draw.ts';
 import { createHandBow, type HandBow } from '../ui/hand-bow.ts';
-import { lidRest, lidSettle, lidStep } from '../ui/lid.ts';
 import { Contours, SCOPE_INK_V, SPECTRUM_INK_V, SPECTRUM_INK_V_PIANO, drawBassoonV, drawBowedV, drawClarinetV, drawFluteV, drawOboeV, drawPianoV, drawRoomV, drawTrumpetV, drawHornV, glow, loadVectorFont, slotColor } from '../ui/vector/index.ts';
 import { drawOboe, newOboeState } from '../ui/oboe-draw.ts';
 import { drawClarinet, newClarinetState } from '../ui/clarinet-draw.ts';
@@ -257,40 +256,11 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       },
       (e) => (e.pointerType === 'mouse' ? 14 : 30),
     );
-    // the stage's own handles: the grand's lid (taken anywhere on it, turned on its hinge) and the
-    // room's light pool (its rim, pulled out or in): a pointer that lands on one drags it; let go, the
-    // lid comes down onto its stick (ui/lid.ts)
-    let held: { id: number; kind: 'lid' | 'room' } | null = null;
-    const takeHandle = (e: PointerEvent) => {
-      // (a second finger while one holds a handle: neither turns the stage nor takes another)
-      if (held) return true;
-      if (e.button > 0 || ensemble.active) return false;
-      const r = cv3.getBoundingClientRect();
-      const k = s.take(e.clientX - r.left, e.clientY - r.top, e.pointerType !== 'mouse');
-      if (!k) return false;
-      cv3.setPointerCapture(e.pointerId);
-      held = { id: e.pointerId, kind: k };
-      if (k === 'lid') lidFall = null;
-      cv3.style.cursor = 'grabbing';
-      return true;
-    };
-    const letGo = (e: PointerEvent) => {
-      if (!held || e.pointerId !== held.id) return;
-      if (held.kind === 'lid') {
-        const v = lidVal();
-        lidFall = { v0: v, rest: lidRest(v), t0: performance.now() };
-      }
-      held = null;
-      s.drop();
-      cv3.style.cursor = '';
-    };
-    s.grab = (e) => hand.down(e) || takeHandle(e);
-    cv3.addEventListener('pointerup', letGo);
-    cv3.addEventListener('pointercancel', letGo);
+    s.grab = (e) => hand.down(e);
     hands.push(hand);
     let at3: { x: number; y: number } | null = null;
     cv3.addEventListener('pointerdown', (e) => {
-      at3 = held ? null : { x: e.clientX, y: e.clientY };
+      at3 = { x: e.clientX, y: e.clientY };
     });
     cv3.addEventListener('pointerup', (e) => {
       if (!at3 || !s3 || Math.hypot(e.clientX - at3.x, e.clientY - at3.y) > 6 || !closeUpOffered()) return;
@@ -305,28 +275,13 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       const r = cv3.getBoundingClientRect();
       const x = e.clientX - r.left;
       const y = e.clientY - r.top;
-      if (held && e.pointerId === held.id) {
-        const v = s3.dragTo(x, y);
-        if (v !== null) (held.kind === 'lid' ? setLid : setRoom)(v);
-        return;
-      }
       if (e.buttons) return;
-      // over a handle: it can be taken (the pool's rim brightens)
-      const over = e.pointerType === 'mouse' && !ensemble.active ? s3.handleAt(x, y) : null;
-      s3.hover = over;
-      if (over) {
-        cv3.style.cursor = 'grab';
-        return;
-      }
       if (!closeUpOffered()) {
         // over the bow: it can be taken (elsewhere the stage turns)
         cv3.style.cursor = hand.over(e) ? 'pointer' : '';
         return;
       }
       cv3.style.cursor = s3.pick(x, y) !== null ? 'zoom-in' : s3.zoomed !== null ? 'zoom-out' : '';
-    });
-    cv3.addEventListener('pointerleave', () => {
-      if (s3 && !held) s3.hover = null;
     });
   };
   /** 2D or 3D (`remember`: the device keeps the choice; not when the address asked for it) */
@@ -498,21 +453,24 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   const lidVal = () => paramOf('lid', 1);
   const setRoom = (v: number) => audio.setParams({ room: Math.round(Math.min(1, Math.max(0, v)) * 100) / 100 });
   const setLid = (v: number) => audio.setParams({ lid: Math.round(Math.min(1, Math.max(0, v)) * 100) / 100 });
-  /** the 3D lid, let go of: coming down onto its rest (ui/lid.ts), the sound with it */
-  let lidFall: { v0: number; rest: number; t0: number } | null = null;
-  const dragGrip = (g: HTMLElement, onMove: (x: number, y: number) => void, step: (d: number) => void) => {
+  /** `hold`: the grip taken (true) and let go (false) */
+  const dragGrip = (g: HTMLElement, onMove: (cx: number, cy: number) => void, step: (d: number) => void, hold?: (on: boolean) => void) => {
     g.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       e.stopPropagation();
       g.setPointerCapture(e.pointerId);
       g.classList.add('dragging');
+      hold?.(true);
     });
     g.addEventListener('pointermove', (e) => {
       if (!g.hasPointerCapture(e.pointerId)) return;
-      const r = canvas.getBoundingClientRect();
-      onMove(e.clientX - r.left, e.clientY - r.top);
+      onMove(e.clientX, e.clientY);
     });
-    const end = () => g.classList.remove('dragging');
+    const end = () => {
+      if (!g.classList.contains('dragging')) return;
+      g.classList.remove('dragging');
+      hold?.(false);
+    };
     g.addEventListener('pointerup', end);
     g.addEventListener('pointercancel', end);
     g.addEventListener('keydown', (e) => {
@@ -523,25 +481,29 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       step(d);
     });
   };
-  // the room: its right edge's distance from the centre sets the size (0.55 + 0.45·room)
-  dragGrip(gripRoom, (x) => {
+  // the room: its right edge's distance from the centre sets the size (0.55 + 0.45·room); in 3D too,
+  // where the grip sits as it does in 2D and the room shows as the pool of light on the floor
+  dragGrip(gripRoom, (cx) => {
     const W = canvas.clientWidth;
-    const size = (2 * Math.abs(x - W / 2) + 12) / W;
+    const size = (2 * Math.abs(cx - canvas.getBoundingClientRect().left - W / 2) + 12) / W;
     setRoom((size - 0.55) / 0.45);
   }, (d) => setRoom(roomVal() + d));
-  // the lid: hinged on the bass side; its free edge's projected distance is cos(angle)
-  dragGrip(gripLid, (x) => {
+  // the lid: hinged on the bass side. In 2D its free edge's projected distance is cos(angle); in 3D
+  // the grip sits on the 3D lid's free edge and the lid turns to keep that point under the pointer
+  // (stage3d `lidTo`). Any opening, wherever it is let go; the arrows move it by 0.05.
+  const lid3 = () => (want3d && s3 ? s3 : null);
+  dragGrip(gripLid, (cx, cy) => {
+    const s = lid3();
+    if (s) {
+      const r = s.el.getBoundingClientRect();
+      const v = s.lidTo(cx - r.left, cy - r.top);
+      if (v !== null) setLid(v);
+      return;
+    }
     const b = pianoState.caseBox;
-    const c = Math.min(1, Math.max(0, (x - b.x0) / Math.max(1, b.x1 - b.x0)));
+    const c = Math.min(1, Math.max(0, (cx - canvas.getBoundingClientRect().left - b.x0) / Math.max(1, b.x1 - b.x0)));
     setLid(Math.acos(c) / (Math.PI / 2.4));
-  }, (d) => {
-    // in 3D the lid stands on its sticks: the keys move it from one rest to the next (it is put
-    // there, or comes down)
-    if (want3d && s3) {
-      const v = lidVal();
-      lidFall = { v0: v, rest: lidStep(lidFall ? lidFall.rest : v, d > 0 ? 1 : -1), t0: performance.now() };
-    } else setLid(lidVal() + d);
-  });
+  }, (d) => setLid(lidVal() + d), (on) => lid3()?.holdLid(on));
 
   // ---------------------------------------------------------------- knobs
   const knobsFor = (id: InstrumentId) => {
@@ -881,15 +843,6 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     ctx.restore();
     // the display's glow, over everything drawn this frame
     if (vec) glow(ctx);
-    // the 3D lid, let go of, coming down onto its rest (the sound follows it)
-    if (lidFall) {
-      if (!grand || !in3d) lidFall = null;
-      else {
-        const f = lidSettle(lidFall.v0, lidFall.rest, (performance.now() - lidFall.t0) / 1000);
-        setLid(f.v);
-        if (f.done) lidFall = null;
-      }
-    }
     if (in3d && s3) {
       pianoState.down = new Set(audio.down.keys());
       pianoState.sustain = audio.lastStats?.sustain ?? audio.sustainValue;
@@ -914,12 +867,11 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
         ensemble: ens ? ensIn() : null,
       }, overTop());
     }
-    // in 3D the handles are the lid itself and the pool's rim; the grips stay for the keyboard, unseen
-    // until focused, over the handle they move
+    // the grips, in 2D and in 3D (not in a key's close-up); in 3D the pool's rim brightens while the
+    // room's grip is under the pointer, held or focused
     const g3 = in3d && !ens && s3!.zoomed === null;
-    gripRoom.classList.toggle('in3d', in3d);
-    gripLid.classList.toggle('in3d', in3d);
     gripRoom.hidden = ens || (in3d && !g3);
+    if (in3d) s3!.roomHot = !gripRoom.hidden && (gripRoom.classList.contains('dragging') || document.activeElement === gripRoom || gripRoom.matches(':hover'));
     // the MIDI file player sits at the top middle, just under this band (a fixed overlay)
     const bandY = Math.round(top.getBoundingClientRect().bottom);
     if (bandY !== lastBandY) {
@@ -928,26 +880,22 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     }
     zoomBack.hidden = !(in3d && s3!.zoomed !== null);
     if (!zoomBack.hidden) zoomBack.style.top = `${topH + 12}px`;
-    // place the grips (stage coordinates: the instrument area starts below the top band)
-    if (!in3d) gripRoom.style.transform = `translate(${rg.x1 - 7}px, ${topH + (rg.y0 + rg.y1) / 2 - 14}px)`;
-    label(gripRoom, roomVal(), roomText(roomVal()));
+    // place the grips (stage coordinates: the instrument area starts below the top band): the room's
+    // at the room's right edge, half way down (in 3D, as far right as in 2D, level with the floor under
+    // the instrument, where its pool of light is); the lid's on the lid's free edge (in 3D, on the 3D
+    // lid's: stage3d `lidGrip`)
     if (in3d) {
-      gripLid.hidden = !(g3 && grand && !caseHidden);
-      // (where the handles are on the picture: looked for only while a grip has the keyboard)
-      const focused = document.activeElement === gripRoom || document.activeElement === gripLid;
-      if (focused && g3) {
-        const hp = s3!.handlePoints();
-        if (hp.room) gripRoom.style.transform = `translate(${hp.room[0] - 7}px, ${topH + hp.room[1] - 14}px)`;
-        if (hp.lid) gripLid.style.transform = `translate(${hp.lid[0] - 7}px, ${topH + hp.lid[1] - 14}px)`;
-      }
-      if (!gripLid.hidden) label(gripLid, lidVal(), lidText(lidVal()));
-    } else {
-      const le = grand && !ens ? pianoState.lidEdge : null;
-      gripLid.hidden = !le;
-      if (le) {
-        gripLid.style.transform = `translate(${le.x - 7}px, ${topH + le.y - 14}px)`;
-        label(gripLid, lidVal(), lidText(lidVal()));
-      }
+      const rr = roomRect(w, ih, roomVal());
+      const pc = s3!.poolCentre();
+      const y = pc ? Math.min(ih - 24, Math.max(24, pc[1])) : (rr.y0 + rr.y1) / 2;
+      gripRoom.style.transform = `translate(${rr.x1 - 7}px, ${topH + y - 14}px)`;
+    } else gripRoom.style.transform = `translate(${rg.x1 - 7}px, ${topH + (rg.y0 + rg.y1) / 2 - 14}px)`;
+    label(gripRoom, roomVal(), roomText(roomVal()));
+    const le = !grand || ens ? null : in3d ? (g3 && !caseHidden ? s3!.lidGrip() : null) : pianoState.lidEdge && [pianoState.lidEdge.x, pianoState.lidEdge.y];
+    gripLid.hidden = !le;
+    if (le) {
+      gripLid.style.transform = `translate(${le[0] - 7}px, ${topH + le[1] - 14}px)`;
+      label(gripLid, lidVal(), lidText(lidVal()));
     }
     // spectrum hairline
     const sp = fitCanvas(specCv);

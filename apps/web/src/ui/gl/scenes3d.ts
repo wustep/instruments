@@ -182,11 +182,10 @@ function caseParts(pm: PianoModel): PianoModel {
 }
 
 /** The room's light pool round an instrument of radius `r` (its bounds): its radius for the room
- *  parameter (0 … 1, the reverberation time 0.7 … 2.4 s), and back. A radius of 0.75 r in the driest
- *  room, 1.5 r in the largest; in the default rooms (0.14 … 0.25) it lights the floor about as far as
- *  the floor's glow reached before it was a handle. */
+ *  parameter (0 … 1, the reverberation time 0.7 … 2.4 s; the room's grip sets it). A radius of 0.75 r
+ *  in the driest room, 1.5 r in the largest; in the default rooms (0.14 … 0.25) it lights the floor
+ *  about as far as the floor's glow reached before the pool. */
 export const poolRadius = (r: number, room: number): number => r * (0.75 + 0.75 * Math.min(1, Math.max(0, room)));
-export const poolRoom = (r: number, R: number): number => Math.min(1, Math.max(0, (R / r - 0.75) / 0.75));
 /** the floor under the instrument (the renderer draws it: shadowed, fading into the ground), and the
  *  room's light on it (none in an ensemble: its parts' rooms are their own) */
 function floor(b: Batch, st: Scene3State, _key: string, c: Vec3, r: number, si: SceneIn | null): void {
