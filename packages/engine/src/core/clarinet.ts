@@ -327,13 +327,21 @@ export class ClarinetCore implements InstrumentCore {
     this.gain = 1.27 * this.params.volume;
   }
 
-  /** measured voicing table (scripts/tune-clarinet.ts): cents the bare model plays sharp, by sample rate */
-  static tuningTable: { fs: number[]; midi: number[]; cents: number[][] } = clarinetTuning as { fs: number[]; midi: number[]; cents: number[][] };
-  private tuningCorrection(m: number): number {
+  /** measured voicing table (scripts/tune-clarinet.ts): cents the bare model plays sharp at mf (velocity
+   *  70), by sample rate, and how much more at pp (30) and ff (112): blown nearer its threshold a note sits
+   *  ~9 ¢ flatter, harder ~5 ¢ sharper, which a player lips away (the recorded clarinettist's pitch has no
+   *  such trend: pp +4 ¢, mf −7, ff −1) */
+  static tuningTable: { fs: number[]; midi: number[]; cents: number[][]; pp?: number[][]; ff?: number[][] } = clarinetTuning as { fs: number[]; midi: number[]; cents: number[][]; pp?: number[][]; ff?: number[][] };
+  private tuningCorrection(m: number, vel: number): number {
     const t = ClarinetCore.tuningTable;
     if (!t.midi?.length) return 1;
-    const rows = t.cents.map((r) => interp(m, t.midi, r));
-    const c = t.fs.length > 1 ? interp(this.fs, t.fs, rows) : rows[0];
+    const at = (rows: number[][]) => {
+      const r = rows.map((row) => interp(m, t.midi, row));
+      return t.fs.length > 1 ? interp(this.fs, t.fs, r) : r[0];
+    };
+    let c = at(t.cents);
+    if (t.pp && vel < 70) c += at(t.pp) * clamp((70 - vel) / 40, 0, 1);
+    else if (t.ff && vel > 70) c += at(t.ff) * clamp((vel - 70) / 42, 0, 1);
     return Math.pow(2, c / 1200);
   }
 
@@ -352,7 +360,7 @@ export class ClarinetCore implements InstrumentCore {
     // the period is two round trips (the open end inverts the wave): each through the end's low-pass
     // and the walls' (their phase delay at the note) and the interpolation's half sample
     const lag = 2 * biquadPhaseDelay(this.rc, w0) + Math.atan2(wp * Math.sin(w0), 1 - wp * Math.cos(w0)) / w0;
-    this.D1target = Math.max(2, (fs / (2 * f)) * this.tuningCorrection(m) - lag - 0.5);
+    this.D1target = Math.max(2, (fs / (2 * f)) * this.tuningCorrection(m, this.velocity) - lag - 0.5);
     if (immediate) this.D1 = this.D1target;
     this.zetaNote = V.zeta + (V.zetaTop - V.zeta) * clamp((m - CLARINET_LO) / (CLARINET_HI - CLARINET_LO), 0, 1);
     this.riseNote = Math.pow(f / et(CLARINET_LO), -V.riseExp);

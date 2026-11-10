@@ -1,5 +1,6 @@
-// Voicing pass for the clarinet model: play every note (vibrato off, mf), measure the sounding pitch
-// (autocorrelation, 0.6–1.0 s), and store the correction in cents per sample rate. Two iterations
+// Voicing pass for the clarinet model: play every note (vibrato off; mf, then pp and ff), measure the
+// sounding pitch (autocorrelation, 0.6–1.0 s), and store the correction in cents per sample rate (pp and ff
+// as offsets from mf). Two iterations
 // converge to about a cent. Run after any change to the voicing: npx tsx scripts/tune-clarinet.ts
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -47,19 +48,20 @@ export function measureCents(fs: number, m: number, vel = 70): number {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  // mf first (the table's rows), then pp and ff as offsets from it
+  const fix = (fi: number, mi: number, prev: number, err: number) => (Number.isFinite(err) && Math.abs(err) < 300 ? +(prev + err).toFixed(2) : prev);
   for (let iter = 0; iter < 3; iter++) {
     const cur = JSON.parse(readFileSync(OUT, 'utf8'));
     ClarinetCore.tuningTable = cur;
-    const table: number[][] = FSS.map((fs, fi) =>
-      midis.map((m, mi) => {
-        const err = measureCents(fs, m);
-        const prev = cur.midi?.length ? (cur.cents?.[fi]?.[mi] ?? 0) : 0;
-        // the correction lengthens the bore by the cents it played sharp
-        return Number.isFinite(err) && Math.abs(err) < 300 ? +(prev + err).toFixed(2) : prev;
-      }),
-    );
-    writeFileSync(OUT, JSON.stringify({ fs: FSS, midi: midis, cents: table }) + '\n');
+    const table: number[][] = FSS.map((fs, fi) => midis.map((m, mi) => fix(fi, mi, cur.midi?.length ? (cur.cents?.[fi]?.[mi] ?? 0) : 0, measureCents(fs, m))));
+    writeFileSync(OUT, JSON.stringify({ fs: FSS, midi: midis, cents: table, pp: cur.pp, ff: cur.ff }) + '\n');
+  }
+  for (let iter = 0; iter < 3; iter++) {
+    const cur = JSON.parse(readFileSync(OUT, 'utf8'));
+    ClarinetCore.tuningTable = cur;
+    const off = (k: 'pp' | 'ff', vel: number) => FSS.map((fs, fi) => midis.map((m, mi) => fix(fi, mi, cur[k]?.[fi]?.[mi] ?? 0, measureCents(fs, m, vel))));
+    writeFileSync(OUT, JSON.stringify({ ...cur, pp: off('pp', 30), ff: off('ff', 112) }) + '\n');
   }
   ClarinetCore.tuningTable = JSON.parse(readFileSync(OUT, 'utf8'));
-  for (const fs of FSS) console.log(`residual cents @${fs}`, midis.map((m) => measureCents(fs, m).toFixed(1)).join(' '));
+  for (const vel of [30, 70, 112]) for (const fs of FSS) console.log(`residual cents v${vel} @${fs}`, midis.map((m) => measureCents(fs, m, vel).toFixed(1)).join(' '));
 }

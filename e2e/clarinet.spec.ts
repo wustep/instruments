@@ -2,7 +2,7 @@
 // in the phone's band and no taller for a note), the keys' compass (D3–B♭6, concert pitch), the worklet at
 // the sample rates the site meets (22.05 to 96 kHz) on the note's own register (not its twelfth), its own
 // piece from the overlay, and Orchestra mode: a constructed file whose tracks carry the names and programs
-// real scores use (Clarinetto I on GM 71, "Klarinette" unprogrammed, a "Bass Clarinet", with strings)
+// real scores use (Clarinetto I on GM 71, "Klarinette" and "Cl. 2" unprogrammed, with strings)
 // routed to clarinets, and a second clarinet by hand.
 import { test, expect, type Page } from '@playwright/test';
 import { smf } from '../apps/web/test/smf.ts';
@@ -111,7 +111,7 @@ test('the clarinet plays its own piece from the overlay (the clarinet’s line o
   expect(errors).toEqual([]);
 });
 
-test('orchestra: Clarinetto I (GM 71), “Klarinette” (no program) and a Bass Clarinet go to clarinets beside the strings; the routing offers the clarinet; a second clarinet by hand is its own engine', async ({ page }, info) => {
+test('orchestra: Clarinetto I (GM 71), “Klarinette” and “Cl. 2” (no program) go to clarinets beside the strings; the routing offers the clarinet; a second clarinet by hand is its own engine', async ({ page }, info) => {
   test.skip(info.project.name === 'phone', 'files are dropped on desktops');
   const errors = collectErrors(page);
   await page.goto('/');
@@ -120,7 +120,7 @@ test('orchestra: Clarinetto I (GM 71), “Klarinette” (no program) and a Bass 
   const parts = [
     ['Clarinetto I', 71, [72, 74, 76, 77]],
     ['Klarinette', -1, [67, 65, 64, 62]],
-    ['Bass Clarinet', -1, [43, 45, 47, 48]],
+    ['Cl. 2', -1, [57, 59, 60, 62]],
     ['Violin I', 40, [76, 79, 81, 79]],
     ['Violoncello', 42, [48, 50, 43, 48]],
   ] as const;
@@ -144,11 +144,9 @@ test('orchestra: Clarinetto I (GM 71), “Klarinette” (no program) and a Bass 
   expect(e.kinds.filter((v) => v === 'clarinet').length).toBe(3);
   for (const k of [0, 1, 2]) await expect(page.locator('.pl-line').nth(k)).toHaveAttribute('data-voice', 'clarinet');
   await expect(page.locator('.pl-line').nth(3)).toHaveAttribute('data-voice', 'violin');
-  // the bass clarinet's line, below the clarinet's D3, moves up an octave; the others as written
+  // each as written (all in the clarinet's compass)
   const shifts = await page.evaluate(() => (window as any).__orchestra.ensemble.plan.lines.map((rs: any[]) => rs.map((r) => r.shift)));
-  expect(shifts[0]).toEqual([0]);
-  expect(shifts[1]).toEqual([0]);
-  expect(shifts[2]).toEqual([12]);
+  expect(shifts.slice(0, 3)).toEqual([[0], [0], [0]]);
   await expect.poll(() => page.evaluate(() => (window as any).__orchestra.ensemble.parts.find((p: any) => p.voice === 'clarinet').down.size as number), { timeout: 5000 }).toBeGreaterThan(0);
   // a line's menu offers the clarinet
   await page.locator('.pl-line').nth(3).click();
