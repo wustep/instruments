@@ -160,6 +160,8 @@ export const M = {
   cane: { col: hex('#d2ad62'), rough: 0.4, metal: 0 },
   caneScraped: { col: hex('#e8d09a'), rough: 0.62, metal: 0 },
   reedThread: { col: hex('#2d5e3e'), rough: 0.55, metal: 0 },
+  // the clarinet (clarinet3d.ts): the mouthpiece's hard rubber (ebonite), black with a satin polish
+  ebonite: { col: hex('#0c0b0b'), rough: 0.3, metal: 0 },
 } satisfies Record<string, Mat>;
 for (const [k, m] of Object.entries(M)) (m as Mat).name = k;
 /** a variant of a shared material (same shading family, its own colour or maps) */

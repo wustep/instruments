@@ -14,6 +14,7 @@ export { CC_HAND_BOW_OFF, CC_HAND_BOW_POS, CC_HAND_BOW_SPEED } from './core/bowe
 export type { FluteParams } from './core/flute.ts';
 export type { TrumpetParams } from './core/brass.ts';
 export type { OboeParams } from './core/oboe.ts';
+export type { ClarinetParams } from './core/clarinet.ts';
 export type { KeySummary, Stats, VisualFrame } from './api/messages.ts';
 export {
   DEFAULT_PARAMS,

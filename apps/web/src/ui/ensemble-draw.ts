@@ -9,8 +9,9 @@ import { bowedGeometry, type VisualFrame } from '@piano-model/engine';
 import { isKeyboard, VOICE_INFO, type Voice } from '../orchestra/assign.ts';
 import type { PartLive } from '../orchestra/ensemble.ts';
 import { drawPiano, newPianoState, type PianoState } from './piano-draw.ts';
-import { Contours, drawBowedV, drawFluteV, drawOboeV, drawPianoV, drawTrumpetV } from './vector/index.ts';
+import { Contours, drawBowedV, drawClarinetV, drawFluteV, drawOboeV, drawPianoV, drawTrumpetV } from './vector/index.ts';
 import { drawOboe, newOboeState, oboeBox, type OboeState } from './oboe-draw.ts';
+import { clarinetBox, drawClarinet, newClarinetState, type ClarinetState } from './clarinet-draw.ts';
 import { AutoScale, BOWED_PLAN, FL_LEN, ModeField, bowReach, bowedShapes, bowedSpan, drawBowed, drawFlute, drawTrumpet, trumpetBox, type BowedGeom, type BowedState, type FluteState, type TrumpetState } from './stage-draw.ts';
 
 export interface Cell {
@@ -29,6 +30,7 @@ export interface PartDraw {
   flute?: FluteState;
   trumpet?: TrumpetState;
   oboe?: OboeState;
+  clarinet?: ClarinetState;
   piano?: { st: PianoState; field: ModeField; vfield?: Contours };
 }
 
@@ -40,6 +42,7 @@ export function newPartDraw(v: Voice): PartDraw {
   if (inst === 'flute') return { voice: v, flute: { pScale: new AutoScale(1e-6), jetScale: new AutoScale(1e-9), env: new Float32Array(0) } as FluteState };
   if (inst === 'trumpet') return { voice: v, trumpet: { pScale: new AutoScale(1e-6), env: new Float32Array(0) } };
   if (inst === 'oboe') return { voice: v, oboe: newOboeState() };
+  if (inst === 'clarinet') return { voice: v, clarinet: newClarinetState() };
   return { voice: v, piano: { st: newPianoState(), field: new ModeField(128, 62, 2.2, 3) } };
 }
 
@@ -115,8 +118,8 @@ function seatOf(v: Voice, upright: boolean): Seat {
   }
   // the winds' own layouts leave a margin round them (fluteLayout, trumpetLayout); the trumpet is drawn
   // from its side either way, its bell to the right
-  if (VOICE_INFO[v].instrument === 'oboe') {
-    const b = oboeBox();
+  if (VOICE_INFO[v].instrument === 'oboe' || VOICE_INFO[v].instrument === 'clarinet') {
+    const b = VOICE_INFO[v].instrument === 'oboe' ? oboeBox() : clarinetBox();
     return { across: b.h, along: b.w, pad: 0, lo: 0, hi: 0 };
   }
   if (VOICE_INFO[v].instrument === 'trumpet') {
@@ -296,6 +299,7 @@ export function drawEnsemble(ctx: CanvasRenderingContext2D, cells: Cell[], parts
     } else if (d.flute) (vector ? drawFluteV : drawFlute)(ctx, c.w, c.h, fr, d.flute);
     else if (d.trumpet) (vector ? drawTrumpetV : drawTrumpet)(ctx, c.w, c.h, fr, d.trumpet);
     else if (d.oboe) (vector ? drawOboeV : drawOboe)(ctx, c.w, c.h, fr, d.oboe);
+    else if (d.clarinet) (vector ? drawClarinetV : drawClarinet)(ctx, c.w, c.h, fr, d.clarinet);
     else if (d.piano) {
       const st = d.piano.st;
       syncPianoState(st, p);

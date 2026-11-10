@@ -60,7 +60,7 @@ export interface VisualFrame extends Stats {
   symLevels?: Float32Array;
   /** flute: breath pressure (0..1) and the breath vibrato's current deviation */
   breath?: { pressure: number; vib: number };
-  /** oboe: the double reed's opening (0 shut … 1 at rest) and the blowing pressure γ (of the closing pressure) */
+  /** oboe and clarinet: the reed's opening (0 shut … 1 at rest) and the blowing pressure γ (of the closing pressure) */
   reed?: { open: number; gamma: number };
   /** piano: the watched key's action and strings (see `watchKey`) */
   watch?: WatchKey | null;

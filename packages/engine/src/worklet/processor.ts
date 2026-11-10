@@ -270,7 +270,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       breath: (v as { breath?: never }).breath,
       reed: (v as { reed?: never }).reed,
       strings: (v as { strings?: never }).strings,
-      modeFreqs: core.id === 'flute' || core.id === 'oboe' ? Array.from(core.modeFrequencies) : undefined,
+      modeFreqs: core.id === 'flute' || core.id === 'oboe' || core.id === 'clarinet' ? Array.from(core.modeFrequencies) : undefined,
     });
   }
 }

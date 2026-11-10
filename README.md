@@ -1,8 +1,8 @@
 # instruments
 
-Eight acoustic instruments, physically modelled and computed in real time in the
+Nine acoustic instruments, physically modelled and computed in real time in the
 browser: a **piano**, a **violin**, a **viola**, a **cello**, a **double bass**, a
-**flute**, an **oboe** and a **trumpet**.
+**flute**, an **oboe**, a **clarinet** and a **trumpet**.
 No samples are ever played as the sound. Every note is a simulation of felt
 hammers, bows, air jets, reeds and lips driving strings and tubes, which in turn drive a
 soundboard or body.
@@ -130,6 +130,13 @@ README does not claim it is live. `vercel.json` makes this a static build
     and with it the sound. Tonguing holds the blades shut while the breath builds.
   * **Compass.** B♭3–A6 at concert pitch (the oboe is in C); the keys in 2D and 3D
     follow the Woodwind Fingering Guide's standard fingerings.
+* **Clarinet.**
+  * **Reed and cylinder.** One cane reed beats against the mouthpiece's lay on a
+    cylindrical bore, closed at the reed: a quarter-wave pipe, odd harmonics in the
+    low register, overblowing at the twelfth. Above the open-hole lattice's cutoff
+    (about 1.5 kHz) the bore barely resonates and every harmonic comes through.
+  * **Compass.** D3–B♭6 at concert pitch (the B♭ clarinet, written E3–C7); the keys
+    in 2D and 3D follow the Boehm system's standard fingerings.
 * **Where it runs.** Everything runs in an AudioWorklet written in TypeScript; no
   WASM was needed, as measured below. The DSP core has no Web Audio dependency,
   so the same code runs in Node for tests, calibration and offline rendering.
@@ -234,6 +241,7 @@ pnpm refs:ensemble            # download + segment Iowa violin/viola/cello/flute
 pnpm calibrate:ensemble       # strings and flute vs those recordings [--engine <other checkout> for baselines]
 npx tsx scripts/fit-flute.ts  # fit the flute voicing; scripts/fit-strings.ts <violin|viola|cello> for the bodies
 npx tsx scripts/fit-oboe.ts   # fit the oboe voicing (fit half), then scripts/tune-oboe.ts; scripts/oboe-regimes.ts surveys its registers
+npx tsx scripts/fit-clarinet.ts   # the clarinet's, the same way (tune-clarinet.ts, clarinet-regimes.ts, render-clarinet.ts)
 npx tsx scripts/render-demos.ts   # re-render artifacts/audio (round 1)
 npx tsx scripts/render-round2.ts  # round-2 MP3 demos into artifacts/round2/audio
 node scripts/screenshots.mjs      # re-capture artifacts/shots (ROUND=2 → artifacts/round2/shots; needs `pnpm preview --port 4199`)

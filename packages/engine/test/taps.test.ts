@@ -5,7 +5,7 @@ import { renderInstrument } from '../src/core/index.ts';
 
 const FS = 48000;
 const T0 = 0.05;
-const play = (instrument: 'trumpet' | 'flute' | 'oboe', midi: number, vel: number, hold: number, quantum = 128) =>
+const play = (instrument: 'trumpet' | 'flute' | 'oboe' | 'clarinet', midi: number, vel: number, hold: number, quantum = 128) =>
   renderInstrument({ sampleRate: FS, instrument, dry: true, quantum, events: [{ time: T0, event: { type: 'noteOn', midi, velocity: vel } }, { time: T0 + hold, event: { type: 'noteOff', midi } }] as never, duration: 0.7 }).left;
 const peak = (x: Float32Array, from = 0, to = x.length) => {
   let p = 0;
@@ -48,8 +48,20 @@ describe('short taps on the winds', () => {
     }
   });
 
+  it('clarinet: a 50 ms tap still speaks, within 8 dB of the held note (the minimum blow)', () => {
+    for (const [midi, vel] of [[55, 30], [67, 50], [67, 80], [79, 110]] as const) {
+      const held = play('clarinet', midi, vel, 0.6);
+      const tap = play('clarinet', midi, vel, 0.05);
+      expect(db(peak(tap) / peak(held)), `m${midi} v${vel}`).toBeGreaterThan(-8);
+      // speaking (10 % of the held note's peak): within 80 ms from mezzo-forte up, 350 ms at
+      // pianissimo (blown just over its threshold, a soft low note grows slowly, as the recordings' swell)
+      const by = vel >= 80 ? 0.08 : 0.35;
+      expect(peak(held, Math.round(T0 * FS), Math.round((T0 + by) * FS)) / peak(held), `m${midi} v${vel} onset`).toBeGreaterThan(0.1);
+    }
+  });
+
   it('the minimum blow ends: silence after a tap, a held key is untouched, and block size does not matter', () => {
-    for (const inst of ['trumpet', 'flute', 'oboe'] as const) {
+    for (const inst of ['trumpet', 'flute', 'oboe', 'clarinet'] as const) {
       const tap = play(inst, 72, 80, 0.03);
       expect(db(peak(tap, Math.round(0.6 * FS)) / peak(tap)), inst).toBeLessThan(-40);
       expect(play(inst, 72, 80, 0.03, 37), inst).toEqual(tap);

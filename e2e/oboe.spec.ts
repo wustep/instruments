@@ -1,4 +1,4 @@
-// The oboe end to end: the picker (eight instruments, the phone's band no taller for it), the keys'
+// The oboe end to end: the picker (eight instruments then, nine since the clarinet, the phone's band no taller for it), the keys'
 // compass (B♭3–A6, concert pitch), the worklet at the sample rates the site meets (22.05 to 96 kHz) on
 // the note's own register, its own piece from the overlay, and Orchestra mode: a constructed file whose
 // tracks carry the names and programs real scores use (Oboe I on GM 68, "Hautbois" unprogrammed, a
@@ -158,7 +158,7 @@ test('orchestra: Oboe I (GM 68), “Hautbois” (no program) and a Corno inglese
   expect(errors).toEqual([]);
 });
 
-test('eight instruments on a phone: the picker keeps to its band (no taller with a note sounding), every pick whole and clear of its neighbours, no horizontal scroll', async ({ page }, info) => {
+test('nine instruments on a phone: the picker keeps to its band (no taller with a note sounding), every pick whole and clear of its neighbours, no horizontal scroll', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone', 'the phone layout');
   for (const size of [null, { width: 390, height: 844 }]) {
     if (size) await page.setViewportSize(size);
@@ -174,7 +174,7 @@ test('eight instruments on a phone: the picker keeps to its band (no taller with
     await page.evaluate(() => (window as any).__piano.noteOff(81, 'keys'));
     expect(during, `${size?.width ?? 'Pixel 7'}`).toBe(before);
     const boxes = await page.locator('.instruments .pick').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ l: r.left, r: r.right, t: r.top })));
-    expect(boxes.length).toBe(8);
+    expect(boxes.length).toBe(9);
     for (let i = 1; i < boxes.length; i++) {
       expect(boxes[i].l).toBeGreaterThanOrEqual(boxes[i - 1].r - 0.5);
       expect(boxes[i].t).toBeCloseTo(boxes[0].t, 0);

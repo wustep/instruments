@@ -14,3 +14,4 @@ export { BowedCore, BOWED, CC_HAND_BOW_OFF, CC_HAND_BOW_POS, CC_HAND_BOW_SPEED, 
 export { FluteCore, fluteFingering, type FluteParams } from './flute.ts';
 export { TrumpetCore, trumpetFingering, type TrumpetParams } from './brass.ts';
 export { OboeCore, OBOE_VOICE, oboeRegister, type OboeParams, type OboeVoice } from './oboe.ts';
+export { ClarinetCore, CLARINET_VOICE, clarinetRegister, type ClarinetParams, type ClarinetVoice } from './clarinet.ts';
