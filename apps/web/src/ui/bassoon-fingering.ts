@@ -17,8 +17,10 @@
 //   right hand: the first two finger holes (R1, R2), the third finger's key with its ring (R3), the B♭
 //     sliver between R2 and R3 (not in any basic fingering); the little finger's F, F♯ and G♯ keys.
 // A set bit is a finger on its key or hole (closing a hole, pressing a key); what a key does to its pad
-// (closes a normally open one: the low keys, the thumb's E, F♯ and B♭; opens a normally closed vent: the
-// flicks, the C♯ keys, the E♭ keys, the G♯ keys) is the drawing's to show.
+// (closes a normally open one: the low keys, the whisper key, the right thumb's E key, the right little
+// finger's F key; opens a normally closed vent: the flicks, the C♯ keys, the E♭ keys, the right thumb's
+// B♭, F♯ and G♯ keys, the right little finger's F♯ and G♯ keys: F♯2 is F2 with the F♯ key, a semitone
+// higher) is the drawing's to show.
 export const LBB = 1 << 0;
 export const LB = 1 << 1;
 export const LC = 1 << 2;
