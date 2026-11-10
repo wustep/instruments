@@ -146,7 +146,7 @@ const SPEC: Record<BowedGeom['id'], Spec> = {
     neck: 0.43, fbLen: 0.88, fbW: [0.044, 0.108], fbThick: 0.011, fbCrown: 0.011, bridgeH: 0.16, bridgeW: 0.15, bridgeR: 0.12, proj: 0.181, overstand: 0.03,
     head: 0.33, pbW: 0.062, eyeW: 0.09, tail: 0.36, spreadB: 0.031, spreadN: 0.0105, neckDepth: [0.04, 0.05], stick: [0.0068, 0.0047], hairW: 0.016,
     dia: [2.7 * mm, 2.3 * mm, 1.9 * mm, 1.6 * mm], wound: [true, true, true, true], grain: [1.6 * mm, 3.6 * mm], flame: 8.5 * mm,
-    vTop: [120, 64, 30], vBack: [112, 56, 24], vEdge: [56, 24, 10],
+    vTop: [110, 54, 24], vBack: [100, 46, 18], vEdge: [50, 20, 8],
     flat: { at: 0.24, cant: 0.183, bend: 0.05, crown: 3 * mm },
     rollers: { a: [0.11, 0.23, 0.35, 0.47], depth: 0.45 },
     stand: [0.27, 0.22],

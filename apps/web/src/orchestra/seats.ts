@@ -9,6 +9,9 @@ export interface SeatKind {
   family: 'piano' | 'bowed' | 'wind' | 'brass';
   kind: 'grand' | 'upright';
   cello: boolean;
+  /** a double bass: it stands, bigger than a cello, so it takes more room beside its neighbours and
+   *  stands a little upstage of the arc (as the basses stand behind the cellos) */
+  bass?: boolean;
 }
 
 /** a seat: the instrument's footprint centre (x, z) and the way the melodic ones face (radians) */
@@ -32,18 +35,33 @@ export function seatPlaces(parts: SeatKind[], aspect = 2): Place[] {
   const right = kb.length ? kbOff(kb.length - 1) : 0;
   const rows = aspect < 1.1 && mel.length > 3 ? 2 : 1;
   const perRow = Math.ceil(mel.length / rows);
+  // a bass is 0.3 m further from each neighbour than the 0.8 m the others keep (its lower bout is
+  // 0.67 m across, a cello's 0.44), and 0.35 m upstage; a lineup without one sits as it always has
+  const isBass = (k: number) => !!parts[mel[k]]?.bass;
+  const BASS_GAP = 0.3;
   mel.forEach((i, k) => {
     const row = rows === 2 ? (k < perRow ? 0 : 1) : 0;
     const inRow = row === 0 ? Math.min(perRow, mel.length) : mel.length - perRow;
     const kk = row === 0 ? k : k - perRow;
+    const k0 = k - kk;
     const n = inRow;
+    // (the row's seats along the arc: a bass's gaps wider)
+    let along = 0;
+    let span = 0;
+    let bassRow = false;
+    for (let j = 1; j < n; j++) {
+      const g = 0.8 + (isBass(k0 + j - 1) || isBass(k0 + j) ? BASS_GAP : 0);
+      span += g;
+      if (j <= kk) along += g;
+      if (g > 0.8) bassRow = true;
+    }
     // neighbours about 0.8 m apart on an arc (flatter as it grows: its ends would come at the camera)
     const spread = n > 1 ? Math.min(0.72, 0.28 + 0.12 * n) : 0;
-    const R = n > 1 ? (0.8 * (n - 1)) / (2 * spread) : 1;
-    const u = n > 1 ? kk / (n - 1) : 0.5;
+    const R = n > 1 ? (bassRow ? span : 0.8 * (n - 1)) / (2 * spread) : 1;
+    const u = n > 1 ? (bassRow ? along / span : kk / (n - 1)) : 0.5;
     const phi = -spread * (1 - 2 * u);
-    const x = beside ? right + 1.75 + kk * 0.85 : R * Math.sin(phi) + (rows === 2 && row === 1 ? 0.35 : 0);
-    const z = beside ? 0.55 - kk * 0.5 : R * (Math.cos(phi) - 1) + (kb.length ? -0.35 : 0) + row * 0.95;
+    const x = beside ? right + 1.75 + kk * 0.85 + (bassRow ? (along - 0.8 * kk) * (0.85 / 0.8) : 0) : R * Math.sin(phi) + (rows === 2 && row === 1 ? 0.35 : 0);
+    const z = (beside ? 0.55 - kk * 0.5 : R * (Math.cos(phi) - 1) + (kb.length ? -0.35 : 0) + row * 0.95) + (isBass(k) ? 0.35 : 0);
     // each faces the arc's middle
     out[i] = { x, z, face: phi * 0.5 };
   });
@@ -58,5 +76,5 @@ const FAMILY = { piano: 'piano', violin: 'bowed', viola: 'bowed', cello: 'bowed'
 
 /** each part's seat (x, z) for the sound, by the lineup's instruments (a computer's wide stage) */
 export function soundSeats(lineup: { instrument: keyof typeof FAMILY; preset?: string }[]): [number, number][] {
-  return seatPlaces(lineup.map((v) => ({ family: FAMILY[v.instrument], kind: v.preset === 'upright' ? 'upright' : 'grand', cello: v.instrument === 'cello' || v.instrument === 'bass' }))).map((p) => [p.x, p.z]);
+  return seatPlaces(lineup.map((v) => ({ family: FAMILY[v.instrument], kind: v.preset === 'upright' ? 'upright' : 'grand', cello: v.instrument === 'cello' || v.instrument === 'bass', bass: v.instrument === 'bass' }))).map((p) => [p.x, p.z]);
 }

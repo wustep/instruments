@@ -206,7 +206,8 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
   /** the camera is where the home view put it (the user has not turned or zoomed it) */
   const atHome = () => !!view && !zoom && !fly && Math.abs(yawT - view.yaw) < 1e-4 && Math.abs(pitchT - view.pitch) < 1e-4 && Math.abs(distT / view.dist - 1) < 1e-4;
   /** The view an instrument is first seen from, and comes back to: the scenes' own (scenes3d.ts). On
-   *  a phone held upright (a narrow or a small stage) it is the nearest view on the same bearing that
+   *  a phone held upright (a narrow or a small stage), or wherever the view asks to be whole (the
+   *  double bass: `whole`), it is the nearest view on the same bearing that
    *  shows the whole instrument, in the middle of the stage that is free: exact, from the scene as
    *  built this frame (fit3d.ts). `w`, `h`: the stage (px); `clear`: how far down from its top
    *  something lies over it. */
@@ -214,7 +215,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     const v = viewFor(si, st);
     v.dist *= FRAME;
     const aspect = w / h;
-    if (si.ensemble?.length || (aspect >= NARROW && w >= SMALL)) return v;
+    if (si.ensemble?.length || (aspect >= NARROW && w >= SMALL && !v.whole)) return v;
     const tanV = Math.tan(((FOV / 2) * Math.PI) / 180);
     const rect = { l: -1 + 2 * FIT.side, r: 1 - 2 * FIT.side, b: -1 + 2 * FIT.bottom, t: 1 - 2 * (clear / h + FIT.top) };
     // (a view that may turn on a narrow stage: the bearing it is nearest from, and of those within a
