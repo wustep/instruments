@@ -1389,6 +1389,51 @@ test('3D draws without one WebGL warning: the grand (its lid a mirror), the upri
   expect(errors).toEqual([]);
 });
 
+// Stephen's cello: blotchy orange speckle on the upper bout. The worn places on a painted plate were
+// strewn with small pale polygons ("islands" of bare ground), and the rosin was 2200 dots. A worn place
+// is now one soft, streaked thinning of the varnish: in the thumb's place on the treble upper bout, no
+// pixel of the top's painted map stands far from its neighbours along the grain. (On main the mean was
+// 1.5 and 1.2 levels, cello and violin, and one pixel in a hundred stood 10 and 8.5 off.)
+test('3D varnish: a bowed top’s worn places are soft, with no speckle (cello and violin)', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'a phone draws the same map at half the size');
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await startAudio(page);
+  await page.locator('.dim-toggle').click();
+  await expect(page.locator('.stage-3d')).toBeVisible();
+  for (const inst of ['cello', 'violin']) {
+    await page.evaluate((i) => (window as any).__piano.setInstrument(i), inst);
+    await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3);
+    const top = () =>
+      page.evaluate(() => {
+        // the top's painted map: the one drawn now that has its f-holes cut out
+        let cv: HTMLCanvasElement | null = null;
+        (window as any).__stage3d.r3.scene.traverse((o: any) => {
+          if (!o.visible) return;
+          for (const m of [].concat(o.material ?? []) as any[]) if (m.alphaTest && m.map?.image?.getContext) cv = m.map.image;
+        });
+        if (!cv) return null;
+        const c = cv as HTMLCanvasElement;
+        const w = c.width;
+        const h = c.height;
+        const d = c.getContext('2d')!.getImageData(0, 0, w, h).data;
+        const lum = (x: number, y: number) => (d[(y * w + x) * 4] + d[(y * w + x) * 4 + 1] + d[(y * w + x) * 4 + 2]) / 3;
+        const v: number[] = [];
+        for (let y = Math.round(0.186 * h); y < Math.round(0.346 * h); y++)
+          for (let x = Math.round(0.182 * w); x < Math.round(0.272 * w); x++) v.push(Math.abs(lum(x, y) - (lum(x - 6, y) + lum(x + 6, y)) / 2));
+        const mean = v.reduce((a, b) => a + b, 0) / v.length;
+        v.sort((a, b) => a - b);
+        return { w, mean, p99: v[Math.floor(v.length * 0.99)] };
+      });
+    await expect.poll(async () => (await top())?.w ?? 0).toBe(2048);
+    const m = (await top())!;
+    test.info().annotations.push({ type: `speckle ${inst}`, description: JSON.stringify(m) });
+    expect(m.mean, inst).toBeLessThan(0.8);
+    expect(m.p99, inst).toBeLessThan(5);
+  }
+  expect(errors).toEqual([]);
+});
+
 test('a key’s close-up in 3D: its own light, the near plane in, zoom about its framing, and the orbit kept on the open side of the section', async ({ page }, info) => {
   const phone = info.project.name === 'phone';
   await page.goto('/');
