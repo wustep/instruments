@@ -10,7 +10,7 @@ const ZOOM = process.env.ZOOM ? Number(process.env.ZOOM) : null;
 const PHONE = process.env.PHONE === '1';
 const ONLY = process.env.ONLY?.split(',');
 const browser = await chromium.launch({ channel: 'chrome', headless: process.env.HEADED ? false : true, args: ['--use-angle=metal', '--enable-gpu', '--disable-gpu-vsync', '--disable-frame-rate-limit'] });
-for (const [inst, preset] of [['piano', 'grand'], ['piano', 'upright'], ['violin'], ['cello'], ['bass'], ['flute'], ['trumpet']]) {
+for (const [inst, preset] of [['piano', 'grand'], ['piano', 'upright'], ['violin'], ['cello'], ['bass'], ['flute'], ['oboe'], ['trumpet']]) {
   if (ZOOM !== null && inst !== 'piano') continue;
   if (ONLY && !ONLY.includes(preset ?? inst)) continue;
   const ctx = await browser.newContext(PHONE ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true } : { viewport: { width: 1440, height: 900 }, deviceScaleFactor: DSF });
