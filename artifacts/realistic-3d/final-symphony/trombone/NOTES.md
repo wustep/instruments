@@ -217,3 +217,61 @@ spectrograms before (top) over after; `metrics.json` (centroid, level, pitch per
 - `trombone-air` — the play icon's piece (the Air's tune), its first 40 s.
 - `trombone-quartet` — the Air for four trombones, alto, tenor, tenor, bass trombone, each its size and player
   (summed, no hall seats), the first strain.
+
+## 2D (`apps/web/src/ui/trombone-plan.ts`, `trombone-draw.ts`, `vector/trombone.ts`)
+
+A real slide trombone in both styles, side on as it is held (the bell section and its bell over the slide,
+the slide out to the right), laid out from Yamaha's photographs (YSL-620 tenor, YSL-871 alto, YBL-830 bass)
+at the engine's measures: each size's bell and bore from `TROMBONE_SIZES`, the flare checked against the
+YSL-620's, and the air path (mouthpiece, leadpipe, inner and outer slide, crook, bell section, tuning slide,
+the F loop through its valve when it is down, the bell) within 1 % of the engine's tube for every note of each
+size. Nickel-silver inner slides with their stockings, the lacquered outer slide with its sleeves and braces,
+the crook with its water key and bumper, the slide lock; the F valve's rotor and thumb lever (tenor), two
+rotors with nested loops (bass), none (alto). The outer slide moves by the engine's own `slide` (m, at the
+drawing's px/m), the rotor turns a quarter and the lever goes down with `valves`, the lips buzz with the
+engine's trace, the wave glows along the air path (classic) or is hatched across it (vector). `tromboneBox()`
+sizes its Orchestra cell at the strings' px/m. Review: two cycles against the photographs
+(`2d/review-cycle-1.jpg`, `-2.jpg`). Tests: `apps/web/test/trombone2d.test.ts` (14), `e2e/trombone-2d.spec.ts` (4).
+Gaps: the slide drawn parallel to the bell section (the tenors' photographs show 3–4°); the tenor's bell 6 mm
+higher than photographed, clear of the slide; the bass's valve tubing laid out to the engine's loop lengths,
+not traced; the faint position ticks are the chart's (below).
+
+## 3D (`apps/web/src/ui/gl/trombone3d.ts`)
+
+A slide trombone of its own in each size (see `3d/README.md`), from Yamaha's product photographs (YSL-882OR,
+YSL-620, YBL-822G, YSL-871) scaled by their bells and checked against the published bores, bells and slides:
+the open tube solved to the engine's 2.740 / 2.740 / 2.060 m (F loop 917 mm, D loop 692 mm); tenor overall
+1152 mm against the photographed 1175, rim to crook 512 against 513. Bessel-flared bell with a rolled rim,
+nickel-silver inner slides and crook, lacquered brass with handling wear, the rotary valve with its bearing
+and stop plates, stop arm, crank and a ball-jointed four-bar to the thumb lever, cork barrels, slide lock,
+water key, bumper. The slide follows the engine's own value a frame behind; valves turn with `valves`.
+Seated: the slide forward and 21° down, the bell left of the face; the Air seats alto, two tenors and a bass.
+Four critique cycles (`3d/review-cycle-1…4.jpg`). 2.53 ms a frame at 1440×900 @2× (the horn 2.94), 1.08 ms
+on a phone; no WebGL error or warning (solo, bass, the Air, among six; desktop and phone); a phone held
+upright frames it whole with room for the slide's travel (43 % × 45 % of the free stage at rest). Tests:
+`apps/web/test/trombone3d.test.ts`, `e2e/trombone-3d.spec.ts` (6). Gaps: a wide stage frames the slide to
+fifth position, so a sixth-position note runs past its edge; no player's hands; the linkage and the bass
+loops laid out, not measured; a faint dotted texture in the bell's brightest highlight at 2× (the shared
+renderer's).
+
+**The slide where the player puts it.** Both drawings take the slide from the engine, which sets it by ear
+(the cylinder that puts the note's resonance on pitch), not from the chart: C2 on the tenor's F side settles at
+0.51–0.56 m, where the chart's equal-tempered sixth position is 0.61 m. The bell turns low frequencies back
+early in its flare, so a lower note needs less added cylinder than the whole tube's proportion: the model's
+F-side positions are shorter than nominal, as a real F attachment's are short of the B♭ side's proportions
+(players learn them by ear).
+
+## Gate
+
+- `pnpm typecheck`: clean. `pnpm build`: ok (the worklet parses in Safari 14.1).
+- `pnpm test`: 68 files, 654 tests passed (engine `trombone.test.ts` 7, blocksize/golden/dynamics/sounding/
+  taps with the trombone; web `trombone-routing.test.ts` 6, `trombone2d.test.ts` 14, `trombone3d.test.ts`,
+  `vercel-paths.test.ts` with `/trombone`).
+- Playwright (`E2E_PORT=4213`, desktop 1440×900 and Pixel 7): 218 passed, 26 skipped, 0 failed (including
+  `trombone.spec.ts` 10, `trombone-2d.spec.ts`, `trombone-3d.spec.ts`; the pieces menu now four).
+- No reference recording committed: this branch adds no .aif/.aiff/.wav/.flac (the only .wav files in the repository are main's own model renders in `artifacts/audio`).
+
+## Engine
+
+Claude Opus 5.5 throughout: the lead (engine, fit, routing, tests, notes) and two helpers in sibling worktrees
+(`improve/trombone-2d`, `improve/trombone-3d`), cherry-picked.
