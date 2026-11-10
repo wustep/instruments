@@ -14,6 +14,7 @@ import { buildOboeModel, poseOboe, type OboeModel } from './oboe3d.ts';
 import { buildClarinetModel, poseClarinet, type ClarinetModel } from './clarinet3d.ts';
 import { BASSOON_SEAT, BASSOON_VIEW, BASSOON_WIDE, buildBassoonModel, poseBassoon, type BassoonModel } from './bassoon3d.ts';
 import { HORN_HELD, HORN_SEAT, HORN_VIEW, buildHornModel, poseHorn, type HornModel } from './horn3d.ts';
+import { TROMBONE_SEAT, TROMBONE_VIEW, buildTromboneModel, poseTrombone, tromboneSizeIn, type TromboneModel } from './trombone3d.ts';
 import { TIMPANI_SEAT, TIMPANI_VIEW, buildTimpaniModel, newTimpaniPose, poseTimpani, type TimpaniModel, type TimpaniPose } from './timpani3d.ts';
 import { seatPlaces } from '../../orchestra/seats.ts';
 
@@ -29,6 +30,8 @@ export interface SceneIn {
   reed?: 'oboe' | 'clarinet' | 'bassoon';
   /** the brass family's (default the trumpet) */
   brass?: 'trumpet' | 'horn' | 'trombone';
+  /** a trombone's size as the stage set it (its Size knob; the frame's own, when it carries one, wins) */
+  tromboneSize?: 'alto' | 'tenor' | 'bass';
   kind: 'grand' | 'upright';
   keys: KeySummary[];
   piano: PianoState;
@@ -58,6 +61,8 @@ export interface EnsPartIn {
   reed?: 'oboe' | 'clarinet' | 'bassoon';
   /** the brass family's (default the trumpet) */
   brass?: 'trumpet' | 'horn' | 'trombone';
+  /** a trombone's size (its seat's, for its lines) */
+  tromboneSize?: 'alto' | 'tenor' | 'bass';
   kind: 'grand' | 'upright';
   fr: VisualFrame | null;
   keys: KeySummary[];
@@ -93,6 +98,8 @@ export interface Scene3State {
   clarinet: ClarinetModel | null;
   bassoon: BassoonModel | null;
   horn: HornModel | null;
+  /** the trombones, by size (alto, tenor, bass: one model at each one's measures), built on first use */
+  trombones: Map<string, TromboneModel>;
   timpani: TimpaniModel | null;
   /** the single stage's timpani (their heads move: each set its own) */
   timpPose: TimpaniPose;
@@ -131,6 +138,7 @@ export const newScene3State = (): Scene3State => ({
   clarinet: null,
   bassoon: null,
   horn: null,
+  trombones: new Map(),
   timpani: null,
   timpPose: newTimpaniPose(),
   floors: new Map(),
@@ -255,6 +263,13 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): void {
     floor(b, st, 'horn', st.horn.bounds.c, st.horn.bounds.r, si);
     return;
   }
+  if (si.family === 'brass' && si.brass === 'trombone') {
+    const tm = tromboneModel(st, tromboneSizeIn(si.fr, si.tromboneSize));
+    poseTrombone(b, tm, si.fr, st.windPose, si.dt, si.now, si.rms, tm.T, si.tromboneSize, (si.aspect ?? 2) >= 1.4);
+    b.bounds = tm.bounds;
+    floor(b, st, 'trombone', tm.bounds.c, tm.bounds.r, si);
+    return;
+  }
   if (si.family === 'brass') {
     if (!st.trumpet) st.trumpet = timed(st, () => buildTrumpetModel());
     poseTrumpet(b, st.trumpet, si.fr, st.windPose, si.dt, si.now, si.rms);
@@ -292,6 +307,16 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): void {
   return;
 }
 
+/** a trombone of a size, built on first use */
+function tromboneModel(st: Scene3State, size: string): TromboneModel {
+  let tm = st.trombones.get(size);
+  if (!tm) {
+    tm = timed(st, () => buildTromboneModel(size as 'alto' | 'tenor' | 'bass'));
+    st.trombones.set(size, tm);
+  }
+  return tm;
+}
+
 /** default cameras: a three-quarter view from the audience's side, a little above */
 export function viewFor(si: SceneIn, st: Scene3State): View3 {
   if (si.ensemble?.length) return ensembleView(si.ensemble, si.aspect);
@@ -322,6 +347,14 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
     // (on a phone held upright it may turn round towards the bell's mouth, which shortens the bell across
     // the picture: horn3d.ts HORN_VIEW.swing)
     return { target: [c[0], c[1], c[2]], dist: 1.1, yaw: HORN_VIEW.yaw, pitch: HORN_VIEW.pitch, swing: HORN_VIEW.swing, whole: true };
+  }
+  // the trombone: three-quarter from the bell's side, a little in front of it and above, the slide
+  // running away past the bell (trombone3d.ts sets its pose); whole on every stage, framed with the
+  // slide all the way out (seventh position), so a note never carries it out of the picture
+  if (si.family === 'brass' && si.brass === 'trombone') {
+    const tm = st.trombones.get(tromboneSizeIn(si.fr, si.tromboneSize));
+    const c = tm ? tm.bounds.c : ([0, 0.3, 0] as Vec3);
+    return { target: [c[0], c[1], c[2]], dist: 1.6, yaw: TROMBONE_VIEW.yaw, pitch: TROMBONE_VIEW.pitch, swing: TROMBONE_VIEW.swing, whole: true };
   }
   if (si.family === 'brass') return { target: [0.0, 0.2, 0.0], dist: 0.6, yaw: 0.4, pitch: 0.28 };
   // the timpani: from the audience's side, round towards the big drums' end, a little above (the heads
@@ -393,6 +426,9 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
     // (a horn is held as a seated player holds it: the valves up under the left hand, the bell down by
     // the right thigh, its mouth back: horn3d.ts HORN_SEAT)
     if (p.family === 'brass' && p.brass === 'horn') return { T: chain(translate(x, HORN_SEAT.y, z), rotY(face + HORN_SEAT.turn)), c: [x, 0, z], r: 0.42, top: HORN_SEAT.top };
+    // (a trombone is held as a seated player holds it: the slide forward and a little down, the bell over
+    // the left shoulder towards the audience: trombone3d.ts TROMBONE_SEAT, TROMBONE_HELD)
+    if (p.family === 'brass' && p.brass === 'trombone') return { T: chain(translate(x, TROMBONE_SEAT.y, z), rotY(face + TROMBONE_SEAT.turn)), c: [x, 0, z + TROMBONE_SEAT.dz], r: TROMBONE_SEAT.r, top: TROMBONE_SEAT.top };
     // (the timpani stand on the floor in their arc, their player's place behind them: timpani3d.ts)
     if (p.family === 'percussion') return { T: chain(translate(x, 0, z), rotY(face)), c: [x, 0, z], r: TIMPANI_SEAT.r, top: TIMPANI_SEAT.top };
     let T: Mat4;
@@ -451,6 +487,9 @@ function buildEnsemble(b: Batch, si: SceneIn, parts: EnsPartIn[], st: Scene3Stat
     } else if (p.family === 'brass' && p.brass === 'horn') {
       if (!st.horn) st.horn = timed(st, () => buildHornModel());
       poseHorn(b, st.horn, p.fr, e.windPose, si.dt, si.now, si.rms, HORN_HELD);
+    } else if (p.family === 'brass' && p.brass === 'trombone') {
+      const tm = tromboneModel(st, tromboneSizeIn(p.fr, p.tromboneSize));
+      poseTrombone(b, tm, p.fr, e.windPose, si.dt, si.now, si.rms, tm.held, p.tromboneSize);
     } else if (p.family === 'brass') {
       if (!st.trumpet) st.trumpet = timed(st, () => buildTrumpetModel());
       poseTrumpet(b, st.trumpet, p.fr, e.windPose, si.dt, si.now, si.rms);

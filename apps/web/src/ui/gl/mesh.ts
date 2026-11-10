@@ -168,6 +168,8 @@ export const M = {
   bellBead: { col: hex('#e9e2d0'), rough: 0.3, metal: 0 },
   // the horn (horn3d.ts): lacquered yellow brass, handled (uv.y: how much hands touch it there)
   hornBrass: { col: hex('#e9c06a'), rough: 0.18, metal: 1 },
+  // the trombone (trombone3d.ts): the inner slides, nickel silver under a hard chrome (Bach, Conn, Yamaha)
+  slideChrome: { col: hex('#dededa'), rough: 0.08, metal: 1 },
   // the timpani (timpani3d.ts): hammered copper kettles under a clear lacquer, the Mylar heads (a milky,
   // satin film), chrome counterhoops and rods, the frames' black stove enamel, the pedals' ribbed rubber
   copperHammered: { col: hex('#c47a4c'), rough: 0.26, metal: 1 },

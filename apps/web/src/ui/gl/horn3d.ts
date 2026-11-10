@@ -68,15 +68,15 @@ const lerp3 = (a: Vec3, b: Vec3, t: number): Vec3 => [lerp(a[0], b[0], t), lerp(
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 /** a point of the drawing frame, mm → m (the true horn: x right and y up as the player-side photograph
  *  shows it, the bell to the right, z towards the player) */
-const V = (x: number, y: number, z: number): Vec3 => [x * mm, y * mm, z * mm];
+export const V = (x: number, y: number, z: number): Vec3 => [x * mm, y * mm, z * mm];
 /** the stage's world is mirrored in x (three3d.ts), so the model is built as its mirror image (z
  *  flipped) to be seen true: everything is drawn in the true frame inside FLIP, and a point or an axis
  *  of the true frame is F3 of it in the model */
-const FLIP = scaleM(1, 1, -1);
-const F3 = (p: Vec3): Vec3 => [p[0], p[1], -p[2]];
+export const FLIP = scaleM(1, 1, -1);
+export const F3 = (p: Vec3): Vec3 => [p[0], p[1], -p[2]];
 /** a mesh built in the true frame: flipped, its triangles' winding turned back (a mirror image's faces
  *  would face inwards) */
-function make(f: (mb: MeshBuilder) => void): Mesh {
+export function make(f: (mb: MeshBuilder) => void): Mesh {
   const mb = new MeshBuilder();
   mb.with(FLIP, () => f(mb));
   const m = mb.build();
@@ -107,7 +107,7 @@ function make(f: (mb: MeshBuilder) => void): Mesh {
 }
 
 /** a 3D polyline bent round its corners (a bend radius per corner, mm points and radii), as tubing is */
-function bend(pts: Vec3[], rad: number | number[], n = 14): Vec3[] {
+export function bend(pts: Vec3[], rad: number | number[], n = 14): Vec3[] {
   const out: Vec3[] = [pts[0]];
   for (let i = 1; i < pts.length - 1; i++) {
     const r = typeof rad === 'number' ? rad : rad[i - 1];
@@ -141,7 +141,7 @@ function bend(pts: Vec3[], rad: number | number[], n = 14): Vec3[] {
   return out;
 }
 /** a cubic Bézier from p0 (leaving along t0) to p1 (arriving along t1), k points */
-function bezier(p0: Vec3, t0: Vec3, p1: Vec3, t1: Vec3, k: number): Vec3[] {
+export function bezier(p0: Vec3, t0: Vec3, p1: Vec3, t1: Vec3, k: number): Vec3[] {
   const L = len3(sub(p1, p0));
   const c0 = add(p0, scale(norm(t0), L * 0.38));
   const c1 = sub(p1, scale(norm(t1), L * 0.38));
@@ -152,7 +152,7 @@ function bezier(p0: Vec3, t0: Vec3, p1: Vec3, t1: Vec3, k: number): Vec3[] {
   });
 }
 /** a polyline cut so no piece is longer than `step` (straight runs keep their ends) */
-function refine(pts: Vec3[], step: number): Vec3[] {
+export function refine(pts: Vec3[], step: number): Vec3[] {
   const out: Vec3[] = [pts[0]];
   for (let i = 1; i < pts.length; i++) {
     const a = pts[i - 1];
@@ -162,7 +162,7 @@ function refine(pts: Vec3[], step: number): Vec3[] {
   }
   return out;
 }
-const arcLen = (p: Vec3[]) => {
+export const arcLen = (p: Vec3[]) => {
   let s = 0;
   for (let i = 1; i < p.length; i++) s += len3(sub(p[i], p[i - 1]));
   return s;
@@ -172,7 +172,7 @@ const mmPts = (p: Vec3[]) => p.map((q) => V(q[0], q[1], q[2]));
 /** A round tube along a path (m), its outer radius by arc length (m from the start, and the fraction),
  *  swept with rotation-minimising frames (no twist where the path turns vertical), its normals tilted
  *  where it widens; `hand`: how handled it is along it (fingerprints), `caps` its ends closed */
-function tubeAlong(mb: MeshBuilder, path: Vec3[], r: (s: number, f: number) => number, m: Mat, seg = 24, opt: { hand?: (f: number) => number; cap0?: boolean; cap1?: boolean } = {}): void {
+export function tubeAlong(mb: MeshBuilder, path: Vec3[], r: (s: number, f: number) => number, m: Mat, seg = 24, opt: { hand?: (f: number) => number; cap0?: boolean; cap1?: boolean } = {}): void {
   const N = path.length;
   if (N < 2) return;
   const acc = [0];
@@ -230,15 +230,15 @@ function tubeAlong(mb: MeshBuilder, path: Vec3[], r: (s: number, f: number) => n
   if (opt.cap1) capAt(N - 1, 1);
 }
 /** a solid of revolution about the axis through p along `dir` (profile [radius, along], m) */
-const latheOn = (mb: MeshBuilder, p: Vec3, dir: Vec3, prof: P2[], seg: number, m: Mat) => mb.with(frameY(p, dir), () => revolve(mb, prof, seg, m));
+export const latheOn = (mb: MeshBuilder, p: Vec3, dir: Vec3, prof: P2[], seg: number, m: Mat) => mb.with(frameY(p, dir), () => revolve(mb, prof, seg, m));
 /** a ferrule (a sleeve soldered over a joint, a bead at each end) round a tube of radius r at p along dir, mm */
-function ferrule(mb: MeshBuilder, p: Vec3, dir: Vec3, r: number, L: number, m: Mat = NS): void {
+export function ferrule(mb: MeshBuilder, p: Vec3, dir: Vec3, r: number, L: number, m: Mat = NS): void {
   const h = (L / 2) * mm;
   const R = r * mm;
   latheOn(mb, p, dir, fillet([[R - 0.0002, -h], [R + 0.0009, -h + 0.0002], [R + 0.0009, -h + 0.0011], [R + 0.0005, -h + 0.0015], [R + 0.0005, h - 0.0015], [R + 0.0009, h - 0.0011], [R + 0.0009, h - 0.0002], [R - 0.0002, h]] as P2[], 0.00025, 2), 32, m);
 }
 /** a brace between two tubes' surfaces: a rod with a flared foot soldered on at each end (mm) */
-function brace(mb: MeshBuilder, a: Vec3, b: Vec3, r = 1.6, m: Mat = BR): void {
+export function brace(mb: MeshBuilder, a: Vec3, b: Vec3, r = 1.6, m: Mat = BR): void {
   const A = V(...a);
   const B = V(...b);
   const d = norm(sub(B, A));
@@ -648,7 +648,7 @@ function lever(mb: MeshBuilder, i: number): void {
   ellipsoid(mb, tip, [0.0024, 0.0024, 0.0024], 18, STEEL);
 }
 /** a flat bar along a path (half-width w, half-thickness h, mm), its broad face towards +z */
-function tubeAlongBar(mb: MeshBuilder, path: Vec3[], w: number, h: number, m: Mat): void {
+export function tubeAlongBar(mb: MeshBuilder, path: Vec3[], w: number, h: number, m: Mat): void {
   const N = path.length;
   const rings: { p: Vec3; n: Vec3 }[][] = [];
   const seg = 16;
@@ -687,7 +687,7 @@ function tubeAlongBar(mb: MeshBuilder, path: Vec3[], w: number, h: number, m: Ma
 }
 /** a spatula: a lens-shaped spoon centred at c (m), its length along −x (mm), half-width, a turn (deg)
  *  about z; domed on its face (+z), the finger's shallow dimple */
-function spatula(mb: MeshBuilder, c: Vec3, L: number, W: number, turn: number): void {
+export function spatula(mb: MeshBuilder, c: Vec3, L: number, W: number, turn: number): void {
   const ca = Math.cos(turn * DEG);
   const sa = Math.sin(turn * DEG);
   const P = (u: number, v: number, top: boolean): Vec3 => {
@@ -996,7 +996,7 @@ export function buildHornModel(): HornModel {
   return model;
 }
 /** a mesh set's box in the model */
-function boxOf(ms: Mesh[]): { lo: Vec3; hi: Vec3 } {
+export function boxOf(ms: Mesh[]): { lo: Vec3; hi: Vec3 } {
   const lo: Vec3 = [Infinity, Infinity, Infinity];
   const hi: Vec3 = [-Infinity, -Infinity, -Infinity];
   for (const m of ms)
