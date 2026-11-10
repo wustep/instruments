@@ -182,6 +182,16 @@ const P: Record<string, Phys> = {
   brassHandled: { color: '#f3d283', metalness: 1, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.14, envMapIntensity: 1.55, tex: 5 },
   // the slides' inner tubes where they show: nickel silver, drawn and worn satin by the slide
   nickelDrawn: { color: '#dedcd5', metalness: 1, roughness: 0.3, envMapIntensity: 1.4, tex: 8, axis: [0, 1, 0] },
+  // the oboe (oboe3d.ts). Grenadilla: near black, a deep brown-violet where the light catches it, its
+  // faint streaks along the tube (the ebony texture), oiled and polished (a thin, fairly sharp coat:
+  // oboe-yamaha-side.jpg's highlights run the length of each joint as soft bands)
+  grenadilla: { color: '#241e1f', roughness: 0.4, clearcoat: 0.75, clearcoatRoughness: 0.13, tex: 4, axis: [0, 1, 0], texScale: 0.6 },
+  grenadillaX: { color: '#241e1f', roughness: 0.4, clearcoat: 0.75, clearcoatRoughness: 0.13, tex: 4, axis: [1, 0, 0], texScale: 0.6 },
+  // the reed: Arundo donax cane, its bark glossy golden; the scraped tip and heart paler and matte,
+  // fibres along the reed (oboe-reeds.jpg); the binding thread, nylon with a sheen
+  cane: { color: '#d4ad5f', roughness: 0.38, clearcoat: 0.5, clearcoatRoughness: 0.18, sheen: 0.25, sheenColor: '#fff0c8', sheenRoughness: 0.5, tex: 3, axis: [1, 0, 0], texScale: 0.25 },
+  caneScraped: { color: '#ecd6a2', roughness: 0.66, sheen: 0.5, sheenColor: '#fff6dc', sheenRoughness: 0.5, tex: 3, axis: [1, 0, 0], texScale: 0.25 },
+  reedThread: { color: '#2f6542', roughness: 0.5, sheen: 1, sheenColor: '#9ae6b8', sheenRoughness: 0.35, tex: 6 },
 };
 
 // GLSL: hashes, value noise and fbm (all in the part's own metres)

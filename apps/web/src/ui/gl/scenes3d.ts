@@ -263,9 +263,11 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
     return { target: [c[0], c[1] - 0.025, c[2]], dist: id === 'viola' ? 0.95 : 0.86, yaw: -0.5, pitch: 0.42 };
   }
   if (si.family === 'brass') return { target: [0.0, 0.2, 0.0], dist: 0.6, yaw: 0.4, pitch: 0.28 };
+  // the oboe: held as a player holds it, seen from the audience a little to the bell's side and a
+  // little above, the plates and the keywork towards the camera
   if (si.family === 'reed') {
-    const c = st.oboe ? st.oboe.bounds.c : ([0, 0.17, 0] as Vec3);
-    return { target: c, dist: 0.68, yaw: 0.24, pitch: 0.5 };
+    const c = st.oboe ? st.oboe.bounds.c : ([0, 0.3, 0] as Vec3);
+    return { target: [c[0], c[1], c[2]], dist: 0.78, yaw: 0.32, pitch: 0.16, whole: true };
   }
   return { target: [0.0, 0.17, 0.0], dist: 0.68, yaw: 0.24, pitch: 0.5 };
 }
@@ -307,11 +309,14 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
     let T: Mat4;
     if (cello) T = chain(translate(x, 0, z), rotY(face - 0.62));
     else if (p.family === 'bowed') T = chain(translate(x, HELD, z), rotY(face + 0.5));
+    // (an oboe is held as the flute is, its middle level with the flute's, slanting down from the
+    // player's mouth: its own model stands 0.13 m higher, oboe3d.ts OBOE_POSE)
+    else if (p.family === 'reed') T = chain(translate(x, HELD + 0.4 - 0.13, z), rotY(face - 0.32));
     // (a flute or trumpet is held higher, level with the player's mouth)
     else T = chain(translate(x, HELD + 0.4, z), rotY(face - 0.3));
     // (a bass stands 1.97 m to its scroll's top, strings3d.ts SPEC.bass: framed to 2.15, headroom for
-    // the scroll, the stage's highest point, under the file player)
-    return { T, c: [x, 0, z], r: bass ? 0.6 : cello ? 0.45 : 0.36, top: bass ? 2.15 : cello ? 1.5 : wind ? HELD + 0.62 : HELD + 0.38 };
+    // the scroll, the stage's highest point, under the file player; the oboe's reed reaches 1.17 m)
+    return { T, c: [x, 0, z], r: bass ? 0.6 : cello ? 0.45 : 0.36, top: bass ? 2.15 : cello ? 1.5 : p.family === 'reed' ? HELD + 0.78 : wind ? HELD + 0.62 : HELD + 0.38 };
   });
 }
 
