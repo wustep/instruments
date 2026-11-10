@@ -342,15 +342,15 @@ export const BS_TOUCHES: ClTouch[] = [
   thumbR('re', RE, 0.346),
   thumbR('rfs', RFS, 0.322),
   thumbR('rgs', RGS, 0.298),
-  { id: 'se', bit: SE, x0: 0.676, v0: -0.0125, x1: 0.672, v1: 0.0125, w: 0.0018, fixed: true },
-  { id: 'seb', bit: SEB, x0: 0.622, v0: -0.0125, x1: 0.619, v1: 0.0145, w: 0.0021 },
-  { id: 'leb', bit: LEB, x0: 0.557, v0: 0.0215, x1: 0.546, v1: 0.0385, w: 0.0044 },
-  { id: 'lcs', bit: LCS, x0: 0.54, v0: 0.0215, x1: 0.531, v1: 0.0372, w: 0.0039 },
-  { id: 'sbb', bit: SBB, x0: 0.289, v0: -0.0105, x1: 0.287, v1: 0.012, w: 0.0021, fixed: true },
-  { id: 'r3', bit: R3, x0: 0.271, v0: -0.0105, x1: 0.268, v1: 0.0185, w: 0.0044 },
-  { id: 'pfs', bit: PFS, x0: 0.259, v0: 0.025, x1: 0.251, v1: 0.0425, w: 0.0035 },
-  { id: 'pf', bit: PF, x0: 0.247, v0: 0.026, x1: 0.233, v1: 0.047, w: 0.0047 },
-  { id: 'pgs', bit: PGS, x0: 0.231, v0: 0.027, x1: 0.215, v1: 0.0455, w: 0.0037 },
+  { id: 'se', bit: SE, x0: 0.676, v0: -0.0125, x1: 0.671, v1: 0.0135, w: 0.0024, fixed: true },
+  { id: 'seb', bit: SEB, x0: 0.622, v0: -0.0125, x1: 0.618, v1: 0.0155, w: 0.0027 },
+  { id: 'leb', bit: LEB, x0: 0.558, v0: 0.0215, x1: 0.546, v1: 0.0395, w: 0.005 },
+  { id: 'lcs', bit: LCS, x0: 0.539, v0: 0.0215, x1: 0.529, v1: 0.0382, w: 0.0045 },
+  { id: 'sbb', bit: SBB, x0: 0.29, v0: -0.0105, x1: 0.288, v1: 0.0125, w: 0.0026, fixed: true },
+  { id: 'r3', bit: R3, x0: 0.271, v0: -0.0105, x1: 0.267, v1: 0.0195, w: 0.0054 },
+  { id: 'pfs', bit: PFS, x0: 0.259, v0: 0.025, x1: 0.251, v1: 0.0435, w: 0.004 },
+  { id: 'pf', bit: PF, x0: 0.247, v0: 0.026, x1: 0.232, v1: 0.0478, w: 0.0052 },
+  { id: 'pgs', bit: PGS, x0: 0.231, v0: 0.027, x1: 0.214, v1: 0.0462, w: 0.0042 },
 ];
 /** the rods (across at v, from height a to b) and the pillars (v, h) */
 const ROD_WL = -0.0365;
@@ -382,7 +382,7 @@ const BS_LINKS: [number, number][][] = [
 ];
 /** the plan's reach across (m): the reed's tip on the left, the keys and pads on the right */
 export const U_LO = -0.236;
-export const U_HI = 0.0485;
+export const U_HI = 0.05;
 /** where the wave's envelope stands off each leg: left of the wing and boot, right of the long joint */
 const LOBE_L = -0.041;
 export const LOBE_R = 0.0475;
@@ -606,7 +606,7 @@ export function bassoonLayout(W: number, H: number, top = 0): BsLayout {
     if (h < H_RING + 0.005) ridge.moveTo(X(h), Y(u));
     else ridge.lineTo(X(h), Y(u));
   }
-  ridgeShadow.addPath(outline(H_RING + 0.002, 0.78, (h) => wingRight(h), (h) => wingRight(h) + 0.0035 * smooth(0.79, 0.74, h)));
+  ridgeShadow.addPath(outline(H_RING + 0.002, 0.8, (h) => wingRight(h) - 0.0008, (h) => wingRight(h) + 0.003 * smooth(0.81, 0.76, h) + 0.0008));
   // the bell's mouth, seen a little from above: its rim's face and the dark of the bore
   const mouth = new Path2D();
   mouth.ellipse(X(BS_H), Y(U_L), 0.0045 * sc, bellR(BS_H) * sc, 0, 0, 2 * Math.PI);
@@ -974,7 +974,7 @@ export function drawBassoon(ctx: CanvasRenderingContext2D, W: number, H: number,
   ctx.fill(L.long);
   ctx.fillStyle = woodGrad(0, 0.037);
   ctx.fill(L.boot);
-  ctx.fillStyle = 'rgba(0,0,0,0.32)';
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.fill(L.ridgeShadow);
   ctx.fillStyle = woodGrad(U_W + 0.012, 0.0265);
   ctx.fill(L.wing);
@@ -993,6 +993,9 @@ export function drawBassoon(ctx: CanvasRenderingContext2D, W: number, H: number,
   ctx.strokeStyle = 'rgba(255,220,196,0.22)';
   ctx.lineWidth = Math.max(0.8, 0.0007 * sc);
   ctx.stroke(L.ridge);
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = 1;
+  ctx.stroke(L.wing);
   // the hand rest (dark rosewood on its stem), the bell's pale lip
   ctx.fillStyle = SILVER_BODY;
   ctx.fill(L.restStem);

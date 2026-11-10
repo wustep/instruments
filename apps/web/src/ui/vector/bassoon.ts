@@ -168,7 +168,11 @@ export function drawBassoonV(ctx: CanvasRenderingContext2D, W: number, H: number
   const nx = -L.tdy;
   const ny = L.tdx;
   const out = (a: number, w: number): [number, number] => [L.tipX + L.tdx * a * sc + nx * w * sc, L.tipY + L.tdy * a * sc + ny * w * sc];
-  const xb = Math.max(0.012, (hr + 8) / sc);
+  // (the lips' handle out along the reed's axis, kept inside the box: an Orchestra cell leaves a narrow
+  // margin past the tip)
+  const room = (L.tipY - ((L.vertical ? 0 : L.top) + hr + 5)) / (-L.tdy * sc);
+  const aH = Math.max(0.004, Math.min(Math.max(0.012, (hr + 8) / sc) + (hr + 2) / sc, room));
+  const xb = Math.max(0.002, aH - (hr + 2) / sc);
   // breath (green): from the lips into the tip, flowing
   if (lv.blow > 0.02) {
     const flow = new Path2D();
@@ -189,7 +193,7 @@ export function drawBassoonV(ctx: CanvasRenderingContext2D, W: number, H: number
     }
   }
   // the lips' handle (green: the breath) past the tip, and round it the vibrato's ring (white)
-  const [hx, hy] = out(xb + (hr + 2) / sc, 0);
+  const [hx, hy] = out(aH, 0);
   const [bx, by] = out(xb, 0);
   seg(ctx, hx - L.tdx * hr, hy - L.tdy * hr, bx, by, V.green, 1, { alpha: 0.5 * live });
   handle(ctx, hx, hy, V.green, hr, live);
