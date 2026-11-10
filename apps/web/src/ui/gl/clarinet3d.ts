@@ -344,7 +344,9 @@ function ligature(mb: MeshBuilder): void {
     const loop = [...top, ...under.reverse()];
     return resample([...loop, loop[0]], NV);
   };
-  const bs = [LIG0, LIG0 + 0.35, LIG0 + 1, LIG0 + 2.2, LIG1 - 2.2, LIG1 - 1, LIG1 - 0.35, LIG1];
+  // (stations every 2 mm between the rounded edges: the band follows the beak's swell, not its chords)
+  const mid = Array.from({ length: 11 }, (_, i) => lerp(LIG0 + 2.2, LIG1 - 2.2, (i + 1) / 12));
+  const bs = [LIG0, LIG0 + 0.35, LIG0 + 1, LIG0 + 2.2, ...mid, LIG1 - 2.2, LIG1 - 1, LIG1 - 0.35, LIG1];
   const lip = (i: number) => (i === 0 || i === bs.length - 1 ? 0.15 : i === 1 || i === bs.length - 2 ? 0.45 : i === 2 || i === bs.length - 3 ? 0.62 : 0.7);
   const outer = bs.map((b, i) => ring(b, lip(i)));
   grid(mb, bs.length - 1, NV - 1, (u, v) => {
@@ -752,7 +754,19 @@ const FIXED: KeyDef[] = [
   { name: 'lp2b', kind: 'lever', rod: LP2, hb: [rb(3820), rb(4125)], open: never },
   // the low keys' line between its keys
   { name: 'fr1', kind: 'lever', rod: FR, hb: [rb(4110), rb(4240)], open: never },
-  { name: 'fr2', kind: 'lever', rod: FR, hb: [rb(4375), rb(4570)], open: never },
+  {
+    name: 'fr2', kind: 'lever', rod: FR, hb: [rb(4375), rb(4570)], open: never,
+    // the crow's foot: the low keys' clutch across the front to the F key's arm, its adjusting screw
+    extra: (mb) => {
+      const bb = rb(4562);
+      sweep(mb, Array.from({ length: 11 }, (_, i) => S(bb, lerp(-8, 60, i / 10), lerp(3.6, 2.6, Math.min(1, (2 * i) / 10)) + 0.3 * Math.sin((Math.PI * i) / 10))), OUT, (f) => 0.0013 + 0.0005 * Math.max(0, 1 - f / 0.2), () => 0.0006, AG, 12, 3);
+      const e = S(bb, 60, 2.6);
+      mb.with(frameY(e, OUT(e)), () => {
+        revolve(mb, fillet([[0, -0.0006], [0.0009, -0.0006], [0.0009, 0.0008], [0, 0.0009]], [0, 0.0001, 0.0003, 0], 2), 16, AG);
+        mb.quad([-0.0008, 0.00091, -0.0001], [-0.0008, 0.00091, 0.0001], [0.0008, 0.00091, 0.0001], [0.0008, 0.00091, -0.0001], DARK);
+      });
+    },
+  },
   // the trill keys' line between its keys
   { name: 'tr4', kind: 'lever', rod: TR, hb: [rb(1840), rb(2260)], open: never },
   { name: 'rg2', kind: 'lever', rod: RG, hb: [rb(1650), rb(1975)], open: never },
@@ -995,7 +1009,7 @@ export function poseClarinet(b: Batch, cm: ClarinetModel, fr: VisualFrame | null
     prev = pc.b;
   }
   // the bell shimmers with the level
-  if (lvl > 0.02) b.mesh(cm.bell, T, setGlow(0.1 * lvl * (0.75 + 0.25 * Math.sin(now * 0.021))));
+  if (lvl > 0.02) b.mesh(cm.bell, T, setGlow(0.07 * lvl * (0.75 + 0.25 * Math.sin(now * 0.021))));
   else b.mesh(cm.bell, T);
 }
 
