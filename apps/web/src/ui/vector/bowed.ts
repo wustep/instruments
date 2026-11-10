@@ -1,7 +1,7 @@
-// The violin, viola and cello on the vector display (kit.ts): the same plan as stage-draw.ts's
-// drawBowed (the same figures, the same layout, the same live state), drawn as its lines. Blue is the
-// instrument: the plate's traced outline and f-holes, the fingerboard, head, pegs, tailpiece and
-// bridge, the strings at rest, the bow. Amber is the sound: the body's modes as nodal lines on the
+// The violin, viola, cello and double bass on the vector display (kit.ts): the same plan as
+// stage-draw.ts's drawBowed (the same figures, the same layout, the same live state), drawn as its
+// lines. Blue is the instrument: the plate's outline and f-holes, the fingerboard, head, pegs (the
+// bass's machine heads), tailpiece and bridge, the strings at rest, the bow. Amber is the sound: the body's modes as nodal lines on the
 // plate, the ringing strings, the bowed string's Helmholtz shape and its travelling corner.
 // The knobs' slots: the contact point (green) is a handle where the hair crosses the string; the
 // bow force (red) a ring round it that grows with the force, and the hair's give under the string;
@@ -9,7 +9,7 @@
 // bass bar and soundpost that carry the bridge's motion into the plates.
 
 import type { VisualFrame } from '@piano-model/engine';
-import { BOWED_PLAN, HEAD_EAR, HEAD_PROJ, MM, PEG_A, PEG_OF, PEG_SIDE, bowedLayout, bowedShapes, bwClamp, bwForce, bwHeadParts, bwPegboxW, bwPlace, bwPoly, bwSstep, type BowedGeom, type BowedLayout, type BowedState } from '../stage-draw.ts';
+import { BASS_MACH, BOWED_PLAN, HEAD_EAR, HEAD_PROJ, MM, PEG_A, PEG_OF, PEG_SIDE, bassAdjusters, bassHead, bassPinParts, bassTailWire, bowFit, bowedDrawn, bowedLayout, bowedShapes, bwBridge, bwClamp, bwForce, bwHeadParts, bwPegboxW, bwPlace, bwPoly, bwSstep, bwTailpiece, type BowedDrawn, type BowedGeom, type BowedLayout, type BowedState } from '../stage-draw.ts';
 import { SLOTS, V, beam, dot, handle, label, ring, seg, type Contours, type Pt } from './kit.ts';
 
 const [GREEN, RED, PINK, WHITE] = SLOTS;
@@ -30,13 +30,15 @@ interface Statics {
   bridge: Path2D;
   inside: Path2D;
   strings: Path2D;
+  drawn: BowedDrawn;
 }
 const statics = new Map<string, Statics>();
 
-function build(g: BowedGeom, W: number, H: number, scale?: number): Statics {
+function build(g: BowedGeom, W: number, H: number, scale?: number, top = 0): Statics {
   const p = BOWED_PLAN[g.id];
   const sh = bowedShapes(g.id, p, g.L);
-  const lay = bowedLayout(g, p, sh, W, H, scale);
+  const lay = bowedLayout(g, p, sh, W, H, scale, top);
+  const bass = g.id === 'bass';
   const sc = lay.sc;
   const X = (x: number) => x * sc;
   const B = p.body;
@@ -96,7 +98,7 @@ function build(g: BowedGeom, W: number, H: number, scale?: number): Statics {
   // pegs: the shaft across the box, the collar, the thumb-piece (a paddle, seen face on)
   const pegs = new Path2D();
   const sR = 0.0031 * S ** 0.6;
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < (bass ? 0 : 4); i++) {
     const a = PEG_A[PEG_OF[i]];
     const s = PEG_SIDE[i];
     const w0 = bwPegboxW(p, a);
@@ -120,18 +122,40 @@ function build(g: BowedGeom, W: number, H: number, scale?: number): Statics {
     pegs.closePath();
   }
 
+  // the bass's machine heads: each plate down its cheek, each tuner's worm and shaft, its wheel, its key
+  // and the key's face; the rollers across the pegbox and the strings' coils on them
+  const hd = bass ? bassHead(p) : null;
+  if (hd) {
+    const add = (path: Path2D, pts: Pt[]) => pts.forEach(([x, z], k) => (k ? path.lineTo(X(x), X(z)) : path.moveTo(X(x), X(z))));
+    const close = (path: Path2D, pts: Pt[]) => {
+      add(path, pts);
+      path.closePath();
+    };
+    for (const pl of hd.plates) close(pegs, pl);
+    for (const t of hd.tuners) {
+      // the worm and shaft, one outline from the plate to the collar; the wheel over it
+      const r0 = BASS_MACH.wormR;
+      const r1 = BASS_MACH.neckR;
+      const [za, zb, zc] = [t.worm[0][1], t.worm[2][1], t.neck[2][1]];
+      close(pegs, [[t.x - r0, za], [t.x - r0, zb], [t.x - r1, zb], [t.x - r1, zc], [t.x + r1, zc], [t.x + r1, zb], [t.x + r0, zb], [t.x + r0, za]]);
+      close(pegs, t.collar);
+      close(pegs, t.gear);
+      close(pegs, t.key);
+      close(scroll, t.face);
+    }
+    for (const { x, half, r } of hd.rollers) {
+      scroll.moveTo(X(x - r), X(-half));
+      scroll.lineTo(X(x - r), X(half));
+      scroll.moveTo(X(x + r), X(-half));
+      scroll.lineTo(X(x + r), X(half));
+    }
+    for (const co of hd.coils) close(pegs, [[co.x - co.r, co.z - co.half], [co.x + co.r, co.z - co.half], [co.x + co.r, co.z + co.half], [co.x - co.r, co.z + co.half]]);
+  }
+
   // the tailpiece (broad at its fret, waisted towards the tail), saddle, tailgut, the end button or
-  // the cello's endpin
+  // the cello's endpin (the bass: its tail wire and ferrules, its own endpin with the thumbscrew)
   const tail = new Path2D();
-  const tpTop = xb + L / 6;
-  const tpEnd = B - 0.012 * S;
-  const wTop = p.spreadB * 3.7;
-  const wBot = p.spreadB * 1.55;
-  const tpW = (s: number) => {
-    const w = wBot + (wTop - wBot) * Math.pow(1 - s, 1.35);
-    const round = s < 0.06 ? Math.sqrt(Math.max(0, 1 - ((0.06 - s) / 0.06) ** 2)) : 1;
-    return w * (0.75 + 0.25 * round);
-  };
+  const { top: tpTop, end: tpEnd, wTop, w: tpW } = bwTailpiece(g, p);
   const NT = 30;
   for (let k = 0; k <= NT; k++) {
     const s = k / NT;
@@ -147,11 +171,23 @@ function build(g: BowedGeom, W: number, H: number, scale?: number): Statics {
   const sadX = B - 0.006 * S;
   const sadW = 0.034 * S ** 0.8;
   tail.rect(X(sadX - 0.0035 * S ** 0.6), X(-sadW / 2), X(0.007 * S ** 0.6), X(sadW));
-  for (const sg of [-1, 1]) {
-    tail.moveTo(X(tpEnd), X(sg * 0.0035 * S ** 0.7));
-    tail.lineTo(X(B + 0.003 * S), X(sg * 0.0015 * S));
+  const outline = (path: Path2D, pts: Pt[], closed = true) => {
+    pts.forEach(([x, z], k) => (k ? path.lineTo(X(x), X(z)) : path.moveTo(X(x), X(z))));
+    if (closed) path.closePath();
+  };
+  if (bass) {
+    const tw = bassTailWire(g, p);
+    for (const st of tw.strands) outline(tail, st, false);
+    for (const f of tw.ferrules) outline(tail, f);
+    const pin = bassPinParts(B);
+    for (const q of [pin.sock, pin.rod, pin.screw, pin.knob]) outline(tail, q);
+  } else {
+    for (const sg of [-1, 1]) {
+      tail.moveTo(X(tpEnd), X(sg * 0.0035 * S ** 0.7));
+      tail.lineTo(X(B + 0.003 * S), X(sg * 0.0015 * S));
+    }
   }
-  if (g.id === 'cello' || g.id === 'bass') {
+  if (g.id === 'cello') {
     const sock: Pt[] = [[0, 0.0175], [0.004, 0.019], [0.012, 0.017], [0.016, 0.0185], [0.022, 0.0185], [0.028, 0.012], [0.042, 0.009], [0.044, 0.0105], [0.05, 0.0105]];
     sock.forEach(([d, r], i) => (i ? tail.lineTo(X(B + d), X(-r)) : tail.moveTo(X(B + d), X(-r))));
     for (let i = sock.length - 1; i >= 0; i--) tail.lineTo(X(B + sock[i][0]), X(sock[i][1]));
@@ -163,19 +199,24 @@ function build(g: BowedGeom, W: number, H: number, scale?: number): Statics {
     tail.lineTo(X(B + 0.05 + rod + 0.012), 0);
     tail.lineTo(X(B + 0.05 + rod), X(0.0048));
     tail.lineTo(X(B + 0.05), X(0.0048));
-  } else {
+  } else if (!bass) {
     tail.moveTo(X(B + 0.0035 * S + 0.004 * S), 0);
     tail.ellipse(X(B + 0.0035 * S), 0, X(0.004 * S), X(0.0052 * S), 0, 0, Math.PI * 2);
   }
 
-  // the bridge from above: its top edge across the strings, a foot at each end
+  // the bridge from above: its top edge across the strings, a foot at each end (the bass's: a height
+  // adjuster's wheel in each leg)
   const bridge = new Path2D();
   const bW = p.bridgeW;
-  const foot = 0.0042 * S ** 0.7;
-  const footL = 0.0105 * S ** 0.8;
+  const { foot, footL } = bwBridge(g, p);
   bridge.moveTo(X(xb), X(-bW * 0.44));
   bridge.lineTo(X(xb), X(bW * 0.44));
   for (const sg of [-1, 1]) bridge.rect(X(xb - foot / 2), X(sg > 0 ? bW / 2 - footL : -bW / 2), X(foot), X(footL));
+  if (bass)
+    for (const { x, z, r } of bassAdjusters(g, p)) {
+      bridge.moveTo(X(x + r), X(z));
+      bridge.arc(X(x), X(z), X(r), 0, Math.PI * 2);
+    }
 
   // inside, seen as through the top: the bass bar under the bass foot, the soundpost behind the
   // treble foot (Strobel's figures, as stage-draw.ts)
@@ -194,11 +235,13 @@ function build(g: BowedGeom, W: number, H: number, scale?: number): Statics {
 
   // the strings at rest: nut to bridge, on to the tailpiece, and back into the pegbox to their pegs
   const strings = new Path2D();
-  const tailEnd = (i: number): Pt => [tpTop + 0.012 * S ** 0.7 + (i === 3 ? 0.012 * S ** 0.7 : 0), (1.5 - i) * p.spreadB * 0.62];
+  const tailEnd = (i: number): Pt => [tpTop + 0.012 * S ** 0.7 + (i === 3 && !bass ? 0.012 * S ** 0.7 : 0), (1.5 - i) * p.spreadB * 0.62];
   for (let i = 0; i < 4; i++) {
     const a = PEG_A[PEG_OF[i]];
     const wIn = bwPegboxW(p, a) - cheek;
-    strings.moveTo(HX(a), X(bwClamp((1.5 - i) * p.spreadN * 1.3, -wIn * 0.6, wIn * 0.6)));
+    const co = hd?.coils[i];
+    if (co) strings.moveTo(X(co.x + co.r * 0.6), X(co.z));
+    else strings.moveTo(HX(a), X(bwClamp((1.5 - i) * p.spreadN * 1.3, -wIn * 0.6, wIn * 0.6)));
     strings.lineTo(X(xn), X((1.5 - i) * p.spreadN));
     strings.lineTo(X(xb), X((1.5 - i) * p.spreadB));
     const [tx, tz] = tailEnd(i);
@@ -207,18 +250,18 @@ function build(g: BowedGeom, W: number, H: number, scale?: number): Statics {
   // the nut
   board.moveTo(X(xn), X(-fbw(xn) * 0.51));
   board.lineTo(X(xn), X(fbw(xn) * 0.51));
-  return { lay, body, plate, holes, board, head, scroll, pegs, tail, bridge, inside, strings };
+  return { lay, body, plate, holes, board, head, scroll, pegs, tail, bridge, inside, strings, drawn: bowedDrawn(g, p, sh, lay) };
 }
 
 /** (`bowLater` and `scale`, as the stage's own drawBowed: the bow is handed back, to be drawn with no
  *  clip after every instrument of an ensemble, all drawn at the ensemble's one scale) */
-export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, g: BowedGeom, fr: VisualFrame | null, st: BowedState, field: Contours, now: number, bowLater = false, scale?: number): (() => void) | null {
+export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, g: BowedGeom, fr: VisualFrame | null, st: BowedState, field: Contours, now: number, bowLater = false, scale?: number, top = 0): (() => void) | null {
   const p = BOWED_PLAN[g.id];
   const sh = bowedShapes(g.id, p, g.L);
-  const key = `${g.id}|${g.L}|${W}|${H}|${scale ?? ''}`;
+  const key = `${g.id}|${g.L}|${W}|${H}|${scale ?? ''}|${top}`;
   let s = statics.get(key);
   if (!s) {
-    s = build(g, W, H, scale);
+    s = build(g, W, H, scale, top);
     statics.set(key, s);
     for (const k of statics.keys()) {
       if (statics.size <= 8) break;
@@ -373,7 +416,7 @@ export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, 
   lv.incl += (inclT - lv.incl) * (snap ? 1 : ease(0.06));
   lv.lift += ((playing ? 0 : 1) - lv.lift) * ease(0.15);
   const Hh = g.bowLength;
-  const S2 = Hh / 0.65;
+  const S2 = bowFit(g);
   const pos = bow ? bwClamp(bow.pos, 0, 1) : 0.5;
   const ci = Math.cos(lv.incl);
   const tilt = Math.sin(0.7);
@@ -387,6 +430,7 @@ export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, 
     const [fx, fy] = P(lv.cx, Zs(0));
     const [tx, ty] = P(lv.cx, Zs(Hh));
     st.bowLine = { fx, fy, tx, ty, pos };
+    st.drawn = s.drawn;
   }
   // the hair gives under the string: δ = F·a·(H − a)/(T·H) for hair tension T ≈ 60 N, drawn 3× larger
   const F = bwForce(fr?.excite?.meta);

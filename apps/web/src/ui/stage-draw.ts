@@ -151,6 +151,13 @@ export interface BowedState {
   /** where the hair was drawn last (stage px: frog end, tip end) and the contact point along it,
    *  for taking the bow in the hand (ui/hand-bow.ts) */
   bowLine?: { fx: number; fy: number; tx: number; ty: number; pos: number };
+  /** (tests) where the instrument was drawn last (stage px): its box, scroll to end button or endpin,
+   *  and the box its bow sweeps at the far ends of its travel */
+  drawn?: BowedDrawn;
+}
+export interface BowedDrawn {
+  body: { x0: number; y0: number; x1: number; y1: number };
+  bow: { x0: number; y0: number; x1: number; y1: number };
 }
 
 // The plan view of a violin, viola or cello, as in the Met's front photographs (.cache/refs-3d/
@@ -326,11 +333,16 @@ export function bowedShapes(id: BowedGeom['id'], p: BowedPlan, L: number): Bowed
   };
   const h0 = at(uc);
   const h1 = at(1 - uc);
+  // (the double bass's constructed outline is round at its tail but meets the neck square, its sloped
+  // shoulders running straight from there: only its last 3 % at the neck is rounded, the outline itself
+  // drawn in, its slope kept where the rounding ends, so the shoulder has no knob)
+  const ucN = id === 'bass' ? 0.03 : 0;
   const bass: Pt[] = [];
   for (let i = 0; i < N; i++) {
     const u = i / (N - 1);
     let w = hw[i];
-    if (u < uc) w = h0 * Math.sqrt(1 - (1 - u / uc) ** 2);
+    if (u < ucN) w = hw[i] * Math.sqrt(1 - (1 - u / ucN) ** 2);
+    else if (u < uc && !ucN) w = h0 * Math.sqrt(1 - (1 - u / uc) ** 2);
     else if (u > 1 - uc) w = h1 * Math.sqrt(1 - (1 - (1 - u) / uc) ** 2);
     bass.push([u, w]);
   }
@@ -394,6 +406,222 @@ export const PEG_A = [0.08, 0.205, 0.38, 0.5];
 export const PEG_OF = [2, 0, 1, 3];
 export const PEG_SIDE = [1, 1, -1, -1];
 
+// ---- the double bass's fittings, shared by both 2D styles (vector/bowed.ts draws them as lines)
+//
+// A bass is tuned by machine heads, not pegs. On the outside of each pegbox cheek a brass plate carries
+// two of them: a roller crosses the pegbox (the string winds on it), a cog wheel on its end outside the
+// plate, and the worm that turns the wheel, its shaft standing out from the plate to a flat key. The
+// four rollers are staggered down the pegbox, bass side and treble side in turn, and the strings keep
+// the cello's order (PEG_OF, PEG_SIDE): the E to the bass side's farther roller, the A to its nearer,
+// the D to the treble side's nearer and the G to its farther, so no string crosses another. Sizes:
+// makers' figures for 3/4 orchestral machines (plates 125–140 mm long, wheels about 27 mm across, keys
+// about 25 mm), the plate's edge drawn 5 mm (the plate and the sliver of its face the head's lean shows).
+
+/** the rollers' places down the pegbox (fractions of the head's length from the nut, nearest first) */
+export const BASS_ROLLER_A = [0.1, 0.225, 0.355, 0.48];
+export const BASS_MACH = {
+  /** the plates' ends down the pegbox (fractions of the head), and the plate's edge across (m) */
+  plate: [0.045, 0.535] as const,
+  T: 0.005,
+  /** the wheel: its radius, and its half-thickness as the front view shows it (its face turned a little
+   *  towards us with the cheek), the teeth */
+  gearR: 0.0135,
+  gearW: 0.006,
+  teeth: 16,
+  /** the worm over the wheel (radius, length out from the plate), the shaft on to the key, the key */
+  wormR: 0.0042,
+  worm: 0.022,
+  neckR: 0.0026,
+  keyAt: 0.031,
+  keyLen: 0.023,
+  keyW: 0.0145,
+  rollerR: 0.0045,
+};
+export interface BassTuner {
+  /** the string it tunes, the side of the head it stands out on (+1 the bass side), where it is along */
+  i: number;
+  side: number;
+  x: number;
+  gear: Pt[];
+  worm: Pt[];
+  neck: Pt[];
+  collar: Pt[];
+  key: Pt[];
+  /** the key's flat face, inset */
+  face: Pt[];
+}
+export interface BassHead {
+  /** the two plates (bass side first), the tuners by string */
+  plates: Pt[][];
+  tuners: BassTuner[];
+  /** by string: its roller across the pegbox's cavity (half its span), and the string's coil on it */
+  rollers: { x: number; half: number; r: number }[];
+  coils: { x: number; z: number; half: number; r: number }[];
+}
+const bassHeadCache = new Map<BowedPlan, BassHead>();
+/** the double bass's machine heads in the local frame (m: x along the strings from the body's neck end,
+ *  z towards the bass side) */
+export function bassHead(p: BowedPlan): BassHead {
+  const hit = bassHeadCache.get(p);
+  if (hit) return hit;
+  const M = BASS_MACH;
+  const S = p.body / 0.356;
+  const cheek = 4.2 * MM * S ** 0.85;
+  const hx = (a: number) => -p.neck - a * p.head * HEAD_PROJ;
+  const rect = (x: number, half: number, z0: number, z1: number): Pt[] => [[x - half, z0], [x + half, z0], [x + half, z1], [x - half, z1]];
+  // the plates: along the cheek's outside, each end rounded
+  const plates = [1, -1].map((s) => {
+    const [a0, a1] = M.plate;
+    const inner: Pt[] = [];
+    for (let k = 0; k <= 12; k++) {
+      const a = a0 + ((a1 - a0) * k) / 12;
+      inner.push([hx(a), s * bwPegboxW(p, a)]);
+    }
+    const end = (a: number, dir: number): Pt[] => {
+      const w = bwPegboxW(p, a);
+      return Array.from({ length: 7 }, (_, k): Pt => {
+        const ph = -Math.PI / 2 + (Math.PI * k) / 6;
+        return [hx(a) - dir * (M.T / 2) * Math.cos(ph), s * (w + M.T / 2 + (M.T / 2) * Math.sin(ph))];
+      });
+    };
+    return [...inner, ...end(a1, 1), ...inner.map(([x, z]): Pt => [x, z + s * M.T]).reverse(), ...end(a0, -1).reverse()];
+  });
+  const tuners: BassTuner[] = [];
+  const rollers: BassHead['rollers'] = [];
+  const coils: BassHead['coils'] = [];
+  for (let i = 0; i < 4; i++) {
+    const a = BASS_ROLLER_A[PEG_OF[i]];
+    const s = PEG_SIDE[i];
+    const x = hx(a);
+    const w0 = bwPegboxW(p, a);
+    const zP = w0 + M.T;
+    // the wheel, a little of its face showing, its teeth all round
+    const gear: Pt[] = [];
+    const n = M.teeth * 4;
+    for (let k = 0; k < n; k++) {
+      const th = (2 * Math.PI * k) / n;
+      const t = k % 4 < 2 ? 1 : 0.86;
+      gear.push([x + M.gearR * t * Math.cos(th), s * (zP + M.gearW + M.gearW * t * Math.sin(th))]);
+    }
+    // the key: a flat thumb-piece, its face turned to the side: a broad oval, squared a little (a
+    // superellipse), wider along the neck than it stands out
+    const key: Pt[] = [];
+    const zk = zP + M.keyAt + M.keyLen / 2;
+    const sup = (v: number) => Math.sign(v) * Math.abs(v) ** (2 / 2.8);
+    for (let k = 0; k < 40; k++) {
+      const th = (2 * Math.PI * k) / 40;
+      key.push([x + M.keyW * sup(Math.cos(th)), s * (zk + (M.keyLen / 2) * sup(Math.sin(th)))]);
+    }
+    const face = key.map(([kx, kz]): Pt => [x + (kx - x) * 0.6, s * (zk + 0.04 * M.keyLen + (s * kz - zk) * 0.56)]);
+    tuners.push({
+      i,
+      side: s,
+      x,
+      gear,
+      worm: rect(x, M.wormR, s * zP, s * (zP + M.worm)),
+      neck: rect(x, M.neckR, s * (zP + M.worm), s * (zP + M.keyAt)),
+      collar: rect(x, 0.0052, s * (zP + M.keyAt - 0.003), s * (zP + M.keyAt)),
+      key,
+      face,
+    });
+    const half = w0 - cheek;
+    rollers.push({ x, half, r: M.rollerR });
+    // the string comes off the nut to its roller and winds there, three and a half turns
+    coils.push({ x, z: bwClamp((1.5 - i) * p.spreadN * 1.3, -half * 0.6, half * 0.6), half: 0.5 * 3.5 * p.dia[i] * 1.1, r: M.rollerR + p.dia[i] });
+  }
+  const out = { plates, tuners, rollers, coils };
+  bassHeadCache.set(p, out);
+  return out;
+}
+/** The double bass's endpin, from the end of the body (m along, half-widths across): the socket (its
+ *  flange on the ribs, the collar, the barrel), the thumbscrew that locks the rod, and the steel rod out
+ *  to its point, 200 mm from the body (an orchestral bassist's usual length, sitting or standing) */
+export const BASS_PIN = {
+  sock: [[0, 0.021], [0.005, 0.023], [0.013, 0.02], [0.019, 0.022], [0.029, 0.022], [0.037, 0.015], [0.055, 0.0115], [0.058, 0.013], [0.064, 0.013]] as Pt[],
+  rodR: 0.0052,
+  end: 0.2,
+  point: 0.018,
+  screw: 0.047,
+};
+
+/** the tailpiece in plan (m): where it starts (its fret, a sixth of the string length past the bridge)
+ *  and ends, its width at the top, and its width s of the way down (0…1). The violin family's (Met
+ *  photographs): broad at the fret, waisted towards the tail. The bass's (an orchestral pattern): larger,
+ *  its sides straighter, its shoulders and tail rounder */
+export function bwTailpiece(g: BowedGeom, p: BowedPlan): { top: number; end: number; wTop: number; w: (s: number) => number } {
+  const S = p.body / 0.356;
+  const xb = g.L - p.neck;
+  const top = xb + g.L / 6;
+  const end = p.body - 0.012 * S;
+  const wBot = p.spreadB * 1.55;
+  if (g.id !== 'bass') {
+    const wTop = p.spreadB * 3.7;
+    return {
+      top,
+      end,
+      wTop,
+      w: (s: number) => {
+        const w = wBot + (wTop - wBot) * Math.pow(1 - s, 1.35);
+        const round = s < 0.06 ? Math.sqrt(Math.max(0, 1 - ((0.06 - s) / 0.06) ** 2)) : 1;
+        return w * (0.75 + 0.25 * round);
+      },
+    };
+  }
+  const wTop = p.spreadB * 3.9;
+  return {
+    top,
+    end,
+    wTop,
+    w: (s: number) => {
+      const w = wBot + (wTop - wBot) * Math.pow(1 - s, 1.05);
+      const r0 = s < 0.09 ? Math.sqrt(Math.max(0, 1 - ((0.09 - s) / 0.09) ** 2)) : 1;
+      const r1 = s > 0.93 ? Math.sqrt(Math.max(0, 1 - ((s - 0.93) / 0.07) ** 2)) : 1;
+      return w * (0.7 + 0.3 * r0) * (0.78 + 0.22 * r1);
+    },
+  };
+}
+/** the bridge from above (m): its feet's thickness along the strings and length across, the top edge's
+ *  thickness. A bass bridge is heavier than the violin family's scaled up: feet 18 × 46 mm, the top 5 */
+export function bwBridge(g: BowedGeom, p: BowedPlan): { foot: number; topT: number; footL: number } {
+  if (g.id === 'bass') return { foot: 0.018, topT: 0.005, footL: 0.046 };
+  const S = p.body / 0.356;
+  return { foot: 0.0042 * S ** 0.7, topT: 0.0013 * S ** 0.7, footL: 0.0105 * S ** 0.8 };
+}
+/** the bass bridge's height adjusters: a wheel (23 mm across) on the screw in each leg, over its foot */
+export function bassAdjusters(g: BowedGeom, p: BowedPlan): { x: number; z: number; r: number }[] {
+  const { footL } = bwBridge(g, p);
+  const xb = g.L - p.neck;
+  return [1, -1].map((sg) => ({ x: xb - 0.002, z: sg * (p.bridgeW / 2 - footL / 2), r: 0.0115 }));
+}
+/** the bass's tail wire: two strands of steel cable (radius r) from the tailpiece's end, where brass
+ *  ferrules hold them, over the saddle and round the endpin's socket */
+export function bassTailWire(g: BowedGeom, p: BowedPlan): { r: number; strands: Pt[][]; ferrules: Pt[][] } {
+  const S = p.body / 0.356;
+  const B = p.body;
+  const { end } = bwTailpiece(g, p);
+  const sadX = B - 0.006 * S;
+  const strands = [1, -1].map((sg): Pt[] => [[end - 0.004, sg * 0.0068], [sadX, sg * 0.0042], [B + 0.006, sg * 0.0026]]);
+  const ferrules = [1, -1].map((sg): Pt[] => [[end - 0.002, sg * 0.0068 - 0.0026], [end + 0.01, sg * 0.0064 - 0.0024], [end + 0.01, sg * 0.0064 + 0.0024], [end - 0.002, sg * 0.0068 + 0.0026]]);
+  return { r: 0.0018, strands, ferrules };
+}
+/** the bass's endpin as outlines (m, from the body's neck end): the socket, the rod with its point, the
+ *  thumbscrew (on the treble side) */
+export function bassPinParts(B: number): { sock: Pt[]; rod: Pt[]; screw: Pt[]; knob: Pt[] } {
+  const P = BASS_PIN;
+  const sk = P.sock;
+  const sock: Pt[] = [...sk.map(([d, r]): Pt => [B + d, -r]), ...[...sk].reverse().map(([d, r]): Pt => [B + d, r])];
+  const r = P.rodR;
+  const d0 = sk[sk.length - 1][0] - 0.002;
+  const dp = P.end - P.point;
+  const rod: Pt[] = [[B + d0, -r], [B + dp, -r], [B + dp + 0.003, -r * 0.82], [B + P.end, -0.0005], [B + P.end, 0.0005], [B + dp + 0.003, r * 0.82], [B + dp, r], [B + d0, r]];
+  const x = B + P.screw;
+  const screw: Pt[] = [[x - 0.0022, -0.0112], [x + 0.0022, -0.0112], [x + 0.0022, -0.02], [x - 0.0022, -0.02]];
+  // (its head a knurled cylinder, its axis across: a rectangle seen from the front, its corners eased)
+  const [h, c0, c1, e] = [0.0068, -0.02, -0.029, 0.0012];
+  const knob: Pt[] = [[x - h + e, c0], [x + h - e, c0], [x + h, c0 - e], [x + h, c1 + e], [x + h - e, c1], [x - h + e, c1], [x - h, c1 + e], [x - h, c0 - e]];
+  return { sock, rod, screw, knob };
+}
+
 export interface BowedLayout {
   vertical: boolean;
   /** pixels per metre; where the body's neck end sits on the centre line */
@@ -402,19 +630,22 @@ export interface BowedLayout {
   oy: number;
 }
 /** what the drawing takes along the strings (m, from the body's neck end): the scroll's top to the end
- *  button (the cello: the first 0.16 m of its endpin, which runs on towards the floor, cut there) */
+ *  button (the cello: the first 0.16 m of its endpin, which runs on towards the floor, cut there; the
+ *  double bass: its whole endpin, to the point) */
 export function bowedSpan(g: BowedGeom, p: BowedPlan): { x0: number; x1: number } {
-  return { x0: -p.neck - p.head * HEAD_PROJ - 0.003, x1: p.body + (g.id === 'bass' ? 0.2 : g.id === 'cello' ? 0.16 : 0.012) };
+  return { x0: -p.neck - p.head * HEAD_PROJ - 0.003, x1: p.body + (g.id === 'bass' ? BASS_PIN.end + 0.002 : g.id === 'cello' ? 0.16 : 0.012) };
 }
 /**
  * The instrument in a W×H box: upright in a box taller than 1.05 × its width, lying otherwise, centred.
  * Alone it fills the box (each instrument its own share of it). `scale` (px/m) sets its size instead:
  * an ensemble draws its strings at one scale, a cello twice a violin's length (ensemble-draw.ts).
+ * `top`: the px at the top of the box the file player covers (the double bass keeps clear of it).
  */
-export function bowedLayout(g: BowedGeom, p: BowedPlan, sh: BowedShapes, W: number, H: number, scale?: number): BowedLayout {
+export function bowedLayout(g: BowedGeom, p: BowedPlan, sh: BowedShapes, W: number, H: number, scale?: number, top = 0): BowedLayout {
   const vertical = H > W * 1.05;
   const { x0, x1 } = bowedSpan(g, p);
   const len = x1 - x0;
+  if (g.id === 'bass' && scale === undefined) return bassLayout(g, p, sh, W, H, top, vertical, x0, len);
   const Lw = vertical ? H : W;
   const Cw = vertical ? W : H;
   const fill = vertical ? (g.id === 'violin' ? 0.86 : g.id === 'viola' ? 0.88 : 0.94) : g.id === 'violin' ? 0.72 : g.id === 'viola' ? 0.76 : 0.9;
@@ -422,14 +653,54 @@ export function bowedLayout(g: BowedGeom, p: BowedPlan, sh: BowedShapes, W: numb
   const along = (Lw - len * sc) / 2 - x0 * sc;
   return vertical ? { vertical, sc, ox: W / 2, oy: along } : { vertical, sc, ox: along, oy: H / 2 };
 }
+/** px a single bass's bow keeps from the edge of the stage at the far ends of its travel */
+const BASS_BOW_EDGE = 6;
+/**
+ * The double bass alone, in the box under the file player: scroll to the endpin's point along it, 95 %
+ * of the box. Its bow is short for so large an instrument (0.58 m of hair on 2 m of bass; a cello's 0.6
+ * on 1.4 m), so where the box allows (a phone; any box about as tall as wide), the bow's whole travel,
+ * frog or tip on the string, fits across the box as well, the bass drawn smaller if need be, but never
+ * below 3/4 of the size its length allows: on a wide, short stage (a laptop) the bass fills the length
+ * and its bow, at the far ends of its travel, is cut at the stage's edge, as a cello's is.
+ */
+function bassLayout(g: BowedGeom, p: BowedPlan, sh: BowedShapes, W: number, H: number, top: number, vertical: boolean, x0: number, len: number): BowedLayout {
+  const Hu = Math.max(1, H - top);
+  const Lw = vertical ? Hu : W;
+  const Cw = vertical ? W : Hu;
+  const sc0 = Math.min((0.95 * Lw) / len, (0.93 * Cw) / (2 * sh.hwMax));
+  const r = bowReach(g, p);
+  const scBow = (Cw - 2 * BASS_BOW_EDGE) / (r.frog + r.tip);
+  const fits = scBow >= 0.75 * sc0;
+  const sc = fits ? Math.min(sc0, scBow) : sc0;
+  const along = (Lw - len * sc) / 2 - x0 * sc;
+  // across: the bow's travel centred on the box if it fits (the frog's side is the bass side: down
+  // lying, left upright), else the body
+  const shift = fits ? ((r.frog - r.tip) * sc) / 2 : 0;
+  return vertical ? { vertical, sc, ox: W / 2 + shift, oy: top + along } : { vertical, sc, ox: along, oy: top + Hu / 2 - shift };
+}
+/** the scale of a bow's fittings (frog, head, button; their sizes below are a violin bow's): a viola's
+ *  and a cello's go with their hair; a French bass bow's frog and head are a third larger again than a
+ *  cello's, on shorter hair (0.58 m; makers' figures: frog about 60 mm long) */
+export const bowFit = (g: BowedGeom): number => (g.id === 'bass' ? 1.25 : g.bowLength / 0.65);
 /** How far the bow reaches across its instrument, from the centre line (m): on the frog's side (the
  *  bass side) with the tip on the string, and on the tip's side with the frog on it. The far ends of
  *  what drawBowed draws (the button behind the frog, the face plate of the head), from the string
  *  farthest off the centre line; an ensemble keeps that much of the stage clear (ensemble-draw.ts). */
 export function bowReach(g: BowedGeom, p: BowedPlan): { frog: number; tip: number } {
-  const S2 = g.bowLength / 0.65;
+  const S2 = bowFit(g);
   const off = 1.5 * p.spreadB;
   return { frog: off + g.bowLength + 0.101 * S2, tip: off + g.bowLength + 0.0128 * S2 };
+}
+/** where a layout puts the instrument (stage px): its box (the span along, its widest bout across) and
+ *  the box its bow sweeps at the far ends of its travel (bowReach across, the span along) */
+export function bowedDrawn(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: BowedLayout): BowedDrawn {
+  const { x0, x1 } = bowedSpan(g, p);
+  const r = bowReach(g, p);
+  const { sc, ox, oy } = lay;
+  // (bwPlace: upright, x runs down the stage and the bass side (+z) to the left)
+  const box = (a0: number, a1: number, z0: number, z1: number) =>
+    lay.vertical ? { x0: ox - z1 * sc, x1: ox - z0 * sc, y0: oy + a0 * sc, y1: oy + a1 * sc } : { x0: ox + a0 * sc, x1: ox + a1 * sc, y0: oy + z0 * sc, y1: oy + z1 * sc };
+  return { body: box(x0, x1, -sh.hwMax, sh.hwMax), bow: box(x0, x1, -r.tip, r.frog) };
 }
 /** local drawing frame: x along the strings (px from the body's neck end), y towards the bass side */
 export function bwPlace(c: CanvasRenderingContext2D, lay: BowedLayout): void {
@@ -463,6 +734,7 @@ interface BowedLayers {
   /** the plate (px, local frame), and the plate less its f-holes (for the modes' glow) */
   body: Path2D;
   glow: Path2D;
+  drawn?: BowedDrawn;
 }
 /** the painted layers by instrument and size: a few at once (an ensemble draws a violin, a viola and a
  *  cello side by side), the oldest let go */
@@ -500,6 +772,182 @@ function bwInsetLine(c: CanvasRenderingContext2D, path: Path2D, d: number, w: nu
   c.setTransform(1, 0, 0, 1, 0, 0);
   c.drawImage(s, 0, 0);
   c.restore();
+}
+
+/** brass, lit across a part (local px from a to b): its two edges in shade, a highlight off-centre */
+function bwBrass(c: CanvasRenderingContext2D, ax: number, ay: number, bx: number, by: number, k = 1): CanvasGradient {
+  const gr = c.createLinearGradient(ax, ay, bx, by);
+  const col = (r: number, g: number, b: number) => `rgb(${Math.round(r * k)},${Math.round(g * k)},${Math.round(b * k)})`;
+  gr.addColorStop(0, col(92, 64, 24));
+  gr.addColorStop(0.35, col(222, 186, 108));
+  gr.addColorStop(0.55, col(176, 136, 62));
+  gr.addColorStop(1, col(78, 54, 20));
+  return gr;
+}
+
+/** the double bass's machine heads (bassHead): the rollers across the pegbox with the strings coiled on
+ *  them, the brass plates down the cheeks, the worms and their wheels, the keys standing out */
+function paintBassHead(c: CanvasRenderingContext2D, p: BowedPlan, sc: number, dpr: number): void {
+  const X = (x: number) => x * sc;
+  const hd = bassHead(p);
+  const xn = -p.neck;
+  const shade = (on: boolean, blur = 6, dy = 4) => {
+    c.shadowColor = on ? 'rgba(0,0,0,0.6)' : 'transparent';
+    c.shadowBlur = on ? blur * dpr : 0;
+    c.shadowOffsetY = on ? dy * dpr : 0;
+  };
+  // the rollers (steel), round: lit along their middle
+  for (const { x, half, r } of hd.rollers) {
+    c.fillStyle = (() => {
+      const gr = c.createLinearGradient(X(x - r), 0, X(x + r), 0);
+      gr.addColorStop(0, 'rgb(46,48,50)');
+      gr.addColorStop(0.45, 'rgb(196,200,204)');
+      gr.addColorStop(1, 'rgb(40,42,44)');
+      return gr;
+    })();
+    c.fillRect(X(x - r), X(-half), X(2 * r), X(2 * half));
+  }
+  // the strings: off the nut into the pegbox, each coiled on its roller (silk-wrapped where it winds)
+  for (let i = 0; i < 4; i++) {
+    const co = hd.coils[i];
+    c.strokeStyle = 'rgba(214,204,186,0.8)';
+    c.lineWidth = Math.max(0.6, p.dia[i] * sc);
+    c.beginPath();
+    c.moveTo(X(xn), X((1.5 - i) * p.spreadN));
+    c.lineTo(X(co.x + co.r * 0.6), X(co.z));
+    c.stroke();
+    const cp = bwPoly([[co.x - co.r, co.z - co.half], [co.x + co.r, co.z - co.half], [co.x + co.r, co.z + co.half], [co.x - co.r, co.z + co.half]], sc);
+    c.fillStyle = 'rgb(150,142,128)';
+    c.fill(cp);
+    // the turns, leaning a little as a coil does
+    c.strokeStyle = 'rgba(40,34,28,0.75)';
+    c.lineWidth = 0.6;
+    const n = 4;
+    c.beginPath();
+    for (let k = 1; k < n; k++) {
+      const z = co.z - co.half + (2 * co.half * k) / n;
+      c.moveTo(X(co.x - co.r), X(z - 0.0012));
+      c.lineTo(X(co.x + co.r), X(z + 0.0012));
+    }
+    c.stroke();
+    c.strokeStyle = 'rgba(236,228,212,0.5)';
+    c.stroke(cp);
+  }
+  // the plates, down each cheek
+  for (const [k, pl] of hd.plates.entries()) {
+    const path = bwPoly(pl, sc);
+    const s = k ? -1 : 1;
+    const zIn = pl[0][1];
+    c.save();
+    shade(true, 5, 3);
+    c.fillStyle = bwBrass(c, 0, X(zIn), 0, X(zIn + s * BASS_MACH.T), 0.95);
+    c.fill(path);
+    c.restore();
+    c.strokeStyle = 'rgba(42,28,8,0.85)';
+    c.lineWidth = 0.7;
+    c.stroke(path);
+  }
+  // each tuner: the worm and shaft out of the plate under its wheel, the wheel, the collar and the key
+  for (const t of hd.tuners) {
+    const s = t.side;
+    const M = BASS_MACH;
+    c.save();
+    shade(true, 5, 3);
+    for (const [q, r] of [[t.worm, M.wormR], [t.neck, M.neckR], [t.collar, 0.0052]] as const) {
+      c.fillStyle = bwBrass(c, X(t.x - r), 0, X(t.x + r), 0);
+      c.fill(bwPoly(q, sc));
+    }
+    c.restore();
+    // the worm's thread
+    c.strokeStyle = 'rgba(60,40,12,0.5)';
+    c.lineWidth = 0.6;
+    c.beginPath();
+    const z0 = t.worm[0][1];
+    const z1 = t.worm[2][1];
+    for (let k = 1; k < 4; k++) {
+      const z = z0 + ((z1 - z0) * k) / 4;
+      c.moveTo(X(t.x - M.wormR), X(z - s * 0.0012));
+      c.lineTo(X(t.x + M.wormR), X(z + s * 0.0012));
+    }
+    c.stroke();
+    for (const q of [t.worm, t.neck, t.collar]) {
+      c.strokeStyle = 'rgba(42,28,8,0.8)';
+      c.stroke(bwPoly(q, sc));
+    }
+    // the wheel, its teeth catching the light
+    const gp = bwPoly(t.gear, sc);
+    c.save();
+    shade(true, 4, 2);
+    c.fillStyle = bwBrass(c, X(t.x - M.gearR), 0, X(t.x + M.gearR), 0, 1.05);
+    c.fill(gp);
+    c.restore();
+    c.strokeStyle = 'rgba(48,32,8,0.9)';
+    c.lineWidth = 0.7;
+    c.stroke(gp);
+    // its hub (the roller's end) and the screw that holds it
+    const zc = t.gear[0][1];
+    c.beginPath();
+    c.ellipse(X(t.x), X(zc), X(0.0036), X(0.0018), 0, 0, Math.PI * 2);
+    c.fillStyle = 'rgb(70,50,18)';
+    c.fill();
+    // the key: a flat thumb-piece, its face turned to the side, a rim round it
+    const kp = bwPoly(t.key, sc);
+    c.save();
+    shade(true, 6, 4);
+    c.fillStyle = bwBrass(c, X(t.x - M.keyW), 0, X(t.x + M.keyW), 0);
+    c.fill(kp);
+    c.restore();
+    c.fillStyle = bwBrass(c, X(t.x - M.keyW), 0, X(t.x + M.keyW), 0, 0.8);
+    c.fill(bwPoly(t.face, sc));
+    c.strokeStyle = 'rgba(42,28,8,0.85)';
+    c.lineWidth = 0.7;
+    c.stroke(kp);
+    c.strokeStyle = 'rgba(255,236,190,0.35)';
+    c.lineWidth = 0.6;
+    c.stroke(bwPoly(t.face, sc));
+  }
+}
+
+/** the double bass's endpin (bassPinParts): the steel rod out to its point, the ebony socket over it,
+ *  the steel ring at its flange, the thumbscrew that locks the rod */
+function paintBassPin(c: CanvasRenderingContext2D, B: number, sc: number, dpr: number): void {
+  const X = (x: number) => x * sc;
+  const pin = bassPinParts(B);
+  const r = BASS_PIN.rodR;
+  const rg = c.createLinearGradient(0, X(-r), 0, X(r));
+  rg.addColorStop(0, 'rgb(70,78,86)');
+  rg.addColorStop(0.4, 'rgb(214,222,230)');
+  rg.addColorStop(1, 'rgb(60,66,72)');
+  const sockP = bwPoly(pin.sock, sc);
+  c.save();
+  c.shadowColor = 'rgba(0,0,0,0.6)';
+  c.shadowBlur = 8 * dpr;
+  c.shadowOffsetY = 5 * dpr;
+  c.fillStyle = rg;
+  c.fill(bwPoly(pin.rod, sc));
+  c.fillStyle = 'rgb(20,17,15)';
+  c.fill(sockP);
+  c.fillStyle = rg;
+  c.fill(bwPoly(pin.screw, sc));
+  c.fillStyle = 'rgb(150,158,166)';
+  c.fill(bwPoly(pin.knob, sc));
+  c.restore();
+  c.strokeStyle = rgba(INK.ivory, 0.3);
+  c.lineWidth = 0.7;
+  c.stroke(sockP);
+  c.strokeStyle = 'rgba(30,34,38,0.8)';
+  c.stroke(bwPoly(pin.rod, sc));
+  // the knurling on the screw's head
+  const kx = B + BASS_PIN.screw;
+  c.beginPath();
+  for (let k = -2; k <= 2; k++) {
+    c.moveTo(X(kx + k * 0.0024), X(-0.0205));
+    c.lineTo(X(kx + k * 0.0024), X(-0.0285));
+  }
+  c.stroke();
+  c.stroke(bwPoly(pin.knob, sc));
+  c.fillStyle = 'rgba(200,206,212,0.85)';
+  c.fillRect(X(B + 0.005), X(-0.023), X(0.003), X(0.046));
 }
 
 function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: BowedLayout, W: number, H: number, dpr: number, key: string): BowedLayers {
@@ -784,9 +1232,12 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   c.moveTo(X(xn), X(-fbw(xn) * 0.51));
   c.lineTo(X(xn), X(fbw(xn) * 0.51));
   c.stroke();
-  // pegs: the shafts across the cavity, each string wound on its own; then the heads outside
+  // pegs: the shafts across the cavity, each string wound on its own; then the heads outside (the
+  // double bass: its machine heads)
   const sR = 0.0031 * S ** 0.6;
-  for (let i = 0; i < 4; i++) {
+  const pegs = g.id === 'bass' ? 0 : 4;
+  if (!pegs) paintBassHead(c, p, sc, dpr);
+  for (let i = 0; i < pegs; i++) {
     const aa = PEG_A[PEG_OF[i]];
     const w = bwPegboxW(p, aa);
     c.strokeStyle = 'rgb(28,22,18)';
@@ -796,7 +1247,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
     c.lineTo(HX(aa), X(w - cheek * 0.5));
     c.stroke();
   }
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < pegs; i++) {
     const aa = PEG_A[PEG_OF[i]];
     const wIn = bwPegboxW(p, aa) - cheek;
     const zs = bwClamp((1.5 - i) * p.spreadN * 1.3, -wIn * 0.6, wIn * 0.6);
@@ -817,7 +1268,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
     }
   }
   const pegCol = hasEndpin(g.id) ? ['rgb(40,18,10)', 'rgb(110,54,32)'] : ['rgb(16,12,10)', 'rgb(66,52,42)'];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < pegs; i++) {
     const aa = PEG_A[PEG_OF[i]];
     const s = PEG_SIDE[i];
     const w0 = bwPegboxW(p, aa);
@@ -872,17 +1323,11 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
     c.stroke();
   }
   // the tailpiece (ebony: broad at its fret, waisted towards the tail), the saddle and tailgut, the end
-  // button or the cello's endpin (no chinrest: the Met's photographs, the reference, have none)
-  const tpTop = xb + L / 6;
-  const tpEnd = B - 0.012 * S;
-  const wTop = p.spreadB * 3.7;
-  const wBot = p.spreadB * 1.55;
-  const tpW = (s: number) => {
-    const w = wBot + (wTop - wBot) * Math.pow(1 - s, 1.35);
-    const round = s < 0.06 ? Math.sqrt(Math.max(0, 1 - ((0.06 - s) / 0.06) ** 2)) : 1;
-    return w * (0.75 + 0.25 * round);
-  };
-  // saddle and tailgut
+  // button or the cello's endpin (no chinrest: the Met's photographs, the reference, have none); the
+  // double bass's on a steel tail wire, its own endpin
+  const bass = g.id === 'bass';
+  const { top: tpTop, end: tpEnd, wTop, w: tpW } = bwTailpiece(g, p);
+  // saddle and tailgut (the bass: a tail wire, its two strands held in the tailpiece by ferrules)
   const sadX = B - 0.006 * S;
   const sadW = 0.034 * S ** 0.8;
   c.fillStyle = 'rgb(22,19,17)';
@@ -890,15 +1335,40 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   c.strokeStyle = rgba(INK.ivory, 0.22);
   c.lineWidth = 0.7;
   c.strokeRect(X(sadX - 0.0035 * S ** 0.6), X(-sadW / 2), X(0.007 * S ** 0.6), X(sadW));
-  c.strokeStyle = 'rgba(214,190,150,0.55)';
-  c.lineWidth = Math.max(0.8, 0.0018 * S ** 0.6 * sc);
-  for (const sg of [-1, 1]) {
-    c.beginPath();
-    c.moveTo(X(tpEnd), X(sg * 0.0035 * S ** 0.7));
-    c.lineTo(X(B + 0.003 * S), X(sg * 0.0015 * S));
-    c.stroke();
+  if (bass) {
+    const tw = bassTailWire(g, p);
+    c.lineCap = 'round';
+    c.lineJoin = 'round';
+    for (const [col, w] of [['rgba(40,44,48,0.9)', 1.5], ['rgba(184,192,200,0.95)', 1], ['rgba(240,244,248,0.6)', 0.35]] as const) {
+      c.strokeStyle = col;
+      c.lineWidth = Math.max(w * 0.8, w * tw.r * 2 * sc);
+      for (const strand of tw.strands) {
+        c.beginPath();
+        strand.forEach(([x, z], k) => (k ? c.lineTo(X(x), X(z)) : c.moveTo(X(x), X(z))));
+        c.stroke();
+      }
+    }
+    c.lineCap = 'butt';
+    for (const f of tw.ferrules) {
+      const fp = bwPoly(f, sc);
+      c.fillStyle = 'rgb(178,142,70)';
+      c.fill(fp);
+      c.strokeStyle = 'rgba(40,26,8,0.8)';
+      c.lineWidth = 0.6;
+      c.stroke(fp);
+    }
+  } else {
+    c.strokeStyle = 'rgba(214,190,150,0.55)';
+    c.lineWidth = Math.max(0.8, 0.0018 * S ** 0.6 * sc);
+    for (const sg of [-1, 1]) {
+      c.beginPath();
+      c.moveTo(X(tpEnd), X(sg * 0.0035 * S ** 0.7));
+      c.lineTo(X(B + 0.003 * S), X(sg * 0.0015 * S));
+      c.stroke();
+    }
   }
-  if (hasEndpin(g.id)) {
+  if (bass) paintBassPin(c, B, sc, dpr);
+  else if (hasEndpin(g.id)) {
     // endpin: the socket (ebony, with its collar) and the steel rod running on towards the floor
     const sock: Pt[] = [[0, 0.0175], [0.004, 0.019], [0.012, 0.017], [0.016, 0.0185], [0.022, 0.0185], [0.028, 0.012], [0.042, 0.009], [0.044, 0.0105], [0.05, 0.0105]];
     const sockP = new Path2D();
@@ -965,6 +1435,18 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   c.strokeStyle = rgba(INK.ivory, 0.22);
   c.lineWidth = 0.8;
   c.stroke(tp);
+  if (bass) {
+    // the bass's tailpiece is carved: a raised spine down its middle catching the light
+    c.save();
+    c.clip(tp);
+    const sp = c.createLinearGradient(0, X(-wTop * 0.3), 0, X(wTop * 0.3));
+    sp.addColorStop(0, 'rgba(120,112,104,0)');
+    sp.addColorStop(0.5, 'rgba(120,112,104,0.22)');
+    sp.addColorStop(1, 'rgba(120,112,104,0)');
+    c.fillStyle = sp;
+    c.fillRect(X(tpTop), X(-wTop * 0.3), X(tpEnd - tpTop), X(wTop * 0.6));
+    c.restore();
+  }
   // the fret (boxwood) the strings cross, and the holes behind it
   const xf = tpTop + 0.008 * S ** 0.7;
   c.strokeStyle = 'rgba(214,190,150,0.8)';
@@ -973,7 +1455,8 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   c.moveTo(X(xf), X(-wTop * 0.43));
   c.lineTo(X(xf), X(wTop * 0.43));
   c.stroke();
-  const tailEnd = (i: number): Pt => [tpTop + 0.012 * S ** 0.7 + (i === 3 ? 0.012 * S ** 0.7 : 0), (1.5 - i) * p.spreadB * 0.62];
+  // (the highest string's hole a little lower, for its fine tuner; a bass has none)
+  const tailEnd = (i: number): Pt => [tpTop + 0.012 * S ** 0.7 + (i === 3 && !bass ? 0.012 * S ** 0.7 : 0), (1.5 - i) * p.spreadB * 0.62];
   for (let i = 0; i < 4; i++) {
     const [x, z] = tailEnd(i);
     c.beginPath();
@@ -982,7 +1465,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
     c.fill();
   }
   // a fine tuner on the highest string (nickel): its lever along the string and the knurled screw head
-  {
+  if (!bass) {
     const [x, z] = tailEnd(3);
     const k = S ** 0.55;
     c.strokeStyle = 'rgba(150,158,166,0.75)';
@@ -998,17 +1481,55 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
     c.fillStyle = 'rgb(168,176,184)';
     c.fill();
   }
-  // the bridge (maple), seen from above: its feet, the sloping face and the thin top edge
+  // the bridge (maple), seen from above: its feet, the sloping face and the thin top edge (the bass's:
+  // heavier, and a height adjuster in each leg, a knurled aluminium wheel on its screw)
   const bW = p.bridgeW;
-  const foot = 0.0042 * S ** 0.7;
-  const topT = 0.0013 * S ** 0.7;
-  const footL = 0.0105 * S ** 0.8;
+  const { foot, topT, footL } = bwBridge(g, p);
   c.save();
   c.shadowColor = 'rgba(0,0,0,0.65)';
   c.shadowBlur = 5 * dpr;
   c.shadowOffsetY = 4 * dpr;
   c.fillStyle = 'rgb(176,150,112)';
   for (const sg of [-1, 1]) c.fillRect(X(xb - foot / 2), X(sg > 0 ? bW / 2 - footL : -bW / 2), X(foot), X(footL));
+  c.restore();
+  if (bass)
+    for (const { x, z, r } of bassAdjusters(g, p)) {
+      c.save();
+      c.shadowColor = 'rgba(0,0,0,0.6)';
+      c.shadowBlur = 4 * dpr;
+      c.shadowOffsetY = 3 * dpr;
+      const ag = c.createLinearGradient(X(x - r), X(z - r), X(x + r), X(z + r));
+      ag.addColorStop(0, 'rgb(226,230,234)');
+      ag.addColorStop(0.55, 'rgb(150,156,162)');
+      ag.addColorStop(1, 'rgb(96,102,108)');
+      c.fillStyle = ag;
+      c.beginPath();
+      c.arc(X(x), X(z), X(r), 0, Math.PI * 2);
+      c.fill();
+      c.restore();
+      // the knurled rim, the screw through it
+      c.strokeStyle = 'rgba(40,44,48,0.75)';
+      c.lineWidth = 0.6;
+      c.beginPath();
+      for (let k = 0; k < 20; k++) {
+        const th = (k / 20) * Math.PI * 2;
+        c.moveTo(X(x + r * Math.cos(th)), X(z + r * Math.sin(th)));
+        c.lineTo(X(x + r * 0.8 * Math.cos(th)), X(z + r * 0.8 * Math.sin(th)));
+      }
+      c.stroke();
+      c.beginPath();
+      c.arc(X(x), X(z), X(r), 0, Math.PI * 2);
+      c.stroke();
+      c.beginPath();
+      c.arc(X(x), X(z), X(r * 0.3), 0, Math.PI * 2);
+      c.fillStyle = 'rgb(176,150,112)';
+      c.fill();
+      c.stroke();
+    }
+  c.save();
+  c.shadowColor = 'rgba(0,0,0,0.65)';
+  c.shadowBlur = 5 * dpr;
+  c.shadowOffsetY = 4 * dpr;
   c.beginPath();
   c.moveTo(X(xb - foot * 0.42), X(-bW * 0.44));
   c.lineTo(X(xb + topT / 2), X(-bW * 0.44));
@@ -1091,14 +1612,14 @@ function bwHull(pts: Pt[]): Pt[] {
  * ensemble draws its bows that way, after every instrument (ensemble-draw.ts): a bow is longer than
  * its instrument's cell is wide, and it lies over the neighbours.
  */
-export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g: BowedGeom, fr: VisualFrame | null, st: BowedState, field: ModeField, now: number, bowLater = false, scale?: number): (() => void) | null {
+export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g: BowedGeom, fr: VisualFrame | null, st: BowedState, field: ModeField, now: number, bowLater = false, scale?: number, top = 0): (() => void) | null {
   const p = BOWED_PLAN[g.id];
   const sh = bowedShapes(g.id, p, g.L);
   const dpr = Math.max(1, Math.abs(ctx.getTransform().a) || 1);
-  const key = `${g.id}|${g.L}|${W}|${H}|${dpr}|${scale ?? ''}`;
+  const key = `${g.id}|${g.L}|${W}|${H}|${dpr}|${scale ?? ''}|${top}`;
   let ly = bowedLayers.get(key);
   if (!ly) {
-    ly = paintBowedLayers(g, p, sh, bowedLayout(g, p, sh, W, H, scale), W, H, dpr, key);
+    ly = paintBowedLayers(g, p, sh, bowedLayout(g, p, sh, W, H, scale, top), W, H, dpr, key);
     bowedLayers.set(key, ly);
     for (const k of bowedLayers.keys()) {
       if (bowedLayers.size <= 6) break;
@@ -1325,7 +1846,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
   lv.incl += (inclT - lv.incl) * (snap ? 1 : ease(0.06));
   lv.lift += ((playing ? 0 : 1) - lv.lift) * ease(0.15);
   const Hh = g.bowLength;
-  const S2 = Hh / 0.65;
+  const S2 = bowFit(g);
   const pos = bow ? bwClamp(bow.pos, 0, 1) : 0.5;
   const ci = Math.cos(lv.incl);
   // the stick leans towards the fingerboard (the player tilts the hair), so from above it shows beside
@@ -1343,6 +1864,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     const [fx, fy] = P(lv.cx, Zs(0));
     const [tx, ty] = P(lv.cx, Zs(Hh));
     st.bowLine = { fx, fy, tx, ty, pos };
+    st.drawn = ly.drawn ??= bowedDrawn(g, p, sh, ly.lay);
   }
   const lay = ly.lay;
   /** the bow, the contact and which way it goes (in the local frame bwPlace sets) */

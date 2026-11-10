@@ -358,6 +358,16 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   hands.push(hand2d);
   // tests: where the 2D stage last drew the hair (client px) and the contact point along it
   (window as unknown as { __bow2d?: () => unknown }).__bow2d = () => hand2dLine();
+  // tests: where the 2D stage last drew the bowed instrument and the box its bow sweeps at the far ends
+  // of its travel (client px), and the stage it was drawn in
+  (window as unknown as { __bowed2d?: () => unknown }).__bowed2d = () => {
+    const d = family() === 'bowed' && bowedGeom && !(want3d && s3) && !ensemble.active ? bowedState.drawn : null;
+    if (!d) return null;
+    const r = canvas.getBoundingClientRect();
+    const y0 = r.top + top.getBoundingClientRect().height;
+    const at = (b: { x0: number; y0: number; x1: number; y1: number }) => ({ x0: r.left + b.x0, x1: r.left + b.x1, y0: y0 + b.y0, y1: y0 + b.y1 });
+    return { id: bowedGeom!.id, body: at(d.body), bow: at(d.bow), stage: { x0: r.left, x1: r.right, y0, y1: r.bottom } };
+  };
   canvas.addEventListener('pointerdown', (e) => {
     downAt = { x: e.clientX, y: e.clientY };
     hand2d.down(e);
@@ -728,8 +738,10 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       if (vec) drawPianoV(ctx, w, ih, pg, frame, pianoState, vfields!.piano, now);
       else drawPiano(ctx, w, ih, pg, frame, pianoState, fields.piano, now);
     } else if (family() === 'bowed' && bowedGeom) {
-      if (vec) drawBowedV(ctx, w, ih, bowedGeom, frame, bowedState, vfields!.bowed, now);
-      else drawBowed(ctx, w, ih, bowedGeom, frame, bowedState, fields.bowed, now);
+      // (the double bass keeps clear of the file player at the top of the stage: bowedLayout)
+      const pl = bowedGeom.id === 'bass' && !player.el.hidden ? Math.max(0, Math.round(player.el.getBoundingClientRect().bottom - top.getBoundingClientRect().bottom)) : 0;
+      if (vec) drawBowedV(ctx, w, ih, bowedGeom, frame, bowedState, vfields!.bowed, now, false, undefined, pl);
+      else drawBowed(ctx, w, ih, bowedGeom, frame, bowedState, fields.bowed, now, false, undefined, pl);
     } else if (family() === 'brass') (vec ? drawTrumpetV : drawTrumpet)(ctx, w, ih, frame, trumpetState);
     else (vec ? drawFluteV : drawFlute)(ctx, w, ih, frame, fluteState);
     // the room: wavefronts from the instrument, reflections, the lid's throw
