@@ -15,8 +15,8 @@ const LENS = Math.tan(0.3) / Math.tan((12 * Math.PI) / 180);
 // (the pianos last: choosing one is a click, the click starts the sound, and from then on a bow rests
 // where the engine left it, at one end of its stroke. Before that it lies across the strings at its
 // middle, as in the screenshots: that is the pose measured)
-const NAMES = ['cello', 'bass', 'violin', 'viola', 'flute', 'oboe', 'clarinet', 'bassoon', 'trumpet', 'grand', 'upright'];
-const TABLE = ['grand', 'upright', 'cello', 'bass', 'violin', 'viola', 'flute', 'oboe', 'clarinet', 'bassoon', 'trumpet'];
+const NAMES = ['cello', 'bass', 'violin', 'viola', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'grand', 'upright'];
+const TABLE = ['grand', 'upright', 'cello', 'bass', 'violin', 'viola', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet'];
 const browser = await chromium.launch({ channel: 'chrome', args: ['--autoplay-policy=no-user-gesture-required', '--use-angle=metal', '--enable-gpu'] });
 if (SHOT) mkdirSync(SHOT, { recursive: true });
 const init = () => {
@@ -93,7 +93,7 @@ for (const [W, H] of SIZES) {
       const v0 = await seen(page);
       const o = own[name];
       const narrow = v0.w / v0.h < 1.4;
-      const step = narrow ? Math.min(2.6, 1.4 / Math.max(0.45, v0.w / v0.h)) * 0.92 * (name === 'flute' || name === 'oboe' || name === 'clarinet' || name === 'trumpet' ? 1.28 : name === 'violin' || name === 'viola' ? 1.16 : 1) : 1;
+      const step = narrow ? Math.min(2.6, 1.4 / Math.max(0.45, v0.w / v0.h)) * 0.92 * (name === 'flute' || name === 'oboe' || name === 'clarinet' || name === 'trumpet' || name === 'horn' ? 1.28 : name === 'violin' || name === 'viola' ? 1.16 : 1) : 1;
       await page.evaluate(([o, d]) => window.__stage3d.setView({ target: o.target, yaw: o.yaw, pitch: o.pitch, dist: d }), [o, (o.dist / LENS) * step]);
       before[name] = { ...(await seen(page)), home: { dist: o.dist * step } };
       if (SHOT) await page.screenshot({ path: `${SHOT}/rebuilt-before-${W}x${H}-${name}.png` });

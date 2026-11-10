@@ -982,7 +982,15 @@ export function buildHornModel(): HornModel {
   const c: Vec3 = [(bx.lo[0] + bx.hi[0]) / 2, (bx.lo[1] + bx.hi[1]) / 2, (bx.lo[2] + bx.hi[2]) / 2];
   const r = 0.5 * Math.hypot(bx.hi[0] - bx.lo[0], bx.hi[1] - bx.lo[1], bx.hi[2] - bx.lo[2]) + 0.01;
   const model: HornModel = { T, statics: [st], segs, lengths, rim, valves, lips: F3(lips), lipAxis: F3(up), bounds: { c: xform(T, c), r } };
-  if (typeof window !== 'undefined') (window as unknown as { __horn3d?: unknown }).__horn3d = { views: hornViews(model), lengths };
+  // (tests and review shots: the review's views, the routes' lengths, the levers and rotors as the stage
+  // last posed them)
+  if (typeof window !== 'undefined')
+    (window as unknown as { __horn3d?: unknown }).__horn3d = {
+      views: hornViews(model),
+      lengths,
+      levers: () => (stageState ? Array.from(stageState.pos) : null),
+      rotors: () => (stageState ? Array.from(stageState.pos, (p, i) => rotorTurn(model, i, p)) : null),
+    };
   return model;
 }
 /** a mesh set's box in the model */
@@ -1077,13 +1085,25 @@ export const HORN_POSE: Mat4 = translate(0, 0.335, 0);
 /** the hero bearing (scenes3d viewFor): from the player's side, round towards the bell's mouth, a
  *  little above */
 export const HORN_VIEW = { yaw: -0.18, pitch: 0.15 };
-/** its seat in the Orchestra (scenes3d ensembleSeats): the coil's centre's height and the seat's own
- *  turn; `top` the height the framing allows for (the mouthpiece at a seated player's lips) */
-export const HORN_SEAT = { y: 0.9, turn: 0, top: 1.42 };
-/** held as a seated player holds it (about the coil's centre): the audience's side (the valves' caps)
- *  towards the audience, turned in the picture's plane so the valves come up under the left hand and
- *  the leadpipe up to the lips, the bell down by the right thigh, its mouth back */
-export const HORN_HELD: Mat4 = chain(rotY(-0.35), rotX(0.12), rotZ(45 * DEG), rotY(Math.PI));
+/** its seat in the Orchestra (scenes3d ensembleSeats): the coil's centre's height (its mouthpiece then at
+ *  a seated player's lips, 1.18 m) and the seat's own turn; `top` the height the framing allows for */
+export const HORN_SEAT = { y: 0.96, turn: 0, top: 1.34 };
+/** held as a seated player holds it (Karl Bradač's photograph, a horn section's from the front), about
+ *  the coil's centre: the coil standing, its valve caps' side turned 37° to the audience on the player's
+ *  right (the world here is mirrored: the player's right is −x, the audience at −z); in its plane turned
+ *  so the levers come up under the left hand and the leadpipe rises to the lips, the bell going down and
+ *  back to rest by the right thigh, its mouth behind */
+const HELD_PLANE = 37 * DEG;
+const HELD_TURN = -55 * DEG;
+export const HORN_HELD: Mat4 = (() => {
+  const h: Vec3 = [-Math.cos(HELD_PLANE), 0, Math.sin(HELD_PLANE)];
+  const up: Vec3 = [0, 1, 0];
+  const nb = cross(up, h);
+  const eX = add(scale(h, Math.cos(HELD_TURN)), scale(up, Math.sin(HELD_TURN)));
+  const eY = add(scale(h, -Math.sin(HELD_TURN)), scale(up, Math.cos(HELD_TURN)));
+  // (the model is the true horn with z flipped: its −z is the player's side, nb)
+  return new Float32Array([eX[0], eX[1], eX[2], 0, eY[0], eY[1], eY[2], 0, -nb[0], -nb[1], -nb[2], 0, 0, 0, 0, 1]);
+})();
 
 interface HornPoseState {
   /** each lever's spring (0 rest … 1 pressed) */
@@ -1121,8 +1141,11 @@ export function rotorTurn(hm: HornModel, i: number, p: number): number {
 
 const C = { verm: (a: number) => ink(INK.vermilion, a), amber: (a: number) => ink(INK.amber, a) };
 
+/** the single stage's pose state, last posed (tests) */
+let stageState: HornPoseState | null = null;
 export function poseHorn(b: Batch, hm: HornModel, fr: VisualFrame | null, pose: WindPose, dt: number, now: number, rms: number, T: Mat4 = hm.T): void {
   const st = hornPose(pose);
+  if (T === hm.T) stageState = st;
   for (const s of hm.statics) b.mesh(s, T);
   const lips = fr?.lips ?? null;
   const blow = lips ? lips.blow : 0;
