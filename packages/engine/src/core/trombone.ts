@@ -247,11 +247,11 @@ export interface TromboneVoice {
 }
 
 export const TROMBONE_VOICE: TromboneVoice = {
-  lipQ: 8,
-  lipQTop: 12,
-  lipBelow: 0.3,
+  lipQ: 50,
+  lipQTop: 50,
+  lipBelow: 0.7,
   stiff: 4e6,
-  stiffExp: 1,
+  stiffExp: 1.5,
   h0: 1e-4,
   hMax: 2.5e-3,
   width: 0.012,
@@ -267,7 +267,7 @@ export const TROMBONE_VOICE: TromboneVoice = {
   kick: 1,
   qAttack: 0.3,
   qTau: 0.08,
-  cupScale: 1,
+  cupScale: 1.6,
   throatScale: 1,
   wallScale: 1,
   rimFc: 1,
@@ -597,7 +597,7 @@ export class TromboneCore implements InstrumentCore {
     this.lpSet = -1;
     this.room.configure(this.params.room, this.params.seat);
     // (in pascals at the bell: scaled to the recordings' level)
-    this.gain = 2.5e-5 * this.params.volume;
+    this.gain = 7.5e-4 * this.params.volume;
   }
 
   /** measured tuning (scripts/tune-trombone.ts): cents the bare model plays sharp, by size and sample rate */

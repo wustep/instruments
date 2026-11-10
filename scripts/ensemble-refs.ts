@@ -9,7 +9,9 @@
 // bassoon: the MIS "Bassoon" set (https://theremin.music.uiowa.edu/MISbassoon.html), B♭1–D5, pp/mf/ff;
 // horn: the MIS "French Horn" set (https://theremin.music.uiowa.edu/MISFrenchhorn.html; J. Wiskus, 1997),
 // at concert pitch, ff B♭1–F5, mf B♭1–B2 and C4–F5, pp B♭1–B1 and C4–F5 (the set has no pp C2–B3 and no
-// mf C3–B3 runs).
+// mf C3–B3 runs); tenor trombone: the MIS "Tenor Trombone" set (https://theremin.music.uiowa.edu/MIStenortrombone.html;
+// 1997), E2–C5, pp/mf/ff; bass trombone: the MIS "Bass Trombone" set (https://theremin.music.uiowa.edu/MISbasstrombone.html;
+// 1997, played with vibrato), C1 (pp; D♭1 mf/ff) to B♭4 (pp), G4 (mf), F4 (ff). Both at concert pitch.
 // Terms: "may be downloaded and used for any projects, without restrictions" —
 // https://theremin.music.uiowa.edu/MIS.html
 //
@@ -22,7 +24,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { join } from 'node:path';
 import { analyzeSustained, decodeWav, identifyNote, segmentNotes, type SustainedAnalysis } from '../packages/engine/src/analysis/index.ts';
 
-export type EnsInstrument = 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet' | 'oboe' | 'clarinet' | 'bassoon' | 'horn';
+export type EnsInstrument = 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trombone';
 export type Dyn = 'pp' | 'mf' | 'ff';
 export const ENS_DYN: Dyn[] = ['pp', 'mf', 'ff'];
 export const ENS_CACHE = join(import.meta.dirname, '..', '.cache', 'iowa-ens');
@@ -53,6 +55,9 @@ export interface RefFile {
   /** segmentation: gaps bridged (10 ms frames; analysis segmentNotes, default 12). The Iowa oboe's
    *  runs leave 50–100 ms between notes, which the default bridges into one long note */
   merge?: number;
+  /** one instrument's other size recorded as its own set (the bass trombone): its notes are told apart by it,
+   *  and the model plays them at that size */
+  variant?: string;
 }
 
 const BASE = 'https://theremin.music.uiowa.edu/sound%20files/MIS';
@@ -144,12 +149,32 @@ export const REF_FILES: RefFile[] = [
     const file = `Horn.${dyn}.${tag}.aiff`;
     return { instrument: 'horn' as const, dyn, file, url: `${BASE}/Brass/frenchhorn/${file}`, range: rangeOf(tag), use: [34, 77] as [number, number] };
   }),
+  // tenor trombone (B♭/F), E2–C5 as recorded (the low runs' names have a space: "TenorTrombone.pp. E2B2")
+  ...ENS_DYN.flatMap((dyn) =>
+    ['E2B2', 'C3B3', 'C4B4', 'C5'].map((tag) => {
+      const file = `TenorTrombone.${dyn}.${tag}.aiff`;
+      const remote = tag === 'E2B2' && dyn !== 'ff' ? `TenorTrombone.${dyn}.%20${tag}.aiff` : tag === 'E2B2' ? `TenorTrombone.ff.%20E2B2.aiff` : file;
+      return { instrument: 'trombone' as const, dyn, file, url: `${BASE}/Brass/tenortrombone/${remote}`, range: rangeOf(tag), use: [40, 72] as [number, number] };
+    }),
+  ),
+  // bass trombone (B♭/F/G♭), C1–B♭4 as recorded (with vibrato), played by the model at its bass size
+  ...([
+    ['pp', 'C1B1'], ['pp', 'C2B2'], ['pp', 'C3B3'], ['pp', 'C4Bb4'],
+    ['mf', 'Db1B1'], ['mf', 'C2B2'], ['mf', 'C3B3'], ['mf', 'C4G4'],
+    ['ff', 'Db1B1'], ['ff', 'C2B2'], ['ff', 'C3B3'], ['ff', 'C4F4'],
+  ] as [Dyn, string][]).map(([dyn, tag]) => {
+    const file = `BassTrombone.${dyn}.${tag}.aiff`;
+    const remote = tag === 'Db1B1' ? `BassTrombone.${dyn}.%20${tag}.aiff` : file;
+    return { instrument: 'trombone' as const, dyn, file, url: `${BASE}/Brass/basstrombone/${remote}`, range: rangeOf(tag), use: [24, 70] as [number, number], variant: 'bass' };
+  }),
 ];
 
 export interface RefNote extends SustainedAnalysis {
   instrument: EnsInstrument;
   dyn: Dyn;
   file: string;
+  /** the RefFile's variant (the bass trombone) */
+  variant?: string;
 }
 
 const wavOf = (f: RefFile) => join(ENS_CACHE, 'wav', f.file.replace(/\.aiff$/, '.wav'));
@@ -187,7 +212,7 @@ export function analyseFile(f: RefFile): RefNote[] {
     const s = analyzeSustained(x, fs, seg, m);
     // reject mis-identified segments (more than 60 cents off the note)
     if (!Number.isFinite(s.f0) || Math.abs(s.cents) > 60) continue;
-    out.push({ ...s, instrument: f.instrument, dyn: f.dyn, file: f.file });
+    out.push({ ...s, instrument: f.instrument, dyn: f.dyn, file: f.file, ...(f.variant ? { variant: f.variant } : {}) });
   }
   return out;
 }

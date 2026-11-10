@@ -87,13 +87,13 @@ export function localSpread(values: { midi: number; group: string; v: number }[]
 
 // ---------------------------------------------------------------- sustained instruments (Iowa MIS)
 /** per-note errors and the measures for the ensemble's sustained analysis */
-export function sustainedErrors(pairs: { ref: SustainedAnalysis & { instrument: string; dyn: string }; model: SustainedAnalysis | null }[], harmErr: (m: SustainedAnalysis, r: SustainedAnalysis) => number) {
+export function sustainedErrors(pairs: { ref: SustainedAnalysis & { instrument: string; dyn: string; variant?: string }; model: SustainedAnalysis | null }[], harmErr: (m: SustainedAnalysis, r: SustainedAnalysis) => number) {
   const ok = pairs.filter((p) => p.model);
   const errs: NoteErr[] = ok.map((p) => {
     const m = p.model!;
     const r = p.ref;
     return {
-      key: `${r.instrument}:${r.dyn}:${r.midi}`,
+      key: `${r.instrument}${r.variant ? `/${r.variant}` : ''}:${r.dyn}:${r.midi}`,
       midi: r.midi,
       errs: {
         harmonics: harmErr(m, r),
@@ -106,7 +106,7 @@ export function sustainedErrors(pairs: { ref: SustainedAnalysis & { instrument: 
     };
   });
   const refs = ok.map((p) => p.ref);
-  const g = (r: { instrument: string; dyn: string }) => `${r.instrument}:${r.dyn}`;
+  const g = (r: { instrument: string; dyn: string; variant?: string }) => `${r.instrument}${r.variant ? `/${r.variant}` : ''}:${r.dyn}`;
   // the recording's own spread of each measure (harmonics: how different neighbouring notes' profiles are)
   const harmSpread = (() => {
     const ds: number[] = [];
