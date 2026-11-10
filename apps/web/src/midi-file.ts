@@ -45,6 +45,9 @@ export interface MidiSong {
   bars?: number[];
 }
 
+/** how long (s) notes must sound together to count as a chord (MidiLine.poly) */
+const POLY_HOLD = 0.04;
+
 export function parseMidi(buf: ArrayBuffer): MidiSong {
   const d = new DataView(buf);
   let p = 0;
@@ -169,7 +172,29 @@ export function parseMidi(buf: ArrayBuffer): MidiSong {
     const same = keys.flatMap((k, i) => (k % 16 === key % 16 ? [i] : []));
     return same.length ? same : [undefined];
   };
-  const stats = keys.map(() => ({ pitches: [] as number[], held: new Map<number, number>(), n: 0, poly: 0, firstTick: -1 }));
+  // (poly: the most notes held together, for at least POLY_HOLD s, and in at least 1 % of the line: a grace
+  // note over a held one, or a typesetter's lone overlap, does not make a melody two-part, so a wind
+  // can still take it. `spans[k]`: how many times k notes sounded together that long)
+  const stats = keys.map(() => ({ pitches: [] as number[], held: new Map<number, number>(), n: 0, at: 0, spans: [] as number[], firstTick: -1 }));
+  const level = (s: (typeof stats)[number], t: number, n: number) => {
+    if (s.n > 0 && t - s.at >= POLY_HOLD) s.spans[s.n] = (s.spans[s.n] ?? 0) + 1;
+    s.n = n;
+    s.at = t;
+  };
+  const polyOf = (s: (typeof stats)[number]): number => {
+    if (s.n > 0) level(s, Infinity, 0);
+    const need = Math.max(1, Math.ceil(0.01 * s.pitches.length));
+    let poly = s.pitches.length ? 1 : 0;
+    let atLeast = 0;
+    for (let k = s.spans.length - 1; k >= 2; k--) {
+      atLeast += s.spans[k] ?? 0;
+      if (atLeast >= need) {
+        poly = k;
+        break;
+      }
+    }
+    return poly;
+  };
 
   const events: FileEvent[] = [];
   const bars: number[] = [];
@@ -191,15 +216,14 @@ export function parseMidi(buf: ArrayBuffer): MidiSong {
         if (s.firstTick < 0) s.firstTick = r.tick;
         s.pitches.push(e.a);
         s.held.set(e.a, (s.held.get(e.a) ?? 0) + 1);
-        s.n++;
-        s.poly = Math.max(s.poly, s.n);
+        level(s, sec, s.n + 1);
       }
     } else if (e.kind === 'off') {
       events.push({ t: sec, kind: 'off', midi: e.a, line });
       const h = s?.held.get(e.a);
       if (s && h) {
         s.held.set(e.a, h - 1);
-        s.n--;
+        level(s, sec, s.n - 1);
       }
     } else events.push({ t: sec, kind: 'pedal', cc: e.a as 64 | 66 | 67, value: e.b / 127, line });
   }
@@ -221,7 +245,7 @@ export function parseMidi(buf: ArrayBuffer): MidiSong {
       lo: sorted[0],
       hi: sorted[sorted.length - 1],
       median: sorted[sorted.length >> 1],
-      poly: s.poly,
+      poly: polyOf(s),
     };
   });
   // (the length is the music's: a controller after the last note does not make it longer)

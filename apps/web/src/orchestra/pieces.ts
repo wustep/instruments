@@ -209,6 +209,19 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     vel: 0.6,
     rate: 0.85,
   },
+  clarinet: {
+    instrument: 'clarinet',
+    composer: 'Mozart',
+    title: 'Clarinet Quintet, Larghetto (the clarinet’s line)',
+    file: 'mozart-k581-ii.mid',
+    source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=337',
+    credit: 'Clarinet Quintet in A, K. 581, II. Larghetto: the clarinet’s line alone, the melody that opens the movement over the muted strings, to the close of its thirteenth bar. The file plays every note at full force (here at about mezzo-forte); the clarinet in A sounds a minor third below its part, as the file has it. Typeset by Maurizio Tomasi from the Breitkopf & Härtel edition (1883); Mutopia-2008/06/09-337; public domain.',
+    sha256: 'a696d72d9a1baa84a68a236ae996964de3f23ca83be223dfbc5164f91a008c1a',
+    lines: [0],
+    // to the end of bar 13, the phrase's close on B (each bar of 3/4 is 3.27 s in the file, ♩ = 55)
+    end: 42.4,
+    vel: 0.55,
+  },
   trumpet: {
     instrument: 'trumpet',
     composer: 'Handel',

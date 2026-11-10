@@ -4,7 +4,8 @@
 // 16-bit/44.1 kHz mono. Violin: J. Jean-Francois; viola: C. Taylor (1996);
 // cello: J. Montes on a 1736 Stradivarius (2001); double bass: the MIS "Double Bass" arco set
 // (https://theremin.music.uiowa.edu/MISdoublebass.html); flute: S. Feig (2000), non-vibrato; oboe: the
-// MIS "Oboe" set (https://theremin.music.uiowa.edu/MISoboe.html), B♭3–A♭6, pp/mf/ff.
+// MIS "Oboe" set (https://theremin.music.uiowa.edu/MISoboe.html), B♭3–A♭6, pp/mf/ff; clarinet: the MIS
+// "B♭ Clarinet" set (https://theremin.music.uiowa.edu/MISBbclarinet.html), D3–B6 at concert pitch, pp/mf/ff.
 // Terms: "may be downloaded and used for any projects, without restrictions" —
 // https://theremin.music.uiowa.edu/MIS.html
 //
@@ -17,7 +18,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { join } from 'node:path';
 import { analyzeSustained, decodeWav, identifyNote, segmentNotes, type SustainedAnalysis } from '../packages/engine/src/analysis/index.ts';
 
-export type EnsInstrument = 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet' | 'oboe';
+export type EnsInstrument = 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet' | 'oboe' | 'clarinet';
 export type Dyn = 'pp' | 'mf' | 'ff';
 export const ENS_DYN: Dyn[] = ['pp', 'mf', 'ff'];
 export const ENS_CACHE = join(import.meta.dirname, '..', '.cache', 'iowa-ens');
@@ -112,6 +113,13 @@ export const REF_FILES: RefFile[] = [
     ['Bb3B3', 'C4B4', 'C5B5', 'C6Ab6'].map((tag) => {
       const file = `Oboe.${dyn}.${tag}.aiff`;
       return { instrument: 'oboe' as const, dyn, file, url: `${BASE}/Woodwinds/oboe/${file}`, range: rangeOf(tag), use: [58, 93] as [number, number], merge: 2 };
+    }),
+  ),
+  // B♭ clarinet (concert pitch, as recorded), the model's range D3–B♭6
+  ...ENS_DYN.flatMap((dyn) =>
+    ['D3B3', 'C4B4', 'C5B5', 'C6B6'].map((tag) => {
+      const file = `BbClar.${dyn}.${tag}.aiff`;
+      return { instrument: 'clarinet' as const, dyn, file, url: `${BASE}/Woodwinds/Bbclarinet/${file}`, range: rangeOf(tag), use: [50, 94] as [number, number], merge: 2 };
     }),
   ),
 ];

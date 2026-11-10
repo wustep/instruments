@@ -331,6 +331,26 @@ function oboeGlyph(): SVGElement[] {
   return g;
 }
 
+function clarinetGlyph(): SVGElement[] {
+  // along the diagonal as the flute and the oboe are, the mouthpiece at the top right, the bell at the
+  // bottom left: a black mouthpiece with its reed and silver ligature, the barrel, a straight cylindrical
+  // body with rings at its joints and open holes down its front, and a bell flaring wide
+  const g: SVGElement[] = [];
+  const gr = svg('g', { transform: 'rotate(-45 24 24)' });
+  gr.appendChild(svg('path', { d: 'M47 23.3 L41.5 22.7 V25.3 L47 24.7 Z', class: 'g-ebony' })); // the mouthpiece's beak
+  gr.appendChild(svg('path', { d: 'M46.6 24.8 L40.4 25.5', class: 'g-bridge' })); // the reed under it
+  gr.appendChild(svg('rect', { x: 42.3, y: 22.4, width: 2.2, height: 3.2, rx: 0.4, class: 'g-thin' })); // the ligature
+  gr.appendChild(svg('path', { d: 'M41.5 22.6 L10.5 22.6 C7.6 22.6 4.6 20.6 2.4 18.6 V29.4 C4.6 27.4 7.6 25.4 10.5 25.4 L41.5 25.4 Z', class: 'g-ebony' })); // barrel, body, bell
+  for (const x of [41.4, 37.4, 24.2, 10.6]) gr.appendChild(svg('path', { d: `M${x} 22.5 V25.5`, class: 'g-steel' })); // the rings
+  for (let i = 0; i < 6; i++) {
+    const x = 34.4 - i * 3.9 - (i > 2 ? 1.6 : 0);
+    gr.appendChild(svg('circle', { cx: x, cy: 24, r: 0.9, class: 'g-key' }));
+  }
+  gr.appendChild(svg('path', { d: 'M12.5 22.3 H36', class: 'g-steel' })); // the key rods
+  g.push(gr);
+  return g;
+}
+
 function trumpetGlyph(): SVGElement[] {
   // side view: mouthpiece left, three valves, the slide loop below, the bell flaring right
   const g: SVGElement[] = [];
@@ -349,12 +369,12 @@ function trumpetGlyph(): SVGElement[] {
 }
 
 export function glyph(id: InstrumentId | 'upright'): SVGElement {
-  const g = id === 'piano' ? pianoGlyph() : id === 'upright' ? uprightGlyph() : id === 'flute' ? fluteGlyph() : id === 'oboe' ? oboeGlyph() : id === 'trumpet' ? trumpetGlyph() : bowedGlyph(id);
+  const g = id === 'piano' ? pianoGlyph() : id === 'upright' ? uprightGlyph() : id === 'flute' ? fluteGlyph() : id === 'oboe' ? oboeGlyph() : id === 'clarinet' ? clarinetGlyph() : id === 'trumpet' ? trumpetGlyph() : bowedGlyph(id);
   return svg('svg', { viewBox: '0 0 48 48', class: 'glyph', 'aria-hidden': 'true' }, ...g);
 }
 
 /** an orchestra voice's glyph (the grand is the piano's) */
-export const voiceGlyph = (v: 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'trumpet'): SVGElement => glyph(v === 'grand' ? 'piano' : v);
+export const voiceGlyph = (v: 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'trumpet'): SVGElement => glyph(v === 'grand' ? 'piano' : v);
 
 /** the ensemble: four players' chairs on an arc around the conductor's place */
 export function ensembleIcon(): SVGElement {

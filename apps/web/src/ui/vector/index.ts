@@ -4,3 +4,4 @@ export { drawPianoV } from './piano.ts';
 export { drawFluteV, drawTrumpetV } from './winds.ts';
 export { drawOboeV } from './oboe.ts';
 export { drawRoomV } from './room.ts';
+export { drawClarinetV } from './clarinet.ts';

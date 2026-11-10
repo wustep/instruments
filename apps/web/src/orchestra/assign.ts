@@ -1,6 +1,6 @@
 // Which instrument plays which line of a MIDI file. Pure (no DOM, no audio), so it is tested fast.
 //
-// A voice is one of the eight instruments on the stage. Keyboard voices (the grand, the upright) take
+// A voice is one of the nine instruments on the stage. Keyboard voices (the grand, the upright) take
 // any number of lines on one instrument (two hands, a continuo); every other line gets an instrument
 // of its own (violin I and violin II are two violins), until the stage is full, when the busiest
 // lines keep theirs and the rest join a like instrument (a section: the bowed strings play double
@@ -17,13 +17,13 @@
 // piano; a line that goes below the cello's C is a bass line (the double bass is a candidate for it). With a lineup chosen by hand, the lines are matched to it by register instead: the highest
 // line to the highest instrument, and so on down.
 
-export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'trumpet';
-export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'trumpet'];
+export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'trumpet';
+export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'trumpet'];
 
 export interface VoiceInfo {
   label: string;
   /** the engine's instrument and (pianos) preset */
-  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'trumpet';
+  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'trumpet';
   preset?: 'grand' | 'upright';
   /** playable range (MIDI notes) and where the instrument sings best */
   lo: number;
@@ -34,8 +34,8 @@ export interface VoiceInfo {
 }
 // ranges: the engine's (packages/engine/src/core/instrument.ts INSTRUMENT_INFO); centres: the
 // middle of each instrument's usual written range (violin G3–A6, viola C3–E6, cello C2–A5, double
-// bass E1–G3 sounding, flute C4–C7, oboe B♭3–G6 (in C: written as it sounds), trumpet F#3–D6), where a
-// part for it mostly lies
+// bass E1–G3 sounding, flute C4–C7, oboe B♭3–G6 (in C: written as it sounds), B♭ clarinet D3–B♭6 sounding
+// (its parts mostly G3–C6), trumpet F#3–D6), where a part for it mostly lies
 export const VOICE_INFO: Record<Voice, VoiceInfo> = {
   grand: { label: 'grand piano', instrument: 'piano', preset: 'grand', lo: 21, hi: 108, centre: 60, poly: 88 },
   upright: { label: 'upright piano', instrument: 'piano', preset: 'upright', lo: 21, hi: 108, centre: 60, poly: 88 },
@@ -45,6 +45,7 @@ export const VOICE_INFO: Record<Voice, VoiceInfo> = {
   bass: { label: 'double bass', instrument: 'bass', lo: 28, hi: 67, centre: 40, poly: 4 },
   flute: { label: 'flute', instrument: 'flute', lo: 60, hi: 96, centre: 79, poly: 1 },
   oboe: { label: 'oboe', instrument: 'oboe', lo: 58, hi: 93, centre: 74, poly: 1 },
+  clarinet: { label: 'clarinet', instrument: 'clarinet', lo: 50, hi: 94, centre: 70, poly: 1 },
   trumpet: { label: 'trumpet', instrument: 'trumpet', lo: 52, hi: 86, centre: 68, poly: 1 },
 };
 export const isKeyboard = (v: Voice): boolean => v === 'grand' || v === 'upright';
@@ -101,7 +102,10 @@ export function voiceFromName(s: string): Voice | null {
   // the oboe: oboe, oboi, hautbois, Hoboe/Oboe, oboe d'amore, "Ob.", and the cor anglais (English horn,
   // corno inglese, Englischhorn: the alto oboe, a fifth lower, moved by octaves into the oboe's range)
   if (/\boboe|\boboi\b|hautbois|hoboe|\bob\.?(?![a-z])|\bobs?\b|cor anglais|english ?horn|corno inglese|englisch ?horn/.test(t)) return 'oboe';
-  if (/flute|flauto|fl[oö]te|flûte|piccolo|recorder|\bfl\.?\b|clarinet|klarinette|clarinette|\bcl\.?\b|sax/.test(t)) return 'flute';
+  // the clarinet: clarinet(s), clarinetto/-i, Klarinette, clarinette, "Cl.", "Clar.", "Kl.", and its kin (the
+  // bass clarinet, the basset horn, the chalumeau: moved by octaves into the B♭ clarinet's range)
+  if (/clarinet|klarinett|\bcl\.?(?![a-z])|\bcls\b|\bclar\.?(?![a-z])|\bkl\.?(?![a-z])|basset|chalumeau/.test(t)) return 'clarinet';
+  if (/flute|flauto|fl[oö]te|flûte|piccolo|recorder|\bfl\.?\b|sax/.test(t)) return 'flute';
   if (/trumpet|tromba|trompete|trompette|cornet|horn|corno|trombone|posaune|brass|\btpt?\.?\b/.test(t)) return 'trumpet';
   if (/piano|klavier|cembalo|harpsichord|clavecin|keyboard|organ|orgel|continuo|clavichord|celesta|harp|guitar|lute/.test(t)) return 'grand';
   return null;
@@ -120,6 +124,7 @@ export function voiceFromProgram(p: number): Voice | null {
   if (p <= 55) return null; // timpani, string and voice ensembles: by range
   if (p <= 63) return 'trumpet'; // brass
   if (p === 68 || p === 69) return 'oboe'; // oboe, English horn
+  if (p === 71) return 'clarinet';
   if (p <= 79) return 'flute'; // reeds and pipes
   return null;
 }

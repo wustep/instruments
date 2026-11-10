@@ -22,8 +22,9 @@ import { drawPiano, newPianoState, stringAt } from '../ui/piano-draw.ts';
 import { drawRoom, newRoomState, roomRect } from '../ui/room-draw.ts';
 import { createHandBow, type HandBow } from '../ui/hand-bow.ts';
 import { lidRest, lidSettle, lidStep } from '../ui/lid.ts';
-import { Contours, SCOPE_INK_V, SPECTRUM_INK_V, SPECTRUM_INK_V_PIANO, drawBowedV, drawFluteV, drawOboeV, drawPianoV, drawRoomV, drawTrumpetV, glow, loadVectorFont, slotColor } from '../ui/vector/index.ts';
+import { Contours, SCOPE_INK_V, SPECTRUM_INK_V, SPECTRUM_INK_V_PIANO, drawBowedV, drawClarinetV, drawFluteV, drawOboeV, drawPianoV, drawRoomV, drawTrumpetV, glow, loadVectorFont, slotColor } from '../ui/vector/index.ts';
 import { drawOboe, newOboeState } from '../ui/oboe-draw.ts';
+import { drawClarinet, newClarinetState } from '../ui/clarinet-draw.ts';
 
 const PIANO_KNOBS: KnobSpec[] = [
   { key: 'hammerHardness', label: 'Hammer hardness', short: 'hammer', sub: 'felt stiffness K in F = K·xᵖ', min: 0.25, max: 4, step: 0.01, log: true, fmt: (v) => `×${fmt(v, 2)}` },
@@ -63,10 +64,10 @@ const VISIBLE_PRESETS = ['grand', 'upright'];
 
 /** the order instruments take in a lineup picked by hand: score order (winds, brass, strings, piano),
  *  which is also their seats from the audience's left */
-const SCORE_ORDER: Voice[] = ['flute', 'oboe', 'trumpet', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
+const SCORE_ORDER: Voice[] = ['flute', 'oboe', 'clarinet', 'trumpet', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
 /** how many of each one lineup may have (a tap on its button adds one, past this it has none; the
  *  routing grid adds more, up to the stage's cap) */
-const MOST: Record<Voice, number> = { flute: 2, oboe: 2, trumpet: 2, violin: 3, viola: 2, cello: 2, bass: 2, grand: 2, upright: 2 };
+const MOST: Record<Voice, number> = { flute: 2, oboe: 2, clarinet: 2, trumpet: 2, violin: 3, viola: 2, cello: 2, bass: 2, grand: 2, upright: 2 };
 const familyOf = (v: Voice) => INSTRUMENT_INFO[VOICE_INFO[v].instrument].family;
 
 export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: MidiPlayer): View {
@@ -81,7 +82,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   // (the double bass's name under its glyph is "bass", one word as the others are; its full name is its
   // accessible name and tooltip)
   const instBtns = INSTRUMENT_IDS.map((id) => {
-    const b = h('button', { class: 'pick', type: 'button', 'aria-label': INSTRUMENT_INFO[id].label, title: INSTRUMENT_INFO[id].blurb, 'aria-pressed': String(inst === id), onclick: () => (ensemble.active ? addToLineup(id) : void audio.setInstrument(id)) }, h('span', { class: 'pick-name' }, (id === 'bass' ? 'bass' : INSTRUMENT_INFO[id].label).toLowerCase()), h('span', { class: 'pick-n', 'aria-hidden': 'true' }));
+    const b = h('button', { class: 'pick', type: 'button', 'aria-label': INSTRUMENT_INFO[id].label, title: INSTRUMENT_INFO[id].blurb, 'aria-pressed': String(inst === id), onclick: () => (ensemble.active ? addToLineup(id) : void audio.setInstrument(id)) }, h('span', { class: 'pick-name', 'data-short': id === 'clarinet' ? 'clar.' : undefined }, (id === 'bass' ? 'bass' : INSTRUMENT_INFO[id].label).toLowerCase()), h('span', { class: 'pick-n', 'aria-hidden': 'true' }));
     b.prepend(glyph(id) as unknown as HTMLElement);
     return b;
   });
@@ -413,7 +414,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   // tests: where the 2D stage last drew the oboe (client px: reed tip to bell rim and its keys' reach, the
   // reed's tip, the keywork), and the stage it was drawn in
   (window as unknown as { __oboe2d?: () => unknown }).__oboe2d = () => {
-    const d = family() === 'reed' && !(want3d && s3) && !ensemble.active ? oboeState.drawn : null;
+    const d = family() === 'reed' && inst === 'oboe' && !(want3d && s3) && !ensemble.active ? oboeState.drawn : null;
     if (!d) return null;
     const r = canvas.getBoundingClientRect();
     const y0 = r.top + top.getBoundingClientRect().height;
@@ -559,6 +560,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   const fluteState = { pScale: new AutoScale(1e-6), jetScale: new AutoScale(1e-9), env: new Float32Array(0) };
   const trumpetState: { pScale: AutoScale; env: Float32Array; src?: { x: number; y: number } } = { pScale: new AutoScale(1e-6), env: new Float32Array(0) };
   const oboeState = newOboeState();
+  const clarinetState = newClarinetState();
   const roomState = newRoomState();
   const tdBuf = new Float32Array(2048);
   const fields = { piano: new ModeField(208, 100, 2.2, 3), bowed: new ModeField(150, 84, 1.8, 0.6) };
@@ -604,6 +606,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       if (d?.piano) syncPianoState(st, p);
       return {
         family: familyOf(p.voice),
+        reed: p.voice === 'clarinet' ? 'clarinet' : 'oboe',
         kind: p.voice === 'upright' ? 'upright' : 'grand',
         fr: p.frame,
         keys: isKeyboard(p.voice) ? ensemble.keysOf(p) : [],
@@ -808,7 +811,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     else if (family() === 'reed') {
       // (the oboe keeps clear of the file player at the top of the stage, as the bass does)
       const pl = player.el.hidden ? 0 : Math.max(0, Math.round(player.el.getBoundingClientRect().bottom - top.getBoundingClientRect().bottom));
-      (vec ? drawOboeV : drawOboe)(ctx, w, ih, frame, oboeState, pl);
+      if (inst === 'clarinet') (vec ? drawClarinetV : drawClarinet)(ctx, w, ih, frame, clarinetState, pl);
+      else (vec ? drawOboeV : drawOboe)(ctx, w, ih, frame, oboeState, pl);
     }
     else (vec ? drawFluteV : drawFlute)(ctx, w, ih, frame, fluteState);
     // the room: wavefronts from the instrument, reflections, the lid's throw
@@ -821,7 +825,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     }
     const fam = family();
     const grand = fam === 'piano' && !(audio.preset === 'upright' || audio.preset === 'honky-tonk') && !ens;
-    const src = ens ? { x: w / 2, y: ih / 2 } : fam === 'piano' ? pianoState.src : fam === 'bowed' ? { x: w * 0.62, y: ih / 2 } : fam === 'brass' ? (trumpetState.src ?? { x: w * 0.85, y: ih * 0.55 }) : fam === 'reed' ? (oboeState.src ?? { x: w * 0.8, y: ih * 0.5 }) : { x: w * 0.5, y: ih * 0.45 };
+    const src = ens ? { x: w / 2, y: ih / 2 } : fam === 'piano' ? pianoState.src : fam === 'bowed' ? { x: w * 0.62, y: ih / 2 } : fam === 'brass' ? (trumpetState.src ?? { x: w * 0.85, y: ih * 0.55 }) : fam === 'reed' ? ((inst === 'clarinet' ? clarinetState : oboeState).src ?? { x: w * 0.8, y: ih * 0.5 }) : { x: w * 0.5, y: ih * 0.45 };
     // (an ensemble's cells have no room drawn round them: its outline would cross the instruments)
     const rg = in3d || ens ? { x0: 0, y0: 0, x1: 0, y1: 0 } : (vec ? drawRoomV : drawRoom)(ctx, w, ih, roomState, src, roomVal(), rms, now, grand ? { open: lidVal(), dir: -Math.PI / 4 } : null);
     ctx.restore();
@@ -846,6 +850,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       s3.frame(now, topH, {
         fr: frame,
         family: fam,
+        reed: inst === 'clarinet' ? 'clarinet' : 'oboe',
         kind: grand ? 'grand' : 'upright',
         keys,
         piano: pianoState,

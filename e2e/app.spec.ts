@@ -45,7 +45,7 @@ test('page loads with the keyboard and no errors', async ({ page }) => {
   // no wordmark on the page; the name lives in the tab title
   await expect(page.locator('.inlay')).toHaveCount(0);
   await expect(page).toHaveTitle('instruments');
-  await expect(page.locator('.instruments .pick')).toHaveCount(8);
+  await expect(page.locator('.instruments .pick')).toHaveCount(9);
   await expect(page.locator('.keyboard .key')).toHaveCount(88);
   await page.waitForTimeout(500);
   expect(errors).toEqual([]);
@@ -153,8 +153,8 @@ test('measurements: charts render and the A/B model renders in the browser', asy
   await expect(page.locator('figure svg').first()).toBeVisible({ timeout: 15_000 });
   expect(await page.locator('figure svg').count()).toBeGreaterThanOrEqual(10);
   await expect(page.getByText('Where it falls short')).toBeVisible();
-  // round 2: strings and flute compared with their own recordings (and the oboe, since it came)
-  await expect(page.getByRole('heading', { name: 'Strings, flute and oboe against recordings' })).toBeVisible({ timeout: 15_000 });
+  // round 2: strings and flute compared with their own recordings (and the oboe and clarinet, since they came)
+  await expect(page.getByRole('heading', { name: 'Strings and woodwinds against recordings' })).toBeVisible({ timeout: 15_000 });
   expect(await page.locator('.ensemble figure svg').count()).toBeGreaterThanOrEqual(8);
   const btn = page.locator('.ab-item').filter({ hasText: 'C#4' }).getByRole('button', { name: 'model' });
   await btn.click();
@@ -462,7 +462,7 @@ test('the picker: the ring on the selected instrument is whole, on every instrum
     await page.goto('/');
     await page.waitForTimeout(400);
     const picks = page.locator('.instruments .pick');
-    await expect(picks).toHaveCount(8);
+    await expect(picks).toHaveCount(9);
     for (let i = 0; i < 7; i++) {
       const pick = picks.nth(i);
       await pick.click();
@@ -505,17 +505,17 @@ test('the picker: the ring on the selected instrument is whole, on every instrum
   await page.setViewportSize(vp);
 });
 
-test('all eight instruments: selectable in the UI and rendered through the worklet at pitch', async ({ page }, info) => {
+test('all nine instruments: selectable in the UI and rendered through the worklet at pitch', async ({ page }, info) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await startAudio(page);
-  for (const [label, id] of [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Double bass', 'bass'], ['Flute', 'flute'], ['Oboe', 'oboe'], ['Trumpet', 'trumpet'], ['Piano', 'piano']] as const) {
+  for (const [label, id] of [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Double bass', 'bass'], ['Flute', 'flute'], ['Oboe', 'oboe'], ['Clarinet', 'clarinet'], ['Trumpet', 'trumpet'], ['Piano', 'piano']] as const) {
     await page.locator('.instruments').getByRole('button', { name: label }).click();
     await page.waitForFunction((x) => (window as any).__piano.piano?.instrument === x, id, { timeout: 15_000 });
     await expect(page.locator('.pick[aria-pressed="true"]')).toHaveAttribute('aria-label', label);
     await expect(page.locator('.knobs .knob').first()).toBeVisible({ visible: info.project.name !== 'phone' });
   }
-  for (const [id, midi] of [['violin', 69], ['viola', 62], ['cello', 48], ['bass', 40], ['flute', 74], ['oboe', 74], ['trumpet', 65]] as const) {
+  for (const [id, midi] of [['violin', 69], ['viola', 62], ['cello', 48], ['bass', 40], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['trumpet', 65]] as const) {
     const out = await page.evaluate(async ([inst, m]) => {
       const { renderOffline } = (window as any).__engine;
       const buf: AudioBuffer = await renderOffline({ instrument: inst, sampleRate: 48000, duration: 1.6, params: { room: 0, vibrato: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: 90 } }] });
@@ -1374,7 +1374,7 @@ test('3D stage: every instrument draws in WebGL2 from live frames; orbit and zoo
   await expect(cv).toBeVisible();
   await page.evaluate(() => ((window as any).__stage3d.probe = true));
   const stats = () => page.evaluate(() => ({ ...(window as any).__stage3d.stats }));
-  for (const [inst, note] of [['piano', 60], ['violin', 72], ['viola', 60], ['cello', 50], ['bass', 40], ['flute', 74], ['oboe', 74], ['trumpet', 67]] as const) {
+  for (const [inst, note] of [['piano', 60], ['violin', 72], ['viola', 60], ['cello', 50], ['bass', 40], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['trumpet', 67]] as const) {
     await page.evaluate(async ([i, m]) => {
       await (window as any).__piano.setInstrument(i);
       (window as any).__piano.noteOn(m, 96, 'keys');
@@ -1475,7 +1475,7 @@ test('the action close-up is the pianos’ alone: no string zoom on the bowed st
       }
     await expect(panel).toHaveCount(0);
   };
-  const others = [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Double bass', 'bass'], ['Flute', 'flute'], ['Oboe', 'oboe'], ['Trumpet', 'trumpet']] as const;
+  const others = [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Double bass', 'bass'], ['Flute', 'flute'], ['Oboe', 'oboe'], ['Clarinet', 'clarinet'], ['Trumpet', 'trumpet']] as const;
   for (const [label, id] of others) {
     await choose(label, id);
     await sweep('.stage-cv');
@@ -1626,7 +1626,7 @@ test('3D draws without one WebGL warning: the grand (its lid a mirror), the upri
     await expect.poll(zoomed).toBeNull();
     await page.waitForTimeout(350);
   }
-  for (const [inst, note] of [['violin', 72], ['viola', 60], ['cello', 50], ['flute', 74], ['oboe', 74], ['trumpet', 67]] as const) {
+  for (const [inst, note] of [['violin', 72], ['viola', 60], ['cello', 50], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['trumpet', 67]] as const) {
     await page.evaluate(async ([i, m]) => {
       await (window as any).__piano.setInstrument(i);
       (window as any).__piano.noteOn(m, 96, 'keys');
@@ -2829,7 +2829,7 @@ test('the vector display: off by default; the toggle redraws every family in blu
   expect(await page.evaluate(() => document.fonts.load('500 12px Hershey').then((f) => f.length))).toBeGreaterThan(0);
   // one instrument of each family, sounding: the instrument's lines are blue, the sound amber, and
   // nothing is filled (most of the stage stays black)
-  for (const [id, midi] of [['piano', 60], ['violin', 67], ['flute', 74], ['oboe', 74], ['trumpet', 67]] as const) {
+  for (const [id, midi] of [['piano', 60], ['violin', 67], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['trumpet', 67]] as const) {
     await page.evaluate(async ([i, m]) => {
       const a = (window as any).__piano;
       await a.setInstrument(i);

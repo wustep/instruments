@@ -36,7 +36,7 @@ describe('orchestra: the double bass', () => {
     for (const n of ['Contrabass', 'Double Bass', 'double bass', 'Contrabbasso', 'Contrebasse', 'Kontrabass', 'Contrabajo', 'Basso', 'Basse', 'Bass', 'Bassi', 'Cb.', 'CB', 'Kb.', 'D.B.', 'Violone', 'Acoustic Bass', 'String Bass', 'Upright Bass', 'Tuba', 'Contrabassoon'])
       expect(voiceFromName(n), n).toBe('bass');
     // the cello keeps its own, a continuo and the bassoon; a bass clarinet, trombone or drum is no bass
-    for (const [n, v] of [['Violoncello', 'cello'], ['Vc.', 'cello'], ['Basso continuo', 'cello'], ['Bassoon', 'cello'], ['Bass Clarinet', 'flute'], ['Bass Trombone', 'trumpet'], ['Upright Piano', 'upright']] as const) expect(voiceFromName(n), n).toBe(v);
+    for (const [n, v] of [['Violoncello', 'cello'], ['Vc.', 'cello'], ['Basso continuo', 'cello'], ['Bassoon', 'cello'], ['Bass Clarinet', 'clarinet'], ['Bass Trombone', 'trumpet'], ['Upright Piano', 'upright']] as const) expect(voiceFromName(n), n).toBe(v);
     expect(voiceFromName('Bass Drum')).not.toBe('bass');
     for (let p = 32; p <= 39; p++) expect(voiceFromProgram(p), `program ${p}`).toBe('bass');
     expect(voiceFromProgram(42)).toBe('cello');
