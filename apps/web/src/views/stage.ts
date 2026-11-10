@@ -19,6 +19,7 @@ import type { MidiPlayer } from '../ui/player.ts';
 import { AutoScale, INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, type BowedGeom, type BowedState } from '../ui/stage-draw.ts';
 import { drawPiano, newPianoState, stringAt } from '../ui/piano-draw.ts';
 import { drawRoom, newRoomState, roomRect } from '../ui/room-draw.ts';
+import { drawVolute, newVoluteState } from '../ui/volute-draw.ts';
 import { createHandBow, type HandBow } from '../ui/hand-bow.ts';
 
 const PIANO_KNOBS: KnobSpec[] = [
@@ -46,6 +47,12 @@ const TRUMPET_KNOBS: KnobSpec[] = [
   { key: 'lip', label: 'Lip tension', short: 'lips', sub: 'semitones above or below the note; far enough, the next partial speaks', min: -3, max: 3, step: 0.05, fmt: (v) => `${v > 0 ? '+' : ''}${fmt(v, 2)} st` },
   { key: 'vibrato', label: 'Vibrato', short: 'vibrato', sub: 'lip vibrato depth', min: 0, max: 0.02, step: 0.0005, fmt: (v) => fmt(v * 1000, 1) },
 ];
+const VOLUTE_KNOBS: KnobSpec[] = [
+  { key: 'weave', label: 'Weave', short: 'weave', sub: 'the strings alone … the pipes alone', min: 0, max: 1, step: 0.01, fmt: (v) => (v < 0.02 ? 'strings' : v > 0.98 ? 'pipes' : `${Math.round((1 - v) * 100)} : ${Math.round(v * 100)}`) },
+  { key: 'swell', label: 'Swell', short: 'swell', sub: 'the band’s speed and the wind together, × nominal', min: 0.3, max: 1.8, step: 0.01, fmt: (v) => `×${fmt(v, 2)}` },
+  { key: 'strike', label: 'Mallets', short: 'mallets', sub: 'how hard the bars are struck; at 0 they stay silent', min: 0, max: 2, step: 0.01, fmt: (v) => `×${fmt(v, 2)}` },
+  { key: 'halo', label: 'Halo', short: 'halo', sub: 'the sympathetic strings’ hold on the bridge', min: 0, max: 2, step: 0.01, fmt: (v) => `×${fmt(v, 2)}` },
+];
 const PRESET_SHORT: Record<string, string> = { grand: 'grand', upright: 'upright', 'honky-tonk': 'honky-tonk', prepared: 'prepared' };
 /** presets offered on the stage; 'honky-tonk' and 'prepared' still exist in the engine
  *  (PRESETS) and come back by adding them here */
@@ -53,10 +60,10 @@ const VISIBLE_PRESETS = ['grand', 'upright'];
 
 /** the order instruments take in a lineup picked by hand: score order (winds, brass, strings, piano),
  *  which is also their seats from the audience's left */
-const SCORE_ORDER: Voice[] = ['flute', 'trumpet', 'violin', 'viola', 'cello', 'grand', 'upright'];
+const SCORE_ORDER: Voice[] = ['flute', 'trumpet', 'violin', 'viola', 'cello', 'grand', 'upright', 'volute'];
 /** how many of each one lineup may have (a tap on its button adds one, past this it has none; the
  *  routing grid adds more, up to the stage's cap) */
-const MOST: Record<Voice, number> = { flute: 2, trumpet: 2, violin: 3, viola: 2, cello: 2, grand: 2, upright: 2 };
+const MOST: Record<Voice, number> = { flute: 2, trumpet: 2, violin: 3, viola: 2, cello: 2, grand: 2, upright: 2, volute: 1 };
 const familyOf = (v: Voice) => INSTRUMENT_INFO[VOICE_INFO[v].instrument].family;
 
 export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: MidiPlayer): View {
@@ -348,6 +355,40 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     const y0 = r.top + top.getBoundingClientRect().height;
     return { fx: l.fx + r.left, fy: l.fy + y0, tx: l.tx + r.left, ty: l.ty + y0, pos: l.pos, hair: bowedGeom!.bowLength };
   };
+  // the volute in 2D: a hand anywhere on the stage, across from the strings to the pipes (the weave),
+  // up and down the swell; from where the knobs stand (a drag, not a jump)
+  const voluteHand = (() => {
+    let from: { x: number; y: number; weave: number; swell: number; id: number } | null = null;
+    const offered = () => family() === 'consort' && !(want3d && s3) && !ensemble.active;
+    const at = (e: PointerEvent) => {
+      const r = canvas.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top - top.getBoundingClientRect().height };
+    };
+    const end = () => {
+      from = null;
+      voluteState.hand = null;
+    };
+    canvas.addEventListener('pointermove', (e) => {
+      if (!from || e.pointerId !== from.id) return;
+      const r = canvas.getBoundingClientRect();
+      const weave = Math.round(Math.min(1, Math.max(0, from.weave + (1.25 * (e.clientX - from.x)) / Math.max(200, r.width))) * 100) / 100;
+      const swell = Math.round(Math.min(1.8, Math.max(0.3, from.swell - (2.2 * (e.clientY - from.y)) / Math.max(200, r.height))) * 100) / 100;
+      voluteState.hand = at(e);
+      audio.setParams({ weave, swell });
+      syncKnobs({ ...currentParams(), weave, swell });
+    });
+    canvas.addEventListener('pointerup', end);
+    canvas.addEventListener('pointercancel', end);
+    return {
+      down(e: PointerEvent) {
+        if (!offered() || (e.pointerType === 'mouse' && e.button !== 0)) return;
+        canvas.setPointerCapture?.(e.pointerId);
+        from = { x: e.clientX, y: e.clientY, weave: paramOf('weave', 0.5), swell: paramOf('swell', 1), id: e.pointerId };
+        voluteState.hand = at(e);
+      },
+      drop: end,
+    };
+  })();
   const hand2d = createHandBow(canvas, hand2dLine, () => Infinity);
   hands.push(hand2d);
   // tests: where the 2D stage last drew the hair (client px) and the contact point along it
@@ -355,6 +396,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   canvas.addEventListener('pointerdown', (e) => {
     downAt = { x: e.clientX, y: e.clientY };
     hand2d.down(e);
+    voluteHand.down(e);
   });
   canvas.addEventListener('pointerup', (e) => {
     if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6 || !closeUpOffered()) return;
@@ -426,7 +468,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   // ---------------------------------------------------------------- knobs
   const knobsFor = (id: InstrumentId) => {
     const f = INSTRUMENT_INFO[id].family;
-    return f === 'piano' ? PIANO_KNOBS : f === 'bowed' ? BOWED_KNOBS : f === 'brass' ? TRUMPET_KNOBS : FLUTE_KNOBS;
+    return f === 'piano' ? PIANO_KNOBS : f === 'bowed' ? BOWED_KNOBS : f === 'brass' ? TRUMPET_KNOBS : f === 'consort' ? VOLUTE_KNOBS : FLUTE_KNOBS;
   };
   let knobEls: { c: KnobSpec; k: ReturnType<typeof knob> }[] = [];
   const currentParams = (): Record<string, number> => ({ ...(inst === 'piano' ? DEFAULT_PARAMS : {}), ...(audio.piano?.params ?? {}) }) as Record<string, number>;
@@ -479,6 +521,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   const bowedState: BowedState = { strScale: new AutoScale(2e-6), lvlScale: new AutoScale(1e-6, 0.995) };
   const fluteState = { pScale: new AutoScale(1e-6), jetScale: new AutoScale(1e-9), env: new Float32Array(0) };
   const trumpetState: { pScale: AutoScale; env: Float32Array; src?: { x: number; y: number } } = { pScale: new AutoScale(1e-6), env: new Float32Array(0) };
+  const voluteState = newVoluteState();
   const roomState = newRoomState();
   const tdBuf = new Float32Array(2048);
   const fields = { piano: new ModeField(208, 100, 2.2, 3), bowed: new ModeField(150, 84, 1.8, 0.6) };
@@ -552,6 +595,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   };
   const applyInstrument = (id: InstrumentId) => {
     for (const hb of hands) hb.drop();
+    voluteHand.drop();
     inst = id;
     fadeIn();
     instBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(INSTRUMENT_IDS[i] === id)));
@@ -656,7 +700,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       const si = frame?.strings?.findIndex((s) => s.bowing) ?? -1;
       const name = si >= 0 ? bowedGeom.strings[si].name : (/^(\S+) string/.exec(e.meta)?.[1] ?? '');
       scopeCap.textContent = `${name} string · ${b.changing ? 'bow change' : b.dir > 0 ? 'down-bow' : 'up-bow'} · ${Math.round(100 * b.pos)} % from the frog`;
-    } else scopeCap.textContent = family() === 'wind' ? 'jet' : family() === 'brass' ? `lips · ${e.meta}` : '';
+    } else scopeCap.textContent = family() === 'wind' ? 'jet' : family() === 'brass' ? `lips · ${e.meta}` : family() === 'consort' ? `band, jet · ${e.meta}` : '';
   };
 
   let raf = 0;
@@ -696,6 +740,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       drawPiano(ctx, w, ih, { keys, kind, lid: lidVal(), keyX: (m) => ({ x: kr.left - sr.left + kb.keyFrac(m).c * kr.width, w: kb.keyFrac(m).w * kr.width }) }, frame, pianoState, fields.piano, now);
     } else if (family() === 'bowed' && bowedGeom) drawBowed(ctx, w, ih, bowedGeom, frame, bowedState, fields.bowed, now);
     else if (family() === 'brass') drawTrumpet(ctx, w, ih, frame, trumpetState);
+    else if (family() === 'consort') drawVolute(ctx, w, ih, frame, voluteState, now);
     else drawFlute(ctx, w, ih, frame, fluteState);
     // the room: wavefronts from the instrument, reflections, the lid's throw
     let rms = 0;
@@ -707,7 +752,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     }
     const fam = family();
     const grand = fam === 'piano' && !(audio.preset === 'upright' || audio.preset === 'honky-tonk') && !ens;
-    const src = ens ? { x: w / 2, y: ih / 2 } : fam === 'piano' ? pianoState.src : fam === 'bowed' ? { x: w * 0.62, y: ih / 2 } : fam === 'brass' ? (trumpetState.src ?? { x: w * 0.85, y: ih * 0.55 }) : { x: w * 0.5, y: ih * 0.45 };
+    const src = ens ? { x: w / 2, y: ih / 2 } : fam === 'piano' ? pianoState.src : fam === 'bowed' ? { x: w * 0.62, y: ih / 2 } : fam === 'brass' ? (trumpetState.src ?? { x: w * 0.85, y: ih * 0.55 }) : fam === 'consort' ? { x: voluteState.at?.cx ?? w / 2, y: voluteState.at?.cy ?? ih / 2 } : { x: w * 0.5, y: ih * 0.45 };
     // (an ensemble's cells have no room drawn round them: its outline would cross the instruments)
     const rg = in3d || ens ? { x0: 0, y0: 0, x1: 0, y1: 0 } : drawRoom(ctx, w, ih, roomState, src, roomVal(), rms, now, grand ? { open: lidVal(), dir: -Math.PI / 4 } : null);
     ctx.restore();
@@ -720,7 +765,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       const keys = audio.piano && audio.piano.instrument === 'piano' && audio.piano.keys.length ? audio.piano.keys : keysFallback;
       s3.frame(now, topH, {
         fr: frame,
-        family: fam as 'piano' | 'bowed' | 'wind' | 'brass',
+        family: fam as 'piano' | 'bowed' | 'wind' | 'brass' | 'consort',
         kind: grand ? 'grand' : 'upright',
         keys,
         piano: pianoState,

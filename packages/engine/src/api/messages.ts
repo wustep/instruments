@@ -66,6 +66,15 @@ export interface VisualFrame extends Stats {
   pianoShapes?: PianoShapes;
   /** bowed: the four strings, low to high */
   strings?: { open: number; stop: number; stopNow?: number; level: number; bowing: boolean }[];
+  /** volute: every sounding key's string (displacement, bridge → far end), pipe (standing pressure,
+   *  mouth → open end) and bar, the twelve sympathetic strings' levels (C…B), and where the weave
+   *  and the swell are now */
+  volute?: {
+    notes: { midi: number; held: boolean; string: Float32Array | null; sLevel: number; pipeMidi: number; pipe: Float32Array | null; pLevel: number; breath: number; bar: number; struck: number }[];
+    halo: Float32Array;
+    weave: number;
+    swell: number;
+  };
   /** sent when the mode set follows the note (flute bore harmonics) */
   modeFreqs?: number[];
 }

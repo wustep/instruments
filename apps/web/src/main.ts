@@ -157,8 +157,8 @@ audio.stats.on((s) => {
 });
 audio.keysChanged.on((ks) => keyboard.setPrepared(new Set(audio.instrument === 'piano' ? ks.filter((k) => k.preparation).map((k) => k.midi) : [])));
 // where the computer keys start (always a C): middle C, the violin's and viola's first
-// octave above their lowest string's C, the cello's C3, the flute's C5, the trumpet's C4
-const BASE: Record<InstrumentId, number> = { piano: 60, violin: 60, viola: 48, cello: 48, flute: 72, trumpet: 60 };
+// octave above their lowest string's C, the cello's C3, the flute's C5, the trumpet's C4, the volute's C3 (where its pipes and bars begin)
+const BASE: Record<InstrumentId, number> = { piano: 60, violin: 60, viola: 48, cello: 48, flute: 72, trumpet: 60, volute: 48 };
 const syncInstrument = (id: InstrumentId) => {
   const info = INSTRUMENT_INFO[id];
   keyboard.setRange(info.lo, info.hi);

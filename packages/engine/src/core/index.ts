@@ -13,3 +13,4 @@ export * from './factory.ts';
 export { BowedCore, BOWED, CC_HAND_BOW_OFF, CC_HAND_BOW_POS, CC_HAND_BOW_SPEED, type BowedParams } from './bowed.ts';
 export { FluteCore, fluteFingering, type FluteParams } from './flute.ts';
 export { TrumpetCore, trumpetFingering, type TrumpetParams } from './brass.ts';
+export { VoluteCore, voluteGeometry, VOLUTE_VOICE, voluteCeleste, VOLUTE_LO, VOLUTE_HI, VOLUTE_PIPE_LO, CC_VOLUTE_SWELL, CC_VOLUTE_WEAVE, type VoluteParams, type VoluteNote } from './volute.ts';

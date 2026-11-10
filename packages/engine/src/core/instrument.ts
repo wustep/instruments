@@ -1,18 +1,19 @@
-// Common surface of every instrument core (piano, bowed strings, flute) so the
+// Common surface of every instrument core (piano, bowed strings, winds, the volute) so the
 // worklet, the main-thread API and the UI can host any of them.
 
 import type { KeySummary } from '../api/messages.ts';
 
-export type InstrumentId = 'piano' | 'violin' | 'viola' | 'cello' | 'flute' | 'trumpet';
-export const INSTRUMENT_IDS: InstrumentId[] = ['piano', 'violin', 'viola', 'cello', 'flute', 'trumpet'];
+export type InstrumentId = 'piano' | 'violin' | 'viola' | 'cello' | 'flute' | 'trumpet' | 'volute';
+export const INSTRUMENT_IDS: InstrumentId[] = ['piano', 'violin', 'viola', 'cello', 'flute', 'trumpet', 'volute'];
 
-export const INSTRUMENT_INFO: Record<InstrumentId, { label: string; family: 'piano' | 'bowed' | 'wind' | 'brass'; lo: number; hi: number; blurb: string }> = {
+export const INSTRUMENT_INFO: Record<InstrumentId, { label: string; family: 'piano' | 'bowed' | 'wind' | 'brass' | 'consort'; lo: number; hi: number; blurb: string }> = {
   piano: { label: 'Piano', family: 'piano', lo: 21, hi: 108, blurb: 'Felt hammers, 2–3 stiff strings per note, a shared soundboard.' },
   violin: { label: 'Violin', family: 'bowed', lo: 55, hi: 100, blurb: 'Four strings G3–E5, bowed with stick–slip friction, on a resonant body.' },
   viola: { label: 'Viola', family: 'bowed', lo: 48, hi: 88, blurb: 'Four strings C3–A4: longer, heavier, a darker and larger body.' },
   cello: { label: 'Cello', family: 'bowed', lo: 36, hi: 81, blurb: 'Four strings C2–A3 on a big body with low air and wood resonances.' },
   flute: { label: 'Flute', family: 'wind', lo: 60, hi: 96, blurb: 'An air jet driving a resonant tube; harder blowing jumps registers.' },
   trumpet: { label: 'Trumpet', family: 'brass', lo: 52, hi: 86, blurb: 'Buzzing lips driving a bore; the valves lengthen it, the lips pick its partial.' },
+  volute: { label: 'Volute', family: 'consort', lo: 36, hi: 84, blurb: 'An instrument that does not exist: each key bows a string, blows a pipe and strikes a bar, all on one soundboard.' },
 };
 
 /** Extra events beyond the piano's (continuous controllers). */

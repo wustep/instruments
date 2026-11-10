@@ -7,6 +7,7 @@ import { bowedGeometry, type VisualFrame } from '@piano-model/engine';
 import { isKeyboard, VOICE_INFO, type Voice } from '../orchestra/assign.ts';
 import type { PartLive } from '../orchestra/ensemble.ts';
 import { drawPiano, newPianoState, type PianoState } from './piano-draw.ts';
+import { drawVolute, newVoluteState, type VoluteState } from './volute-draw.ts';
 import { AutoScale, ModeField, drawBowed, drawFlute, drawTrumpet, type BowedGeom, type BowedState, type FluteState, type TrumpetState } from './stage-draw.ts';
 
 export interface Cell {
@@ -22,6 +23,7 @@ export interface PartDraw {
   bowed?: { geom: BowedGeom; st: BowedState; field: ModeField };
   flute?: FluteState;
   trumpet?: TrumpetState;
+  volute?: VoluteState;
   piano?: { st: PianoState; field: ModeField };
 }
 
@@ -31,6 +33,7 @@ export function newPartDraw(v: Voice): PartDraw {
     // (a coarser mode field than the single instrument's: six of them are drawn every frame)
     return { voice: v, bowed: { geom: { id: inst, ...bowedGeometry(inst) }, st: { strScale: new AutoScale(2e-6), lvlScale: new AutoScale(1e-6, 0.995) }, field: new ModeField(96, 54, 1.8, 0.6) } };
   if (inst === 'flute') return { voice: v, flute: { pScale: new AutoScale(1e-6), jetScale: new AutoScale(1e-9), env: new Float32Array(0) } as FluteState };
+  if (inst === 'volute') return { voice: v, volute: newVoluteState() };
   if (inst === 'trumpet') return { voice: v, trumpet: { pScale: new AutoScale(1e-6), env: new Float32Array(0) } };
   return { voice: v, piano: { st: newPianoState(), field: new ModeField(128, 62, 2.2, 3) } };
 }
@@ -121,6 +124,7 @@ export function drawEnsemble(ctx: CanvasRenderingContext2D, cells: Cell[], parts
     if (d.bowed) drawBowed(ctx, c.w, c.h, d.bowed.geom, fr, d.bowed.st, d.bowed.field, now);
     else if (d.flute) drawFlute(ctx, c.w, c.h, fr, d.flute);
     else if (d.trumpet) drawTrumpet(ctx, c.w, c.h, fr, d.trumpet);
+    else if (d.volute) drawVolute(ctx, c.w, c.h, fr, d.volute, now);
     else if (d.piano) {
       const st = d.piano.st;
       syncPianoState(st, p);

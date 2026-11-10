@@ -13,6 +13,7 @@ export type { BowedParams } from './core/bowed.ts';
 export { CC_HAND_BOW_OFF, CC_HAND_BOW_POS, CC_HAND_BOW_SPEED } from './core/bowed.ts';
 export type { FluteParams } from './core/flute.ts';
 export type { TrumpetParams } from './core/brass.ts';
+export { voluteGeometry, CC_VOLUTE_SWELL, CC_VOLUTE_WEAVE, VOLUTE_LO, VOLUTE_HI, VOLUTE_PIPE_LO, type VoluteParams, type VoluteNote } from './core/volute.ts';
 export type { KeySummary, Stats, VisualFrame } from './api/messages.ts';
 export {
   DEFAULT_PARAMS,

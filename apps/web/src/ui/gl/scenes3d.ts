@@ -9,6 +9,7 @@ import type { PianoState } from '../piano-draw.ts';
 import { chain, rotY, translate, type Batch, type Mat4, type Mesh, type Vec3 } from './gl3d.ts';
 import { buildGrandModel, buildUprightModel, newPianoPose, pianoPickSegments, pianoStrings, posePiano, type PianoModel, type PianoPose } from './piano3d.ts';
 import { buildBowedModel, poseBowed, type BowedModel } from './strings3d.ts';
+import { buildVoluteModel, newVolutePose, poseVolute, type VoluteModel, type VolutePose } from './volute3d.ts';
 import { buildFluteModel, buildTrumpetModel, newWindPose, poseFlute, poseTrumpet, type FluteModel, type TrumpetModel, type WindPose } from './winds3d.ts';
 
 export { keyX3 } from './piano3d.ts';
@@ -18,7 +19,7 @@ export interface SceneIn {
   now: number;
   /** seconds since the last frame */
   dt: number;
-  family: 'piano' | 'bowed' | 'wind' | 'brass';
+  family: 'piano' | 'bowed' | 'wind' | 'brass' | 'consort';
   kind: 'grand' | 'upright';
   keys: KeySummary[];
   piano: PianoState;
@@ -44,7 +45,7 @@ export interface SceneIn {
 
 /** one instrument of an ensemble on the 3D stage */
 export interface EnsPartIn {
-  family: 'piano' | 'bowed' | 'wind' | 'brass';
+  family: 'piano' | 'bowed' | 'wind' | 'brass' | 'consort';
   kind: 'grand' | 'upright';
   fr: VisualFrame | null;
   keys: KeySummary[];
@@ -70,6 +71,8 @@ export interface Scene3State {
   bowedM: Map<string, BowedModel>;
   flute: FluteModel | null;
   trumpet: TrumpetModel | null;
+  volute: VoluteModel | null;
+  volutePose: VolutePose;
   floors: Map<string, Mesh>;
   pianoPose: PianoPose;
   windPose: WindPose;
@@ -88,6 +91,7 @@ interface EnsSeat {
   bowed: BowedModel | null;
   pianoPose: PianoPose;
   windPose: WindPose;
+  volutePose: VolutePose;
   str: AutoScale;
 }
 export const newScene3State = (): Scene3State => ({
@@ -98,6 +102,8 @@ export const newScene3State = (): Scene3State => ({
   bowedM: new Map(),
   flute: null,
   trumpet: null,
+  volute: null,
+  volutePose: newVolutePose(),
   floors: new Map(),
   pianoPose: newPianoPose(),
   windPose: newWindPose(),
@@ -188,6 +194,13 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): void {
     floor(b, st, bm.id, bm.bounds.c, bm.bounds.r);
     return;
   }
+  if (si.family === 'consort') {
+    if (!st.volute) st.volute = timed(st, () => buildVoluteModel());
+    poseVolute(b, st.volute, si.fr, st.volutePose);
+    b.bounds = st.volute.bounds;
+    floor(b, st, 'volute', st.volute.centre, st.volute.half * 1.3);
+    return;
+  }
   if (si.family === 'brass') {
     if (!st.trumpet) st.trumpet = timed(st, () => buildTrumpetModel());
     poseTrumpet(b, st.trumpet, si.fr, st.windPose, si.dt, si.now, si.rms);
@@ -229,6 +242,8 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
     // through its top and bottom edges
     return { target: [c[0], c[1] - 0.025, c[2]], dist: id === 'viola' ? 0.95 : 0.86, yaw: -0.5, pitch: 0.42 };
   }
+  // the volute: from above its bass turn, high enough that the spiral reads and the pipes stand against the dark
+  if (si.family === 'consort') return { target: [0.05, 1.12, 0.05], dist: 4.3, yaw: 3.75, pitch: 0.44 };
   if (si.family === 'brass') return { target: [0.0, 0.2, 0.0], dist: 0.6, yaw: 0.4, pitch: 0.28 };
   return { target: [0.0, 0.17, 0.0], dist: 0.68, yaw: 0.24, pitch: 0.5 };
 }
@@ -250,14 +265,16 @@ export interface Seat {
 /** a held instrument's lift above its single-instrument pose (m) */
 const HELD = 0.42;
 type SeatIn = Pick<EnsPartIn, 'family' | 'kind' | 'bowed'>;
+/** stands on the floor behind the players (the pianos, the volute) */
+const big = (p: SeatIn) => p.family === 'piano' || p.family === 'consort';
 export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
-  const mel = parts.map((p, i) => (p.family === 'piano' ? -1 : i)).filter((i) => i >= 0);
-  const kb = parts.map((p, i) => (p.family === 'piano' ? i : -1)).filter((i) => i >= 0);
+  const mel = parts.map((p, i) => (big(p) ? -1 : i)).filter((i) => i >= 0);
+  const kb = parts.map((p, i) => (big(p) ? i : -1)).filter((i) => i >= 0);
   const out: Seat[] = new Array(parts.length);
   // one or two players with a piano stand beside it (a soloist at the piano's curve), more sit in front;
   // two pianos stand side by side, 2.5 m apart, and the players beside the one on the right
   const beside = kb.length > 0 && mel.length <= 2;
-  const kbOff = (k: number) => (k - (kb.length - 1) / 2) * (kb.length > 1 ? 2.5 : 2.3);
+  const kbOff = (k: number) => (k - (kb.length - 1) / 2) * (kb.length > 1 ? (kb.some((i) => parts[i].family === 'consort') ? 3.1 : 2.5) : 2.3);
   const right = kb.length ? kbOff(kb.length - 1) : 0;
   const rows = aspect < 1.1 && mel.length > 3 ? 2 : 1;
   const perRow = Math.ceil(mel.length / rows);
@@ -291,6 +308,11 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
     const off = kbOff(k);
     // a grand side-on, its open lid towards the audience; an upright faces them
     const zP = mel.length > 2 ? 1.55 : 1.1;
+    if (p.family === 'consort') {
+      // the volute: its bass turn and tallest pipes at the back
+      out[i] = { T: chain(translate(off, 0, zP + 0.45), rotY(-0.6)), c: [off, 0, zP + 0.45], r: 1.4, top: 2.15 };
+      return;
+    }
     const T = p.kind === 'grand' ? chain(translate(off - 1.0, 0, zP), rotY(Math.PI / 2)) : chain(translate(off, 0, zP - 0.1), rotY(Math.PI));
     out[i] = { T, c: [off, 0, zP], r: 1.05, top: 1.75 };
   });
@@ -299,7 +321,7 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
 
 function ensSeat(st: Scene3State, i: number, key: string): EnsSeat {
   let e = st.ens[i];
-  if (!e || e.key !== key) e = st.ens[i] = { key, bowed: null, pianoPose: newPianoPose(), windPose: newWindPose(), str: new AutoScale(2e-6, 0.99) };
+  if (!e || e.key !== key) e = st.ens[i] = { key, bowed: null, pianoPose: newPianoPose(), windPose: newWindPose(), volutePose: newVolutePose(), str: new AutoScale(2e-6, 0.99) };
   return e;
 }
 
@@ -332,6 +354,9 @@ function buildEnsemble(b: Batch, si: SceneIn, parts: EnsPartIn[], st: Scene3Stat
       // the model's meshes, this seat's own bow
       if (!e.bowed || e.bowed.meshes !== bm.meshes) e.bowed = { ...bm, bowPose: null, bowLine: null };
       poseBowed(b, e.bowed, p.fr, e.str);
+    } else if (p.family === 'consort') {
+      if (!st.volute) st.volute = timed(st, () => buildVoluteModel());
+      poseVolute(b, st.volute, p.fr, e.volutePose);
     } else if (p.family === 'brass') {
       if (!st.trumpet) st.trumpet = timed(st, () => buildTrumpetModel());
       poseTrumpet(b, st.trumpet, p.fr, e.windPose, si.dt, si.now, si.rms);
@@ -371,7 +396,7 @@ export function ensembleView(parts: EnsPartIn[], aspect = 2): View3 {
     top = Math.max(top, s.top);
   }
   const yaw = 0;
-  const pitch = parts.some((p) => p.family === 'piano') ? 0.42 : top > 1.5 ? 0.36 : 0.32;
+  const pitch = parts.some(big) ? 0.42 : top > 1.5 ? 0.36 : 0.32;
   const target: Vec3 = [(x0 + x1) / 2, top * 0.42, (z0 + z1) / 2];
   const dir: Vec3 = [Math.cos(pitch) * Math.sin(yaw), Math.sin(pitch), -Math.cos(pitch) * Math.cos(yaw)];
   const f: Vec3 = [-dir[0], -dir[1], -dir[2]];

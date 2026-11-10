@@ -10,7 +10,7 @@
 import { createInstrument, pianoKeySummary, processorUrl, type KeySummary, type Piano, type VisualFrame } from '@piano-model/engine';
 import { audio, fetchDesigns, type Route } from '../audio.ts';
 import type { FileEvent, MidiLine, MidiSong } from '../midi-file.ts';
-import { addPart, autoPlan, isKeyboard, lineupOf, lineupPlan, placeNote, playersOf, reassign, removePart, setPartLines, setPartVoice, setRoute, VOICE_INFO, type Plan, type Voice } from './assign.ts';
+import { addPart, autoPlan, isChordal, isKeyboard, lineupOf, lineupPlan, placeNote, playersOf, reassign, removePart, setPartLines, setPartVoice, setRoute, VOICE_INFO, type Plan, type Voice } from './assign.ts';
 import { busGain } from './mix.ts';
 import { piecePlan, type Piece } from './pieces.ts';
 
@@ -434,7 +434,8 @@ class Ensemble implements Route {
   noteOn(midi: number, vel: number): void {
     if (!this.parts.length) return;
     this.noteOff(midi);
-    const busy = new Set([...this.live.values()].filter((x) => !isKeyboard(this.parts[x.part]?.voice ?? 'grand')).map((x) => x.part));
+    // (a volute, like a piano, is never busy: it holds chords)
+    const busy = new Set([...this.live.values()].filter((x) => !isChordal(this.parts[x.part]?.voice ?? 'grand')).map((x) => x.part));
     const dist = (v: Voice) => (midi < VOICE_INFO[v].lo ? VOICE_INFO[v].lo - midi + 24 : midi > VOICE_INFO[v].hi ? midi - VOICE_INFO[v].hi + 24 : Math.abs(midi - VOICE_INFO[v].centre));
     let best = -1;
     for (let k = 0; k < this.parts.length; k++) {

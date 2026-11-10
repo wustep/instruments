@@ -24,7 +24,7 @@ test('page loads with the keyboard and no errors', async ({ page }) => {
   // no wordmark on the page; the name lives in the tab title
   await expect(page.locator('.inlay')).toHaveCount(0);
   await expect(page).toHaveTitle('instruments');
-  await expect(page.locator('.instruments .pick')).toHaveCount(6);
+  await expect(page.locator('.instruments .pick')).toHaveCount(7);
   await expect(page.locator('.keyboard .key')).toHaveCount(88);
   await page.waitForTimeout(500);
   expect(errors).toEqual([]);
@@ -280,8 +280,8 @@ test('the picker: the ring on the selected instrument is whole, on every instrum
     await page.goto('/');
     await page.waitForTimeout(400);
     const picks = page.locator('.instruments .pick');
-    await expect(picks).toHaveCount(6);
-    for (let i = 0; i < 6; i++) {
+    await expect(picks).toHaveCount(7);
+    for (let i = 0; i < 7; i++) {
       const pick = picks.nth(i);
       await pick.click();
       await expect(pick).toHaveAttribute('aria-pressed', 'true');
@@ -323,17 +323,17 @@ test('the picker: the ring on the selected instrument is whole, on every instrum
   await page.setViewportSize(vp);
 });
 
-test('all six instruments: selectable in the UI and rendered through the worklet at pitch', async ({ page }, info) => {
+test('all seven instruments: selectable in the UI and rendered through the worklet at pitch', async ({ page }, info) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await startAudio(page);
-  for (const [label, id] of [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Flute', 'flute'], ['Trumpet', 'trumpet'], ['Piano', 'piano']] as const) {
+  for (const [label, id] of [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Flute', 'flute'], ['Trumpet', 'trumpet'], ['Volute', 'volute'], ['Piano', 'piano']] as const) {
     await page.locator('.instruments').getByRole('button', { name: label }).click();
     await page.waitForFunction((x) => (window as any).__piano.piano?.instrument === x, id, { timeout: 15_000 });
     await expect(page.locator('.pick[aria-pressed="true"]')).toHaveAttribute('aria-label', label);
     await expect(page.locator('.knobs .knob').first()).toBeVisible({ visible: info.project.name !== 'phone' });
   }
-  for (const [id, midi] of [['violin', 69], ['viola', 62], ['cello', 48], ['flute', 74], ['trumpet', 65]] as const) {
+  for (const [id, midi] of [['violin', 69], ['viola', 62], ['cello', 48], ['flute', 74], ['trumpet', 65], ['volute', 60]] as const) {
     const out = await page.evaluate(async ([inst, m]) => {
       const { renderOffline } = (window as any).__engine;
       const buf: AudioBuffer = await renderOffline({ instrument: inst, sampleRate: 48000, duration: 1.6, params: { room: 0, vibrato: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: 90 } }] });
@@ -882,7 +882,7 @@ test('3D stage: every instrument draws in WebGL2 from live frames; orbit and zoo
   await expect(cv).toBeVisible();
   await page.evaluate(() => ((window as any).__stage3d.probe = true));
   const stats = () => page.evaluate(() => ({ ...(window as any).__stage3d.stats }));
-  for (const [inst, note] of [['piano', 60], ['violin', 72], ['viola', 60], ['cello', 50], ['flute', 74], ['trumpet', 67]] as const) {
+  for (const [inst, note] of [['piano', 60], ['violin', 72], ['viola', 60], ['cello', 50], ['flute', 74], ['trumpet', 67], ['volute', 60]] as const) {
     await page.evaluate(async ([i, m]) => {
       await (window as any).__piano.setInstrument(i);
       (window as any).__piano.noteOn(m, 96, 'keys');
@@ -983,7 +983,7 @@ test('the action close-up is the pianos’ alone: no string zoom on the bowed st
       }
     await expect(panel).toHaveCount(0);
   };
-  const others = [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Flute', 'flute'], ['Trumpet', 'trumpet']] as const;
+  const others = [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Flute', 'flute'], ['Trumpet', 'trumpet'], ['Volute', 'volute']] as const;
   for (const [label, id] of others) {
     await choose(label, id);
     await sweep('.stage-cv');

@@ -269,6 +269,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       watch: (v as { watch?: never }).watch,
       breath: (v as { breath?: never }).breath,
       strings: (v as { strings?: never }).strings,
+      volute: (v as { volute?: never }).volute,
       modeFreqs: core.id === 'flute' ? Array.from(core.modeFrequencies) : undefined,
     });
   }
