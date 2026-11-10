@@ -2095,7 +2095,7 @@ test('orchestra: a piece from the menu puts its ensemble on the stage, in 2D and
   await page.locator('.score-btn').click();
   const menu = page.locator('.score-menu');
   await expect(menu).toBeVisible();
-  await expect(menu.locator('.sm-item')).toHaveCount(3);
+  await expect(menu.locator('.sm-item')).toHaveCount(4);
   // (a credit, minimal, to the notes)
   await expect(menu.locator('.sm-credit')).toHaveText(/public domain · Mutopia/);
   await menu.locator('.sm-item').first().click();
@@ -2181,7 +2181,7 @@ test('the pieces are in the player’s overlay, with play and open: one icon, th
     await expect(menu, mode).toBeVisible();
     await expect(player.locator('.score-menu'), mode).toHaveCount(1);
     await expect(btn, mode).toHaveAttribute('aria-expanded', 'true');
-    await expect(menu.locator('.sm-item'), mode).toHaveCount(3);
+    await expect(menu.locator('.sm-item'), mode).toHaveCount(4);
     const m = await box(menu);
     expect(m.y, mode).toBeGreaterThanOrEqual(b.y + b.height);
     expect(m.y, mode).toBeLessThan(b.y + b.height + 10);
