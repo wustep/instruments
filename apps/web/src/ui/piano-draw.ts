@@ -137,7 +137,7 @@ export function stepAction(pts: Pt[], st: PianoState): void {
  *  Sympathetic strings: their real displacement relative to the loudest struck string, linear
  *  (the engine's `symLevels`), so they glow only when they really move. Under a bass note the
  *  undamped treble moves at about −70 dB and stays dark; a pedalled octave builds to −10 dB. */
-function levelsOf(fr: VisualFrame | null, st: PianoState): { l: (i: number) => number; s: (i: number) => number } {
+export function levelsOf(fr: VisualFrame | null, st: PianoState): { l: (i: number) => number; s: (i: number) => number } {
   const levels = fr?.levels;
   const sym = fr?.symLevels;
   let mx = 0;
@@ -260,7 +260,7 @@ export function drawPiano(ctx: CanvasRenderingContext2D, W: number, H: number, g
 // fitted to the longest string in view, so a phone showing two octaves shows them large.
 /** strike point as a fraction of the speaking length (the engine's scale) */
 const strikeBeta = (m: number) => (m <= 60 ? 0.12 : 0.12 - ((m - 60) / 48) * 0.055);
-interface UpString {
+export interface UpString {
   p: Pt;
   x0: number;
   y0: number;
@@ -273,7 +273,7 @@ interface UpString {
   dx: number;
   dy: number;
 }
-interface UpLayout {
+export interface UpLayout {
   key: string;
   strings: UpString[];
   pitch: number;
@@ -283,7 +283,8 @@ interface UpLayout {
 let upCache: UpLayout | null = null;
 const upBase = new Layer();
 
-function upLayout(W: number, H: number, pts: Pt[], dpr: number, maxL: number): UpLayout {
+/** the upright's front view on a W×H stage (cached; the vector display draws from the same one) */
+export function upLayout(W: number, H: number, pts: Pt[], dpr: number, maxL: number): UpLayout {
   const key = `${W}|${H}|${dpr}|${pts[0].x.toFixed(1)}|${pts[pts.length - 1].x.toFixed(1)}|${maxL.toFixed(4)}|${pts.map((p) => p.L.toFixed(3)).join('')}`;
   if (upCache && upCache.key === key) return upCache;
   const kx0 = pts[0].x - pts[0].w / 2;
@@ -309,9 +310,17 @@ function upLayout(W: number, H: number, pts: Pt[], dpr: number, maxL: number): U
   });
   const box = new Path2D();
   box.roundRect(rect.x0, rect.y0, rect.x1 - rect.x0, rect.y1 - rect.y0, 8);
+  upCache = { key, strings, pitch, box, rect };
+  return upCache;
+}
+
+/** the still picture: the case, bridges, pressure bar and the strings at rest */
+function paintUpBase(lay: UpLayout, W: number, H: number, dpr: number): void {
+  const { strings, box, pitch } = lay;
+  const yCap = strings[0].y0;
   const bass = strings.filter((s) => s.p.wound);
   const treb = strings.filter((s) => !s.p.wound);
-  upBase.paint(W, H, dpr, key, (c) => {
+  upBase.paint(W, H, dpr, lay.key, (c) => {
     c.fillStyle = rgba(INK.wood, 0.42);
     c.fill(box);
     c.save();
@@ -351,8 +360,6 @@ function upLayout(W: number, H: number, pts: Pt[], dpr: number, maxL: number): U
     c.lineWidth = 1.4;
     c.stroke(box);
   });
-  upCache = { key, strings, pitch, box, rect };
-  return upCache;
 }
 
 function drawUpright(ctx: CanvasRenderingContext2D, W: number, H: number, g: PianoGeom, fr: VisualFrame | null, st: PianoState, field: ModeField, now: number): void {
@@ -376,6 +383,7 @@ function drawUpright(ctx: CanvasRenderingContext2D, W: number, H: number, g: Pia
   if (Math.abs(st.maxL - target) < 4e-4) st.maxL = target;
   const dpr = ctx.getTransform().a || 1;
   const lay = upLayout(W, H, pts, dpr, st.maxL);
+  paintUpBase(lay, W, H, dpr);
   const { rect, pitch } = lay;
   ctx.drawImage(upBase.canvas, 0, 0, W, H);
   ctx.save();

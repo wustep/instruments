@@ -1,4 +1,5 @@
 import './styles.css';
+import './vector.css';
 import { diag, diagEnvironment, diagPanel } from './diag.ts';
 diagEnvironment();
 import { audio } from './audio.ts';

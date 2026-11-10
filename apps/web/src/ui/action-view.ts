@@ -12,6 +12,8 @@ import { midiName, type VisualFrame, type WatchKey } from '@piano-model/engine';
 import { audio } from '../audio.ts';
 import { h } from './dom.ts';
 import { AutoScale, INK, rgba } from './stage-draw.ts';
+import { glow, V } from './vector/kit.ts';
+import { linePen } from './vector/pen.ts';
 
 type Kind = 'grand' | 'upright';
 const BLOW = { grand: 47, upright: 45 };
@@ -78,6 +80,9 @@ export function openActionView(opts: { midi: number; kind: Kind; host: HTMLEleme
   const strScale = new AutoScale(1e-7, 0.985);
   let raf = 0;
   let playing = false;
+  // under the vector display the same section is drawn through a line pen (ui/vector/pen.ts): blue
+  // structure, the string's motion and the strike amber, the hammer's felt in the hammer knob's green
+  let pen: CanvasRenderingContext2D | null = null;
   /** part names at canvas positions, from the last frame */
   let hover: [string, number, number][] = [];
   canvas.addEventListener('pointermove', (e) => {
@@ -225,8 +230,11 @@ export function openActionView(opts: { midi: number; kind: Kind; host: HTMLEleme
     const parts: [string, number, number][] = [];
     const pedals = opts.latest();
     const geo = { soft: pedals?.soft ?? 0, middle: pedals?.middle ?? 0, parts, X, Y, s, y, comp, keyPos, escaped: escaped || phase === 'free' || phase === 'contact' || phase === 'fall' || phase === 'checked', damperOn: hasDamper ? damperOn : 0, hasDamper, shape, sc, beta: w?.beta ?? 0.12, active: phase === 'drive' || phase === 'free' || phase === 'contact', contact: phase === 'contact', jackOut: replay ? (phase === 'drive' ? 0 : 1) : jackOut };
-    if (kind === 'grand') drawGrand(ctx, { ...geo, midi, watch: w, sustain: pedals?.sustain ?? 0 });
-    else drawUpright(ctx, { ...geo, midi, watch: w, sustain: pedals?.sustain ?? 0 });
+    const vector = document.documentElement.dataset.style === 'vector';
+    const c = vector ? (pen ??= linePen(ctx, { [INK.vermilion]: V.amber, [INK.amber]: V.white, [GC.hFelt]: V.green })) : ctx;
+    if (kind === 'grand') drawGrand(c, { ...geo, midi, watch: w, sustain: pedals?.sustain ?? 0 });
+    else drawUpright(c, { ...geo, midi, watch: w, sustain: pedals?.sustain ?? 0 });
+    if (vector) glow(ctx);
     hover = parts.map(([n, px, py]) => [n, X(px), Y(py)] as [string, number, number]);
     if (!replay && held) jackOut = 1;
   }
