@@ -166,6 +166,8 @@ export const M = {
   // bodies), its figure across the joints; the bell's pale bead ring
   bassoonMaple: { col: hex('#6a2210'), rough: 0.3, metal: 0 },
   bellBead: { col: hex('#e9e2d0'), rough: 0.3, metal: 0 },
+  // the horn (horn3d.ts): lacquered yellow brass, handled (uv.y: how much hands touch it there)
+  hornBrass: { col: hex('#e9c06a'), rough: 0.18, metal: 1 },
 } satisfies Record<string, Mat>;
 for (const [k, m] of Object.entries(M)) (m as Mat).name = k;
 /** a variant of a shared material (same shading family, its own colour or maps) */

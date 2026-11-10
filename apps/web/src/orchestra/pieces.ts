@@ -128,6 +128,9 @@ export interface Demo {
   shift?: number;
   /** tempo, × the file's */
   rate?: number;
+  /** where it begins (seconds of the file, at its own tempo; default its first note): notes begun before
+   *  it are left out (an entry after a long rest, the other instruments' answer) */
+  start?: number;
   /** where it stops (seconds of the file, at its own tempo): notes begun before it play out */
   end?: number;
   /** velocity, × the file's */
@@ -235,6 +238,21 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     end: 56,
     vel: 0.55,
   },
+  horn: {
+    instrument: 'horn',
+    composer: 'Beethoven',
+    title: 'Horn Sonata, Allegro moderato (the horn’s line)',
+    file: 'beethoven-op17.mid',
+    source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=919',
+    credit: 'Sonata for Piano with Horn in F, Op. 17, I. Allegro moderato: the horn’s line alone, from its second call (after the piano has answered the first) through the theme that follows, down to the low C. The file gives the horn in F its sounding pitch, a fifth below its part, and plays every note at full force (here at about mezzo-forte, with the file’s own swells). Typeset by Jay Anderson from the Mollo edition (1801); Mutopia-2007/02/01-919; public domain.',
+    sha256: '0afbde78131c6523cbbcec4f26cf79382edf35c3cf6f7cd904f1ae6888160538',
+    lines: [0],
+    // from bar 11, the call again (each bar of 4/4 is 2 s in the file), to the end of bar 29, the phrase's
+    // close on the low C
+    start: 20,
+    end: 58,
+    vel: 0.6,
+  },
   trumpet: {
     instrument: 'trumpet',
     composer: 'Handel',
@@ -250,7 +268,8 @@ export const DEMOS: Record<InstrumentId, Demo> = {
 };
 
 /**
- * An instrument's piece as it plays: the demo's lines (renumbered from 0), from its first note, at its
+ * An instrument's piece as it plays: the demo's lines (renumbered from 0), from its first note (or its
+ * first after the demo's start), at its
  * tempo, transposed, played as hard as it says, stopping at its end (notes begun before it play out; a
  * pedal still down is lifted with the last of them).
  */
@@ -261,8 +280,9 @@ export function demoSong(song: MidiSong, d: Demo): MidiSong {
   const vel = d.vel ?? 1;
   // (a hair early: a note on the stop itself belongs to what follows)
   const end = (d.end ?? Infinity) - 1e-6;
+  const start = (d.start ?? -Infinity) - 1e-6;
   const mine = song.events.filter((e) => lineOf(e.line) >= 0);
-  const t0 = mine.find((e) => e.kind === 'on')?.t ?? 0;
+  const t0 = mine.find((e) => e.kind === 'on' && e.t >= start)?.t ?? 0;
   const at = (t: number) => Math.max(0, t - t0) / rate;
   const events: FileEvent[] = [];
   /** notes begun (per pitch, how many) and pedals down (per controller) */
@@ -271,7 +291,7 @@ export function demoSong(song: MidiSong, d: Demo): MidiSong {
   for (const e of mine) {
     const line = lineOf(e.line);
     if (e.kind === 'on') {
-      if (e.t >= end) continue;
+      if (e.t >= end || e.t < start) continue;
       const m = e.midi + shift;
       begun.set(m, (begun.get(m) ?? 0) + 1);
       events.push({ t: at(e.t), kind: 'on', midi: m, vel: Math.max(1, Math.min(127, Math.round(e.vel * vel))), line });

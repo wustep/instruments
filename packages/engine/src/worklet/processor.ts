@@ -269,8 +269,9 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       watch: (v as { watch?: never }).watch,
       breath: (v as { breath?: never }).breath,
       reed: (v as { reed?: never }).reed,
+      lips: (v as { lips?: never }).lips,
       strings: (v as { strings?: never }).strings,
-      modeFreqs: core.id === 'flute' || core.id === 'oboe' || core.id === 'clarinet' || core.id === 'bassoon' ? Array.from(core.modeFrequencies) : undefined,
+      modeFreqs: core.id === 'flute' || core.id === 'oboe' || core.id === 'clarinet' || core.id === 'bassoon' || core.id === 'horn' ? Array.from(core.modeFrequencies) : undefined,
     });
   }
 }

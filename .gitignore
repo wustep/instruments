@@ -8,3 +8,4 @@ playwright-report/
 blob-report/
 .vite/
 coverage/
+.fit/

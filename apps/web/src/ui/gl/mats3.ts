@@ -27,7 +27,8 @@ type Phys = THREE.MeshPhysicalMaterialParameters & {
    *  11 flamed maple worn per vertex (uv.x: varnish rubbed through to the pale wood, satin; uv.y: grime),
    *  and a piano action's own: 12 pressed wool felt (fibres, nap), 13 a key stick's bare spruce, 14 hornbeam,
    *  15 beech, 16 hard maple, 17 a white key (its facing; bare wood on its sides below it), 18 a turned joint of
- *  flamed maple under a stained varnish (a bassoon's: the flame round the joint, in drifts) */
+ *  flamed maple under a stained varnish (a bassoon's: the flame round the joint, in drifts), 19 lacquered
+ *  brass, handled (uv.y: fingerprints in the coat) */
   tex?: number;
   /** the grain/long axis in the part's own frame */
   axis?: [number, number, number];
@@ -202,6 +203,11 @@ const P: Record<string, Phys> = {
   // bassoon-fox-renard220-front.jpg); the bell's bead ring, an ivory-like plastic with a soft polish
   bassoonMaple: { color: '#8c2410', roughness: 0.38, clearcoat: 1, clearcoatRoughness: 0.045, envMapIntensity: 1.25, tex: 18, axis: [0, 1, 0], texScale: 0.34 },
   bellBead: { color: '#efe8d8', roughness: 0.34, clearcoat: 0.6, clearcoatRoughness: 0.12, sheen: 0.3, sheenColor: '#fff8e8', sheenRoughness: 0.4 },
+  // the horn (horn3d.ts): yellow brass under a clear lacquer, as the trumpet's, with the lacquer's own
+  // slow unevenness and, where hands hold it (uv.y: the leadpipe under the left hand, the bell's throat
+  // in the right, the finger hook), fingerprints: smudges that dull the coat and roughen it, their
+  // ridges showing only in the highlights
+  hornBrass: { color: '#f4d17f', metalness: 1, roughness: 0.17, clearcoat: 1, clearcoatRoughness: 0.09, envMapIntensity: 1.6, tex: 19 },
 };
 
 // GLSL: hashes, value noise and fbm (all in the part's own metres)
@@ -475,6 +481,22 @@ float wearCoat = 0.0;
   diffuseColor.rgb *= 1.0 + 0.45 * fl * clamp(vdir * 2.5, -1.0, 1.0);
   diffuseColor.rgb *= 0.84 + 0.32 * fbm(p * 4.0);
   microR = 0.08 * fl;
+  #elif TEX == 19
+  // lacquered brass: the coat a little thicker and warmer in slow drifts (centimetres), a faint orange
+  // peel in its roughness; where hands hold it (uv.y) fingerprints: oval smudges a finger's size, their
+  // ridges (0.45 mm) faded out before a pixel holds more than one, that rough and dull the coat
+  // (single octaves: the bell fills much of the picture, and this runs on every pixel of it)
+  vec3 q = vLoc;
+  diffuseColor.rgb *= 0.965 + 0.07 * vnoise(q * 16.0);
+  microR = 0.035 * (vnoise(q * 140.0) - 0.5);
+  float hand = clamp(vUv2.y, 0.0, 1.0);
+  if (hand > 0.001) {
+    float sm = smoothstep(0.56, 0.7, fbm(q * vec3(48.0, 62.0, 55.0) + 7.3)) * hand;
+    float fade = 1.0 - smoothstep(0.3, 0.9, length(fwidth(q)) * 2200.0);
+    float ridge = 0.5 + 0.5 * sin(length((q - floor(q * 60.0) / 60.0) * vec3(1.0, 1.3, 1.0)) * 14000.0 + fbm(q * 900.0) * 4.0);
+    microR += sm * (0.16 + 0.12 * ridge * fade);
+    wearCoat = max(wearCoat, sm * 0.55);
+  }
   #endif
   #if PAINTED
   // the painted aux map: r = figure (flame) under the varnish, flipping with the view; g = 1 at the edge

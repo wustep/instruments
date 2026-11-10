@@ -11,7 +11,7 @@ const ONLY = process.env.ONLY?.split(',');
 const SECS = Number(process.env.SECS ?? 2.3);
 const browser = await chromium.launch({ channel: 'chrome', args: ['--autoplay-policy=no-user-gesture-required'] });
 
-/** [name, instrument, preset, close-up key] */
+/** [name, instrument, preset, close-up key, params, an Orchestra lineup] */
 const SCENES = [
   ['grand', 'piano', 'grand', null],
   ['grand close-up', 'piano', 'grand', 60],
@@ -25,13 +25,15 @@ const SCENES = [
   ['oboe', 'oboe', null, null],
   ['clarinet', 'clarinet', null, null],
   ['bassoon', 'bassoon', null, null],
+  ['horn', 'horn', null, null],
+  ['horn orchestra', 'horn', null, null, null, ['violin', 'flute', 'clarinet', 'bassoon', 'horn', 'horn', 'cello']],
   ['trumpet', 'trumpet', null, null],
 ];
-const NOTE = { piano: 60, violin: 72, viola: 60, cello: 50, flute: 74, oboe: 62, clarinet: 55, bassoon: 41, trumpet: 67 };
+const NOTE = { piano: 60, violin: 72, viola: 60, cello: 50, flute: 74, oboe: 62, clarinet: 55, bassoon: 41, horn: 66, trumpet: 67 };
 
 const out = {};
 let total = 0;
-for (const [name, inst, preset, key, params] of SCENES) {
+for (const [name, inst, preset, key, params, lineup] of SCENES) {
   if (ONLY && !ONLY.includes(name.split(' ')[0])) continue;
   const ctx = await browser.newContext(PHONE ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true } : { viewport: { width: 1440, height: 900 } });
   await ctx.addInitScript((i) => {
@@ -63,6 +65,11 @@ for (const [name, inst, preset, key, params] of SCENES) {
   if (key !== null) {
     await page.evaluate((k) => window.__stage3d.zoomTo(k), key);
     await page.waitForTimeout(1100);
+  }
+  if (lineup) {
+    await page.locator('.ens-toggle').click();
+    await page.evaluate((l) => window.__orchestra.ensemble.setLineup(l), lineup);
+    await page.waitForTimeout(1200);
   }
   // from here: every frame's gl.getError(), a note sounding (the strings' glow is drawn too)
   const res = await page.evaluate(

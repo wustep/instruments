@@ -3,6 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 // Uses the installed Google Chrome (channel: 'chrome'); AudioWorklet + OfflineAudioContext
 // run for real. Autoplay is allowed so tests can start audio without a gesture.
 const launch = { args: ['--autoplay-policy=no-user-gesture-required'] };
+// (E2E_PORT: another port for a second checkout's run at the same time; the server on a port is reused,
+// so two worktrees on one port would test one build)
+const port = process.env.E2E_PORT ?? '4199';
 
 export default defineConfig({
   testDir: 'e2e',
@@ -11,13 +14,13 @@ export default defineConfig({
   workers: 1,
   reporter: [['list']],
   use: {
-    baseURL: 'http://localhost:4199',
+    baseURL: `http://localhost:${port}`,
     channel: 'chrome',
     launchOptions: launch,
   },
   webServer: {
-    command: 'pnpm build && pnpm preview --port 4199 --strictPort',
-    url: 'http://localhost:4199',
+    command: `pnpm build && pnpm preview --port ${port} --strictPort`,
+    url: `http://localhost:${port}`,
     reuseExistingServer: true,
     timeout: 120_000,
   },

@@ -6,7 +6,10 @@
 // (https://theremin.music.uiowa.edu/MISdoublebass.html); flute: S. Feig (2000), non-vibrato; oboe: the
 // MIS "Oboe" set (https://theremin.music.uiowa.edu/MISoboe.html), B♭3–A♭6, pp/mf/ff; clarinet: the MIS
 // "B♭ Clarinet" set (https://theremin.music.uiowa.edu/MISBbclarinet.html), D3–B6 at concert pitch, pp/mf/ff;
-// bassoon: the MIS "Bassoon" set (https://theremin.music.uiowa.edu/MISbassoon.html), B♭1–D5, pp/mf/ff.
+// bassoon: the MIS "Bassoon" set (https://theremin.music.uiowa.edu/MISbassoon.html), B♭1–D5, pp/mf/ff;
+// horn: the MIS "French Horn" set (https://theremin.music.uiowa.edu/MISFrenchhorn.html; J. Wiskus, 1997),
+// at concert pitch, ff B♭1–F5, mf B♭1–B2 and C4–F5, pp B♭1–B1 and C4–F5 (the set has no pp C2–B3 and no
+// mf C3–B3 runs).
 // Terms: "may be downloaded and used for any projects, without restrictions" —
 // https://theremin.music.uiowa.edu/MIS.html
 //
@@ -19,7 +22,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { join } from 'node:path';
 import { analyzeSustained, decodeWav, identifyNote, segmentNotes, type SustainedAnalysis } from '../packages/engine/src/analysis/index.ts';
 
-export type EnsInstrument = 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet' | 'oboe' | 'clarinet' | 'bassoon';
+export type EnsInstrument = 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet' | 'oboe' | 'clarinet' | 'bassoon' | 'horn';
 export type Dyn = 'pp' | 'mf' | 'ff';
 export const ENS_DYN: Dyn[] = ['pp', 'mf', 'ff'];
 export const ENS_CACHE = join(import.meta.dirname, '..', '.cache', 'iowa-ens');
@@ -131,6 +134,16 @@ export const REF_FILES: RefFile[] = [
       return { instrument: 'bassoon' as const, dyn, file, url: `${BASE}/Woodwinds/bassoon/${file}`, range: rangeOf(tag), use: [34, 76] as [number, number], merge: 2 };
     }),
   ),
+  // horn (the double horn in F/B♭, as recorded: concert pitch), B♭1–F5, the model's compass. The set's runs
+  // are uneven: ff the whole compass, mf without C3–B3, pp only B♭1–B1 and C4–F5
+  ...([
+    ['pp', 'Bb1B1'], ['pp', 'C4B4'], ['pp', 'C5F5'],
+    ['mf', 'Bb1B1'], ['mf', 'C2B2'], ['mf', 'C4B4'], ['mf', 'C5F5'],
+    ['ff', 'Bb1B1'], ['ff', 'C2B2'], ['ff', 'C3B3'], ['ff', 'C4B4'], ['ff', 'C5F5'],
+  ] as [Dyn, string][]).map(([dyn, tag]) => {
+    const file = `Horn.${dyn}.${tag}.aiff`;
+    return { instrument: 'horn' as const, dyn, file, url: `${BASE}/Brass/frenchhorn/${file}`, range: rangeOf(tag), use: [34, 77] as [number, number] };
+  }),
 ];
 
 export interface RefNote extends SustainedAnalysis {

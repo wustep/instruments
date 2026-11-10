@@ -166,7 +166,7 @@ test('orchestra: Fagotto I (GM 70), “Fagott” and “Bsn. 2” (no program) g
   expect(errors).toEqual([]);
 });
 
-test('the bassoon on a phone: ten picks in the band six took (271 px), “bsn.” under its glyph, the band no taller with a note sounding, names clear of each other, no horizontal scroll', async ({ page }, info) => {
+test('the bassoon on a phone: eleven picks (since the horn) in the band six took (271 px), “bsn.” under its glyph, the band no taller with a note sounding, names clear of each other, no horizontal scroll', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone', 'the phone layout');
   for (const size of [null, { width: 390, height: 844 }]) {
     if (size) await page.setViewportSize(size);
@@ -182,10 +182,10 @@ test('the bassoon on a phone: ten picks in the band six took (271 px), “bsn.�
     await page.evaluate(() => (window as any).__piano.noteOff(55, 'keys'));
     expect(during, `${size?.width ?? 'Pixel 7'}`).toBe(before);
     const boxes = await page.locator('.instruments .pick').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ l: r.left, r: r.right, t: r.top })));
-    expect(boxes.length).toBe(10);
-    expect(boxes[9].r - boxes[0].l, 'the picks’ row').toBeLessThanOrEqual(271.5);
-    // the phone shows the bassoon's (and the clarinet's) score abbreviation
-    expect(await page.locator('.instruments .pick-name[data-short]').evaluateAll((els) => els.map((el) => getComputedStyle(el, '::after').content))).toEqual(['"clar."', '"bsn."']);
+    expect(boxes.length).toBe(11);
+    expect(boxes[10].r - boxes[0].l, 'the picks’ row').toBeLessThanOrEqual(271.5);
+    // the phone shows the bassoon's (and the violin's, the clarinet's and the trumpet's) score abbreviation
+    expect(await page.locator('.instruments .pick-name[data-short]').evaluateAll((els) => els.map((el) => getComputedStyle(el, '::after').content))).toEqual(['"vln."', '"clar."', '"bsn."', '"tpt."']);
     for (let i = 1; i < boxes.length; i++) {
       expect(boxes[i].l).toBeGreaterThanOrEqual(boxes[i - 1].r - 0.5);
       expect(boxes[i].t).toBeCloseTo(boxes[0].t, 0);

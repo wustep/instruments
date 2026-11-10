@@ -9,10 +9,11 @@ import { bowedGeometry, type VisualFrame } from '@piano-model/engine';
 import { isKeyboard, VOICE_INFO, type Voice } from '../orchestra/assign.ts';
 import type { PartLive } from '../orchestra/ensemble.ts';
 import { drawPiano, newPianoState, type PianoState } from './piano-draw.ts';
-import { Contours, drawBassoonV, drawBowedV, drawClarinetV, drawFluteV, drawOboeV, drawPianoV, drawTrumpetV } from './vector/index.ts';
+import { Contours, drawBassoonV, drawBowedV, drawClarinetV, drawFluteV, drawHornV, drawOboeV, drawPianoV, drawTrumpetV } from './vector/index.ts';
 import { drawOboe, newOboeState, oboeBox, type OboeState } from './oboe-draw.ts';
 import { clarinetBox, drawClarinet, newClarinetState, type ClarinetState } from './clarinet-draw.ts';
 import { bassoonBox, drawBassoon, newBassoonState, type BassoonState } from './bassoon-draw.ts';
+import { drawHorn, hornBox, newHornState, type HornState } from './horn-draw.ts';
 import { AutoScale, BOWED_PLAN, FL_LEN, ModeField, bowReach, bowedShapes, bowedSpan, drawBowed, drawFlute, drawTrumpet, trumpetBox, type BowedGeom, type BowedState, type FluteState, type TrumpetState } from './stage-draw.ts';
 
 export interface Cell {
@@ -33,6 +34,7 @@ export interface PartDraw {
   oboe?: OboeState;
   clarinet?: ClarinetState;
   bassoon?: BassoonState;
+  horn?: HornState;
   piano?: { st: PianoState; field: ModeField; vfield?: Contours };
 }
 
@@ -43,6 +45,7 @@ export function newPartDraw(v: Voice): PartDraw {
     return { voice: v, bowed: { geom: { id: inst, ...bowedGeometry(inst) }, st: { strScale: new AutoScale(2e-6), lvlScale: new AutoScale(1e-6, 0.995) }, field: new ModeField(96, 54, 1.8, 0.6) } };
   if (inst === 'flute') return { voice: v, flute: { pScale: new AutoScale(1e-6), jetScale: new AutoScale(1e-9), env: new Float32Array(0) } as FluteState };
   if (inst === 'trumpet') return { voice: v, trumpet: { pScale: new AutoScale(1e-6), env: new Float32Array(0) } };
+  if (inst === 'horn') return { voice: v, horn: newHornState() };
   if (inst === 'oboe') return { voice: v, oboe: newOboeState() };
   if (inst === 'clarinet') return { voice: v, clarinet: newClarinetState() };
   if (inst === 'bassoon') return { voice: v, bassoon: newBassoonState() };
@@ -125,8 +128,9 @@ function seatOf(v: Voice, upright: boolean): Seat {
     const b = VOICE_INFO[v].instrument === 'clarinet' ? clarinetBox() : VOICE_INFO[v].instrument === 'bassoon' ? bassoonBox() : oboeBox();
     return { across: b.h, along: b.w, pad: 0, lo: 0, hi: 0 };
   }
-  if (VOICE_INFO[v].instrument === 'trumpet') {
-    const b = trumpetBox();
+  if (VOICE_INFO[v].instrument === 'trumpet' || VOICE_INFO[v].instrument === 'horn') {
+    // (the horn is drawn from its outside either way, its bell to the left)
+    const b = VOICE_INFO[v].instrument === 'horn' ? hornBox() : trumpetBox();
     return { across: upright ? b.w : b.h, along: upright ? b.h : b.w, pad: 0, lo: 0, hi: 0 };
   }
   return { across: FLUTE_ACROSS, along: FL_LEN / (upright ? 0.86 : 0.9), pad: 0, lo: 0, hi: 0 };
@@ -304,6 +308,7 @@ export function drawEnsemble(ctx: CanvasRenderingContext2D, cells: Cell[], parts
     else if (d.oboe) (vector ? drawOboeV : drawOboe)(ctx, c.w, c.h, fr, d.oboe);
     else if (d.clarinet) (vector ? drawClarinetV : drawClarinet)(ctx, c.w, c.h, fr, d.clarinet);
     else if (d.bassoon) (vector ? drawBassoonV : drawBassoon)(ctx, c.w, c.h, fr, d.bassoon);
+    else if (d.horn) (vector ? drawHornV : drawHorn)(ctx, c.w, c.h, fr, d.horn);
     else if (d.piano) {
       const st = d.piano.st;
       syncPianoState(st, p);

@@ -1,6 +1,6 @@
 // Which instrument plays which line of a MIDI file. Pure (no DOM, no audio), so it is tested fast.
 //
-// A voice is one of the ten instruments on the stage. Keyboard voices (the grand, the upright) take
+// A voice is one of the eleven instruments on the stage. Keyboard voices (the grand, the upright) take
 // any number of lines on one instrument (two hands, a continuo); every other line gets an instrument
 // of its own (violin I and violin II are two violins), until the stage is full, when the busiest
 // lines keep theirs and the rest join a like instrument (a section: the bowed strings play double
@@ -17,13 +17,13 @@
 // piano; a line that goes below the cello's C is a bass line (the double bass is a candidate for it). With a lineup chosen by hand, the lines are matched to it by register instead: the highest
 // line to the highest instrument, and so on down.
 
-export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'trumpet';
-export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'trumpet'];
+export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet';
+export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet'];
 
 export interface VoiceInfo {
   label: string;
   /** the engine's instrument and (pianos) preset */
-  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'trumpet';
+  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet';
   preset?: 'grand' | 'upright';
   /** playable range (MIDI notes) and where the instrument sings best */
   lo: number;
@@ -35,8 +35,10 @@ export interface VoiceInfo {
 // ranges: the engine's (packages/engine/src/core/instrument.ts INSTRUMENT_INFO); centres: the
 // middle of each instrument's usual written range (violin G3–A6, viola C3–E6, cello C2–A5, double
 // bass E1–G3 sounding, flute C4–C7, oboe B♭3–G6 (in C: written as it sounds), B♭ clarinet D3–B♭6 sounding
-// (its parts mostly G3–C6), bassoon B♭1–E5 (in C, bass and tenor clef; its parts mostly C2–G4), trumpet
-// F#3–D6), where a part for it mostly lies
+// (its parts mostly G3–C6), bassoon B♭1–E5 (in C, bass and tenor clef; its parts mostly C2–G4), horn in F
+// B♭1–F5 sounding (written F2–C6, a fifth higher; its parts mostly written C4–G5: sounding F3–C5, and a
+// classical part for a horn crooked lower, in E♭ or D, sounds lower still), trumpet F#3–D6), where a part
+// for it mostly lies
 export const VOICE_INFO: Record<Voice, VoiceInfo> = {
   grand: { label: 'grand piano', instrument: 'piano', preset: 'grand', lo: 21, hi: 108, centre: 60, poly: 88 },
   upright: { label: 'upright piano', instrument: 'piano', preset: 'upright', lo: 21, hi: 108, centre: 60, poly: 88 },
@@ -48,6 +50,7 @@ export const VOICE_INFO: Record<Voice, VoiceInfo> = {
   oboe: { label: 'oboe', instrument: 'oboe', lo: 58, hi: 93, centre: 74, poly: 1 },
   clarinet: { label: 'clarinet', instrument: 'clarinet', lo: 50, hi: 94, centre: 70, poly: 1 },
   bassoon: { label: 'bassoon', instrument: 'bassoon', lo: 34, hi: 76, centre: 50, poly: 1 },
+  horn: { label: 'horn', instrument: 'horn', lo: 34, hi: 77, centre: 60, poly: 1 },
   trumpet: { label: 'trumpet', instrument: 'trumpet', lo: 52, hi: 86, centre: 68, poly: 1 },
 };
 export const isKeyboard = (v: Voice): boolean => v === 'grand' || v === 'upright';
@@ -62,6 +65,13 @@ export interface LineInfo {
   hi: number;
   median: number;
   poly: number;
+  /** the range of all but the outermost 2 % of its notes, when known (midi-file.ts MidiLine.core): a part's
+   *  rare extremes (a horn's pedal notes) do not decide its instrument or its octave; they fold by octaves
+   *  into the instrument's compass as they play (placeNote) */
+  core?: [number, number];
+  /** notes per pitch class (C = 0 … B = 11), when known (midi-file.ts MidiLine.pcs): a transposing part
+   *  typed at its written pitch is told from one at its sounding pitch by it (concertShift) */
+  pcs?: number[];
 }
 
 /** one place a line goes: a part (instrument) that plays it and the octaves it is moved by there
@@ -96,6 +106,16 @@ export function voiceFromName(s: string): Voice | null {
   // the bassoon: bassoon(s), fagotto/-i, Fagott, basson(s), fagot (Spanish), bajón, "Bn.", "Bsn.", "Fg.",
   // "Fag." (the contrabassoon is caught above: it is not this instrument)
   if (/bassoon|fagott|\bfagot\b|\bbassons?\b|baj[oó]n|\bbsns?\.?(?![a-z])|\bbns?\.?(?![a-z])|\bfg\.?(?![a-z])|\bfag\.?(?![a-z])/.test(t)) return 'bassoon';
+  // the horn: horn(s), French horn, Waldhorn, Hörner, corno/corni, cor(s) (cor d'harmonie, cor en fa),
+  // trompa(s), the mellophone, "Hn.", "Hns", "Hr.", in any key ("Horn in F", "Corno in Es", "Corni in B
+  // basso", "Horn in B♭ alto": before the double bass's "basso" and the viola's "alto"). Its namesakes are
+  // not: the English horn (cor anglais, corno inglese: the oboe's), the basset horn (corno di bassetto: the
+  // clarinet's), the flugelhorn and the post horn (small trumpets), the cornet and cornetto
+  if (
+    /horn|h[oö]rner|hoerner|\bcorn[oi]\b|\bcors?\b|\btrompas?\b|mellophon|\bhns?\.?(?![a-z])|\bhrs?\.?(?![a-z])/.test(t) &&
+    !/english|englisch|anglais|inglese|basset|fl[uü]gel|post ?horn/.test(t)
+  )
+    return 'horn';
   if (/cello|violoncell|violincell|\bvc\.?\b|\bvlc\b|continuo/.test(t)) return 'cello';
   if (
     /contra-? ?b?bass|contrebasse|kontrabass|contrabajo|double ?bass|upright ?bass|string ?bass|acoustic ?bass|violone|\bcb\.?(?![a-z])|\bcbs\b|\bkb\.?(?![a-z])|\bd\. ?b\.|\bbass(o|e|i|es)?\b|tuba/.test(t) &&
@@ -110,8 +130,10 @@ export function voiceFromName(s: string): Voice | null {
   // the clarinet: clarinet(s), clarinetto/-i, Klarinette, clarinette, "Cl.", "Clar.", "Kl.", and its kin (the
   // bass clarinet, the basset horn, the chalumeau: moved by octaves into the B♭ clarinet's range)
   if (/clarinet|klarinett|\bcl\.?(?![a-z])|\bcls\b|\bclar\.?(?![a-z])|\bkl\.?(?![a-z])|basset|chalumeau/.test(t)) return 'clarinet';
+  // (the Flügelhorn's "fl" before an umlaut would read as the flute's abbreviation)
+  if (/fl[uü]gel|post ?horn/.test(t)) return 'trumpet';
   if (/flute|flauto|fl[oö]te|flûte|piccolo|recorder|\bfl\.?\b|sax/.test(t)) return 'flute';
-  if (/trumpet|tromba|trompete|trompette|cornet|horn|corno|trombone|posaune|brass|\btpt?\.?\b/.test(t)) return 'trumpet';
+  if (/trumpet|tromba|trompete|trompette|cornet|trombone|posaune|brass|\btpt?\.?\b/.test(t)) return 'trumpet';
   if (/piano|klavier|cembalo|harpsichord|clavecin|keyboard|organ|orgel|continuo|clavichord|celesta|harp|guitar|lute/.test(t)) return 'grand';
   return null;
 }
@@ -127,6 +149,7 @@ export function voiceFromProgram(p: number): Voice | null {
   if (p === 43) return 'bass'; // contrabass
   if (p === 46) return 'grand'; // harp
   if (p <= 55) return null; // timpani, string and voice ensembles: by range
+  if (p === 60) return 'horn'; // French horn
   if (p <= 63) return 'trumpet'; // brass
   if (p === 68 || p === 69) return 'oboe'; // oboe, English horn
   if (p === 70) return 'bassoon';
@@ -135,15 +158,108 @@ export function voiceFromProgram(p: number): Voice | null {
   return null;
 }
 
+// ---------------------------------------------------------------- transposing parts
+// A MIDI file's notes are normally its sounding pitches (a notation program writes a horn in F's part a
+// fifth above the sound, and its MIDI at the sound: LilyPond's \transposition, Mutopia's files, MuseScore,
+// Sibelius), so a transposing part plays as the file has it. But a part typed into a file as it is read
+// (the trumpet in Mutopia's Réjouissance, a tone above the organ) would sound a fifth too high on a horn.
+// Its name says what it was written for ("Horn in F", "Corni in Es", "Clarinetto in B", "Cor en Fa",
+// "Tromba in D"; a horn named without a key is in F, the usual horn), and its notes say which it is: a part
+// at its written pitch is in another key than the rest of the file, and moved to its sounding pitch it is
+// in theirs (a natural horn's part in E♭ is written in C: its Cs, Es and Gs are the file's E♭s, Gs and
+// B♭s). So the move is made only when the line's pitch classes match the other lines' clearly better once
+// moved (concertShift).
+
+const LETTER: Record<string, number> = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 10, h: 11 };
+const SOLFEGE: Record<string, number> = { do: 0, ut: 0, re: 2, ré: 2, mi: 4, fa: 5, sol: 7, la: 9, si: 11 };
+/** the key a part's name says it is written in ("in F", "in E♭", "in Es", "in B", "in H", "en Fa", "in
+ *  Mi♭", "in B flat"), its pitch class (C = 0), or null. "B" alone is B♭ (German, as transposing parts are
+ *  named in scores: "Klarinette in B", "Corni in B basso"); B natural is "H" or "Si" */
+export function keyOfName(s: string): number | null {
+  const t = s.toLowerCase();
+  const m = /(?:^|[^a-z])(?:in|en)\s+(do|ut|ré|re|mi|fa|sol|la|si|[a-h])(\s*(?:♭|b|-?\s?flat|es|s|bemolle|bémol|♯|#|-?\s?sharp|is|diesis|dièse))?(?![a-z])/.exec(t);
+  if (!m) return null;
+  const name = m[1];
+  const acc = (m[2] ?? '').trim();
+  let pc = name.length > 1 ? SOLFEGE[name] : LETTER[name];
+  if (pc === undefined) return null;
+  // (an English "B" with an accidental is B: "B♭" B♭, not A)
+  if (name === 'b' && acc) pc = 11;
+  if (/^(♭|b|-?\s?flat|es|s|bemolle|bémol)$/.test(acc)) pc -= 1;
+  else if (/^(♯|#|-?\s?sharp|is|diesis|dièse)$/.test(acc)) pc += 1;
+  return (pc + 12) % 12;
+}
+
+/** semitones from a part's written pitch to its sounding pitch, from its name: a horn in X sounds X below
+ *  the written C (in F a fifth down, in E♭ a major sixth); the other instruments the nearer way (a clarinet
+ *  in B♭ a tone down, in A a minor third down, in E♭ a minor third up; a trumpet in D a tone up). Octaves
+ *  are the line's fit to its instrument's (fitShift). A horn named without a key is in F; another
+ *  instrument named without one, as it sounds (0) */
+export function transpositionOf(l: Pick<LineInfo, 'name' | 'instrument'>): number {
+  const v = voiceFromName(l.name) ?? voiceFromName(l.instrument);
+  const key = keyOfName(l.name) ?? keyOfName(l.instrument) ?? (v === 'horn' ? 5 : null);
+  if (key === null || key === 0) return 0;
+  if (v === 'horn') return key - 12;
+  return key <= 6 ? key : key - 12;
+}
+
+/** how well two pitch-class profiles agree (Pearson's r over the 12 classes) */
+function pcCorr(a: number[], b: number[]): number {
+  const ma = a.reduce((s, x) => s + x, 0) / 12;
+  const mb = b.reduce((s, x) => s + x, 0) / 12;
+  let sab = 0;
+  let saa = 0;
+  let sbb = 0;
+  for (let i = 0; i < 12; i++) {
+    sab += (a[i] - ma) * (b[i] - mb);
+    saa += (a[i] - ma) ** 2;
+    sbb += (b[i] - mb) ** 2;
+  }
+  return saa > 0 && sbb > 0 ? sab / Math.sqrt(saa * sbb) : 0;
+}
+/** how much better a transposed line must match the rest of the file to be moved (Pearson's r), and the
+ *  fewest notes it must have for its key to be told */
+const CONCERT_MARGIN = 0.25;
+const CONCERT_MIN_NOTES = 16;
+
+/**
+ * Semitones to move line `i` by so that it sounds at concert pitch: its name's transposition
+ * (transpositionOf) when the line is at its written pitch, 0 when it is already as it sounds (the usual
+ * MIDI file) or that cannot be told. Told by its pitch classes against the rest of the file's (each other
+ * line counting equally): moved, the line must match them better by CONCERT_MARGIN (Pearson's r).
+ */
+export function concertShift(lines: LineInfo[], i: number): number {
+  const l = lines[i];
+  const t = transpositionOf(l);
+  if (!t || t % 12 === 0 || !l.pcs || l.notes < CONCERT_MIN_NOTES) return 0;
+  const rest = new Array<number>(12).fill(0);
+  let others = 0;
+  lines.forEach((o, j) => {
+    const n = o.pcs?.reduce((s, x) => s + x, 0) ?? 0;
+    if (j === i || !o.pcs || n < 1) return;
+    for (let k = 0; k < 12; k++) rest[k] += o.pcs[k] / n;
+    others++;
+  });
+  if (!others) return 0;
+  const moved = Array.from({ length: 12 }, (_, k) => l.pcs![(((k - t) % 12) + 12) % 12]);
+  return pcCorr(moved, rest) > pcCorr(l.pcs, rest) + CONCERT_MARGIN ? t : 0;
+}
+/** a line as it sounds: moved by its concert shift (its range; the counts move with it) */
+const sounding = (l: LineInfo, t: number): LineInfo => (t ? { ...l, lo: l.lo + t, hi: l.hi + t, median: l.median + t, core: l.core && [l.core[0] + t, l.core[1] + t], pcs: l.pcs && Array.from({ length: 12 }, (_, k) => l.pcs![(((k - t) % 12) + 12) % 12]) } : l);
+
 // ---------------------------------------------------------------- fitting a line to an instrument
+/** the range a line is judged by: its core (all but its rarest extremes) when known */
+const span = (l: Pick<LineInfo, 'lo' | 'hi' | 'core'>): [number, number] => l.core ?? [l.lo, l.hi];
+
 /** octaves to move a line by so most of it lies in the voice's range (ties: the smallest move) */
-export function fitShift(l: Pick<LineInfo, 'lo' | 'hi' | 'median'>, v: Voice): number {
+export function fitShift(l: Pick<LineInfo, 'lo' | 'hi' | 'median' | 'core'>, v: Voice): number {
   const r = VOICE_INFO[v];
+  const [l0, l1] = span(l);
   let best = 0;
   let bestScore = -Infinity;
   for (const k of [0, 12, -12, 24, -24]) {
-    const lo = l.lo + k;
-    const hi = l.hi + k;
+    const lo = l0 + k;
+    const hi = l1 + k;
     const inside = Math.max(0, Math.min(hi, r.hi) - Math.max(lo, r.lo)) / Math.max(1, hi - lo);
     const med = l.median + k >= r.lo && l.median + k <= r.hi ? 1 : 0;
     const score = inside + med - Math.abs(k) / 1000;
@@ -166,8 +282,9 @@ export function placeNote(m: number, shift: number, v: Voice): number {
 const fits = (l: LineInfo, v: Voice): number => {
   const r = VOICE_INFO[v];
   const k = fitShift(l, v);
-  const lo = l.lo + k;
-  const hi = l.hi + k;
+  const [l0, l1] = span(l);
+  const lo = l0 + k;
+  const hi = l1 + k;
   return hi === lo ? (lo >= r.lo && lo <= r.hi ? 1 : 0) : Math.max(0, Math.min(hi, r.hi) - Math.max(lo, r.lo)) / (hi - lo);
 };
 /** can the voice hold the line's chords? (a bowed string: double stops; a wind: one note) */
@@ -176,7 +293,8 @@ const holds = (l: LineInfo, v: Voice): boolean => l.poly <= (VOICE_INFO[v].poly 
 /** how much of a line lies in the voice's range as written (0…1) */
 const fits0 = (l: LineInfo, v: Voice): number => {
   const r = VOICE_INFO[v];
-  return l.hi === l.lo ? (l.lo >= r.lo && l.lo <= r.hi ? 1 : 0) : Math.max(0, Math.min(l.hi, r.hi) - Math.max(l.lo, r.lo)) / (l.hi - l.lo);
+  const [lo, hi] = span(l);
+  return hi === lo ? (lo >= r.lo && lo <= r.hi ? 1 : 0) : Math.max(0, Math.min(hi, r.hi) - Math.max(lo, r.lo)) / (hi - lo);
 };
 
 /** how well a line sits on an instrument: in range (after its best octave move), near the middle of
@@ -226,7 +344,9 @@ export function guessVoice(l: LineInfo): Voice {
 
 // ---------------------------------------------------------------- plans
 type Sized = Pick<LineInfo, 'notes' | 'median' | 'poly'>;
-const shiftFor = (l: LineInfo, v: Voice) => (isKeyboard(v) ? 0 : fitShift(l, v));
+/** a line's move on an instrument: to its sounding pitch (concertShift: `t`), then by octaves into the
+ *  instrument's range (a keyboard has them all) */
+const shiftFor = (l: LineInfo, v: Voice, t = 0) => t + (isKeyboard(v) ? 0 : fitShift(sounding(l, t), v));
 
 /**
  * The instruments a voice per line puts on the stage: one per keyboard voice (all its lines), one per
@@ -306,9 +426,10 @@ export function shiftsOf(plan: Plan): Shifts {
 /** the plan for a set of parts: each line's routes (part index, octave shift on that instrument) */
 export function planOf(parts: Part[], lines: LineInfo[], shifts?: Shifts): Plan {
   const out: Route[][] = lines.map(() => []);
+  const tr = lines.map((_, i) => concertShift(lines, i));
   parts.forEach((p, k) => {
     p.lines = [...new Set(p.lines.filter((i) => i >= 0 && i < lines.length))].sort((a, b) => a - b);
-    for (const i of p.lines) out[i].push({ part: k, shift: shifts?.get(shiftKey(i, p.voice)) ?? shiftFor(lines[i], p.voice) });
+    for (const i of p.lines) out[i].push({ part: k, shift: shifts?.get(shiftKey(i, p.voice)) ?? shiftFor(lines[i], p.voice, tr[i]) });
   });
   return { parts, lines: out };
 }
@@ -319,14 +440,16 @@ export function planOf(parts: Part[], lines: LineInfo[], shifts?: Shifts): Plan 
  */
 export function autoPlan(lines: LineInfo[], opts: { cap: number; lineup?: Voice[] }): Plan {
   const lineup = (opts.lineup ?? []).filter((v) => VOICE_INFO[v]).slice(0, Math.max(1, opts.cap));
+  // (each line judged as it sounds: a horn's part typed at its written pitch is a fifth higher)
+  const heard = lines.map((l, i) => sounding(l, concertShift(lines, i)));
   if (!lineup.length) {
     // a file that names no instrument anywhere (no names, no programs) and plays chords is a keyboard
     // piece: its single-note lines are a left hand, not a cello
     const named = lines.some((l) => voiceFromName(l.name) ?? voiceFromName(l.instrument) ?? (l.program >= 0 ? true : null));
     if (!named && lines.some((l) => l.poly >= 3)) return planOf(partsOf(lines.map(() => 'grand' as Voice), lines, opts.cap), lines);
-    return planOf(partsOf(lines.map(guessVoice), lines, opts.cap), lines);
+    return planOf(partsOf(heard.map(guessVoice), lines, opts.cap), lines);
   }
-  return matchLineup(lines, lineup);
+  return planOf(matchLineup(heard, lineup).parts, lines);
 }
 
 /** lines onto a hand-picked lineup, by register: each instrument (high to low) leads one line, chosen
