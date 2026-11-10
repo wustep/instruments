@@ -502,17 +502,19 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     draws = ensemble.parts.map((p, i) => (draws[i]?.voice === p.voice ? draws[i] : newPartDraw(p.voice)));
     cellsKey = '';
   };
-  // tests: the ensemble on the 2D stage, each part's cell and where its bow's hair was last drawn
-  // (client px: the frog's end, the tip's end; the contact point along it)
+  // tests: the ensemble on the 2D stage, each part's cell (and the group's px/m) and where its bow's
+  // hair was last drawn (client px: the frog's end, the tip's end; the contact point along it; the
+  // hair's real length, m)
   (window as unknown as { __ens2d?: () => unknown }).__ens2d = () => {
     const r = canvas.getBoundingClientRect();
     const y0 = r.top + top.getBoundingClientRect().height;
     return ensemble.parts.map((p, i) => {
       const c = cells[i];
-      const l = draws[i]?.bowed?.st.bowLine;
+      const b = draws[i]?.bowed;
+      const l = b?.st.bowLine;
       if (!c) return null;
       const [x, y] = [r.left + c.x, y0 + c.y];
-      return { voice: p.voice, cell: { x, y, w: c.w, h: c.h }, bow: l ? { fx: x + l.fx, fy: y + l.fy, tx: x + l.tx, ty: y + l.ty, pos: l.pos } : null };
+      return { voice: p.voice, cell: { x, y, w: c.w, h: c.h, sc: c.sc ?? null }, bow: l && b ? { fx: x + l.fx, fy: y + l.fy, tx: x + l.tx, ty: y + l.ty, pos: l.pos, hair: b.geom.bowLength } : null };
     });
   };
   /** the part that began a note last (the readout, the spectrum's partials and the scope follow it) */

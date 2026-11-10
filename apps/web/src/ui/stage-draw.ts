@@ -389,15 +389,24 @@ export interface BowedLayout {
   ox: number;
   oy: number;
 }
-export function bowedLayout(g: BowedGeom, p: BowedPlan, sh: BowedShapes, W: number, H: number): BowedLayout {
+/** what the drawing takes along the strings (m, from the body's neck end): the scroll's top to the end
+ *  button (the cello: the first 0.16 m of its endpin, which runs on towards the floor, cut there) */
+export function bowedSpan(g: BowedGeom, p: BowedPlan): { x0: number; x1: number } {
+  return { x0: -p.neck - p.head * HEAD_PROJ - 0.003, x1: p.body + (g.id === 'cello' ? 0.16 : 0.012) };
+}
+/**
+ * The instrument in a W×H box: upright in a box taller than 1.05 × its width, lying otherwise, centred.
+ * Alone it fills the box (each instrument its own share of it). `scale` (px/m) sets its size instead:
+ * an ensemble draws its strings at one scale, a cello twice a violin's length (ensemble-draw.ts).
+ */
+export function bowedLayout(g: BowedGeom, p: BowedPlan, sh: BowedShapes, W: number, H: number, scale?: number): BowedLayout {
   const vertical = H > W * 1.05;
-  const x0 = -p.neck - p.head * HEAD_PROJ - 0.003;
-  const x1 = p.body + (g.id === 'cello' ? 0.16 : 0.012);
+  const { x0, x1 } = bowedSpan(g, p);
   const len = x1 - x0;
   const Lw = vertical ? H : W;
   const Cw = vertical ? W : H;
   const fill = vertical ? (g.id === 'violin' ? 0.86 : g.id === 'viola' ? 0.88 : 0.94) : g.id === 'violin' ? 0.72 : g.id === 'viola' ? 0.76 : 0.9;
-  const sc = Math.min((fill * Lw) / len, (0.84 * Cw) / (2 * sh.hwMax));
+  const sc = scale ?? Math.min((fill * Lw) / len, (0.84 * Cw) / (2 * sh.hwMax));
   const along = (Lw - len * sc) / 2 - x0 * sc;
   return vertical ? { vertical, sc, ox: W / 2, oy: along } : { vertical, sc, ox: along, oy: H / 2 };
 }
@@ -1070,14 +1079,14 @@ function bwHull(pts: Pt[]): Pt[] {
  * ensemble draws its bows that way, after every instrument (ensemble-draw.ts): a bow is longer than
  * its instrument's cell is wide, and it lies over the neighbours.
  */
-export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g: BowedGeom, fr: VisualFrame | null, st: BowedState, field: ModeField, now: number, bowLater = false): (() => void) | null {
+export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g: BowedGeom, fr: VisualFrame | null, st: BowedState, field: ModeField, now: number, bowLater = false, scale?: number): (() => void) | null {
   const p = BOWED_PLAN[g.id];
   const sh = bowedShapes(g.id, p, g.L);
   const dpr = Math.max(1, Math.abs(ctx.getTransform().a) || 1);
-  const key = `${g.id}|${g.L}|${W}|${H}|${dpr}`;
+  const key = `${g.id}|${g.L}|${W}|${H}|${dpr}|${scale ?? ''}`;
   let ly = bowedLayers.get(key);
   if (!ly) {
-    ly = paintBowedLayers(g, p, sh, bowedLayout(g, p, sh, W, H), W, H, dpr, key);
+    ly = paintBowedLayers(g, p, sh, bowedLayout(g, p, sh, W, H, scale), W, H, dpr, key);
     bowedLayers.set(key, ly);
     for (const k of bowedLayers.keys()) {
       if (bowedLayers.size <= 6) break;
@@ -2519,6 +2528,11 @@ const TR_BOUNDS = (() => {
   const ys = pts.map((p) => p[1]);
   return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
 })();
+/** the box (m) trumpetLayout draws a trumpet at one px per metre in: its bounds over the share of a
+ *  wide box they fill (an ensemble sizes the trumpet's box from the strings' scale) */
+export function trumpetBox(): { w: number; h: number } {
+  return { w: (TR_BOUNDS.x1 - TR_BOUNDS.x0) / 0.84, h: (TR_BOUNDS.y1 - TR_BOUNDS.y0) / 0.62 };
+}
 export function trumpetLayout(W: number, H: number): TrLayout {
   const key = `${W}x${H}`;
   if (trLayout && trLayout.key === key) return trLayout;
