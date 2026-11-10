@@ -1,7 +1,7 @@
 // The oboe on the 2D stage (the classic look), and its plan shared with the vector display
 // (vector/oboe.ts). A full-conservatoire oboe from the front, the side its tone holes face: lying with
-// its reed to the left on a wide stage, standing reed up in a tall box (an Orchestra cell), drawn at its
-// real sizes in metres from the reed's tip:
+// its reed to the left on a wide stage, standing reed up on a phone held upright and in a tall box (an
+// Orchestra cell), drawn at its real sizes in metres from the reed's tip:
 //   the reed (71 mm, 55 mm of it out of the reed well: its cane blades with their scrape and bark, the
 //   thread, the staple and its cork); the top joint 233 mm, the lower joint 240 mm, the bell 127 mm
 //   (601 mm of wood: the Brussels MIM's Lorée, Système Conservatoire, inv. 1983.021, whose reed is
@@ -249,6 +249,8 @@ export const keyV = (k: ObKey): number => (k.phi === 0 ? 0 : (obR(k.x) + 0.0009)
 export interface ObLayout {
   key: string;
   vertical: boolean;
+  /** the file player's px over the box's top */
+  top: number;
   sc: number;
   x0: number;
   c: number;
@@ -342,17 +344,27 @@ function capsule(p: Path2D, xa: number, xb: number, y: number, r: number): void 
   p.closePath();
 }
 
+/** px kept above the reed's tip on a stage the oboe stands on (the breath's handle, under the player)
+ *  and below its bell */
+const STAND_ABOVE = 22;
+const STAND_BELOW = 8;
 /** the layout for a W×H box (the file player's `top` px kept clear at its top): lying (reed to the
- *  left) unless the box is clearly taller than wide, then standing (reed up) */
+ *  left) on a wide box, standing (reed up, its keys to the audience) on a portrait or near-square one
+ *  (a phone held upright) and in a tall Orchestra cell. An Orchestra cell (oboeBox at the group's px/m)
+ *  is filled to 90 % of its length; on a phone's stage it stands as tall as fits between the player and
+ *  the keys. */
 export function oboeLayout(W: number, H: number, top = 0): ObLayout {
   const key = `${W}x${H}x${top}`;
   const hit = layouts.get(key);
   if (hit) return hit;
-  const vertical = H - top > W * 1.05;
+  const vertical = H - top > W * 0.75;
   const Lw = vertical ? H - top : W;
   const Cw = vertical ? W : H;
-  const sc = (0.9 * Lw) / OB_LEN;
-  const x0 = (vertical ? top : 0) + (Lw - OB_LEN * sc) / 2;
+  // (a stage, not a cell: wide enough across for the oboe's lobes and handles)
+  const standing = vertical && W > 0.35 * (H - top);
+  const len = standing ? Math.min(0.94 * Lw, Lw - STAND_ABOVE - STAND_BELOW) : 0.9 * Lw;
+  const sc = len / OB_LEN;
+  const x0 = (vertical ? top : 0) + (standing ? STAND_ABOVE + (Lw - STAND_ABOVE - STAND_BELOW - len) / 2 : (Lw - len) / 2);
   const Hm = Math.min(Cw * 0.14, 0.05 * sc);
   // lying on a stage: above the middle (the room's grip sits at its right edge, half way down), clear of
   // the player; in a cell, or standing, in the middle
@@ -475,7 +487,7 @@ export function oboeLayout(W: number, H: number, top = 0): ObLayout {
   spine.bezierCurveTo(X(0.013), Y(0.0011), X(0.007), Y(0.0009), X(0.0035), Y(0));
   spine.closePath();
   const tip = outline(0, 0.0028, (x) => reedHW(x) * 0.93, 0.0002);
-  const L: ObLayout = { key, vertical, sc, x0, c, Hm, body, rimUp, sheen, spec, bounce, grain, seams, silver, mouth, mouthIn, bore, boreIn, rods, posts, hinges, touches, cork, corkDots, staple, thread, winding, cane, bark, scrape, spine, tip };
+  const L: ObLayout = { key, vertical, top, sc, x0, c, Hm, body, rimUp, sheen, spec, bounce, grain, seams, silver, mouth, mouthIn, bore, boreIn, rods, posts, hinges, touches, cork, corkDots, staple, thread, winding, cane, bark, scrape, spine, tip };
   if (layouts.size > 8) layouts.clear();
   layouts.set(key, L);
   return L;

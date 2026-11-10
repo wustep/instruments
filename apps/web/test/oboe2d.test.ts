@@ -95,7 +95,7 @@ describe('the 2D oboe’s layout', () => {
     ['Orchestra, lying', Math.round(oboeBox().w * 300), Math.round(oboeBox().h * 300), 0],
   ];
   for (const [name, W, H, top] of cells)
-    it(`${name} (${W}×${H}, ${top} px of player): whole in its box under the player, the wave’s envelope too`, () => {
+    it(`${name} (${W}×${H}, ${top} px of player): ${/phone|Pixel|standing/.test(name) ? 'standing' : 'lying'}, whole in its box under the player, the wave’s envelope too`, () => {
       const L = oboeLayout(W, H, top);
       const pts = [0, OB_LEN].flatMap((x) => [-1, 1].map((s) => obToBox(L, W, x, s * (OB_REACH + L.Hm / L.sc))));
       for (const p of pts) {
@@ -104,10 +104,16 @@ describe('the 2D oboe’s layout', () => {
         expect(p.y).toBeGreaterThanOrEqual(top);
         expect(p.y).toBeLessThanOrEqual(H);
       }
-      // as long as its box allows: 90 % of the box's length
+      // a phone held upright: standing, as tall as fits between the player and the keys, the reed's tip
+      // clear of the player by the breath's handle; a laptop lying, an Orchestra cell its own way, both
+      // filling 90 % of the box's length (a cell at the group's px/m)
+      const phone = /phone|Pixel/.test(name);
+      expect(L.vertical).toBe(phone || name.endsWith('standing'));
       const len = L.vertical ? H - top : W;
-      expect(OB_LEN * L.sc).toBeCloseTo(0.9 * len, 6);
-      expect(L.vertical).toBe(name.endsWith('standing'));
+      if (phone) {
+        expect((OB_LEN * L.sc) / len).toBeGreaterThan(0.88);
+        expect(obToBox(L, W, 0, 0).y).toBeGreaterThanOrEqual(top + 20);
+      } else expect(OB_LEN * L.sc).toBeCloseTo(0.9 * len, 6);
       if (name.startsWith('Orchestra')) expect(L.sc).toBeCloseTo(300, 0);
     });
 });

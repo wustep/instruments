@@ -1,6 +1,6 @@
 // The oboe on the 2D stage, in both styles: alone (whole on the stage, reed tip to bell rim, under the
-// file player and above the keys, no horizontal scroll; its keys going down for the engine's note and
-// lifting after it), and in the Orchestra beside strings (standing in its own cell at the group's one
+// file player and above the keys, no horizontal scroll; lying on a laptop, standing on a phone held
+// upright; its keys going down for the engine's note and lifting after it), and in the Orchestra beside strings (standing in its own cell at the group's one
 // px/m, drawn there).
 import { test, expect, type Page } from '@playwright/test';
 
@@ -84,9 +84,12 @@ test('the oboe alone in 2D, both styles: whole on the stage under the file playe
       expect(b.y0, `${where}: under the player`).toBeGreaterThanOrEqual(under);
       expect(b.y1, `${where}: on the stage`).toBeLessThanOrEqual(d.stage.y1);
       expect(d.stage.y1, `${where}: the stage above the keys`).toBeLessThanOrEqual(keys.y0 + 1);
-      // lying, as long as the stage allows; drawn: ink over the instrument's box
-      expect(d.vertical).toBe(false);
-      expect((b.x1 - b.x0) / (d.stage.x1 - d.stage.x0), `${where}: its share of the stage`).toBeGreaterThan(0.88);
+      // on a laptop lying, as long as the stage allows; on a phone held upright standing (reed up), as tall
+      // as fits between the player and the keys; drawn: ink over the instrument's box
+      expect(d.vertical, `${where}: ${phone ? 'standing' : 'lying'}`).toBe(phone);
+      if (phone) expect((b.y1 - b.y0) / (d.stage.y1 - under), `${where}: its share of the stage's height`).toBeGreaterThan(0.85);
+      else expect((b.x1 - b.x0) / (d.stage.x1 - d.stage.x0), `${where}: its share of the stage`).toBeGreaterThan(0.88);
+      expect(d.reed.y, `${where}: the reed at the top`).toBeLessThan(phone ? b.y0 + 2 : b.y1);
       expect(await inked(page, b), `${where}: drawn`).toBeGreaterThan(0.12);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${where}: no horizontal scroll`).toBe(true);
       // the note let go: a moment later the fingers lift, every key back at rest
