@@ -151,7 +151,7 @@ function build(g: BowedGeom, W: number, H: number, scale?: number): Statics {
     tail.moveTo(X(tpEnd), X(sg * 0.0035 * S ** 0.7));
     tail.lineTo(X(B + 0.003 * S), X(sg * 0.0015 * S));
   }
-  if (g.id === 'cello') {
+  if (g.id === 'cello' || g.id === 'bass') {
     const sock: Pt[] = [[0, 0.0175], [0.004, 0.019], [0.012, 0.017], [0.016, 0.0185], [0.022, 0.0185], [0.028, 0.012], [0.042, 0.009], [0.044, 0.0105], [0.05, 0.0105]];
     sock.forEach(([d, r], i) => (i ? tail.lineTo(X(B + d), X(-r)) : tail.moveTo(X(B + d), X(-r))));
     for (let i = sock.length - 1; i >= 0; i--) tail.lineTo(X(B + sock[i][0]), X(sock[i][1]));

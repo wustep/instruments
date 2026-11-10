@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { BOWED } from '../../../packages/engine/src/core/bowed.ts';
 import { fholeOf } from '../src/ui/gl/fholes.ts';
 import { CELLO, VIOLIN } from '../src/ui/gl/outlines.ts';
+import { BASS } from '../src/ui/gl/bass-outline.ts';
 import { BOWED_PLAN, bowedShapes } from '../src/ui/stage-draw.ts';
 
 type P2 = [number, number];
@@ -76,7 +77,8 @@ function crossesItself(p: P2[]): boolean {
 
 describe('f-holes', () => {
   // (length and the gap between the two upper eyes, mm: H. Jóhannsson's tables, docs/3d-reference.md)
-  for (const [name, ol, body, lenMm, gapMm] of [['violin', VIOLIN, 0.356, 73, 42], ['cello', CELLO, 0.755, 130, 98]] as const) {
+  // (the double bass's: 245 mm long, its upper eyes 140 mm apart, makers' figures for a 3/4 bass)
+  for (const [name, ol, body, lenMm, gapMm] of [['violin', VIOLIN, 0.356, 73, 42], ['cello', CELLO, 0.755, 130, 98], ['double bass', BASS, 1.11, 245, 140]] as const) {
     it(`${name}: two round eyes, a smooth S, two nicks, two wing tips`, () => {
       const p = fholeOf(ol) as P2[];
       expect(crossesItself(p)).toBe(false);
@@ -110,9 +112,12 @@ describe('f-holes', () => {
       expect(Math.abs(nicks[0][1] - nicks[1][1])).toBeGreaterThan(0.012);
       const tips = sharp.filter((q) => !nicks.includes(q));
       for (const q of tips) expect(e.some((k) => Math.abs(Math.hypot(q[0] - k.c[0], q[1] - k.c[1]) - k.r) < 1e-6)).toBe(true);
-      // (the photograph's trace, which this replaces, has neither round eyes nor a clean edge)
-      expect(eyes(ol.fhole as P2[]).length).toBe(0);
-      expect(wobble(ol.fhole as P2[])).toBeGreaterThan(60);
+      // (the photograph's trace, which this replaces, has neither round eyes nor a clean edge; the
+      // bass has no trace)
+      if (ol !== BASS) {
+        expect(eyes(ol.fhole as P2[]).length).toBe(0);
+        expect(wobble(ol.fhole as P2[])).toBeGreaterThan(60);
+      }
     });
   }
   it('on the stage: bass and treble holes are mirror images, their nicks on the bridge line', () => {

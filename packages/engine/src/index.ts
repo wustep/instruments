@@ -8,7 +8,7 @@
 // The DSP core (PianoCore, renderCore) has no Web Audio dependency and runs in Node.
 
 export { createPiano, createInstrument, renderOffline, processorUrl, type Piano, type PianoOptions } from './api/piano.ts';
-export { CC_DYNAMICS, CC_REST, INSTRUMENT_IDS, INSTRUMENT_INFO, type InstrumentId, type ExciteTrace } from './core/instrument.ts';
+export { CC_DYNAMICS, CC_REST, INSTRUMENT_IDS, INSTRUMENT_INFO, isBowed, type BowedId, type InstrumentId, type ExciteTrace } from './core/instrument.ts';
 export type { BowedParams } from './core/bowed.ts';
 export { CC_HAND_BOW_OFF, CC_HAND_BOW_POS, CC_HAND_BOW_SPEED } from './core/bowed.ts';
 export type { FluteParams } from './core/flute.ts';
@@ -30,6 +30,7 @@ export { midiName, nameToMidi, midiToEtHz } from './core/util.ts';
 // ---------------------------------------------------------------- geometry for drawing
 import { DEFAULT_PARAMS as _DP, PRESETS as _PR, buildKeySpecs as _bks } from './core/design.ts';
 import { BOWED as _BOWED } from './core/bowed.ts';
+import type { BowedId as _BowedId } from './core/instrument.ts';
 import type { KeySummary as _KS } from './api/messages.ts';
 
 /** Per-key strings of a piano preset (lengths, unisons, dampers), computed on the main
@@ -48,7 +49,7 @@ export function pianoKeySummary(preset = 'grand'): _KS[] {
 }
 
 /** Strings (open notes, low to high), nut–bridge length and bow length of a bowed instrument. */
-export function bowedGeometry(id: 'violin' | 'viola' | 'cello'): { L: number; bowLength: number; strings: { name: string; open: number }[] } {
+export function bowedGeometry(id: _BowedId): { L: number; bowLength: number; strings: { name: string; open: number }[] } {
   const b = _BOWED[id];
   return { L: b.L, bowLength: b.bowLength, strings: b.strings.map((s) => ({ name: s.name, open: s.open })) };
 }

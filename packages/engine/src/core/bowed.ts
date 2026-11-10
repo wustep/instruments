@@ -1,4 +1,4 @@
-// Bowed string instruments (violin, viola, cello).
+// Bowed string instruments (violin, viola, cello, double bass).
 //
 // Each of the four strings is a digital waveguide (one circular buffer for the
 // round trip, finger/nut inversion applied at the bridge read, fractional
@@ -14,7 +14,7 @@
 // frequency path, the bridge-hill formant, a small room.
 
 import { Pump } from './pump.ts';
-import { CC_DYNAMICS, DYN_TAU, type ExciteTrace, type InstrumentCore, type InstrumentId } from './instrument.ts';
+import { CC_DYNAMICS, DYN_TAU, type BowedId, type ExciteTrace, type InstrumentCore, type InstrumentId } from './instrument.ts';
 import type { KeySummary } from '../api/messages.ts';
 import type { PianoEvent } from './piano-core.ts';
 import { designLossFilter, onePolePhaseDelay, biquadHighpass, biquadLowpass, biquadPeaking, biquadHighShelf } from './filters.ts';
@@ -217,6 +217,9 @@ interface BowedDesign {
    *  the fit half worse: the violin's E string sounds far brighter than its G). It rounds only what
    *  is heard: the string's own motion (its pitch, attack, the bow's traces) is unchanged. */
   body?: { bands: [number, number][]; q: number; corner: [number, number] };
+  /** the vibrato's rate, Hz: the lowest and the random spread above it, drawn per note (absent: 5.2
+   *  and 0.8, round 2) */
+  vibRate?: [number, number];
 }
 
 const VIOLIN: BowedDesign = {
@@ -345,7 +348,74 @@ const CELLO: BowedDesign = {
   byEar: 0.3,
 };
 
-export const BOWED: Record<string, BowedDesign> = { violin: VIOLIN, viola: VIOLA, cello: CELLO };
+// The double bass: a 3/4 orchestral instrument, the size most orchestral players use, tuned in
+// fourths E1 A1 D2 G2 (it sounds an octave below the written part; MIDI files carry the sounding
+// pitch). The same physics as the cello's v2 (torsion, the hair ribbon's width, the bridge hill,
+// intonation by ear, rate invariance); its own sizes, strings and body. Starting values here are
+// the literature's; what the Iowa double bass decided is in bowed-fit.json (scripts/fit-bodies.ts).
+const BASS: BowedDesign = {
+  ...CELLO,
+  id: 'bass',
+  label: 'Double bass',
+  // vibrating length nut–bridge: 3/4 orchestral basses measure 1.04–1.06 m (the "mensur": makers'
+  // standard 41–41.5" string length)
+  L: 1.05,
+  // steel-core orchestral strings, 27–34 kgf each on a 3/4 bass (manufacturers' tension tables,
+  // e.g. Thomastik-Infeld Spirocore and Pirastro Evah Pirazzi orchestra sets)
+  strings: [
+    { name: 'E', open: 28, T: 330 },
+    { name: 'A', open: 33, T: 315 },
+    { name: 'D', open: 38, T: 300 },
+    { name: 'G', open: 43, T: 285 },
+  ],
+  t60: [16, 0.5],
+  // Askenfelt, "Eigenmodes and tone quality of the double bass" (STL-QPSR 23(4), 1982): the f-hole
+  // air mode near 60 Hz, the strong corpus modes from about 90 to 130 Hz, an octave above the open
+  // E; the cello's set scaled by the body (×1.47 longer) and its larger, thinner plates. Modal masses
+  // scale with the strings' impedance (≈ 2.6× the cello's), so the strings load the body alike.
+  signature: [
+    { f: 60, eta: 0.04, m: 4.2, rad: 1.0 },
+    { f: 88, eta: 0.03, m: 6.8, rad: 0.1 },
+    { f: 105, eta: 0.022, m: 3.4, rad: 0.3 },
+    { f: 125, eta: 0.022, m: 3.6, rad: 1.0 },
+    { f: 115, eta: 0.035, m: 13, rad: 0.4 },
+  ],
+  stat: { fLo: 150, fHi: 2800, spacing: 22, mass: 5.5, eta: 0.03 },
+  bridgeY: 0.004,
+  eq: [
+    [900, 0, 1.2],
+    [50, 0, 0.8],
+  ],
+  bowSpeed: [0.0505, 0.394],
+  // a French bass bow: a stick of 71–75 cm, about 0.58 m of hair (makers' figures)
+  bowLength: 0.58,
+  hf: [0.0163, 5810],
+  forceDyn: [1.08, 2.2],
+  betaDyn: [1.22, 0.721],
+  outputGain: 157,
+  // vibrato: the Iowa bassist's, where there is any (a third of the notes; 6–15 ¢ at 3.2–3.5 Hz,
+  // scripts/ensemble-refs.ts); bowPosition: the cello's β, about 10 cm from the bridge on the bass
+  defaults: { bowPosition: 0.108, bowPressure: 0.3, vibrato: 9, bodyDamping: 1, room: 0.32, volume: 1, sympathetic: true },
+  seed: 24,
+  // the bass bridge is taller and heavier than the cello's (a 3/4 bass bridge stands ~ 16 cm), so
+  // its in-plane resonances sit lower; fitted with the bands (bowed-fit.json)
+  radiation: { radRef: 1000, bridge: [[650, 1.9], [1800, 0.584]], statRad: 0.188 },
+  idleCoupling: 0.306,
+  tuneHarmonics: 40,
+  tuneWeight: 0.85,
+  torsion: { speedRatio: 5, impedanceRatio: 3.68, q: 2.92 },
+  // every bass string is wound; the heavier the winding, the faster its upper partials go
+  t60HString: [0.5, 0.6, 0.75, 1],
+  attackTau: [0.4, 0.13],
+  // a bass bow carries more hair: a ribbon of about 13 mm (makers' figures)
+  bowWidth: 0.013,
+  rosinNoise: 0.226,
+  // effective mass of the bridge hill at the notch (the bass bridge weighs about 3× the cello's)
+  bridgeMass: 0.0065,
+  vibRate: [3.2, 0.5],
+};
+
+export const BOWED: Record<string, BowedDesign> = { violin: VIOLIN, viola: VIOLA, cello: CELLO, bass: BASS };
 // round 2: radiation balance, dynamics and string HF loss fitted to the Iowa MIS recordings
 // (scripts/fit-strings.ts); absent keys keep the literature values above
 for (const [id, fit] of Object.entries(bowedFit as unknown as Record<string, Partial<BowedDesign>>)) if (BOWED[id]) Object.assign(BOWED[id], fit);
@@ -586,7 +656,7 @@ export class BowedCore implements InstrumentCore {
   private gN = 1;
   private pT = 0.25;
 
-  constructor(opts: { sampleRate: number; instrument: 'violin' | 'viola' | 'cello'; params?: Partial<BowedParams>; dry?: boolean; player?: number }) {
+  constructor(opts: { sampleRate: number; instrument: BowedId; params?: Partial<BowedParams>; dry?: boolean; player?: number }) {
     this.fs = opts.sampleRate;
     this.design = BOWED[opts.instrument];
     this.id = this.design.id;
@@ -728,7 +798,9 @@ export class BowedCore implements InstrumentCore {
     const rad = this.design.radiation;
     // v2: the bridge's resonances, as unity-DC resonant low-passes (the force passes the bridge on its way to the body)
     const bridge = rad ? rad.bridge.map(([f, q]) => biquadLowpass(Math.min(f, 0.45 * fs), q, fs)) : [];
-    const hp = biquadHighpass(this.design.strings[0].open < 40 ? 40 : 70, 0.7, fs);
+    // (the double bass: its E1 is 41 Hz, under the cello's 40 Hz corner)
+    const lowest = this.design.strings[0].open;
+    const hp = biquadHighpass(lowest < 30 ? 20 : lowest < 40 ? 40 : 70, 0.7, fs);
     const body = this.design.body;
     // design.body: the fitted envelope in place of the hand-set eq and shelf (a band at or above
     // 0.45 fs, at the lowest rates, is left out: there is nothing there for it to shape)
@@ -908,7 +980,8 @@ export class BowedCore implements InstrumentCore {
         s.held = true;
         s.startedAt = this.frame;
         s.vibPhase = this.rng() * Math.PI * 2;
-        s.vibRate = 5.2 + 0.8 * this.rng();
+        const vr = this.design.vibRate;
+        s.vibRate = vr ? vr[0] + vr[1] * this.rng() : 5.2 + 0.8 * this.rng();
         this.bowTargets(s, ev.velocity);
         if (this.dyn) this.dynTargets(s);
         s.dynApplied = this.dyn;

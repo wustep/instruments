@@ -216,6 +216,8 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
     const id = si.bowed.id;
     // the cello: from its bass side, a little below centre, the scroll against the rim light
     if (id === 'cello') return { target: [0, 0.78, 0.08], dist: 2.25, yaw: 0.62, pitch: 0.07 };
+    // the double bass: as the cello, from further back (it stands about 1.9 m to the scroll's top)
+    if (id === 'bass') return { target: [0, 1.0, 0.1], dist: 3.2, yaw: 0.62, pitch: 0.07 };
     const bm = st.bowedM.get(id);
     const c = bm ? bm.bounds.c : ([0, 0.25, 0] as Vec3);
     // the violin and viola: from the scroll's side, low enough that the instrument reads in three-quarter
@@ -246,7 +248,7 @@ const HELD = 0.42;
 type SeatIn = Pick<EnsPartIn, 'family' | 'kind' | 'bowed'>;
 export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
   const places = seatPlaces(
-    parts.map((p) => ({ family: p.family, kind: p.kind, cello: p.family === 'bowed' && p.bowed?.id === 'cello' })),
+    parts.map((p) => ({ family: p.family, kind: p.kind, cello: p.family === 'bowed' && (p.bowed?.id === 'cello' || p.bowed?.id === 'bass') })),
     aspect,
   );
   return parts.map((p, i) => {
@@ -258,14 +260,15 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
     }
     // held about where a seated player holds it, turned to its hero angle (the single instrument's
     // camera yaw); the renderer's world is mirrored in x: −x is the audience's left
-    const cello = p.family === 'bowed' && p.bowed?.id === 'cello';
+    const cello = p.family === 'bowed' && (p.bowed?.id === 'cello' || p.bowed?.id === 'bass');
+    const bass = p.family === 'bowed' && p.bowed?.id === 'bass';
     const wind = p.family !== 'bowed';
     let T: Mat4;
     if (cello) T = chain(translate(x, 0, z), rotY(face - 0.62));
     else if (p.family === 'bowed') T = chain(translate(x, HELD, z), rotY(face + 0.5));
     // (a flute or trumpet is held higher, level with the player's mouth)
     else T = chain(translate(x, HELD + 0.4, z), rotY(face - 0.3));
-    return { T, c: [x, 0, z], r: cello ? 0.45 : 0.36, top: cello ? 1.5 : wind ? HELD + 0.62 : HELD + 0.38 };
+    return { T, c: [x, 0, z], r: bass ? 0.6 : cello ? 0.45 : 0.36, top: bass ? 1.95 : cello ? 1.5 : wind ? HELD + 0.62 : HELD + 0.38 };
   });
 }
 

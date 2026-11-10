@@ -54,9 +54,9 @@ export function seatPlaces(parts: SeatKind[], aspect = 2): Place[] {
   return out;
 }
 
-const FAMILY = { piano: 'piano', violin: 'bowed', viola: 'bowed', cello: 'bowed', flute: 'wind', trumpet: 'brass' } as const;
+const FAMILY = { piano: 'piano', violin: 'bowed', viola: 'bowed', cello: 'bowed', bass: 'bowed', flute: 'wind', trumpet: 'brass' } as const;
 
 /** each part's seat (x, z) for the sound, by the lineup's instruments (a computer's wide stage) */
 export function soundSeats(lineup: { instrument: keyof typeof FAMILY; preset?: string }[]): [number, number][] {
-  return seatPlaces(lineup.map((v) => ({ family: FAMILY[v.instrument], kind: v.preset === 'upright' ? 'upright' : 'grand', cello: v.instrument === 'cello' }))).map((p) => [p.x, p.z]);
+  return seatPlaces(lineup.map((v) => ({ family: FAMILY[v.instrument], kind: v.preset === 'upright' ? 'upright' : 'grand', cello: v.instrument === 'cello' || v.instrument === 'bass' }))).map((p) => [p.x, p.z]);
 }

@@ -17,13 +17,13 @@
 // piano. With a lineup chosen by hand, the lines are matched to it by register instead: the highest
 // line to the highest instrument, and so on down.
 
-export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'flute' | 'trumpet';
-export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'flute', 'trumpet'];
+export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet';
+export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'bass', 'flute', 'trumpet'];
 
 export interface VoiceInfo {
   label: string;
   /** the engine's instrument and (pianos) preset */
-  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'flute' | 'trumpet';
+  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet';
   preset?: 'grand' | 'upright';
   /** playable range (MIDI notes) and where the instrument sings best */
   lo: number;
@@ -33,14 +33,15 @@ export interface VoiceInfo {
   poly: number;
 }
 // ranges: the engine's (packages/engine/src/core/instrument.ts INSTRUMENT_INFO); centres: the
-// middle of each instrument's usual written range (violin G3–A6, viola C3–E6, cello C2–A5, flute
-// C4–C7, trumpet F#3–D6), where a part for it mostly lies
+// middle of each instrument's usual written range (violin G3–A6, viola C3–E6, cello C2–A5, double
+// bass E1–G3 sounding, flute C4–C7, trumpet F#3–D6), where a part for it mostly lies
 export const VOICE_INFO: Record<Voice, VoiceInfo> = {
   grand: { label: 'grand piano', instrument: 'piano', preset: 'grand', lo: 21, hi: 108, centre: 60, poly: 88 },
   upright: { label: 'upright piano', instrument: 'piano', preset: 'upright', lo: 21, hi: 108, centre: 60, poly: 88 },
   violin: { label: 'violin', instrument: 'violin', lo: 55, hi: 100, centre: 74, poly: 4 },
   viola: { label: 'viola', instrument: 'viola', lo: 48, hi: 88, centre: 63, poly: 4 },
   cello: { label: 'cello', instrument: 'cello', lo: 36, hi: 81, centre: 52, poly: 4 },
+  bass: { label: 'double bass', instrument: 'bass', lo: 28, hi: 67, centre: 40, poly: 4 },
   flute: { label: 'flute', instrument: 'flute', lo: 60, hi: 96, centre: 79, poly: 1 },
   trumpet: { label: 'trumpet', instrument: 'trumpet', lo: 52, hi: 86, centre: 68, poly: 1 },
 };

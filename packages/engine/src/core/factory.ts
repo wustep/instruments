@@ -29,6 +29,7 @@ export function createCore(opts: InstrumentOptions): InstrumentCore & { process:
     case 'violin':
     case 'viola':
     case 'cello':
+    case 'bass':
       return new BowedCore({ sampleRate: opts.sampleRate, instrument: id, params: opts.params as Partial<BowedParams>, dry: opts.dry, player: opts.player });
     case 'flute':
       return new FluteCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<FluteParams>, dry: opts.dry, player: opts.player });

@@ -53,10 +53,10 @@ const VISIBLE_PRESETS = ['grand', 'upright'];
 
 /** the order instruments take in a lineup picked by hand: score order (winds, brass, strings, piano),
  *  which is also their seats from the audience's left */
-const SCORE_ORDER: Voice[] = ['flute', 'trumpet', 'violin', 'viola', 'cello', 'grand', 'upright'];
+const SCORE_ORDER: Voice[] = ['flute', 'trumpet', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
 /** how many of each one lineup may have (a tap on its button adds one, past this it has none; the
  *  routing grid adds more, up to the stage's cap) */
-const MOST: Record<Voice, number> = { flute: 2, trumpet: 2, violin: 3, viola: 2, cello: 2, grand: 2, upright: 2 };
+const MOST: Record<Voice, number> = { flute: 2, trumpet: 2, violin: 3, viola: 2, cello: 2, bass: 2, grand: 2, upright: 2 };
 const familyOf = (v: Voice) => INSTRUMENT_INFO[VOICE_INFO[v].instrument].family;
 
 export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: MidiPlayer): View {

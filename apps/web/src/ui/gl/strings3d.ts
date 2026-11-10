@@ -32,6 +32,7 @@ import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cro
 import { M, MeshBuilder, cyl, grid, lathe, spline, tube, variant, type Mat, type PaintSpec } from './mesh.ts';
 import { fholeOf } from './fholes.ts';
 import { CELLO, VIOLIN, type Outline } from './outlines.ts';
+import { BASS } from './bass-outline.ts';
 
 type P2 = [number, number];
 type RGB = [number, number, number];
@@ -88,7 +89,7 @@ interface Spec {
   vEdge: RGB;
 }
 const mm = 0.001;
-const SPEC: Record<'violin' | 'viola' | 'cello', Spec> = {
+const SPEC: Record<BowedGeom['id'], Spec> = {
   violin: {
     body: 0.356, ol: VIOLIN, rib: 0.031, archT: 0.0155, archB: 0.0145, edgeT: 3.8 * mm, over: 2.6 * mm, rE: 1.6 * mm, plateT: 2.8 * mm, ribT: 1.1 * mm,
     purf: [4 * mm, 1.2 * mm], chan: [4.6 * mm, 2.2 * mm, 0.55 * mm], rise: 22 * mm, button: 10 * mm,
@@ -113,7 +114,19 @@ const SPEC: Record<'violin' | 'viola' | 'cello', Spec> = {
     dia: [1.6 * mm, 1.3 * mm, 1.05 * mm, 0.8 * mm], wound: [true, true, true, true], grain: [1.4 * mm, 3.2 * mm], flame: 7 * mm,
     vTop: [138, 54, 22], vBack: [130, 48, 18], vEdge: [58, 20, 8],
   },
+  // a 3/4 orchestral double bass (stage-draw.ts BOWED_PLAN.bass; makers' figures): body 1110, ribs
+  // 195, top arch 30, bridge 160 high, projection 140
+  bass: {
+    body: 1.11, ol: BASS, rib: 0.195, archT: 0.03, archB: 0.006, edgeT: 7 * mm, over: 4.5 * mm, rE: 3.2 * mm, plateT: 5 * mm, ribT: 2 * mm,
+    purf: [8 * mm, 2 * mm], chan: [11 * mm, 5 * mm, 1.2 * mm], rise: 60 * mm, button: 26 * mm,
+    neck: 0.43, fbLen: 0.88, fbW: [0.044, 0.108], fbThick: 0.011, fbCrown: 0.009, bridgeH: 0.16, bridgeW: 0.14, bridgeR: 0.095, proj: 0.14, overstand: 0.03,
+    head: 0.33, pbW: 0.062, eyeW: 0.09, tail: 0.36, spreadB: 0.031, spreadN: 0.0105, neckDepth: [0.04, 0.05], stick: [0.006, 0.0041], hairW: 0.018,
+    dia: [2.7 * mm, 2.3 * mm, 1.9 * mm, 1.6 * mm], wound: [true, true, true, true], grain: [1.6 * mm, 3.6 * mm], flame: 8.5 * mm,
+    vTop: [120, 64, 30], vBack: [112, 56, 24], vEdge: [56, 24, 10],
+  },
 };
+/** standing on an endpin: the cello and the double bass */
+const standing = (id: string) => id === 'cello' || id === 'bass';
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const sstep = (a: number, b: number, x: number) => {
@@ -806,7 +819,7 @@ function paintPlate(id: string, sp: Spec, pl: Plate, holes: P2[][] | null, kind:
       };
       const ground: RGB = [212, 150, 88];
       const sweat: RGB = [64, 26, 10];
-      const cello = id === 'cello';
+      const cello = standing(id);
       if (kind === 'top') {
         // the treble upper bout: the hand in the high positions (the thumb, on the cello)
         spot(0.19 * B, -0.5 * hw, 0.085 * B, 0.07 * B, 0.36, ground, 0.8);
@@ -1362,7 +1375,7 @@ function buildScroll(mb: MeshBuilder, d: ScrollDims, wood: Mat, inside: Mat, dar
 
 // ---------------------------------------------------------------- the model
 export interface BowedModel {
-  id: 'violin' | 'viola' | 'cello';
+  id: BowedGeom['id'];
   sp: Spec;
   L: number;
   /** body → world */
@@ -1402,7 +1415,7 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   const S = B / 0.356; // the violin's scale, for small fittings
   const mb = new MeshBuilder();
   const topMb = new MeshBuilder();
-  const N = g.id === 'cello' ? 600 : 520;
+  const N = standing(g.id) ? 600 : 520;
   const pl = makePlate(sp.ol, B, N, 0);
   const plB = makePlate(sp.ol, B, N, sp.button);
   // the inside (seen only through the f-holes) needs far less
@@ -1774,7 +1787,7 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   const pegK = [3, 1, 0, 2];
   const pegSide = [1, 1, -1, -1];
   const pegEnd: Vec3[] = [];
-  const pegMat = g.id === 'cello' ? M.rosewood : M.fittings;
+  const pegMat = standing(g.id) ? M.rosewood : M.fittings;
   for (let i = 0; i < 4; i++) {
     const side = pegSide[i];
     const pk = head.peg(pegK[i]);
@@ -1839,7 +1852,7 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     }, M.fittings, { wrapV: true });
     for (const sgn of [-1, 1]) tube(mb, [[tpEnd + 0.002 * S, tpY1 + 0.0015 * S, sgn * 0.0035 * S ** 0.7], [B - 0.006 * S, ys + 0.0035 * S ** 0.6, sgn * 0.004 * S ** 0.7], [B + 0.0022 * S, sp.edgeT * 0.4, sgn * 0.003 * S ** 0.7], [B + 0.003 * S, -ribH(B) * 0.5, 0]], 0.0009 * S ** 0.6, 8, M.gut);
   }
-  if (g.id === 'cello') {
+  if (standing(g.id)) {
     // endpin: the socket (ebony, with its collar) and the steel rod (to the floor, set below)
     const yc = -ribH(B) / 2;
     mb.with(chain(translate(B, yc, 0), rotZ(-Math.PI / 2)), () =>
@@ -1868,7 +1881,7 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   // ---- placement in the world
   let T: Mat4;
   let floorY: number;
-  if (g.id === 'cello') {
+  if (standing(g.id)) {
     // standing on its endpin, leaning back towards the (absent) player
     const lean = 0.32;
     const tailY = 0.33;
@@ -1937,7 +1950,7 @@ function lathe2(mb: MeshBuilder, at: Vec3, side: number, prof: [number, number][
 function bridge(mb: MeshBuilder, id: string, sp: Spec, xb: number, yBase: number, yArch: (z: number) => number): void {
   const W = sp.bridgeW;
   const H = sp.bridgeH;
-  const cello = id === 'cello';
+  const cello = standing(id);
   // half outline, from the foot's outer bottom corner up the side, over the top, (z ≥ 0), normalised
   const half: P2[] = cello
     ? [[0.5, 0], [0.5, 0.05], [0.45, 0.12], [0.4, 0.3], [0.38, 0.5], [0.42, 0.6], [0.36, 0.65], [0.41, 0.7], [0.5, 0.8], [0.48, 0.86]]

@@ -174,6 +174,17 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     credit: 'Cello Suite No. 1 in G, BWV 1007, Prélude. Typeset by Andreas Scherer from the Schirmer edition (1916); Mutopia-2018/01/19-517; public domain.',
     sha256: 'c55a2eae5e8d2e7a9570fe7ec8325c8825656893249878b946e6a2ead288a272',
   },
+  bass: {
+    instrument: 'bass',
+    composer: 'Bach',
+    title: 'Cello Suite No. 1, Menuet II',
+    file: 'bach-bwv1007-menuet2.mid',
+    source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=517',
+    credit: 'Cello Suite No. 1 in G, BWV 1007, Menuet II, as bassists play the suites: read an octave down in solo tuning, which sounds a tone higher (here, a seventh below the cello, in A minor, from the open E). A little slower than the file. Typeset by Andreas Scherer from the Schirmer edition (1916); Mutopia-2018/01/19-517; public domain.',
+    sha256: '9c752a6b0df99982f2e9002ba9c72b3558e95f8fb9f10f7a1255a159f802e152',
+    shift: -10,
+    rate: 0.9,
+  },
   flute: {
     instrument: 'flute',
     composer: 'Bach',

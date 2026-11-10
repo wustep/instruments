@@ -6,6 +6,7 @@ import type { KeySummary, VisualFrame } from '@piano-model/engine';
 import { CC, CS, EB, GS, L1, L2, L3, R1, R2, R3, RH, TB, TBB, fingersFor } from './flute-fingering.ts';
 import { fholeOf } from './gl/fholes.ts';
 import { CELLO, VIOLIN, type Outline } from './gl/outlines.ts';
+import { BASS } from './gl/bass-outline.ts';
 
 export const INK = {
   ground: '#0e0d0b',
@@ -137,7 +138,7 @@ export class AutoScale {
 
 // ---------------------------------------------------------------- violin family
 export interface BowedGeom {
-  id: 'violin' | 'viola' | 'cello';
+  id: 'violin' | 'viola' | 'cello' | 'bass';
   L: number;
   bowLength: number;
   strings: { name: string; open: number }[];
@@ -211,7 +212,18 @@ export const BOWED_PLAN: Record<BowedGeom['id'], BowedPlan> = {
     spreadB: 0.0205, spreadN: 0.0078, bridgeW: 0.092, bridgeR: 0.066, dia: [1.6 * MM, 1.3 * MM, 1.05 * MM, 0.8 * MM], wound: [true, true, true, true],
     purf: [6.5 * MM, 1.8 * MM], hairW: 0.0145, stick: [10.2 * MM, 6.4 * MM], post: 11 * MM, bar: [10 * MM, 0.59], varnish: [138, 54, 22],
   },
+  // a 3/4 orchestral double bass (makers' figures): body 1110 (gl/bass-outline.ts, constructed),
+  // nut to the body's edge 430 (so the bridge stands 620 down the body, on the f-holes' nicks),
+  // fingerboard 880 long, 44 wide at the nut and 108 at its end, strings 31 mm apart at the bridge and
+  // 10.5 at the nut, steel-cored and wound (E 2.7 … G 1.6 mm), a heavier French bow (hair ribbon 18 mm)
+  bass: {
+    body: 1.11, ol: BASS, neck: 0.43, fbLen: 0.88, fbW: [0.044, 0.108], head: 0.33, pbW: 0.062, eyeW: 0.09,
+    spreadB: 0.031, spreadN: 0.0105, bridgeW: 0.14, bridgeR: 0.095, dia: [2.7 * MM, 2.3 * MM, 1.9 * MM, 1.6 * MM], wound: [true, true, true, true],
+    purf: [8 * MM, 2 * MM], hairW: 0.018, stick: [11.5 * MM, 7.4 * MM], post: 16 * MM, bar: [13 * MM, 0.82], varnish: [120, 64, 30],
+  },
 };
+/** the instruments that stand on an endpin (the cello, the double bass) */
+export const hasEndpin = (id: BowedGeom['id']): boolean => id === 'cello' || id === 'bass';
 type Pt = [number, number];
 export const bwClamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 export const bwSstep = (a: number, b: number, x: number) => {
@@ -392,7 +404,7 @@ export interface BowedLayout {
 /** what the drawing takes along the strings (m, from the body's neck end): the scroll's top to the end
  *  button (the cello: the first 0.16 m of its endpin, which runs on towards the floor, cut there) */
 export function bowedSpan(g: BowedGeom, p: BowedPlan): { x0: number; x1: number } {
-  return { x0: -p.neck - p.head * HEAD_PROJ - 0.003, x1: p.body + (g.id === 'cello' ? 0.16 : 0.012) };
+  return { x0: -p.neck - p.head * HEAD_PROJ - 0.003, x1: p.body + (g.id === 'bass' ? 0.2 : g.id === 'cello' ? 0.16 : 0.012) };
 }
 /**
  * The instrument in a W×H box: upright in a box taller than 1.05 × its width, lying otherwise, centred.
@@ -626,7 +638,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
 
   // ---- the fittings
   const reach = Math.max(sh.hwMax, p.pbW / 2 + 0.0098 * S ** 0.6 + 0.021 * S ** 0.62);
-  const F = mk(-p.neck - p.head * HEAD_PROJ - 0.003, B + (g.id === 'cello' ? 0.385 : 0.012), -reach, reach);
+  const F = mk(-p.neck - p.head * HEAD_PROJ - 0.003, B + (hasEndpin(g.id) ? 0.385 : 0.012), -reach, reach);
   const c = F.c;
   const ebony = (x0: number, x1: number, half: number) => {
     const gr = c.createLinearGradient(0, -half, 0, half);
@@ -804,7 +816,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
       c.stroke();
     }
   }
-  const pegCol = g.id === 'cello' ? ['rgb(40,18,10)', 'rgb(110,54,32)'] : ['rgb(16,12,10)', 'rgb(66,52,42)'];
+  const pegCol = hasEndpin(g.id) ? ['rgb(40,18,10)', 'rgb(110,54,32)'] : ['rgb(16,12,10)', 'rgb(66,52,42)'];
   for (let i = 0; i < 4; i++) {
     const aa = PEG_A[PEG_OF[i]];
     const s = PEG_SIDE[i];
@@ -886,7 +898,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
     c.lineTo(X(B + 0.003 * S), X(sg * 0.0015 * S));
     c.stroke();
   }
-  if (g.id === 'cello') {
+  if (hasEndpin(g.id)) {
     // endpin: the socket (ebony, with its collar) and the steel rod running on towards the floor
     const sock: Pt[] = [[0, 0.0175], [0.004, 0.019], [0.012, 0.017], [0.016, 0.0185], [0.022, 0.0185], [0.028, 0.012], [0.042, 0.009], [0.044, 0.0105], [0.05, 0.0105]];
     const sockP = new Path2D();
