@@ -195,9 +195,24 @@ Twelve picks of 20.75 px with 2 px gaps: 271 px, the band six took at 44 px. The
 their glyph (as the violin "vln.", clarinet "clar.", bassoon "bsn.", trumpet "tpt."); five letters at 8 px
 IBM Plex Mono with −0.05 em spacing are 20 px, inside each pick.
 
-## 2D
+## 2D (`apps/web/src/ui/timpani-draw.ts`, `timpani-plan.ts`, `vector/timpani.ts`)
 
-(see `2d/` and the 2D helper's commits)
+The set seen from behind the player, a little above (the "Standard timpani setup" photograph's view): the
+low 32″ on the left, over the keyboard's low keys, the pedals and gauges (which face the player) in view, the
+strike points nearest the eye. Built at real scale: the engine's heads standing 0.80–0.91 m (Premier,
+Yamaha TP-3300 79–82 cm, Adams 84–94 cm), in an arc 2.79 m across about the player, each kettle a
+hemisphere of its head's radius (the engine's kettle), polished copper, chrome counterhoops with 6–8 rods
+and T-handles, three struts, a base on casters, a rocking pedal, a gauge whose pointer follows the pedal.
+Each mallet falls onto its strike point at a stroke and rebounds by velocity (a streak and the ball's
+shadow on the head show its height), rests ~7 cm up. The heads show the engine's modes, each followed
+through the frames, slowed from the stroke (the head pushed down under the felt first): shaded warm/cool with
+dark nodal lines in the default style, traced as contours in the vector style (its slots: the felt green,
+the strike point red, the damping pink, the roll white). `timpaniBox()` 3.03 × 1.75 m sizes the
+Orchestra cell at the strings' px/m. `__timpani2d` test hook. Two written critiques against the photographs
+(wiry struts, antenna T-handles, edge-on gauges, an upright stick, the field fading too soon, too high a
+rebound). Review set: 66 JPEGs in `2d/` (22 of the placeholder at 9c9256f, 44 after: rest, D2 and F3
+strokes, a double stop, a roll, laptop / Pixel 7 / 390×844 in both styles, the Orchestra, close-ups of a
+head's field and the gauges and pedals); `scripts/shots-timpani-2d.mjs`.
 
 ## 3D (`apps/web/src/ui/gl/timpani3d.ts`)
 
@@ -217,7 +232,7 @@ reference sheet and the three critique cycles: `3d/README.md`; measures and sour
 
 - Engine: `packages/engine/test/timpani.test.ts` (8), golden (`timpani.json` new; the others unchanged),
   blocksize (a roll and a pedal included).
-- Web: `timpani-routing.test.ts` (7), `timpani3d.test.ts` (6), the 2D's, `vercel-paths.test.ts`.
+- Web: `timpani-routing.test.ts` (7), `timpani2d.test.ts` (14), `timpani3d.test.ts` (6), `vercel-paths.test.ts`.
 - e2e: `e2e/timpani.spec.ts` (addresses, the worklet at four rates, a double stop, its piece, the Orchestra,
   the phone picker), `timpani-3d.spec.ts`, `timpani-2d.spec.ts`, and the timpani among all twelve in
   `app.spec.ts`.
