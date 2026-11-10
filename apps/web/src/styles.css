@@ -1451,6 +1451,12 @@ figure[title] {
 .pl-lines[hidden] {
   display: none;
 }
+/* (a phone: a symphony's twelve lines in one row) */
+@media (max-width: 480px) {
+  .pl-lines .pl-line {
+    width: 28px;
+  }
+}
 .pl-line,
 .pl-pick {
   display: grid;
