@@ -2861,6 +2861,8 @@ test('the vector display: off by default; the toggle redraws every family in blu
     await page.evaluate(async ([i, m]) => {
       const a = (window as any).__piano;
       await a.setInstrument(i);
+      // (a drum sounds on only while it is rolled: a single stroke has died 20 dB by the picture)
+      if (i === 'timpani') a.setParams({ roll: 0.5 });
       a.noteOn(m, 100, 'keys');
     }, [id, midi] as const);
     await page.waitForTimeout(700);
@@ -2880,7 +2882,10 @@ test('the vector display: off by default; the toggle redraws every family in blu
     expect(px.blue, `${id}: blue lines`).toBeGreaterThan(1500);
     expect(px.amber, `${id}: amber sound`).toBeGreaterThan(300);
     expect(px.lit, `${id}: lines, not fills`).toBeLessThan(0.25);
-    await page.evaluate((m) => (window as any).__piano.noteOff(m, 'keys'), midi);
+    await page.evaluate(([i, m]) => {
+      (window as any).__piano.noteOff(m, 'keys');
+      if (i === 'timpani') (window as any).__piano.setParams({ roll: 0 });
+    }, [id, midi] as const);
   }
   // each knob wears its slot colour
   const slots = await page.evaluate(() => Array.from(document.querySelectorAll('.knob')).map((k) => (k as HTMLElement).style.getPropertyValue('--slot')));
