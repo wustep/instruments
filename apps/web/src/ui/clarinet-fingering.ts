@@ -8,9 +8,9 @@
 // The chart is in written pitch (the B♭ clarinet sounds a tone lower: written = concert + 2); the engine
 // and the keyboard play concert pitch, so look a note up with clarinetFingersFor(concert midi).
 //
-// The fingers (bits): the left thumb on its ring (T) and on the register key (REG); the left hand's top
-// hole (open, no ring) and its two rings (L1–L3); the left index on the A key and the G♯ key above the
-// top hole; the left little finger on the C♯/G♯, E/B and F♯/C♯ keys; the right hand's three rings
+// The fingers (bits): the left thumb on its ring (T) and on the register key (REG); the left hand's two
+// rings and its third hole (L1–L3: the third finger's hole has no ring, as Yamaha's YCL-CSG III and
+// Selmer's Signet show it); the left index on the A key and the G♯ key above the top hole; the left little finger on the C♯/G♯, E/B and F♯/C♯ keys; the right hand's three rings
 // (R1–R3), its index on the side E♭/B♭ key; the right little finger on the F/C, E/B and A♭/E♭ keys.
 export const T = 1;
 export const REG = 2;
