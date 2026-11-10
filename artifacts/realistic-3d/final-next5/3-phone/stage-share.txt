@@ -1,0 +1,30 @@
+== 390×844
+  grand    before stage 390×468  box 250×302 px  height  64 %  width  64 %  area  41 %  camera 8.55 m
+  grand    after  stage 390×444  box 301×381 px  height  86 %  width  77 %  area  66 %  camera 6.66 m
+  upright  before stage 390×468  box 294×262 px  height  56 %  width  75 %  area  42 %  camera 6.30 m
+  upright  after  stage 390×444  box 359×368 px  height  83 %  width  92 %  area  76 %  camera 4.50 m
+  cello    before stage 390×468  box 141×327 px  height  70 %  width  36 %  area  25 %  camera 5.06 m
+  cello    after  stage 390×444  box 164×381 px  height  86 %  width  42 %  area  36 %  camera 4.11 m
+  violin   before stage 390×468  box 298×273 px  height  58 %  width  76 %  area  45 %  camera 2.24 m
+  violin   after  stage 390×444  box 359×329 px  height  74 %  width  92 %  area  68 %  camera 1.82 m
+  viola    before stage 390×468  box 293×247 px  height  53 %  width  75 %  area  40 %  camera 2.48 m
+  viola    after  stage 390×444  box 359×303 px  height  68 %  width  92 %  area  63 %  camera 1.98 m
+  flute    before stage 390×468  box 368× 54 px  height  11 %  width  94 %  area  11 %  camera 1.96 m
+  flute    after  stage 390×444  box 359× 54 px  height  12 %  width  92 %  area  11 %  camera 1.90 m
+  trumpet  before stage 390×468  box 346× 93 px  height  20 %  width  89 %  area  18 %  camera 1.73 m
+  trumpet  after  stage 390×444  box 359× 95 px  height  21 %  width  92 %  area  20 %  camera 1.58 m
+== 390×664
+  grand    before stage 390×288  box 252×327 px  height 114 %  width  65 %  area  74 %  camera 5.26 m  CUT OFF  top under the file player
+  grand    after  stage 390×264  box 166×208 px  height  79 %  width  43 %  area  33 %  camera 7.19 m
+  upright  before stage 390×288  box 296×263 px  height  91 %  width  76 %  area  70 %  camera 3.88 m  CUT OFF  top under the file player
+  upright  after  stage 390×264  box 231×208 px  height  79 %  width  59 %  area  47 %  camera 4.54 m
+  cello    before stage 390×288  box 140×326 px  height 113 %  width  36 %  area  41 %  camera 3.11 m  CUT OFF  top under the file player
+  cello    after  stage 390×264  box  89×208 px  height  79 %  width  23 %  area  18 %  camera 4.51 m
+  violin   before stage 390×288  box 317×280 px  height  97 %  width  81 %  area  79 %  camera 1.38 m  top under the file player
+  violin   after  stage 390×264  box 224×208 px  height  79 %  width  57 %  area  45 %  camera 1.74 m
+  viola    before stage 390×288  box 311×252 px  height  87 %  width  80 %  area  70 %  camera 1.53 m  top under the file player
+  viola    after  stage 390×264  box 246×208 px  height  79 %  width  63 %  area  50 %  camera 1.74 m
+  flute    before stage 390×288  box 369× 54 px  height  19 %  width  95 %  area  18 %  camera 1.20 m
+  flute    after  stage 390×264  box 359× 55 px  height  21 %  width  92 %  area  19 %  camera 1.13 m
+  trumpet  before stage 390×288  box 346× 95 px  height  33 %  width  89 %  area  29 %  camera 1.06 m
+  trumpet  after  stage 390×264  box 359× 94 px  height  36 %  width  92 %  area  33 %  camera 0.94 m

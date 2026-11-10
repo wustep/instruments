@@ -36,6 +36,8 @@
   --radius: 4px;
   --kbd-h: clamp(118px, 17vh, 168px);
   --fall-h: 62px;
+  /* the keys' position strip (only where the keys do not all fit: see .keymap) */
+  --pos-h: 0px;
   color-scheme: dark;
 }
 
@@ -171,7 +173,7 @@ main {
   min-height: 0;
 }
 :root[data-route='stage'] main {
-  height: calc(100dvh - 38px - var(--fall-h) - var(--kbd-h));
+  height: calc(100dvh - 38px - var(--fall-h) - var(--pos-h) - var(--kbd-h));
   min-height: 300px;
 }
 .stage {
@@ -646,6 +648,101 @@ main {
   border-radius: 50%;
   background: var(--ref);
 }
+/* a touch screen has no computer keyboard: its letters stay off the keys, and each C's name takes
+   their line (they come back with the first key played on a keyboard that is plugged in) */
+@media (hover: none) and (pointer: coarse) {
+  :root:not([data-hardkeys]) .key .lbl {
+    display: none;
+  }
+  :root:not([data-hardkeys]) .key .cname {
+    bottom: 12px;
+  }
+}
+
+/* ------------------------------------------------------------ the keys' position strip */
+/* Where the keys do not all fit (a phone, a narrow window, a touch screen: its keys stay a finger
+   wide), all 88 in miniature over them, with a window on the ones in view. Dragging on the strip
+   slides the keys; a drag on the keys themselves stays a glissando. Notes light here too, so one off
+   the screen's edge is still seen. */
+.keymap {
+  display: none;
+  position: relative;
+  height: var(--pos-h);
+  background: linear-gradient(180deg, #0b0907, #050403);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.keymap.dragging {
+  cursor: grabbing;
+}
+.keymap:focus-visible {
+  outline-offset: -2px;
+}
+.km-track {
+  position: absolute;
+  left: var(--gutter);
+  right: var(--gutter);
+  top: 6px;
+  bottom: 6px;
+  pointer-events: none;
+}
+.km-keys {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.km-w {
+  fill: #d8cdb8;
+}
+.km-b {
+  fill: #0b0907;
+}
+.km-w.out {
+  fill: #6f6758;
+}
+.km-k.on {
+  fill: var(--accent);
+}
+.km-shade {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.km-lens {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--l, 0%);
+  width: var(--w, 100%);
+  box-shadow: 0 0 0 100vmax rgba(5, 4, 3, 0.62);
+}
+.km-win {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: var(--l, 0%);
+  width: var(--w, 100%);
+  border: 1px solid var(--brass);
+  border-radius: 3px;
+  box-shadow: 0 0 6px rgba(201, 163, 92, 0.25);
+}
+.keymap.dragging .km-win {
+  border-color: #f0d89c;
+}
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1559px) {
+  :root {
+    --pos-h: 24px;
+  }
+  .keymap {
+    display: block;
+  }
+  .keyboard {
+    min-width: 1560px;
+  }
+}
 
 /* ------------------------------------------------------------ text pages (measurements, notes) */
 :root:not([data-route='stage']) main {
@@ -719,7 +816,8 @@ code {
     height: 34px;
   }
   :root[data-route='stage'] main {
-    height: calc(100dvh - 34px - var(--fall-h) - var(--kbd-h));
+    /* the 6 px is the keyboard's bottom padding: the page does not scroll */
+    height: calc(100dvh - 34px - var(--fall-h) - var(--pos-h) - var(--kbd-h) - 6px);
   }
   .stage-top {
     flex-wrap: wrap;
@@ -786,9 +884,6 @@ code {
   :root[data-knobs] .knobs {
     display: flex;
   }
-  .keyboard {
-    min-width: 1560px;
-  }
 }
 /* the narrowest phones (320 px): three pedals, the octave and the knob toggle still fit the bar */
 @media (max-width: 360px) {
@@ -815,7 +910,7 @@ code {
   }
   :root[data-route='stage'] main {
     /* the 6 px is the keyboard's bottom padding */
-    height: calc(100dvh - 24px - var(--fall-h) - var(--kbd-h) - 6px);
+    height: calc(100dvh - 24px - var(--fall-h) - var(--pos-h) - var(--kbd-h) - 6px);
     min-height: 0;
   }
   .stage-top {
@@ -907,6 +1002,16 @@ code {
   }
   :root[data-knobs] .knobs {
     display: flex;
+  }
+}
+/* (sideways, the position strip is thinner: the stage keeps its height) */
+@media (max-height: 500px) and (orientation: landscape) and (pointer: coarse), (max-height: 500px) and (orientation: landscape) and (max-width: 760px) {
+  :root {
+    --pos-h: 18px;
+  }
+  .km-track {
+    top: 4px;
+    bottom: 4px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1531,14 +1636,6 @@ figure[title] {
 .pl-bar[hidden] {
   display: none;
 }
-/* phones: the overlay is how a piece or a file starts, so a fingertip's target */
-@media (pointer: coarse) {
-  .pl-btn {
-    width: 36px;
-    height: 36px;
-    padding: 8px;
-  }
-}
 :root:not([data-route='stage']) .player {
   display: none;
 }
@@ -1562,6 +1659,15 @@ figure[title] {
   width: 100%;
   height: 100%;
   fill: currentColor;
+}
+/* phones: the overlay is how a piece or a file starts, so a fingertip's target (after the rule
+   above: before it, the 28 px won) */
+@media (pointer: coarse) {
+  .pl-btn {
+    width: 36px;
+    height: 36px;
+    padding: 8px;
+  }
 }
 .pl-bar {
   position: relative;

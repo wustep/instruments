@@ -16,7 +16,9 @@ README does not claim it is live. `vercel.json` makes this a static build
 * **Play.** Use the computer keyboard (`A`…`'`, with `Z`/`X` for octave and `C`/`V`
   for velocity), the on-screen keyboard (strike nearer the front of a key to play
   louder) or a MIDI keyboard. MIDI devices can be plugged in while the page is
-  open.
+  open. On a phone the keys carry no letters and stay a finger wide: a thin
+  strip over them shows all 88 with a window on the ones in view, and dragging
+  it slides the keys (a drag on the keys themselves is a glissando).
 * **Controllers and pedals.**
   * **Sustain (CC64)** is continuous, so half-pedalling works.
   * **Una corda (CC67)** and **sostenuto (CC66)** apply to the piano.

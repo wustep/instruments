@@ -293,6 +293,167 @@ test('layout fits the viewport (no horizontal page scroll) and keys respond to t
   expect(notes).toBeGreaterThanOrEqual(1);
 });
 
+test('phone keys: no computer-key letters on touch; a thin strip of all 88 keys over them, its window the keys in view, slides them; a drag on the keys is still a glissando', async ({ page, context }, info) => {
+  await page.goto('/');
+  const strip = page.locator('.keymap');
+  const letter = page.locator('.key[data-midi="60"] .lbl');
+  if (info.project.name !== 'phone') {
+    // a wide window shows all 88 keys (no strip), and a computer has its letters
+    await expect(strip).toBeHidden();
+    await expect(letter).toHaveText('A');
+    await expect(letter).toBeVisible();
+    // a narrow window: the keys no longer all fit, so the strip is there; the letters stay
+    const vp = page.viewportSize()!;
+    await page.setViewportSize({ width: 700, height: 900 });
+    await expect(strip).toBeVisible();
+    await expect(letter).toBeVisible();
+    await page.setViewportSize(vp);
+    return;
+  }
+  await startAudio(page);
+  // touch: the letters are off the keys; each C keeps its name
+  await expect(letter).toBeHidden();
+  await expect(page.locator('.key[data-midi="60"] .cname')).toBeVisible();
+  // the strip: a scrollbar for the keys, with no tooltip (like the file player's position line)
+  await expect(strip).toBeVisible();
+  expect(await strip.locator('.km-k').count()).toBe(88);
+  await expect(strip).toHaveAttribute('role', 'scrollbar');
+  await expect(strip).toHaveAttribute('aria-label', /position/i);
+  expect(await strip.getAttribute('data-tip')).toBeNull();
+  const geo = () =>
+    page.evaluate(() => {
+      const r = (q: string) => document.querySelector(q)!.getBoundingClientRect();
+      const sc = document.querySelector('.kbd-scroll')!;
+      const tr = r('.km-track');
+      const win = r('.km-win');
+      return {
+        fall: r('.fallboard').bottom,
+        strip: { top: r('.keymap').top, bottom: r('.keymap').bottom },
+        keysTop: r('.keyboard').top,
+        left: sc.scrollLeft,
+        sw: sc.scrollWidth,
+        cw: sc.clientWidth,
+        winL: (win.left - tr.left) / tr.width,
+        winW: win.width / tr.width,
+        track: { x: tr.left, w: tr.width, y: tr.top + tr.height / 2 },
+        overY: document.documentElement.scrollHeight - window.innerHeight,
+        down: (window as any).__piano.down.size as number,
+      };
+    });
+  const g = await geo();
+  // thin, between the fallboard and the keys; the page does not scroll
+  expect(g.strip.top).toBeGreaterThanOrEqual(g.fall - 1);
+  expect(g.strip.bottom).toBeLessThanOrEqual(g.keysTop + 1);
+  expect(g.strip.bottom - g.strip.top).toBeLessThanOrEqual(26);
+  expect(g.overY).toBeLessThanOrEqual(1);
+  // its window is the keys in view
+  expect(Math.abs(g.winL - g.left / g.sw)).toBeLessThan(0.01);
+  expect(Math.abs(g.winW - g.cw / g.sw)).toBeLessThan(0.01);
+  const cdp = await context.newCDPSession(page);
+  const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', x = 0, y = 0) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
+  // a finger on the window, dragged 90 px right (and off the strip's own height): the keys slide by
+  // that share of all 88, and nothing sounds
+  const x0 = g.track.x + (g.winL + g.winW / 2) * g.track.w;
+  await touch('touchStart', x0, g.track.y);
+  for (let i = 1; i <= 6; i++) await touch('touchMove', x0 + i * 15, g.track.y - i * 6);
+  // (touch moves are delivered with the next frame)
+  await expect.poll(async () => Math.abs((await geo()).left - g.left - (90 / g.track.w) * g.sw)).toBeLessThan(4);
+  const dragged = await geo();
+  expect(Math.abs(dragged.winL - dragged.left / dragged.sw)).toBeLessThan(0.01);
+  expect(dragged.down).toBe(0);
+  await touch('touchEnd');
+  // the octave is the one now in view (its arrows carry on from there): two octaves up from C4
+  await expect(page.locator('.oct-label')).toHaveText(/^C[67]$/);
+  expect((await geo()).left).toBe(dragged.left);
+  // a tap off the window brings it under the finger: the strip's left end is the lowest keys
+  await touch('touchStart', g.track.x + 2, g.track.y);
+  await touch('touchEnd');
+  await expect.poll(async () => (await geo()).left).toBe(0);
+  // a drag across the keys themselves plays each one in turn (a glissando) and slides nothing
+  const whites = await page.evaluate(() => {
+    const out: { midi: number; x: number; y: number }[] = [];
+    for (const k of Array.from(document.querySelectorAll<HTMLElement>('.key.white'))) {
+      const r = k.getBoundingClientRect();
+      if (r.left > 20 && r.right < window.innerWidth - 20) out.push({ midi: Number(k.dataset.midi), x: r.left + r.width / 2, y: r.bottom - 24 });
+    }
+    return out.slice(0, 5);
+  });
+  expect(whites.length).toBe(5);
+  await page.evaluate(() => {
+    const w = window as any;
+    w.__ons = [];
+    w.__piano.notes.on((n: { on: boolean; midi: number }) => n.on && w.__ons.push(n.midi));
+  });
+  await touch('touchStart', whites[0].x, whites[0].y);
+  for (const k of whites.slice(1)) await touch('touchMove', k.x, k.y);
+  await expect(page.locator(`.key[data-midi="${whites[4].midi}"]`)).toHaveClass(/down/);
+  // (the strip lights the note too)
+  await expect(strip.locator('.km-k.on')).toHaveCount(1);
+  await touch('touchEnd');
+  expect(await page.evaluate(() => (window as any).__ons)).toEqual(whites.map((k) => k.midi));
+  expect((await geo()).left).toBe(0);
+  await expect(strip.locator('.km-k.on')).toHaveCount(0, { timeout: 8000 });
+  // a keyboard plugged into the phone: its first key brings the letters back (on the octave in view)
+  const letterA = page.locator('.key .lbl', { hasText: /^A$/ });
+  await expect(letterA).toBeHidden();
+  await page.keyboard.press('KeyA');
+  await expect(letterA).toBeVisible();
+});
+
+test('3D on a phone held upright: the cello and the upright fill the stage’s height, the grand is whole, all clear of the file player; a wide stage keeps its own views', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await page.locator('.dim-toggle').click();
+  await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3, null, { timeout: 30_000 });
+  const seen = () =>
+    page.evaluate(() => {
+      const s = (window as any).__stage3d;
+      const cv = s.el.getBoundingClientRect();
+      return { box: s.box() as { x0: number; y0: number; x1: number; y1: number } | null, w: cv.width, h: cv.height, over: document.querySelector('.player .pl-row')!.getBoundingClientRect().bottom - cv.top, home: s.home as { target: number[]; dist: number; yaw: number; pitch: number } };
+    });
+  const show = async (name: 'grand' | 'upright' | 'cello', yaw: number) => {
+    if (name === 'cello') await page.evaluate(() => (window as any).__piano.setInstrument('cello'));
+    else await page.locator('.presets button', { hasText: name }).click();
+    // (its own view: the bearing is that instrument's)
+    await expect.poll(async () => Math.abs((await seen()).home.yaw - yaw) < 0.2 && (await seen()).box !== null, { timeout: 15_000 }).toBe(true);
+    await page.waitForTimeout(250);
+    return seen();
+  };
+  if (info.project.name !== 'phone') {
+    // a wide stage: the scenes' own views, which crop like a photograph (the lens scales their distances)
+    const lens = Math.tan(0.3) / Math.tan((12 * Math.PI) / 180);
+    const g = await show('grand', 0.74);
+    expect(g.home.dist).toBeCloseTo(3.8 * lens, 3);
+    expect(g.home.target).toEqual([-0.12, 0.58, 1.0]);
+    const c = await show('cello', 0.62);
+    expect(c.home.dist).toBeCloseTo(2.25 * lens, 3);
+    expect(errors).toEqual([]);
+    return;
+  }
+  const whole = (v: Awaited<ReturnType<typeof seen>>, name: string) => {
+    const b = v.box!;
+    expect(b.x0, `${name}: left`).toBeGreaterThanOrEqual(0);
+    expect(b.x1, `${name}: right`).toBeLessThanOrEqual(v.w);
+    expect(b.y1, `${name}: bottom`).toBeLessThanOrEqual(v.h);
+    // under the file player's row, not behind it
+    expect(b.y0, `${name}: top`).toBeGreaterThanOrEqual(v.over);
+    return { fill: (b.y1 - b.y0) / v.h, free: (b.y1 - b.y0) / (v.h - v.over), width: (b.x1 - b.x0) / v.w };
+  };
+  // the grand: all of it, the lid's tip and the casters too (it is taller than the stage is wide)
+  const grand = whole(await show('grand', 0.74), 'grand');
+  expect(grand.fill).toBeGreaterThan(0.8);
+  // the upright, turned further round its treble end: as tall as the stage that is free, edge to edge
+  const upright = whole(await show('upright', 0.8), 'upright');
+  expect(upright.free).toBeGreaterThan(0.9);
+  expect(upright.width).toBeGreaterThan(0.9);
+  // the cello: scroll to endpin, the free height of the stage
+  const cello = whole(await show('cello', 0.62), 'cello');
+  expect(cello.free).toBeGreaterThan(0.93);
+  expect(cello.fill).toBeGreaterThan(0.8);
+  test.info().annotations.push({ type: 'portrait framing', description: JSON.stringify({ grand, upright, cello }) });
+  expect(errors).toEqual([]);
+});
+
 test('the picker: the ring on the selected instrument is whole, on every instrument, upright and sideways', async ({ page }, info) => {
   const vp = page.viewportSize()!;
   // this project's viewport (desktop, or a phone held upright) and a phone held sideways

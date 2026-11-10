@@ -1267,6 +1267,8 @@ export interface BowedModel {
   bowPose: { dir: Vec3; up: Vec3; contact: Vec3; t: number } | null;
   /** the hair as posed last (world: frog end, tip end) and the contact point along it (0…1) */
   bowLine: { a: Vec3; b: Vec3; pos: number } | null;
+  /** the bow at the middle of its hair (the stage frames the instrument with it there: fit3d.ts) */
+  bowFit?: { mesh: Mesh; m: Mat4 };
 }
 
 export function buildBowedModel(g: BowedGeom): BowedModel {
@@ -2279,14 +2281,29 @@ export function poseBowed(b: Batch, bm: BowedModel, fr: VisualFrame | null, str:
     bp.contact = add(bp.contact, scale(sub(contact, bp.contact), k));
     bp.t = now;
   }
-  const ax = bp.dir;
-  const ay = norm(sub(bp.up, scale(ax, ax[0] * bp.up[0] + ax[1] * bp.up[1] + ax[2] * bp.up[2])));
-  const az = cross(ax, ay);
-  const origin = sub(add(bp.contact, scale(ay, 0.0012)), scale(ax, pos * bm.hairLen));
-  const Bm = new Float32Array([ax[0], ax[1], ax[2], 0, ay[0], ay[1], ay[2], 0, az[0], az[1], az[2], 0, origin[0], origin[1], origin[2], 1]);
+  /** the bow's frame: the hair along `dir`, the point `along` it (0 the frog … 1 the tip) on `contact` */
+  const bowFrame = (dir: Vec3, up: Vec3, contact: Vec3, along: number) => {
+    const ax = dir;
+    const ay = norm(sub(up, scale(ax, ax[0] * up[0] + ax[1] * up[1] + ax[2] * up[2])));
+    const az = cross(ax, ay);
+    const origin = sub(add(contact, scale(ay, 0.0012)), scale(ax, along * bm.hairLen));
+    return { ax, origin, m: new Float32Array([ax[0], ax[1], ax[2], 0, ay[0], ay[1], ay[2], 0, az[0], az[1], az[2], 0, origin[0], origin[1], origin[2], 1]) };
+  };
+  const { ax, origin, m: Bm } = bowFrame(bp.dir, bp.up, bp.contact, pos);
   const bowM = mul(T, Bm);
   bm.bowLine = { a: W(origin), b: W(add(origin, scale(ax, bm.hairLen))), pos };
   b.mesh(bm.bow, bowM, bow?.changing ? [0.95, 0.65, 0.27, 0.3] : null);
+  if (b.wantFit) {
+    // Framed with the bow lying across the second string at the middle of its hair (where it rests
+    // until the first note), wherever a stroke has carried it since: the picture is the same whenever
+    // the instrument is asked for. At a stroke's ends the bow runs out of a narrow picture.
+    if (!bm.bowFit) {
+      const d1 = norm([0, -bm.zB[1] / sp.bridgeR, 1]);
+      bm.bowFit = { mesh: bm.bow, m: mul(T, bowFrame(d1, norm(cross(d1, [1, 0, 0])), at(1, bm.xb - 0.1 * bm.L), 0.5).m) };
+    }
+    b.noFit.add(bm.bow);
+    b.fitAlso.push(bm.bowFit);
+  }
   if (bow && bowedIdx >= 0) {
     const c = W(contact);
     const n = norm(xdir(T, upL));

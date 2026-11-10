@@ -1814,6 +1814,10 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
   if (cv > 0) {
     for (const s of pm.cases) b.mesh(s, null, caseGlow);
     if (pm.desk) b.mesh(pm.desk, null, caseGlow);
+  } else if (b.wantFit) {
+    // hidden, the case still counts in the framing: the picture is the same when it comes back
+    for (const s of pm.cases) b.fitAlso.push({ mesh: s, m: null });
+    if (pm.desk) b.fitAlso.push({ mesh: pm.desk, m: null });
   }
   b.mesh(pm.board);
   const grand = pm.kind === 'grand';
@@ -1913,13 +1917,18 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
     b.mesh(p.mesh, aboutX(MS[3], p.pivot[1], p.pivot[2], -0.12 * v), pm.pedalsCase && caseGlow ? caseGlow : v > 0.3 ? PEDAL_GLOW : null);
   });
   // the lid on its hinge, and its prop
-  if (pm.lid && cv > 0) {
+  if (pm.lid && (cv > 0 || b.wantFit)) {
     const ang = si.lid * 0.7;
     const h = pm.lidHinge;
     const c = Math.cos(ang);
     const s = Math.sin(ang);
     // rotation about the z-parallel axis through the hinge
     const lidM = new Float32Array([c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, h[0] - (c * h[0] - s * h[1]), h[1] - (s * h[0] + c * h[1]), 0, 1]);
+    if (cv <= 0) {
+      // (hidden with the case: framed all the same)
+      b.fitAlso.push({ mesh: pm.lid, m: lidM });
+      return;
+    }
     b.mesh(pm.lid, lidM, caseGlow);
     // open far enough to see under, and not in a key's close-up section (which cuts the scene)
     if (pm.lidMirror && si.lid > 0.08 && !si.lite && !si.cut) b.mirrors.push({ m: lidM, poly: pm.lidMirror.poly, y: pm.lidMirror.y, k: cv, body: pm.lid });
