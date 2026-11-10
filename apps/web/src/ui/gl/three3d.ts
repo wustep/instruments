@@ -54,6 +54,9 @@ interface Entry {
   im: THREE.InstancedMesh;
   glow: THREE.InstancedBufferAttribute;
   cap: number;
+  /** a moving surface (Mesh.dyn): each drawn vertex's own vertex in the mesh, and the count last uploaded */
+  src?: Uint32Array;
+  ver?: number;
 }
 
 const FINAL_FS = /* glsl */ `
@@ -368,12 +371,14 @@ export class Renderer3 {
     const cap = Math.max(need, e ? e.cap * 2 : need);
     let geo: THREE.BufferGeometry;
     let mats: THREE.Material[];
+    let src = e?.src;
+    const ver = e ? e.ver : m.dyn;
     if (e) {
       geo = e.im.geometry;
       mats = e.im.material as THREE.Material[];
       this.root.remove(e.im);
       e.im.dispose();
-    } else ({ geo, mats } = toGeometry(m, this.lite));
+    } else ({ geo, mats, src } = toGeometry(m, this.lite));
     const glow = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4);
     glow.setUsage(THREE.DynamicDrawUsage);
     geo.setAttribute('iGlow', glow);
@@ -384,7 +389,7 @@ export class Renderer3 {
     im.receiveShadow = true;
     if (m.fade) im.customDepthMaterial = fadeDepthMaterial();
     this.root.add(im);
-    e = { im, glow, cap };
+    e = { im, glow, cap, src: m.dyn !== undefined ? src : undefined, ver };
     this.entries.set(m, e);
     return e;
   }
@@ -445,6 +450,27 @@ export class Renderer3 {
       const e = this.entry(m, n);
       used.add(m);
       const im = e.im;
+      // a moving surface: its new positions and normals
+      if (m.dyn !== undefined && e.src && e.ver !== m.dyn) {
+        e.ver = m.dyn;
+        const pa = im.geometry.getAttribute('position') as THREE.BufferAttribute;
+        const na = im.geometry.getAttribute('normal') as THREE.BufferAttribute;
+        const P = pa.array as Float32Array;
+        const N = na.array as Float32Array;
+        const d = m.data;
+        const src = e.src;
+        for (let o = 0; o < src.length; o++) {
+          const q = src[o] * 14;
+          P[o * 3] = d[q];
+          P[o * 3 + 1] = d[q + 1];
+          P[o * 3 + 2] = d[q + 2];
+          N[o * 3] = d[q + 3];
+          N[o * 3 + 1] = d[q + 4];
+          N[o * 3 + 2] = d[q + 5];
+        }
+        pa.needsUpdate = true;
+        na.needsUpdate = true;
+      }
       const A = im.instanceMatrix.array as Float32Array;
       const G = e.glow.array as Float32Array;
       for (let i = 0; i < n; i++) {
@@ -813,7 +839,7 @@ export class Renderer3 {
 }
 
 /** a mesh's triangles grouped by material: position, normal, uv and the part's own coordinates */
-function toGeometry(m: Mesh, lite: boolean): { geo: THREE.BufferGeometry; mats: THREE.Material[] } {
+function toGeometry(m: Mesh, lite: boolean): { geo: THREE.BufferGeometry; mats: THREE.Material[]; src: Uint32Array } {
   const n = m.count;
   const d = m.data;
   const ids = m.mats ?? new Uint16Array(n);
@@ -829,6 +855,7 @@ function toGeometry(m: Mesh, lite: boolean): { geo: THREE.BufferGeometry; mats: 
   const nrm = new Float32Array(n * 3);
   const uv = new Float32Array(n * 2);
   const lc = new Float32Array(n * 3);
+  const src = new Uint32Array(n);
   const geo = new THREE.BufferGeometry();
   const mats: THREE.Material[] = [];
   let o = 0;
@@ -848,6 +875,7 @@ function toGeometry(m: Mesh, lite: boolean): { geo: THREE.BufferGeometry; mats: 
       for (const k of order) {
         const v = t + k;
         const s = v * 14;
+        src[o] = v;
         pos[o * 3] = d[s];
         pos[o * 3 + 1] = d[s + 1];
         pos[o * 3 + 2] = d[s + 2];
@@ -875,7 +903,8 @@ function toGeometry(m: Mesh, lite: boolean): { geo: THREE.BufferGeometry; mats: 
   geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
   geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   geo.setAttribute('aLoc', new THREE.BufferAttribute(lc, 3));
-  return { geo, mats };
+  if (m.dyn !== undefined) for (const a of ['position', 'normal']) (geo.getAttribute(a) as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
+  return { geo, mats, src };
 }
 
 /** camera-facing ribbons (the old line shader), hidden where the scene is nearer. Over the

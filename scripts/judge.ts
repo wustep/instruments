@@ -15,6 +15,8 @@ export interface NoteErr {
   midi: number;
   /** signed errors (model − recording) per measure, in that measure's units */
   errs: Record<string, number>;
+  /** held out of the fit (the timpani: drums 2 and 4); absent, by pitch (odd MIDI notes) */
+  held?: boolean;
 }
 export interface Measure {
   name: string;
@@ -36,8 +38,9 @@ const sd = (xs: number[]) => {
   const m = mean(xs);
   return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / Math.max(1, xs.length - 1));
 };
-/** notes alternate between halves by pitch, per instrument and dynamic */
-export const isHeldOut = (n: NoteErr) => n.midi % 2 === 1;
+/** notes alternate between halves by pitch, per instrument and dynamic (or as the note says: the
+ *  timpani's recordings are five drums, two of them held out) */
+export const isHeldOut = (n: NoteErr) => n.held ?? n.midi % 2 === 1;
 
 function score(n: NoteErr, ms: Measure[]): number {
   const zs = ms.map((m) => Math.abs(n.errs[m.name]) / m.spread).filter(Number.isFinite);
@@ -140,8 +143,20 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2);
   const opt = (k: string) => (args.includes(k) ? args[args.indexOf(k) + 1] : undefined);
   const inst = (opt('--instrument') ?? 'violin').split(',');
-  const { compareAll, useEngine, harmErr } = await import('./calibrate-ensemble.ts');
   const { resolve } = await import('node:path');
+  if (inst[0] === 'timpani') {
+    // the timpani: struck strokes against VSCO 2 CE (scripts/calibrate-timpani.ts)
+    const t = await import('./calibrate-timpani.ts');
+    await t.useEngine(opt('--before') ? resolve(opt('--before')!) : undefined);
+    const before = t.timpaniErrors(t.compareAll());
+    await t.useEngine(opt('--after') ? resolve(opt('--after')!) : undefined);
+    const after = t.timpaniErrors(t.compareAll());
+    const v = judge(before.errs, after.errs, before.measures);
+    printVerdict(v, `timpani: ${opt('--before') ? 'before' : 'this'} → ${opt('--after') ?? 'this checkout'}`);
+    if (args.includes('--json')) console.log(JSON.stringify(v));
+    process.exit(0);
+  }
+  const { compareAll, useEngine, harmErr } = await import('./calibrate-ensemble.ts');
   const run = async (engine?: string) => {
     await useEngine(engine ? resolve(engine) : undefined);
     return compareAll({ only: inst as never });

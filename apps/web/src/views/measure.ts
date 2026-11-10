@@ -95,6 +95,15 @@ export function measureView(): View {
     } catch {
       /* strings/flute data optional */
     }
+    try {
+      const t: Timp = await (await fetch('/data/timpani.json')).json();
+      const at = root.querySelector('.listen-section');
+      const sec = timpaniSection(t);
+      if (at) root.insertBefore(sec, at);
+      else root.append(sec);
+    } catch {
+      /* timpani data optional */
+    }
   })();
   return { el: root, dock: false };
 }
@@ -405,6 +414,141 @@ function ensembleSection(e: Ens): HTMLElement {
     { class: 'ensemble' },
     h('h2', {}, 'Strings and woodwinds against recordings'),
     h('p', { class: 'hint', style: 'margin-top:8px' }, `Iowa MIS anechoic · ${insts.map((i) => `${e.summary[i].notes} ${i}`).join(', ')} notes · same notes, dry, same analysis`),
+    tiles,
+    figs,
+  );
+}
+
+interface TimpStroke {
+  f11: number;
+  ratios: number[];
+  levels: number[];
+  decay11: number;
+  decay21: number;
+  ring: number;
+  centroid: number;
+  attack: number;
+  level: number;
+  bands: number[];
+}
+interface Timp {
+  generated: string;
+  reference: string;
+  thirdOct: number[];
+  summary: Record<string, number>;
+  strokes: { drum: number; dyn: Dyn; rr: number; held: boolean; midi: number; ref: TimpStroke; model: TimpStroke }[];
+}
+
+/** the timpani against the VSCO 2 CE strokes: each stroke's spectrum, brightness and partials, model and recording */
+function timpaniSection(t: Timp): HTMLElement {
+  const lx = (f: number) => Math.log2(f / 1000);
+  const fName = (x: number) => {
+    const f = 1000 * Math.pow(2, x);
+    return f >= 1000 ? `${+(f / 1000).toFixed(1)} kHz` : `${Math.round(f)} Hz`;
+  };
+  const leg = () =>
+    legend([
+      { name: 'recording', color: 'ref', kind: 'dot' },
+      { name: 'model', color: 'model', kind: 'line' },
+    ]);
+  const dyns: Dyn[] = ['pp', 'mf', 'ff'];
+  const figs = h('div', { class: 'figs' });
+  // the first second's spectrum, by dynamic (a power mean over the strokes)
+  {
+    const grid = h('div', { class: 'ens-grid' });
+    for (const d of dyns) {
+      const ss = t.strokes.filter((x) => x.dyn === d);
+      if (!ss.length) continue;
+      const mean = (k: 'ref' | 'model') => t.thirdOct.map((_, b) => 10 * Math.log10(ss.reduce((a, x) => a + Math.pow(10, x[k].bands[b] / 10), 0) / ss.length));
+      const pts = (a: number[]) => t.thirdOct.map((f, b) => ({ x: lx(f), y: f >= 63 && f <= 8000 ? a[b] : NaN }));
+      grid.append(
+        chart({
+          title: `${d} · ${ss.length} strokes`,
+          x: { label: 'frequency', min: lx(55), max: lx(9000), ticks: [lx(100), lx(300), lx(1000), lx(3000)], fmt: fName },
+          y: { label: 'dB', min: -60, max: 0, ticks: [-60, -40, -20, 0], fmt: (v) => String(v) },
+          series: [
+            { name: 'recording', color: 'ref', kind: 'dots', points: pts(mean('ref')), fmt: (v) => `${fmt(v, 1)} dB` },
+            { name: 'model', color: 'model', kind: 'line', points: pts(mean('model')), fmt: (v) => `${fmt(v, 1)} dB` },
+          ],
+          xName: fName,
+          width: 300,
+          height: 200,
+        }),
+      );
+    }
+    figs.append(
+      fig(
+        'A stroke’s spectrum',
+        'third-octave level of the first second after the stroke, re the loudest band, by dynamic',
+        [leg(), grid],
+        'The recordings are a room’s (the close and room microphones summed), the model dry; below 100 Hz the recordings carry the room’s rumble. A soft stroke is little but the (1,1) and (2,1) modes; a loud one brings out the partials above and the clatter of the mallet’s core.',
+        true,
+      ),
+    );
+  }
+  // brightness and the (2,1) against the (1,1), stroke by stroke
+  {
+    const grid = h('div', { class: 'ens-grid' });
+    const xs = { label: 'principal tone', min: 40.5, max: 56, ticks: [41, 45, 48, 52, 55], fmt: (m: number) => midiName(Math.round(m)) };
+    const by = (k: 'ref' | 'model', f: (s: TimpStroke) => number, d: Dyn) => t.strokes.filter((x) => x.dyn === d).map((x) => ({ x: x.midi + (k === 'model' ? 0.12 : 0), y: f(x[k]) }));
+    for (const d of dyns)
+      grid.append(
+        chart({
+          title: `brightness · ${d}`,
+          x: xs,
+          y: { label: 'Hz', min: 50, max: 600, ticks: [100, 200, 300, 400, 500], fmt: (v) => String(v) },
+          series: [
+            { name: 'recording', color: 'ref', kind: 'dots', points: by('ref', (s) => s.centroid, d), fmt: (v) => `${fmt(v, 0)} Hz` },
+            { name: 'model', color: 'model', kind: 'dots', points: by('model', (s) => s.centroid, d), fmt: (v) => `${fmt(v, 0)} Hz` },
+          ],
+          xName: (m) => midiName(Math.round(m)),
+          width: 300,
+          height: 180,
+        }),
+      );
+    for (const d of dyns)
+      grid.append(
+        chart({
+          title: `(2,1) re (1,1) · ${d}`,
+          x: xs,
+          y: { label: 'dB', min: -30, max: 12, ticks: [-24, -12, 0, 12], fmt: (v) => String(v) },
+          series: [
+            { name: 'recording', color: 'ref', kind: 'dots', points: by('ref', (s) => s.levels[0], d), fmt: (v) => `${fmt(v, 1)} dB` },
+            { name: 'model', color: 'model', kind: 'dots', points: by('model', (s) => s.levels[0], d), fmt: (v) => `${fmt(v, 1)} dB` },
+          ],
+          xName: (m) => midiName(Math.round(m)),
+          width: 300,
+          height: 180,
+        }),
+      );
+    figs.append(
+      fig(
+        'Brightness and the partials, by dynamic',
+        'spectral centroid of the first 0.3 s; the (2,1) mode’s level against the principal tone’s over 0.05–0.55 s; each stroke',
+        [leg(), grid],
+        'Struck harder, a kettledrum is brighter and its (2,1) mode comes up beside the (1,1): the mallet’s contact shortens (6.6 ms at pp, 3.7–4.9 ms at ff) and, loud, its felt bottoms out on the core. Drums 2 and 4 (B2, E3) were held out of the fit.',
+        true,
+      ),
+    );
+  }
+  const sm = t.summary;
+  const med = (f: (x: Timp['strokes'][0]) => number) => {
+    const v = t.strokes.map(f).filter(Number.isFinite).sort((a, b) => a - b);
+    return v[Math.floor(v.length / 2)];
+  };
+  const tiles = h(
+    'div',
+    { class: 'tiles' },
+    tile(`×${fmt(med((x) => x.model.centroid / x.ref.centroid), 2)}`, 'brightness, model / recording'),
+    tile(`×${fmt(med((x) => x.model.decay11 / x.ref.decay11), 2)}`, '(1,1) decay rate, model / recording'),
+    tile(`${fmt(sm.partials, 1)} dB`, 'the (2,1)–(4,1) levels, RMS'),
+    tile(`${fmt(sm.modes, 0)} ¢`, 'their frequencies, RMS'),
+  );
+  return h(
+    'section',
+    { class: 'ensemble timpani' },
+    h('h2', {}, 'Timpani against recordings'),
+    h('p', { class: 'hint', style: 'margin-top:8px' }, `VSCO 2 CE (CC0), a room · ${t.strokes.length} strokes on five pedal drums, pp/mf/ff · same pitch, dry, same analysis`),
     tiles,
     figs,
   );

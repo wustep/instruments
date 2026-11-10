@@ -1,6 +1,6 @@
 // Which instrument plays which line of a MIDI file. Pure (no DOM, no audio), so it is tested fast.
 //
-// A voice is one of the eleven instruments on the stage. Keyboard voices (the grand, the upright) take
+// A voice is one of the twelve instruments on the stage. Keyboard voices (the grand, the upright) take
 // any number of lines on one instrument (two hands, a continuo); every other line gets an instrument
 // of its own (violin I and violin II are two violins), until the stage is full, when the busiest
 // lines keep theirs and the rest join a like instrument (a section: the bowed strings play double
@@ -17,13 +17,13 @@
 // piano; a line that goes below the cello's C is a bass line (the double bass is a candidate for it). With a lineup chosen by hand, the lines are matched to it by register instead: the highest
 // line to the highest instrument, and so on down.
 
-export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet';
-export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet'];
+export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'timpani';
+export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'timpani'];
 
 export interface VoiceInfo {
   label: string;
   /** the engine's instrument and (pianos) preset */
-  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet';
+  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'timpani';
   preset?: 'grand' | 'upright';
   /** playable range (MIDI notes) and where the instrument sings best */
   lo: number;
@@ -37,8 +37,9 @@ export interface VoiceInfo {
 // bass E1–G3 sounding, flute C4–C7, oboe B♭3–G6 (in C: written as it sounds), B♭ clarinet D3–B♭6 sounding
 // (its parts mostly G3–C6), bassoon B♭1–E5 (in C, bass and tenor clef; its parts mostly C2–G4), horn in F
 // B♭1–F5 sounding (written F2–C6, a fifth higher; its parts mostly written C4–G5: sounding F3–C5, and a
-// classical part for a horn crooked lower, in E♭ or D, sounds lower still), trumpet F#3–D6), where a part
-// for it mostly lies
+// classical part for a horn crooked lower, in E♭ or D, sounds lower still), trumpet F#3–D6), the timpani
+// C2–A3 (a set of four pedal drums; a classical pair is tuned to the tonic and the dominant, F2–D3, so its
+// parts mostly lie G2–D3; two mallets: two drums at once), where a part for it mostly lies
 export const VOICE_INFO: Record<Voice, VoiceInfo> = {
   grand: { label: 'grand piano', instrument: 'piano', preset: 'grand', lo: 21, hi: 108, centre: 60, poly: 88 },
   upright: { label: 'upright piano', instrument: 'piano', preset: 'upright', lo: 21, hi: 108, centre: 60, poly: 88 },
@@ -52,6 +53,7 @@ export const VOICE_INFO: Record<Voice, VoiceInfo> = {
   bassoon: { label: 'bassoon', instrument: 'bassoon', lo: 34, hi: 76, centre: 50, poly: 1 },
   horn: { label: 'horn', instrument: 'horn', lo: 34, hi: 77, centre: 60, poly: 1 },
   trumpet: { label: 'trumpet', instrument: 'trumpet', lo: 52, hi: 86, centre: 68, poly: 1 },
+  timpani: { label: 'timpani', instrument: 'timpani', lo: 36, hi: 57, centre: 46, poly: 2 },
 };
 export const isKeyboard = (v: Voice): boolean => v === 'grand' || v === 'upright';
 
@@ -103,6 +105,10 @@ export function voiceFromName(s: string): Voice | null {
   if (!t.trim()) return null;
   if (/contra-?bassoon|kontrafagott|contrafagotto|contrebasson/.test(t)) return 'bass';
   if (/upright(?! ?bass)|honky/.test(t)) return 'upright';
+  // the timpani: timpani/timpano, kettledrum(s), Pauke(n), timbales (French, Spanish), timballes, "Timp.",
+  // "Timb.", "Tmp.", "Pk." (a score's "Percussion (Timpani)" too; a plain "Percussion" or a drum kit is not
+  // a timpani part)
+  if (/timpan|kettle ?drum|\bpauken?\b|timbales|timballes|\btimp\.?(?![a-z])|\btimb\.?(?![a-z])|\btmp\.?(?![a-z])|\bpk\.(?![a-z])/.test(t)) return 'timpani';
   // the bassoon: bassoon(s), fagotto/-i, Fagott, basson(s), fagot (Spanish), bajón, "Bn.", "Bsn.", "Fg.",
   // "Fag." (the contrabassoon is caught above: it is not this instrument)
   if (/bassoon|fagott|\bfagot\b|\bbassons?\b|baj[oó]n|\bbsns?\.?(?![a-z])|\bbns?\.?(?![a-z])|\bfg\.?(?![a-z])|\bfag\.?(?![a-z])/.test(t)) return 'bassoon';
@@ -148,7 +154,8 @@ export function voiceFromProgram(p: number): Voice | null {
   if (p === 42) return 'cello';
   if (p === 43) return 'bass'; // contrabass
   if (p === 46) return 'grand'; // harp
-  if (p <= 55) return null; // timpani, string and voice ensembles: by range
+  if (p === 47) return 'timpani';
+  if (p <= 55) return null; // string and voice ensembles: by range
   if (p === 60) return 'horn'; // French horn
   if (p <= 63) return 'trumpet'; // brass
   if (p === 68 || p === 69) return 'oboe'; // oboe, English horn
@@ -288,7 +295,7 @@ const fits = (l: LineInfo, v: Voice): number => {
   return hi === lo ? (lo >= r.lo && lo <= r.hi ? 1 : 0) : Math.max(0, Math.min(hi, r.hi) - Math.max(lo, r.lo)) / (hi - lo);
 };
 /** can the voice hold the line's chords? (a bowed string: double stops; a wind: one note) */
-const holds = (l: LineInfo, v: Voice): boolean => l.poly <= (VOICE_INFO[v].poly === 1 ? 1 : VOICE_INFO[v].poly === 4 ? 3 : 88);
+const holds = (l: LineInfo, v: Voice): boolean => l.poly <= (VOICE_INFO[v].poly <= 2 ? VOICE_INFO[v].poly : VOICE_INFO[v].poly === 4 ? 3 : 88);
 
 /** how much of a line lies in the voice's range as written (0…1) */
 const fits0 = (l: LineInfo, v: Voice): number => {
@@ -374,7 +381,8 @@ export function partsOf(voices: (Voice | null)[], lines: Sized[], cap: number): 
 export function capParts(parts: Part[], lines: Sized[], cap: number): Part[] {
   const size = (p: Part) => p.lines.reduce((s, i) => s + lines[i].notes, 0);
   const med = (p: Part) => lines[p.lines[0]].median;
-  const bowed = (p: Part) => !isKeyboard(p.voice) && VOICE_INFO[p.voice].poly > 1;
+  // (the timpani's two mallets are not a section's desks: a line does not join them to make room)
+  const bowed = (p: Part) => !isKeyboard(p.voice) && VOICE_INFO[p.voice].poly > 2;
   const over = () => parts.length > Math.max(1, cap);
   // 1. sections: the smallest bowed instrument joins another of its kind, nearest in register
   while (over()) {
@@ -466,7 +474,9 @@ export function matchLineup(lines: LineInfo[], lineup: Voice[]): Plan {
   const cost = (i: number, j: number) => {
     const l = lines[ls[i]];
     const v = lineup[slots[j]];
-    return Math.abs(l.median - VOICE_INFO[v].centre) / 12 + (1 - fits(l, v)) * 3 + (holds(l, v) ? 0 : 4) - l.notes / busiest;
+    // (the timpani lead a timpani part, named or GM 47, before any other line in their register)
+    const drums = v === 'timpani' ? (isTimpaniLine(l) ? -3 : 2) : isTimpaniLine(l) ? 2 : 0;
+    return Math.abs(l.median - VOICE_INFO[v].centre) / 12 + (1 - fits(l, v)) * 3 + (holds(l, v) ? 0 : 4) - l.notes / busiest + drums;
   };
   // E[i][j]: the first i lines and the first j instruments; a line may join another instrument only
   // when there are more lines than instruments, an instrument may wait only when there are fewer
@@ -501,13 +511,16 @@ export function matchLineup(lines: LineInfo[], lineup: Voice[]): Plan {
     if (led.has(li)) continue;
     const l = lines[li];
     let best = 0;
-    const key = (k: number) => (VOICE_INFO[parts[k].voice].poly > 1 ? 0 : 100) + Math.abs(l.median - VOICE_INFO[parts[k].voice].centre);
+    const key = (k: number) => (VOICE_INFO[parts[k].voice].poly > 2 ? 0 : 100) + Math.abs(l.median - VOICE_INFO[parts[k].voice].centre);
     for (let k = 1; k < parts.length; k++) if (key(k) < key(best)) best = k;
     parts[best].lines.push(li);
   }
   for (const p of parts) p.lines.sort((a, b) => a - b);
   return planOf(parts, lines);
 }
+
+/** a timpani part by its name or its program */
+const isTimpaniLine = (l: LineInfo): boolean => voiceFromName(l.name) === 'timpani' || voiceFromName(l.instrument) === 'timpani' || l.program === 47;
 
 /** a plan of instruments without a file (live play) */
 export const lineupPlan = (lineup: Voice[]): Plan => ({ parts: lineup.map((v) => ({ voice: v, lines: [] })), lines: [] });
@@ -542,7 +555,7 @@ export function reassign(plan: Plan, lines: LineInfo[], li: number, voice: Voice
     else if (parts.filter((p) => p.lines.length).length < cap) parts.push({ voice, lines: [li] });
     else {
       // full: join an instrument of that voice that holds more than one note
-      const like = parts.findIndex((p) => p.voice === voice && VOICE_INFO[voice].poly > 1);
+      const like = parts.findIndex((p) => p.voice === voice && VOICE_INFO[voice].poly > 2);
       if (like < 0) return null;
       parts[like].lines.push(li);
     }

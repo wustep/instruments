@@ -1,11 +1,11 @@
 # instruments
 
-Eleven acoustic instruments, physically modelled and computed in real time in the
+Twelve acoustic instruments, physically modelled and computed in real time in the
 browser: a **piano**, a **violin**, a **viola**, a **cello**, a **double bass**, a
-**flute**, an **oboe**, a **clarinet**, a **bassoon**, a **horn** and a **trumpet**.
-No samples are ever played as the sound. Every note is a simulation of felt
-hammers, bows, air jets, reeds and lips driving strings and tubes, which in turn drive a
-soundboard or body.
+**flute**, an **oboe**, a **clarinet**, a **bassoon**, a **horn**, a **trumpet** and
+the **timpani**. No samples are ever played as the sound. Every note is a simulation of
+felt hammers, bows, air jets, reeds and lips driving strings and tubes, which in turn
+drive a soundboard or body, or of felt mallets on the air-loaded membranes of kettledrums.
 
 **Production URL (planned):** https://piano-model-wustep.vercel.app. `main` is
 linked to a Vercel production deployment, which is checked separately; this
@@ -255,6 +255,8 @@ npx tsx scripts/fit-oboe.ts   # fit the oboe voicing (fit half), then scripts/tu
 npx tsx scripts/fit-clarinet.ts   # the clarinet's, the same way (tune-clarinet.ts, clarinet-regimes.ts, render-clarinet.ts)
 npx tsx scripts/fit-bassoon.ts    # the bassoon's, the same way (tune-bassoon.ts, bassoon-regimes.ts, render-bassoon.ts)
 npx tsx scripts/fit-horn.ts       # the horn's, the same way (tune-horn.ts, horn-regimes.ts: every note on its partial, render-horn.ts)
+npx tsx scripts/timpani-refs.ts   # the VSCO 2 CE timpani (CC0; .cache/vsco-timpani), analysed as struck strokes
+npx tsx scripts/fit-timpani.ts    # the timpani's voicing on drums 1, 3, 5 (polish-timpani.ts, tune-timpani.ts, calibrate-timpani.ts --write, render-timpani.ts)
 npx tsx scripts/render-demos.ts   # re-render artifacts/audio (round 1)
 npx tsx scripts/render-round2.ts  # round-2 MP3 demos into artifacts/round2/audio
 node scripts/screenshots.mjs      # re-capture artifacts/shots (ROUND=2 → artifacts/round2/shots; needs `pnpm preview --port 4199`)

@@ -105,7 +105,7 @@ export function notesView(): View {
       id: 'overview',
       title: 'What this is',
       body: [
-        p('Eleven acoustic instruments — piano (grand and upright), violin, viola, cello, double bass, flute, oboe, clarinet, bassoon, horn and trumpet — computed as physics, sample by sample, in your browser. No recorded sound is ever played as the instrument. Each is a small set of coupled physical parts: something that carries waves (a string, an air column), something that drives it (a felt hammer, a bow, a jet of breath, a double or a single reed, buzzing lips) and something that radiates (a soundboard, a wooden body, an open end, a bell), heard in a modelled room.'),
+        p('Twelve acoustic instruments — piano (grand and upright), violin, viola, cello, double bass, flute, oboe, clarinet, bassoon, horn, trumpet and timpani — computed as physics, sample by sample, in your browser. No recorded sound is ever played as the instrument. Each is a small set of coupled physical parts: something that carries waves (a string, an air column, a stretched membrane), something that drives it (a felt hammer, a bow, a jet of breath, a double or a single reed, buzzing lips, a felt mallet) and something that radiates (a soundboard, a wooden body, an open end, a bell, the head itself), heard in a modelled room.'),
         p('Everything runs in an AudioWorklet written in TypeScript. The same DSP core runs in Node for the tests, calibration and offline renders, so every number on this page comes from the code you are hearing. What moves on the stage — strings, hammers, bows, holes, valves, wavefronts — is drawn from the same simulation, live.'),
       ],
     },
@@ -218,6 +218,15 @@ export function notesView(): View {
       ],
     },
     {
+      id: 'timpani',
+      title: 'Timpani',
+      body: [
+        p('A kettledrum is a membrane: a Mylar head 0.19 mm thick stretched over a copper kettle and struck with a felt mallet. An ideal circular membrane’s modes are Bessel functions, J_m(j_mn r/a)·cos mθ, with m lines across the head and n circles, and their frequencies are the zeros j_mn: 1 : 1.59 : 2.14 : 2.30 … — no pitch at all. The timpani sound a clear note because the air on both sides of the head moves with it, and loads its slow, broad modes most: the modes with nodal diameters only, (1,1) (2,1) (3,1) (4,1) (5,1), fall near 1 : 1.5 : 2 : 2.5 : 3, a harmonic series whose principal tone, the (1,1), is the note (Rossing 1982; Fletcher & Rossing 1998 §18).'),
+        eq('ω_mn² = (T/σ · k_mn² + κ_mn) / (1 + μ_mn),   k_mn = j_mn / a,   μ_mn ∝ ρa / (σ j_mn),   κ₀ₙ = 4πρc²a² / (Vσ j₀ₙ²)', 'the head’s modes: tension, the air’s added mass (μ), and the kettle’s air as a spring on the modes that pump it (κ, only m = 0)'),
+        p('Each of the four drums (32″, 29″, 26″, 23″: C2–A3 together, the low drum on the player’s left) is 96 of these modes, each an exact resonator, with the losses physics gives them: each mode radiates as its own multipole (the far field of a Bessel mode is closed form), so the (0,1), which pumps the kettle, thumps and dies in a fraction of a second while the (1,1) rings for seconds; only the m = 1 and m = 0 modes push on the rim, rocking or lifting the kettle on its stand, and lose to it; the many modes above the 96 are a band of noise the mallet’s sharpest force excites. A loud stroke stretches the head and every mode starts a little sharp. The mallet is a mass on a felt spring that stiffens as it squeezes and, struck hard, bottoms out on the mallet’s core: a soft stroke is a long gentle push that sounds the (1,1) and little else, a loud one is short and hard and brings out the (2,1), the (3,1) and the clatter above. A note goes to a drum already tuned to it, else to the drum whose pedal has least to move; held keys roll; the pitch wheel is the last drum’s pedal.'),
+      ],
+    },
+    {
       id: 'room',
       title: 'The room',
       body: [
@@ -258,7 +267,7 @@ export function notesView(): View {
       id: 'calibration',
       title: 'Calibration: measured against real instruments',
       body: [
-        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, double bass, flute, oboe, B♭ clarinet, bassoon, horn and trumpet — used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
+        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, double bass, flute, oboe, B♭ clarinet, bassoon, horn and trumpet — and, for the timpani (Iowa has none), the VSCO 2 Community Edition’s (Versilian Studios, CC0), used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
         h3('Like with like, and a judge'),
         ul(
           'Each model note is rendered exactly as long as the part of the recording that is analysed, with vibrato only where the player used it; a note’s pitch with vibrato is the centre of its fine pitch track.',
@@ -291,6 +300,11 @@ export function notesView(): View {
             ['horn', '3.9', '14.4', '1.00', '+0.7', '1.14', '0.2'],
             ['trumpet', '4.2', '3.3', '0.93', '+0.8', '1.43', '2.7'],
           ],
+        ),
+        table(
+          ['VSCO 2 CE, a room', 'partials’ frequencies ¢', 'partials’ levels dB', 'spectrum dB', 'brightness ×', '(1,1) decay ×', 'pitch ¢'],
+          [['timpani', '31', '8.1', '14.8', '0.98', '1.00', '0.3']],
+          'Five pedal drums struck pp, mf and ff, two takes each (24 strokes; drums 2 and 4 held out of the fit: judge BETTER, held-out 9.25 → 3.50). Brightness pp 151 / 148 Hz, mf 195 / 201, ff 272 / 363 (model / recording).',
         ),
         p('Full histories are in the repository (', code('docs/calibration-rounds.json'), ', ', code('docs/ensemble-rounds.json'), ', ', code('artifacts/round3/'), '), and the Measurements page charts the details.'),
       ],

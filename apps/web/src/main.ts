@@ -176,8 +176,9 @@ audio.keysChanged.on((ks) => keyboard.setPrepared(new Set(audio.instrument === '
 // octave above their lowest string's C, the cello's C3, the double bass's C2, the flute's C5, the oboe's C4
 // (its low B♭ and B just below), the clarinet's C4 (the chalumeau's top and the throat notes), the bassoon's
 // C3 (the top of its first octave, where its parts sing), the horn's C3 (its parts sound F3–C5 and lower), the
-// trumpet's C4
-const BASE: Record<InstrumentId, number> = { piano: 60, violin: 60, viola: 48, cello: 48, bass: 36, flute: 72, oboe: 60, clarinet: 60, bassoon: 48, horn: 48, trumpet: 60 };
+// trumpet's C4, the timpani's C2 (the lowest drum's lowest note: the set's whole compass, C2–A3, under the
+// computer keys)
+const BASE: Record<InstrumentId, number> = { piano: 60, violin: 60, viola: 48, cello: 48, bass: 36, flute: 72, oboe: 60, clarinet: 60, bassoon: 48, horn: 48, trumpet: 60, timpani: 36 };
 const syncInstrument = (id: InstrumentId) => {
   const info = INSTRUMENT_INFO[id];
   keyboard.setRange(info.lo, info.hi);

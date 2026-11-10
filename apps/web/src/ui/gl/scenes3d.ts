@@ -14,6 +14,7 @@ import { buildOboeModel, poseOboe, type OboeModel } from './oboe3d.ts';
 import { buildClarinetModel, poseClarinet, type ClarinetModel } from './clarinet3d.ts';
 import { BASSOON_SEAT, BASSOON_VIEW, BASSOON_WIDE, buildBassoonModel, poseBassoon, type BassoonModel } from './bassoon3d.ts';
 import { HORN_HELD, HORN_SEAT, HORN_VIEW, buildHornModel, poseHorn, type HornModel } from './horn3d.ts';
+import { TIMPANI_SEAT, TIMPANI_VIEW, buildTimpaniModel, newTimpaniPose, poseTimpani, type TimpaniModel, type TimpaniPose } from './timpani3d.ts';
 import { seatPlaces } from '../../orchestra/seats.ts';
 
 export { keyX3 } from './piano3d.ts';
@@ -23,7 +24,7 @@ export interface SceneIn {
   now: number;
   /** seconds since the last frame */
   dt: number;
-  family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass';
+  family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass' | 'percussion';
   /** the reed family's instrument (default the oboe) */
   reed?: 'oboe' | 'clarinet' | 'bassoon';
   /** the brass family's (default the trumpet) */
@@ -52,7 +53,7 @@ export interface SceneIn {
 
 /** one instrument of an ensemble on the 3D stage */
 export interface EnsPartIn {
-  family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass';
+  family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass' | 'percussion';
   /** the reed family's instrument (default the oboe) */
   reed?: 'oboe' | 'clarinet' | 'bassoon';
   /** the brass family's (default the trumpet) */
@@ -92,6 +93,9 @@ export interface Scene3State {
   clarinet: ClarinetModel | null;
   bassoon: BassoonModel | null;
   horn: HornModel | null;
+  timpani: TimpaniModel | null;
+  /** the single stage's timpani (their heads move: each set its own) */
+  timpPose: TimpaniPose;
   floors: Map<string, Mesh>;
   pianoPose: PianoPose;
   windPose: WindPose;
@@ -112,6 +116,7 @@ interface EnsSeat {
   bowed: BowedModel | null;
   pianoPose: PianoPose;
   windPose: WindPose;
+  timpPose: TimpaniPose | null;
   str: AutoScale;
 }
 export const newScene3State = (): Scene3State => ({
@@ -126,6 +131,8 @@ export const newScene3State = (): Scene3State => ({
   clarinet: null,
   bassoon: null,
   horn: null,
+  timpani: null,
+  timpPose: newTimpaniPose(),
   floors: new Map(),
   pianoPose: newPianoPose(),
   windPose: newWindPose(),
@@ -234,6 +241,13 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): void {
     floor(b, st, bm.id, bm.bounds.c, bm.bounds.r, si);
     return;
   }
+  if (si.family === 'percussion') {
+    if (!st.timpani) st.timpani = timed(st, () => buildTimpaniModel());
+    poseTimpani(b, st.timpani, si.fr, st.timpPose, si.dt, si.now);
+    b.bounds = st.timpani.bounds;
+    floor(b, st, 'timpani', st.timpani.bounds.c, st.timpani.bounds.r, si);
+    return;
+  }
   if (si.family === 'brass' && si.brass === 'horn') {
     if (!st.horn) st.horn = timed(st, () => buildHornModel());
     poseHorn(b, st.horn, si.fr, st.windPose, si.dt, si.now, si.rms);
@@ -310,6 +324,12 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
     return { target: [c[0], c[1], c[2]], dist: 1.1, yaw: HORN_VIEW.yaw, pitch: HORN_VIEW.pitch, swing: HORN_VIEW.swing, whole: true };
   }
   if (si.family === 'brass') return { target: [0.0, 0.2, 0.0], dist: 0.6, yaw: 0.4, pitch: 0.28 };
+  // the timpani: from the audience's side, round towards the big drums' end, a little above (the heads
+  // as ellipses, the end drum's pedal and gauge past its kettle), whole on every stage (timpani3d.ts)
+  if (si.family === 'percussion') {
+    const c = st.timpani ? st.timpani.bounds.c : ([0, 0.5, 0] as Vec3);
+    return { target: [c[0], 0.5, c[2]], dist: 4.2, yaw: TIMPANI_VIEW.yaw, pitch: TIMPANI_VIEW.pitch, swing: TIMPANI_VIEW.swing, whole: true };
+  }
   // the oboe: held as a player holds it, seen from the audience a little to the bell's side and a
   // little above, the plates and the keywork towards the camera
   // the clarinet: as the oboe is seen (clarinet3d.ts sets its own pose)
@@ -373,6 +393,8 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
     // (a horn is held as a seated player holds it: the valves up under the left hand, the bell down by
     // the right thigh, its mouth back: horn3d.ts HORN_SEAT)
     if (p.family === 'brass' && p.brass === 'horn') return { T: chain(translate(x, HORN_SEAT.y, z), rotY(face + HORN_SEAT.turn)), c: [x, 0, z], r: 0.42, top: HORN_SEAT.top };
+    // (the timpani stand on the floor in their arc, their player's place behind them: timpani3d.ts)
+    if (p.family === 'percussion') return { T: chain(translate(x, 0, z), rotY(face)), c: [x, 0, z], r: TIMPANI_SEAT.r, top: TIMPANI_SEAT.top };
     let T: Mat4;
     if (cello) T = chain(translate(x, 0, z), rotY(face - 0.62));
     else if (p.family === 'bowed') T = chain(translate(x, HELD, z), rotY(face + 0.5));
@@ -389,7 +411,7 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
 
 function ensSeat(st: Scene3State, i: number, key: string): EnsSeat {
   let e = st.ens[i];
-  if (!e || e.key !== key) e = st.ens[i] = { key, bowed: null, pianoPose: newPianoPose(), windPose: newWindPose(), str: new AutoScale(2e-6, 0.99) };
+  if (!e || e.key !== key) e = st.ens[i] = { key, bowed: null, pianoPose: newPianoPose(), windPose: newWindPose(), timpPose: null, str: new AutoScale(2e-6, 0.99) };
   return e;
 }
 
@@ -422,6 +444,10 @@ function buildEnsemble(b: Batch, si: SceneIn, parts: EnsPartIn[], st: Scene3Stat
       // the model's meshes, this seat's own bow
       if (!e.bowed || e.bowed.meshes !== bm.meshes) e.bowed = { ...bm, bowPose: null, bowLine: null };
       poseBowed(b, e.bowed, p.fr, e.str);
+    } else if (p.family === 'percussion') {
+      if (!st.timpani) st.timpani = timed(st, () => buildTimpaniModel());
+      if (!e.timpPose) e.timpPose = newTimpaniPose();
+      poseTimpani(b, st.timpani, p.fr, e.timpPose, si.dt, si.now, null, false);
     } else if (p.family === 'brass' && p.brass === 'horn') {
       if (!st.horn) st.horn = timed(st, () => buildHornModel());
       poseHorn(b, st.horn, p.fr, e.windPose, si.dt, si.now, si.rms, HORN_HELD);

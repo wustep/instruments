@@ -7,3 +7,4 @@ export { drawRoomV } from './room.ts';
 export { drawClarinetV } from './clarinet.ts';
 export { drawBassoonV } from './bassoon.ts';
 export { drawHornV } from './horn.ts';
+export { drawTimpaniV } from './timpani.ts';

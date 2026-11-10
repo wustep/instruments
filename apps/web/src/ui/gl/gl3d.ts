@@ -119,6 +119,10 @@ export interface Mesh {
   loc?: Float32Array;
   /** can dissolve (a piano's case): drawn with a glow alpha of 2 + visibility (0..1), its shadow too */
   fade?: boolean;
+  /** a surface that moves (a timpani head): its positions and normals in `data` are rewritten by its
+   *  scene, and this count is raised each time; the renderer then uploads them again (positions and
+   *  normals only: the triangles and their materials stay) */
+  dyn?: number;
 }
 const ISTRIDE = 20;
 /** the glow that dissolves a `fade` mesh to visibility v (0..1): set [3] = 2 + v before each call */

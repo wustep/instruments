@@ -7,11 +7,12 @@ import { ClarinetCore, type ClarinetParams } from './clarinet.ts';
 import { BassoonCore, type BassoonParams } from './bassoon.ts';
 import { TrumpetCore, type TrumpetParams } from './brass.ts';
 import { HornCore, type HornParams } from './horn.ts';
+import { TimpaniCore, type TimpaniParams } from './timpani.ts';
 import { type InstrumentCore, type InstrumentId } from './instrument.ts';
 import { PianoCore, type CoreOptions } from './piano-core.ts';
 import type { PianoParams } from './design.ts';
 
-export type AnyParams = Partial<PianoParams> | Partial<BowedParams> | Partial<FluteParams> | Partial<OboeParams> | Partial<ClarinetParams> | Partial<BassoonParams> | Partial<HornParams> | Partial<TrumpetParams>;
+export type AnyParams = Partial<PianoParams> | Partial<BowedParams> | Partial<FluteParams> | Partial<OboeParams> | Partial<ClarinetParams> | Partial<BassoonParams> | Partial<HornParams> | Partial<TrumpetParams> | Partial<TimpaniParams>;
 
 export interface InstrumentOptions {
   sampleRate: number;
@@ -45,6 +46,8 @@ export function createCore(opts: InstrumentOptions): InstrumentCore & { process:
       return new BassoonCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<BassoonParams>, dry: opts.dry, player: opts.player });
     case 'horn':
       return new HornCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<HornParams>, dry: opts.dry, player: opts.player });
+    case 'timpani':
+      return new TimpaniCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<TimpaniParams>, dry: opts.dry, player: opts.player });
     case 'trumpet':
       return new TrumpetCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<TrumpetParams>, dry: opts.dry, player: opts.player });
     default:

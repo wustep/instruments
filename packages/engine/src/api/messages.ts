@@ -64,6 +64,8 @@ export interface VisualFrame extends Stats {
   reed?: { open: number; gamma: number };
   /** horn: the lips' opening (0 shut; about 1 at a loud note's widest) and the blowing pressure */
   lips?: { open: number; blow: number };
+  /** timpani: the drums (low to high: the player's left to right), the two mallets, the strike point */
+  timpani?: TimpaniVisual;
   /** piano: the watched key's action and strings (see `watchKey`) */
   watch?: WatchKey | null;
   /** piano: every sounding string's shape (struck first, then sympathetic) */
@@ -72,6 +74,37 @@ export interface VisualFrame extends Stats {
   strings?: { open: number; stop: number; stopNow?: number; level: number; bowing: boolean }[];
   /** sent when the mode set follows the note (flute bore harmonics) */
   modeFreqs?: number[];
+}
+
+/** a drum of the timpani as drawn */
+export interface TimpaniDrumVisual {
+  /** the head's diameter (m) and its name in inches */
+  d: number;
+  inches: number;
+  /** the pedal's range (MIDI) and the note it is tuned to */
+  lo: number;
+  hi: number;
+  note: number;
+  /** the pedal as it travels: 0 heel down (lo) … 1 toe down (hi) */
+  pedal: number;
+  /** how loud the head rings now (linear, the core's own scale; 0 silent) */
+  level: number;
+  /** seconds since it was last struck, and how hard (MIDI velocity) */
+  ago: number;
+  vel: number;
+  /** the head's first modes, as triples (m, j, displacement in m): w(r, θ) = Σ y·J_m(j·r/a)·cos m(θ − θ₀),
+   *  θ₀ the strike point (towards the player) */
+  head: Float32Array;
+}
+export interface TimpaniVisual {
+  drums: TimpaniDrumVisual[];
+  /** the left and the right mallet: the drum each last struck, seconds since, how hard, and whether it is on
+   *  the head now */
+  hands: { drum: number; ago: number; vel: number; on: boolean }[];
+  /** the strike point (fraction of the radius from the centre) */
+  spot: number;
+  /** the drum struck last */
+  last: number;
 }
 
 export type FromProcessor =
