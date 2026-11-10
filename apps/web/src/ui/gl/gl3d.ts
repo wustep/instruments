@@ -168,6 +168,15 @@ export class LineSet {
 }
 
 /** what a scene draws into, each frame */
+/** a planar mirror in a batch (Batch.mirrors) */
+export interface Mirror {
+  m: Float32Array;
+  poly: [number, number][];
+  y: number;
+  k: number;
+  body?: Mesh;
+}
+
 export class Batch {
   glow = new LineSet();
   inkL = new LineSet();
@@ -182,10 +191,11 @@ export class Batch {
   clip: { at: number; side: 1 | -1 } | null = null;
   /** a box the orbit camera may not enter (an instrument's case: its target is inside it) */
   keepOut: { lo: Vec3; hi: Vec3 } | null = null;
-  /** a planar mirror (the underside of a grand's lid): its plan outline [x, z] at height y in the frame
-   *  `m` (a model matrix), facing −y there; k scales the reflection (the case's dissolve); `body` is the mesh
-   *  the mirror is the face of (left out of its own reflection) */
-  mirror: { m: Float32Array; poly: [number, number][]; y: number; k: number; body?: Mesh } | null = null;
+  /** planar mirrors (the underside of a grand's lid; an ensemble may have two grands): each its plan
+   *  outline [x, z] at height y in the frame `m` (a model matrix), facing −y there; k scales the
+   *  reflection (the case's dissolve); `body` is the mesh the mirror is the face of (left out of its
+   *  own reflection) */
+  mirrors: Mirror[] = [];
   /** a transform applied to everything added while it is set (an ensemble places each instrument on
    *  its seat; null: the instrument's own frame is the world) */
   world: Mat4 | null = null;
@@ -204,7 +214,7 @@ export class Batch {
     this.floor = null;
     this.clip = null;
     this.keepOut = null;
-    this.mirror = null;
+    this.mirrors.length = 0;
     this.world = null;
   }
   /** a glowing polyline (additive) of `width` px; colour per point or one for all */

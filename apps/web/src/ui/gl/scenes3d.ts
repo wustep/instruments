@@ -254,8 +254,11 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
   const mel = parts.map((p, i) => (p.family === 'piano' ? -1 : i)).filter((i) => i >= 0);
   const kb = parts.map((p, i) => (p.family === 'piano' ? i : -1)).filter((i) => i >= 0);
   const out: Seat[] = new Array(parts.length);
-  // one or two players with a piano stand beside it (a soloist at the piano's curve), more sit in front
+  // one or two players with a piano stand beside it (a soloist at the piano's curve), more sit in front;
+  // two pianos stand side by side, 2.5 m apart, and the players beside the one on the right
   const beside = kb.length > 0 && mel.length <= 2;
+  const kbOff = (k: number) => (k - (kb.length - 1) / 2) * (kb.length > 1 ? 2.5 : 2.3);
+  const right = kb.length ? kbOff(kb.length - 1) : 0;
   const rows = aspect < 1.1 && mel.length > 3 ? 2 : 1;
   const perRow = Math.ceil(mel.length / rows);
   mel.forEach((i, k) => {
@@ -269,7 +272,7 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
     const u = n > 1 ? kk / (n - 1) : 0.5;
     // first at the audience's left (the renderer's world is mirrored in x: −x is the audience's left)
     const phi = -spread * (1 - 2 * u);
-    const x = beside ? 1.75 + kk * 0.85 : R * Math.sin(phi) + (rows === 2 && row === 1 ? 0.35 : 0);
+    const x = beside ? right + 1.75 + kk * 0.85 : R * Math.sin(phi) + (rows === 2 && row === 1 ? 0.35 : 0);
     const z = beside ? 0.55 - kk * 0.5 : R * (Math.cos(phi) - 1) + (kb.length ? -0.35 : 0) + row * 0.95;
     const p = parts[i];
     // each faces the arc's middle, turned to its hero angle (the single instrument's camera yaw)
@@ -285,7 +288,7 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
   });
   kb.forEach((i, k) => {
     const p = parts[i];
-    const off = (k - (kb.length - 1) / 2) * 2.3;
+    const off = kbOff(k);
     // a grand side-on, its open lid towards the audience; an upright faces them
     const zP = mel.length > 2 ? 1.55 : 1.1;
     const T = p.kind === 'grand' ? chain(translate(off - 1.0, 0, zP), rotY(Math.PI / 2)) : chain(translate(off, 0, zP - 0.1), rotY(Math.PI));
@@ -313,10 +316,11 @@ function buildEnsemble(b: Batch, si: SceneIn, parts: EnsPartIn[], st: Scene3Stat
     if (p.family === 'piano') {
       const pm = pianoModel({ ...si, kind: p.kind, keys: p.keys }, st);
       if (pm) {
+        const m0 = b.mirrors.length;
         posePiano(b, pm, { piano: p.piano, keys: p.keys, dt: si.dt, lid: 1, down: p.down, sounding: p.sounding, lite: si.lite, caseHidden: false, zoomKey: null, cut: null }, e.pianoPose);
         pianoStrings(b, pm, p.fr, (mx) => e.str.of(mx), si.lite, null);
         // the lid's mirror is in the piano's own frame: placed on its seat
-        if (b.mirror) b.mirror = { ...b.mirror, m: chain(seat.T, b.mirror.m) };
+        for (let j = m0; j < b.mirrors.length; j++) b.mirrors[j] = { ...b.mirrors[j], m: chain(seat.T, b.mirrors[j].m) };
       }
     } else if (p.family === 'bowed' && p.bowed) {
       let bm = st.bowedM.get(p.bowed.id);

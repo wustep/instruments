@@ -12,7 +12,7 @@ import type { ExciteTrace, InstrumentCore } from './instrument.ts';
 import { BiquadChain, Limiter, Room } from './post.ts';
 import { biquadHighpass, biquadLowpass, biquadPeaking, biquadHighShelf } from './filters.ts';
 import type { PianoEvent } from './piano-core.ts';
-import { clamp } from './util.ts';
+import { clamp, playerCents, playerSeed, playerVibrato } from './util.ts';
 import tuning from './brass-tuning.json';
 /** measured per-note correction (cents the bare model plays sharp; scripts/tune-trumpet.ts) */
 const TUNING = tuning as Record<string, number>;
@@ -138,8 +138,13 @@ export class TrumpetCore implements InstrumentCore {
   private pTarget = 0;
   private attackTau = 0.02;
   private vibPhase = 0;
+  /** the player's vibrato (util.ts playerVibrato): starting phase and rate factor */
+  private vib0 = 0;
+  private vibRate = 1;
   private expression = 1;
   private bendFactor = 1;
+  /** the player's intonation, semitones (util.ts playerCents), under any bend */
+  private tune = 0;
   private note = 70;
   private held: number[] = [];
   private velocity = 80;
@@ -166,10 +171,16 @@ export class TrumpetCore implements InstrumentCore {
   private blowUntil = 0;
   private releasePending = false;
 
-  constructor(opts: { sampleRate: number; params?: Partial<TrumpetParams>; dry?: boolean }) {
+  constructor(opts: { sampleRate: number; params?: Partial<TrumpetParams>; dry?: boolean; player?: number }) {
     this.fs = opts.sampleRate;
     this.dry = !!opts.dry;
     this.params = { breath: 1, lip: 0, vibrato: 0.004, room: 0.3, volume: 1, ...opts.params };
+    this.nzSeed = playerSeed(12345, opts.player);
+    const pv = playerVibrato(opts.player);
+    this.vib0 = this.vibPhase = pv.phase;
+    this.vibRate = pv.rate;
+    this.tune = playerCents(opts.player) / 100;
+    if (this.tune) this.bendFactor = Math.pow(2, -this.tune / 12);
     this.room = new Room(this.fs);
     this.limiter = new Limiter(this.fs);
     this.updatePost();
@@ -224,7 +235,7 @@ export class TrumpetCore implements InstrumentCore {
         if (!legato) this.y1 = (XA.kick ?? TONGUE_KICK) * (0.5 + 0.5 * (ev.velocity / 127));
         this.releasePending = false;
         if (!legato) {
-          this.vibPhase = 0;
+          this.vibPhase = this.vib0;
           this.noteStart = this.frame;
           this.blowUntil = this.frame + Math.round((XA.minBlow ?? MIN_BLOW) * this.fs);
         }
@@ -244,7 +255,7 @@ export class TrumpetCore implements InstrumentCore {
         if (ev.cc === 1 || ev.cc === 2 || ev.cc === 11) this.expression = 0.4 + 0.8 * clamp(ev.value, 0, 1);
         break;
       case 'bend':
-        this.bendFactor = Math.pow(2, -clamp(ev.value, -12, 12) / 12);
+        this.bendFactor = Math.pow(2, -(clamp(ev.value, -12, 12) + this.tune) / 12);
         break;
       case 'allNotesOff':
         this.held = [];
@@ -334,7 +345,7 @@ export class TrumpetCore implements InstrumentCore {
     this.pressure += (this.pTarget - this.pressure) * k;
     if (this.pressure < 1e-5 && this.pTarget === 0) this.pressure = 0;
     const age = (this.frame - this.noteStart) / fs;
-    this.vibPhase += 2 * Math.PI * 5.2 * dt;
+    this.vibPhase += 2 * Math.PI * 5.2 * this.vibRate * dt;
     const vib = 1 + P.vibrato * clamp((age - 0.35) / 0.4, 0, 1) * Math.sin(this.vibPhase);
     const v01 = this.velocity / 127;
     // mouth pressure (normalised): louder notes blow harder

@@ -10,8 +10,8 @@ import { openActionView } from '../ui/action-view.ts';
 import type { Stage3D } from '../ui/gl/stage3d.ts';
 import { webgl2Available } from '../ui/gl/webgl2.ts';
 import { ensembleIcon, glyph, knob, scoreIcon, voiceGlyph, type KnobSpec } from '../ui/controls.ts';
-import { ensemble, QUARTET, STAGE_CAP, type PartLive } from '../orchestra/ensemble.ts';
-import { isKeyboard, lineupPlan, VOICE_INFO, type Voice } from '../orchestra/assign.ts';
+import { ensemble, QUARTET, stageCap, type PartLive } from '../orchestra/ensemble.ts';
+import { isKeyboard, lineupPlan, planOf, VOICE_INFO, type Voice } from '../orchestra/assign.ts';
 import { PIECES } from '../orchestra/pieces.ts';
 import { drawEnsemble, ensembleCells, newPartDraw, syncPianoState, type Cell, type PartDraw } from '../ui/ensemble-draw.ts';
 import type { EnsPartIn } from '../ui/gl/scenes3d.ts';
@@ -54,8 +54,9 @@ const VISIBLE_PRESETS = ['grand', 'upright'];
 /** the order instruments take in a lineup picked by hand: score order (winds, brass, strings, piano),
  *  which is also their seats from the audience's left */
 const SCORE_ORDER: Voice[] = ['flute', 'trumpet', 'violin', 'viola', 'cello', 'grand', 'upright'];
-/** how many of each one lineup may have (a tap on its button adds one, past this it has none) */
-const MOST: Record<Voice, number> = { flute: 2, trumpet: 2, violin: 3, viola: 2, cello: 2, grand: 1, upright: 1 };
+/** how many of each one lineup may have (a tap on its button adds one, past this it has none; the
+ *  routing grid adds more, up to the stage's cap) */
+const MOST: Record<Voice, number> = { flute: 2, trumpet: 2, violin: 3, viola: 2, cello: 2, grand: 2, upright: 2 };
 const familyOf = (v: Voice) => INSTRUMENT_INFO[VOICE_INFO[v].instrument].family;
 
 export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: MidiPlayer): View {
@@ -88,7 +89,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     const v = voiceOfPick(id);
     const n = countOf(id, lineup);
     let next: Voice[];
-    if (n >= MOST[v] || lineup.length >= STAGE_CAP) next = lineup.filter((x) => (id === 'piano' ? !isKeyboard(x) : x !== id));
+    if (n >= MOST[v] || lineup.length >= stageCap()) next = lineup.filter((x) => (id === 'piano' ? !isKeyboard(x) : x !== id));
     else next = [...lineup, v];
     if (!next.length) return;
     next.sort((a, b) => SCORE_ORDER.indexOf(a) - SCORE_ORDER.indexOf(b));
@@ -108,6 +109,13 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       void ensemble.ensureEngines();
     }
   });
+  // the routing grid asked for while a file plays on the one instrument shown: the ensemble comes on
+  // with that instrument playing every line (more are added in the grid)
+  player.onSolo = (song) => {
+    const v = voiceOfPick(audio.instrument);
+    ensemble.enter(planOf([{ voice: v, lines: song.lines.map((_, i) => i) }], song.lines), song, null, false);
+    void ensemble.ensureEngines();
+  };
   let scoreMenu: HTMLElement | null = null;
   const closeScore = (refocus = false) => {
     scoreMenu?.remove();

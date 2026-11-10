@@ -18,7 +18,7 @@ import type { KeySummary } from '../api/messages.ts';
 import type { PianoEvent } from './piano-core.ts';
 import { biquadBandpass, biquadHighpass, biquadPeaking, biquadHighShelf } from './filters.ts';
 import { BiquadChain, Limiter, Room } from './post.ts';
-import { clamp, interp, mulberry32 } from './util.ts';
+import { clamp, interp, mulberry32, playerCents, playerSeed, playerVibrato } from './util.ts';
 import fluteTuning from './flute-tuning.json';
 
 export interface FluteParams {
@@ -128,9 +128,14 @@ export class FluteCore implements InstrumentCore {
   /** the breath vibrato's current deviation (fraction of the pressure), for the stage */
   private vibNow = 0;
   private vibPhase = 0;
+  /** the player's vibrato (util.ts playerVibrato): starting phase and rate factor */
+  private vib0 = 0;
+  private vibRate = 1;
   private expression = 1;
   /** pitch bend as a factor on the bore delay */
   private bendFactor = 1;
+  /** the player's intonation, semitones (util.ts playerCents), under any bend */
+  private tune = 0;
   private note = -1;
   private held: number[] = [];
   private velocity = 80;
@@ -156,11 +161,16 @@ export class FluteCore implements InstrumentCore {
   private Uj = 0;
   private gain = 1;
 
-  constructor(opts: { sampleRate: number; params?: Partial<FluteParams>; dry?: boolean }) {
+  constructor(opts: { sampleRate: number; params?: Partial<FluteParams>; dry?: boolean; player?: number }) {
     this.fs = opts.sampleRate;
     this.dry = !!opts.dry;
     this.params = { breath: 1, embouchure: 1, noise: 1, vibrato: 0.06, room: 0.35, volume: 1, ...opts.params };
-    this.rng = mulberry32(31);
+    this.rng = mulberry32(playerSeed(31, opts.player));
+    const pv = playerVibrato(opts.player);
+    this.vib0 = this.vibPhase = pv.phase;
+    this.vibRate = pv.rate;
+    this.tune = playerCents(opts.player) / 100;
+    if (this.tune) this.bendFactor = Math.pow(2, -this.tune / 12);
     this.room = new Room(this.fs);
     this.limiter = new Limiter(this.fs);
     const nb = biquadBandpass(2200, 0.7, this.fs);
@@ -308,7 +318,7 @@ export class FluteCore implements InstrumentCore {
         this.tongueLen = Math.max(4, Math.round((0.5 * this.fs) / et(m)));
         this.tongueN = this.tongueLen;
         this.attackBoost = legato ? 0 : ATTACK_BOOST * (0.6 + 0.4 * (ev.velocity / 127));
-        if (!legato) this.vibPhase = 0;
+        if (!legato) this.vibPhase = this.vib0;
         this.noteStart = this.frame;
         this.releasePending = false;
         if (!legato) this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
@@ -333,7 +343,7 @@ export class FluteCore implements InstrumentCore {
         break;
       case 'bend':
         // the player rolls the flute in/out and lips the pitch: the tube's effective length
-        this.bendFactor = Math.pow(2, -clamp(ev.value, -12, 12) / 12);
+        this.bendFactor = Math.pow(2, -(clamp(ev.value, -12, 12) + this.tune) / 12);
         break;
       case 'allNotesOff':
         this.held = [];
@@ -429,7 +439,7 @@ export class FluteCore implements InstrumentCore {
     this.pressure += (this.pTarget - this.pressure) * k;
     if (this.pressure < 1e-5 && this.pTarget === 0) this.pressure = 0;
     const age = (this.frame - this.noteStart) / fs;
-    this.vibPhase += 2 * Math.PI * 5.0 * dt;
+    this.vibPhase += 2 * Math.PI * 5.0 * this.vibRate * dt;
     const vib = 1 + P.vibrato * clamp((age - 0.3) / 0.4, 0, 1) * Math.sin(this.vibPhase);
     this.vibNow = vib - 1;
     // velocity: mostly loudness (jet flow amplitude), a little blowing pressure

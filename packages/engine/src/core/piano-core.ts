@@ -47,6 +47,8 @@ export interface CoreOptions {
   dry?: boolean;
   /** precomputed dispersion designs (from computeDesigns) to skip start-up design work */
   designs?: DesignEntry[];
+  /** orchestra mode: another piano of the same kind, its own hammer noise (0: the piano as it is) */
+  player?: number;
 }
 
 export interface PianoShapes {
@@ -145,6 +147,8 @@ export class PianoCore {
   readonly board = new Soundboard();
   maxVoices: number;
   dry: boolean;
+  /** another piano of the same make in an ensemble (design.ts buildKeySpecs); 0 alone */
+  readonly player: number;
 
   /** absolute sample counter */
   frame = 0;
@@ -210,9 +214,10 @@ export class PianoCore {
     this.params = { ...DEFAULT_PARAMS, ...this.design.defaults, ...opts.params };
     this.maxVoices = opts.maxVoices ?? 64;
     this.dry = !!opts.dry;
+    this.player = opts.player ?? 0;
     for (let m = KEY_LO; m <= KEY_HI; m++) {
-      this.voices.push(new Voice(m, false));
-      this.lights.push(new Voice(m, true));
+      this.voices.push(new Voice(m, false, opts.player));
+      this.lights.push(new Voice(m, true, opts.player));
     }
     this.room = new Room(this.fs);
     this.diffuser = new Diffuser(this.fs);
@@ -230,7 +235,7 @@ export class PianoCore {
   }
 
   private rebuild(full: boolean): void {
-    this.specs = buildKeySpecs(this.design, this.params, this.cal);
+    this.specs = buildKeySpecs(this.design, this.params, this.cal, this.player);
     if (full) {
       this.board.configure(this.design.board, this.cal, this.params.soundboardDamping, this.fs);
       this.modeAmps = new Float32Array(this.board.K);
@@ -284,7 +289,7 @@ export class PianoCore {
     ) {
       this.rebuild(false);
     } else if (np.hammerHardness !== old.hammerHardness) {
-      this.specs = buildKeySpecs(this.design, np, this.cal);
+      this.specs = buildKeySpecs(this.design, np, this.cal, this.player);
       for (let i = 0; i < NUM_KEYS; i++) {
         this.voices[i].hK = this.specs[i].hammer.K;
         this.voices[i].spec = { ...this.voices[i].spec, hammer: this.specs[i].hammer };

@@ -1,0 +1,60 @@
+// Orchestra mode: a second player of the same instrument (the `player` option). Player 0 is the
+// instrument exactly as it is; another player has its own random stream (vibrato, bow, breath and
+// hammer noise, a piano's own unisons) and a few cents of its own intonation, so two violins on one
+// tune are two players and not one violin twice as loud.
+import { describe, expect, it } from 'vitest';
+import { renderInstrument } from '../src/core/render.ts';
+import { playerCents } from '../src/core/util.ts';
+import { cents, FS, measurePeak } from './helpers.ts';
+
+const note = (m: number, dur: number) => [
+  { time: 0.02, event: { type: 'noteOn' as const, midi: m, velocity: 90 } },
+  { time: dur - 0.3, event: { type: 'noteOff' as const, midi: m } },
+];
+const run = (instrument: 'piano' | 'violin' | 'flute' | 'trumpet', m: number, player?: number, dur = 1.6) => renderInstrument({ sampleRate: FS, instrument, preset: 'grand', events: note(m, dur), duration: dur, dry: true, player }).left;
+/** normalised correlation over [t0, t1] s */
+const corr = (a: Float32Array, b: Float32Array, t0: number, t1: number) => {
+  let xy = 0;
+  let xx = 0;
+  let yy = 0;
+  for (let i = Math.round(t0 * FS); i < Math.round(t1 * FS); i++) {
+    xy += a[i] * b[i];
+    xx += a[i] * a[i];
+    yy += b[i] * b[i];
+  }
+  return xy / Math.sqrt(xx * yy);
+};
+
+describe('a second player of the same instrument', () => {
+  it('player 0 is the instrument as it is, sample for sample', () => {
+    const a = run('violin', 67, undefined, 0.8);
+    const b = run('violin', 67, 0, 0.8);
+    expect(a.every((x, i) => x === b[i])).toBe(true);
+  });
+
+  it('another player plays the same note as a different player: not one instrument twice', () => {
+    for (const [inst, m, most] of [
+      ['violin', 67, 0.6],
+      ['flute', 76, 0.6],
+      ['trumpet', 67, 0.6],
+      ['piano', 60, 0.9],
+    ] as const) {
+      const a = run(inst, m, 0);
+      const b = run(inst, m, 1);
+      const r = corr(a, b, 0.4, 1.2);
+      expect(r, inst).toBeLessThan(most);
+      // as loud (within 1 dB): the same instrument, played as well
+      const lvl = (x: Float32Array) => 10 * Math.log10(x.subarray(Math.round(0.4 * FS), Math.round(1.2 * FS)).reduce((s, v) => s + v * v, 0));
+      expect(Math.abs(lvl(a) - lvl(b)), inst).toBeLessThan(1);
+    }
+  });
+
+  it('its intonation is a few cents off the first player’s (+4, −4, +8 ¢), the trumpet’s too', () => {
+    expect([0, 1, 2, 3, 4].map(playerCents)).toEqual([0, 4, -4, 8, -8]);
+    const f = 440 * Math.pow(2, (67 - 69) / 12);
+    const a = measurePeak(run('trumpet', 67, 0, 1.4), f, 0.5, 0.6)!;
+    const b = measurePeak(run('trumpet', 67, 1, 1.4), f, 0.5, 0.6)!;
+    expect(cents(b.f, a.f)).toBeGreaterThan(2.5);
+    expect(cents(b.f, a.f)).toBeLessThan(5.5);
+  });
+});

@@ -1,19 +1,36 @@
 // Orchestra mode: several instruments at once. Each instrument on the stage (a part) is its own
 // engine (an AudioWorkletNode) on the page's one AudioContext; they share a bus (orchestra/mix.ts) and
-// the analyser. A MIDI file's lines go to the parts by a plan (orchestra/assign.ts); played by hand
-// (keys, a MIDI keyboard) the notes are dealt out by register, each melodic instrument one note.
+// the analyser. A MIDI file's lines go to the parts by a plan (orchestra/assign.ts), many to many: a
+// line may sound on several parts, and a voice may be on the stage twice (two cellos, two grands, each
+// its own engine). Played by hand (keys, a MIDI keyboard) the notes are dealt out by register, each
+// melodic instrument one note.
 // While the ensemble plays, the single instrument's engine is taken out of the graph (it costs as
 // much idle as playing) and put back when the ensemble goes.
 
 import { createInstrument, pianoKeySummary, processorUrl, type KeySummary, type Piano, type VisualFrame } from '@piano-model/engine';
 import { audio, fetchDesigns, type Route } from '../audio.ts';
 import type { FileEvent, MidiLine, MidiSong } from '../midi-file.ts';
-import { autoPlan, isKeyboard, lineupOf, lineupPlan, placeNote, reassign, VOICE_INFO, type Plan, type Voice } from './assign.ts';
+import { addPart, autoPlan, isKeyboard, lineupOf, lineupPlan, placeNote, playersOf, reassign, removePart, setPartLines, setPartVoice, setRoute, VOICE_INFO, type Plan, type Voice } from './assign.ts';
 import { busGain } from './mix.ts';
 import { piecePlan, type Piece } from './pieces.ts';
 
-/** the most instruments on the stage (each a few per cent of the audio thread, see NOTES) */
-export const STAGE_CAP = 6;
+/** the most instruments a file is shared out over by itself, and a piece's (each a few per cent of the
+ *  audio thread: artifacts/realistic-3d/final-orchestra/NOTES.md) */
+export const AUTO_CAP = 6;
+/** the most instruments on the stage when they are picked or routed by hand: eight on a computer, six
+ *  on a phone or a small tablet (its audio thread is about three times slower; see
+ *  artifacts/realistic-3d/final-next5/orchestra-routing/NOTES.md for the measurements) */
+export const stageCap = (): number => {
+  try {
+    return matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 820 ? 6 : 8;
+  } catch {
+    return 6;
+  }
+};
+/** each piano's polyphony: one piano 48 voices; with two on the stage 32 each, 24 on a phone (the
+ *  audio thread's heaviest part is a piano's ringing strings: two grands and six others came to 35 %
+ *  of a desktop's audio thread, scripts/perf-orchestra.mjs ROUTED=1) */
+const pianoVoices = (n: number): number => (n > 1 ? (stageCap() < 8 ? 24 : 32) : 48);
 /** a lineup to start from: the string quartet */
 export const QUARTET: Voice[] = ['violin', 'violin', 'viola', 'cello'];
 
@@ -32,12 +49,20 @@ class Emitter<T> {
 /** one instrument on the stage, live */
 export interface PartLive {
   voice: Voice;
+  /** a second player of the same voice on the same line (assign.ts playersOf): its own vibrato */
+  player: number;
   engine: Piano | null;
   /** the engine's latest visual frame, and the piano's last hammer strike */
   frame: VisualFrame | null;
   strike: VisualFrame['strike'];
   /** the notes it is holding, as heard (the engine's pitches), with when and how hard each was struck */
   down: Set<number>;
+  /** how many of its lines hold each pitch: as scheduled (a unison of two lines is let go when the
+   *  last lets go) and as heard */
+  sched: Map<number, number>;
+  heard: Map<number, number>;
+  /** counts the times its notes were dropped (a picture still on its way for an older one is not drawn) */
+  epoch: number;
   strikes: Map<number, number>;
   vels: Map<number, number>;
   /** when it last began a note (performance.now) and which */
@@ -114,61 +139,128 @@ class Ensemble implements Route {
 
   /** a file's lines over the current lineup (picked by hand) or on instruments of their own */
   planFor(song: MidiSong, piece: Piece | null): Plan {
-    if (piece) return piecePlan(piece, song.lines, STAGE_CAP);
-    return autoPlan(song.lines, { cap: STAGE_CAP, lineup: this.active && this.byUser ? this.lineup : undefined });
+    if (piece) return piecePlan(piece, song.lines, AUTO_CAP);
+    return this.active && this.byUser ? autoPlan(song.lines, { cap: stageCap(), lineup: this.lineup }) : autoPlan(song.lines, { cap: AUTO_CAP });
   }
 
   /** a file's lines over a given lineup */
   planForLineup(song: MidiSong, lineup: Voice[]): Plan {
-    return autoPlan(song.lines, { cap: STAGE_CAP, lineup });
+    return autoPlan(song.lines, { cap: stageCap(), lineup });
   }
 
   /** a new lineup (picked by hand); a loaded file's lines are matched to it */
   setLineup(voices: Voice[]): void {
-    const v = voices.slice(0, STAGE_CAP);
+    const v = voices.slice(0, stageCap());
     this.byUser = true;
     this.piece = null;
-    this.plan = this.song ? autoPlan(this.song.lines, { cap: STAGE_CAP, lineup: v }) : lineupPlan(v);
+    this.plan = this.song ? autoPlan(this.song.lines, { cap: stageCap(), lineup: v }) : lineupPlan(v);
     if (!v.length) return this.exit();
     this.releaseLive();
     this.sync();
     this.changed.emit();
   }
 
-  /** a line of the file to another instrument (null: silent); false when the stage has no room */
+  /** a line of the file to another instrument, and only to it (null: silent); false when the stage
+   *  has no room */
   reassignLine(li: number, voice: Voice | null): boolean {
-    const next = reassign(this.plan, this.lines, li, voice, STAGE_CAP);
+    return this.replan(reassign(this.plan, this.lines, li, voice, stageCap()));
+  }
+
+  // routing by hand, many to many (assign.ts): the instruments keep their seats
+  /** line `li` on part `k` too, or no longer */
+  route(li: number, k: number, on: boolean): boolean {
+    return this.replan(setRoute(this.plan, this.lines, li, k, on));
+  }
+  /** part `k` plays these lines (every line: the whole file) */
+  partLines(k: number, lis: number[]): boolean {
+    return this.replan(setPartLines(this.plan, this.lines, k, lis));
+  }
+  /** another instrument on the stage (a voice already there gets a second engine and seat), playing
+   *  `lis`; false when the stage is full */
+  addPart(voice: Voice, lis: number[] = []): boolean {
+    return this.replan(addPart(this.plan, this.lines, voice, lis, stageCap()));
+  }
+  /** an instrument off the stage (the last one: the ensemble leaves) */
+  removePart(k: number): boolean {
+    if (this.plan.parts.length <= 1) return false;
+    return this.replan(removePart(this.plan, this.lines, k));
+  }
+  /** an instrument changed for another, in its seat with its lines */
+  partVoice(k: number, voice: Voice): boolean {
+    return this.replan(setPartVoice(this.plan, this.lines, k, voice));
+  }
+  /** is there room for one more instrument? */
+  get roomForMore(): boolean {
+    return this.plan.parts.length < stageCap();
+  }
+
+  private replan(next: Plan | null): boolean {
     if (!next) return false;
+    if (next === this.plan) return true;
+    // (sync keeps the engines that stay; one whose lines change lets go of what it holds, else a note
+    // whose line has gone elsewhere would never hear its end)
+    const prev = this.plan;
     this.plan = next;
     this.piece = null;
-    this.sync();
+    this.releaseLive();
+    this.sync(prev);
     this.changed.emit();
     return true;
   }
 
   // ------------------------------------------------------------- engines
   /** make the parts match the plan: keep an engine where its instrument stays, make the others */
-  private sync(): void {
+  private sync(prev?: Plan): void {
     const want = this.plan.parts.map((p) => p.voice);
+    const linesOf = new Map(this.parts.map((p, i) => [p, prev?.parts[i]?.lines.join() ?? '']));
+    const players = playersOf(this.plan);
     const old = this.parts;
-    const next: PartLive[] = [];
+    const next: PartLive[] = new Array(want.length);
     const free = [...old];
-    for (const v of want) {
-      const k = free.findIndex((p) => p.voice === v);
-      if (k >= 0) {
-        const p = free.splice(k, 1)[0];
-        p.down.clear();
-        next.push(p);
-      } else next.push(this.newPart(v));
+    // an engine stays where its voice and player stay: first the parts in the same seat, then any
+    want.forEach((v, i) => {
+      const p = old[i];
+      if (p && p.voice === v && p.player === players[i] && free.includes(p)) {
+        free.splice(free.indexOf(p), 1);
+        next[i] = p;
+      }
+    });
+    want.forEach((v, i) => {
+      if (next[i]) return;
+      const k = free.findIndex((p) => p.voice === v && p.player === players[i]);
+      next[i] = k >= 0 ? free.splice(k, 1)[0] : this.newPart(v, players[i]);
+    });
+    for (const p of free) {
+      // the notes it held are let go with it
+      this.dropNotes(p);
+      this.disposePart(p);
     }
-    for (const p of free) this.disposePart(p);
+    // (a whole new plan, no `prev`: every engine kept lets go)
+    next.forEach((p, i) => linesOf.has(p) && (!prev || linesOf.get(p) !== this.plan.parts[i].lines.join()) && this.dropNotes(p));
     this.parts = next;
     this.applyGain();
+    this.applyVoices();
     if (this.active) void this.ensureEngines();
   }
 
-  private newPart(v: Voice): PartLive {
-    return { voice: v, engine: null, frame: null, strike: null, down: new Set(), strikes: new Map(), vels: new Map(), lastOn: 0, lastNote: -1, sustain: 0, unsubs: [] };
+  private newPart(v: Voice, player = 0): PartLive {
+    return { voice: v, player, engine: null, frame: null, strike: null, down: new Set(), sched: new Map(), heard: new Map(), epoch: 0, strikes: new Map(), vels: new Map(), lastOn: 0, lastNote: -1, sustain: 0, unsubs: [] };
+  }
+
+  /** a part lets go of every note it holds or has been sent */
+  private dropNotes(p: PartLive): void {
+    p.epoch++;
+    p.engine?.clearScheduled();
+    p.engine?.allNotesOff();
+    p.sched.clear();
+    p.heard.clear();
+    for (const m of [...p.down]) this.mark(p, m, 0, false);
+  }
+
+  /** each piano's polyphony for the number of pianos on the stage */
+  private applyVoices(): void {
+    const n = this.parts.filter((p) => isKeyboard(p.voice)).length;
+    for (const p of this.parts) if (isKeyboard(p.voice)) p.engine?.setMaxVoices(pianoVoices(n));
   }
 
   private disposePart(p: PartLive): void {
@@ -209,7 +301,8 @@ class Ensemble implements Route {
       this.parts.map(async (p) => {
         if (p.engine) return;
         const info = VOICE_INFO[p.voice];
-        const e = await createInstrument(ctx, { instrument: info.instrument, preset: 'grand', designs: info.instrument === 'piano' ? designs : null, processorUrl, waitReady: false, maxVoices: 48 });
+        const pianos = this.parts.filter((q) => isKeyboard(q.voice)).length;
+        const e = await createInstrument(ctx, { instrument: info.instrument, preset: 'grand', designs: info.instrument === 'piano' ? designs : null, processorUrl, waitReady: false, maxVoices: pianoVoices(pianos), player: p.player });
         if (my !== this.gen || !this.parts.includes(p) || p.engine) {
           e.dispose();
           return;
@@ -217,6 +310,7 @@ class Ensemble implements Route {
         p.engine = e;
         e.connect(this.bus!);
         if (info.preset === 'upright') void e.setPreset('upright');
+        this.applyVoices();
         // the ensemble's room: the stage's reverb setting, the grand's lid as the single grand has it
         const room = (audio.piano?.params as Record<string, unknown> | undefined)?.room;
         if (typeof room === 'number') e.setParams({ room });
@@ -243,8 +337,11 @@ class Ensemble implements Route {
     audio.state.on(() => this.muteSolo());
   }
 
+  /** the bus at 1/√n over the parts that can sound: with a file, those given a line (one waiting for
+   *  a line is silent); played by hand, all of them */
   private applyGain(): void {
-    if (this.bus && audio.ctx) this.bus.gain.setTargetAtTime(busGain(this.parts.length), audio.ctx.currentTime, 0.02);
+    const n = this.song ? this.plan.parts.filter((p) => p.lines.length > 0).length : this.parts.length;
+    if (this.bus && audio.ctx) this.bus.gain.setTargetAtTime(busGain(n), audio.ctx.currentTime, 0.02);
   }
 
   /** a piano part's strings (for drawing before its engine reports) */
@@ -256,28 +353,48 @@ class Ensemble implements Route {
   // ------------------------------------------------------------- a file
   /** an event of the file at context time `at`; the parts' pictures follow when it is heard */
   schedule(e: FileEvent, at: number): void {
-    const a = e.line === undefined ? undefined : this.plan.lines[e.line];
-    if (!a || a.part < 0) return;
-    const p = this.parts[a.part];
-    const eng = p?.engine;
-    if (!p || !eng) return;
-    if (e.kind === 'pedal') {
-      // pedals belong to the pianos (a bowed or wind part has none in a file)
-      if (!isKeyboard(p.voice)) return;
-      if (e.cc === 64) eng.sustain(e.value, at);
-      else if (e.cc === 66) eng.sostenuto(e.value, at);
-      else eng.softPedal(e.value, at);
-      return;
+    const rs = e.line === undefined ? undefined : this.plan.lines[e.line];
+    if (!rs) return;
+    // every instrument the line plays on
+    for (const r of rs) {
+      const p = this.parts[r.part];
+      const eng = p?.engine;
+      if (!p || !eng) continue;
+      if (e.kind === 'pedal') {
+        // pedals belong to the pianos (a bowed or wind part has none in a file)
+        if (!isKeyboard(p.voice)) continue;
+        if (e.cc === 64) eng.sustain(e.value, at);
+        else if (e.cc === 66) eng.sostenuto(e.value, at);
+        else eng.softPedal(e.value, at);
+        continue;
+      }
+      const pitch = placeNote(e.midi, r.shift, p.voice);
+      // two lines on one instrument in unison: one string, let go when the last line lets go
+      const n = p.sched.get(pitch) ?? 0;
+      // (the picture follows the part itself: the lineup may change before the note is heard)
+      const ep = p.epoch;
+      if (e.kind === 'on') {
+        p.sched.set(pitch, n + 1);
+        eng.noteOn(pitch, e.vel, at);
+        this.later(at, () => ep === p.epoch && this.hear(p, pitch, e.vel, true));
+      } else {
+        if (n > 1) p.sched.set(pitch, n - 1);
+        else {
+          p.sched.delete(pitch);
+          eng.noteOff(pitch, at);
+        }
+        this.later(at, () => ep === p.epoch && this.hear(p, pitch, 0, false));
+      }
     }
-    const pitch = placeNote(e.midi, a.shift, p.voice);
-    // (the picture follows the part itself: the lineup may change before the note is heard)
-    if (e.kind === 'on') {
-      eng.noteOn(pitch, e.vel, at);
-      this.later(at, () => this.mark(p, pitch, e.vel, true));
-    } else {
-      eng.noteOff(pitch, at);
-      this.later(at, () => this.mark(p, pitch, 0, false));
-    }
+  }
+
+  /** a file's note heard on a part: the picture lets go when the last of its lines does */
+  private hear(p: PartLive, pitch: number, vel: number, on: boolean): void {
+    const n = p.heard.get(pitch) ?? 0;
+    if (on) p.heard.set(pitch, n + 1);
+    else if (n > 1) return void p.heard.set(pitch, n - 1);
+    else p.heard.delete(pitch);
+    this.mark(p, pitch, vel, on);
   }
 
   private later(at: number, fn: () => void): void {
@@ -306,10 +423,8 @@ class Ensemble implements Route {
     for (const id of this.timers) window.clearTimeout(id);
     this.timers.clear();
     for (const p of this.parts) {
-      p.engine?.clearScheduled();
-      p.engine?.allNotesOff();
+      this.dropNotes(p);
       if (isKeyboard(p.voice)) p.engine?.sustain(0);
-      for (const m of [...p.down]) this.mark(p, m, 0, false);
     }
   }
 

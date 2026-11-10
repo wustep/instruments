@@ -1397,6 +1397,129 @@ figure[title] {
   opacity: 0.3;
   cursor: default;
 }
+/* a line on more than one instrument (+1), a second seat of a voice (2) */
+.pl-line,
+.pg-row {
+  position: relative;
+}
+.pl-more {
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  font: 500 10px/1 var(--mono);
+  color: var(--ink-2);
+  pointer-events: none;
+}
+.pl-pick svg:not(.glyph) {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+.pl-off {
+  margin-left: 4px;
+  border-left: 1px solid var(--rule-2);
+  border-radius: 0 4px 4px 0;
+}
+.pl-route[hidden] {
+  display: none;
+}
+.pl-route[aria-expanded='true'] {
+  color: var(--amber);
+}
+/* routing: instruments (rows) by lines (columns), a last column for every line, a row to add one */
+.pl-grid {
+  position: absolute;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: 30px repeat(var(--n), minmax(18px, 26px)) 30px;
+  grid-auto-rows: 26px;
+  grid-template-rows: 18px;
+  align-items: center;
+  justify-items: center;
+  max-width: calc(100vw - 12px);
+  max-height: calc(100dvh - var(--stage-band-y, 140px) - 120px);
+  overflow: auto;
+  padding: 4px 6px 4px 4px;
+  border: 1px solid var(--rule-2);
+  border-radius: 6px;
+  background: rgba(14, 13, 11, 0.92);
+  backdrop-filter: blur(6px);
+}
+.pg-col {
+  font: 400 10px/1 var(--mono);
+  color: var(--muted);
+}
+.pg-col svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+.pg-row,
+.pg-cell {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.pg-row .glyph {
+  width: 22px;
+  height: 22px;
+}
+.pg-row svg:not(.glyph) {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+.pg-row:hover:not(:disabled),
+.pg-cell:hover {
+  color: var(--ink);
+}
+.pg-row.on .glyph {
+  stroke: var(--amber);
+  filter: drop-shadow(0 0 4px rgba(242, 166, 70, 0.5));
+}
+.pg-row[aria-expanded='true'] {
+  background: rgba(236, 226, 206, 0.1);
+}
+.pg-row:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+/* a cell: a ring, filled when this instrument plays this line */
+.pg-cell::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: 0.55;
+}
+.pg-cell[aria-pressed='true']::before {
+  border-color: var(--amber);
+  background: var(--amber);
+  opacity: 1;
+}
+.pg-all::before {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.pg-all[aria-pressed='true']::before {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--amber);
+}
+.pg-row:focus-visible,
+.pg-cell:focus-visible {
+  outline: 1px solid rgba(242, 166, 70, 0.8);
+  outline-offset: -1px;
+}
 .player[hidden] {
   display: none;
 }

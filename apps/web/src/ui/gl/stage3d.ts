@@ -41,7 +41,7 @@ export interface Stage3D {
   /** frame build + draw time (ms, smoothed, without one-off model building), vertices, whether
    *  the light scene / shadows are in use, the total time spent building models, and whether the
    *  last frame drew the grand's lid as a mirror */
-  stats: { ms: number; vertices: number; lite: boolean; frames: number; lit: number; sum: number; buildMs: number; shadows: boolean; ao: boolean; mirror: boolean };
+  stats: { ms: number; vertices: number; lite: boolean; frames: number; lit: number; sum: number; buildMs: number; shadows: boolean; ao: boolean; mirror: boolean; mirrors: number };
   /** tests: read back the next frames' pixels (lit count and a checksum) */
   probe: boolean;
   /** the renderer (debugging) */
@@ -69,7 +69,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
   let pitchT = 0;
   let distT = 1;
   let last = 0;
-  const stats = { ms: 0, vertices: 0, lite: phone, frames: 0, lit: 0, sum: 0, buildMs: 0, shadows: true, ao: !phone, mirror: false };
+  const stats = { ms: 0, vertices: 0, lite: phone, frames: 0, lit: 0, sum: 0, buildMs: 0, shadows: true, ao: !phone, mirror: false, mirrors: 0 };
   let probe = false;
   const px = new Uint8Array(4);
   let lastVP: Mat4 | null = null;
@@ -337,7 +337,8 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       const progs = r.r.info.programs?.length ?? 0;
       r.draw(batch, eye, target, FOV, pw, ph, ground);
       lastVP = r.vp.elements as unknown as Mat4;
-      stats.mirror = r.mirrored;
+      stats.mirror = r.mirrored > 0;
+      stats.mirrors = r.mirrored;
       // budget: if a frame costs more than ~9 ms, drop the occlusion, then draw the light scene
       // (every other string, fewer parts), then drop the shadows. A frame that compiled shaders
       // (the first of each instrument) is kept out of it, as the model building is.

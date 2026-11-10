@@ -804,7 +804,7 @@ test('icon-only stage controls say what they are: a short tooltip and an accessi
   await page.keyboard.press('ArrowUp');
   await expect(tip).not.toHaveText(t0!);
   // the other icon-only controls
-  for (const [sel, text] of [['.oct-btn >> nth=0', 'octave down · Z'], ['.oct-btn >> nth=1', 'octave up · X'], ['.knob-toggle', 'knobs'], ['.ens-toggle', 'ensemble · tap instruments to add them'], ['.score-btn', 'pieces']] as const) {
+  for (const [sel, text] of [['.oct-btn >> nth=0', 'octave down · Z'], ['.oct-btn >> nth=1', 'octave up · X'], ['.knob-toggle', 'knobs'], ['.ens-toggle', 'ensemble · tap instruments to add them'], ['.score-btn', 'pieces'], ['.pl-route', 'routing']] as const) {
     const el = page.locator(sel);
     if (!(await el.isVisible())) continue;
     await el.hover();
@@ -1440,3 +1440,144 @@ test('orchestra by hand: the ensemble toggle, instruments counted in, a chord de
   expect((await ens(page)).active).toBe(false);
   expect(errors).toEqual([]);
 });
+
+// ================================================================ orchestra routing, many to many
+const routing = (page: Page) =>
+  page.evaluate(() => {
+    const e = (window as any).__orchestra.ensemble;
+    return {
+      lineup: e.lineup as string[],
+      players: e.parts.map((p: any) => p.player) as number[],
+      routes: e.plan.lines.map((rs: any[]) => rs.map((r) => r.part)) as number[][],
+      engines: new Set(e.parts.map((p: any) => p.engine).filter(Boolean)).size as number,
+    };
+  });
+
+test('orchestra routing, many to many: a tune on two instruments, the whole file on a second cello, two grands of their own', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await startAudio(page);
+  await page.evaluate(() => (window as any).__orchestra.loadPiece(0));
+  await expect.poll(async () => (await ens(page)).engines, { timeout: 8000 }).toBe(4);
+  // the routing grid: a row per instrument, a column per line (and one for every line)
+  if (info.project.name !== 'phone') {
+    await page.locator('.pl-route').hover();
+    await expect(page.locator('.tip')).toHaveText('routing');
+  }
+  await page.locator('.pl-route').click();
+  const grid = page.locator('.pl-grid');
+  await expect(grid).toBeVisible();
+  await expect(page.locator('.pl-route')).toHaveAttribute('aria-expanded', 'true');
+  await expect(grid.locator('.pg-row:not(.pg-add)')).toHaveCount(4);
+  await expect(grid.locator('.pg-cell:not(.pg-all)')).toHaveCount(16);
+  await expect(grid.locator('.pg-cell[aria-pressed="true"]:not(.pg-all)')).toHaveCount(4);
+  // nothing scrolls sideways, the grid on the screen
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const gb = (await grid.boundingBox())!;
+  expect(gb.x).toBeGreaterThanOrEqual(0);
+  expect(gb.x + gb.width).toBeLessThanOrEqual(info.project.name === 'phone' ? 412 : 1440);
+  // one line on several instruments: a flute (it sits before the strings), the first violin's tune on it too
+  await grid.locator('.pg-add').click();
+  await page.locator('.pl-menu .pl-pick[data-voice="flute"]').click();
+  await expect.poll(async () => (await routing(page)).lineup).toEqual(['flute', 'violin', 'violin', 'viola', 'cello']);
+  await grid.locator('.pg-cell[data-part="0"][data-line="0"]').click();
+  await expect(grid.locator('.pg-cell[data-part="0"][data-line="0"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.pl-line').nth(0)).toHaveAttribute('data-voices', 'flute violin');
+  await expect(page.locator('.pl-line').nth(0).locator('.pl-more')).toHaveText('+1');
+  // both play it: the flute and the first violin hold notes together
+  await expect.poll(async () => (await ens(page)).held.slice(0, 2).every((n) => n > 0), { timeout: 8000 }).toBe(true);
+  // the same instrument twice: a second cello, its own engine and player, playing the whole file
+  await grid.locator('.pg-add').click();
+  await page.locator('.pl-menu .pl-pick[data-voice="cello"]').click();
+  await grid.locator('.pg-all[data-part="5"]').click();
+  await expect.poll(async () => (await routing(page)).engines, { timeout: 8000 }).toBe(6);
+  const r = await routing(page);
+  expect(r.lineup).toEqual(['flute', 'violin', 'violin', 'viola', 'cello', 'cello']);
+  expect(r.routes).toEqual([[0, 1, 5], [2, 5], [3, 5], [4, 5]]);
+  expect(r.players).toEqual([0, 0, 0, 0, 0, 1]);
+  await expect(grid.locator('.pg-row[data-part="4"]')).toHaveAttribute('aria-label', /^cello 1/);
+  await expect(grid.locator('.pg-row[data-part="5"]')).toHaveAttribute('aria-label', /^cello 2/);
+  await expect(page.locator('.pick[aria-label="Cello"] .pick-n')).toHaveText('×2');
+  await expect.poll(async () => (await ens(page)).held[5], { timeout: 6000 }).toBeGreaterThan(0);
+  if (info.project.name === 'phone') {
+    // a phone's stage holds six: the grid offers no seventh
+    await expect(grid.locator('.pg-add')).toBeDisabled();
+  } else {
+    // two grands, each its own engine and seat; eight is the most
+    for (let k = 0; k < 2; k++) {
+      await grid.locator('.pg-add').click();
+      await page.locator('.pl-menu .pl-pick[data-voice="grand"]').click();
+    }
+    await expect(grid.locator('.pg-add')).toBeDisabled();
+    await grid.locator('.pg-all[data-part="6"]').click();
+    await grid.locator('.pg-all[data-part="7"]').click();
+    await expect.poll(async () => (await ens(page)).frames, { timeout: 10000 }).toBe(8);
+    const g = await routing(page);
+    expect(g.engines).toBe(8);
+    expect(g.lineup.slice(6)).toEqual(['grand', 'grand']);
+    expect(g.players.slice(6)).toEqual([0, 1]);
+    expect((await ens(page)).kinds.slice(6)).toEqual(['piano', 'piano']);
+    // the bus at 1/√n of the instruments that play
+    await expect.poll(() => page.evaluate(() => (window as any).__orchestra.ensemble.bus.gain.value), { timeout: 2000 }).toBeCloseTo(1 / Math.sqrt(8), 2);
+    // in 3D: every seat drawn, both grands' open lids mirror the strings
+    await page.keyboard.press('Escape');
+    await page.locator('.dim-toggle').click();
+    await expect(page.locator('.stage-3d')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => (window as any).__stage3d.stats.mirrors), { timeout: 8000 }).toBe(2);
+    await page.locator('.dim-toggle').click();
+    await page.locator('.pl-route').click();
+    // a grand taken off from its row
+    await grid.locator('.pg-row[data-part="7"]').click();
+    await page.locator('.pl-menu .pl-off').click();
+    await expect.poll(async () => (await routing(page)).engines, { timeout: 5000 }).toBe(7);
+  }
+  // an instrument changed in its seat: the flute becomes a trumpet, the tune with it
+  await grid.locator('.pg-row[data-part="0"]').click();
+  await page.locator('.pl-menu .pl-pick[data-voice="trumpet"]').click();
+  await expect.poll(async () => (await routing(page)).lineup[0]).toBe('trumpet');
+  // (the second cello and, on a desktop, the grand play every line)
+  const desk = info.project.name !== 'phone';
+  await expect(page.locator('.pl-line').nth(0)).toHaveAttribute('data-voices', desk ? 'trumpet violin cello grand' : 'trumpet violin cello');
+  // off the stage: the tune stays on its violin (and the second cello, and the grand)
+  await grid.locator('.pg-row[data-part="0"]').click();
+  await page.locator('.pl-menu .pl-off').click();
+  await expect.poll(async () => (await routing(page)).routes[0]).toEqual(desk ? [0, 4, 5] : [0, 4]);
+  // Escape closes the grid; the line chip still moves a line, and only that line
+  await page.keyboard.press('Escape');
+  await expect(grid).toBeHidden();
+  await page.locator('.player').getByRole('button', { name: 'Stop' }).click();
+  expect(errors).toEqual([]);
+});
+
+test('orchestra routing: a file on the one instrument shown goes onto several from the routing button', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'files are dropped on desktops');
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await startAudio(page);
+  // a two-hand piano piece: it plays on the instrument shown, no ensemble
+  const rh: [number, ...number[]][] = [];
+  for (let i = 0; i < 8; i++) rh.push([0, 0x90, [72, 74, 76, 77][i % 4], 80], [240, 0x80, [72, 74, 76, 77][i % 4], 0]);
+  const lh: [number, ...number[]][] = [];
+  for (let i = 0; i < 4; i++) lh.push([0, 0x91, 48, 80], [0, 0x91, 52, 80], [0, 0x91, 55, 80], [0, 0x91, 60, 80], [480, 0x81, 48, 0], [0, 0x81, 52, 0], [0, 0x81, 55, 0], [0, 0x81, 60, 0]);
+  const file = smf(480, [[[0, 0xff, 0x51, 3, 0x07, 0xa1, 0x20]], rh, lh]);
+  await page.evaluate((b) => (window as any).__player.load(new Uint8Array(b).buffer), Array.from(file));
+  expect((await ens(page)).active).toBe(false);
+  await expect(page.locator('.pl-route')).toBeVisible();
+  // routing: the ensemble comes on, the instrument shown playing every line
+  await page.locator('.pl-route').click();
+  await expect(page.locator('.pl-grid')).toBeVisible();
+  await expect.poll(async () => (await ens(page)).engines, { timeout: 8000 }).toBe(1);
+  const r = await routing(page);
+  expect(r.lineup).toEqual(['grand']);
+  expect(r.routes).toEqual([[0], [0]]);
+  // the whole file on a violin as well
+  await page.locator('.pg-add').click();
+  await page.locator('.pl-menu .pl-pick[data-voice="violin"]').click();
+  await page.locator('.pg-all[data-part="0"]').click();
+  await expect.poll(async () => (await routing(page)).routes, { timeout: 4000 }).toEqual([[0, 1], [0, 1]]);
+  expect((await routing(page)).lineup).toEqual(['violin', 'grand']);
+  await expect.poll(async () => (await ens(page)).held[0], { timeout: 6000 }).toBeGreaterThan(0);
+  await page.locator('.player').getByRole('button', { name: 'Stop' }).click();
+  expect(errors).toEqual([]);
+});
+

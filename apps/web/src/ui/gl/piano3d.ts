@@ -1892,7 +1892,7 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
     const lidM = new Float32Array([c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, h[0] - (c * h[0] - s * h[1]), h[1] - (s * h[0] + c * h[1]), 0, 1]);
     b.mesh(pm.lid, lidM, caseGlow);
     // open far enough to see under, and not in a key's close-up section (which cuts the scene)
-    if (pm.lidMirror && si.lid > 0.08 && !si.lite && !si.cut) b.mirror = { m: lidM, poly: pm.lidMirror.poly, y: pm.lidMirror.y, k: cv, body: pm.lid };
+    if (pm.lidMirror && si.lid > 0.08 && !si.lite && !si.cut) b.mirrors.push({ m: lidM, poly: pm.lidMirror.poly, y: pm.lidMirror.y, k: cv, body: pm.lid });
     if (pm.prop && si.lid > 0.03) {
       const tip = xform(lidM, pm.prop.tipLocal);
       propStick(b, pm.prop.base, tip, caseGlow);

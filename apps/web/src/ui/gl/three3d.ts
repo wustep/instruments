@@ -15,7 +15,7 @@
 import * as THREE from 'three';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
-import type { Batch, Mat4, Mesh, Vec3 } from './gl3d.ts';
+import type { Batch, Mat4, Mesh, Mirror, Vec3 } from './gl3d.ts';
 import { LINE_FS, LINE_VS, type LineSet } from './gl3d.ts';
 import { disposeMaterials, materialFor, setEnvironment } from './mats3.ts';
 import { MAT_LIST } from './mesh.ts';
@@ -209,19 +209,18 @@ export class Renderer3 {
   private glowL: LineLayer;
   private wireL: LineLayer;
   private envRT: THREE.WebGLRenderTarget;
-  private mirrorRT: THREE.WebGLRenderTarget | null = null;
-  private mirror: THREE.Mesh | null = null;
-  private mirrorPoly: unknown = null;
+  /** the planar mirrors' passes (a grand's lid; two grands in an ensemble): a target, a material and
+   *  the surface each */
+  private mirrorSlots: { rt: THREE.WebGLRenderTarget; mat: THREE.ShaderMaterial; mesh: THREE.Mesh | null; poly: unknown }[] = [];
   private mirrorCam = new THREE.PerspectiveCamera();
-  private mirrorMat: THREE.ShaderMaterial | null = null;
   private lite: boolean;
   private w = 1;
   private h = 1;
   /** shadows (off in the lightest scene) and ambient occlusion (off on phones / slow frames) */
   shadows = true;
   ao = true;
-  /** whether the last frame drew a planar mirror (a grand's open lid) */
-  mirrored = false;
+  /** how many planar mirrors (a grand's open lid) the last frame drew */
+  mirrored = 0;
 
   static create(canvas: HTMLCanvasElement, lite: boolean): Renderer3 | null {
     try {
@@ -435,18 +434,18 @@ export class Renderer3 {
     this.cam.updateProjectionMatrix();
     this.cam.updateMatrixWorld();
     this.vp.multiplyMatrices(this.cam.projectionMatrix, this.cam.matrixWorldInverse).multiply(new THREE.Matrix4().makeScale(-1, 1, 1));
-    // the lid's mirror: the scene from the camera's mirror image, cut at the mirror's plane
-    const mirrored = !clip && this.drawMirror(b, w, h);
+    // the lids' mirrors: the scene from the camera's mirror image, cut at the mirror's plane
+    const mirrored = clip ? 0 : this.drawMirrors(b, w, h);
     this.mirrored = mirrored;
-    // (the shadow map was drawn with the mirror's pass)
-    r.shadowMap.autoUpdate = !mirrored;
+    // (the shadow map was drawn with the mirrors' first pass)
+    r.shadowMap.autoUpdate = mirrored === 0;
     // scene → HDR target
     r.setRenderTarget(this.rt);
     r.setClearColor(0x000000, 0);
     r.clear(true, true, true);
     r.render(this.scene, this.cam);
     r.shadowMap.autoUpdate = true;
-    if (this.mirror) this.mirror.visible = false;
+    for (const ms of this.mirrorSlots) if (ms.mesh) ms.mesh.visible = false;
     // ambient occlusion (its radius scales with the instrument)
     let aoTex: THREE.Texture | null = null;
     if (this.ao) {
@@ -507,17 +506,35 @@ export class Renderer3 {
     r.render(this.lineScene, this.cam);
   }
 
-  /** render the batch's mirror (if any) into its target and pose the mirror's surface; false if none */
-  private drawMirror(b: Batch, w: number, h: number): boolean {
-    const mi = b.mirror;
-    if (!mi || mi.k <= 0) {
-      if (this.mirror) this.mirror.visible = false;
-      return false;
+  /** the most planar mirrors drawn in a frame (each is a pass of the whole scene) */
+  static readonly MIRRORS = 2;
+
+  /** render the batch's mirrors (if any) into their targets and pose their surfaces; how many */
+  private drawMirrors(b: Batch, w: number, h: number): number {
+    const n = Math.min(Renderer3.MIRRORS, b.mirrors.length);
+    for (let i = n; i < this.mirrorSlots.length; i++) if (this.mirrorSlots[i].mesh) this.mirrorSlots[i].mesh!.visible = false;
+    // pose every surface first: each pass leaves all of them out
+    const posed: boolean[] = [];
+    for (let i = 0; i < n; i++) posed.push(this.poseMirror(i, b.mirrors[i]));
+    let drawn = 0;
+    for (let i = 0; i < n; i++) {
+      if (!posed[i]) continue;
+      // (the first pass draws the shadow map; the others reuse it)
+      if (drawn) this.r.shadowMap.autoUpdate = false;
+      this.drawMirror(i, b, w, h);
+      drawn++;
     }
-    if (!this.mirrorRT) {
-      this.mirrorRT = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 0, depthTexture: new THREE.DepthTexture(1, 1, THREE.UnsignedIntType) });
-      this.mirrorMat = new THREE.ShaderMaterial({
-        uniforms: { tMirror: { value: this.mirrorRT.texture }, uTexM: { value: new THREE.Matrix4() }, uK: { value: 1 } },
+    this.r.shadowMap.autoUpdate = true;
+    for (let i = 0; i < n; i++) if (posed[i]) this.mirrorSlots[i].mesh!.visible = true;
+    return drawn;
+  }
+
+  /** the i-th mirror's slot, made when first needed */
+  private mirrorSlot(i: number) {
+    while (this.mirrorSlots.length <= i) {
+      const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 0, depthTexture: new THREE.DepthTexture(1, 1, THREE.UnsignedIntType) });
+      const mat = new THREE.ShaderMaterial({
+        uniforms: { tMirror: { value: rt.texture }, uTexM: { value: new THREE.Matrix4() }, uK: { value: 1 } },
         vertexShader: MIRROR_VS,
         fragmentShader: MIRROR_FS,
         clipping: true,
@@ -533,43 +550,66 @@ export class Renderer3 {
         polygonOffsetFactor: -1,
         polygonOffsetUnits: -2,
       });
+      this.mirrorSlots.push({ rt, mat, mesh: null, poly: null });
     }
-    if (this.mirrorPoly !== mi.poly) {
+    return this.mirrorSlots[i];
+  }
+
+  /** place the i-th mirror's surface; false (and hidden) when there is nothing to mirror */
+  private poseMirror(i: number, mi: Mirror): boolean {
+    const slot = this.mirrorSlot(i);
+    if (mi.k <= 0) {
+      if (slot.mesh) slot.mesh.visible = false;
+      return false;
+    }
+    if (slot.poly !== mi.poly) {
       // (a new outline: a rebuilt model)
-      this.mirrorPoly = mi.poly;
+      slot.poly = mi.poly;
       const g = new THREE.ShapeGeometry(new THREE.Shape(mi.poly.map(([x, z]) => new THREE.Vector2(x, z))));
       const P = g.attributes.position;
-      for (let i = 0; i < P.count; i++) P.setXYZ(i, P.getX(i), mi.y, P.getY(i));
-      if (this.mirror) {
-        this.mirror.geometry.dispose();
-        this.mirror.geometry = g;
+      for (let k = 0; k < P.count; k++) P.setXYZ(k, P.getX(k), mi.y, P.getY(k));
+      if (slot.mesh) {
+        slot.mesh.geometry.dispose();
+        slot.mesh.geometry = g;
       } else {
-        this.mirror = new THREE.Mesh(g, this.mirrorMat!);
-        this.mirror.matrixAutoUpdate = false;
-        this.mirror.frustumCulled = false;
-        this.mirror.renderOrder = 5;
-        this.root.add(this.mirror);
+        slot.mesh = new THREE.Mesh(g, slot.mat);
+        slot.mesh.matrixAutoUpdate = false;
+        slot.mesh.frustumCulled = false;
+        slot.mesh.renderOrder = 5;
+        this.root.add(slot.mesh);
       }
     }
-    const mesh = this.mirror!;
+    const mesh = slot.mesh!;
     mesh.matrix.fromArray(mi.m);
     mesh.updateMatrixWorld(true);
+    // seen from behind (above an open lid): nothing to mirror
+    const p0 = new THREE.Vector3(mi.poly[0][0], mi.y, mi.poly[0][1]).applyMatrix4(mesh.matrixWorld);
+    const nrm = new THREE.Vector3(0, -1, 0).transformDirection(mesh.matrixWorld);
+    if (this.cam.position.clone().sub(p0).dot(nrm) <= 0) {
+      mesh.visible = false;
+      return false;
+    }
+    // (hidden while any mirror's pass draws: shown again after them all)
+    mesh.visible = false;
+    return true;
+  }
+
+  /** render the i-th mirror (posed) into its target */
+  private drawMirror(i: number, b: Batch, w: number, h: number): void {
+    const mi = b.mirrors[i];
+    const slot = this.mirrorSlots[i];
+    const mesh = slot.mesh!;
     // (at the canvas's own size up to ≈ 2 MP: a polished lid's image is sharp)
     const ms = w * h > 2.2e6 ? 0.5 : 1;
     const mw = Math.max(1, Math.ceil(w * ms));
     const mh = Math.max(1, Math.ceil(h * ms));
     // (no multisampling: resolving a second multisampled target with a depth texture cost ≈ 2.5 ms a frame)
-    if (this.mirrorRT.width !== mw || this.mirrorRT.height !== mh) this.mirrorRT.setSize(mw, mh);
+    if (slot.rt.width !== mw || slot.rt.height !== mh) slot.rt.setSize(mw, mh);
     // the plane (three's world): a point on it and its normal, towards the side it reflects
     const p0 = new THREE.Vector3(mi.poly[0][0], mi.y, mi.poly[0][1]).applyMatrix4(mesh.matrixWorld);
     const n = new THREE.Vector3(0, -1, 0).transformDirection(mesh.matrixWorld);
     const cam = this.cam;
     const eye = cam.position.clone();
-    // seen from behind (above an open lid): nothing to mirror
-    if (eye.clone().sub(p0).dot(n) <= 0) {
-      mesh.visible = false;
-      return false;
-    }
     const reflect = (v: THREE.Vector3) => v.sub(n.clone().multiplyScalar(2 * v.clone().sub(p0).dot(n)));
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
@@ -586,16 +626,15 @@ export class Renderer3 {
     vc.updateMatrixWorld();
     // (the virtual camera sees the mirror image left-right flipped relative to the surface; the
     // texture matrix carries a point of the surface to where the virtual camera drew what it reflects)
-    (this.mirrorMat!.uniforms.uTexM.value as THREE.Matrix4).set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1).multiply(vc.projectionMatrix).multiply(vc.matrixWorldInverse);
-    this.mirrorMat!.uniforms.uK.value = Math.max(0, Math.min(1, mi.k));
+    (slot.mat.uniforms.uTexM.value as THREE.Matrix4).set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1).multiply(vc.projectionMatrix).multiply(vc.matrixWorldInverse);
+    slot.mat.uniforms.uK.value = Math.max(0, Math.min(1, mi.k));
     // draw without the mirror's own body (the lid: it stands between the virtual camera and the
     // scene; everything else of a grand is on the reflecting side). Hidden, not clipped: a clipping
     // plane switched on and off within a frame makes three re-select every material's program twice
     const r = this.r;
     const body = mi.body ? this.entries.get(mi.body)?.im : undefined;
     if (body) body.visible = false;
-    mesh.visible = false;
-    r.setRenderTarget(this.mirrorRT);
+    r.setRenderTarget(slot.rt);
     r.setClearColor(0x000000, 0);
     r.clear(true, true, true);
     r.render(this.scene, vc);
@@ -605,15 +644,13 @@ export class Renderer3 {
       const a = mvp.elements as unknown as Mat4;
       const py = vc.projectionMatrix.elements[5];
       const pz = vc.projectionMatrix.elements[14];
-      const d = this.mirrorRT.depthTexture!;
+      const d = slot.rt.depthTexture!;
       this.wireL.set(b.wireL, a, mw, mh, py, pz, d);
       this.inkL.set(b.inkL, a, mw, mh, py, pz, d);
       this.glowL.set(b.glow, a, mw, mh, py, pz, d);
       r.render(this.lineScene, vc);
     }
     if (body) body.visible = true;
-    mesh.visible = true;
-    return true;
   }
 
   /** read a pixel of the canvas (tests): must be called right after draw */
@@ -632,9 +669,11 @@ export class Renderer3 {
     this.gtao?.dispose();
     this.rt.dispose();
     this.envRT.dispose();
-    this.mirrorRT?.dispose();
-    this.mirrorMat?.dispose();
-    this.mirror?.geometry.dispose();
+    for (const ms of this.mirrorSlots) {
+      ms.rt.dispose();
+      ms.mat.dispose();
+      ms.mesh?.geometry.dispose();
+    }
     this.final.dispose();
     this.finalMat.dispose();
     this.bloomA.dispose();

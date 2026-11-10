@@ -29,11 +29,11 @@ describe('orchestra: the pieces', () => {
     expect(lineupOf(plans[0])).toEqual(['violin', 'violin', 'viola', 'cello']);
     expect(lineupOf(plans[1])).toEqual(['flute', 'violin', 'violin', 'viola', 'cello', 'grand']);
     // the violone doubles the cello: silent
-    expect(plans[1].lines[5].part).toBe(-1);
+    expect(plans[1].lines[5]).toEqual([]);
     expect(lineupOf(plans[2])).toEqual(['trumpet', 'grand']);
     // the B♭ trumpet's written C sounds B♭, the organ's key
-    expect(plans[2].lines[0].shift).toBe(-2);
-    expect(placeNote(72, plans[2].lines[0].shift, 'trumpet')).toBe(70);
+    expect(plans[2].lines[0].map((r) => r.shift)).toEqual([-2]);
+    expect(placeNote(72, plans[2].lines[0][0].shift, 'trumpet')).toBe(70);
     // a smaller stage: the concerto's violins become a section
     expect(piecePlan(PIECES[1], load(PIECES[1].file).song.lines, 5).parts.length).toBe(5);
   });

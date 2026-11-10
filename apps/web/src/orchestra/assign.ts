@@ -6,6 +6,11 @@
 // lines keep theirs and the rest join a like instrument (a section: the bowed strings play double
 // stops) or the piano.
 //
+// Routing is many to many: a line may play on several instruments at once (the tune on a violin and a
+// flute, the whole file on two pianos), an instrument may play several lines, and a voice may be on
+// the stage more than once (two cellos, two grands), each its own engine. Auto-assignment never
+// doubles a line; doubling is done by hand (setRoute, addPart, setPartLines).
+//
 // Auto-assignment, per line: its name (track or instrument name: "Violin I", "violoncello"), else
 // its General MIDI program, else its range and polyphony. A line that its instrument cannot play
 // (chords on a flute, a part below the cello) is moved by whole octaves into range, or goes to the
@@ -53,21 +58,21 @@ export interface LineInfo {
   poly: number;
 }
 
-/** where a line goes: the part (instrument) that plays it (−1: muted) and the octaves it is moved
- *  by (semitones, a multiple of 12) */
-export interface LineAssign {
+/** one place a line goes: a part (instrument) that plays it and the octaves it is moved by there
+ *  (semitones, a multiple of 12) */
+export interface Route {
   part: number;
   shift: number;
 }
-/** an instrument on the stage and the lines it plays */
+/** an instrument on the stage and the lines it plays (none: it waits, silent) */
 export interface Part {
   voice: Voice;
   lines: number[];
 }
-/** the stage's instruments and every line's place among them */
+/** the stage's instruments, in seating order, and every line's routes among them (none: silent) */
 export interface Plan {
   parts: Part[];
-  lines: LineAssign[];
+  lines: Route[][];
 }
 
 // ---------------------------------------------------------------- hints
@@ -256,15 +261,22 @@ export function capParts(parts: Part[], lines: Sized[], cap: number): Part[] {
   return parts;
 }
 
-/** the plan for a set of parts: each line's part index and its octave shift for that instrument */
-export function planOf(parts: Part[], lines: LineInfo[], shifts?: Map<number, { voice: Voice; shift: number }>): Plan {
-  const out: LineAssign[] = lines.map(() => ({ part: -1, shift: 0 }));
+/** octave moves kept from a plan (a piece's own correction, `line:voice` → semitones): a line moved
+ *  to, or doubled on, an instrument of the same voice keeps them */
+export type Shifts = Map<string, number>;
+export const shiftKey = (line: number, v: Voice): string => `${line}:${v}`;
+export function shiftsOf(plan: Plan): Shifts {
+  const out: Shifts = new Map();
+  plan.lines.forEach((rs, li) => rs.forEach((r) => plan.parts[r.part] && out.set(shiftKey(li, plan.parts[r.part].voice), r.shift)));
+  return out;
+}
+
+/** the plan for a set of parts: each line's routes (part index, octave shift on that instrument) */
+export function planOf(parts: Part[], lines: LineInfo[], shifts?: Shifts): Plan {
+  const out: Route[][] = lines.map(() => []);
   parts.forEach((p, k) => {
-    for (const i of p.lines) {
-      // a shift given for this line on this voice (a piece's own correction) stays
-      const own = shifts?.get(i);
-      out[i] = { part: k, shift: own && own.voice === p.voice ? own.shift : shiftFor(lines[i], p.voice) };
-    }
+    p.lines = [...new Set(p.lines.filter((i) => i >= 0 && i < lines.length))].sort((a, b) => a - b);
+    for (const i of p.lines) out[i].push({ part: k, shift: shifts?.get(shiftKey(i, p.voice)) ?? shiftFor(lines[i], p.voice) });
   });
   return { parts, lines: out };
 }
@@ -348,22 +360,29 @@ export const lineupPlan = (lineup: Voice[]): Plan => ({ parts: lineup.map((v) =>
 /** the lineup a plan puts on the stage */
 export const lineupOf = (plan: Plan): Voice[] => plan.parts.map((p) => p.voice);
 
+/** the voices a line plays on (none: silent) */
+export const voicesOfLine = (plan: Plan, li: number): Voice[] => (plan.lines[li] ?? []).map((r) => plan.parts[r.part].voice);
+
+/** a copy of a plan's parts (to change) */
+const partsCopy = (plan: Plan): Part[] => plan.parts.map((p) => ({ voice: p.voice, lines: [...p.lines] }));
+
 /**
- * Move one line to another instrument (null: mute it). A keyboard voice joins its piano if there is
- * one; another voice takes over the line's own instrument when the line is its only one, else gets an
- * instrument of its own, or (the stage full) joins one of that voice. Instruments left with no line
- * leave the stage. Returns null when the stage has no room for it.
+ * Move one line to another instrument, and only that one (null: mute it). A keyboard voice joins its
+ * piano if there is one; another voice takes over the line's own instrument when the line is its only
+ * one, else gets an instrument of its own, or (the stage full) joins one of that voice. Instruments
+ * left with no line leave the stage. Returns null when the stage has no room for it.
  */
 export function reassign(plan: Plan, lines: LineInfo[], li: number, voice: Voice | null, cap: number): Plan | null {
   const parts: Part[] = plan.parts.map((p) => ({ voice: p.voice, lines: p.lines.filter((i) => i !== li) }));
-  const was = plan.lines[li]?.part ?? -1;
+  const was = (plan.lines[li] ?? []).map((r) => r.part);
   if (voice) {
-    const alone = was >= 0 && plan.parts[was].lines.length === 1 && plan.parts[was].lines[0] === li;
+    // the line's own instrument: one that played it and nothing else
+    const alone = was.find((k) => plan.parts[k].lines.length === 1);
     const same = parts.findIndex((p) => p.voice === voice && (isKeyboard(voice) || p.lines.length === 0));
     if (isKeyboard(voice) && same >= 0) parts[same].lines.push(li);
-    else if (alone && !(isKeyboard(voice) && same >= 0)) {
-      parts[was].voice = voice;
-      parts[was].lines.push(li);
+    else if (alone !== undefined) {
+      parts[alone].voice = voice;
+      parts[alone].lines.push(li);
     } else if (same >= 0) parts[same].lines.push(li);
     else if (parts.filter((p) => p.lines.length).length < cap) parts.push({ voice, lines: [li] });
     else {
@@ -377,8 +396,79 @@ export function reassign(plan: Plan, lines: LineInfo[], li: number, voice: Voice
   for (const p of kept) p.lines.sort((a, b) => a - b);
   // keep the stage in the file's order (by each instrument's first line)
   kept.sort((a, b) => a.lines[0] - b.lines[0]);
-  return planOf(kept, lines);
+  return planOf(kept, lines, shiftsOf(plan));
 }
 
 /** would moving this line to `voice` fit on the stage? */
 export const canReassign = (plan: Plan, lines: LineInfo[], li: number, voice: Voice | null, cap: number): boolean => reassign(plan, lines, li, voice, cap) !== null;
+
+// ---------------------------------------------------------------- routing by hand (many to many)
+// These keep every instrument where it sits, even with no line left (it waits, silent, until it is
+// given one or taken off): a routing grid's rows do not jump about while it is being set.
+
+/** line `li` on part `k` as well (on), or no longer (off) */
+export function setRoute(plan: Plan, lines: LineInfo[], li: number, k: number, on: boolean): Plan {
+  const parts = partsCopy(plan);
+  const p = parts[k];
+  if (!p || li < 0 || li >= lines.length) return plan;
+  p.lines = on ? [...p.lines, li] : p.lines.filter((i) => i !== li);
+  return planOf(parts, lines, shiftsOf(plan));
+}
+
+/** part `k` plays exactly these lines (all of them: the whole file; none: it waits) */
+export function setPartLines(plan: Plan, lines: LineInfo[], k: number, lis: number[]): Plan {
+  const parts = partsCopy(plan);
+  if (!parts[k]) return plan;
+  parts[k].lines = [...lis];
+  return planOf(parts, lines, shiftsOf(plan));
+}
+
+/** where a new instrument of `voice` sits: after the last of its own voice (two cellos side by side),
+ *  else before the first that sits lower (the stage runs high to low, the pianos last) */
+function seatFor(parts: Part[], voice: Voice): number {
+  for (let k = parts.length - 1; k >= 0; k--) if (parts[k].voice === voice) return k + 1;
+  if (isKeyboard(voice)) return parts.length;
+  const c = VOICE_INFO[voice].centre;
+  const k = parts.findIndex((p) => isKeyboard(p.voice) || VOICE_INFO[p.voice].centre < c);
+  return k < 0 ? parts.length : k;
+}
+
+/** a new instrument on the stage (another of a voice already there is its own engine and seat),
+ *  playing `lis` (a line, the whole file, or none yet); null when the stage is full */
+export function addPart(plan: Plan, lines: LineInfo[], voice: Voice, lis: number[], cap: number): Plan | null {
+  if (plan.parts.length >= cap) return null;
+  const parts = partsCopy(plan);
+  parts.splice(seatFor(parts, voice), 0, { voice, lines: [...lis] });
+  return planOf(parts, lines, shiftsOf(plan));
+}
+
+/** an instrument taken off the stage (its lines that no other plays fall silent) */
+export function removePart(plan: Plan, lines: LineInfo[], k: number): Plan {
+  if (!plan.parts[k]) return plan;
+  const parts = partsCopy(plan);
+  parts.splice(k, 1);
+  return planOf(parts, lines, shiftsOf(plan));
+}
+
+/** an instrument changed for another (it keeps its seat and its lines, each moved into the new
+ *  instrument's range) */
+export function setPartVoice(plan: Plan, lines: LineInfo[], k: number, voice: Voice): Plan {
+  if (!plan.parts[k] || plan.parts[k].voice === voice) return plan;
+  const parts = partsCopy(plan);
+  parts[k].voice = voice;
+  return planOf(parts, lines, shiftsOf(plan));
+}
+
+/**
+ * Each part's player: 0, or, for a part that doubles a line already played by an earlier part of the
+ * same voice, how many such parts come before it. Two violins on one tune are two players (each its
+ * own vibrato and bow noise, see the engine's `player` option), not one violin twice as loud; two
+ * violins on two lines (a quartet) are left exactly as they were.
+ */
+export function playersOf(plan: Plan): number[] {
+  return plan.parts.map((p, k) => {
+    let n = 0;
+    for (let j = 0; j < k; j++) if (plan.parts[j].voice === p.voice && plan.parts[j].lines.some((i) => p.lines.includes(i))) n++;
+    return n;
+  });
+}
