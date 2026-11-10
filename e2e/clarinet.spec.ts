@@ -164,7 +164,7 @@ test('orchestra: Clarinetto I (GM 71), “Klarinette” and “Cl. 2” (no prog
   expect(errors).toEqual([]);
 });
 
-test('the clarinet on a phone: eleven picks (since the horn) in the band six took (271 px), “clar.” under its glyph, the band no taller with a note sounding, names clear of each other, no horizontal scroll', async ({ page }, info) => {
+test('the clarinet on a phone: twelve picks (since the timpani) in the band six took (271 px), “clar.” under its glyph, the band no taller with a note sounding, names clear of each other, no horizontal scroll', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone', 'the phone layout');
   for (const size of [null, { width: 390, height: 844 }]) {
     if (size) await page.setViewportSize(size);
@@ -180,8 +180,8 @@ test('the clarinet on a phone: eleven picks (since the horn) in the band six too
     await page.evaluate(() => (window as any).__piano.noteOff(79, 'keys'));
     expect(during, `${size?.width ?? 'Pixel 7'}`).toBe(before);
     const boxes = await page.locator('.instruments .pick').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ l: r.left, r: r.right, t: r.top })));
-    expect(boxes.length).toBe(11);
-    expect(boxes[10].r - boxes[0].l, 'the picks’ row').toBeLessThanOrEqual(271.5);
+    expect(boxes.length).toBe(12);
+    expect(boxes[11].r - boxes[0].l, 'the picks’ row').toBeLessThanOrEqual(271.5);
     // the phone shows the clarinet's score abbreviation
     expect(await page.locator('.instruments').getByRole('button', { name: 'Clarinet' }).locator('.pick-name').evaluate((el) => getComputedStyle(el, '::after').content)).toBe('"clar."');
     for (let i = 1; i < boxes.length; i++) {

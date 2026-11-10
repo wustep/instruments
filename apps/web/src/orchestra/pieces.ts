@@ -265,6 +265,18 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     lines: [0],
     shift: -2,
   },
+  timpani: {
+    instrument: 'timpani',
+    composer: 'Mozart',
+    title: 'Requiem, Dies irae (the timpani’s line)',
+    file: 'mozart-k626-dies-irae.mid',
+    source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=364',
+    credit: 'Requiem in D minor, K. 626, Sequentia, Dies irae: the timpani’s line alone, a pair of drums tuned to the tonic and the dominant (D3 and A2), from the first bar to the end of bar 27 (the strokes on every beat, the measured rolls of sixteenths). Typeset by Martin Norbäck from the Breitkopf & Härtel edition (1877); Mutopia-2014/03/24-364; public domain.',
+    sha256: '988faf187f2a661bfbfe7d6ef5a53241b96c21394969f23c01d000dc9796a399',
+    lines: [3],
+    // (bars of 4/4 are 1.33 s in the file: to the end of bar 27, after the second roll on A)
+    end: 36,
+  },
 };
 
 /**

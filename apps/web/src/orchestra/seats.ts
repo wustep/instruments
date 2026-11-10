@@ -6,7 +6,7 @@
 
 /** what decides a seat */
 export interface SeatKind {
-  family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass';
+  family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass' | 'percussion';
   kind: 'grand' | 'upright';
   cello: boolean;
   /** a double bass: it stands, bigger than a cello, so it takes more room beside its neighbours and
@@ -25,8 +25,9 @@ export interface Place {
  *  as a quartet sits: first violin, second, viola, cello); the pianos behind. A tall, narrow stage (a
  *  phone held upright) seats them in two rows. */
 export function seatPlaces(parts: SeatKind[], aspect = 2): Place[] {
-  const mel = parts.map((p, i) => (p.family === 'piano' ? -1 : i)).filter((i) => i >= 0);
+  const mel = parts.map((p, i) => (p.family === 'piano' || p.family === 'percussion' ? -1 : i)).filter((i) => i >= 0);
   const kb = parts.map((p, i) => (p.family === 'piano' ? i : -1)).filter((i) => i >= 0);
+  const drums = parts.map((p, i) => (p.family === 'percussion' ? i : -1)).filter((i) => i >= 0);
   const out: Place[] = new Array(parts.length);
   // one or two players with a piano stand beside it (a soloist at the piano's curve), more sit in front;
   // two pianos stand side by side, 2.5 m apart, and the players beside the one on the right
@@ -69,10 +70,16 @@ export function seatPlaces(parts: SeatKind[], aspect = 2): Place[] {
     // a grand side-on, its open lid towards the audience; an upright faces them
     out[i] = { x: kbOff(k), z: mel.length > 2 ? 1.55 : 1.1, face: 0 };
   });
+  // the timpani at the back, behind the players (and the pianos), their player facing the audience: a set
+  // of four drums is about 2.6 m across, two sets 3.2 m apart; alone, a set stands where a player would
+  const back = (mel.length ? 1.45 : 0) + (kb.length ? 1.55 : 0);
+  drums.forEach((i, k) => {
+    out[i] = { x: (k - (drums.length - 1) / 2) * 3.2, z: back, face: 0 };
+  });
   return out;
 }
 
-const FAMILY = { piano: 'piano', violin: 'bowed', viola: 'bowed', cello: 'bowed', bass: 'bowed', flute: 'wind', oboe: 'reed', clarinet: 'reed', bassoon: 'reed', horn: 'brass', trumpet: 'brass' } as const;
+const FAMILY = { piano: 'piano', violin: 'bowed', viola: 'bowed', cello: 'bowed', bass: 'bowed', flute: 'wind', oboe: 'reed', clarinet: 'reed', bassoon: 'reed', horn: 'brass', trumpet: 'brass', timpani: 'percussion' } as const;
 
 /** each part's seat (x, z) for the sound, by the lineup's instruments (a computer's wide stage) */
 export function soundSeats(lineup: { instrument: keyof typeof FAMILY; preset?: string }[]): [number, number][] {

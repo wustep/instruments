@@ -17,3 +17,4 @@ export { OboeCore, OBOE_VOICE, oboeRegister, type OboeParams, type OboeVoice } f
 export { ClarinetCore, CLARINET_VOICE, clarinetRegister, type ClarinetParams, type ClarinetVoice } from './clarinet.ts';
 export { BassoonCore, BASSOON_VOICE, bassoonRegister, type BassoonParams, type BassoonVoice } from './bassoon.ts';
 export { HornCore, HORN_VOICE, HORN_LO, HORN_HI, hornFingering, hornTubeLength, type HornFingering, type HornParams, type HornVoice } from './horn.ts';
+export { TimpaniCore, TIMPANI_VOICE, TIMPANI_LO, TIMPANI_HI, TIMPANI_DRUMS, besselJ, besselZeros, type TimpaniParams, type TimpaniVoice, type TimpaniDrum } from './timpani.ts';

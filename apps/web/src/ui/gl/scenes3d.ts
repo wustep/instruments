@@ -23,7 +23,7 @@ export interface SceneIn {
   now: number;
   /** seconds since the last frame */
   dt: number;
-  family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass';
+  family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass' | 'percussion';
   /** the reed family's instrument (default the oboe) */
   reed?: 'oboe' | 'clarinet' | 'bassoon';
   /** the brass family's (default the trumpet) */
@@ -52,7 +52,7 @@ export interface SceneIn {
 
 /** one instrument of an ensemble on the 3D stage */
 export interface EnsPartIn {
-  family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass';
+  family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass' | 'percussion';
   /** the reed family's instrument (default the oboe) */
   reed?: 'oboe' | 'clarinet' | 'bassoon';
   /** the brass family's (default the trumpet) */

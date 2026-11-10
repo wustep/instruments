@@ -123,7 +123,7 @@ export function matchRules(lines: LineKey[], rules: LineKey[]): number[] {
 
 /** the seat nearest a line's register that holds more than one note (else any) */
 function nearest(l: LineInfo, lineup: Voice[]): number {
-  const key = (v: Voice) => (VOICE_INFO[v].poly > 1 ? 0 : 100) + Math.abs(l.median - VOICE_INFO[v].centre);
+  const key = (v: Voice) => (VOICE_INFO[v].poly > 2 ? 0 : 100) + Math.abs(l.median - VOICE_INFO[v].centre);
   let best = 0;
   for (let k = 1; k < lineup.length; k++) if (key(lineup[k]) < key(lineup[best])) best = k;
   return best;

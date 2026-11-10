@@ -1,5 +1,5 @@
 // The page's address. Every tab has a path of its own (/piano, /piano/upright, /violin, /viola,
-// /cello, /bass, /flute, /oboe, /clarinet, /bassoon, /horn, /trumpet, /orchestra, /measurements, /notes), and the Orchestra's
+// /cello, /bass, /flute, /oboe, /clarinet, /bassoon, /horn, /trumpet, /timpani, /orchestra, /measurements, /notes), and the Orchestra's
 // carries its whole setup in a short, readable, versioned query, so the address itself is a preset; nav.ts keeps
 // it in step with the page. Pure (no DOM), tested fast.
 //
@@ -9,7 +9,7 @@
 //
 //   v      the format: 1 (absent: 1; any other: the setup is not read, the Orchestra opens as it was)
 //   seats  the instruments on the stage in seating order, seat 1 first (the audience's left):
-//          grand upright violin viola cello bass flute oboe clarinet bassoon horn trumpet, any of them more
+//          grand upright violin viola cello bass flute oboe clarinet bassoon horn trumpet timpani, any of them more
 //          than once
 //   lines  a file's lines in the file's order, each name~program:seats: its track name (+ for a
 //          space), its General MIDI program, the seats that play it (1.3: seats 1 and 3; -: none,
@@ -92,6 +92,7 @@ export const INSTRUMENT_PATHS: Record<string, [InstrumentId, ('grand' | 'upright
   'double-bass': ['bass'],
   contrabass: ['bass'],
   'french-horn': ['horn'],
+  kettledrums: ['timpani'],
 };
 for (const id of INSTRUMENT_IDS) INSTRUMENT_PATHS[id] ??= [id];
 
