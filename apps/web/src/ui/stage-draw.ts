@@ -4,6 +4,7 @@
 
 import type { KeySummary, VisualFrame } from '@piano-model/engine';
 import { CC, CS, EB, GS, L1, L2, L3, R1, R2, R3, RH, TB, TBB, fingersFor } from './flute-fingering.ts';
+import { fholeOf } from './gl/fholes.ts';
 import { CELLO, VIOLIN, type Outline } from './gl/outlines.ts';
 
 export const INK = {
@@ -324,12 +325,9 @@ export function bowedShapes(id: BowedGeom['id'], p: BowedPlan, L: number): Bowed
   const hooked = bwHookCorners(bass);
   const ring: Pt[] = [...hooked, ...hooked.slice(1, hooked.length - 1).reverse().map(([u, z]): Pt => [u, -z])];
   const body = bwSmoothClosed(ring, 1.4, 0.5).map(([u, z]): Pt => [u * B, z * B]);
-  // the f-hole: smoothed (σ ≈ 1.2 mm, the trace's row wobble out), its notches on the bridge line
-  const fh = p.ol.fhole;
-  let per = 0;
-  for (let i = 0; i < fh.length; i++) per += Math.hypot(fh[(i + 1) % fh.length][0] - fh[i][0], fh[(i + 1) % fh.length][1] - fh[i][1]);
-  const sig = 0.0012 / B / (per / fh.length);
-  const sm = bwSmoothClosed(fh as Pt[], Math.max(1, sig));
+  // the f-hole: constructed (gl/fholes.ts: round eyes, an S stem, the wings' tips, the nicks), not the
+  // photograph's trace, which was lumpy however it was smoothed; its nicks on the bridge line
+  const sm = fholeOf(p.ol) as Pt[];
   let u0 = Infinity;
   let u1 = -Infinity;
   for (const [u] of sm) {

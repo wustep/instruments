@@ -30,6 +30,7 @@ import type { BowedGeom } from '../stage-draw.ts';
 import { INK } from '../stage-draw.ts';
 import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cross, ink, lerp3, mul, norm, rotY, rotZ, scale, sub, translate, xdir, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, grid, lathe, spline, tube, variant, type Mat, type PaintSpec } from './mesh.ts';
+import { fholeOf } from './fholes.ts';
 import { CELLO, VIOLIN, type Outline } from './outlines.ts';
 
 type P2 = [number, number];
@@ -1409,28 +1410,9 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   const ribH = (x: number) => sp.rib * (0.955 + 0.045 * clamp(x / B, 0, 1));
   const yTop = (x: number, z: number) => sp.edgeT + arch(sp, pl, x, z, sp.archT - sp.edgeT);
   const yBack = (x: number, z: number) => -ribH(x) - sp.edgeT - arch(sp, plB, x, z, sp.archB - sp.edgeT);
-  // f-holes, from the traced one, its notches on the bridge line; the trace's row-by-row wobble
-  // smoothed out (a Gaussian along it, σ ≈ 1.2 mm: the eyes and wings keep their shape)
-  const fb = ((): P2[] => {
-    const q = resample(sp.ol.fhole, 480, 0);
-    let per = 0;
-    for (let i = 0; i < q.length; i++) per += Math.hypot(q[(i + 1) % q.length][0] - q[i][0], q[(i + 1) % q.length][1] - q[i][1]);
-    const sig = (0.0012 * S ** 0.5) / B / (per / q.length);
-    const k = Math.max(1, Math.ceil(2.5 * sig));
-    return q.map((_, i): P2 => {
-      let x = 0;
-      let z = 0;
-      let ws = 0;
-      for (let j = -k; j <= k; j++) {
-        const wj = Math.exp(-0.5 * (j / sig) ** 2);
-        const p = q[(i + j + q.length) % q.length];
-        x += p[0] * wj;
-        z += p[1] * wj;
-        ws += wj;
-      }
-      return [x / ws, z / ws];
-    });
-  })();
+  // f-holes: constructed (fholes.ts: round eyes, an S stem, the wings' tips, the nicks), their nicks
+  // on the bridge line. (The photograph's trace was lumpy, however it was smoothed.)
+  const fb = fholeOf(sp.ol);
   let fu0 = Infinity;
   let fu1 = -Infinity;
   for (const [u] of fb) {
