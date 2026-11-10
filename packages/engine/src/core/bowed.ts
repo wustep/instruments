@@ -224,7 +224,9 @@ interface BowedDesign {
    *  violin, viola and cello A0 sits above their fundamentals (275, 230, 102 Hz) and the inversion
    *  stays as it was; on the bass it is at 60 Hz, among its fundamentals, and the mono sum of an
    *  inverted A0 cancelled them by up to 23 dB (D2), which a fitted body then made up with a +24 dB
-   *  band that was all too loud in stereo. Absent: as before. */
+   *  band that was all too loud in stereo. With one weight at both (a monopole is the same in every
+   *  direction): a random pan had left the bass 6 dB to the left wherever it was seated. Absent: as
+   *  before. */
   inPhase?: boolean;
 }
 
@@ -752,8 +754,11 @@ export class BowedCore implements InstrumentCore {
     this.radR = new Float64Array(K);
     modes.forEach((m, k) => {
       const pan = rand();
-      this.radL[k] = m.rad * (0.55 + 0.45 * pan);
-      this.radR[k] = m.rad * (0.55 + 0.45 * (1 - pan)) * (k % 3 === 0 && !(d.inPhase && k < d.signature.length) ? -1 : 1);
+      // (design.inPhase: a signature mode the same at both microphones; the pair's sum, the mono, is the
+      // same whatever the pan, so a body fitted in mono stays fitted)
+      const mono = !!d.inPhase && k < d.signature.length;
+      this.radL[k] = m.rad * (mono ? 0.775 : 0.55 + 0.45 * pan);
+      this.radR[k] = m.rad * (mono ? 0.775 : 0.55 + 0.45 * (1 - pan)) * (k % 3 === 0 && !mono ? -1 : 1);
     });
     this.b0 = new Float64Array(K);
     this.b2 = new Float64Array(K);

@@ -35,8 +35,11 @@ golden snapshots and their calibration numbers are unchanged):
    recordings' analysis, listens in mono) made up for it with a +24 dB band at 71 Hz that was far too
    loud in stereo (in the quintet the bass came out 14 dB over the cello). `design.inPhase` makes
    the signature modes (A0 and the B1 pair, the body's monopole radiators) radiate in phase at both
-   microphones; mid and stereo now agree (side 6–15 dB under mid). The cello shows a milder version
-   at G2, next to its 102 Hz A0 (9 dB); it is left as it is (the cello's sound is not this PR's).
+   microphones, with one weight at both (a monopole is the same in every direction: a random pan had
+   left the bass 6.3 dB to the left wherever it sat; now 3.3 dB unseated, about the other bowed
+   bodies' lean, and the mono sum, which the fit used, is identical either way); mid and stereo now
+   agree (side 6–15 dB under mid). The cello shows a milder version at G2, next to its 102 Hz A0
+   (9 dB); it is left as it is (the cello's sound is not this PR's).
 2. **Uneven notes.** With the cello's modal damping, a note whose harmonic met a body mode came out up
    to 10 dB louder than its neighbours (median step between neighbouring notes 6.4 dB at mf; the
    recording's 3.0 dB). With 2.5× the damping: 4.5 dB, and the notes' levels follow the recording's
@@ -95,8 +98,9 @@ public-domain Bach only; no recordings are in the repository.
 Spectrograms: before on top. Per-note numbers (dry, each note alone) in `audio/metrics.json`: the
 open strings' centroid falls from 290–1060 Hz to 79–217 Hz.
 
-In the quintet (`render-orchestra.ts`, seats on): violin I −24.1, violin II −26.2, viola −19.6, cello
-−28.4, double bass −23.8 dBFS RMS; the bass on the right end of the arc (seat x 1.47 m).
+In the quintet (`render-orchestra.ts`, seats on): violin I −24.2, violin II −26.1, viola −19.4, cello
+−28.2, double bass −24.9 dBFS RMS; the bass at the right end of the arc (seat x 1.60 m, 0.25 m
+upstage), heard there: L − R −1.4 dB, the right channel 0.46 ms earlier.
 
 ## Orchestra
 
@@ -120,14 +124,105 @@ In the quintet (`render-orchestra.ts`, seats on): violin I −24.1, violin II �
 Its own piece (the play icon): Bach, Cello Suite No. 1, Menuet II (Mutopia 517, public domain), a
 minor seventh down as bassists read the suites in solo tuning, ×0.9 tempo; every note in E1–F3.
 
+## 2D (both styles)
+
+`apps/web/src/ui/stage-draw.ts`, `ui/vector/bowed.ts`, `ui/ensemble-draw.ts` (drawn by a helper agent in
+its own worktree, reviewed and cherry-picked; its notes are summarised here).
+
+* The plate outline is constructed (`ui/gl/bass-outline.ts`: a 3/4 bass, body 1110 mm, bouts
+  520/375/665, violin corners, sloped shoulders: the upper bout widest a quarter of the way down), and
+  the f-holes are the constructed ones of #21 with one new `FHole` (`BASS_F`: 245 mm, eyes 22 and
+  30 mm, `fholes.test.ts`). Shared with 3D.
+* Machine heads (no pegs): a brass plate down each cheek, four staggered rollers with the strings
+  coiled on them, a cog, a worm and an oval key per tuner; E and A keys on the bass side (E farthest
+  from the nut), D and G on the treble side, as the cello's pegs are strung (no two strings cross in
+  the pegbox: tested).
+* Endpin (socket, thumbscrew, steel rod to its point 200 mm out), a 121 mm tailpiece on a steel tail
+  wire, no fine tuner, bridge feet with a height adjuster in each leg, a French bass bow (frog and
+  head 1.25× a violin's, its own 0.58 m of hair).
+* Alone: lying on a laptop (675 px/m, the bass 95 % of the stage's width) and on a phone (183 px/m at
+  390×844, its bow's whole travel inside the stage); upright boxes covered by unit tests.
+* Orchestra (#24's one px/m): in the quintet every part at 229 px/m (desktop), the bass's cell 158×470
+  against the cello's 108×320, its drawn plate 1.47× the cello's; every bow end at least 6 px from
+  another instrument's cell at both ends of its travel; the group centred (gaps 133/137 px desktop,
+  23/22 phone; two basses 13/16 and 11/11).
+* Violin, viola and cello: all 36 offscreen renders (both styles, alone and at ensemble scale, three
+  box sizes) pixel-identical to before (`scripts/bowed-2d-hash.mjs`).
+
+## 3D
+
+`apps/web/src/ui/gl/strings3d.ts`, the new `ui/gl/bass3d.ts`, `scenes3d.ts`, `stage3d.ts`,
+`orchestra/seats.ts` (a helper agent's, reviewed and cherry-picked; references in
+`docs/3d-reference.md`).
+
+| | model | reference |
+|---|---|---|
+| body | 1109.8 mm | 1110 |
+| upper / lower bout | 519 / 665 | 520 / 665 |
+| ribs, neck block → tail | 148 → 200 | the Met's Plumerel bass: 156 / 200 / 197 |
+| back | flat (1.8 mm off flat below the break), bent at the break at 24 % of the length, 10.5° | a bass's flat back with its cant |
+| top arch | 30 mm | 25–30 |
+| fingerboard / head | 880 / 330 | 880 / ~330 |
+| height to the scroll | 1.97 m (endpin socket 0.22 m up, 15.5° lean) | the cello: 1.49 m |
+
+* Worm-and-cog machines: a brass plate on each cheek following its shape, screwed round its edge;
+  four brass rollers 40 mm apart with the strings coiled on them; 26-tooth cogs, steel worms in lugs,
+  the shafts running back past the pegbox to brass keys. A French bass bridge (160 mm on 150 mm feet,
+  heart and kidneys, a thumbwheel adjuster in each leg), steel tail wire, 5.5 cm silks, a 45 mm endpin
+  collar with its thumbscrew and a 12 mm rod; a French bass bow.
+* Framing: the hero view frames it whole (96 % of the free height on desktop and on a Pixel 7; it was
+  cropped top and bottom before); phones 86–87 % of the stage's height, clear of the file player.
+* Orchestra: a bass stands 1.1 m from its neighbours (others 0.8) and 0.35 m upstage; lineups without
+  a bass seat exactly as before (80,000 random lineups at four aspect ratios byte-identical;
+  `seats.test.ts` unchanged).
+* 0 WebGL errors or warnings (alone and in a quintet, desktop and phone); varnish speckle mean 0.47,
+  p99 2.17 (limits 0.8 / 5); frame time 2.45–2.50 ms against the cello's 2.76 (474 k vertices against
+  408 k).
+
+## Images
+
+* `shots/`: the bass alone in 2D classic, 2D vector and 3D, desktop and phone, and the cello beside it
+  for scale (this branch, `scripts/shots-bass.mjs`).
+* `orchestra/`: the constructed quintet file dropped on the stage, playing, in each view, desktop and
+  phone: `-before` from production (`main` at 9cc76b6: the Contrabass line on a second cello), `-after`
+  from this branch (a real double bass) (`scripts/shots-bass-quintet.mjs`).
+* `2d/`: the 2D helper's set: the placeholder (`before-`, the foundation commit) and now, alone and in
+  the quintet, two basses, the bows at both ends of their travel, head, tail and bridge close-ups
+  (taken before the picker's name became "bass").
+* `3d/`: the 3D helper's review set: hero, front, side, back, the head and its machines, bridge, foot,
+  phone, the cello for scale, quintets, and before/after compare sheets.
+
 ## Tests
 
 * Engine: `packages/engine/test/bass.test.ts` (design, pitch ±5 ¢ on every string at 44.1 and 48 kHz,
   darker than the cello on the same notes, the E1 fundamental present), the bass added to
   `instruments.test.ts`, `bow.test.ts` (bow in the hand), `blocksize.test.ts` (bit-identical at
   128/37/500), `golden.test.ts` (new `golden/bass.json`; every other golden unchanged).
-* App: `apps/web/test/bass-routing.test.ts`, `assign.test.ts` (Kontrabass and GM 43 now the bass),
-  `fholes.test.ts` (the bass's constructed f-hole).
+* App: `apps/web/test/bass-routing.test.ts` (names, programs, a constructed Daylight-like quintet,
+  duplicates, hand routing, the keys), `assign.test.ts` (Kontrabass and GM 43 now the bass),
+  `fholes.test.ts` (the bass's constructed f-hole), `bass2d.test.ts`, `ensemble-cells.test.ts` and
+  `vector.test.ts` (2D: alone, the quintet at one px/m, bows clear), `models3d.test.ts` (3D: flat back,
+  machines and no pegs, the endpin to the floor, a smooth arch).
 * e2e: `e2e/bass.spec.ts` (picker, compass, the worklet at 22.05/44.1/48/96 kHz, its own piece, a
-  quintet file → a quintet with a real bass, two basses by hand); `e2e/app.spec.ts` now counts seven
-  instruments and includes the bass in the picker, 3D and no-zoom tests.
+  quintet file → a quintet with a real bass, two basses by hand), `e2e/bass-2d.spec.ts` (alone and in
+  the quintet, both styles), `e2e/bass-3d.spec.ts` (framed whole, no WebGL warning, varnish);
+  `e2e/app.spec.ts` now counts seven instruments and includes the bass in the picker, 3D and no-zoom
+  tests.
+* The phone picker: seven instruments now fit in the width six took (37 px each), so a held note's
+  readout still fits beside them; with 44 px the band grew 63 px when a note sounded and the 3D view
+  reframed (the e2e "pianos in 3D: sustain leaves the camera alone" caught it).
+
+## Left as it is
+
+* The bass's pianissimo is 5–10 dB short between 600 Hz and 4 kHz; notes' levels still differ from the
+  recording's by 5–6 dB SD note to note; the start-up regimes above.
+* Alone in 2D the bass fills its own stage, so it is only about 5 % larger than the cello alone; it is
+  1.47× in Orchestra, where the scale is shared. On a laptop its bow is cut at the stage's edge at the
+  far ends of its travel, as the cello's is.
+* 2D machine heads are a stylised front view (keys straight out to the side; on a bass the worms point
+  back and out); the 2D frog is the cello's shape scaled.
+* 3D: the scroll is the traced violin scroll scaled up, not a bass carving; the flame on the scroll and
+  neck reads as strong wavy bands (the shader the cello shares); the height from the back to the
+  bridge's top is 400 mm against 440–460 mm on makers' listings (the brief's 160 mm bridge kept).
+* Found in passing, not fixed here: the cello's strings stand 26–28 mm off the fingerboard's end in 3D
+  (its `proj` is low), and its G2 loses 9 dB in a mono sum (its inverted A0).
