@@ -55,7 +55,9 @@ describe('each instrument’s own piece (the play icon)', () => {
       const { b, song } = load(d.file);
       expect(createHash('sha256').update(b).digest('hex'), id).toBe(d.sha256);
       expect(d.source).toMatch(/^https:\/\/www\.mutopiaproject\.org\/cgibin\/piece-info\.cgi\?id=\d+$/);
-      expect(d.credit).toMatch(/public domain/);
+      // public domain, or a Creative Commons licence that lets the file be passed on with its credit
+      // (the oboe's Brandenburg: CC BY 3.0; the symphony brief allows a CC licence that permits redistribution)
+      expect(d.credit).toMatch(/public domain|Creative Commons Attribution(-ShareAlike)? \d\.\d/);
       const s = demoSong(song, d);
       const ons = s.events.filter((e) => e.kind === 'on') as { t: number; midi: number; vel: number }[];
       expect(ons.length, id).toBeGreaterThan(50);
@@ -72,7 +74,7 @@ describe('each instrument’s own piece (the play icon)', () => {
         expect(e.vel).toBeLessThanOrEqual(127);
       }
       // the winds play one note at a time
-      if (id === 'flute' || id === 'trumpet') {
+      if (id === 'flute' || id === 'oboe' || id === 'trumpet') {
         let held = 0;
         let most = 0;
         for (const e of s.events) {

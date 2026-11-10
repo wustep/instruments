@@ -195,6 +195,20 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     sha256: 'dd000c559a8b62a92306187d20353213362201651338a689626571bd62ec4725',
     rate: 1.6,
   },
+  oboe: {
+    instrument: 'oboe',
+    composer: 'Bach',
+    title: 'Brandenburg Concerto No. 1, Adagio (the oboe’s line)',
+    file: 'bach-bwv1046-adagio-oboe.mid',
+    source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1577',
+    credit: 'Brandenburg Concerto No. 1 in F, BWV 1046, II. Adagio: the first oboe’s line alone, its solo that opens the movement and the long notes it holds under the violino piccolo’s answer. The file plays every note at full force (here at about mezzo-forte) at ♩ = 60 (here ♩ = 51). Typeset by Ben Stewart from the Bach-Gesellschaft edition (Rust, 1871, vol. 19); Mutopia-2008/10/29-1577; Creative Commons Attribution 3.0.',
+    sha256: '4cf21a61e66770577cac40ad388a58f59d32dbe9be52e617ca60a8ba343b2a82',
+    // to the end of the tenth bar, the oboe's three answering figures after its held A (each bar of 3/4
+    // is 3 s in the file)
+    end: 33,
+    vel: 0.6,
+    rate: 0.85,
+  },
   trumpet: {
     instrument: 'trumpet',
     composer: 'Handel',

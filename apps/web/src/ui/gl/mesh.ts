@@ -151,6 +151,15 @@ export const M = {
   brassBell: { col: hex('#ecc36c'), rough: 0.16, metal: 1 },
   brassHandled: { col: hex('#e9c06a'), rough: 0.22, metal: 1 },
   nickelDrawn: { col: hex('#d0cfc9'), rough: 0.3, metal: 1 },
+  // the oboe (oboe3d.ts): grenadilla (African blackwood), polished and oiled, its grain along the tube
+  // (as turned: `grenadilla` for parts lathed about their own y, `grenadillaX` for parts built along
+  // the model's x); the reed's cane (the bark's gloss, and the scraped tip, paler and matte) and its
+  // nylon thread
+  grenadilla: { col: hex('#1e1612'), rough: 0.34, metal: 0 },
+  grenadillaX: { col: hex('#1e1612'), rough: 0.34, metal: 0 },
+  cane: { col: hex('#d2ad62'), rough: 0.4, metal: 0 },
+  caneScraped: { col: hex('#e8d09a'), rough: 0.62, metal: 0 },
+  reedThread: { col: hex('#2d5e3e'), rough: 0.55, metal: 0 },
 } satisfies Record<string, Mat>;
 for (const [k, m] of Object.entries(M)) (m as Mat).name = k;
 /** a variant of a shared material (same shading family, its own colour or maps) */

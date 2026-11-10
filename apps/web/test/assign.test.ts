@@ -16,7 +16,7 @@ const partOf = (p: Plan, li: number) => p.lines[li][0]?.part ?? -1;
 describe('orchestra: assigning lines to instruments', () => {
   it('reads instruments from names (several languages) and General MIDI programs', () => {
     expect(['Violin I', 'violoncello:', 'Viola', 'Flauto traverso', 'Tromba', 'Cembalo', 'Kontrabass', 'violinII:'].map(voiceFromName)).toEqual(['violin', 'cello', 'viola', 'flute', 'trumpet', 'grand', 'bass', 'violin']);
-    expect([0, 32, 40, 41, 42, 43, 56, 60, 68, 73, 48, -1].map(voiceFromProgram)).toEqual(['grand', 'bass', 'violin', 'viola', 'cello', 'bass', 'trumpet', 'trumpet', 'flute', 'flute', null, null]);
+    expect([0, 32, 40, 41, 42, 43, 56, 60, 68, 69, 71, 73, 48, -1].map(voiceFromProgram)).toEqual(['grand', 'bass', 'violin', 'viola', 'cello', 'bass', 'trumpet', 'trumpet', 'oboe', 'oboe', 'flute', 'flute', null, null]);
   });
 
   it('a string quartet file becomes a string quartet (the name beats a wrong program)', () => {
@@ -58,9 +58,10 @@ describe('orchestra: assigning lines to instruments', () => {
     const p = autoPlan(brandenburg, { cap: 6 });
     expect(p.parts.length).toBe(6);
     const v = voices(p);
-    // the soloists keep their instruments; the ripieno violins become a section; the violone and the
-    // continuo (a double bass named "violin", a continuo named "violincello") are cellos
-    expect(v.slice(0, 4)).toEqual(['trumpet', 'flute', 'flute', 'violin']);
+    // the soloists keep their instruments (the oboe its own since there is one); the ripieno violins
+    // become a section; the violone and the continuo (a double bass named "violin", a continuo named
+    // "violincello") are cellos
+    expect(v.slice(0, 4)).toEqual(['trumpet', 'flute', 'oboe', 'violin']);
     expect(partOf(p, 4)).toBe(partOf(p, 3));
     expect(v[7]).toBe('cello');
     expect(v[8]).toBe('cello');
@@ -69,7 +70,7 @@ describe('orchestra: assigning lines to instruments', () => {
     // a phone's smaller stage
     // a phone's smaller stage: the winds stay, the strings go to a piano
     const ph = autoPlan(brandenburg, { cap: 4 });
-    expect(lineupOf(ph).sort()).toEqual(['flute', 'flute', 'grand', 'trumpet']);
+    expect(lineupOf(ph).sort()).toEqual(['flute', 'grand', 'oboe', 'trumpet']);
   });
 
   it('a lineup picked by hand takes the lines by register', () => {

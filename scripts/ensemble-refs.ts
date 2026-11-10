@@ -3,7 +3,8 @@
 // Instrument Samples (pre-2012 sets), anechoic chamber, Neumann KM 84 at ~5 ft,
 // 16-bit/44.1 kHz mono. Violin: J. Jean-Francois; viola: C. Taylor (1996);
 // cello: J. Montes on a 1736 Stradivarius (2001); double bass: the MIS "Double Bass" arco set
-// (https://theremin.music.uiowa.edu/MISdoublebass.html); flute: S. Feig (2000), non-vibrato.
+// (https://theremin.music.uiowa.edu/MISdoublebass.html); flute: S. Feig (2000), non-vibrato; oboe: the
+// MIS "Oboe" set (https://theremin.music.uiowa.edu/MISoboe.html), B♭3–A♭6, pp/mf/ff.
 // Terms: "may be downloaded and used for any projects, without restrictions" —
 // https://theremin.music.uiowa.edu/MIS.html
 //
@@ -16,7 +17,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { join } from 'node:path';
 import { analyzeSustained, decodeWav, identifyNote, segmentNotes, type SustainedAnalysis } from '../packages/engine/src/analysis/index.ts';
 
-export type EnsInstrument = 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet';
+export type EnsInstrument = 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet' | 'oboe';
 export type Dyn = 'pp' | 'mf' | 'ff';
 export const ENS_DYN: Dyn[] = ['pp', 'mf', 'ff'];
 export const ENS_CACHE = join(import.meta.dirname, '..', '.cache', 'iowa-ens');
@@ -44,6 +45,9 @@ export interface RefFile {
   range: [number, number];
   /** notes kept (played on the same string by the model) */
   use: [number, number];
+  /** segmentation: gaps bridged (10 ms frames; analysis segmentNotes, default 12). The Iowa oboe's
+   *  runs leave 50–100 ms between notes, which the default bridges into one long note */
+  merge?: number;
 }
 
 const BASE = 'https://theremin.music.uiowa.edu/sound%20files/MIS';
@@ -103,6 +107,13 @@ export const REF_FILES: RefFile[] = [
     const file = `Trumpet.novib.${dyn}.${tag}.aiff`;
     return { instrument: 'trumpet' as const, dyn, file, url: `${BASE}/Brass/Bbtrumpet/${file}`, range: rangeOf(tag), use: [52, 86] as [number, number] };
   }),
+  // oboe (concert pitch, as recorded), the model's range B♭3–A6
+  ...ENS_DYN.flatMap((dyn) =>
+    ['Bb3B3', 'C4B4', 'C5B5', 'C6Ab6'].map((tag) => {
+      const file = `Oboe.${dyn}.${tag}.aiff`;
+      return { instrument: 'oboe' as const, dyn, file, url: `${BASE}/Woodwinds/oboe/${file}`, range: rangeOf(tag), use: [58, 93] as [number, number], merge: 2 };
+    }),
+  ),
 ];
 
 export interface RefNote extends SustainedAnalysis {
@@ -128,7 +139,7 @@ export function analyseFile(f: RefFile): RefNote[] {
   const a = decodeWav(readFileSync(wavOf(f)));
   const x = a.channels[0];
   const fs = a.sampleRate;
-  const segs = segmentNotes(x, fs);
+  const segs = segmentNotes(x, fs, f.merge ? { merge: f.merge } : {});
   const [lo, hi] = f.range;
   const expected = hi - lo + 1;
   const picks = new Map<number, { seg: (typeof segs)[number]; len: number }>();

@@ -1,4 +1,4 @@
-// Strings and flute vs the Iowa MIS recordings: render each reference note with
+// Strings, flute, oboe and trumpet vs the Iowa MIS recordings: render each reference note with
 // the model (dry, same pitch and dynamic), analyse both with analyzeSustained(),
 // compare.
 //   npx tsx scripts/calibrate-ensemble.ts [--log "label"] [--only violin,flute] [--table]
@@ -202,7 +202,7 @@ async function main(): Promise<void> {
   const only = oi >= 0 ? (args[oi + 1].split(',') as EnsInstrument[]) : undefined;
   const t0 = performance.now();
   const pairs = await compareAll({ only });
-  const insts = (['violin', 'viola', 'cello', 'bass', 'flute', 'trumpet'] as EnsInstrument[]).filter((i) => !only || only.includes(i));
+  const insts = (['violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'trumpet'] as EnsInstrument[]).filter((i) => !only || only.includes(i));
   const summary = Object.fromEntries(insts.map((i) => [i, summarise(pairs, i)]));
   const brief = Object.fromEntries(Object.entries(summary).map(([k, v]) => {
     const { ltas: _l, harm: _h, ...rest } = v;
@@ -222,7 +222,7 @@ async function main(): Promise<void> {
       OUT,
       JSON.stringify({
         generated: new Date().toISOString(),
-        reference: 'University of Iowa MIS (anechoic, KM 84 at ~5 ft): violin, viola (1996), cello (Stradivarius 1736, 2001), double bass, flute non-vibrato (2000); pp/mf/ff',
+        reference: 'University of Iowa MIS (anechoic, KM 84 at ~5 ft): violin, viola (1996), cello (Stradivarius 1736, 2001), double bass, flute non-vibrato (2000), oboe; pp/mf/ff',
         velocities: DYN_VEL,
         thirdOct: THIRD_OCT,
         summary,

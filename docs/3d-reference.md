@@ -187,10 +187,34 @@ Matched by eye to the two action photos; the species are the usual ones, **typic
 ² The National Music Museum's eMuseum blocks scripted fetches. These figures come from its search-indexed
 record text, so check them at the links.
 
+## Oboe (conservatoire system)
+
+Modelled as a full conservatoire (Gillet) oboe of the Lorée / Marigaux / Yamaha class, laid out from
+Yamaha's own full-length photograph of the YOB-831 (`oboe-yamaha-side.jpg`, 4013 px for the body,
+measured in pixels at 6.69 px/mm) and checked against the measured instruments below.
+
+| part | value | source |
+|---|---|---|
+| Body (top of the top joint to the bell rim, no reed) | 601 (Lorée, 1983); 597–598 (Howarth Gillet body, Kohlert); 593 (Durand). Modelled: 600 | [MIM-Loree], [Bate-oboes] |
+| Top joint | 233 + 19 tenon (Lorée); 238 in the photograph, to the lower joint's socket ring. Modelled: 236 + a 4.5 mm silver ring | [MIM-Loree], photograph |
+| Lower joint | 240 + 17 tenon (Lorée); 236 in the photograph. Modelled: 231 + the bell's 6.5 mm silver ring | [MIM-Loree], photograph |
+| Bell | 127 (Lorée); 126 in the photograph. Modelled: 122 + its ring | [MIM-Loree], photograph |
+| Bell rim, outside | "Max diam [bell]" 53 (Howarth), 55 (Kohlert), 56 (Durand); 50 in the photograph. Modelled: Ø 50 | [Bate-oboes], photograph |
+| Outside diameters | the bulb under the ferrule Ø 23.7; the top joint Ø 20.1 below its bead, tapering to Ø 23.2 at its foot; the lower joint Ø 27.2–28.0; the bell Ø 28.8 under its ring, flaring over its last 15 mm into the rim | photograph |
+| Bore | minimal c. 4.0; reed well Ø 7.4 × 18.2 deep; 10.0 at the top joint's foot, 15.5 at the lower joint's, 15.7 at the bell's top | [MIM-Loree] |
+| Reed | 71.5 overall (by the rule in `oboe-reeds.jpg`): cane 23 out of the thread, thread 16, cork 32 on a 47 mm staple; tip 6.9 wide, thread Ø ≈ 4.6, cork Ø 7.0. With 18 mm of cork in the well, 53.5 stands out of the top joint: 653.5 reed tip to rim | `oboe-reeds.jpg`, [MIM-Loree] |
+| Overall | "roughly 65 cm" | [Wikipedia-oboe] |
+| Keywork | 45 pieces on a full conservatoire oboe; nickel silver, silver-plated | [Wikipedia-oboe] |
+| Keys modelled | the side (second) octave key's vent at 29 mm (from the top of the body) and its touch beside L1; the thumb octave key's vent at 80 and its plate on the back; trill vents at 90, 110, 122; the perforated plates L1 131 (its half-hole plate 142), L2 162.5, L3 193; G♯ vent 178; R1 255 (its crescent 264), R2 293, the ring R3 320; the F key's half-moon touch 306.5; E♭ 358; C♯ 384 and C 452 on the right-hand side; F resonance 420; B 497 and B♭ 522 on the bell; the left little finger's G♯, E♭, B, B♭ touches hanging past the joint (round ends at 206–222), the right little finger's C, C♯, E♭ (320–337); the thumb rest at 296 | photograph |
+| Key travel (modelled, a little more than life so it reads) | plates 2.2 at the cup's middle, vents 1.2–1.8, the low keys 2.6–3.0, touches 2.6 | **typical, unsourced** |
+| Fingerings modelled | the standard conservatoire fingerings B♭3–A6 (`apps/web/src/ui/oboe-fingering.ts`, shared with the 2D stage) | [WFG-oboe] |
+| Wood | grenadilla (African blackwood); student oboes resin | [Wikipedia-oboe] |
+
 ## Reference photos
 
 The photos are in `.cache/refs-3d/`, which is not committed. Full attributions are in `.cache/refs-3d/SOURCES.md`.
-The double bass's are in `.cache/refs-bass/` (`bass/` below), also not committed.
+The double bass's are in `.cache/refs-bass/` (`bass/` below), the oboe's in `.cache/refs-oboe/` (`oboe/` below,
+fetched from Wikimedia Commons' API, the 1920 px thumbnails), also not committed.
 
 | file | license | shows |
 |---|---|---|
@@ -225,6 +249,13 @@ The double bass's are in `.cache/refs-bass/` (`bass/` below), also not committed
 | `bass/met-eberle.jpg` (`231788`) | CC0 (The Met) | Eberle double bass (1734), front |
 | `bass/contrebasse-clefs.jpg` | CC BY-SA 1.0, Ruizo | French bass machines: a full-cheek brass plate, cogs, worms, a butterfly key |
 | `bass/kay-scroll.jpg` | CC BY 2.0, Philip Newton | Kay bass scroll: single machine plates, keys behind the pegbox |
+| `oboe/oboe-yamaha-side.jpg` (`Yamaha_Oboe_YOB-831.tif`) | CC BY-SA 4.0, Yamaha Corporation | YOB-831, full length, front, no reed, white background: the outline, the joints and every key's place were measured off it |
+| `oboe/oboe-loree-reed.jpg` (`Oboe_modern.jpg`) | CC BY-SA 3.0, Hustvedt | Lorée oboe with its reed, three-quarter from above, lying on white |
+| `oboe/oboe-reeds.jpg` (`Anches_hautbois_conservatoire_et_baroque.jpg`) | CC BY-SA 4.0, Cdang | conservatoire and baroque oboe reeds beside a mm rule |
+| `oboe/oboe-keys-blanks.jpg` (`Campionatura chiavi oboe … (chiavi grezze).JPG`) | CC BY-SA 4.0, Paperkat | the raw key blanks of a Lorée-system oboe: plates, touches, hinge tubes |
+| `oboe/oboe-wlm-5641.jpg`, `oboe-wlm-5642.jpg` (`Wiki_loves_Music_-_Hamburg-5641/5642.jpg`) | CC BY-SA 4.0, Wuselig | a Yamaha oboe taken apart (bell, lower and top joints, reed), and its top joint from the back |
+| `oboe/oboe-keys-moennig.jpg` (`Keys_oboe+clarinet.jpg`) | CC BY-SA 4.0, Gebr. Mönnig + F. Arthur Uebel | oboe keywork, lying horizontal: plates, posts, rods |
+| `oboe/oboe-yamaha-bottom.jpg` (`Yamaha_bottom_joint.jpg`) | Public domain, Glio | a YOB-241's lower joint |
 
 [HJ-vc]: https://www.hansjohannsson.com/resources/mescello.html
 [HJ-vn]: https://hansjohannsson.com/resources/mesvioli.html
@@ -274,3 +305,7 @@ The double bass's are in `.cache/refs-bass/` (`bass/` below), also not committed
 [RJ-machines]: https://www.thomannmusic.com/roth_junius_single_machines_bass_3_4_br.htm
 [Rubner-machines]: https://www.thomannmusic.com/rubner_bass_machines_140_114o_eh_5.htm
 [Strad-mechanics]: https://www.thestrad.com/lutherie/trade-secrets-using-baker-style-mechanics-on-a-double-bass/14611.article
+[MIM-Loree]: https://brusselsmimoboecollection.kcb.be/instrument-checklist/1983.021loree/
+[Bate-oboes]: https://www.bate.ox.ac.uk/files/oboespdf
+[Wikipedia-oboe]: https://en.wikipedia.org/wiki/Oboe
+[WFG-oboe]: https://www.wfg.woodwind.org/oboe/ob_bas_1.html

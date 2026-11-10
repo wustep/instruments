@@ -308,8 +308,8 @@ interface Ens {
 }
 
 function ensembleSection(e: Ens): HTMLElement {
-  const insts = ['violin', 'viola', 'cello', 'bass', 'flute'].filter((i) => e.summary[i]);
-  const label: Record<string, string> = { violin: 'Violin', viola: 'Viola', cello: 'Cello', bass: 'Double bass', flute: 'Flute' };
+  const insts = ['violin', 'viola', 'cello', 'bass', 'flute', 'oboe'].filter((i) => e.summary[i]);
+  const label: Record<string, string> = { violin: 'Violin', viola: 'Viola', cello: 'Cello', bass: 'Double bass', flute: 'Flute', oboe: 'Oboe' };
   // the baseline measured the same way (vibrato matched to each recorded note)
   const first = (e.rounds.find((r) => /re-measured with matched vibrato/.test(r.label)) ?? e.rounds[0])?.summary ?? {};
   const lx = (f: number) => Math.log2(f / 1000);
@@ -384,7 +384,7 @@ function ensembleSection(e: Ens): HTMLElement {
         'Harmonic profiles',
         'steady-state harmonic levels relative to the strongest, power average over the register’s notes at mf',
         [leg(), grid],
-        'Violin-family registers are thirds of the notes analysed on each instrument (first position on each string, as the model plays them); flute registers are its three octaves. The flute’s low register shows its strong even harmonics.',
+        'Violin-family registers are thirds of the notes analysed on each instrument (first position on each string, as the model plays them); flute and oboe registers are thirds of their compass. The flute’s low register shows its strong even harmonics; the oboe’s strongest harmonic sits near 1–1.5 kHz whatever the note (its formant).',
         true,
       ),
     );
@@ -403,7 +403,7 @@ function ensembleSection(e: Ens): HTMLElement {
   return h(
     'section',
     { class: 'ensemble' },
-    h('h2', {}, 'Strings and flute against recordings'),
+    h('h2', {}, 'Strings, flute and oboe against recordings'),
     h('p', { class: 'hint', style: 'margin-top:8px' }, `Iowa MIS anechoic · ${insts.map((i) => `${e.summary[i].notes} ${i}`).join(', ')} notes · same notes, dry, same analysis`),
     tiles,
     figs,

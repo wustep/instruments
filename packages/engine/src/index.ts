@@ -8,11 +8,12 @@
 // The DSP core (PianoCore, renderCore) has no Web Audio dependency and runs in Node.
 
 export { createPiano, createInstrument, renderOffline, processorUrl, type Piano, type PianoOptions } from './api/piano.ts';
-export { CC_DYNAMICS, CC_REST, INSTRUMENT_IDS, INSTRUMENT_INFO, isBowed, type BowedId, type InstrumentId, type ExciteTrace } from './core/instrument.ts';
+export { CC_DYNAMICS, CC_REST, INSTRUMENT_IDS, INSTRUMENT_INFO, isBowed, type BowedId, type Family, type InstrumentId, type ExciteTrace } from './core/instrument.ts';
 export type { BowedParams } from './core/bowed.ts';
 export { CC_HAND_BOW_OFF, CC_HAND_BOW_POS, CC_HAND_BOW_SPEED } from './core/bowed.ts';
 export type { FluteParams } from './core/flute.ts';
 export type { TrumpetParams } from './core/brass.ts';
+export type { OboeParams } from './core/oboe.ts';
 export type { KeySummary, Stats, VisualFrame } from './api/messages.ts';
 export {
   DEFAULT_PARAMS,
