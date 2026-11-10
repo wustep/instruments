@@ -17,6 +17,8 @@ import { installTips } from './ui/tip.ts';
 import { stageView } from './views/stage.ts';
 import { measureView } from './views/measure.ts';
 import { notesView } from './views/notes.ts';
+import { startNav } from './nav.ts';
+import type { Page } from './address.ts';
 
 /** The name in the browser tab. Nothing on the page itself names it: the instrument speaks. */
 export const WORDMARK = 'instruments';
@@ -70,28 +72,26 @@ const lampText = h('span', { class: 'lamp-text' }, 'tap a key');
 const midiText = h('span', { class: 'midi' });
 const srStatus = h('span', { class: 'sr' }, '');
 const status = h('div', { class: 'status', 'aria-live': 'polite' }, h('i', { class: 'lamp' }), lampText, midiText, srStatus);
+// (each page has its own address: nav.ts; the back link goes to the stage as it is)
 const links = [
-  h('a', { href: '#/measurements', 'data-route': 'measurements' }, 'measurements'),
-  h('a', { href: '#/notes', 'data-route': 'notes' }, 'notes'),
+  h('a', { href: '/measurements', 'data-route': 'measurements' }, 'measurements'),
+  h('a', { href: '/notes', 'data-route': 'notes' }, 'notes'),
 ];
-const backLink = h('a', { class: 'back', href: '#/', 'data-route': 'stage', 'aria-label': 'back to the instruments', 'data-tip': 'back' }, '←');
+const backLink = h('a', { class: 'back', href: '/', 'data-route': 'stage', 'aria-label': 'back to the instruments', 'data-tip': 'back' }, '←');
 const header = h('header', { class: 'top' }, backLink, h('span', { class: 'spacer' }), status, h('nav', { class: 'links', 'aria-label': 'Pages' }, links));
 const main = h('main', { id: 'main' });
 // drop a .mid file anywhere to hear it (an ensemble's file on an ensemble)
 const player = new MidiPlayer();
 app.append(header, main, player.el, dock);
 
-const routes: Record<string, { title: string; make: () => View }> = {
+const routes: Record<Page, { title: string; make: () => View }> = {
   stage: { title: '', make: () => stageView(keyboard, knobSlot, player) },
   measurements: { title: 'Measurements', make: () => measureView() },
   notes: { title: 'Notes', make: () => notesView() },
 };
-const ALIASES: Record<string, string> = { '': 'stage', play: 'stage', inside: 'stage' };
 
 let current: View | null = null;
-function route(): void {
-  const raw = (location.hash.replace(/^#\/?/, '') || '').split('?')[0];
-  const id = ALIASES[raw] ?? (routes[raw] ? raw : 'stage');
+function render(id: Page): void {
   const r = routes[id];
   current?.unmount?.();
   current = r.make();
@@ -103,8 +103,8 @@ function route(): void {
   current.mount?.();
   window.scrollTo(0, 0);
 }
-window.addEventListener('hashchange', route);
-route();
+// the address: each tab its own, the Orchestra's setup in it; it sets the page up as it opens
+startNav(player, render);
 
 // ---------------------------------------------------------------- computer keyboard
 keys.attach();
@@ -203,6 +203,8 @@ const syncEnsembleKeys = () => {
 };
 ensemble.changed.on(syncEnsembleKeys);
 ensemble.keysChanged.on(syncEnsembleKeys);
+// (an address that opened on the Orchestra brought it on before these were listening)
+if (ensemble.active) syncEnsembleKeys();
 void audio.initMidi();
 
 // Any gesture starts audio. Desktop browsers accept pointerdown/keydown, phones only

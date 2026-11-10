@@ -13,9 +13,10 @@ import { audio, fetchDesigns, restLevel, sendLevel, type Route } from '../audio.
 import { modLines, PartLevels, volumeRef } from '../expression.ts';
 import type { FileEvent, MidiLine, MidiSong } from '../midi-file.ts';
 import { addPart, autoPlan, isKeyboard, lineupOf, lineupPlan, placeNote, playersOf, reassign, removePart, setPartLines, setPartVoice, setRoute, VOICE_INFO, type Plan, type Voice } from './assign.ts';
-import { carryKeys, keyParts, keysFor, keyTargets, setSplit, toggleKey, type KeysChoice, type KeyTarget } from './keys.ts';
+import { carryKeys, defaultKeys, keyParts, keysFor, keyTargets, setSplit, toggleKey, type KeysChoice, type KeyTarget } from './keys.ts';
 import { busGain } from './mix.ts';
 import { piecePlan, type Piece } from './pieces.ts';
+import { planByRules, remapRules, rulesOf, type LineRule, type Setup } from './rules.ts';
 import { soundSeats } from './seats.ts';
 
 /** the most instruments a file is shared out over by itself, and a piece's (each a few per cent of the
@@ -95,6 +96,13 @@ class Ensemble implements Route {
   piece: Piece | null = null;
   /** the lineup was picked by hand (a file dropped next is matched to it) */
   byUser = false;
+  /** the routing as rules (orchestra/rules.ts): each line of the file and the seats it plays on, by
+   *  what the file calls it, so that it applies to a file dropped in later (the address carries it);
+   *  null: none set (a file is matched to a lineup by register) */
+  rules: LineRule[] | null = null;
+  /** the setup the ensemble last had (its lineup and routing; the keys start from their default),
+   *  for when it comes back on */
+  last: Setup | null = null;
   parts: PartLive[] = [];
   readonly changed = new Emitter<void>();
   readonly notes = new Emitter<PartNote>();
@@ -124,14 +132,16 @@ class Ensemble implements Route {
     return lineupOf(this.plan);
   }
 
-  /** the ensemble on the stage, with a plan (a file's, a piece's, or a lineup) */
-  enter(plan: Plan, song: MidiSong | null, piece: Piece | null = null, byUser = false): void {
+  /** the ensemble on the stage, with a plan (a file's, a piece's, or a lineup) and the rules it came
+   *  from (none: a file's plan is its own rules) */
+  enter(plan: Plan, song: MidiSong | null, piece: Piece | null = null, byUser = false, rules: LineRule[] | null = null): void {
     this.releaseLive();
     // the keys play the new lineup's default (sync), with nothing held
     this.keys = keysFor([]);
     this.hand = { sustain: 0, soft: 0, sostenuto: 0, bend: 0, cc: new Map() };
     this.plan = plan;
     this.byUser = byUser;
+    this.rules = rules ?? (song ? rulesOf(plan, song.lines) : null);
     this.song = song;
     this.ref = song ? volumeRef(song) : 1;
     this.wheels = song ? modLines(song) : new Set();
@@ -145,6 +155,7 @@ class Ensemble implements Route {
 
   exit(): void {
     if (!this.active) return;
+    this.last = { ...this.setup(), keys: null };
     this.active = false;
     audio.route = null;
     this.releaseLive();
@@ -155,6 +166,7 @@ class Ensemble implements Route {
     this.song = null;
     this.piece = null;
     this.byUser = false;
+    this.rules = null;
     // the single instrument back in the graph
     const ctx = audio.ctx;
     if (ctx && audio.piano) {
@@ -164,10 +176,30 @@ class Ensemble implements Route {
     this.changed.emit();
   }
 
-  /** a file's lines over the current lineup (picked by hand) or on instruments of their own */
+  /** a file's lines over the current lineup (picked by hand: by its rules, if it has them, else by
+   *  register) or on instruments of their own */
   planFor(song: MidiSong, piece: Piece | null): Plan {
     if (piece) return piecePlan(piece, song.lines, AUTO_CAP);
+    const rules = this.rulesFor(piece);
+    if (rules) return planByRules(song.lines, this.lineup, rules);
     return this.active && this.byUser ? autoPlan(song.lines, { cap: stageCap(), lineup: this.lineup }) : autoPlan(song.lines, { cap: AUTO_CAP });
+  }
+  /** the rules a file dropped now is placed by (planFor), kept with its plan */
+  rulesFor(piece: Piece | null): LineRule[] | null {
+    return !piece && this.active && this.byUser ? this.rules : null;
+  }
+
+  /** the setup as the address carries it (address.ts) */
+  setup(): Setup {
+    const k = this.keys;
+    return { seats: this.lineup, lines: this.rules, keys: k.byUser ? (k.split ? 'split' : [...k.parts]) : null };
+  }
+  /** what the keys play, as an address sets it (seats in the lineup, or split) */
+  setKeysTo(keys: number[] | 'split'): void {
+    const n = this.parts.length;
+    if (keys === 'split') return this.setKeys({ parts: defaultKeys(this.lineup), split: true, byUser: true });
+    const parts = [...new Set(keys.filter((k) => k >= 0 && k < n))].sort((a, b) => a - b);
+    if (parts.length) this.setKeys({ parts, split: false, byUser: true });
   }
 
   /** a file's lines over a given lineup */
@@ -178,9 +210,13 @@ class Ensemble implements Route {
   /** a new lineup (picked by hand); a loaded file's lines are matched to it */
   setLineup(voices: Voice[]): void {
     const v = voices.slice(0, stageCap());
+    const was = this.lineup;
     this.byUser = true;
     this.piece = null;
     this.plan = this.song ? autoPlan(this.song.lines, { cap: stageCap(), lineup: v }) : lineupPlan(v);
+    // (with a file the lines were matched again by register; with none, the routing set stays with
+    // its instruments)
+    this.rules = this.song ? rulesOf(this.plan, this.song.lines) : this.rules && remapRules(this.rules, was, v);
     if (!v.length) return this.exit();
     this.releaseLive();
     this.sync();
@@ -229,6 +265,10 @@ class Ensemble implements Route {
     const prev = this.plan;
     this.plan = next;
     this.piece = null;
+    // the routing by hand: the file's lines as they now go (with no file, a seat changed in place
+    // keeps its lines)
+    if (this.song) this.rules = rulesOf(next, this.lines);
+    else if (this.rules && next.parts.length !== prev.parts.length) this.rules = remapRules(this.rules, lineupOf(prev), lineupOf(next));
     this.releaseLive();
     this.sync(prev);
     this.changed.emit();
@@ -320,9 +360,22 @@ class Ensemble implements Route {
     p.engine = null;
   }
 
-  /** the audio for every part (audio must be started; resolves when every engine exists) */
+  /** the audio for every part, once the sound has been started by a gesture (an address that brings
+   *  the ensemble on as the page opens starts nothing: its engines are made when the sound starts);
+   *  resolves when every engine exists */
   async ensureEngines(): Promise<void> {
-    if (!this.active) return;
+    if (!this.active || !audio.ctx) return;
+    this.making++;
+    try {
+      await this.makeEngines();
+    } finally {
+      this.making--;
+    }
+  }
+  /** ensureEngines calls under way */
+  private making = 0;
+
+  private async makeEngines(): Promise<void> {
     await audio.start().catch(() => undefined);
     const ctx = audio.ctx;
     if (!ctx || !this.active) return;
@@ -384,7 +437,11 @@ class Ensemble implements Route {
   private watchSolo(): void {
     if (this.watching) return;
     this.watching = true;
-    audio.state.on(() => this.muteSolo());
+    audio.state.on((s) => {
+      this.muteSolo();
+      // the sound started (a gesture) with the ensemble already on: its engines now
+      if (s === 'running' && this.active && !this.making && this.parts.some((p) => !p.engine)) void this.ensureEngines();
+    });
   }
 
   /** the bus at 1/√n over the parts that can sound: with a file, those given a line (one waiting for

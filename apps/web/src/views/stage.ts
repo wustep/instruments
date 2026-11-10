@@ -10,8 +10,10 @@ import { openActionView } from '../ui/action-view.ts';
 import type { Stage3D } from '../ui/gl/stage3d.ts';
 import { webgl2Available } from '../ui/gl/webgl2.ts';
 import { ensembleIcon, glyph, knob, type KnobSpec } from '../ui/controls.ts';
-import { ensemble, QUARTET, stageCap, type PartLive } from '../orchestra/ensemble.ts';
-import { isKeyboard, lineupPlan, planOf, VOICE_INFO, type Voice } from '../orchestra/assign.ts';
+import { ensemble, stageCap, type PartLive } from '../orchestra/ensemble.ts';
+import { isKeyboard, planOf, VOICE_INFO, type Voice } from '../orchestra/assign.ts';
+import { enterOrchestra, leaveOrchestra } from '../orchestra/setup.ts';
+import { look } from '../look.ts';
 import { drawEnsemble, ensembleCells, newPartDraw, syncPianoState, type Cell, type PartDraw } from '../ui/ensemble-draw.ts';
 import type { EnsPartIn } from '../ui/gl/scenes3d.ts';
 import type { MidiPlayer } from '../ui/player.ts';
@@ -81,7 +83,6 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   // the player's overlay, with play and open: ui/player.ts.)
   const ensBtn = h('button', { class: 'ens-toggle', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Ensemble: several instruments', 'data-tip': 'ensemble · tap instruments to add them' });
   ensBtn.append(ensembleIcon());
-  let lastLineup: Voice[] = QUARTET;
   const pianoVoice = (): Voice => (audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand');
   const voiceOfPick = (id: InstrumentId): Voice => (id === 'piano' ? pianoVoice() : (id as Voice));
   const countOf = (id: InstrumentId, lineup: Voice[]) => lineup.filter((v) => (id === 'piano' ? isKeyboard(v) : v === id)).length;
@@ -94,24 +95,11 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     else next = [...lineup, v];
     if (!next.length) return;
     next.sort((a, b) => SCORE_ORDER.indexOf(a) - SCORE_ORDER.indexOf(b));
-    lastLineup = next;
     ensemble.setLineup(next);
   };
-  ensBtn.addEventListener('click', () => {
-    if (ensemble.active) {
-      lastLineup = ensemble.lineup;
-      ensemble.exit();
-      player.ensembleLeft();
-    } else {
-      // a file already loaded is shared out over the lineup (an instrument's own piece is not: the
-      // overlay comes back to rest, its play icon now the ensemble's piece)
-      if (player.demo) player.unload();
-      const song = player.loaded;
-      player.stop();
-      ensemble.enter(song ? ensemble.planForLineup(song, lastLineup) : lineupPlan(lastLineup), song, null, true);
-      void ensemble.ensureEngines();
-    }
-  });
+  // on: the lineup and routing it last had (else the quartet), a file already loaded shared out over
+  // it (orchestra/setup.ts)
+  ensBtn.addEventListener('click', () => (ensemble.active ? leaveOrchestra(player) : enterOrchestra(player, null)));
   // the routing grid asked for while a file plays on the one instrument shown: the ensemble comes on
   // with that instrument playing every line (more are added in the grid)
   player.onSolo = (song) => {
@@ -133,10 +121,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
             const v: Voice = id === 'upright' ? 'upright' : 'grand';
             ensemble.lineup.forEach((x, k) => isKeyboard(x) && x !== v && ensemble.partVoice(k, v));
           }
+          // (the buttons follow the change: showPreset)
           await audio.setPreset(id);
-          fadeIn();
-          presetBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(shownPresets[i] === id)));
-          keysFallback = pianoKeySummary(id);
           if (audio.piano) syncKnobs(audio.piano.params as unknown as Record<string, number>);
         },
       },
@@ -144,28 +130,25 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     ),
   );
   const presets = h('div', { class: 'presets', role: 'group', 'aria-label': 'Piano' }, presetBtns);
-  // 2D / 3D: only offered where WebGL2 runs (elsewhere the 2D stage simply stays)
+  /** the piano's preset changed (its button, or an address walked to) */
+  const showPreset = (id: string) => {
+    fadeIn();
+    presetBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(shownPresets[i] === id)));
+    keysFallback = pianoKeySummary(id);
+    void audio.presetSettled.then(() => audio.piano && syncKnobs(audio.piano.params as unknown as Record<string, number>));
+  };
+  // 2D / 3D: only offered where WebGL2 runs (elsewhere the 2D stage simply stays); remembered on the
+  // device, or as the address asks (look.ts)
   const has3d = webgl2Available();
-  let want3d = false;
-  try {
-    want3d = has3d && localStorage.getItem('piano-model.3d') === '1';
-  } catch {
-    /* storage blocked */
-  }
+  let want3d = has3d && look.want3d;
   const dimBtn = h('button', { class: 'dim-toggle', type: 'button', 'aria-pressed': String(want3d), 'aria-label': '3D view', 'data-tip': '3D · drag to turn, pinch to zoom' }, '3d');
   dimBtn.hidden = !has3d;
   // the vector display: the 2D stage's other style (ui/vector/kit.ts). The stage as it was stays the
-  // default; the choice is remembered, and ?style=vector (or =classic) in the address sets it.
-  // Its toggle closes the picker's row: every control that was there keeps its place (3d next to the
-  // case toggle it brings, then the ensemble), and how the stage is drawn, the choice
-  // made least often, comes last.
-  let wantVector = false;
-  try {
-    const q = new URLSearchParams(location.search).get('style') ?? new URLSearchParams(location.hash.split('?')[1] ?? '').get('style');
-    wantVector = q ? q === 'vector' : localStorage.getItem('piano-model.style') === 'vector';
-  } catch {
-    /* storage blocked */
-  }
+  // default; the choice is remembered, and ?view=vector (or =2d; the old ?style=vector) in the address
+  // sets it. Its toggle closes the picker's row: every control that was there keeps its place (3d next
+  // to the case toggle it brings, then the ensemble), and how the stage is drawn, the choice made least
+  // often, comes last.
+  let wantVector = look.wantVector;
   const vecBtn = h('button', { class: 'vec-toggle', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Vector lines', 'data-tip': 'vector lines' });
   vecBtn.innerHTML = '<svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="3.4" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M7 .8v2.4M7 10.8v2.4M.8 7h2.4M10.8 7h2.4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>';
   // pianos in 3D: hide the case (the plate, strings, soundboard, keys and the whole action stay);
@@ -279,14 +262,16 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       cv3.style.cursor = s3.pick(e.clientX - r.left, e.clientY - r.top) !== null ? 'zoom-in' : s3.zoomed !== null ? 'zoom-out' : '';
     });
   };
-  const set3d = (on: boolean) => {
+  /** 2D or 3D (`remember`: the device keeps the choice; not when the address asked for it) */
+  const set3d = (on: boolean, remember = true) => {
     want3d = on && has3d;
     dimBtn.setAttribute('aria-pressed', String(want3d));
-    try {
-      localStorage.setItem('piano-model.3d', want3d ? '1' : '0');
-    } catch {
-      /* storage blocked */
-    }
+    if (remember)
+      try {
+        localStorage.setItem('piano-model.3d', want3d ? '1' : '0');
+      } catch {
+        /* storage blocked */
+      }
     if (want3d && !s3 && !loading3d) {
       loading3d = import('../ui/gl/stage3d.ts')
         .then(({ createStage3D }) => {
@@ -313,6 +298,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   const showStyle = () => {
     const on = vectorOn();
     vecBtn.setAttribute('aria-pressed', String(on));
+    // (the address follows: nav.ts)
+    look.shows(want3d, wantVector);
     if (on) {
       document.documentElement.dataset.style = 'vector';
       loadVectorFont();
@@ -858,9 +845,10 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
           hzEl.textContent = k ? `${fmt(k.f1, 1)} Hz` : '';
         }),
       );
+      unsubs.push(audio.presetChanged.on(showPreset));
       applyInstrument(audio.instrument);
       applyEnsemble();
-      if (want3d) set3d(true);
+      if (want3d) set3d(true, false);
       showStyle();
       raf = requestAnimationFrame(loop);
     },

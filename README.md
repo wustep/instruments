@@ -36,8 +36,8 @@ README does not claim it is live. `vercel.json` makes this a static build
 * **Vector lines.** The crosshair button that closes the picker's row redraws the 2D stage as a vector
   display: thin glowing lines on black, the instrument in blue, the sound in amber, and
   each knob in a colour of its own that also marks what it moves on the drawing. The
-  stage as it was stays the default; the choice is remembered, and `?style=vector` in
-  the address sets it. After Jameson Hodge's Chimera vocal synth; the drawing kit and
+  stage as it was stays the default; the choice is remembered, and `?view=vector` in
+  the address sets it (`?style=vector` still does). After Jameson Hodge's Chimera vocal synth; the drawing kit and
   the colour roles are in `apps/web/src/ui/vector/kit.ts`.
 * **Ensemble.** The ensemble button (four dots on an arc) puts several instruments on
   the stage, each its own engine; tap an instrument to add one. The keys (on the
@@ -51,6 +51,16 @@ README does not claim it is live. `vercel.json` makes this a static build
   it). The list icon in the player, next to the folder, holds three public-domain pieces from the Mutopia
   Project: Haydn's "Emperor" quartet (II), Brandenburg No. 5 (III) and Handel's
   Réjouissance. Pieces and assignment: `apps/web/src/orchestra/`.
+* **Addresses.** Every tab has its own address (`/violin`, `/piano/upright`, `/orchestra`,
+  `/notes`…), so back and forward walk the tabs and a reload stays put. The Orchestra's
+  address carries its whole setup, kept up to date as it changes: the instruments in
+  their seats, which track goes where (by track name, then General MIDI program, then
+  place, so it applies to a file dropped in later), what the keys play, 2D or 3D and the
+  expression. There is nothing to press: the address is a preset. For example, a string
+  quintet that plays a file with Violin I/II, Viola, Cello (or Violoncello) and Contrabass
+  tracks:
+  `/orchestra?v=1&seats=violin,violin,viola,cello,bass&lines=Violin+I~40:1,Violin+II~40:2,Viola~41:3,Cello~42:4,Contrabass~43:5`.
+  Format: `apps/web/src/address.ts`; matching: `apps/web/src/orchestra/rules.ts`.
 * **Look inside.** See what each instrument is doing as it plays:
   * the string displacement or bore pressure, live;
   * the hammer's contact force with its felt hysteresis loop, or the bow's
