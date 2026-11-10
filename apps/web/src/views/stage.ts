@@ -68,8 +68,10 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   const closeUpOffered = () => family() === 'piano' && !ensemble.active;
 
   // ---------------------------------------------------------------- picker
+  // (the double bass's name under its glyph is "bass", one word as the others are; its full name is its
+  // accessible name and tooltip)
   const instBtns = INSTRUMENT_IDS.map((id) => {
-    const b = h('button', { class: 'pick', type: 'button', 'aria-label': INSTRUMENT_INFO[id].label, title: INSTRUMENT_INFO[id].blurb, 'aria-pressed': String(inst === id), onclick: () => (ensemble.active ? addToLineup(id) : void audio.setInstrument(id)) }, h('span', { class: 'pick-name' }, INSTRUMENT_INFO[id].label.toLowerCase()), h('span', { class: 'pick-n', 'aria-hidden': 'true' }));
+    const b = h('button', { class: 'pick', type: 'button', 'aria-label': INSTRUMENT_INFO[id].label, title: INSTRUMENT_INFO[id].blurb, 'aria-pressed': String(inst === id), onclick: () => (ensemble.active ? addToLineup(id) : void audio.setInstrument(id)) }, h('span', { class: 'pick-name' }, (id === 'bass' ? 'bass' : INSTRUMENT_INFO[id].label).toLowerCase()), h('span', { class: 'pick-n', 'aria-hidden': 'true' }));
     b.prepend(glyph(id) as unknown as HTMLElement);
     return b;
   });

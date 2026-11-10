@@ -1,7 +1,8 @@
 # instruments
 
-Five acoustic instruments, physically modelled and computed in real time in the
-browser: a **piano**, a **violin**, a **viola**, a **cello** and a **flute**.
+Seven acoustic instruments, physically modelled and computed in real time in the
+browser: a **piano**, a **violin**, a **viola**, a **cello**, a **double bass**, a
+**flute** and a **trumpet**.
 No samples are ever played as the sound. Every note is a simulation of felt
 hammers, bows and air jets driving strings and tubes, which in turn drive a
 soundboard or body.
