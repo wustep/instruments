@@ -1,0 +1,68 @@
+{
+ "file": "daylight",
+ "excerpt": [
+  160,
+  230
+ ],
+ "parts": [
+  "violin",
+  "violin",
+  "viola",
+  "cello",
+  "cello"
+ ],
+ "versions": [
+  {
+   "version": "before",
+   "velocitySd": [
+    0,
+    1.5,
+    0,
+    0,
+    0
+   ],
+   "levelSdDb": 2.83,
+   "level10to90Db": 7.3,
+   "slowSdDb": 2.24,
+   "meanDb": -21.7,
+   "peakDb": -6.8,
+   "followsFileCC": null,
+   "dynEvents": 0
+  },
+  {
+   "version": "written",
+   "velocitySd": [
+    0,
+    1.5,
+    0,
+    0,
+    0
+   ],
+   "levelSdDb": 2.91,
+   "level10to90Db": 8.1,
+   "slowSdDb": 2.16,
+   "meanDb": -23.7,
+   "peakDb": -8.8,
+   "followsFileCC": null,
+   "dynEvents": 0
+  },
+  {
+   "version": "auto",
+   "velocitySd": [
+    5.9,
+    7.1,
+    7.6,
+    7.1,
+    7.4
+   ],
+   "levelSdDb": 3.79,
+   "level10to90Db": 9.9,
+   "slowSdDb": 3.13,
+   "meanDb": -23.2,
+   "peakDb": -6.6,
+   "followsFileCC": null,
+   "dynEvents": 7162,
+   "withTheMusic": 0.3
+  }
+ ]
+}

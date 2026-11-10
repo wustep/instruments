@@ -8,7 +8,7 @@
 
 import { Pump } from './pump.ts';
 import type { KeySummary } from '../api/messages.ts';
-import type { ExciteTrace, InstrumentCore } from './instrument.ts';
+import { CC_DYNAMICS, DYN_TAU, type ExciteTrace, type InstrumentCore } from './instrument.ts';
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { biquadHighpass, biquadLowpass, biquadPeaking, biquadHighShelf } from './filters.ts';
 import type { PianoEvent } from './piano-core.ts';
@@ -144,6 +144,9 @@ export class TrumpetCore implements InstrumentCore {
   private vib0 = 0;
   private vibRate = 1;
   private expression = 1;
+  /** CC_DYNAMICS (instrument.ts): velocity steps above (below) the note as begun, asked and as the breath has it */
+  private dynTarget = 0;
+  private dyn = 0;
   private bendFactor = 1;
   /** the player's intonation, semitones (util.ts playerCents), under any bend */
   private tune = 0;
@@ -254,7 +257,9 @@ export class TrumpetCore implements InstrumentCore {
         if (this.sustain < 0.5 && !this.held.length) this.release();
         break;
       case 'control':
-        if (ev.cc === 1 || ev.cc === 2 || ev.cc === 11) this.expression = 0.4 + 0.8 * clamp(ev.value, 0, 1);
+        // (below 0, CC_REST: back to the breath the note asks for)
+        if (ev.cc === 1 || ev.cc === 2 || ev.cc === 11) this.expression = ev.value < 0 ? 1 : 0.4 + 0.8 * clamp(ev.value, 0, 1);
+        else if (ev.cc === CC_DYNAMICS) this.dynTarget = clamp(ev.value, -64, 64);
         break;
       case 'bend':
         this.bendFactor = Math.pow(2, -(clamp(ev.value, -12, 12) + this.tune) / 12);
@@ -289,6 +294,7 @@ export class TrumpetCore implements InstrumentCore {
   }
 
   allSoundOff(): void {
+    this.dyn = this.dynTarget = 0;
     this.bore.fill(0);
     this.pressure = this.pTarget = 0;
     this.releasePending = false;
@@ -350,7 +356,12 @@ export class TrumpetCore implements InstrumentCore {
     const age = (this.frame - this.noteStart) / fs;
     this.vibPhase += 2 * Math.PI * 5.2 * this.vibRate * dt;
     const vib = 1 + P.vibrato * clamp((age - 0.35) / 0.4, 0, 1) * Math.sin(this.vibPhase);
-    const v01 = this.velocity / 127;
+    // CC_DYNAMICS: the lips are blown as a note begun that much harder or softer would be (a time constant)
+    if (this.dyn !== this.dynTarget) {
+      this.dyn += (this.dynTarget - this.dyn) * (1 - Math.exp(-dt / DYN_TAU));
+      if (Math.abs(this.dynTarget - this.dyn) < 1e-3) this.dyn = this.dynTarget;
+    }
+    const v01 = this.dyn ? clamp(this.velocity + this.dyn, 1, 127) / 127 : this.velocity / 127;
     // mouth pressure (normalised): louder notes blow harder
     const pLo = X.pLo ?? 0.42;
     const pMouth = this.pressure * P.breath * this.expression * (pLo + (1 - pLo) * v01);

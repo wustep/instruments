@@ -23,6 +23,12 @@ README does not claim it is live. `vercel.json` makes this a static build
   * **Sustain (CC64)** is continuous, so half-pedalling works.
   * **Una corda (CC67)** and **sostenuto (CC66)** apply to the piano.
   * **Vibrato (CC1)** and **expression (CC11 / CC2)** apply to strings and flute.
+  * **A MIDI file's dynamics**: its volume (CC7) and expression (CC11) are a gain on the
+    instrument playing each part (General MIDI's curve), its mod wheel (CC1) where it moves
+    goes to the bowed and wind instruments. A part with none (one velocity, nothing that
+    moves) is phrased automatically: phrase arches, swells on held notes (bow speed, force
+    and vibrato, or breath), a little unevenness per part. The hairpin in the player turns
+    that off. `apps/web/src/expression.ts`.
   * On the computer keyboard, hold `Space` for sustain and `Shift` for una corda.
 * **Instruments.** Choose one with the selector on the Play page. The piano has
   four presets: concert grand, upright, honky-tonk and prepared.

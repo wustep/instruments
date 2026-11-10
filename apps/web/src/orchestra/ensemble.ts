@@ -9,7 +9,8 @@
 // much idle as playing) and put back when the ensemble goes.
 
 import { createInstrument, pianoKeySummary, processorUrl, type KeySummary, type Piano, type VisualFrame } from '@piano-model/engine';
-import { audio, fetchDesigns, type Route } from '../audio.ts';
+import { audio, fetchDesigns, restLevel, sendLevel, type Route } from '../audio.ts';
+import { modLines, PartLevels, volumeRef } from '../expression.ts';
 import type { FileEvent, MidiLine, MidiSong } from '../midi-file.ts';
 import { addPart, autoPlan, isKeyboard, lineupOf, lineupPlan, placeNote, playersOf, reassign, removePart, setPartLines, setPartVoice, setRoute, VOICE_INFO, type Plan, type Voice } from './assign.ts';
 import { carryKeys, keyParts, keysFor, keyTargets, setSplit, toggleKey, type KeysChoice, type KeyTarget } from './keys.ts';
@@ -74,6 +75,8 @@ export interface PartLive {
   lastOn: number;
   lastNote: number;
   sustain: number;
+  /** the file's dynamics on it (expression.ts): its lines' volume, expression, mod wheel and swells */
+  levels: PartLevels | null;
   unsubs: (() => void)[];
 }
 
@@ -110,6 +113,9 @@ class Ensemble implements Route {
    *  takes up, and one they leave lets go of */
   private hand = { sustain: 0, soft: 0, sostenuto: 0, bend: 0, cc: new Map<number, number>() };
   private gen = 0;
+  /** the file's volume reference and the lines whose mod wheel moves (expression.ts) */
+  private ref = 1;
+  private wheels = new Set<number>();
 
   get lines(): MidiLine[] {
     return this.song?.lines ?? [];
@@ -127,6 +133,8 @@ class Ensemble implements Route {
     this.plan = plan;
     this.byUser = byUser;
     this.song = song;
+    this.ref = song ? volumeRef(song) : 1;
+    this.wheels = song ? modLines(song) : new Set();
     this.piece = piece;
     this.active = true;
     audio.route = this;
@@ -268,7 +276,7 @@ class Ensemble implements Route {
   }
 
   private newPart(v: Voice, player = 0): PartLive {
-    return { voice: v, player, seat: null, engine: null, frame: null, strike: null, down: new Set(), sched: new Map(), heard: new Map(), epoch: 0, strikes: new Map(), vels: new Map(), lastOn: 0, lastNote: -1, sustain: 0, unsubs: [] };
+    return { voice: v, player, seat: null, engine: null, frame: null, strike: null, down: new Set(), sched: new Map(), heard: new Map(), epoch: 0, strikes: new Map(), vels: new Map(), lastOn: 0, lastNote: -1, sustain: 0, levels: null, unsubs: [] };
   }
 
   /** a part lets go of every note it holds or has been sent */
@@ -276,6 +284,9 @@ class Ensemble implements Route {
     p.epoch++;
     p.engine?.clearScheduled();
     p.engine?.allNotesOff();
+    // its dynamics at rest (the player takes them up again from where the file is)
+    if (p.engine) restLevel(p.engine, p.levels?.sent ?? null, this.hand.cc.get(1) ?? this.hand.cc.get(11) ?? this.hand.cc.get(2) ?? null);
+    p.levels = null;
     p.sched.clear();
     p.heard.clear();
     for (const m of [...p.down]) this.mark(p, m, 0, false);
@@ -399,6 +410,15 @@ class Ensemble implements Route {
       const p = this.parts[r.part];
       const eng = p?.engine;
       if (!p || !eng) continue;
+      if (e.kind === 'cc' || e.kind === 'dyn') {
+        // the line's dynamics on each instrument that plays it (a piano takes the gain only)
+        const lv = (p.levels ??= new PartLevels(this.ref, this.wheels));
+        if (!lv.take(e)) continue;
+        const prev = lv.sent;
+        const next = lv.next(this.plan.parts[r.part]?.lines ?? [e.line!]);
+        if (next) sendLevel(eng, prev, next, at);
+        continue;
+      }
       if (e.kind === 'pedal') {
         // pedals belong to the pianos (a bowed or wind part has none in a file)
         if (!isKeyboard(p.voice)) continue;

@@ -44,7 +44,8 @@ for (const id of INSTRUMENT_IDS) {
     } else if (e.kind === 'off') {
       held--;
       events.push({ time: e.t + lead, event: { type: 'noteOff', midi: e.midi } });
-    } else {
+    } else if (e.kind === 'pedal') {
+      // (a file's controllers and automatic expression: scripts/render-dynamics.ts)
       const type = e.cc === 64 ? 'sustain' : e.cc === 66 ? 'sostenuto' : 'soft';
       events.push({ time: e.t + lead, event: { type, value: e.value } as TimedEvent['event'] });
     }

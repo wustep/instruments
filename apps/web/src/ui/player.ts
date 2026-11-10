@@ -7,10 +7,13 @@
 // plays on the instrument shown. Loaded, the overlay is its icons and a hairline of progress; with an
 // ensemble, a row of the file's lines under it, each showing its instrument (tap one to move it).
 // The routing button opens a grid of instruments by lines, many to many: a line on several
-// instruments, the whole file on one, a second cello or grand of its own.
+// instruments, the whole file on one, a second cello or grand of its own. The hairpin beside the
+// hairline is automatic expression (expression.ts), on unless turned off: a file's flat lines
+// phrased, its long notes swelling; a file with dynamics of its own plays them as written either way.
 
 import { audio } from '../audio.ts';
-import { parseMidi, type MidiSong } from '../midi-file.ts';
+import { express, PartLevels, type Expressed } from '../expression.ts';
+import { parseMidi, type FileEvent, type MidiSong } from '../midi-file.ts';
 import { canReassign, voicesOfLine, VOICE_INFO, VOICES, type Voice } from '../orchestra/assign.ts';
 import { ensemble, stageCap } from '../orchestra/ensemble.ts';
 import { DEMOS, demoSong, PIECES, pieceForLineup, type Demo, type Piece } from '../orchestra/pieces.ts';
@@ -37,6 +40,31 @@ const OPEN = 'M3 6.6C3 5.7 3.7 5 4.6 5h4.7l2 2h8.1c.9 0 1.6.7 1.6 1.6v8.8c0 .9-.
 const ROUTE = 'M5 5h3v3H5zM10.5 10.5h3v3h-3zM16 5h3v3h-3zM16 16h3v3h-3zM5 16h3v3H5z';
 /** the pieces: a list, and a note */
 const PIECES_ICON = 'M3 6h11.2v1.7H3zM3 10h11.2v1.7H3zM3 14h8v1.7H3zM17 6v7.6a2.6 2.6 0 1 0 1.6 2.4V8.6H21V6z';
+/** automatic expression: a messa di voce as a score writes it, crescendo then diminuendo, the open
+ *  ends meeting (drawn, not filled) */
+const HAIRPIN = 'M11.3 8.6 1.6 12l9.7 3.4M12.7 8.6l9.7 3.4-9.7 3.4';
+const hairpin = () => {
+  const s = icon(HAIRPIN);
+  s.classList.add('pl-hairpin');
+  return s;
+};
+
+const AUTO_KEY = 'piano-model.expression';
+/** automatic expression is on unless it was turned off on this device */
+const readAuto = (): boolean => {
+  try {
+    return localStorage.getItem(AUTO_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+};
+/** a song's automatic expression, worked out once */
+const expressed = new WeakMap<MidiSong, Expressed>();
+const expressOf = (s: MidiSong): Expressed => {
+  let x = expressed.get(s);
+  if (!x) expressed.set(s, (x = express(s)));
+  return x;
+};
 
 /** a line's name as the file writes it, tidied ("violinI:" → "violin I"; LilyPond's "\new" is none) */
 export const lineName = (name: string, inst: string, i: number): string => {
@@ -64,6 +92,11 @@ export class MidiPlayer {
   private chips: HTMLButtonElement[] = [];
   private menu: HTMLElement | null = null;
   private routeBtn: HTMLButtonElement;
+  private exprBtn: HTMLButtonElement;
+  /** automatic expression (expression.ts): wanted, and the events as they play (the file's own, or
+   *  with its flat lines phrased) */
+  auto = readAuto();
+  private events: FileEvent[] = [];
   private piecesBtn: HTMLButtonElement;
   private pieces: HTMLElement | null = null;
   private grid: HTMLElement | null = null;
@@ -110,15 +143,19 @@ export class MidiPlayer {
     this.strip = h('div', { class: 'pl-lines', role: 'group', 'aria-label': 'The file’s lines and their instruments', hidden: true });
     this.routeBtn = h('button', { class: 'pl-btn pl-route', type: 'button', 'aria-label': 'Routing: which instrument takes which line', 'data-tip': 'routing', 'aria-expanded': 'false', onclick: () => this.toggleGrid() });
     this.routeBtn.appendChild(icon(ROUTE));
+    this.exprBtn = h('button', { class: 'pl-btn pl-expr', type: 'button', 'aria-pressed': String(this.auto), 'aria-label': 'Automatic expression', 'data-tip': 'expression', onclick: () => this.setAuto(!this.auto) });
+    this.exprBtn.appendChild(hairpin());
     // the pieces that come with the stage, next to the file they are the alternative to: with one
     // instrument or an ensemble on the stage alike, a piece brings its own ensemble
     this.piecesBtn = h('button', { class: 'pl-btn pl-pieces score-btn', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': 'Pieces for the ensemble', 'data-tip': 'pieces', onclick: () => this.togglePieces() });
     this.piecesBtn.appendChild(icon(PIECES_ICON));
-    this.el = h('div', { class: 'player idle', role: 'group', 'aria-label': 'MIDI file' }, h('div', { class: 'pl-row' }, h('div', { class: 'pl-btns' }, this.playBtn, this.stopBtn), this.bar, this.routeBtn, this.piecesBtn, this.openBtn), this.strip, this.picker);
+    this.el = h('div', { class: 'player idle', role: 'group', 'aria-label': 'MIDI file' }, h('div', { class: 'pl-row' }, h('div', { class: 'pl-btns' }, this.playBtn, this.stopBtn), this.bar, this.exprBtn, this.routeBtn, this.piecesBtn, this.openBtn), this.strip, this.picker);
     this.attachDrop();
     ensemble.changed.on(() => {
       this.buildStrip();
       this.sync();
+      // an instrument whose lines changed is at rest: the controllers as they stand, again
+      if (this.playing && audio.ctx) for (const e of PartLevels.chase(this.events.slice(0, this.idx), Infinity)) audio.scheduleFileEvent(e, audio.ctx.currentTime);
     });
     // an instrument's own piece follows the instrument shown: paused before the engine swaps, the new
     // one's piece played once it is there (paused or stopped, the overlay just comes back to rest)
@@ -193,6 +230,49 @@ export class MidiPlayer {
     return this.song;
   }
 
+  // ------------------------------------------------------------- automatic expression
+  /** the loaded file's events as they will play (with automatic expression where it is wanted and
+   *  the file has flat lines), and the single instrument told whose dynamics it plays */
+  private perform(): void {
+    const s = this.song;
+    const x = s ? expressOf(s) : null;
+    this.events = s ? (this.auto && x!.shaped ? x!.events : s.events) : [];
+    audio.fileSong(s);
+    this.syncExpr(x);
+  }
+
+  /** automatic expression on or off (remembered on this device); a file playing goes on from where
+   *  it is heard, with or without it */
+  setAuto(on: boolean): void {
+    if (on === this.auto) return;
+    this.auto = on;
+    try {
+      localStorage.setItem(AUTO_KEY, on ? 'on' : 'off');
+    } catch {
+      /* private mode */
+    }
+    const was = this.playing;
+    if (was) this.pause();
+    this.perform();
+    if (was) void this.play();
+  }
+
+  /** the hairpin: pressed when automatic expression is on; its tip says when the file has
+   *  dynamics of its own (it then plays them either way) */
+  private syncExpr(x: Expressed | null): void {
+    const b = this.exprBtn;
+    b.setAttribute('aria-pressed', String(this.auto));
+    const own = !!x && !x.shaped;
+    b.classList.toggle('own', own);
+    b.dataset.tip = own ? 'expression · the file’s own' : this.auto ? 'expression · on' : 'expression · off';
+    b.setAttribute('aria-label', own ? 'Automatic expression (the file has its own dynamics)' : 'Automatic expression');
+  }
+
+  /** what the player schedules (tests and tools) */
+  get scheduled(): readonly FileEvent[] {
+    return this.events;
+  }
+
   private attachDrop(): void {
     const isMidi = (f: File) => /\.(mid|midi|smf|kar)$/i.test(f.name) || /midi/.test(f.type);
     let depth = 0;
@@ -237,6 +317,7 @@ export class MidiPlayer {
     this.stop();
     this.song = song.events.length ? song : null;
     this.demo = null;
+    this.perform();
     const plan = ensemble.planFor(song, piece);
     // (a lineup picked by hand stays picked: the file was matched to it)
     if (piece || ensemble.active || plan.parts.length > 1) ensemble.enter(plan, song, piece, !piece && ensemble.active && ensemble.byUser);
@@ -282,6 +363,7 @@ export class MidiPlayer {
     this.stop();
     this.song = song;
     this.demo = d;
+    this.perform();
     this.buildStrip();
     this.sync();
     await this.play();
@@ -292,6 +374,7 @@ export class MidiPlayer {
     this.stop();
     this.song = null;
     this.demo = null;
+    this.perform();
     this.buildStrip();
     this.sync();
   }
@@ -303,6 +386,7 @@ export class MidiPlayer {
     this.el.classList.toggle('idle', rest);
     this.stopBtn.hidden = rest;
     this.bar.hidden = rest;
+    this.exprBtn.hidden = rest;
     this.routeBtn.hidden = rest || !this.song!.lines.length || !!this.demo;
     if (rest) {
       const pc = ensemble.active ? PIECES[pieceForLineup(ensemble.lineup)] : DEMOS[audio.instrument];
@@ -339,7 +423,7 @@ export class MidiPlayer {
     const ctx = audio.ctx;
     if (!ctx || !audio.piano) return;
     if (ensemble.active) await ensemble.ensureEngines();
-    const ev = this.song.events;
+    const ev = this.events;
     if (this.pos >= this.song.duration) this.pos = 0;
     // first event at or after the position
     let lo = 0;
@@ -352,6 +436,9 @@ export class MidiPlayer {
     this.idx = lo;
     this.pos0 = this.pos;
     this.t0 = ctx.currentTime + 0.12;
+    // the file's controllers as they stand where it starts (a resume, a seek: its volume, expression,
+    // mod wheel and any swell under way)
+    for (const e of PartLevels.chase(ev.slice(0, lo), Infinity)) audio.scheduleFileEvent(e, this.t0);
     this.playing = true;
     this.setIcon();
     this.tick();
@@ -368,7 +455,7 @@ export class MidiPlayer {
     const ctx = audio.ctx;
     if (!ctx || !this.song) return;
     const now = ctx.currentTime;
-    const ev = this.song.events;
+    const ev = this.events;
     while (this.idx < ev.length) {
       const e = ev[this.idx];
       const at = this.t0 + (e.t - this.pos0);
