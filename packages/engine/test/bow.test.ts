@@ -121,7 +121,7 @@ describe('the bow in the hand', () => {
     for (let i = Math.round(t0 * FS); i < Math.round(t1 * FS); i++) s += x[i] * x[i];
     return Math.sqrt(s / Math.round((t1 - t0) * FS));
   };
-  for (const inst of ['violin', 'viola', 'cello'] as const) {
+  for (const inst of ['violin', 'viola', 'cello', 'bass'] as const) {
     it(`${inst}: a still bow is silent, a moving one sounds, both ways, and it stops with the hand`, () => {
       const core = new BowedCore({ sampleRate: FS, instrument: inst, dry: true, params: { vibrato: 0 } });
       const evs = [cc(0.01, 128, 0), cc(0.3, 128, 0.25), cc(0.3, 129, 0.4), cc(1.0, 128, -0.25), cc(1.7, 128, 0), cc(2.4, 130, 0)];

@@ -217,9 +217,6 @@ interface BowedDesign {
    *  the fit half worse: the violin's E string sounds far brighter than its G). It rounds only what
    *  is heard: the string's own motion (its pitch, attack, the bow's traces) is unchanged. */
   body?: { bands: [number, number][]; q: number; corner: [number, number] };
-  /** the vibrato's rate, Hz: the lowest and the random spread above it, drawn per note (absent: 5.2
-   *  and 0.8, round 2) */
-  vibRate?: [number, number];
 }
 
 const VIOLIN: BowedDesign = {
@@ -393,9 +390,10 @@ const BASS: BowedDesign = {
   forceDyn: [1.08, 2.2],
   betaDyn: [1.22, 0.721],
   outputGain: 157,
-  // vibrato: the Iowa bassist's, where there is any (a third of the notes; 6–15 ¢ at 3.2–3.5 Hz,
-  // scripts/ensemble-refs.ts); bowPosition: the cello's β, about 10 cm from the bridge on the bass
-  defaults: { bowPosition: 0.108, bowPressure: 0.3, vibrato: 9, bodyDamping: 1, room: 0.32, volume: 1, sympathetic: true },
+  // vibrato: the Iowa bassist plays most notes without; where there is one it runs at 6–7 Hz, 15–30 ¢
+  // (scripts/ensemble-refs.ts: the many 3 Hz, 3–8 ¢ detections are a slow drift, not a vibrato); a
+  // moderate 12 ¢ at the family's 5.2–6 Hz. bowPosition: the cello's β, about 11 cm from the bridge
+  defaults: { bowPosition: 0.108, bowPressure: 0.3, vibrato: 12, bodyDamping: 1, room: 0.32, volume: 1, sympathetic: true },
   seed: 24,
   // the bass bridge is taller and heavier than the cello's (a 3/4 bass bridge stands ~ 16 cm), so
   // its in-plane resonances sit lower; fitted with the bands (bowed-fit.json)
@@ -412,7 +410,6 @@ const BASS: BowedDesign = {
   rosinNoise: 0.226,
   // effective mass of the bridge hill at the notch (the bass bridge weighs about 3× the cello's)
   bridgeMass: 0.0065,
-  vibRate: [3.2, 0.5],
 };
 
 export const BOWED: Record<string, BowedDesign> = { violin: VIOLIN, viola: VIOLA, cello: CELLO, bass: BASS };
@@ -980,8 +977,7 @@ export class BowedCore implements InstrumentCore {
         s.held = true;
         s.startedAt = this.frame;
         s.vibPhase = this.rng() * Math.PI * 2;
-        const vr = this.design.vibRate;
-        s.vibRate = vr ? vr[0] + vr[1] * this.rng() : 5.2 + 0.8 * this.rng();
+        s.vibRate = 5.2 + 0.8 * this.rng();
         this.bowTargets(s, ev.velocity);
         if (this.dyn) this.dynTargets(s);
         s.dynApplied = this.dyn;

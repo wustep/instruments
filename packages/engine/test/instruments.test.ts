@@ -52,6 +52,7 @@ describe('bowed strings', () => {
     ['violin', [55, 62, 69, 76, 83, 93]],
     ['viola', [48, 55, 62, 69, 79]],
     ['cello', [36, 43, 50, 57, 69]],
+    ['bass', [28, 33, 38, 43, 55, 67]],
   ];
   for (const [inst, notes] of cases) {
     // high positions on very short vibrating lengths run a few cents sharp under the bow

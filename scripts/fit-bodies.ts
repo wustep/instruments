@@ -30,7 +30,7 @@ import { isHeldOut } from './judge.ts';
 
 const FIT = join(import.meta.dirname, '..', 'packages/engine/src/core/bowed-fit.json');
 const FS = 44100;
-type Inst = 'violin' | 'viola' | 'cello';
+type Inst = 'violin' | 'viola' | 'cello' | 'bass';
 type Body = { bands: [number, number][]; q: number; corner: [number, number] };
 interface Over {
   body: Body;
@@ -244,11 +244,13 @@ function fitEnvelope(rows: Row[], nNotes: number, ys: number[], lambda = 3): { d
 }
 const dCat = (dC: number[], f: number) => basisRow(f).reduce((a, v, j) => a + v * dC[j], 0);
 
-/** half-octave peaking sections, 100 Hz–12.8 kHz, gains fitted (Gauss–Newton) to a target curve */
-const BAND_F = Array.from({ length: 15 }, (_, i) => 100 * Math.pow(2, i / 2));
+/** half-octave peaking sections, 100 Hz–12.8 kHz (the double bass, whose E is 41 Hz: from 50 Hz),
+ *  gains fitted (Gauss–Newton) to a target curve */
+let BAND_F = Array.from({ length: 15 }, (_, i) => 100 * Math.pow(2, i / 2));
+const bandsFor = (inst: string) => (inst === 'bass' ? Array.from({ length: 17 }, (_, i) => 50 * Math.pow(2, i / 2)) : BAND_F);
 const BAND_Q = Math.SQRT2 ** 0.5 / (Math.SQRT2 - 1); // a half-octave bandwidth
 function fitBands(target: (f: number) => number, start: number[]): number[] {
-  const grid = Array.from({ length: 120 }, (_, i) => 70 * Math.pow(12000 / 70, i / 119));
+  const grid = Array.from({ length: 120 }, (_, i) => 0.7 * BAND_F[0] * Math.pow(12000 / (0.7 * BAND_F[0]), i / 119));
   const T = grid.map(target);
   const resp = (g: number[]) => grid.map((f) => g.reduce((s, gi, i) => s + biquadDb(biquadPeaking(BAND_F[i], BAND_Q, gi, FS), f), 0));
   let g = start.slice();
@@ -288,6 +290,7 @@ if (!isMainThread && (workerData as { fitBodies?: boolean })?.fitBodies) {
 } else if (import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2);
   const inst = args[0] as Inst;
+  BAND_F = bandsFor(inst);
   const iters = args.includes('--iters') ? +args[args.indexOf('--iters') + 1] : 7;
   const floor = args.includes('--corner-floor');
   const d = BOWED[inst];
