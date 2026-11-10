@@ -45,21 +45,23 @@ export const RANGES: Partial<Record<keyof TromboneVoice, [number, number]>> = {
   wallScale: [0.6, 1.6],
   rimFc: [0.6, 1.8],
   rimQ: [0.5, 1.2],
-  steep: [0, 3],
+  steep: [0, 5],
   noise: [0, 0.6],
   noiseTop: [0, 0.6],
   hp: [20, 250],
-  f1: [300, 2500],
-  g1: [-6, 15],
+  f1: [300, 4000],
+  g1: [-6, 18],
   q1: [0.3, 3],
-  lp: [800, 9000],
+  lp: [800, 12000],
   lpQ: [0.5, 1.5],
   lpExp: [-0.5, 1.2],
-  lpDyn: [0, 3],
-  shelfG: [-24, 12],
+  lpDyn: [0, 5],
+  shelfG: [-24, 18],
   tilt: [-8, 8],
 };
-const KEYS = Object.keys(RANGES) as (keyof TromboneVoice)[];
+// (--keys a,b,c: move only these)
+const ONLY = process.argv.includes('--keys') ? process.argv[process.argv.indexOf('--keys') + 1].split(',') : null;
+const KEYS = (Object.keys(RANGES) as (keyof TromboneVoice)[]).filter((k) => !ONLY || ONLY.includes(k));
 const MEASURES = ['harmonics', 'centroid', 'noise', 'attack'];
 
 const median = (xs: number[]) => {
@@ -166,7 +168,7 @@ if (!isMainThread && (workerData as { fitTbn?: boolean })?.fitTbn) {
   const gauss = () => Math.sqrt(-2 * Math.log(rand() + 1e-12)) * Math.cos(2 * Math.PI * rand());
   const from = args.includes('--from') ? (JSON.parse(readFileSync(opt('--from', ''), 'utf8')) as Partial<TromboneVoice>) : {};
   const out = opt('--out', '');
-  let best: Partial<TromboneVoice> = { ...Object.fromEntries(KEYS.map((k) => [k, TROMBONE_VOICE[k]])), ...from };
+  let best: Partial<TromboneVoice> = { ...Object.fromEntries((Object.keys(RANGES) as (keyof TromboneVoice)[]).map((k) => [k, TROMBONE_VOICE[k]])), ...from };
   let bestS = await scoreVoice(best);
   console.log('start', bestS.score.toFixed(3), JSON.stringify(Object.fromEntries(Object.entries(bestS.per).map(([k, v]) => [k, +v.toFixed(2)]))), 'missing', bestS.missing);
   if (args.includes('--score')) {

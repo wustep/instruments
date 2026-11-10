@@ -132,8 +132,14 @@ export interface TromboneFingering {
   partial: number;
 }
 
+/** what a pedal note costs in the chart (positions): taken where nothing else reaches, and for the open
+ *  pedal itself (the bass trombone's pedal B♭ in first position) */
+const PEDAL_COST = 3;
+
 /** the standard chart for a note as it sounds: the side and position needing the least reach (a valve
- *  only to spare the sixth and seventh positions), on the lowest usable partial; pedal notes below */
+ *  only to spare the sixth and seventh positions), on the lowest usable partial; pedal notes below. A note
+ *  the slide cannot reach on any side (the tenor's low B, "the B natural problem") is taken past the
+ *  seventh position on the F side, as a player pulling the F valve's slide would */
 export function tromboneFingering(m: number, size: TromboneSize = 'tenor'): TromboneFingering {
   const B = TROMBONE_SIZES[size];
   const note = clamp(Math.round(m), B.lo, B.hi);
@@ -144,11 +150,11 @@ export function tromboneFingering(m: number, size: TromboneSize = 'tenor'): Trom
       const open = B.pedal - s.lower;
       const L = B.length * Math.pow(2, s.lower / 12);
       // the most the slide lowers this side (its reach over the side's longer tube), and a hair more
-      const vmax = 12 * Math.log2(1 + (2 * B.travel) / L) + 0.3;
-      for (const n of pass ? [1] : PARTIALS) {
+      const vmax = pass ? 7.5 : 12 * Math.log2(1 + (2 * B.travel) / L) + 0.3;
+      for (const n of [1, ...PARTIALS]) {
         const v = open + Math.round(12 * Math.log2(n)) - note;
         if (v < 0 || v > vmax) continue;
-        const score = v + SIDE_COST[si] + n * 0.01;
+        const score = v + SIDE_COST[si] + (n === 1 ? PEDAL_COST : n * 0.01);
         if (score < bestScore) {
           bestScore = score;
           best = { side: s.name, valves: s.valves, position: v + 1, sideLower: s.lower, lower: v, partial: n };
@@ -311,6 +317,8 @@ interface BoreBuilt {
   off: Int32Array;
   mask: Int32Array;
   total: number;
+  /** the bell's length (samples, one way) */
+  bellN: number;
   /** the bell section's length (m) */
   bellLen: number;
   /** the cylinder's characteristic impedance (Pa·s/m³), the cup's compliance and the throat's inertance */
@@ -340,6 +348,12 @@ export class TromboneCore implements InstrumentCore {
   private queue: { frame: number; ev: PianoEvent | { type: 'control'; cc: number; value: number } }[] = [];
   /** the slide's two legs: the wave going out (towards the bell) and coming back */
   private outB = new Float64Array(BUF);
+  /** the steepening's extra, on its way out through the bell, and the rim's filter state for it */
+  private stB = new Float64Array(BUF);
+  private sx1 = 0;
+  private sx2 = 0;
+  private sy1 = 0;
+  private sy2 = 0;
   private backB = new Float64Array(BUF);
   /** the bell's sections: right-going and left-going rings */
   private bR = new Float64Array(1);
@@ -518,7 +532,7 @@ export class TromboneCore implements InstrumentCore {
     const M = RHO * lOverS * V.throatScale;
     // the open end: a low-pass reflection, its corner where ka ≈ rimFc
     const rim = biquadLowpass(Math.min(0.45 * fs, (V.rimFc * C_AIR) / (2 * Math.PI * R)), V.rimQ, fs);
-    const built: BoreBuilt = { n, r, off, mask, total: o, bellLen: dStart, zc, C, M, rim: new Float64Array(rim), phase: new Float64Array(Math.floor(PH_FMAX / PH_DF) + 1) };
+    const built: BoreBuilt = { n, r, off, mask, total: o, bellN: ns.reduce((a, b) => a + b, 0), bellLen: dStart, zc, C, M, rim: new Float64Array(rim), phase: new Float64Array(Math.floor(PH_FMAX / PH_DF) + 1) };
     // the phase of R_mp(ω)·R_bell(ω), exactly as the discrete model has them, unwrapped from 0 Hz
     const dt = 1 / fs;
     const am = dt / M;
@@ -583,6 +597,32 @@ export class TromboneCore implements InstrumentCore {
     const phi = ph[i] + (ph[i + 1] - ph[i]) * t;
     const w = (2 * Math.PI * f) / this.fs;
     return (phi + 2 * Math.PI * (n - 1)) / w;
+  }
+
+  /** the bore's first `count` resonances (Hz) with the slide where it is heading: where the round trip's phase
+   *  closes on itself (the n-th at the cylinder's round trip); for the tests and the notes, not the audio path */
+  resonances(count = 10): number[] {
+    const ph = this.built.phase;
+    const D = this.Dtarget;
+    const out: number[] = [];
+    for (let n = 1; n <= count; n++) {
+      // (Φ(ω) + 2π(n − 1))/ω falls with f (Φ, a delay's phase, falls too): bisect for D
+      const g = (f: number) => {
+        const x = f / PH_DF;
+        const i = Math.min(ph.length - 2, Math.floor(x));
+        return (ph[i] + (ph[i + 1] - ph[i]) * (x - i) + 2 * Math.PI * (n - 1)) / ((2 * Math.PI * f) / this.fs) - D;
+      };
+      let lo = 5;
+      let hi = PH_FMAX - 1;
+      if (g(hi) > 0) break;
+      for (let it = 0; it < 50; it++) {
+        const mid = 0.5 * (lo + hi);
+        if (g(mid) > 0) lo = mid;
+        else hi = mid;
+      }
+      out.push(0.5 * (lo + hi));
+    }
+    return out;
   }
 
   private voiced(): void {
@@ -807,6 +847,8 @@ export class TromboneCore implements InstrumentCore {
 
   private clear(): void {
     this.outB.fill(0);
+    this.stB.fill(0);
+    this.sx1 = this.sx2 = this.sy1 = this.sy2 = 0;
     this.backB.fill(0);
     this.bR.fill(0);
     this.bL.fill(0);
@@ -917,6 +959,8 @@ export class TromboneCore implements InstrumentCore {
     const dMax = fs / (6 * et(this.note));
     const mask = BUF - 1;
     const outB = this.outB;
+    const stB = this.stB;
+    const bellN = bt.bellN;
     const backB = this.backB;
     const bR = this.bR;
     const bL = this.bL;
@@ -995,9 +1039,14 @@ export class TromboneCore implements InstrumentCore {
       const si = Math.floor(Ds);
       const sf = Ds - si;
       const ein = outB[(w - si) & mask] * (1 - sf) + outB[(w - si - 1) & mask] * sf;
+      // (what the steepening adds, the harmonics it makes, lies above the bell's cutoff: it leaves through
+      // the bell, a bell's length later; what the bell turns back, the lows, is the wave as it was. In the
+      // loop, the shift would dephase the bore's own harmonics at every round trip)
+      const e0 = outB[(w - hi) & mask] * (1 - hf) + outB[(w - hi - 1) & mask] * hf;
+      stB[w & mask] = ein - e0;
       // the bell's sections: each junction from the waves arriving at it
       // (section 0's right-going wave is fed from the slide; the last ends at the rim)
-      let aR = ein;
+      let aR = e0;
       for (let j = 0; j < J; j++) {
         // section j: the left-going wave arriving at its left end, and its right-going wave arriving at
         // its right end
@@ -1017,7 +1066,14 @@ export class TromboneCore implements InstrumentCore {
       this.ry2 = this.ry1;
       this.ry1 = rb;
       bL[so[J - 1] + (w & sm[J - 1])] = -rb;
-      const rad = aR - rb;
+      // (the steepening's extra, through what the rim lets out: its lows turn back with the rest)
+      const ex = stB[(w - bellN) & mask];
+      const xb = rim[0] * ex + rim[1] * this.sx1 + rim[2] * this.sx2 - rim[3] * this.sy1 - rim[4] * this.sy2;
+      this.sx2 = this.sx1;
+      this.sx1 = ex;
+      this.sy2 = this.sy1;
+      this.sy1 = xb;
+      const rad = aR - rb + ex - xb;
       const out = rad * this.tiltOut;
       oL[t] = out;
       oR[t] = 0.92 * out;

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createCore } from '../src/core/index.ts';
 
 const FS = 48000;
-function run(id: 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'violin' | 'piano', steps: [string, number][]): number[][] {
+function run(id: 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trombone' | 'trumpet' | 'violin' | 'piano', steps: [string, number][]): number[][] {
   const core = createCore({ instrument: id, sampleRate: FS, dry: true } as never);
   const L = new Float32Array(256);
   const R = new Float32Array(256);
@@ -20,8 +20,8 @@ function run(id: 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' 
 }
 
 describe('sounding notes', () => {
-  it('flute, oboe, clarinet, bassoon, horn and trumpet: the last held key sounds; releasing it returns to the previous one', () => {
-    for (const id of ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet'] as const) {
+  it('flute, oboe, clarinet, bassoon, horn, trombone and trumpet: the last held key sounds; releasing it returns to the previous one', () => {
+    for (const id of ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trombone', 'trumpet'] as const) {
       // let go 16 ms after the tongue: the note still sounds through its minimum blow (0.1 s on the
       // trumpet, 0.12 s on the flute and the horn, 0.16 s on the oboe and the bassoon and 0.23 s on the
       // clarinet at this velocity), then stops
