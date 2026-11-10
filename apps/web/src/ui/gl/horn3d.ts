@@ -801,11 +801,11 @@ export function buildHornModel(): HornModel {
   for (const rt of RS_) {
     const L = arcLen(rt.pts);
     lengths[rt.name] = L;
-    // the bore's routes in pieces of about 70 mm for the glow
+    // the bore's routes in pieces of about 120 mm for the glow (each piece a draw call in every pass)
     const P = refine(rt.pts, 7);
     const acc = [0];
     for (let i = 1; i < P.length; i++) acc.push(acc[i - 1] + len3(sub(P[i], P[i - 1])));
-    const nPieces = Math.max(1, Math.round(L / 70));
+    const nPieces = Math.max(1, Math.round(L / 120));
     let i0 = 0;
     for (let k = 1; k <= nPieces; k++) {
       const sEnd = (L * k) / nPieces;
@@ -1084,9 +1084,10 @@ function handRest(mb: MeshBuilder): void {
 /** where the model stands on its own: upright, the coil's player side towards the camera's home, the
  *  bell to the right, floating a hand's width over the floor (a product photograph's pose) */
 export const HORN_POSE: Mat4 = translate(0, 0.335, 0);
-/** the hero bearing (scenes3d viewFor): from the player's side, round towards the bell's mouth, a
- *  little above */
-export const HORN_VIEW = { yaw: -0.18, pitch: 0.15 };
+/** the hero bearing (scenes3d viewFor): from the player's side, a little round from the levers, a little
+ *  above; a phone held upright may turn it up to `swing` further round towards the bell's mouth, which
+ *  shortens the bell across a narrow picture */
+export const HORN_VIEW = { yaw: -0.18, pitch: 0.15, swing: 0.75 };
 /** its seat in the Orchestra (scenes3d ensembleSeats): the coil's centre's height (its mouthpiece then at
  *  a seated player's lips, 1.18 m) and the seat's own turn; `top` the height the framing allows for */
 export const HORN_SEAT = { y: 0.96, turn: 0, top: 1.34 };

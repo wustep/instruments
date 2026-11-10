@@ -485,9 +485,10 @@ float wearCoat = 0.0;
   // lacquered brass: the coat a little thicker and warmer in slow drifts (centimetres), a faint orange
   // peel in its roughness; where hands hold it (uv.y) fingerprints: oval smudges a finger's size, their
   // ridges (0.45 mm) faded out before a pixel holds more than one, that rough and dull the coat
+  // (single octaves: the bell fills much of the picture, and this runs on every pixel of it)
   vec3 q = vLoc;
-  diffuseColor.rgb *= 0.965 + 0.07 * fbm(q * 16.0);
-  microR = 0.035 * (fbm(q * 140.0) - 0.5);
+  diffuseColor.rgb *= 0.965 + 0.07 * vnoise(q * 16.0);
+  microR = 0.035 * (vnoise(q * 140.0) - 0.5);
   float hand = clamp(vUv2.y, 0.0, 1.0);
   if (hand > 0.001) {
     float sm = smoothstep(0.56, 0.7, fbm(q * vec3(48.0, 62.0, 55.0) + 7.3)) * hand;

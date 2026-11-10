@@ -306,7 +306,9 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
   // above, whole on every stage (horn3d.ts sets its pose)
   if (si.family === 'brass' && si.brass === 'horn') {
     const c = st.horn ? st.horn.bounds.c : ([0.06, 0.33, 0] as Vec3);
-    return { target: [c[0], c[1], c[2]], dist: 1.1, yaw: HORN_VIEW.yaw, pitch: HORN_VIEW.pitch, whole: true };
+    // (on a phone held upright it may turn round towards the bell's mouth, which shortens the bell across
+    // the picture: horn3d.ts HORN_VIEW.swing)
+    return { target: [c[0], c[1], c[2]], dist: 1.1, yaw: HORN_VIEW.yaw, pitch: HORN_VIEW.pitch, swing: HORN_VIEW.swing, whole: true };
   }
   if (si.family === 'brass') return { target: [0.0, 0.2, 0.0], dist: 0.6, yaw: 0.4, pitch: 0.28 };
   // the oboe: held as a player holds it, seen from the audience a little to the bell's side and a

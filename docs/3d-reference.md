@@ -266,13 +266,39 @@ along the joint (**laid out, not measured**).
 | Fingerings modelled | the Heckel-system basic chart, B♭1–E5 (`apps/web/src/ui/bassoon-fingering.ts`, shared with the 2D stage) | [WFG-bassoon] |
 | Wood, keys | flamed maple stained red-brown under a hard varnish (the flame 3–6 mm bands round the joint); silver-plated nickel silver | [Yamaha-YFG812], photographs |
 
+## Horn (double horn in F/B♭, Kruspe pattern)
+
+Modelled as a full double horn of the Kruspe pattern (the change valve nearest the leadpipe), the class of
+the Conn 8D, the Holton H179 and the Hans Hoyer 6801, laid out from BenP's photographs of a Besson BE702
+Kruspe double horn from both sides (`horn-besson-be702-back.png`, `…-front.png`) and Hk kng's numbered
+drawing of it (`horn-besson-be702-back-diagram.png`), with the bell's rim as the scale (311 mm: 501 px on
+the player's side, so 0.621 mm/px; 472 px on the audience's, 0.659 mm/px). Where the photographs do not
+show a part's place it is **laid out, not measured**. The model is `apps/web/src/ui/gl/horn3d.ts`.
+
+| part | value | model | source |
+|---|---|---|---|
+| Bell (outside the rim) | 12¼″ = 311 (Conn 8D, Holton H179); 310 (Hoyer 6801) | 311 with its 2.6 mm bead | [Conn-8D], [Holton-H179], [Hoyer-6801] |
+| Bore | 0.468″ = 11.9 (all three) | 11.9; tubing Ø 13.0 outside (the wall **typical, unsourced**) | [Conn-8D], [Holton-H179], [Hoyer-6801] |
+| Coil, across its outer wrap | 317 (back photograph: 510 px), 314 (front: 477 px), ≈ 300 (Yamaha YHR-667V: 800 px against its 830 px rim) | 312 (the unit test's measure) | photographs |
+| Bell's flare | Ø 84 at 100 mm from the rim, 73 at 130 (back photograph) | a Bessel horn r = b / (x + 22 mm)^0.75: Ø 86 at 100, 73 at 130, 34 at 400, 13 at 1.6 m | photograph |
+| Bell's place | its rim's centre 318 right of the coil's centre and 16 below (photograph), 316 and 18 (drawing); its axis 27° up in the coil's plane, out of the plane towards the player ≈ 15° (the front photographs see the rim nearly edge on) to ≈ 35° (the back photograph, taken from the bell's side) | 317, −17; 27° up, 20° out | photographs, drawing |
+| Open tubes | the F horn 3.7 m, the B♭ horn 2.8 m | solved: F 3.740 m, B♭ 2.800 m (mouthpiece, leadpipe 725, the change valve's and valves' passages 26 each, the F loop 1100 or the B♭ slide 160, the return 122, the main slide 208, the bell branch 1108 + the bell's straight 290) | [Fletcher-Rossing] §14.6; the engine's HORN_F_LENGTH, HORN_BB_LENGTH |
+| Valve slides (what each valve adds: (2^(n/12) − 1) of the side's open tube) | F: 222 (2nd), 458 (1st), 708 (3rd); B♭: 166, 343, 530 | F: 222, 458, 670; B♭: 166, 333, 424 (the thirds' long loops fold short in the coil's foot) | arithmetic on the open tubes |
+| Rotary valves | four in a column, the change valve nearest the leadpipe (Kruspe); 34–37 apart (photographs); caps Ø 26–27 (drawing, photograph) | 36 apart (62, 26, −10, −46 above the coil's centre), 48 to the lever side of it; casings Ø 25.4, 42 tall; caps Ø 27.6 | photographs, drawing |
+| Levers | four spatulas on an axle with springs, the thumb's (the change valve's) uppermost; paddles 21–22 apart (photographs), fanned from the rotors' 36 | spatulas 25 × 12.4 (the thumb's 27 × 13.6) at 45, 14, −9, −32; the axle 34 beyond the rotors; mechanical linkage, a four-bar each: 18° of lever (11 mm at the spatula) turns a rotor a quarter turn | photographs; the linkage's sizes **typical, unsourced** |
+| Leadpipe | from the receiver down the lever side, 11.3° off the coil's vertical (photograph) | 11°; Ø 10.5 at the receiver to 13 over 450 mm, then its own wrap (r 104) round to the change valve | photograph; the taper **typical, unsourced** |
+| Mouthpiece | Denis Wick 7N: overall ≈ 82, rim Ø ≈ 25, a deep funnel cup, shank Ø 9–10.5 (the photograph against its mm rule, the rim taken as 25) | 82, rim Ø 25, cup Ø 17.2, 25 in the receiver | `horn-mouthpiece-denis-wick-7n.jpg` |
+| Hand rest, finger hook, water key, braces | where the photographs and the drawing have them (3, 4) | laid out, not measured | drawing |
+| Hold (the Orchestra) | the coil standing in front of the player's left chest, the levers up under the left hand, the leadpipe rising to the lips, the bell down by the right thigh, its mouth behind (`horn-player-bradac.jpg`, `horn-section.jpg`) | the caps' side 37° to the audience, the bell's axis down 34°, back and to the player's right; the mouthpiece at 1.18 m | photographs |
+
 ## Reference photos
 
 The photos are in `.cache/refs-3d/`, which is not committed. Full attributions are in `.cache/refs-3d/SOURCES.md`.
 The double bass's are in `.cache/refs-bass/` (`bass/` below), the oboe's in `.cache/refs-oboe/` (`oboe/` below,
 fetched from Wikimedia Commons' API, the 1920 px thumbnails), the clarinet's in `.cache/refs-clarinet/`
 (`clarinet/` below, with its own `SOURCES.md`), the bassoon's in `.cache/refs-bassoon/photos/` (`bassoon/` below,
-fetched from Wikimedia Commons' API, the original or its 1920 px thumbnail), also not committed.
+fetched from Wikimedia Commons' API, the original or its 1920 px thumbnail), the horn's in `.cache/refs-horn/photos/`
+(`horn/` below, with its own `SOURCES.md`), also not committed.
 
 | file | license | shows |
 |---|---|---|
@@ -332,6 +358,13 @@ fetched from Wikimedia Commons' API, the original or its 1920 px thumbnail), als
 | `bassoon/bassoon-handrest-front.jpg`, `bassoon-handrest-behind.jpg` | CC BY-SA 4.0, Jeremy Visser | the hand rest from the front and behind |
 | `bassoon/bassoon-reed-binding.jpg` (`Bassoon_reed_binding.jpg`) | CC BY-SA 3.0, Jeremy Visser | a bassoon reed's binding: the wires, the turban |
 | `bassoon/bassoon-keys-diagram.png` (`Standard_Bassoon_Fingering_Keys_Diagram.png`) | CC BY-SA 3.0, 京市 | the keys by finger: their names and order |
+| `horn/horn-besson-be702-back.png` (`French_horn_back.png`) | CC BY 2.5, BenP | a Besson BE702 Kruspe double horn from the player's side, white background: the layout was measured off it |
+| `horn/horn-besson-be702-front.png` (`French_horn_front.png`) | CC BY 2.5, BenP | the same horn from the audience's side: the caps, the slides |
+| `horn/horn-besson-be702-back-diagram.png` (`French_Horn_back.svg`) | CC BY-SA 3.0, Hk kng | the same horn drawn and numbered: leadpipe, hand rest, water key, change valve, levers, rotors, slides, F tubing, general slide, B♭ tubing, bell |
+| `horn/horn-yamaha-yhr667v-front.png` (`Yamaha_Horn_YHR-667V.png`) | CC BY-SA 4.0, Yamaha Corporation | YHR-667V double horn, a product photograph: the bell, the spatulas and the lever axle's springs |
+| `horn/horn-mouthpiece-denis-wick-7n.jpg` (`French_horn_mouthpiece.jpg`) | CC BY-SA 2.5, BenP | a Denis Wick 7N mouthpiece beside a mm rule |
+| `horn/horn-player-bradac.jpg` (`KarlBradač.jpg`), `horn/horn-section.jpg` (`Orchestrahornsection.jpg`), `horn/horn-player-franganillo-1/2.jpg` | CC BY-SA 4.0, Dba488; CC BY 2.0, slgckgc; CC BY 2.0, Jorge Franganillo | players holding the horn: the hold |
+| `horn/horn-on-parquet.jpg`, `horn-double-steiger.jpg`, `horn-buescher-400.jpg`, `horn-rotary-valve-parts.jpg` | CC BY-SA 3.0, Debianux; CC0, M. Steiger; CC BY-SA 4.0, Lisa19643; CC BY-SA 4.0, Berndt Meyer | other double horns; a rotary valve taken apart (rotor, caps, stop arm, stop plate) |
 
 [HJ-vc]: https://www.hansjohannsson.com/resources/mescello.html
 [HJ-vn]: https://hansjohannsson.com/resources/mesvioli.html
@@ -400,3 +433,6 @@ fetched from Wikimedia Commons' API, the original or its 1920 px thumbnail), als
 [WFG-bassoon]: https://www.wfg.woodwind.org/bassoon/basn_bas_1.html
 [Yamaha-YFG812]: https://commons.wikimedia.org/wiki/File:Yamaha_Bassoon_YFG-812_II.tif
 [Fletcher-Rossing]: https://doi.org/10.1007/978-0-387-21603-4
+[Conn-8D]: https://connselmer.com/instruments/horns/conn-connstellation-double-horn-in-f-bb-8d
+[Holton-H179]: https://connselmer.com/print/holton-farkas-double-horn-in-f-bb-h179
+[Hoyer-6801]: https://www.towsa.com/wp-content/uploads/2018/08/tubas-french-horns-hans-hoyer-catalogo.pdf
