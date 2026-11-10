@@ -37,6 +37,9 @@ export interface Stage3D {
   readonly zoomed: number | null;
   /** tests: where the camera was last frame (world, m) */
   readonly eye: Vec3;
+  /** tests: a close-up's section as drawn last frame (everything with side·(x − at) > 0 is cut away), and
+   *  how far from its target the camera is, over the close-up's own framing distance */
+  readonly section: { at: number; side: 1 | -1; zoom: number } | null;
   dispose(): void;
   /** frame build + draw time (ms, smoothed, without one-off model building), vertices, whether
    *  the light scene / shadows are in use, the total time spent building models, and whether the
@@ -85,7 +88,10 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     dist: number;
     cut: number;
   }
-  let zoom: { midi: number; side: 1 | -1; cut: number } | null = null;
+  /** `dist`: the close-up's own framing distance (the wheel and the pinch move about it) */
+  let zoom: { midi: number; side: 1 | -1; cut: number; dist: number } | null = null;
+  /** how far into a key's close-up the camera is (0 the whole piano … 1 there), eased with its flight */
+  let closeK = 0;
   let fly: { t0: number; dur: number; from: Cam; to: Cam; out: boolean } | null = null;
   let cutAt = 0;
   let kind: 'grand' | 'upright' = 'grand';
@@ -145,11 +151,14 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     { passive: false },
   );
   el.addEventListener('dblclick', () => (zoom ? zoomOut() : resetView()));
-  const clampDist = (d: number) => (view ? Math.max(view.dist * 0.12, Math.min(view.dist * 3, d)) : d);
+  // (in a key's close-up: from a third of its framing distance, where one part fills the stage, to
+  // twice it)
+  const clampDist = (d: number) => (zoom && !fly ? Math.max(zoom.dist * 0.33, Math.min(zoom.dist * 2, d)) : view ? Math.max(view.dist * 0.12, Math.min(view.dist * 3, d)) : d);
   function resetView(): void {
     if (!view) return;
     zoom = null;
     fly = null;
+    closeK = 0;
     target = [...view.target] as Vec3;
     yaw = yawT = view.yaw;
     pitch = pitchT = view.pitch;
@@ -167,7 +176,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     const to: Cam = { target: f.target, yaw: f.side * 1.4, pitch: 0.1, dist: d, cut: f.cut };
     // the section starts at the case's end (or where it already is) and sweeps in to the key
     if (!zoom || zoom.side !== f.side) cutAt = f.edge;
-    zoom = { midi, side: f.side, cut: f.cut };
+    zoom = { midi, side: f.side, cut: f.cut, dist: d };
     flyTo(to, false);
   }
   function zoomOut(): void {
@@ -194,10 +203,14 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     get eye() {
       return [...lastEye] as Vec3;
     },
+    get section() {
+      return zoom ? { at: cutAt, side: zoom.side, zoom: dist / zoom.dist } : null;
+    },
     setView(v) {
       if (!view) return;
       zoom = null;
       fly = null;
+      closeK = 0;
       if (v.target) {
         view = { ...view, target: v.target };
         target = [...v.target] as Vec3;
@@ -296,11 +309,14 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
         pitch = pitchT = a.pitch + (b.pitch - a.pitch) * e;
         dist = distT = a.dist * (b.dist / a.dist) ** e;
         cutAt = a.cut + (b.cut - a.cut) * e;
+        // (the close-up's light comes up with the flight in, from wherever an earlier one left it)
+        closeK = fly.out ? Math.min(closeK, 1 - e) : Math.max(closeK, e);
         if (t >= 1) {
           if (fly.out) zoom = null;
           fly = null;
         }
       }
+      if (!zoom) closeK = 0;
       const kE = 1 - Math.exp(-dt / 0.07);
       yaw += (yawT - yaw) * kE;
       pitch += (pitchT - pitch) * kE;
@@ -327,6 +343,23 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
           if (Number.isFinite(tExit)) dist = distT = Math.max(dist, distT, tExit + 0.01);
         }
       }
+      // a key's close-up is seen from the open side of its section: the orbit stops 6 cm short of the
+      // cut's plane (past it the camera would be inside the keys left standing, the near plane cutting
+      // through their parts)
+      if (zoom && !fly) {
+        const reach = dist * Math.cos(pitch);
+        const s0 = Math.min(0.98, (0.06 + zoom.side * (cutAt - target[0])) / Math.max(1e-3, reach));
+        if (zoom.side * Math.sin(yaw) < s0) {
+          // (towards the cut's side the yaw, times the side, lies within asin(s0) … π − asin(s0): the nearer end)
+          const a0 = Math.asin(s0);
+          const ys = yaw * zoom.side;
+          const turn = Math.round(ys / (2 * Math.PI)) * 2 * Math.PI;
+          const phi = ys - turn;
+          yaw = yawT = zoom.side * (turn + (Math.abs(phi) < Math.PI / 2 ? a0 : Math.PI - a0));
+          dir[0] = Math.cos(pitch) * Math.sin(yaw);
+          dir[2] = -Math.cos(pitch) * Math.cos(yaw);
+        }
+      }
       const eye: Vec3 = [target[0] + dist * dir[0], target[1] + dist * dir[1], target[2] + dist * dir[2]];
       lastEye = eye;
       const g = getComputedStyle(document.body).getPropertyValue('--ground').trim() || '#0e0d0b';
@@ -334,6 +367,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       const ground: [number, number, number] = [parseInt(hex.slice(0, 2), 16) / 255, parseInt(hex.slice(2, 4), 16) / 255, parseInt(hex.slice(4, 6), 16) / 255];
       r.shadows = stats.shadows;
       r.ao = stats.ao;
+      r.closeUp = zoom ? closeK : 0;
       const progs = r.r.info.programs?.length ?? 0;
       r.draw(batch, eye, target, FOV, pw, ph, ground);
       lastVP = r.vp.elements as unknown as Mat4;

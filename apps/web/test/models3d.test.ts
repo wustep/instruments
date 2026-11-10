@@ -7,7 +7,7 @@ import { DEFAULT_PARAMS, PRESETS, buildKeySpecs } from '../../../packages/engine
 import { BOWED } from '../../../packages/engine/src/core/bowed.ts';
 import type { KeySummary, VisualFrame } from '@piano-model/engine';
 import { Batch, type Mesh, xform } from '../src/ui/gl/gl3d.ts';
-import { buildGrandModel, buildUprightModel, newPianoPose, posePiano, type PianoModel } from '../src/ui/gl/piano3d.ts';
+import { buildGrandModel, buildUprightModel, newPianoPose, posePiano, zoomFrame, type PianoModel } from '../src/ui/gl/piano3d.ts';
 import { buildBowedModel } from '../src/ui/gl/strings3d.ts';
 import { buildFluteModel, buildTrumpetModel, newWindPose, poseFlute, poseTrumpet } from '../src/ui/gl/winds3d.ts';
 import { newPianoState } from '../src/ui/piano-draw.ts';
@@ -111,6 +111,34 @@ describe('3D instruments', () => {
     expect(pose.keyPos[39]).toBeLessThan(0.05);
     expect(ps.damper[20]).toBeGreaterThan(0.9);
     expect(b.vertices).toBeGreaterThan(50_000);
+  });
+
+  it('a key’s close-up cuts the long parts within 1.5 mm of a web, whichever key and end (their cut faces: no hollow shells)', () => {
+    for (const [kind, pm] of [['grand', grand], ['upright', upright]] as const) {
+      // the webs: cross-walls inside the parts that run across the keyboard, marked in uv.x; inside the
+      // fixed parts' own bounds
+      const xs = new Set<number>();
+      let n = 0;
+      const b = bounds([...pm.statics, ...pm.cases]);
+      for (const m of [...pm.statics, ...pm.cases])
+        for (let i = 0; i < m.count; i++) {
+          const o = i * 14;
+          if (m.data[o + 12] < 8.5) continue;
+          n++;
+          xs.add(Math.round(m.data[o] * 1e5) / 1e5);
+          for (let k = 0; k < 3; k++) expect(m.data[o + k] > b.lo[k] && m.data[o + k] < b.hi[k]).toBe(true);
+        }
+      expect(n, kind).toBeGreaterThan(1000);
+      expect(xs.size, kind).toBe(89);
+      const web = [...xs];
+      for (let midi = 21; midi <= 108; midi++) {
+        const f = zoomFrame(kind, midi);
+        // the nearest web on the side that is kept (side·(x − cut) ≤ 0)
+        const d = Math.min(...web.map((x) => f.side * (f.cut - x)).filter((v) => v >= 0));
+        expect(d, `${kind} key ${midi}`).toBeGreaterThan(0.0002);
+        expect(d, `${kind} key ${midi}`).toBeLessThan(0.0015);
+      }
+    }
   });
 
   it('the upright stands about 1.25 m tall, its strings vertical behind the action', () => {

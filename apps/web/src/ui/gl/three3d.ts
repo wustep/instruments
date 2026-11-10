@@ -17,7 +17,7 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import type { Batch, Mat4, Mesh, Mirror, Vec3 } from './gl3d.ts';
 import { LINE_FS, LINE_VS, type LineSet } from './gl3d.ts';
-import { disposeMaterials, materialFor, setEnvironment } from './mats3.ts';
+import { SECTION, disposeMaterials, materialFor, setEnvironment } from './mats3.ts';
 import { MAT_LIST } from './mesh.ts';
 
 /** the shadow pass of a dissolving mesh: the same screen-door as its colour pass, so the shadow
@@ -35,6 +35,19 @@ function fadeDepthMaterial(): THREE.MeshDepthMaterial {
       .replace('void main() {', 'void main() {\n  if (vKeep < 0.999 && fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) >= vKeep) discard;');
   };
   fadeDepth = m;
+  return m;
+}
+/** a depth-only pass before the colour pass (a section: `Renderer3.draw`) */
+function depthFirstMaterial(): THREE.MeshBasicMaterial {
+  const m = new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 2 });
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec4 iGlow; varying float vKeep;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvKeep = iGlow.a > 1.5 ? iGlow.a - 2.0 : 1.0;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vKeep;')
+      .replace('void main() {', 'void main() {\n  if (vKeep < 0.999 && fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) >= vKeep) discard;');
+  };
   return m;
 }
 interface Entry {
@@ -180,6 +193,26 @@ function studio(): THREE.Scene {
   return s;
 }
 
+/** the light of a piano key's action close up (a section: `Renderer3.closeUp`). Directions are
+ *  towards the light, in the scene's own frame for a section cut from the treble end (x is mirrored
+ *  for one cut from the bass end), so the key light always comes in through the open side. */
+const CLOSE = {
+  /** half the width the lights and the shadow map are fitted to (m): the action, key front to dampers */
+  radius: 0.5,
+  key: [0.6, 0.66, -0.46] as Vec3,
+  keyI: 3.1,
+  rim: [0.12, 0.8, 0.58] as Vec3,
+  rimI: 0.5,
+  fill: [0.45, 0.12, -0.88] as Vec3,
+  fillI: 0.3,
+  env: 0.5,
+  exposure: 0.74,
+  normalBias: 0.0006,
+  near: 0.004,
+  /** ambient occlusion radius (m) */
+  ao: 0.035,
+};
+
 export class Renderer3 {
   readonly r: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -221,6 +254,11 @@ export class Renderer3 {
   ao = true;
   /** how many planar mirrors (a grand's open lid) the last frame drew */
   mirrored = 0;
+  /** a piano key's action close up (0 the whole instrument … 1 the close-up; eased with the camera's
+   *  flight): the section's own light, exposure and near plane (see `draw`) */
+  closeUp = 0;
+  /** the last frame's exposure (1 for a whole instrument; capped in a close-up) */
+  exposure = 1;
 
   static create(canvas: HTMLCanvasElement, lite: boolean): Renderer3 | null {
     try {
@@ -338,6 +376,29 @@ export class Renderer3 {
   }
 
   private clipPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
+  private clipPlanes = [this.clipPlane];
+  private sectioned = false;
+  /** cut the scene at the section's plane, or stop. The plane is each material's own (not the
+   *  renderer's), so that the shadow pass is cut by it too: the parts cut away cast no shadow across
+   *  the section, and the key light can model what is left */
+  private section(on: boolean): void {
+    if (!on && !this.sectioned) return;
+    this.sectioned = on;
+    this.r.localClippingEnabled = on;
+    const want = on ? this.clipPlanes : null;
+    for (const e of this.entries.values())
+      for (const m of e.im.material as THREE.Material[])
+        if (m.clippingPlanes !== want) {
+          m.clippingPlanes = want;
+          m.clipShadows = on;
+        }
+    if (this.gtao) this.gtao.normalMaterial.clippingPlanes = want;
+    this.depthPre.clippingPlanes = want;
+  }
+  /** depth alone, drawn first in a section (see `draw`): pushed back a hair, so that the colour pass,
+   *  whose shaders differ, never loses the comparison with its own surface; a dissolving part's
+   *  screen-door as in its colour pass */
+  private depthPre = depthFirstMaterial();
   /** review shots (scripts/review-3d.mjs SECTION=x): a section without a zoomed key */
   debugClip: { at: number; side: 1 | -1 } | null = null;
   /** the view-projection the lines and picks use (world, unmirrored, → clip) */
@@ -390,31 +451,50 @@ export class Renderer3 {
       im.visible = true;
     }
     for (const [m, e] of this.entries) if (!used.has(m)) e.im.visible = false;
-    // lights fitted to the scene: the key from the front left, above; the rim from behind right
-    const { c, r: rad } = b.bounds;
-    const C = new THREE.Vector3(c[0], c[1], c[2]);
-    this.key.position.copy(C).add(new THREE.Vector3(0.55, 0.78, -0.5).normalize().multiplyScalar(rad * 3));
-    this.key.target.position.copy(C);
-    const sc = this.key.shadow.camera;
-    sc.left = sc.bottom = -rad * 1.05;
-    sc.right = sc.top = rad * 1.05;
-    sc.near = rad * 0.5;
-    sc.far = rad * 6;
-    sc.updateProjectionMatrix();
-    // a section (a key's action close up) cuts the whole scene, the occlusion's passes included; the
-    // parts cut away would still cast shadows across the cut, so the key light casts none meanwhile
+    // a section (a key's action close up) cuts the whole scene, the shadow and occlusion passes included
     const clip = b.clip ?? this.debugClip;
-    this.key.castShadow = this.shadows && !clip;
     if (clip) {
       // (the root is mirrored in x: keep side·(x − at) ≤ 0 ⇔ side·X + side·at ≥ 0 in three's world)
       this.clipPlane.normal.set(clip.side, 0, 0);
       this.clipPlane.constant = clip.side * clip.at;
-      if (this.r.clippingPlanes.length !== 1) this.r.clippingPlanes = [this.clipPlane];
-    } else if (this.r.clippingPlanes.length) this.r.clippingPlanes = [];
-    this.rim.position.copy(C).add(new THREE.Vector3(-0.6, 0.5, 0.75).normalize().multiplyScalar(rad * 3));
+    }
+    this.section(!!clip);
+    // lights fitted to the scene: the key from the front left, above; the rim from behind right.
+    // In a key's close-up (k → 1) they are the section's own: the key from the open side, above and
+    // in front (whichever end the section was cut from), fitted to the action so its shadow map
+    // resolves a jack; the rim and the fill, which cast no shadow and would shine through the keys
+    // left standing, turned down; the studio's ambient too, so the key models the parts
+    const { c, r: rad } = b.bounds;
+    const k = clip && b.clip ? Math.max(0, Math.min(1, this.closeUp)) : 0;
+    const mix = (a: number, z: number) => a + (z - a) * k;
+    const side = clip ? clip.side : 1;
+    const C = new THREE.Vector3(mix(c[0], target[0]), mix(c[1], target[1]), mix(c[2], target[2]));
+    const radL = mix(rad, CLOSE.radius);
+    const dir = (a: Vec3, z: Vec3) => new THREE.Vector3(mix(a[0], z[0] * side), mix(a[1], z[1]), mix(a[2], z[2])).normalize();
+    const keyDir = dir([0.55, 0.78, -0.5], CLOSE.key);
+    this.key.position.copy(C).add(keyDir.clone().multiplyScalar(radL * 3));
+    this.key.target.position.copy(C);
+    this.key.intensity = mix(2.6, CLOSE.keyI);
+    // the section's cut faces all face its open side: lit alike, by the key and the studio (mats3.ts)
+    SECTION.light.value = (this.key.intensity * Math.max(0.15, keyDir.x * side)) / Math.PI + 0.3 * mix(1, CLOSE.env);
+    const sc = this.key.shadow.camera;
+    sc.left = sc.bottom = -radL * 1.05;
+    sc.right = sc.top = radL * 1.05;
+    sc.near = radL * 0.5;
+    sc.far = radL * 6;
+    sc.updateProjectionMatrix();
+    // (the offset along the normal is in metres: 2 mm for a case, a fraction of a jack's width close up)
+    this.key.shadow.normalBias = mix(0.002, CLOSE.normalBias);
+    this.key.castShadow = this.shadows;
+    this.rim.position.copy(C).add(dir([-0.6, 0.5, 0.75], CLOSE.rim).multiplyScalar(radL * 3));
     this.rim.target.position.copy(C);
-    this.fill.position.copy(C).add(new THREE.Vector3(-0.8, 0.25, -0.55).normalize().multiplyScalar(rad * 3));
+    this.rim.intensity = mix(1.6, CLOSE.rimI);
+    this.fill.position.copy(C).add(dir([-0.8, 0.25, -0.55], CLOSE.fill).multiplyScalar(radL * 3));
     this.fill.target.position.copy(C);
+    this.fill.intensity = mix(0.55, CLOSE.fillI);
+    // (and warm: a cool fill turned pale wood in the key's shadow olive)
+    this.fill.color.setRGB(mix(0.9, 1), mix(0.92, 0.9), mix(1, 0.78));
+    this.scene.environmentIntensity = mix(1, CLOSE.env);
     // floor
     const f = b.floor;
     this.floor.visible = !!f;
@@ -426,7 +506,9 @@ export class Renderer3 {
     // camera (in the mirrored world)
     this.cam.fov = fovDeg;
     this.cam.aspect = w / h;
-    this.cam.near = Math.max(0.01, rad * 0.02);
+    // (close up the camera is centimetres from the parts, and may be brought nearer: the near plane
+    // comes in with it, so nothing in front of the lens is cut)
+    this.cam.near = mix(Math.max(0.01, rad * 0.02), CLOSE.near);
     this.cam.far = rad * 40 + 10;
     this.cam.position.set(-eye[0], eye[1], eye[2]);
     this.cam.up.set(0, 1, 0);
@@ -443,6 +525,16 @@ export class Renderer3 {
     r.setRenderTarget(this.rt);
     r.setClearColor(0x000000, 0);
     r.clear(true, true, true);
+    if (clip) {
+      // A section looks across the keyboard: up to 88 keys' parts stand one behind another, and every
+      // one of them would be shaded (felt, wood, the shadow's filter) only to be drawn over. Depth
+      // first, then colour where it shows.
+      this.scene.overrideMaterial = this.depthPre;
+      r.render(this.scene, this.cam);
+      this.scene.overrideMaterial = null;
+      // (the shadow map was drawn with that pass)
+      r.shadowMap.autoUpdate = false;
+    }
     r.render(this.scene, this.cam);
     r.shadowMap.autoUpdate = true;
     for (const ms of this.mirrorSlots) if (ms.mesh) ms.mesh.visible = false;
@@ -453,7 +545,8 @@ export class Renderer3 {
         this.gtao = new GTAOPass(this.scene, this.cam, Math.ceil(w / 2), Math.ceil(h / 2));
         this.gtao.output = GTAOPass.OUTPUT.Off;
       }
-      this.gtao.updateGtaoMaterial({ radius: rad * 0.09, distanceExponent: 1.5, thickness: rad * 0.06, scale: 1.1, samples: 12 });
+      // (close up, the occlusion of a part by its neighbour: centimetres, not the case's decimetres)
+      this.gtao.updateGtaoMaterial({ radius: mix(rad * 0.09, CLOSE.ao), distanceExponent: 1.5, thickness: mix(rad * 0.06, CLOSE.ao * 0.7), scale: 1.1, samples: 12 });
       this.gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
       this.gtao.render(r, null as unknown as THREE.WebGLRenderTarget, this.rt, 0, false);
       aoTex = this.gtao.pdRenderTarget.texture;
@@ -480,6 +573,9 @@ export class Renderer3 {
       }
     }
     u.uBloom.value = this.bloom ? 0.35 : 0;
+    // exposure: capped in the close-up, where pale felt and bare wood fill the frame under the key
+    // light (at the whole instrument's exposure they clip to white)
+    u.toneMappingExposure.value = this.exposure = mix(1, CLOSE.exposure);
     u.uAO.value = aoTex ? 1 : 0;
     u.uGround.value.setRGB(ground[0], ground[1], ground[2]);
     u.uRes.value.set(w, h);
@@ -638,16 +734,17 @@ export class Renderer3 {
     r.setClearColor(0x000000, 0);
     r.clear(true, true, true);
     r.render(this.scene, vc);
-    // the strings (lines), from the same virtual camera, against the mirror pass's depth
+    // the strings (lines), from the same virtual camera, behind what the mirror pass drew nearer
     {
       const mvp = new THREE.Matrix4().multiplyMatrices(vc.projectionMatrix, vc.matrixWorldInverse).multiply(new THREE.Matrix4().makeScale(-1, 1, 1));
       const a = mvp.elements as unknown as Mat4;
       const py = vc.projectionMatrix.elements[5];
       const pz = vc.projectionMatrix.elements[14];
-      const d = slot.rt.depthTexture!;
-      this.wireL.set(b.wireL, a, mw, mh, py, pz, d);
-      this.inkL.set(b.inkL, a, mw, mh, py, pz, d);
-      this.glowL.set(b.glow, a, mw, mh, py, pz, d);
+      // (by the target's own depth test, not its depth texture: sampling the depth this pass is
+      // bound to is a feedback loop, and the browser drops the draw)
+      this.wireL.set(b.wireL, a, mw, mh, py, pz, null);
+      this.inkL.set(b.inkL, a, mw, mh, py, pz, null);
+      this.glowL.set(b.glow, a, mw, mh, py, pz, null);
       r.render(this.lineScene, vc);
     }
     if (body) body.visible = true;
@@ -674,6 +771,7 @@ export class Renderer3 {
       ms.mat.dispose();
       ms.mesh?.geometry.dispose();
     }
+    this.depthPre.dispose();
     this.final.dispose();
     this.finalMat.dispose();
     this.bloomA.dispose();
@@ -754,32 +852,38 @@ function toGeometry(m: Mesh, lite: boolean): { geo: THREE.BufferGeometry; mats: 
   return { geo, mats };
 }
 
-/** camera-facing ribbons (the old line shader), drawn over the composited picture, hidden where the
- *  scene is nearer (its depth texture) */
+/** camera-facing ribbons (the old line shader), hidden where the scene is nearer. Over the
+ *  composited picture that is a comparison with the scene's depth texture (`mat`); inside a pass that
+ *  still has its depth attached (the lid's mirror) it is the depth buffer's own test (`matZ`, which
+ *  has no sampler at all: a pass must never sample the depth it is bound to) */
 class LineLayer {
   mesh: THREE.Mesh;
   private geo = new THREE.BufferGeometry();
   private ib: THREE.InterleavedBuffer;
   private idx: THREE.BufferAttribute;
   private mat: THREE.RawShaderMaterial;
+  private matZ: THREE.RawShaderMaterial;
   constructor(depth: THREE.DepthTexture, blending: THREE.Blending, wire = false) {
     this.ib = new THREE.InterleavedBuffer(new Float32Array(15 * 1024), 15);
     this.ib.setUsage(THREE.DynamicDrawUsage);
     this.idx = new THREE.BufferAttribute(new Uint32Array(3 * 1024), 1);
     this.idx.setUsage(THREE.DynamicDrawUsage);
     this.bind();
-    this.mat = new THREE.RawShaderMaterial({
+    const uniforms = { uVP: { value: new THREE.Matrix4() }, uHalf: { value: new THREE.Vector2(1, 1) }, tDepth: { value: depth }, uRes: { value: new THREE.Vector2(1, 1) }, uProjY: { value: 1 }, uProjZ: { value: 0 }, uWire: { value: wire ? 1 : 0 } };
+    const base = {
       glslVersion: THREE.GLSL3,
       vertexShader: LINE_VS,
       fragmentShader: LINE_FS,
-      uniforms: { uVP: { value: new THREE.Matrix4() }, uHalf: { value: new THREE.Vector2(1, 1) }, tDepth: { value: depth }, uRes: { value: new THREE.Vector2(1, 1) }, uProjY: { value: 1 }, uProjZ: { value: 0 }, uWire: { value: wire ? 1 : 0 } },
       transparent: true,
-      depthTest: false,
       depthWrite: false,
       // a ribbon's winding depends on its direction on screen
       side: THREE.DoubleSide,
       blending,
-    });
+    };
+    this.mat = new THREE.RawShaderMaterial({ ...base, uniforms, defines: { DEPTH_TEX: 1 }, depthTest: false });
+    // (the same uniform values; this program has no tDepth or uRes to take)
+    const { tDepth: _t, uRes: _r, ...rest } = uniforms;
+    this.matZ = new THREE.RawShaderMaterial({ ...base, uniforms: rest, depthTest: true, depthFunc: THREE.LessEqualDepth });
     this.mesh = new THREE.Mesh(this.geo, this.mat);
     this.mesh.frustumCulled = false;
   }
@@ -795,8 +899,11 @@ class LineLayer {
     this.geo.setAttribute('position', new THREE.InterleavedBufferAttribute(ib, 3, 0));
     this.geo.setIndex(this.idx);
   }
-  set(ls: LineSet, vp: Mat4, w: number, h: number, projY: number, projZ: number, depth: THREE.DepthTexture): void {
-    this.mat.uniforms.tDepth.value = depth;
+  /** `depth`: the scene's depth texture to test against, or null inside a pass that has its depth
+   *  attached (then the buffer's own test) */
+  set(ls: LineSet, vp: Mat4, w: number, h: number, projY: number, projZ: number, depth: THREE.DepthTexture | null): void {
+    this.mesh.material = depth ? this.mat : this.matZ;
+    if (depth) this.mat.uniforms.tDepth.value = depth;
     this.mat.uniforms.uProjY.value = projY;
     this.mat.uniforms.uProjZ.value = projZ;
     const nf = ls.lv.n;
@@ -829,5 +936,6 @@ class LineLayer {
   dispose(): void {
     this.geo.dispose();
     this.mat.dispose();
+    this.matZ.dispose();
   }
 }

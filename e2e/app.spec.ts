@@ -13,6 +13,27 @@ const collectErrors = (page: Page) => {
   return errors;
 };
 
+/** everything the browser says about WebGL on its console, at any level (Chrome reports an invalid
+ *  draw as a warning: "GL_INVALID_OPERATION: glDrawElements: Feedback loop formed between …") */
+const collectGl = (page: Page) => {
+  const msgs: string[] = [];
+  page.on('console', (m) => {
+    if (/webgl|GL_[A-Z_]{4,}|feedback loop|framebuffer/i.test(m.text())) msgs.push(`${m.type()}: ${m.text()}`);
+  });
+  return msgs;
+};
+/** the 3D stage's own count: gl.getError() after each of the next `frames` frames */
+const glErrors = (page: Page, frames = 30) =>
+  page.evaluate(async (n) => {
+    const gl = (window as any).__stage3d.r3.r.getContext() as WebGL2RenderingContext;
+    let errs = 0;
+    for (let i = 0; i < n; i++) {
+      await new Promise((r) => requestAnimationFrame(r));
+      for (let e = gl.getError(); e; e = gl.getError()) errs++;
+    }
+    return errs;
+  }, frames);
+
 async function startAudio(page: Page) {
   await page.evaluate(() => (window as any).__piano.start());
   await page.waitForFunction(() => (window as any).__piano?.status === 'running' && (window as any).__piano?.piano, null, { timeout: 30_000 });
@@ -1098,6 +1119,120 @@ test('pianos in 3D: a key flies the camera to its own action; Esc, the × or a c
   await page.waitForTimeout(200);
   expect(await zoomed()).toBeNull();
   await expect(back).toBeHidden();
+});
+
+test('3D draws without one WebGL warning: the grand (its lid a mirror), the upright, a key’s close-up on each, and every other instrument', async ({ page }, info) => {
+  const phone = info.project.name === 'phone';
+  const errors = collectErrors(page);
+  const gl = collectGl(page);
+  await page.goto('/');
+  await startAudio(page);
+  await page.locator('.dim-toggle').click();
+  await expect(page.locator('.stage-3d')).toBeVisible();
+  const ready = () => page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3);
+  const zoomed = () => page.evaluate(() => (window as any).__stage3d.zoomed);
+  for (const preset of ['grand', 'upright']) {
+    await page.evaluate((p) => (window as any).__piano.setPreset(p), preset);
+    await page.locator('.presets button', { hasText: preset }).click();
+    await ready();
+    // the whole piano, strings sounding (their glow is drawn too; on a desktop the grand's open lid
+    // mirrors them: a second pass, with its own depth)
+    if (preset === 'grand' && !phone) await expect.poll(() => page.evaluate(() => (window as any).__stage3d.stats.mirror)).toBe(true);
+    await page.evaluate(() => [48, 60, 67].forEach((m) => (window as any).__piano.noteOn(m, 100, 'keys')));
+    expect(await glErrors(page), `${preset}, whole`).toBe(0);
+    // a key's action close up: the flight in, there (a key struck), and the flight back
+    await page.evaluate(() => (window as any).__stage3d.zoomTo(60));
+    expect(await glErrors(page, 45), `${preset}, flying in`).toBe(0);
+    await expect.poll(zoomed).toBe(60);
+    await page.waitForTimeout(300);
+    await page.evaluate(() => (window as any).__piano.noteOn(62, 100, 'keys'));
+    expect(await glErrors(page), `${preset}, close up`).toBe(0);
+    await page.evaluate(() => {
+      for (const m of [48, 60, 62, 67]) (window as any).__piano.noteOff(m, 'keys');
+      (window as any).__stage3d.zoomOut();
+    });
+    expect(await glErrors(page, 45), `${preset}, flying back`).toBe(0);
+    await expect.poll(zoomed).toBeNull();
+    await page.waitForTimeout(350);
+  }
+  for (const [inst, note] of [['violin', 72], ['viola', 60], ['cello', 50], ['flute', 74], ['trumpet', 67]] as const) {
+    await page.evaluate(async ([i, m]) => {
+      await (window as any).__piano.setInstrument(i);
+      (window as any).__piano.noteOn(m, 96, 'keys');
+    }, [inst, note] as const);
+    await ready();
+    expect(await glErrors(page, 12), inst).toBe(0);
+    await page.evaluate((m) => (window as any).__piano.noteOff(m, 'keys'), note);
+  }
+  expect(gl, 'WebGL messages on the console').toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test('a key’s close-up in 3D: its own light, the near plane in, zoom about its framing, and the orbit kept on the open side of the section', async ({ page }, info) => {
+  const phone = info.project.name === 'phone';
+  await page.goto('/');
+  await startAudio(page);
+  await page.locator('.dim-toggle').click();
+  const cv = page.locator('.stage-3d');
+  await expect(cv).toBeVisible();
+  const s3 = <T,>(f: string) => page.evaluate((src) => new Function('s', `return ${src}`)((window as any).__stage3d), f) as Promise<T>;
+  // (a key towards each end: the section is cut from that end)
+  for (const [preset, key] of [['grand', 40], ['upright', 84]] as const) {
+    await page.evaluate((p) => (window as any).__piano.setPreset(p), preset);
+    await page.locator('.presets button', { hasText: preset }).click();
+    await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3);
+    // the whole piano: the instrument's own exposure, a near plane sized to it
+    expect(await s3<number>('s.r3.exposure'), preset).toBe(1);
+    const nearOut = await s3<number>('s.r3.cam.near');
+    expect(nearOut, preset).toBeGreaterThanOrEqual(0.01);
+    {
+      await page.evaluate((k) => (window as any).__stage3d.zoomTo(k), key);
+      await expect.poll(() => s3<number | null>('s.zoomed')).toBe(key);
+      await page.waitForTimeout(1100);
+      const where = `${preset} key ${key}`;
+      // exposure capped (pale felt and bare wood fill the frame), the near plane within millimetres
+      // (nothing before the lens is cut), the key light's shadows on
+      expect(await s3<number>('s.r3.exposure'), where).toBeLessThan(0.85);
+      expect(await s3<number>('s.r3.cam.near'), where).toBeLessThanOrEqual(0.005);
+      expect(await s3<boolean>('s.stats.shadows'), where).toBe(true);
+      const open = async () => {
+        const [eye, sec] = await Promise.all([s3<number[]>('s.eye'), s3<{ at: number; side: number; zoom: number }>('s.section')]);
+        return { d: sec.side * (eye[0] - sec.at), side: sec.side, zoom: sec.zoom };
+      };
+      const o0 = await open();
+      expect(o0.side, where).toBe(key < 60 ? -1 : 1);
+      expect(o0.d, `${where}: the camera on the open side`).toBeGreaterThan(0.05);
+      expect(o0.zoom, where).toBeCloseTo(1, 1);
+      if (!phone) {
+        const b = (await cv.boundingBox())!;
+        const cx = b.x + b.width / 2;
+        const cy = b.y + b.height / 2;
+        // zoom in: nearer than the framing (one part fills the stage), but not without end
+        await page.mouse.move(cx, cy);
+        for (let k = 0; k < 8; k++) await page.mouse.wheel(0, -700);
+        await page.waitForTimeout(400);
+        const zin = (await open()).zoom;
+        expect(zin, `${where}: zoomed in`).toBeLessThan(0.5);
+        expect(zin, `${where}: zoom stops`).toBeGreaterThan(0.3);
+        // turn it as far as it goes, both ways: the camera never crosses the cut's plane into the
+        // keys left standing
+        for (const dir of [1, -1]) {
+          await page.mouse.move(cx, cy);
+          await page.mouse.down();
+          for (let k = 1; k <= 6; k++) await page.mouse.move(cx + dir * k * 110, cy, { steps: 2 });
+          await page.mouse.up();
+          await page.waitForTimeout(300);
+          expect((await open()).d, `${where}: turned ${dir > 0 ? 'right' : 'left'}`).toBeGreaterThan(0.05);
+        }
+        expect(await s3<number | null>('s.zoomed'), `${where}: a drag is not a click off the keys`).toBe(key);
+      }
+      await page.evaluate(() => (window as any).__stage3d.zoomOut());
+      await expect.poll(() => s3<number | null>('s.zoomed')).toBeNull();
+      await page.waitForTimeout(900);
+      expect(await s3<number>('s.r3.exposure'), `${where}: back out`).toBe(1);
+      expect(await s3<number>('s.r3.cam.near'), `${where}: back out`).toBe(nearOut);
+    }
+  }
 });
 
 test('pianos in 3D: sustain leaves the camera alone, and zooming in stops outside the case (grand and upright)', async ({ page }, info) => {
