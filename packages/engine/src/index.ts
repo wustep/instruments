@@ -15,6 +15,7 @@ export type { FluteParams } from './core/flute.ts';
 export type { TrumpetParams } from './core/brass.ts';
 export type { OboeParams } from './core/oboe.ts';
 export type { ClarinetParams } from './core/clarinet.ts';
+export type { BassoonParams } from './core/bassoon.ts';
 export type { KeySummary, Stats, VisualFrame } from './api/messages.ts';
 export {
   DEFAULT_PARAMS,

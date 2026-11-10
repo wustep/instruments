@@ -19,7 +19,7 @@ describe('orchestra: the oboe', () => {
   it('its names and abbreviations, the cor anglais, and General MIDI 68 and 69', () => {
     for (const n of ['Oboe', 'Oboe I', 'oboe 2', 'Oboi', 'Hautbois', 'Hautbois 1', 'Hoboe', 'Oboe d’amore', 'Ob.', 'Ob. 1', 'Obs', 'Cor anglais', 'English Horn', 'Corno inglese', 'Englischhorn']) expect(voiceFromName(n), n).toBe('oboe');
     // its neighbours keep theirs (the clarinet its own since it came)
-    for (const [n, v] of [['Flauto', 'flute'], ['Clarinetto in B', 'clarinet'], ['Fagotto', 'cello'], ['Corno in F', 'trumpet'], ['Oboe-less Violin', 'violin']] as const) expect(voiceFromName(n), n).toBe(v);
+    for (const [n, v] of [['Flauto', 'flute'], ['Clarinetto in B', 'clarinet'], ['Fagotto', 'bassoon'], ['Corno in F', 'trumpet'], ['Oboe-less Violin', 'violin']] as const) expect(voiceFromName(n), n).toBe(v);
     expect(voiceFromProgram(68)).toBe('oboe');
     expect(voiceFromProgram(69)).toBe('oboe');
     expect(voiceFromProgram(71)).toBe('clarinet');

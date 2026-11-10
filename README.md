@@ -1,8 +1,8 @@
 # instruments
 
-Nine acoustic instruments, physically modelled and computed in real time in the
+Ten acoustic instruments, physically modelled and computed in real time in the
 browser: a **piano**, a **violin**, a **viola**, a **cello**, a **double bass**, a
-**flute**, an **oboe**, a **clarinet** and a **trumpet**.
+**flute**, an **oboe**, a **clarinet**, a **bassoon** and a **trumpet**.
 No samples are ever played as the sound. Every note is a simulation of felt
 hammers, bows, air jets, reeds and lips driving strings and tubes, which in turn drive a
 soundboard or body.
@@ -137,6 +137,16 @@ README does not claim it is live. `vercel.json` makes this a static build
     (about 1.5 kHz) the bore barely resonates and every harmonic comes through.
   * **Compass.** D3–B♭6 at concert pitch (the B♭ clarinet, written E3–C7); the keys
     in 2D and 3D follow the Boehm system's standard fingerings.
+* **Bassoon.**
+  * **The oboe's bass.** The same double reed, larger, on a narrow cone 2.5 m long
+    folded in two (bocal, wing joint, the boot's U-bend, long joint, bell): the
+    oboe's two-tube bore with a long missing tip. Above the open-hole lattice's
+    cutoff (about 400–500 Hz) the bore loses its resonances a few harmonics above
+    the note, which gives the low notes their weak fundamental under a formant
+    near 500 Hz and lets them settle as quickly as a played one.
+  * **Compass.** B♭1–E5, in C (written as it sounds, bass and tenor clef); the keys
+    in 2D and 3D follow the Heckel system's standard fingerings (the Woodwind
+    Fingering Guide's chart).
 * **Where it runs.** Everything runs in an AudioWorklet written in TypeScript; no
   WASM was needed, as measured below. The DSP core has no Web Audio dependency,
   so the same code runs in Node for tests, calibration and offline rendering.
@@ -156,6 +166,7 @@ CPU and latency: [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
 | **Bowed strings** | stick–slip friction with hysteresis, Helmholtz motion, bow position/force/speed (Schelleng), one shared bow with length, direction and automatic bow changes, stopped strings with vibrato, four strings on one bridge, modal body with A0/B1 modes, sympathetic open strings | torsional waves, bow width and the bridge hill on the cello only; body modes from the literature, their radiation **fitted to Iowa MIS recordings** (violin and viola note by note on held-out-checked halves, with the Helmholtz corner's brightness following the bow force), not measured |
 | **Flute** | jet-drive feedback with jet delay from blowing pressure, overblowing, Strouhal-limited jet, offset jet (even harmonics), vortex-shedding amplitude limit, monopole radiation, turbulence noise, open–open bore; voicing **fitted to Iowa MIS recordings** | no tone holes or bore taper; low-register H2 at mf/ff still ~10 dB short of a real flute; per-note tuning uses a measured voicing table |
 | **Oboe** | double reed blown closed (quasi-static Bernoulli flow, closing at pM), conical bore as two waveguides meeting at the reed (cylindrical saxophone), dynamics through the reed's opening (lips), tonguing, turbulence noise; voicing and radiation **fitted to Iowa MIS recordings** | no tone holes, octave vents or reed resonance; each note is played on the tube whose fundamental it is; low notes at ff speak slowly (the fundamental takes over from the 4th–6th harmonics in about 0.3 s); per-note tuning uses a measured voicing table |
+| **Bassoon** | the oboe's double reed and two-tube conical bore with a long missing apex (0.14 m), walls losing more a few octaves above the note, dynamics through the reed's opening, tonguing, turbulence noise; voicing and radiation (its fixed formant near 480 Hz) **fitted to Iowa MIS recordings** | no tone holes, half-hole, flick or whisper key (each note on the tube whose fundamental it is); C♯3–D♯3 at mf/ff radiate their odd harmonics weakly (heard leaning to the octave); per-note tuning uses a measured voicing table |
 | **Listener** | close "microphones" from mode shapes | lid shelf, small FDN room, safety limiter (audio effects, not physics) |
 
 ## Realism, candidly
@@ -242,6 +253,7 @@ pnpm calibrate:ensemble       # strings and flute vs those recordings [--engine 
 npx tsx scripts/fit-flute.ts  # fit the flute voicing; scripts/fit-strings.ts <violin|viola|cello> for the bodies
 npx tsx scripts/fit-oboe.ts   # fit the oboe voicing (fit half), then scripts/tune-oboe.ts; scripts/oboe-regimes.ts surveys its registers
 npx tsx scripts/fit-clarinet.ts   # the clarinet's, the same way (tune-clarinet.ts, clarinet-regimes.ts, render-clarinet.ts)
+npx tsx scripts/fit-bassoon.ts    # the bassoon's, the same way (tune-bassoon.ts, bassoon-regimes.ts, render-bassoon.ts)
 npx tsx scripts/render-demos.ts   # re-render artifacts/audio (round 1)
 npx tsx scripts/render-round2.ts  # round-2 MP3 demos into artifacts/round2/audio
 node scripts/screenshots.mjs      # re-capture artifacts/shots (ROUND=2 → artifacts/round2/shots; needs `pnpm preview --port 4199`)

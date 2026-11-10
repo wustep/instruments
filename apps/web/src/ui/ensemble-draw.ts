@@ -9,9 +9,10 @@ import { bowedGeometry, type VisualFrame } from '@piano-model/engine';
 import { isKeyboard, VOICE_INFO, type Voice } from '../orchestra/assign.ts';
 import type { PartLive } from '../orchestra/ensemble.ts';
 import { drawPiano, newPianoState, type PianoState } from './piano-draw.ts';
-import { Contours, drawBowedV, drawClarinetV, drawFluteV, drawOboeV, drawPianoV, drawTrumpetV } from './vector/index.ts';
+import { Contours, drawBassoonV, drawBowedV, drawClarinetV, drawFluteV, drawOboeV, drawPianoV, drawTrumpetV } from './vector/index.ts';
 import { drawOboe, newOboeState, oboeBox, type OboeState } from './oboe-draw.ts';
 import { clarinetBox, drawClarinet, newClarinetState, type ClarinetState } from './clarinet-draw.ts';
+import { bassoonBox, drawBassoon, newBassoonState, type BassoonState } from './bassoon-draw.ts';
 import { AutoScale, BOWED_PLAN, FL_LEN, ModeField, bowReach, bowedShapes, bowedSpan, drawBowed, drawFlute, drawTrumpet, trumpetBox, type BowedGeom, type BowedState, type FluteState, type TrumpetState } from './stage-draw.ts';
 
 export interface Cell {
@@ -31,6 +32,7 @@ export interface PartDraw {
   trumpet?: TrumpetState;
   oboe?: OboeState;
   clarinet?: ClarinetState;
+  bassoon?: BassoonState;
   piano?: { st: PianoState; field: ModeField; vfield?: Contours };
 }
 
@@ -43,6 +45,7 @@ export function newPartDraw(v: Voice): PartDraw {
   if (inst === 'trumpet') return { voice: v, trumpet: { pScale: new AutoScale(1e-6), env: new Float32Array(0) } };
   if (inst === 'oboe') return { voice: v, oboe: newOboeState() };
   if (inst === 'clarinet') return { voice: v, clarinet: newClarinetState() };
+  if (inst === 'bassoon') return { voice: v, bassoon: newBassoonState() };
   return { voice: v, piano: { st: newPianoState(), field: new ModeField(128, 62, 2.2, 3) } };
 }
 
@@ -118,8 +121,8 @@ function seatOf(v: Voice, upright: boolean): Seat {
   }
   // the winds' own layouts leave a margin round them (fluteLayout, trumpetLayout); the trumpet is drawn
   // from its side either way, its bell to the right
-  if (VOICE_INFO[v].instrument === 'oboe' || VOICE_INFO[v].instrument === 'clarinet') {
-    const b = VOICE_INFO[v].instrument === 'oboe' ? oboeBox() : clarinetBox();
+  if (VOICE_INFO[v].instrument === 'oboe' || VOICE_INFO[v].instrument === 'clarinet' || VOICE_INFO[v].instrument === 'bassoon') {
+    const b = VOICE_INFO[v].instrument === 'clarinet' ? clarinetBox() : VOICE_INFO[v].instrument === 'bassoon' ? bassoonBox() : oboeBox();
     return { across: b.h, along: b.w, pad: 0, lo: 0, hi: 0 };
   }
   if (VOICE_INFO[v].instrument === 'trumpet') {
@@ -300,6 +303,7 @@ export function drawEnsemble(ctx: CanvasRenderingContext2D, cells: Cell[], parts
     else if (d.trumpet) (vector ? drawTrumpetV : drawTrumpet)(ctx, c.w, c.h, fr, d.trumpet);
     else if (d.oboe) (vector ? drawOboeV : drawOboe)(ctx, c.w, c.h, fr, d.oboe);
     else if (d.clarinet) (vector ? drawClarinetV : drawClarinet)(ctx, c.w, c.h, fr, d.clarinet);
+    else if (d.bassoon) (vector ? drawBassoonV : drawBassoon)(ctx, c.w, c.h, fr, d.bassoon);
     else if (d.piano) {
       const st = d.piano.st;
       syncPianoState(st, p);

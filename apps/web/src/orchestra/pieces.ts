@@ -222,6 +222,19 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     end: 42.4,
     vel: 0.55,
   },
+  bassoon: {
+    instrument: 'bassoon',
+    composer: 'Mozart',
+    title: 'Bassoon Concerto, Andante ma adagio (the bassoon’s line)',
+    file: 'mozart-k191-ii.mid',
+    source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=686',
+    credit: 'Concerto for Bassoon in B♭, K. 191, II. Andante ma adagio: the solo bassoon’s line alone, from its entry after the strings’ introduction through its first two phrases, down to the low F and up to the held G. The file plays every note at full force (here at about mezzo-forte). Typeset by Liang Seng from the Breitkopf & Härtel edition (1880s); Mutopia-2006/02/25-686; public domain.',
+    sha256: 'e542a8c274b8744970f093553ffe7b1da86caf80693c436c6a2f2745940da755',
+    lines: [2],
+    // to the end of bar 14, the second phrase's held G (each bar is 4 s in the file)
+    end: 56,
+    vel: 0.55,
+  },
   trumpet: {
     instrument: 'trumpet',
     composer: 'Handel',

@@ -3,14 +3,15 @@
 
 import type { KeySummary } from '../api/messages.ts';
 
-export type InstrumentId = 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'trumpet';
-export const INSTRUMENT_IDS: InstrumentId[] = ['piano', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'trumpet'];
+export type InstrumentId = 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'trumpet';
+export const INSTRUMENT_IDS: InstrumentId[] = ['piano', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'trumpet'];
 /** the bowed strings (bowed.ts), high to low */
 export type BowedId = 'violin' | 'viola' | 'cello' | 'bass';
 export const isBowed = (id: string): id is BowedId => id === 'violin' || id === 'viola' || id === 'cello' || id === 'bass';
 
 /** the instrument families: the piano, the bowed strings, the flute (an air jet), the reeds (the oboe: a
- *  double reed on a conical bore; the clarinet: a single reed on a cylinder) and the brass */
+ *  double reed on a conical bore; the clarinet: a single reed on a cylinder; the bassoon: the oboe's double
+ *  reed on a cone two and a half metres long) and the brass */
 export type Family = 'piano' | 'bowed' | 'wind' | 'reed' | 'brass';
 export const INSTRUMENT_INFO: Record<InstrumentId, { label: string; family: Family; lo: number; hi: number; blurb: string }> = {
   piano: { label: 'Piano', family: 'piano', lo: 21, hi: 108, blurb: 'Felt hammers, 2–3 stiff strings per note, a shared soundboard.' },
@@ -21,6 +22,7 @@ export const INSTRUMENT_INFO: Record<InstrumentId, { label: string; family: Fami
   flute: { label: 'Flute', family: 'wind', lo: 60, hi: 96, blurb: 'An air jet driving a resonant tube; harder blowing jumps registers.' },
   oboe: { label: 'Oboe', family: 'reed', lo: 58, hi: 93, blurb: 'A double reed blown closed, on a conical bore: every harmonic, overblown at the octave.' },
   clarinet: { label: 'Clarinet', family: 'reed', lo: 50, hi: 94, blurb: 'A single reed beating on a mouthpiece, on a cylindrical bore: odd harmonics low down, overblown at the twelfth.' },
+  bassoon: { label: 'Bassoon', family: 'reed', lo: 34, hi: 76, blurb: 'A double reed on a long, narrow conical bore folded in two: a dark, reedy bass, overblown at the octave.' },
   trumpet: { label: 'Trumpet', family: 'brass', lo: 52, hi: 86, blurb: 'Buzzing lips driving a bore; the valves lengthen it, the lips pick its partial.' },
 };
 

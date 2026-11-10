@@ -15,8 +15,8 @@ const LENS = Math.tan(0.3) / Math.tan((12 * Math.PI) / 180);
 // (the pianos last: choosing one is a click, the click starts the sound, and from then on a bow rests
 // where the engine left it, at one end of its stroke. Before that it lies across the strings at its
 // middle, as in the screenshots: that is the pose measured)
-const NAMES = ['cello', 'bass', 'violin', 'viola', 'flute', 'oboe', 'clarinet', 'trumpet', 'grand', 'upright'];
-const TABLE = ['grand', 'upright', 'cello', 'bass', 'violin', 'viola', 'flute', 'oboe', 'clarinet', 'trumpet'];
+const NAMES = ['cello', 'bass', 'violin', 'viola', 'flute', 'oboe', 'clarinet', 'bassoon', 'trumpet', 'grand', 'upright'];
+const TABLE = ['grand', 'upright', 'cello', 'bass', 'violin', 'viola', 'flute', 'oboe', 'clarinet', 'bassoon', 'trumpet'];
 const browser = await chromium.launch({ channel: 'chrome', args: ['--autoplay-policy=no-user-gesture-required', '--use-angle=metal', '--enable-gpu'] });
 if (SHOT) mkdirSync(SHOT, { recursive: true });
 const init = () => {
