@@ -10,14 +10,14 @@ const ZOOM = process.env.ZOOM ? Number(process.env.ZOOM) : null;
 const PHONE = process.env.PHONE === '1';
 const ONLY = process.env.ONLY?.split(',');
 const browser = await chromium.launch({ channel: 'chrome', headless: process.env.HEADED ? false : true, args: ['--use-angle=metal', '--enable-gpu', '--disable-gpu-vsync', '--disable-frame-rate-limit'] });
-for (const [inst, preset] of [['piano', 'grand'], ['piano', 'upright'], ['violin'], ['cello'], ['bass'], ['flute'], ['oboe'], ['clarinet'], ['bassoon'], ['horn'], ['trumpet']]) {
+for (const [inst, preset] of [['piano', 'grand'], ['piano', 'upright'], ['violin'], ['cello'], ['bass'], ['flute'], ['oboe'], ['clarinet'], ['bassoon'], ['horn'], ['trumpet'], ['timpani']]) {
   if (ZOOM !== null && inst !== 'piano') continue;
   if (ONLY && !ONLY.includes(preset ?? inst)) continue;
   const ctx = await browser.newContext(PHONE ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true } : { viewport: { width: 1440, height: 900 }, deviceScaleFactor: DSF });
   await ctx.addInitScript((i) => { localStorage.setItem('piano-model.instrument', i); localStorage.setItem('piano-model.3d', '1'); }, inst);
   const page = await ctx.newPage();
   await page.goto(BASE + '/');
-  await page.evaluate(async ([i, p]) => { await window.__piano.start(); await window.__piano.setInstrument(i); if (p) await window.__piano.setPreset(p); window.__piano.noteOn(60, 90, 'keys'); }, [inst, preset]);
+  await page.evaluate(async ([i, p]) => { await window.__piano.start(); await window.__piano.setInstrument(i); if (p) await window.__piano.setPreset(p); window.__piano.noteOn(i === 'timpani' ? 48 : 60, 90, 'keys'); }, [inst, preset]);
   await page.waitForFunction(() => window.__stage3d && window.__stage3d.stats.frames > 20, null, { timeout: 20000 });
   if (ZOOM !== null) await page.evaluate((k) => window.__stage3d.zoomTo(k), ZOOM);
   // (settled: the first second's frames still compile and upload)

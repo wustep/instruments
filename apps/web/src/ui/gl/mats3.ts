@@ -211,7 +211,7 @@ const P: Record<string, Phys> = {
   // the timpani (timpani3d.ts): copper raised and planished by hand, every blow a shallow facet, under a
   // clear lacquer (20: the facets in the normal, the metal's colour drifting a little between them); a
   // Mylar head, milky and satin, a faint sheen across it; chrome; black stove enamel over a casting
-  copperHammered: { color: '#d4865a', metalness: 1, roughness: 0.15, clearcoat: 0.85, clearcoatRoughness: 0.06, envMapIntensity: 1.7, tex: 20 },
+  copperHammered: { color: '#dc8d62', metalness: 1, roughness: 0.19, clearcoat: 0.85, clearcoatRoughness: 0.06, envMapIntensity: 1.7, tex: 20 },
   mylar: { color: '#ddd5c3', roughness: 0.5, specularIntensity: 0.55, clearcoat: 0.3, clearcoatRoughness: 0.35, sheen: 0.4, sheenColor: '#fff6e6', sheenRoughness: 0.55 },
   chrome: { color: '#eceef2', metalness: 1, roughness: 0.07, envMapIntensity: 1.6 },
   frameBlack: { color: '#121212', roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.25, tex: 5 },

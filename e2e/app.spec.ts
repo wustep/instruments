@@ -1380,7 +1380,7 @@ test('3D stage: every instrument draws in WebGL2 from live frames; orbit and zoo
   await expect(cv).toBeVisible();
   await page.evaluate(() => ((window as any).__stage3d.probe = true));
   const stats = () => page.evaluate(() => ({ ...(window as any).__stage3d.stats }));
-  for (const [inst, note] of [['piano', 60], ['violin', 72], ['viola', 60], ['cello', 50], ['bass', 40], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['bassoon', 50], ['horn', 53], ['trumpet', 67]] as const) {
+  for (const [inst, note] of [['piano', 60], ['violin', 72], ['viola', 60], ['cello', 50], ['bass', 40], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['bassoon', 50], ['horn', 53], ['trumpet', 67], ['timpani', 43]] as const) {
     await page.evaluate(async ([i, m]) => {
       await (window as any).__piano.setInstrument(i);
       (window as any).__piano.noteOn(m, 96, 'keys');
@@ -1632,7 +1632,7 @@ test('3D draws without one WebGL warning: the grand (its lid a mirror), the upri
     await expect.poll(zoomed).toBeNull();
     await page.waitForTimeout(350);
   }
-  for (const [inst, note] of [['violin', 72], ['viola', 60], ['cello', 50], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['bassoon', 50], ['horn', 53], ['trumpet', 67]] as const) {
+  for (const [inst, note] of [['violin', 72], ['viola', 60], ['cello', 50], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['bassoon', 50], ['horn', 53], ['trumpet', 67], ['timpani', 43]] as const) {
     await page.evaluate(async ([i, m]) => {
       await (window as any).__piano.setInstrument(i);
       (window as any).__piano.noteOn(m, 96, 'keys');

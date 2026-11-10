@@ -642,11 +642,14 @@ const peakOf = (h: HeadMesh) => {
 
 /** the mallet's lift at rest (rad about the grip) and its geometry over the strike point: the grip's
  *  place from the strike point (towards the player, up), the two hands apart */
-const REST_ALPHA = 0.27;
-const GRIP_AT: Vec3 = [0, 0.13, 0.26];
+const REST_ALPHA = 0.2;
+const GRIP_AT: Vec3 = [0, 0.115, 0.26];
 const HANDS_APART = 0.034;
+const CONTACT = 0.017;
 /** the lift (rad) a stroke rebounds to, by its velocity, and how it settles (s) */
 export function malletLift(t: number, vel: number, gap: number, on: boolean): number {
+  // (the felt is on the head for a few milliseconds: held there one frame so the stroke is seen)
+  t -= CONTACT;
   if (on || t <= 0) return 0;
   // in a roll (the same hand again within a quarter second) the stroke stays low
   const roll = gap < 0.25 ? 0.45 + 0.55 * clamp01((gap - 0.06) / 0.19) : 1;
@@ -812,10 +815,11 @@ export function poseTimpani(b: Batch, tm: TimpaniModel, fr: VisualFrame | null, 
     // the head
     let hm = pose.heads[k];
     if (!hm) hm = pose.heads[k] = buildHead(dr.spec);
-    if (dv) {
-      if (fresh && (dv.ago + 0.02 < pose.tDrum[k] || Math.abs(dv.ago - pose.tDrum[k]) > 0.15)) pose.tDrum[k] = dv.ago;
-      else pose.tDrum[k] += dt;
-    } else pose.tDrum[k] += dt;
+    // (the clocks start at the frame that brings a stroke: the frames arrive some tens of milliseconds after
+    // the engine struck, about as late as its sound reaches the ear, so the stroke is drawn from its start)
+    if (dv && fresh && dv.ago + 0.02 < pose.tDrum[k]) pose.tDrum[k] = 0;
+    else if (dv && fresh && pose.tDrum[k] > 0.3 && Math.abs(dv.ago - pose.tDrum[k]) > 0.3) pose.tDrum[k] = dv.ago;
+    else pose.tDrum[k] += dt;
     poseHead(hm, dr, dv?.head ?? null, pose.amp[k], pose.tDrum[k], spot, dt);
     // a loud stroke: a faint shimmer across the head, quick up, settling with the drum
     const lv = dv ? clamp01((20 * Math.log10(Math.max(1e-6, dv.level)) - 4) / 20) : 0;
@@ -839,8 +843,8 @@ export function poseTimpani(b: Batch, tm: TimpaniModel, fr: VisualFrame | null, 
       const struck = fresh && hv.ago + 0.02 < pose.tHand[h];
       if (struck) {
         pose.gapHand[h] = pose.tHand[h];
-        pose.tHand[h] = hv.ago;
-      } else if (fresh && Math.abs(hv.ago - pose.tHand[h]) > 0.15) pose.tHand[h] = hv.ago;
+        pose.tHand[h] = 0;
+      } else if (fresh && pose.tHand[h] > 0.3 && Math.abs(hv.ago - pose.tHand[h]) > 0.3) pose.tHand[h] = hv.ago;
       else pose.tHand[h] += dt;
       if (hv.drum >= 0 && hv.drum < 4 && (struck || hv.on || pose.tHand[h] > 50)) pose.handDrum[h] = hv.drum;
       if (hv.on) pose.tHand[h] = 0;
@@ -865,16 +869,24 @@ export function poseTimpani(b: Batch, tm: TimpaniModel, fr: VisualFrame | null, 
 /** the review's views (scripts/shots-timpani-3d.mjs), in the stage's units: world points of the set */
 function timpaniViews(tm: TimpaniModel): Record<string, { yaw: number; pitch: number; dist: number; target: Vec3 }> {
   const D = (k: number, p: Vec3) => xform(tm.drums[k].T, p).map((v) => +v.toFixed(4)) as Vec3;
+  /** the bearing that looks back along a drum's own direction θ (from its +z, the player's side) */
+  const yawOf = (k: number, th: number) => {
+    const n = xform(tm.drums[k].T, [Math.sin(th), 0, Math.cos(th)]);
+    const o = xform(tm.drums[k].T, [0, 0, 0]);
+    return +Math.atan2(n[0] - o[0], -(n[2] - o[2])).toFixed(3);
+  };
   const s0 = tm.drums[0].spec;
   const s3 = tm.drums[3].spec;
+  const g = polar(s0.d / 2 + HOOP_OUT + 0.012, GAUGE.th, s0.h + HOOP_TOP + 0.012);
+  const P = tm.player;
   return {
     front: { yaw: 0, pitch: 0.04, dist: 4.2, target: [0, 0.5, 0] },
     side: { yaw: Math.PI / 2, pitch: 0.04, dist: 4.2, target: [0, 0.5, 0] },
-    above: { yaw: 0.0, pitch: 1.2, dist: 4.4, target: [0, 0.5, 0] },
-    player: { yaw: Math.PI - 0.3, pitch: 0.5, dist: 3.8, target: [0, 0.55, 0] },
-    pedal: { yaw: Math.PI - 0.5, pitch: 0.35, dist: 0.95, target: D(0, [0, 0.2, 0.25]) },
-    gauge: { yaw: Math.PI - 0.2, pitch: 0.5, dist: 0.45, target: D(0, [0.2, s0.h, 0.38]) },
-    hoop: { yaw: 0.5, pitch: 0.3, dist: 0.5, target: D(3, [0.0, s3.h - 0.02, -s3.d / 2]) },
-    mallets: { yaw: Math.PI - 0.6, pitch: 0.45, dist: 0.9, target: D(1, [0, s0.h + 0.08, 0.28]) },
+    above: { yaw: 0.0, pitch: 1.25, dist: 4.4, target: [0, 0.5, 0] },
+    player: { yaw: Math.PI, pitch: 0.42, dist: 3.9, target: [0, 0.55, 0] },
+    pedal: { yaw: yawOf(0, 0.55), pitch: 0.38, dist: 0.95, target: D(0, [0, 0.16, 0.3]) },
+    gauge: { yaw: yawOf(0, GAUGE.th + 0.15), pitch: 0.42, dist: 0.42, target: D(0, g) },
+    hoop: { yaw: yawOf(3, Math.PI - 0.35), pitch: 0.32, dist: 0.62, target: D(3, [0.08, s3.h - 0.04, -s3.d / 2]) },
+    mallets: { yaw: Math.PI + 0.25, pitch: 0.55, dist: 1.25, target: [P[0], 0.86, P[2] - 0.55] },
   };
 }
