@@ -156,8 +156,8 @@ describe('the 2D horn’s layout', () => {
         expect(Y(y)).toBeLessThanOrEqual(H);
       }
       if (name.startsWith('Orchestra')) near(L.sc, Number(name.split(' ')[1]), 0.01, 'px/m');
-      // a stage: as large as fits (90 % of the width or 86 % of the height under the player)
-      else expect(Math.max(((HN_X1 - HN_X0) * L.sc) / W / 0.9, ((HN_Y1 - HN_Y0) * L.sc) / (H - top) / 0.86)).toBeCloseTo(1, 6);
+      // a stage: as large as fits (90 % of the width, a phone's 94 %, or 86 % of the height under the player)
+      else expect(Math.max(((HN_X1 - HN_X0) * L.sc) / W / (W < 600 ? 0.94 : 0.9), ((HN_Y1 - HN_Y0) * L.sc) / (H - top) / 0.86)).toBeCloseTo(1, 6);
     });
 });
 

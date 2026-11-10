@@ -81,6 +81,8 @@ interface TubePx {
   xy: Float32Array;
   s: Float32Array;
   r: Float32Array;
+  /** a slide's nickel-silver inner tubes, out of the rotor to the sleeves' ferrules */
+  nickel?: Path2D;
 }
 export interface HnLayout {
   key: string;
@@ -94,7 +96,7 @@ export interface HnLayout {
   byId: Map<string, TubePx>;
   /** the bell: its flare, its edges, the mouth (the rim's ellipse), the inside band the wave fills, the
    *  axis (px) and each point's distance from the rim (m) */
-  bell: { flare: Path2D; edges: Path2D; mouth: Path2D; inner: Path2D; hi: Path2D; ax: Float32Array; d: Float32Array; r: Float32Array };
+  bell: { flare: Path2D; edges: Path2D; mouth: Path2D; inner: Path2D; hi: Path2D; spec: Path2D; shade: Path2D; ax: Float32Array; d: Float32Array; r: Float32Array };
   /** the hand in the bell */
   hand: Path2D;
   handNails: Path2D;
@@ -117,7 +119,8 @@ export function hornLayout(W: number, H: number, top = 0): HnLayout {
   const pw = HN_X1 - HN_X0;
   const ph = HN_Y1 - HN_Y0;
   // (a stage fills 86 % of its height under the player; a cell, as hornBox sizes it)
-  const sc = Math.max(1, Math.min((W * 0.9) / pw, ((H - top) * 0.86) / ph));
+  // (a phone's narrow stage: 94 % of its width)
+  const sc = Math.max(1, Math.min((W * (W < 600 && top > 0 ? 0.94 : 0.9)) / pw, ((H - top) * 0.86) / ph));
   const ox = W / 2 - ((HN_X0 + HN_X1) / 2) * sc;
   const oy = top + (H - top) / 2 + ((HN_Y0 + HN_Y1) / 2) * sc;
   const X = (x: number) => ox + x * sc;
@@ -163,7 +166,8 @@ export function hornLayout(W: number, H: number, top = 0): HnLayout {
     else mouth.moveTo(X(p[0]), Y(p[1]));
   }
   mouth.closePath();
-  const band = (k: number) => {
+  /** a band along the flare between k0·r and k1·r off its axis (+: its lower side) */
+  const band = (k0: number, k1: number) => {
     const p = new Path2D();
     const A: [number, number][] = [];
     const B: [number, number][] = [];
@@ -173,36 +177,49 @@ export function hornLayout(W: number, H: number, top = 0): HnLayout {
       const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
       const nx = -(b[1] - a[1]) / l;
       const ny = (b[0] - a[0]) / l;
-      const r = bellR(dd[i]) * k;
-      A.push([X(bp[i][0] + nx * r), Y(bp[i][1] + ny * r)]);
-      B.push([X(bp[i][0] - nx * r), Y(bp[i][1] - ny * r)]);
+      const r = bellR(dd[i]);
+      A.push([X(bp[i][0] + nx * r * k1), Y(bp[i][1] + ny * r * k1)]);
+      B.push([X(bp[i][0] + nx * r * k0), Y(bp[i][1] + ny * r * k0)]);
     }
     [...A, ...B.reverse()].forEach(([x, y], i) => (i ? p.lineTo(x, y) : p.moveTo(x, y)));
     p.closePath();
     return p;
   };
-  // the flare's lit band (towards the upper left), as on its photographs
-  const hi = band(0.62);
-  const inner = band(0.42);
+  // the flare's lit side (its top, towards the light at the upper left), a long specular streak along it,
+  // its shaded underside, as its photographs have them; the band the wave fills
+  const hi = band(-0.8, -0.18);
+  const spec = band(-0.6, -0.44);
+  const shade = band(0.42, 0.98);
+  const inner = band(-0.42, 0.42);
   // ---- the hand in the bell (the right hand, cupped, as horn players hold it): seen through the mouth,
-  // in from the rim's lower end along the bell's wall, its knuckles towards the throat, the thumb along the
-  // top, the fingers together (m: a along the rim towards its upper end, b along the axis out of the mouth)
+  // in over the rim's lower end along the bell's wall, the fingers together towards the throat, the thumb
+  // along their side (m: a along the rim towards its upper end, b across the mouth, foreshortened with it)
   const eu: P = [AXIS[1], -AXIS[0]];
   const H2 = (a: number, b: number): [number, number] => [X(RIM_C[0] + eu[0] * a + AXIS[0] * b), Y(RIM_C[1] + eu[1] * a + AXIS[1] * b)];
   const hand = new Path2D();
-  {
-    const pts: [number, number][] = [
-      [-0.2, -0.036], [-0.13, -0.036], [-0.09, -0.033], [-0.062, -0.028], [-0.046, -0.02], [-0.038, -0.008], [-0.036, 0.004], [-0.04, 0.016], [-0.05, 0.024], [-0.058, 0.028],
-      [-0.052, 0.034], [-0.054, 0.042], [-0.066, 0.046], [-0.084, 0.04], [-0.1, 0.034], [-0.13, 0.034], [-0.2, 0.034],
-    ];
-    pts.forEach(([a, b], i) => (i ? hand.lineTo(...H2(a, b)) : hand.moveTo(...H2(a, b))));
-    hand.closePath();
-  }
-  // the fingers' partings and the thumb's crease
   const handNails = new Path2D();
-  for (const [a0, b0, a1, b1] of [[-0.078, -0.016, -0.044, -0.013], [-0.08, -0.003, -0.039, -0.001], [-0.078, 0.01, -0.042, 0.011], [-0.088, 0.027, -0.06, 0.03]]) {
-    handNails.moveTo(...H2(a0, b0));
-    handNails.lineTo(...H2(a1, b1));
+  {
+    // the fingers (little to index): their sides across the mouth, their tips' reach towards the throat
+    const F: [number, number, number][] = [[-0.024, -0.0125, -0.07], [-0.0125, -0.001, -0.056], [-0.001, 0.0105, -0.05], [0.0105, 0.021, -0.056]];
+    hand.moveTo(...H2(-0.2, -0.026));
+    hand.lineTo(...H2(-0.1, -0.025));
+    for (const [b0, b1, tip] of F) {
+      const w = (b1 - b0) / 2;
+      hand.lineTo(...H2(tip - w, b0 + 0.0008));
+      hand.quadraticCurveTo(...H2(tip + w * 0.35, b0 + 0.001), ...H2(tip + w * 0.35, (b0 + b1) / 2));
+      hand.quadraticCurveTo(...H2(tip + w * 0.35, b1 - 0.001), ...H2(tip - w, b1 - 0.0008));
+      handNails.moveTo(...H2(tip - w - 0.028, b1));
+      handNails.lineTo(...H2(tip - w * 0.6, b1));
+    }
+    // the thumb, tucked along the index finger
+    hand.lineTo(...H2(-0.074, 0.022));
+    hand.quadraticCurveTo(...H2(-0.064, 0.025), ...H2(-0.066, 0.029));
+    hand.quadraticCurveTo(...H2(-0.07, 0.034), ...H2(-0.086, 0.032));
+    hand.lineTo(...H2(-0.12, 0.03));
+    hand.lineTo(...H2(-0.2, 0.029));
+    hand.closePath();
+    handNails.moveTo(...H2(-0.098, 0.023));
+    handNails.quadraticCurveTo(...H2(-0.08, 0.025), ...H2(-0.072, 0.028));
   }
   // ---- the mouthpiece (its silhouette along the leadpipe's axis, rim to shank)
   const nm: P = [-MP_DIR[1], MP_DIR[0]];
@@ -244,8 +261,8 @@ export function hornLayout(W: number, H: number, top = 0): HnLayout {
   for (const id of ['F1', 'F2', 'F3', 'Bb1', 'Bb2', 'Bb3']) {
     const t = byId.get(id)!;
     const L = t.s[t.s.length - 1];
-    ferruleAt(t, 0.03);
-    ferruleAt(t, L - 0.03);
+    ferruleAt(t, 0.031);
+    ferruleAt(t, L - 0.031);
   }
   for (const id of ['bloop', 'lead']) {
     const t = byId.get(id)!;
@@ -271,7 +288,7 @@ export function hornLayout(W: number, H: number, top = 0): HnLayout {
     braces.moveTo(X(a[0]), Y(a[1]));
     braces.lineTo(X(b[0]), Y(b[1]));
   }
-  const L: HnLayout = { key, W, H, top, sc, ox, oy, tubes, byId, bell: { flare, edges, mouth, inner, hi, ax, d: dd, r: rr }, hand, handNails, mp, mpHi, hook, ferrules, braces };
+  const L: HnLayout = { key, W, H, top, sc, ox, oy, tubes, byId, bell: { flare, edges, mouth, inner, hi, spec, shade, ax, d: dd, r: rr }, hand, handNails, mp, mpHi, hook, ferrules, braces };
   if (layouts.size > 8) layouts.clear();
   layouts.set(key, L);
   return L;
@@ -310,11 +327,22 @@ function tubePx(t: Tube, X: (x: number) => number, Y: (y: number) => number, sc:
   const body = new Path2D();
   [...A, ...[...B].reverse()].forEach(([x, y], i) => (i ? body.lineTo(x, y) : body.moveTo(x, y)));
   body.closePath();
+  // (a valve slide: its inner tubes nickel silver from the rotor to the ferrules, 30 mm along each leg)
+  let nickel: Path2D | undefined;
+  if (/^(F|Bb)\d$/.test(t.id)) {
+    nickel = new Path2D();
+    const L = s[n - 1];
+    for (const [a, b] of [[0.004, 0.03], [L - 0.03, L - 0.004]]) {
+      const idx = [...s.keys()].filter((i) => s[i] >= a && s[i] <= b);
+      [...idx.map((i) => A[i]), ...idx.reverse().map((i) => B[i])].forEach(([x, y], k) => (k ? nickel!.lineTo(x, y) : nickel!.moveTo(x, y)));
+      nickel.closePath();
+    }
+  }
   const edges = new Path2D();
   const hi = new Path2D();
   const sh = new Path2D();
   for (const [p, q] of [[edges, A], [edges, B], [hi, HI], [sh, SH]] as const) q.forEach(([x, y], i) => (i ? p.lineTo(x, y) : p.moveTo(x, y)));
-  return { id: t.id, layer: t.layer, body, edges, hi, sh, xy, s, r };
+  return { id: t.id, layer: t.layer, body, edges, hi, sh, xy, s, r, nickel };
 }
 
 // ---------------------------------------------------------------- the live state (both styles)
@@ -457,6 +485,10 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   const tube = (t: TubePx, on: boolean) => {
     ctx.fillStyle = on ? BRASS_BODY : BRASS_DEEP;
     ctx.fill(t.body);
+    if (t.nickel) {
+      ctx.fillStyle = on ? 'rgb(84,80,72)' : 'rgb(52,50,46)';
+      ctx.fill(t.nickel);
+    }
     ctx.strokeStyle = rgba(INK.amber, on ? 0.16 : 0.08);
     ctx.lineWidth = Math.max(1, 0.0034 * sc);
     ctx.stroke(t.sh);
@@ -473,14 +505,18 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     const B = L.bell;
     ctx.fillStyle = BRASS_BODY;
     ctx.fill(B.flare);
-    const a0 = [B.ax[0], B.ax[1]];
+    // (the lacquer brighter towards the rim, where the flare faces the light)
     const n2 = B.ax.length / 2 - 1;
-    const g = ctx.createLinearGradient(a0[0], a0[1], B.ax[2 * n2], B.ax[2 * n2 + 1]);
-    g.addColorStop(0, rgba(INK.amber, 0.06));
-    g.addColorStop(0.6, rgba(INK.amber, 0.14));
-    g.addColorStop(1, rgba(INK.amber, 0.26));
+    const g = ctx.createLinearGradient(B.ax[0], B.ax[1], B.ax[2 * n2], B.ax[2 * n2 + 1]);
+    g.addColorStop(0, rgba(INK.amber, 0.1));
+    g.addColorStop(0.6, rgba(INK.amber, 0.18));
+    g.addColorStop(1, rgba(INK.amber, 0.3));
     ctx.fillStyle = g;
     ctx.fill(B.hi);
+    ctx.fillStyle = rgba('255,226,160', 0.16);
+    ctx.fill(B.spec);
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.fill(B.shade);
     ctx.strokeStyle = rgba(INK.amber, 0.72);
     ctx.lineWidth = 1.1;
     ctx.stroke(B.edges);
@@ -513,10 +549,13 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   {
     const B = L.bell;
     const c = [X(RIM_C[0]), Y(RIM_C[1])];
-    const gm = ctx.createLinearGradient(X(RIM_C[0] + AXIS[1] * RIM_R), Y(RIM_C[1] - AXIS[0] * RIM_R), X(RIM_C[0] - AXIS[1] * RIM_R), Y(RIM_C[1] + AXIS[0] * RIM_R));
-    gm.addColorStop(0, '#3a2810');
-    gm.addColorStop(0.45, '#1c140a');
-    gm.addColorStop(1, '#5a4018');
+    // the inside: the far wall lit along the rim, darkening down into the throat (towards the circle)
+    const tc = [X(RIM_C[0] - AXIS[0] * RIM_R * MOUTH_K * 0.6), Y(RIM_C[1] - AXIS[1] * RIM_R * MOUTH_K * 0.6)];
+    const gm = ctx.createRadialGradient(tc[0], tc[1], 0, tc[0], tc[1], RIM_R * sc * 1.05);
+    gm.addColorStop(0, '#0c0804');
+    gm.addColorStop(0.3, '#1d1409');
+    gm.addColorStop(0.75, '#4a3414');
+    gm.addColorStop(1, '#7a5a22');
     ctx.fillStyle = gm;
     ctx.fill(B.mouth);
     if (lv.sounding) {
@@ -532,11 +571,12 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     ctx.clip(B.mouth);
     drawHand(ctx, L);
     ctx.restore();
+    // the rim's rolled bead: its edge, and its bright crown
     ctx.strokeStyle = rgba(INK.amber, 0.9);
-    ctx.lineWidth = Math.max(1.4, 0.0035 * sc);
+    ctx.lineWidth = Math.max(1.4, 0.004 * sc);
     ctx.stroke(B.mouth);
-    ctx.strokeStyle = rgba('255,236,190', 0.35);
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = rgba('255,236,190', 0.45);
+    ctx.lineWidth = Math.max(0.8, 0.0012 * sc);
     ctx.stroke(B.mouth);
   }
   // ---- the rotors: casings, caps (their passages engraved, turning), the cranks and links to the levers
@@ -612,7 +652,7 @@ function glowTube(ctx: CanvasRenderingContext2D, L: HnLayout, t: TubePx, lv: HnL
   ctx.save();
   ctx.lineCap = 'butt';
   for (const [k, p] of env) {
-    ctx.strokeStyle = rgba(INK.vermilion, (Math.floor(k / 1000) / 10) * 0.26);
+    ctx.strokeStyle = rgba(INK.vermilion, (Math.floor(k / 1000) / 10) * 0.2);
     ctx.lineWidth = 1.05 * (k % 1000);
     ctx.stroke(p);
   }
@@ -651,16 +691,16 @@ function drawHand(ctx: CanvasRenderingContext2D, L: HnLayout): void {
   const Y = (y: number) => L.oy - y * L.sc;
   // (lit from the rim, in shade towards the throat)
   const eu: P = [AXIS[1], -AXIS[0]];
-  const g = ctx.createLinearGradient(X(RIM_C[0] - eu[0] * 0.15), Y(RIM_C[1] - eu[1] * 0.15), X(RIM_C[0] - eu[0] * 0.03), Y(RIM_C[1] - eu[1] * 0.03));
-  g.addColorStop(0, 'rgb(150,104,80)');
-  g.addColorStop(0.6, 'rgb(104,70,52)');
-  g.addColorStop(1, 'rgb(58,38,28)');
+  const g = ctx.createLinearGradient(X(RIM_C[0] - eu[0] * 0.16), Y(RIM_C[1] - eu[1] * 0.16), X(RIM_C[0] - eu[0] * 0.045), Y(RIM_C[1] - eu[1] * 0.045));
+  g.addColorStop(0, 'rgb(176,124,96)');
+  g.addColorStop(0.55, 'rgb(128,86,64)');
+  g.addColorStop(1, 'rgb(74,48,34)');
   ctx.fillStyle = g;
   ctx.fill(L.hand);
-  ctx.strokeStyle = 'rgba(236,196,166,0.45)';
+  ctx.strokeStyle = 'rgba(240,200,170,0.5)';
   ctx.lineWidth = 1;
   ctx.stroke(L.hand);
-  ctx.strokeStyle = 'rgba(30,16,10,0.55)';
+  ctx.strokeStyle = 'rgba(40,22,14,0.6)';
   ctx.stroke(L.handNails);
 }
 /** a rotor seen end on: its brass casing, the nickel cap with its bevel and centre screw, the rotor's two
@@ -678,9 +718,9 @@ function drawRotor(ctx: CanvasRenderingContext2D, cx: number, cy: number, sc: nu
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, 2 * Math.PI);
   const g = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.4, r * 0.1, cx, cy, r);
-  g.addColorStop(0, '#77736b');
-  g.addColorStop(0.55, '#4a4741');
-  g.addColorStop(1, '#2a2825');
+  g.addColorStop(0, '#9a958b');
+  g.addColorStop(0.5, '#5c5850');
+  g.addColorStop(1, '#2e2c28');
   ctx.fillStyle = g;
   ctx.fill();
   ctx.strokeStyle = nickel(0.65);
