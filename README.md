@@ -33,8 +33,12 @@ README does not claim it is live. `vercel.json` makes this a static build
   the address sets it. After Jameson Hodge's Chimera vocal synth; the drawing kit and
   the colour roles are in `apps/web/src/ui/vector/kit.ts`.
 * **Ensemble.** The ensemble button (four dots on an arc) puts several instruments on
-  the stage, each its own engine; tap an instrument to add one. A chord played by hand
-  is dealt out by register, one note per instrument. Drop a MIDI file with several
+  the stage, each its own engine; tap an instrument to add one. The keys (on the
+  screen, the computer's, a plug-in MIDI keyboard with its pedals and wheels) play the
+  instruments lit on the fallboard: the piano if there is one, else the highest melodic
+  instrument, until you choose; tap to add or take one, so one key can sound on several.
+  Split (the fork after them) deals a chord out by register instead, one note per
+  instrument. `apps/web/src/orchestra/keys.ts`. Drop a MIDI file with several
   parts and each part gets an instrument by its name, General MIDI program and range;
   the row under the player shows each part's instrument (tap one to change or silence
   it). The list icon in the player, next to the folder, holds three public-domain pieces from the Mutopia

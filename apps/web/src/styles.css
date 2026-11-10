@@ -2162,3 +2162,146 @@ figure[title] {
     font-size: 13px;
   }
 }
+
+/* ------------------------------------------------------------ an ensemble: what the keys play */
+/* in the knobs' place on the fallboard: the keys' sign, the instruments (lit: the keys play it), then
+   split; a phone keeps the row behind one button showing what the keys play */
+.kf,
+.kf-toggle {
+  display: none;
+}
+:root[data-ensemble] .kf {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: auto;
+}
+.kf-sign {
+  flex: none;
+  color: var(--muted);
+}
+.kf-key {
+  display: grid;
+  place-items: center;
+  margin-right: 6px;
+  color: var(--muted);
+}
+.kf-part,
+.kf-split {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.12s;
+}
+.kf-part .glyph {
+  width: 30px;
+  height: 30px;
+}
+.kf-part:hover,
+.kf-split:hover {
+  color: var(--ink);
+}
+.kf-part[aria-pressed='true'],
+.kf-split[aria-pressed='true'] {
+  color: var(--ink);
+  background: rgba(236, 226, 206, 0.1);
+}
+.kf-part[aria-pressed='true'] .glyph {
+  stroke: var(--amber);
+  filter: drop-shadow(0 0 4px rgba(242, 166, 70, 0.45));
+}
+.kf-split {
+  margin-left: 6px;
+}
+.kf-split[aria-pressed='true'] {
+  color: var(--amber);
+}
+.kf-split::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 7px;
+  bottom: 7px;
+  border-left: 1px solid var(--rule-2);
+}
+.kf-n,
+.kf-more {
+  font: 500 10px/1 var(--mono);
+  color: var(--ink-2);
+  pointer-events: none;
+}
+.kf-n {
+  position: absolute;
+  right: 1px;
+  bottom: 2px;
+}
+.kf-part:focus-visible,
+.kf-split:focus-visible,
+.kf-toggle:focus-visible {
+  outline: 1px solid rgba(242, 166, 70, 0.8);
+  outline-offset: -1px;
+}
+.kf-toggle {
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  margin-left: auto;
+  padding: 0 7px;
+  border: 1px solid #3a3226;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #2a241c, #17130f);
+  color: var(--brass);
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 0 #000;
+}
+.kf-toggle .glyph {
+  width: 24px;
+  height: 24px;
+  stroke: var(--amber);
+}
+.kf-toggle .kf-split-sign {
+  color: var(--amber);
+}
+.kf-toggle[aria-expanded='true'] {
+  border-color: rgba(242, 166, 70, 0.6);
+}
+@media (max-width: 760px), (max-height: 500px) and (orientation: landscape) {
+  :root[data-ensemble] .kf-toggle {
+    display: flex;
+  }
+  :root[data-ensemble] .kf {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    z-index: 5;
+    margin: 0;
+    padding: 8px var(--gutter);
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+    background: rgba(18, 15, 12, 0.96);
+    border-top: 1px solid var(--rule-2);
+    display: none;
+  }
+  :root[data-ensemble][data-keys-open] .kf {
+    display: flex;
+  }
+  .kf-part,
+  .kf-split {
+    width: 42px;
+    height: 42px;
+  }
+  .kf-part .glyph {
+    width: 30px;
+    height: 30px;
+  }
+}

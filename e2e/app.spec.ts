@@ -2073,10 +2073,46 @@ test('orchestra: a dropped file with several parts is shared out by name, progra
   expect(errors).toEqual([]);
 });
 
-test('orchestra by hand: the ensemble toggle, instruments counted in, a chord dealt out one note each by register', async ({ page }) => {
+/** what the keys play (orchestra/keys.ts): each part, chosen or not, and what it holds by hand */
+const keysState = (page: Page) =>
+  page.evaluate(() => {
+    const e = (window as any).__orchestra.ensemble;
+    return { parts: e.keyParts as number[], split: e.keys.split as boolean, chips: [...document.querySelectorAll('.kf-part')].map((b) => b.getAttribute('aria-pressed') === 'true') };
+  });
+/** a plug-in MIDI keyboard, plugged in (the page's own Web MIDI path, as in the Web MIDI test) */
+const plugMidi = (page: Page) =>
+  page.addInitScript(() => {
+    const inputs = new Map<string, any>();
+    const access: any = { inputs, outputs: new Map(), onstatechange: null, sysexEnabled: false };
+    (navigator as any).requestMIDIAccess = async () => access;
+    (window as any).__midi = {
+      plug() {
+        const input = { id: 'fake', name: 'Test Keys', state: 'connected', onmidimessage: null as any };
+        inputs.set('fake', input);
+        access.onstatechange?.({ port: input });
+      },
+      send(bytes: number[]) {
+        inputs.get('fake').onmidimessage?.({ data: new Uint8Array(bytes) });
+      },
+    };
+  });
+/** a control of the keys' row: on a phone it waits behind the fallboard's button */
+const kfChip = async (page: Page, sel: string) => {
+  const t = page.locator('.kf-toggle');
+  if ((await t.isVisible()) && (await t.getAttribute('aria-expanded')) !== 'true') await t.click();
+  await page.locator(`.kf ${sel}`).click();
+};
+
+test('orchestra by hand: the ensemble toggle, instruments counted in; the keys play the instruments chosen on the fallboard, several at once, or split by register', async ({ page }, info) => {
   const errors = collectErrors(page);
+  await plugMidi(page);
   await page.goto('/');
+  await page.evaluate(() => (window as any).__midi.plug());
+  await expect(page.locator('.status')).toHaveAttribute('data-midi', 'MIDI: Test Keys');
   await startAudio(page);
+  // one instrument: no keys picker (the knobs are in its place)
+  await expect(page.locator('.kf')).toBeHidden();
+  await expect(page.locator('.kf-toggle')).toBeHidden();
   await page.locator('.ens-toggle').click();
   await expect.poll(async () => (await ens(page)).engines, { timeout: 8000 }).toBe(4);
   expect((await ens(page)).lineup).toEqual(['violin', 'violin', 'viola', 'cello']);
@@ -2087,26 +2123,110 @@ test('orchestra by hand: the ensemble toggle, instruments counted in, a chord de
   await page.locator('.pick[aria-label="Viola"]').click();
   await expect.poll(async () => (await ens(page)).lineup).toEqual(['flute', 'violin', 'violin', 'cello']);
   await expect.poll(async () => (await ens(page)).engines, { timeout: 8000 }).toBe(4);
-  // the keys span the ensemble: the cello's C2 to the violin's top
+  // the fallboard says what the keys play: no piano, so the highest melodic instrument, the flute
+  const phone = info.project.name === 'phone';
+  await expect(page.locator(phone ? '.kf-toggle' : '.kf')).toBeVisible();
+  if (phone) await expect(page.locator('.kf-toggle')).toHaveAttribute('aria-label', 'The keys play: flute');
+  expect(await keysState(page)).toEqual({ parts: [0], split: false, chips: [true, false, false, false] });
+  await expect(page.locator('.kf-part[data-part="1"]')).toHaveAttribute('aria-label', 'violin 1');
+  await expect(page.locator('.kf-part[data-part="2"]')).toHaveAttribute('aria-label', 'violin 2');
+  // the keys span the flute's range, C4 to C7
+  await expect(page.locator('.key[data-midi="60"]')).not.toHaveClass(/out/);
+  await expect(page.locator('.key[data-midi="59"]')).toHaveClass(/out/);
+  // the engines' own word on what sounds
+  await page.evaluate(() => {
+    const e = (window as any).__orchestra.ensemble;
+    (window as any).__heard = e.parts.map(() => new Set<number>());
+    e.parts.forEach((p: any, k: number) => p.engine.onSounding((ns: number[]) => ns.forEach((n) => (window as any).__heard[k].add(n))));
+  });
+  const heard = () => page.evaluate(() => (window as any).__heard.map((s: Set<number>) => [...s].sort((a, b) => a - b)));
+  const held = () => page.evaluate(() => (window as any).__orchestra.ensemble.parts.map((p: any) => [...p.down].sort((a: number, b: number) => a - b)));
+  // a key: on the flute alone (G2 moved into its range)
+  await page.evaluate(() => (window as any).__piano.noteOn(43, 90, 'keys'));
+  expect(await held()).toEqual([[67], [], [], []]);
+  await expect.poll(heard, { timeout: 3000 }).toEqual([[67], [], [], []]);
+  await page.evaluate(() => (window as any).__piano.noteOff(43, 'keys'));
+  // the cello chosen too: one key, both instruments (the plug-in keyboard's keys the same)
+  await kfChip(page, '.kf-part[data-part="3"]');
+  expect(await keysState(page)).toEqual({ parts: [0, 3], split: false, chips: [true, false, false, true] });
+  if (phone) await expect(page.locator('.kf-toggle')).toHaveAttribute('aria-label', 'The keys play: flute, cello');
   await expect(page.locator('.key[data-midi="36"]')).not.toHaveClass(/out/);
   await expect(page.locator('.key[data-midi="35"]')).toHaveClass(/out/);
-  // a chord by hand: the lowest note to the cello, the highest to the flute, one each
-  await page.evaluate(async () => {
+  await page.evaluate(() => (window as any).__midi.send([0x90, 72, 90]));
+  expect(await held()).toEqual([[72], [], [], [72]]);
+  await expect.poll(async () => (await heard()).map((s: number[]) => s.includes(72)), { timeout: 3000 }).toEqual([true, false, false, true]);
+  // the pedal (CC64) goes where the keys go, and leaves an instrument with them
+  await page.evaluate(() => (window as any).__midi.send([0xb0, 64, 127]));
+  const sus = () => page.evaluate(() => (window as any).__orchestra.ensemble.parts.map((p: any) => p.sustain));
+  expect(await sus()).toEqual([1, 0, 0, 1]);
+  await kfChip(page, '.kf-part[data-part="0"]');
+  expect(await sus()).toEqual([0, 0, 0, 1]);
+  // (a change of choice lets go of the keys held)
+  expect(await held()).toEqual([[], [], [], []]);
+  await page.evaluate(() => (window as any).__midi.send([0xb0, 64, 0]));
+  expect(await sus()).toEqual([0, 0, 0, 0]);
+  await page.evaluate(() => (window as any).__midi.send([0x80, 72, 0]));
+  // the last instrument stays chosen
+  await kfChip(page, '.kf-part[data-part="3"]');
+  expect((await keysState(page)).parts).toEqual([3]);
+  // split: a chord dealt out by register, the lowest note to the cello, the highest to the flute
+  await kfChip(page, '.kf-split');
+  await expect(page.locator('.kf-split')).toHaveAttribute('aria-pressed', 'true');
+  await page.evaluate(() => {
     for (const m of [43, 67, 74, 84]) (window as any).__piano.noteOn(m, 90, 'keys');
   });
-  const held = await page.evaluate(() => (window as any).__orchestra.ensemble.parts.map((p: any) => [p.voice, [...p.down]]));
-  expect(held).toEqual([
-    ['flute', [84]],
-    ['violin', [67]],
-    ['violin', [74]],
-    ['cello', [43]],
-  ]);
-  await page.evaluate(async () => {
+  expect(await held()).toEqual([[84], [67], [74], [43]]);
+  await page.evaluate(() => {
     for (const m of [43, 67, 74, 84]) (window as any).__piano.noteOff(m, 'keys');
   });
   expect((await ens(page)).held).toEqual([0, 0, 0, 0]);
+  if (phone) {
+    // the row opens over the fallboard, on the screen; a tap elsewhere closes it
+    const row = (await page.locator('.kf').boundingBox())!;
+    expect(row.x).toBeGreaterThanOrEqual(0);
+    expect(row.x + row.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    const st = (await page.locator('.stage').boundingBox())!;
+    await page.touchscreen.tap(st.x + 12, st.y + st.height * 0.55);
+    await expect(page.locator('.kf')).toBeHidden();
+    await expect(page.locator('.kf-toggle')).toHaveAttribute('aria-expanded', 'false');
+  } else {
+    await page.locator('.kf-split').hover();
+    await expect(page.locator('.tip')).toHaveText('split · one note each, by register');
+  }
   await page.locator('.ens-toggle').click();
   expect((await ens(page)).active).toBe(false);
+  await expect(page.locator('.kf')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('orchestra keys: a piano on the stage takes the keys, and keeps them through its preset; a piece starts from its default', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await startAudio(page);
+  await page.locator('.ens-toggle').click();
+  await expect.poll(async () => (await ens(page)).engines, { timeout: 8000 }).toBe(4);
+  expect((await keysState(page)).parts).toEqual([0]);
+  // a piano joins the quartet: nothing chosen by hand, so the keys are the piano's, its pedals with them
+  await page.locator('.pick[aria-label="Piano"]').click();
+  await expect.poll(async () => (await ens(page)).lineup).toEqual(['violin', 'violin', 'viola', 'cello', 'grand']);
+  expect(await keysState(page)).toEqual({ parts: [4], split: false, chips: [false, false, false, false, true] });
+  await expect(page.locator('.pedal').nth(1)).toBeVisible();
+  // the second violin chosen as well; the piano becomes an upright in its seat and stays chosen
+  await kfChip(page, '.kf-part[data-part="1"]');
+  await page.locator('.presets button', { hasText: 'upright' }).click();
+  await expect.poll(async () => (await ens(page)).lineup[4]).toBe('upright');
+  expect((await keysState(page)).parts).toEqual([1, 4]);
+  await expect(page.locator('.kf-part[data-part="4"]')).toHaveAttribute('data-voice', 'upright');
+  // without the piano the keys have no soft pedal
+  await kfChip(page, '.kf-part[data-part="4"]');
+  await expect(page.locator('.pedal').nth(1)).toBeHidden();
+  // a piece brings its own lineup and the keys their default: Haydn's quartet, its first violin
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => (window as any).__orchestra.loadPiece(0));
+  await expect.poll(async () => (await ens(page)).engines, { timeout: 8000 }).toBe(4);
+  expect((await keysState(page)).parts).toEqual([0]);
+  await page.locator('.player').getByRole('button', { name: 'Stop' }).click();
   expect(errors).toEqual([]);
 });
 
