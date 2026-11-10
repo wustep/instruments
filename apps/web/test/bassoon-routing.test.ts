@@ -23,7 +23,7 @@ describe('orchestra: the bassoon', () => {
     // the contrabassoon is the double bass's until it has an instrument of its own
     for (const n of ['Contrabassoon', 'Contra-bassoon', 'Kontrafagott', 'Contrafagotto', 'Contrebasson']) expect(voiceFromName(n), n).toBe('bass');
     // its neighbours keep theirs ("basso", "basse" and "bass" are the double bass's, not the basson's)
-    for (const [n, v] of [['Violoncello', 'cello'], ['Basso continuo', 'cello'], ['Basso', 'bass'], ['Basse', 'bass'], ['Bassi', 'bass'], ['Bass Clarinet', 'clarinet'], ['Oboe', 'oboe'], ['Clarinetto in B', 'clarinet'], ['Corno in F', 'trumpet'], ['Flauto', 'flute']] as const) expect(voiceFromName(n), n).toBe(v);
+    for (const [n, v] of [['Violoncello', 'cello'], ['Basso continuo', 'cello'], ['Basso', 'bass'], ['Basse', 'bass'], ['Bassi', 'bass'], ['Bass Clarinet', 'clarinet'], ['Oboe', 'oboe'], ['Clarinetto in B', 'clarinet'], ['Corno in F', 'horn'], ['Flauto', 'flute']] as const) expect(voiceFromName(n), n).toBe(v);
     expect(voiceFromProgram(70)).toBe('bassoon');
     // the other reeds keep theirs: the oboe and English horn, the clarinet, the saxophones and pipes the flute's
     for (const [p, v] of [[68, 'oboe'], [69, 'oboe'], [71, 'clarinet'], [64, 'flute'], [67, 'flute'], [72, 'flute']] as const) expect(voiceFromProgram(p), String(p)).toBe(v);

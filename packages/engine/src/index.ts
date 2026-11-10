@@ -16,6 +16,8 @@ export type { TrumpetParams } from './core/brass.ts';
 export type { OboeParams } from './core/oboe.ts';
 export type { ClarinetParams } from './core/clarinet.ts';
 export type { BassoonParams } from './core/bassoon.ts';
+export type { HornParams, HornFingering } from './core/horn.ts';
+export { hornFingering, hornTubeLength, HORN_LO, HORN_HI, HORN_F_LENGTH, HORN_BB_LENGTH } from './core/horn.ts';
 export type { KeySummary, Stats, VisualFrame } from './api/messages.ts';
 export {
   DEFAULT_PARAMS,

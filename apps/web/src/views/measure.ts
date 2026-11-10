@@ -308,8 +308,8 @@ interface Ens {
 }
 
 function ensembleSection(e: Ens): HTMLElement {
-  const insts = ['violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon'].filter((i) => e.summary[i]);
-  const label: Record<string, string> = { violin: 'Violin', viola: 'Viola', cello: 'Cello', bass: 'Double bass', flute: 'Flute', oboe: 'Oboe', clarinet: 'Clarinet', bassoon: 'Bassoon' };
+  const insts = ['violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn'].filter((i) => e.summary[i]);
+  const label: Record<string, string> = { violin: 'Violin', viola: 'Viola', cello: 'Cello', bass: 'Double bass', flute: 'Flute', oboe: 'Oboe', clarinet: 'Clarinet', bassoon: 'Bassoon', horn: 'Horn' };
   // the baseline measured the same way (vibrato matched to each recorded note)
   const first = (e.rounds.find((r) => /re-measured with matched vibrato/.test(r.label)) ?? e.rounds[0])?.summary ?? {};
   const lx = (f: number) => Math.log2(f / 1000);

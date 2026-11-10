@@ -25,6 +25,8 @@ export interface SceneIn {
   family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass';
   /** the reed family's instrument (default the oboe) */
   reed?: 'oboe' | 'clarinet' | 'bassoon';
+  /** the brass family's (default the trumpet) */
+  brass?: 'trumpet' | 'horn';
   kind: 'grand' | 'upright';
   keys: KeySummary[];
   piano: PianoState;
@@ -52,6 +54,8 @@ export interface EnsPartIn {
   family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass';
   /** the reed family's instrument (default the oboe) */
   reed?: 'oboe' | 'clarinet' | 'bassoon';
+  /** the brass family's (default the trumpet) */
+  brass?: 'trumpet' | 'horn';
   kind: 'grand' | 'upright';
   fr: VisualFrame | null;
   keys: KeySummary[];

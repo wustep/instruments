@@ -42,7 +42,8 @@ export function newPartDraw(v: Voice): PartDraw {
     // (a coarser mode field than the single instrument's: six of them are drawn every frame)
     return { voice: v, bowed: { geom: { id: inst, ...bowedGeometry(inst) }, st: { strScale: new AutoScale(2e-6), lvlScale: new AutoScale(1e-6, 0.995) }, field: new ModeField(96, 54, 1.8, 0.6) } };
   if (inst === 'flute') return { voice: v, flute: { pScale: new AutoScale(1e-6), jetScale: new AutoScale(1e-9), env: new Float32Array(0) } as FluteState };
-  if (inst === 'trumpet') return { voice: v, trumpet: { pScale: new AutoScale(1e-6), env: new Float32Array(0) } };
+  // (the horn: the trumpet stands in until it has a drawing of its own)
+  if (inst === 'trumpet' || inst === 'horn') return { voice: v, trumpet: { pScale: new AutoScale(1e-6), env: new Float32Array(0) } };
   if (inst === 'oboe') return { voice: v, oboe: newOboeState() };
   if (inst === 'clarinet') return { voice: v, clarinet: newClarinetState() };
   if (inst === 'bassoon') return { voice: v, bassoon: newBassoonState() };
@@ -125,7 +126,7 @@ function seatOf(v: Voice, upright: boolean): Seat {
     const b = VOICE_INFO[v].instrument === 'clarinet' ? clarinetBox() : VOICE_INFO[v].instrument === 'bassoon' ? bassoonBox() : oboeBox();
     return { across: b.h, along: b.w, pad: 0, lo: 0, hi: 0 };
   }
-  if (VOICE_INFO[v].instrument === 'trumpet') {
+  if (VOICE_INFO[v].instrument === 'trumpet' || VOICE_INFO[v].instrument === 'horn') {
     const b = trumpetBox();
     return { across: upright ? b.w : b.h, along: upright ? b.h : b.w, pad: 0, lo: 0, hi: 0 };
   }

@@ -45,7 +45,7 @@ test('page loads with the keyboard and no errors', async ({ page }) => {
   // no wordmark on the page; the name lives in the tab title
   await expect(page.locator('.inlay')).toHaveCount(0);
   await expect(page).toHaveTitle('instruments');
-  await expect(page.locator('.instruments .pick')).toHaveCount(10);
+  await expect(page.locator('.instruments .pick')).toHaveCount(11);
   await expect(page.locator('.keyboard .key')).toHaveCount(88);
   await page.waitForTimeout(500);
   expect(errors).toEqual([]);
@@ -462,7 +462,7 @@ test('the picker: the ring on the selected instrument is whole, on every instrum
     await page.goto('/');
     await page.waitForTimeout(400);
     const picks = page.locator('.instruments .pick');
-    await expect(picks).toHaveCount(10);
+    await expect(picks).toHaveCount(11);
     for (let i = 0; i < 7; i++) {
       const pick = picks.nth(i);
       await pick.click();

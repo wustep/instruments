@@ -62,6 +62,8 @@ export interface VisualFrame extends Stats {
   breath?: { pressure: number; vib: number };
   /** oboe, clarinet and bassoon: the reed's opening (0 shut … 1 at rest) and the blowing pressure γ (of the closing pressure) */
   reed?: { open: number; gamma: number };
+  /** horn: the lips' opening (0 shut; about 1 at a loud note's widest) and the blowing pressure */
+  lips?: { open: number; blow: number };
   /** piano: the watched key's action and strings (see `watchKey`) */
   watch?: WatchKey | null;
   /** piano: every sounding string's shape (struck first, then sympathetic) */

@@ -678,6 +678,7 @@ class AudioApp {
       const v = d1 / 127;
       if (this.instrument === 'flute') this.setParams({ vibrato: 0.15 * v });
       else if (this.instrument === 'oboe' || this.instrument === 'clarinet' || this.instrument === 'bassoon') this.setParams({ vibrato: 0.1 * v });
+      else if (this.instrument === 'horn') this.setParams({ vibrato: 0.01 * v });
       else if (this.instrument !== 'piano') this.setParams({ vibrato: 35 * v });
     }
   }

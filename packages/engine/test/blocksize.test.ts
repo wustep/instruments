@@ -5,7 +5,7 @@ import { createCore, renderInstrument, type InstrumentId } from '../src/core/ind
 
 const FS = 48000;
 describe('host block size', () => {
-  for (const inst of ['piano', 'violin', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'trumpet'] as InstrumentId[]) {
+  for (const inst of ['piano', 'violin', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet'] as InstrumentId[]) {
     it(`${inst}: the same samples at 128, 37 and 500 frames per call`, () => {
       const m = inst === 'piano' ? 60 : inst === 'bass' ? 40 : 72;
       const events = [
