@@ -62,18 +62,158 @@ peaks at the same places (0.69, 1.97, 2.97, 4.03, 5.08, 6.08, 7.12, 8.10). A clo
 5, 7 … × its first: the trombone's near-harmonic series comes from its bell and mouthpiece, as in the
 literature, not from an imposed tuning.
 
-### What the fits found
+### What the fits found (`scripts/fit-trombone.ts`)
 
-(See below: TBD after the final fit.)
+The horn's (1+1) evolution strategy over the voicing (40 parameters at the end), scored on the fit half only
+(even MIDI numbers) as the judge scores (harmonics, centroid, noise, attack, over the recordings' spreads),
+plus the pp→mf→ff level steps paired note by note within each set, the level across the compass (each set's
+low third against its high third at mf and ff, and the bass set against the tenor's: one gain plays both),
+the analysed notes' pitch (60 ¢ off is another partial), and the register survey of the model alone: every
+note of all three sizes at pp, mf and ff at the four rates (`scripts/trombone-regimes.ts`, held 1.5 s, read in
+the cup). The bore's measures are not moved; the cup and throat, wall, rim and steepening only as factors on
+their measured or physical values. Pitch is left to the tuning table, absolute level to the gain.
 
-### Against the recordings
+Before and between the fits, the structural findings (each a register survey or a probe against Iowa
+notes, `scripts/trombone-grid.ts`, `scripts/trombone-cmp.ts`):
 
-(TBD.)
+1. **The bore makes the series.** The bell as scattering sections and the cup as a resonator turn the
+   cylinder's odd series into the trombone's (0.70, 1.97, 2.97, 4.02 … × the pedal) with no tuning imposed;
+   the slide is then set by the discrete model's own phase, so every note's n-th resonance lands on it.
+2. **The lips must be sharp.** A 48-point grid (lip Q, tuning, stiffness, mouthpiece): at Q 5–12 the upper
+   notes fell silent or cracked; Q ≈ 50 with the lips 0.7 semitone under the note held them (the horn's
+   finding too; players' lips measure Q 0.5–5: one mass stands in for an embouchure a player keeps
+   adjusting). The fitted Q is 54 at the bottom, 38 at the top.
+3. **The mouthpiece's popping frequency.** From the 6½AL's catalogue measures its Helmholtz resonance is
+   892 Hz, and the top fifth of the tenor's compass (A♭4–F5) did not speak at all; the cup's volume ×1.6
+   (705 Hz; the spherical cap under-counts the cup's shoulder and the throat's entry) gave 575/600 at once.
+   Fitted ×1.74.
+4. **Steepening belongs outside the loop.** Read back into the bore, the wave's amplitude-dependent delay
+   dephased the bore's own harmonics every round trip (×3: a nearly pure tone). The loop now carries the
+   wave as it was, and what the steepening adds leaves through the rim's complement a bell's length later —
+   unfiltered, it had added mostly fundamental. Fitted at 3.2 × the slide's own length (the bell section's
+   narrow half steepens too, and the one-mass lips' smoother waveform needs more distance to shock: at ff
+   the outgoing wave rises at 17.5 kPa/ms, a shock after 2.3 m against the slide's 1.6 m).
+5. **The bell's beam.** Even steepened to a shock's 1/n spectrum, the ff upper harmonics stayed 10–15 dB
+   under the recordings': the model radiated the transmitted wave with no directivity, while a 216 mm bell
+   sends its highs forward (a piston's on-axis gain rises ~6 dB an octave above ka ≈ 1) and the Iowa
+   microphone stood in front of it. A shelf from 1.77 kHz, +13.9 dB.
+6. **The lips beat at every dynamic.** Their spectrum's shape barely changes from pp to ff (Q 50 puts every
+   dynamic far over threshold, and the opening's closure limits the swing); the dynamic brightness comes from
+   the steepening (∝ p²) and a radiation corner falling 4.1 octaves from ff to pp. The pp top notes remain
+   richer than the recordings' (below).
+7. **The attack follows the breath only when it is slow.** The recordings' long tones grow over 0.1–0.3 s;
+   a breath rising in 15–45 ms gave 45–100 ms whatever else moved (the lips saturate early). The fitted rise
+   is 0.2 s soft and 0.1 s loud. Then a 50 ms note was 10–14 dB under its long tone: the breath now reaches
+   half its pressure in 12 ms (the tongue's release) and swells to the rest (judge vs the fit without it: NO
+   CLEAR CHANGE; every tap within 7.1 dB of its long tone).
+
+Passes: 1 (start design, 78 iterations: 16.6 → 9.9), 2 (spectral parameters, steepening out of the loop),
+3 and 4 (the rim-filtered steepening, then the beam: 9.7 → 6.3), 5 (attack and noise with the breath's range
+widened: 6.0 → 5.9), 6 (all, from 5: 6.2 → 5.7; held-out 5.8 in the fit's own score).
+
+### Against the recordings (Iowa MIS tenor and bass trombones, pp/mf/ff, 218 notes)
+
+The references: the MIS "Tenor Trombone" (`https://theremin.music.uiowa.edu/MIStenortrombone.html`) and "Bass
+Trombone" (`…/MISbasstrombone.html`) sets, both 27 July 1997, anechoic chamber, Neumann KM 84 at 5 ft, 16-bit
+44.1 kHz mono; the bass set played with vibrato. "May be downloaded and used for any projects, without
+restrictions" (`https://theremin.music.uiowa.edu/MIS.html`). Used for analysis only: never played as the
+instrument, never committed (they live in `.cache/iowa-ens`). The tenor set: E2–C5 at each dynamic (107
+notes); the bass set: C1 (pp; D♭1 at mf and ff) to B♭4 (pp), G4 (mf), F4 (ff) (111 notes), played by the model
+at its bass size. The judge pairs each set's notes with themselves.
+
+**Judge** (`npx tsx scripts/judge.ts --instrument trombone --before <start design>`; the start design is
+commit `9dc64ce`, the voicing before any fit): **BETTER**, held-out (odd MIDI) 7.70 → **3.97** spreads
+(n = 109, Δ 3.73 ± 0.25), fit half 7.72 → 3.81, no guard broken.
+
+| held-out, mean \|error\| | start design | fitted | the recordings' own spread |
+|---|---|---|---|
+| harmonics, dB RMS | 10.49 | 6.97 | 1.29 |
+| centroid, octaves | 0.88 | 0.38 | 0.06 |
+| noise (HNR), dB | 9.54 | 3.32 | 0.90 |
+| attack, octaves | 0.98 | 0.94 | 0.32 |
+| pitch, ¢ | 0.63 | 0.25 | 6.03 |
+| level, dB | 5.18 | 2.94 | 0.59 |
+
+The last step (the tongued onset, 7 in the findings) against the fit before it: NO CLEAR CHANGE (held-out
+4.00 → 3.97, Δ 0.03 ± 0.05; the long-tone attack 0.84 → 0.94 octave, within its guard), kept for the short
+notes it makes speak.
+
+**Against the recordings as the Measurements page shows them** (`scripts/calibrate-ensemble.ts`, all 218
+notes; `apps/web/public/data/ensemble.json`, every other instrument's numbers unchanged):
+
+| | start design | fitted |
+|---|---|---|
+| harmonic profile error, dB RMS (median note) | 9.17 | **6.74** |
+| ⅓-octave spectrum (LTAS), dB RMS: all / pp / mf / ff | 25.8 / 3.4 / 12.2 / 25.5 | **5.5** / 7.9 / 2.5 / 5.6 |
+| brightness (centroid) × the recording's: all / pp / mf / ff | 0.58 / 0.84 / 0.57 / 0.36 | **1.05** / 1.29 / 1.02 / 0.75 |
+| even/odd harmonic balance error, dB | −3.7 | −0.9 |
+| noise (HNR) vs recording, dB | +9.0 | **+0.4** |
+| attack time × the recording's | 0.51 | **0.79** |
+| dynamic range pp → ff, dB (recording 21.7) | 14.5 | **22.0** |
+| pitch, ¢ RMS | 1.0 | **0.5** |
+
+Registers (`scripts/trombone-regimes.ts`, held 2 s, read in the cup): **tenor 600/600, bass 588/588, alto
+420/420** notes on their partial at pp, mf and ff × 22.05, 44.1, 48 and 96 kHz, every pedal note included.
+Pitch: the tuning table per size and rate (bare model 25 ¢ RMS sharp, worst 65 ¢; with it 0.0 ¢ RMS, worst
+0.2 ¢ at mf). Level: the median recorded note (tenor pp/mf/ff within 2.5 dB, bass within 1.7 dB); the Iowa
+trombone sessions sit ~9 dB under the Iowa horn's and trumpet's at ff, kept as recorded, as every other
+instrument keeps its own session's level.
+
+**Known gaps.** The pp/ff contrast in brightness is narrower than a player's: pp ×1.29 too bright, ff ×0.75
+too dark (B♭2's ff/pp centroid ratio is 1.28 in the model, 2.1 in the recording). The one-mass lips beat shut
+at every dynamic, so the pp top notes keep a second harmonic near the fundamental's level where the
+recording's is 9 dB down; a lip model whose swing grows from threshold (two masses, or a collision force)
+would be the next step. The steepening is fitted at 3.2 × the slide's length and the lips' Q near 50 (players
+measure 0.5–5): both stand in for what one mass on a spring cannot do. The bass set's pedal B♭1 (58 Hz)
+fails the analysis on the model's side (it sounds, on its partial: the register survey reads it), so it
+counts as missing in the fit. The alto has no recording: it is the same voicing at the alto's measures.
 
 ## Orchestra
 
-(TBD.)
+- **Voice and routing** (`apps/web/src/orchestra/assign.ts`): one voice, 'trombone', compass C1–G5 (the three
+  sizes'), centre F3, one note at a time. Names (`voiceFromName`): trombone(s), tromboni, trombón,
+  Posaune(n), Alt-/Tenor-/Bassposaune, the sackbut (saqueboute), "Tbn.", "Tbns", "Trb.", "Tromb.", "Pos.",
+  alto/tenor/bass trombone — before the double bass's "bass"/"basso" and the viola's "alto". General MIDI
+  **57**. The trumpet keeps its names (tromba, trompete, cornet …) and programs 56, 58–63; the tuba stays the
+  double bass's (no tuba is built; GM 58 is not routed to the trombone). A track named only for a register
+  ("alto", "tenorOne", "bass" — a quartet's voices) weighs as a program when its instrument name or program
+  names the instrument, so the Air's four lines are trombones, not a viola and a double bass.
+- **Sizes**: each trombone seat takes the size its lines need (`tromboneSizeOf`, see Compass); the engine
+  rebuilds its bore when its size changes (`setParams({ size })`).
+- **Duplicates**: up to three by the picker (the routing grid adds more), each its own player (vibrato,
+  intonation and noise its own: `playersOf`).
+- **The pieces**: Bach, Air from the Orchestral Suite No. 3, BWV 1068, for trombone quartet (arranged and
+  typeset by Ross Keenum; Mutopia-2008/10/28-461, **public domain**; the file byte for byte, sha256
+  `dc3f31aa…37f8`): the trombone's own piece (its top line, the tune, on the tenor: the play icon on
+  `/trombone`) and an Orchestra piece in the pieces menu (alto, tenor, tenor, bass trombone). Beethoven's
+  Drei Equali (Mutopia, CC BY-SA 3.0) were passed over for the public-domain Air.
+- **Tests**: `apps/web/test/trombone-routing.test.ts` (names in five languages and their neighbours, GM 57,
+  the compass, the sizes by name and range, a file's trombone and bass trombone lines, the Air on four sizes,
+  three by the picker); `e2e/trombone.spec.ts` (a dropped file with "Trombone I" on GM 57, "Posaune 2"
+  unprogrammed and "Bass Trombone" routed to three trombones, the bass one a bass trombone; the Air's four
+  sizes; three by the picker).
 
-## Pictures and audio
+## Paths
 
-(TBD.)
+`/trombone` (no alias): `INSTRUMENT_PATHS` (from `INSTRUMENT_IDS`), `formatAddress`, and both SPA rewrite groups
+in `vercel.json`; `apps/web/test/vercel-paths.test.ts` names it.
+
+## Phone picker
+
+Thirteen picks in the 271 px band: 19 px picks with 2 px gaps (13 × 19 + 12 × 2 = 271), the names at 7.5 px
+and −0.08 em (IBM Plex Mono), the trombone "tbn." there (as "vln.", "clar.", "bsn.", "tpt.", "timp."); the
+glyphs keep the twelve picks' height (20.75 px), so the band and the stage under it are as tall as before.
+
+## Audio (`artifacts/realistic-3d/final-symphony/trombone/audio`, `scripts/render-trombone.ts`)
+
+Before = the start design (`9dc64ce`), after = fitted; MP3s with the site's room, one gain for both;
+spectrograms before (top) over after; `metrics.json` (centroid, level, pitch per long tone, dry).
+
+- `trombone-long-tones` — tenor B♭1 (pedal), E2, B♭2, F3, B♭3, F4, B♭4, F5, each pp, mf, ff.
+- `bass-trombone-low` — bass trombone C1 and D1 (pedals on both valves), F1, B♭1 (its pedal in first), D2,
+  F2, at mf and ff.
+- `trombone-phrase` — an original phrase in B♭: a tongued fanfare up the arpeggio, then a legato line down
+  the slide's positions (first to fourth, the F valve's) and back under the soft legato tongue, with a swell.
+- `trombone-air` — the play icon's piece (the Air's tune), its first 40 s.
+- `trombone-quartet` — the Air for four trombones, alto, tenor, tenor, bass trombone, each its size and player
+  (summed, no hall seats), the first strain.
