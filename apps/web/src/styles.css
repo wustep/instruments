@@ -1791,6 +1791,16 @@ figure[title] {
   border-color: rgba(242, 166, 70, 0.8);
 }
 
+/* in 3D the handles are the lid and the room's light pool themselves: the grips stay for the
+   keyboard, unseen until focused, over the handle they move */
+.grip.in3d {
+  opacity: 0;
+  pointer-events: none;
+}
+.grip.in3d:focus-visible {
+  opacity: 1;
+}
+
 /* ------------------------------------------------------------ tooltip (icon-only controls) */
 .tip {
   position: fixed;

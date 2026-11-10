@@ -182,6 +182,16 @@ export class LineSet {
   }
 }
 
+/** The room's light: a pool of light on the floor round the instrument, as large as the room (the
+ *  reverb: scenes3d `poolRadius`). Its rim is the room's handle on the 3D stage. `R`: its radius (m),
+ *  `soft`: the half-width of its rim (m), `lift`: how much brighter it is with the sound in the room
+ *  (0 … ≈0.2: the output's level, the reverberation's tail included) */
+export interface Pool {
+  R: number;
+  soft: number;
+  lift: number;
+}
+
 /** what a scene draws into, each frame */
 /** a planar mirror in a batch (Batch.mirrors) */
 export interface Mirror {
@@ -201,7 +211,7 @@ export class Batch {
   private used: Mesh[] = [];
   /** shadow casters' bounds (centre, radius) and the floor */
   bounds: { c: Vec3; r: number } = { c: [0, 0, 0], r: 1 };
-  floor: { y: number; c: Vec3; r0: number; r1: number } | null = null;
+  floor: { y: number; c: Vec3; r0: number; r1: number; pool?: Pool | null } | null = null;
   /** a section: everything with side·(x − at) > 0 is cut away (a piano key's action, close up) */
   clip: { at: number; side: 1 | -1 } | null = null;
   /** a box the orbit camera may not enter (an instrument's case: its target is inside it) */
