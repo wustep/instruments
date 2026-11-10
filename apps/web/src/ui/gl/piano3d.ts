@@ -201,6 +201,27 @@ function circle(cu: number, cv: number, r: number, n = 24): P2[] {
 /** an axis-aligned box with every edge rounded */
 function rbox(mb: MeshBuilder, lo: Vec3, hi: Vec3, m: Mat, b = 0.0015, o: SlabOpts = {}): void {
   slab(mb, PLAN, rrect(lo[0], lo[2], hi[0], hi[2], b, 2), [], lo[1], hi[1], m, { bevel: b, ...o });
+  webs(mb, [[lo[2], lo[1]], [hi[2], lo[1]], [hi[2], hi[1]], [lo[2], hi[1]]], lo[0], hi[0], m, b);
+}
+/** the mark (uv.x) of a section web's vertices: mats3.ts draws them as the cut face */
+const WEB: [number, number] = [9, 0];
+/** Cross-walls inside a part that runs across the keyboard (a rail, the keybed, the pin block): its
+ *  own section (`prof`, in (z, y), drawn in by the edge's rounding), once at every key's boundary.
+ *  They are inside the solid, so never seen, until a key's close-up cuts the part open: then the
+ *  nearest one, a millimetre behind the cut (which falls just past a boundary: `zoomFrame`), is drawn
+ *  as the cut face. Without them a cut part showed its hollow as far as the eye could see, and
+ *  whatever passes through it in there (a bracket through a rail, the tuning pins in their block). */
+function webs(mb: MeshBuilder, prof: P2[], x0: number, x1: number, m: Mat, bevel = 0): void {
+  if (mb.T || x1 - x0 < 0.1) return;
+  const pr = inset(ccw(prof), bevel + 0.0003);
+  if (area(pr) <= 1e-7) return;
+  const tris = tri2([pr]);
+  const n: Vec3 = [1, 0, 0];
+  for (let j = 0; j <= 88; j++) {
+    const x = X0 + j * PITCH;
+    if (x < x0 + 0.002 || x > x1 - 0.002) continue;
+    for (const [a, b, c] of tris) mb.stri([x, pr[a][1], pr[a][0]], [x, pr[b][1], pr[b][0]], [x, pr[c][1], pr[c][0]], n, n, n, m, WEB, WEB, WEB);
+  }
 }
 /** a tuning pin from `p` along `d` (unit): the shaft in the block, a coil of wire, a turned head */
 function tuningPin(mb: MeshBuilder, p: Vec3, d: Vec3, m: Mat = M.pinSteel): void {
@@ -213,6 +234,7 @@ function tuningPin(mb: MeshBuilder, p: Vec3, d: Vec3, m: Mat = M.pinSteel): void
 /** a side profile (z, y) between x0 and x1 */
 function sideSlab(mb: MeshBuilder, prof: P2[], x0: number, x1: number, m: Mat, bevel = 0.001, o: SlabOpts = {}): void {
   slab(mb, SIDE, prof, [], x0, x1, m, { bevel, ...o });
+  webs(mb, prof, x0, x1, m, bevel);
 }
 /** a square post along y with rounded corners: sections [half x, half z, y] from the bottom up */
 function post(mb: MeshBuilder, cx: number, cz: number, prof: [number, number, number][], rc: number, m: Mat, seg = 3): void {
@@ -462,7 +484,7 @@ function keyStick(len: number, capZ: number, capH: number, grand: boolean, stick
   const w = 0.0052;
   rbox(mb, [-w, pivY, KEY_FRONT + 0.002], [w, stickTop, len], M.keyWood, 0.0008);
   // key leads: lead weights set into the stick's sides
-  for (const z of [0.18, 0.205]) cyl(mb, [-w - 0.0003, pivY + 0.011, z], [w + 0.0003, pivY + 0.011, z], 0.0045, 0.0045, 12, M.darkSteel);
+  for (const z of [0.18, 0.205]) cyl(mb, [-w - 0.0003, pivY + 0.011, z], [w + 0.0003, pivY + 0.011, z], 0.0045, 0.0045, 12, M.lead);
   // the balance-rail and front-rail bushings (red cloth) seen from the side
   rbox(mb, [-w - 0.0002, pivY, 0.012], [w + 0.0002, pivY + 0.004, 0.024], M.redFelt, 0.0005);
   // capstan: a brass screw with a rounded head
@@ -474,7 +496,7 @@ function keyStick(len: number, capZ: number, capH: number, grand: boolean, stick
     // it stood 12 mm behind and a little below
     const z = 0.496;
     const yb = 0.006;
-    cyl(mb, [0, stickTop, z], [0, 0.778 + yb, z - 0.004], 0.0011, 0.0011, 6, M.steel, false);
+    cyl(mb, [0, stickTop, z], [0, 0.778 + yb, z - 0.004], 0.0011, 0.0011, 6, M.wire, false);
     sideSlab(mb, [[z - 0.012, 0.772 + yb], [z + 0.002, 0.772 + yb], [z + 0.003, 0.794 + yb], [z - 0.008, 0.796 + yb]], -0.0055, 0.0055, M.actionWood, 0.001);
     sideSlab(mb, [[z - 0.0135, 0.773 + yb], [z - 0.011, 0.773 + yb], [z - 0.0068, 0.796 + yb], [z - 0.0095, 0.7965 + yb]], -0.0056, 0.0056, M.buckskin, 0.0004);
     // the damper lifter: a felt pad on the key's tail
@@ -760,6 +782,7 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
   }
   // ---- keybed, key slip, cheek blocks, the key frame, the open fallboard
   slab(mb, PLAN, rrect(xL, -0.022, xR, 0.66, 0.004), [], 0.648, 0.682, M.lacquer, { bevel: 0.003, topMat: M.caseRaw });
+  webs(mb, [[-0.022, 0.648], [0.66, 0.648], [0.66, 0.682], [-0.022, 0.682]], xL, xR, M.lacquer, 0.003);
   rbox(cb, [-0.612, 0.682, -0.023], [0.612, 0.708, -0.004], M.lacquer, 0.002);
   for (const s of [-1, 1]) {
     const x0 = s < 0 ? xL : 0.613;
@@ -780,7 +803,8 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
   rbox(mb, [-0.612, 0.694, 0.52], [0.612, 0.698, 0.56], M.greenFelt, 0.0008);
   // the fallboard, open: folded back behind the keys, from rim to rim (nothing to see past its ends)
   sideSlab(cb, [[0.15, 0.73], [0.168, 0.73], [0.212, 0.862], [0.2, 0.868], [0.186, 0.866], [0.15, 0.76]], -0.669, 0.669, M.lacquer, 0.003);
-  rbox(cb, [-0.613, 0.722, 0.147], [0.613, 0.73, 0.18], M.redFelt, 0.001);
+  // (its top a hair under the fallboard's foot: the two faces met in one plane and flickered where a section cut them)
+  rbox(cb, [-0.613, 0.722, 0.147], [0.613, 0.7296, 0.18], M.redFelt, 0.001);
   // ---- the action frame: cast brackets, the hammer flange rail, wippen rail, hammer rest rail,
   //      damper guide rail and underlever rail
   {
@@ -920,7 +944,9 @@ export function buildGrandModel(keys: KeySummary[]): PianoModel {
     // damper heads (at the string's contact): treble flat felt, bass wedges (the head turned with the strings)
     for (const [name, wedge] of [['damperT', false], ['damperB', true]] as const) {
       const d = new MeshBuilder();
-      cyl(d, [0, -0.15, 0], [0, 0.012, 0], 0.0011, 0.0011, 6, M.pinNickel, false);
+      // (the wire: plain steel wire. As bright nickel the row of them, a pixel or two wide each,
+      // clipped to white under the close-up's key light and beat against the pixel grid on a phone)
+      cyl(d, [0, -0.15, 0], [0, 0.012, 0], 0.0011, 0.0011, 6, M.wire, false);
       const len = wedge ? 0.034 : 0.028;
       // the head: a block whose top is chamfered front and back to the wire's boss (grand-action-side.jpg)
       const h = len / 2;
@@ -1801,7 +1827,11 @@ export function posePiano(b: Batch, pm: PianoModel, si: PianoIn, pose: PianoPose
   pose.pedal[2] = ease(pose.pedal[2], ps.middle, si.dt, 0.05);
   const sh = grand ? pose.pedal[0] * 0.0025 : 0;
   const muf = grand ? 0 : pose.pedal[2];
-  for (const g of pm.keys) {
+  // (in a section, from the cut backwards: the parts nearest the eye are drawn first, and hide the rest
+  // before it is shaded)
+  const back = !!si.cut && si.cut.side > 0;
+  for (let ki = 0; ki < pm.keys.length; ki++) {
+    const g = pm.keys[back ? pm.keys.length - 1 - ki : ki];
     const i = g.i;
     const held = si.down(g.midi);
     pose.keyPos[i] = ease(pose.keyPos[i], held ? 1 : 0, si.dt, held ? 0.018 : 0.04);

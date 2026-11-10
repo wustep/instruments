@@ -8,6 +8,15 @@
 //
 // Every material also takes two live inputs: a per-instance glow (rgb, amount: keys, hammers, the
 // bow).
+//
+// In a section (a piano key's action close up: the renderer gives every material the cut's plane) the
+// parts are cut open, and a part is a hollow shell. Where the eye sees into one (a back face), the
+// shader draws what the cut would show instead: a flat face in the plane of the cut, of the part's own
+// stuff (end grain or long grain for wood, by its grain axis; the wood under a case's lacquer and a
+// key's facing; felt; cut metal), evenly lit. So the cut parts read as solid. It is drawn where the
+// shell's inner wall is, not in the cut's plane, so what stands inside a part would show in front of
+// it; the long parts that run across the keyboard (rails, keybed, pin block) therefore carry cross-walls
+// at every key's boundary, drawn as that face a millimetre behind the cut (piano3d.ts `webs`).
 import * as THREE from 'three';
 import { MAT_LIST, type Mat, type PaintSpec } from './mesh.ts';
 
@@ -15,30 +24,56 @@ import { MAT_LIST, type Mat, type PaintSpec } from './mesh.ts';
 type Phys = THREE.MeshPhysicalMaterialParameters & {
   /** solid texture: 0 none, 1 spruce, 2 flamed maple, 3 plain wood, 4 ebony, 5 cast iron, 6 felt, 7 maple fleck, 8 brushed,
    *  9 gold-lacquered casting, 10 veneer round a wall,
-   *  11 flamed maple worn per vertex (uv.x: varnish rubbed through to the pale wood, satin; uv.y: grime) */
+   *  11 flamed maple worn per vertex (uv.x: varnish rubbed through to the pale wood, satin; uv.y: grime),
+   *  and a piano action's own: 12 pressed wool felt (fibres, nap), 13 a key stick's bare spruce, 14 hornbeam,
+   *  15 beech, 16 hard maple, 17 a white key (its facing; bare wood on its sides below it) */
   tex?: number;
   /** the grain/long axis in the part's own frame */
   axis?: [number, number, number];
   /** the scale of the texture (1 = a violin's) */
   texScale?: number;
+  /** what a section shows where it cuts the part open (a piano key's close-up): 0 the colour, flat;
+   *  1 wood (end grain across the grain axis, long grain along it); 2 felt; 3 cut metal; 4 a key top
+   *  (a white facing over the key's wood). Default: by the texture. */
+  cap?: number;
+  /** the cut face's colour (default: the part's own, a little darker) */
+  cut?: string;
 };
 
+/** cut faces (a section): the laminated maple and spruce under a case's lacquer; grey cast iron */
+const CORE = '#c4a57a';
+const IRON = '#7d7872';
+/** how brightly a section's cut faces are lit (they all face the open side, so the same for all): set
+ *  by the renderer from its key light */
+export const SECTION = { light: { value: 0.6 } };
+
 const P: Record<string, Phys> = {
-  lacquer: { color: '#050505', roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.035, envMapIntensity: 1.7, tex: 0 },
-  lacquerSatin: { color: '#0a0909', roughness: 0.42, clearcoat: 0.6, clearcoatRoughness: 0.22 },
-  caseInner: { color: '#1d140e', roughness: 0.5, clearcoat: 0.4, clearcoatRoughness: 0.3, tex: 3, axis: [1, 0, 0], texScale: 3 },
+  // (cut open, a lacquered case part shows the wood under its lacquer: `cut`, CORE)
+  lacquer: { color: '#050505', roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.035, envMapIntensity: 1.7, tex: 0, cap: 1, cut: CORE },
+  lacquerSatin: { color: '#0a0909', roughness: 0.42, clearcoat: 0.6, clearcoatRoughness: 0.22, cap: 1, cut: CORE },
+  caseInner: { color: '#1d140e', roughness: 0.5, clearcoat: 0.4, clearcoatRoughness: 0.3, tex: 3, axis: [1, 0, 0], texScale: 3, cut: CORE },
   // the plate: gold-bronze lacquer over cast iron (a lacquered paint, not bare metal)
-  plate: { color: '#b98a3c', metalness: 0.55, roughness: 0.5, clearcoat: 0.6, clearcoatRoughness: 0.3, tex: 5 },
+  plate: { color: '#b98a3c', metalness: 0.55, roughness: 0.5, clearcoat: 0.6, clearcoatRoughness: 0.3, tex: 5, cap: 3, cut: IRON },
   spruce: { color: '#d8b175', roughness: 0.48, clearcoat: 0.55, clearcoatRoughness: 0.18, tex: 1, axis: [0.42, 0, 0.91], texScale: 2.2 },
   spruceBare: { color: '#d9b77e', roughness: 0.62, tex: 1, axis: [0, 0, 1], texScale: 1.5 },
   maple: { color: '#b88654', roughness: 0.5, clearcoat: 0.3, clearcoatRoughness: 0.3, tex: 7, axis: [1, 0, 0], texScale: 1.5 },
-  hornbeam: { color: '#e6d0a6', roughness: 0.55, tex: 3, axis: [0, 1, 0], texScale: 0.6 },
-  keyWood: { color: '#d3b689', roughness: 0.7, tex: 3, axis: [0, 0, 1], texScale: 1 },
-  actionWood: { color: '#b48759', roughness: 0.6, tex: 3, axis: [0, 0, 1], texScale: 0.8 },
-  hammerFelt: { color: '#efe8d8', roughness: 1, sheen: 1, sheenColor: '#fffaf0', sheenRoughness: 0.55, tex: 6 },
-  damperFelt: { color: '#e4e1db', roughness: 1, sheen: 0.8, sheenColor: '#ffffff', sheenRoughness: 0.6, tex: 6 },
-  redFelt: { color: '#7d1d1a', roughness: 1, sheen: 1, sheenColor: '#d0605a', sheenRoughness: 0.5, tex: 6 },
-  buckskin: { color: '#b39876', roughness: 0.95, sheen: 0.6, sheenColor: '#e8d8bf', sheenRoughness: 0.7, tex: 6 },
+  // A piano action's woods, each its own (seen a hand's width away in a key's close-up; matched by eye
+  // to grand-action-side.jpg and upright-action-close.jpg, docs/3d-reference.md):
+  //   hornbeam — wippens, jacks, repetition levers, shanks, flanges: pale, greyish cream, close and
+  //     even with no ring lines to speak of, burnished to a low satin;
+  //   key sticks — spruce (or basswood), bare: straw yellow, straight latewood lines along the stick;
+  //   rails and levers — hard maple under a thin finish: golden, its rays as fine flecks;
+  //   an upright's rails — beech (`railBeech`, below): pinkish, its rays as short dark dashes.
+  hornbeam: { color: '#e4d3b3', roughness: 0.5, specularIntensity: 0.7, tex: 14, axis: [0, 0, 1], texScale: 1 },
+  keyWood: { color: '#dcc394', roughness: 0.8, specularIntensity: 0.5, tex: 13, axis: [0, 0, 1], texScale: 1 },
+  actionWood: { color: '#bb9163', roughness: 0.55, clearcoat: 0.12, clearcoatRoughness: 0.5, tex: 16, axis: [1, 0, 0], texScale: 1 },
+  // The felts: pressed wool, matte, no gloss at all — a fibre field (mottle and relief) under a soft
+  // sheen at grazing angles, each its own colour (hammer felt a warm off-white, the dampers' whiter,
+  // the cloths dyed).
+  hammerFelt: { color: '#ebe1cb', roughness: 1, specularIntensity: 0.15, sheen: 1, sheenColor: '#fff8ea', sheenRoughness: 0.6, tex: 12 },
+  damperFelt: { color: '#e0ddd6', roughness: 1, specularIntensity: 0.15, sheen: 0.9, sheenColor: '#ffffff', sheenRoughness: 0.6, tex: 12 },
+  redFelt: { color: '#84201c', roughness: 1, specularIntensity: 0.15, sheen: 1, sheenColor: '#d0605a', sheenRoughness: 0.5, tex: 12 },
+  buckskin: { color: '#b39876', roughness: 0.95, specularIntensity: 0.3, sheen: 0.6, sheenColor: '#e8d8bf', sheenRoughness: 0.7, tex: 12, texScale: 0.6 },
   ivory: { color: '#f2ece0', roughness: 0.3, clearcoat: 0.55, clearcoatRoughness: 0.12, sheen: 0.25, sheenColor: '#fff6e0', sheenRoughness: 0.4 },
   ebony: { color: '#0d0b0a', roughness: 0.42, clearcoat: 0.25, clearcoatRoughness: 0.2, tex: 4, axis: [0, 0, 1] },
   steel: { color: '#d4d7dc', metalness: 1, roughness: 0.2, anisotropy: 0.6, tex: 8 },
@@ -52,7 +87,7 @@ const P: Record<string, Phys> = {
   silverGlow: { color: '#ebebeb', metalness: 1, roughness: 0.07 },
   pad: { color: '#ece1c6', roughness: 0.75, sheen: 0.6, sheenColor: '#fff5e0', sheenRoughness: 0.5 },
   pearl: { color: '#f6f1ea', roughness: 0.16, clearcoat: 0.6, clearcoatRoughness: 0.08, iridescence: 0.9, iridescenceIOR: 1.35, iridescenceThicknessRange: [220, 620] },
-  castAction: { color: '#8a8985', metalness: 0.85, roughness: 0.45, tex: 5 },
+  castAction: { color: '#8a8985', metalness: 0.85, roughness: 0.45, tex: 5, cap: 3, cut: IRON },
   // varnish: a glossy coat over matte wood (the coat carries the reflections)
   varnish: { color: '#9a4518', roughness: 0.62, clearcoat: 0.75, clearcoatRoughness: 0.18, tex: 2, axis: [1, 0, 0] },
   varnishTop: { color: '#a85a26', roughness: 0.64, clearcoat: 0.75, clearcoatRoughness: 0.18, tex: 1, axis: [1, 0, 0], texScale: 1 },
@@ -96,20 +131,26 @@ const P: Record<string, Phys> = {
   // finish scatters (rough), so a broad flange takes the overhead softbox as a sheen, not a mirror
   // (lead, after merging: as metal (metalness 1) the plate went white towards grazing angles in the
   // hero; gold plate paint is mostly diffuse — metal flake in a lacquer — so mostly diffuse here)
-  pianoPlate: { color: '#9a6c26', metalness: 0.35, roughness: 0.52, clearcoat: 0.3, clearcoatRoughness: 0.4, envMapIntensity: 0.75, tex: 5 },
-  underfelt: { color: '#5c1418', roughness: 1, sheen: 0.9, sheenColor: '#b04048', sheenRoughness: 0.5, tex: 6 },
-  greenFelt: { color: '#1f4a36', roughness: 1, sheen: 0.8, sheenColor: '#5a9a7a', sheenRoughness: 0.5, tex: 6 },
-  bracketCast: { color: '#7a6e4c', metalness: 0.85, roughness: 0.42, tex: 5 },
+  pianoPlate: { color: '#9a6c26', metalness: 0.35, roughness: 0.52, clearcoat: 0.3, clearcoatRoughness: 0.4, envMapIntensity: 0.75, tex: 5, cap: 3, cut: IRON },
+  underfelt: { color: '#5c1418', roughness: 1, specularIntensity: 0.15, sheen: 0.9, sheenColor: '#b04048', sheenRoughness: 0.5, tex: 12 },
+  greenFelt: { color: '#1f4a36', roughness: 1, specularIntensity: 0.15, sheen: 0.8, sheenColor: '#5a9a7a', sheenRoughness: 0.5, tex: 12 },
+  bracketCast: { color: '#7a6e4c', metalness: 0.85, roughness: 0.42, tex: 5, cap: 3, cut: IRON },
   // (the upright's hammer mouldings: a brown hardwood, less red than it was: upright-action-close.jpg)
   mahogany: { color: '#7c4b2e', roughness: 0.55, clearcoat: 0.2, clearcoatRoughness: 0.35, tex: 3, axis: [0, 1, 0], texScale: 0.5 },
-  keyIvory: { color: '#f1ece0', roughness: 0.32, clearcoat: 0.4, clearcoatRoughness: 0.1, sheen: 0.4, sheenColor: '#fff4dc', sheenRoughness: 0.35 },
+  // (cut open: a white facing, 2.5 mm, over the key's own wood)
+  keyIvory: { color: '#f1ece0', roughness: 0.32, clearcoat: 0.4, clearcoatRoughness: 0.1, sheen: 0.4, sheenColor: '#fff4dc', sheenRoughness: 0.35, tex: 17, cap: 4, cut: '#d2b98c' },
+  // a key's lead weights: dull grey (as polished steel they mirrored the dark studio: black holes)
+  lead: { color: '#8d8e90', metalness: 0.55, roughness: 0.6, cap: 3 },
+  // the action's wires (damper wires, backcheck wires): drawn steel, a satin grey. Polished, a row of
+  // them a pixel or two wide flared to white under the close-up's key light
+  wire: { color: '#8e9197', metalness: 1, roughness: 0.42 },
   // tuning pins: nickel-plated, turned (a satin finish: hundreds of mirror caps read as fog)
   pinSteel: { color: '#d2d5da', metalness: 1, roughness: 0.3, tex: 8, axis: [0, 1, 0] },
   // the raw, dark inside of a case (black-stained, unpolished)
-  caseRaw: { color: '#151210', roughness: 0.85, envMapIntensity: 0.3 },
+  caseRaw: { color: '#151210', roughness: 0.85, envMapIntensity: 0.3, cap: 1, cut: CORE },
   // the upright's action (upright-action-close.jpg: natural beech rails, white cotton bridle tapes,
   // red leather on the bridle wires)
-  railBeech: { color: '#d8bb8c', roughness: 0.58, tex: 3, axis: [1, 0, 0], texScale: 0.8 },
+  railBeech: { color: '#d6b188', roughness: 0.6, specularIntensity: 0.6, tex: 15, axis: [1, 0, 0], texScale: 1 },
   tape: { color: '#eee9de', roughness: 1, sheen: 0.7, sheenColor: '#ffffff', sheenRoughness: 0.6, tex: 6 },
   bridleLeather: { color: '#b0261f', roughness: 0.75, sheen: 0.4, sheenColor: '#e06050', sheenRoughness: 0.5 },
   // the violin family's neck, scroll and ribs: the varnish worn per vertex (strings3d.ts) — the neck's
@@ -119,11 +160,11 @@ const P: Record<string, Phys> = {
   // its highlights stay gold. Fitted at the grand's default hero view to grand-inside.jpg's lit plate,
   // sRGB ≈ (130–160, 100–125, 70–85): with less metal or a gloss coat the flange's highlights are the
   // white of the studio's softbox, and the tone mapper desaturates the over-bright plate to champagne
-  grandPlate: { color: '#8a6522', metalness: 0.9, roughness: 0.62, tex: 9 },
+  grandPlate: { color: '#8a6522', metalness: 0.9, roughness: 0.62, tex: 9, cap: 3, cut: IRON },
   // the inside of the grand's rim: a polished mahogany veneer under a gloss coat (grand-inside.jpg)
-  rimVeneer: { color: '#3a1a0c', roughness: 0.42, clearcoat: 1, clearcoatRoughness: 0.06, tex: 10 },
+  rimVeneer: { color: '#3a1a0c', roughness: 0.42, clearcoat: 1, clearcoatRoughness: 0.06, tex: 10, cut: CORE },
   // grand damper heads: black-stained hardwood (grand-inside.jpg, grand-action-side.jpg)
-  damperHead: { color: '#0f0d0c', roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.2, tex: 4, axis: [0, 0, 1] },
+  damperHead: { color: '#0f0d0c', roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.2, tex: 4, axis: [0, 0, 1], cut: CORE },
   // the grand's tuning pins: bright nickel, satin enough to take the overhead softbox on every head
   // (as polished pins they mirrored the dark studio and read as a grey carpet)
   pinNickel: { color: '#e8e8e6', metalness: 1, roughness: 0.48, tex: 8, axis: [0, 1, 0] },
@@ -154,6 +195,8 @@ float vnoise(vec3 p) {
 float fbm(vec3 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a * vnoise(p); p = p * 2.03 + 17.1; a *= 0.5; } return s; }
 `;
 
+/** the textures that are wood (their cut faces show grain) */
+const WOODS = [1, 2, 3, 4, 7, 10, 11, 13, 14, 15, 16];
 /** one material per shared Mat (by object), built on first use */
 const cache = new Map<Mat, THREE.Material>();
 /** the studio environment. three (r186) replaces a material's envMapIntensity with the scene's
@@ -171,7 +214,9 @@ export function materialFor(m: Mat, lite: boolean): THREE.Material {
   if (mat) return mat;
   const name = m.name ?? 'plain';
   const base = P[name] ?? { color: new THREE.Color().setRGB(m.col[0], m.col[1], m.col[2], THREE.SRGBColorSpace), roughness: m.rough, metalness: m.metal };
-  const { tex = 0, axis = [1, 0, 0], texScale = 1, ...params } = base;
+  const { tex = 0, axis = [1, 0, 0], texScale = 1, cap: cap0, cut, ...params } = base;
+  const metal = (params.metalness ?? 0) >= 0.5;
+  const cap = cap0 ?? (WOODS.includes(tex) ? 1 : tex === 6 || tex === 12 ? 2 : metal ? 3 : 0);
   const pm = new THREE.MeshPhysicalMaterial({ side: THREE.DoubleSide, ...params });
   if (params.envMapIntensity !== undefined && envTex) pm.envMap = envTex;
   if (m.tint) pm.color.setRGB(m.col[0], m.col[1], m.col[2], THREE.SRGBColorSpace);
@@ -195,9 +240,16 @@ export function materialFor(m: Mat, lite: boolean): THREE.Material {
   pm.onBeforeCompile = (sh) => {
     sh.uniforms.uAxis = { value: new THREE.Vector3(...axis).normalize() };
     sh.uniforms.uTexScale = { value: texScale };
+    // (the cut face: its own colour, or the part's, a little darker as sawn wood and sheared felt are)
+    sh.uniforms.uCut = { value: cut ? new THREE.Color(cut) : pm.color.clone().multiplyScalar(cap === 3 ? 1 : 0.85) };
+    sh.uniforms.uCapLight = SECTION.light;
+    // (each wood its own rings on a cut face: where its pith lies, and how close they are)
+    let hsh = 0;
+    for (let i = 0; i < name.length; i++) hsh = (hsh * 31 + name.charCodeAt(i)) % 9973;
+    sh.uniforms.uCapSeed = { value: new THREE.Vector3(0.12 + 0.5 * ((hsh % 97) / 97), -0.45 + 0.9 * ((hsh % 89) / 89), 0.75 + 0.6 * ((hsh % 83) / 83)) };
     if (aux) sh.uniforms.tAux = { value: aux };
     if (paint) sh.uniforms.uRect = { value: new THREE.Vector4(...paint.rect) };
-    sh.defines = { ...(sh.defines ?? {}), TEX: tex, KIND: kind, PAINTED: paint ? 1 : 0 };
+    sh.defines = { ...(sh.defines ?? {}), TEX: tex, KIND: kind, PAINTED: paint ? 1 : 0, CAP: cap };
     sh.vertexShader = sh.vertexShader
       .replace(
         '#include <common>',
@@ -223,7 +275,7 @@ vGlow = iGlow; vLoc = aLoc; vUv2 = uv;
         '#include <common>',
         `#include <common>
 varying vec4 vGlow; varying vec3 vLoc; varying vec3 vAxisV; varying vec2 vUv2;
-uniform vec3 uAxis; uniform float uTexScale;
+uniform vec3 uAxis; uniform float uTexScale; uniform vec3 uCut; uniform float uCapLight; uniform vec3 uCapSeed;
 #if PAINTED
 uniform sampler2D tAux; uniform vec4 uRect;
 #endif
@@ -330,6 +382,60 @@ float wearCoat = 0.0;
   diffuseColor.rgb *= 1.0 - 0.55 * clamp(vUv2.y, 0.0, 1.0) * (0.7 + 0.6 * fbm(p * 70.0));
   microR = 0.28 * wear;
   wearCoat = wear;
+  #elif TEX == 12
+  // pressed wool felt: matted fibres (≈ 0.6 mm; faded out before a pixel would hold more than one,
+  // so they never sparkle at a distance) over slow clouds of density (≈ 5 mm)
+  float fade = 1.0 - smoothstep(0.35, 1.1, length(fwidth(p)) * 1600.0);
+  float fib = (fbm(p * 1600.0) - 0.5) * fade;
+  float den = fbm(p * 210.0) - 0.5;
+  diffuseColor.rgb *= 0.96 + 0.3 * fib + 0.16 * den;
+  #elif TEX == 13
+  // a key stick: bare, straight-grained spruce. Growth rings about a pith off the stick (so both the
+  // side and the top show lines along it), latewood dark and a little orange, ≈ 1.6 mm apart
+  float w = fbm(vec3(along * 3.0, across * 40.0, depth * 40.0));
+  float rr = length(vec2(across + 0.031, depth + 0.083));
+  float g = fract(rr * 620.0 + w * 1.8);
+  float late = smoothstep(0.5, 0.78, g) * (1.0 - smoothstep(0.88, 1.0, g));
+  late *= 1.0 - smoothstep(0.3, 0.9, length(fwidth(p)) * 620.0);
+  diffuseColor.rgb *= vec3(1.0) - vec3(0.2, 0.25, 0.32) * late + 0.1 * (w - 0.5);
+  microR = 0.08 * late;
+  #elif TEX == 14
+  // hornbeam: close and even — a faint long streak, rings barely there, tiny grey flecks
+  float w = fbm(vec3(along * 9.0, across * 160.0, depth * 160.0));
+  float rr = length(vec2(across + 0.031, depth + 0.083));
+  float fade = 1.0 - smoothstep(0.3, 0.9, length(fwidth(p)) * 1500.0);
+  float fl = smoothstep(0.66, 0.78, fbm(vec3(along * 240.0, across * 1500.0, depth * 1500.0))) * fade;
+  diffuseColor.rgb *= 0.98 + 0.08 * (w - 0.5) - 0.03 * sin(rr * 2600.0 + w * 6.0) - 0.07 * fl;
+  microR = 0.06 * (w - 0.5);
+  #elif TEX == 15
+  // beech: its rays as short dark dashes along the grain (1–3 mm long, a fraction of one wide), faint rings
+  float w = fbm(vec3(along * 6.0, across * 90.0, depth * 90.0));
+  float rr = length(vec2(across + 0.031, depth + 0.083));
+  float fade = 1.0 - smoothstep(0.3, 0.9, length(fwidth(p)) * 2400.0);
+  float dash = smoothstep(0.6, 0.72, fbm(vec3(along * 420.0, across * 2400.0, depth * 2400.0))) * fade;
+  float g = fract(rr * 360.0 + w * 2.0);
+  diffuseColor.rgb *= vec3(1.0) + 0.12 * (w - 0.5) - 0.07 * smoothstep(0.7, 0.95, g) - vec3(0.14, 0.17, 0.2) * dash;
+  #elif TEX == 16
+  // hard maple under a thin finish: quiet rings, the rays as fine pale flecks, a slow drift of colour
+  float w = fbm(vec3(along * 5.0, across * 70.0, depth * 70.0));
+  float rr = length(vec2(across + 0.031, depth + 0.083));
+  float fade = 1.0 - smoothstep(0.3, 0.9, length(fwidth(p)) * 1800.0);
+  float g = fract(rr * 300.0 + w * 2.4);
+  float fl = smoothstep(0.64, 0.76, fbm(vec3(along * 160.0, across * 1800.0, depth * 500.0))) * fade;
+  diffuseColor.rgb *= 0.94 + 0.16 * (w - 0.5) - 0.1 * smoothstep(0.6, 0.92, g) + 0.07 * fl;
+  microR = 0.1 * (w - 0.5);
+  #elif TEX == 17
+  // a white key: the facing covers its top and front; below the facing its sides are the key's own
+  // bare wood (seen in the gaps beside the sharps, and all along a key standing at a section's cut)
+  vec3 nl = normalize(cross(dFdx(vLoc), dFdy(vLoc)));
+  if (abs(nl.x) > 0.8 && vLoc.y < 0.7222) {
+    float w = fbm(vec3(vLoc.z * 3.0, vLoc.x * 40.0, vLoc.y * 40.0));
+    float g = fract(length(vec2(vLoc.x + 0.031, vLoc.y + 0.083)) * 620.0 + w * 1.8);
+    float late = smoothstep(0.5, 0.78, g) * (1.0 - smoothstep(0.88, 1.0, g)) * (1.0 - smoothstep(0.3, 0.9, length(fwidth(vLoc)) * 620.0));
+    diffuseColor.rgb = uCut * (vec3(1.0) - vec3(0.2, 0.25, 0.32) * late + 0.1 * (w - 0.5));
+    microR = 0.5;
+    wearCoat = 1.0;
+  }
   #endif
   #if PAINTED
   // the painted aux map: r = figure (flame) under the varnish, flipping with the view; g = 1 at the edge
@@ -341,7 +447,59 @@ float wearCoat = 0.0;
   microR += 0.22 * auxT.b;
   wearCoat = auxT.b;
   #endif
-}`,
+}
+// a section: where the eye sees into a part cut open, the face the cut would show
+bool capFrag = false;
+vec3 capCol = vec3(0.0);
+#if NUM_CLIPPING_PLANES > 0
+// (or sees a web: a cross-wall built inside a long part, at every key's boundary, to be its cut face:
+// piano3d.ts webs(), marked in uv.x)
+if (!gl_FrontFacing || vUv2.x > 8.5) {
+  capFrag = true;
+  // where the eye's ray through this fragment meets the cut's plane, in the world (metres): the cut
+  // is a plane of constant x there, so (y, z) are its own coordinates
+  vec4 pl = clippingPlanes[0];
+  vec3 qc = vClipPosition * (pl.w / min(dot(vClipPosition, pl.xyz), -1e-6));
+  vec3 wc = cameraPosition - qc * mat3(viewMatrix);
+  vec2 cp = wc.yz;
+  vec3 base = uCut;
+  #if CAP == 4
+  // a white key: its facing (the top 2.5 mm) over the key's wood
+  bool facing = wc.y > 0.7225;
+  if (facing) base = diffuseColor.rgb * 0.92;
+  #endif
+  #if CAP == 1 || CAP == 4
+  #if CAP == 4
+  vec3 axW = vec3(0.0, 0.0, 1.0);
+  if (!facing)
+  #else
+  // the part's grain in the world: across the cut it shows end grain (rings, darker: it drinks the
+  // light), along it long grain (lines)
+  vec3 axW = normalize(vAxisV * mat3(viewMatrix));
+  #endif
+  {
+    float endG = smoothstep(0.45, 0.85, abs(axW.x));
+    vec2 d2 = normalize(axW.yz + vec2(1e-4, 0.0));
+    float acr = dot(cp, vec2(-d2.y, d2.x));
+    float alo = dot(cp, d2);
+    float lw = fbm(vec3(alo * 4.0, acr * 60.0, 3.7));
+    float ll = fract(acr * 560.0 + lw * 2.2);
+    float longF = 1.0 - 0.17 * smoothstep(0.62, 0.9, ll) + 0.1 * (lw - 0.5);
+    float rw = fbm(vec3(cp * 30.0, 1.3 + uCapSeed.x));
+    float rg = fract(length(cp - vec2(0.75 + uCapSeed.y, uCapSeed.x)) * 430.0 * uCapSeed.z + rw * 3.0);
+    float endF = 0.8 - 0.2 * smoothstep(0.5, 0.9, rg) + 0.1 * (fbm(vec3(cp * 700.0, 2.1)) - 0.5);
+    base *= mix(longF, endF, endG);
+  }
+  #elif CAP == 2
+  // felt sheared through: its fibres, a little darker
+  base *= 0.9 + 0.2 * (fbm(vec3(cp * 1500.0, 0.7)) - 0.5) + 0.12 * (fbm(vec3(cp * 200.0, 4.1)) - 0.5);
+  #elif CAP == 3
+  // cut metal: a fine crystalline sparkle
+  base *= 0.92 + 0.16 * (fbm(vec3(cp * 2600.0, 5.3)) - 0.5);
+  #endif
+  capCol = base * uCapLight;
+}
+#endif`,
       )
       .replace(
         '#include <lights_physical_fragment>',
@@ -358,11 +516,18 @@ roughnessFactor = clamp(roughnessFactor + microR, 0.03, 1.0);`,
       .replace(
         '#include <normal_fragment_maps>',
         `#include <normal_fragment_maps>
-#if TEX == 9
+#if TEX == 9 || TEX == 12
 {
+  #if TEX == 9
   // a casting is never flat: a gentle waviness (≈ 1 mm over 10 cm, 0.3 mm over 3 cm) breaks the
   // flange's sheen up as a real plate's (a bump in metres: Mikkelsen's surface gradient, unnormalised)
   float hb = 0.0012 * fbm(vLoc * 9.0) + 0.0003 * fbm(vLoc * 37.0);
+  #else
+  // felt's nap: fibres standing a fifth of a millimetre off the surface, and its slow unevenness
+  // (the fibres fade with distance, as in its colour)
+  vec3 pf = vLoc / uTexScale;
+  float hb = 0.0002 * fbm(pf * 1600.0) * (1.0 - smoothstep(0.35, 1.1, length(fwidth(pf)) * 1600.0)) + 0.0005 * fbm(pf * 210.0);
+  #endif
   vec3 sp = -vViewPosition;
   vec3 sx = dFdx(sp);
   vec3 sy = dFdy(sp);
@@ -378,9 +543,14 @@ roughnessFactor = clamp(roughnessFactor + microR, 0.03, 1.0);`,
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
 totalEmissiveRadiance += vGlow.rgb * vGlow.rgb * min(vGlow.a, 1.0) * 0.55;`,
+      )
+      .replace(
+        '#include <opaque_fragment>',
+        `if (capFrag) outgoingLight = capCol + totalEmissiveRadiance;
+#include <opaque_fragment>`,
       );
   };
-  pm.customProgramCacheKey = () => `${name}|${tex}|${kind}|${paint ? 'p' : ''}`;
+  pm.customProgramCacheKey = () => `${name}|${tex}|${kind}|${cap}|${paint ? 'p' : ''}`;
   cache.set(m, pm);
   return pm;
 }

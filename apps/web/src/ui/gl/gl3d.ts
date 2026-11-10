@@ -10,6 +10,12 @@ export type RGBA = [number, number, number, number];
 export type Mat4 = Float32Array;
 
 // ---------------------------------------------------------------- the lines' shaders (GLSL 3, raw)
+// Two ways to hide a line behind the scene's nearer surfaces. DEPTH_TEX: drawn over the finished
+// picture (the canvas has no depth of its own), each fragment compared with the scene's depth
+// texture. Without it: drawn into a target that still has the scene's depth attached (the lid's
+// mirror pass), by the depth buffer's own test. That pass must not sample the texture: reading a
+// texture that is attached to the framebuffer being drawn into is a feedback loop, and WebGL drops
+// the draw with GL_INVALID_OPERATION.
 export const LINE_VS = `precision highp float;
 in vec3 aPos; in vec3 aPrev; in vec3 aNext; in float aSide; in vec4 aColor; in float aWidth;
 uniform mat4 uVP; uniform vec2 uHalf; uniform float uProjY; uniform float uProjZ;
@@ -38,17 +44,26 @@ void main() {
   // in metres, not in depth-buffer units: a fixed NDC offset grows with the square of the distance
   // (9 cm at 3 m), which let the strings show through the hammers in front of them
   c.z += uProjZ * (0.002 + 0.0006 * c.w) / max(c.w, 1e-4);
+#ifndef DEPTH_TEX
+  // (the depth buffer's own test: the same 2e-6 of slack the texture test gives)
+  c.z -= 4e-6 * c.w;
+#endif
   gl_Position = c;
   vColor = vec4(aColor.rgb, aColor.a * cover);
   vSide = aSide;
 }`;
 export const LINE_FS = `precision highp float;
 in vec4 vColor; in float vSide; out vec4 o;
-uniform sampler2D tDepth; uniform vec2 uRes; uniform float uWire;
+uniform float uWire;
+#ifdef DEPTH_TEX
+uniform sampler2D tDepth; uniform vec2 uRes;
+#endif
 void main() {
+#ifdef DEPTH_TEX
   // hidden behind the scene's nearer surfaces
   float d = texture(tDepth, gl_FragCoord.xy / uRes).r;
   if (gl_FragCoord.z > d + 2e-6) discard;
+#endif
   if (uWire > 0.5) {
     // a metal wire: lit like a cylinder (darker at its silhouette, a bright specular stripe)
     float s = vSide;

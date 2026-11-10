@@ -136,6 +136,9 @@ export const M = {
   rimVeneer: { col: hex('#3a1a0c'), rough: 0.3, metal: 0 },
   damperHead: { col: hex('#1a1614'), rough: 0.4, metal: 0 },
   pinNickel: { col: hex('#e6e6e3'), rough: 0.45, metal: 1 },
+  // a key's lead weights; the action's steel wires (damper wires, backcheck wires)
+  lead: { col: hex('#8d8e90'), rough: 0.6, metal: 0.55 },
+  wire: { col: hex('#8e9197'), rough: 0.42, metal: 1 },
   bridgeCap: { col: hex('#3a2a1c'), rough: 0.5, metal: 0.15 },
   // the flute's pads: white skin over felt (winds3d.ts)
   padSkin: { col: hex('#f1eee6'), rough: 0.7, metal: 0 },

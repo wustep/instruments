@@ -1,0 +1,55 @@
+# node scripts/webgl-warnings.mjs — 2.3 s per scene, a note sounding; 1440×900
+## before (main 0522d1e)
+grand              frames  140  console  257  getError  140  (lid mirror on)
+    256× GL_INVALID_OPERATION: glDrawElements: Feedback loop formed between Framebuffer and active Texture.
+    1× WebGL: too many errors, no more errors will be reported to the console for this context.
+grand close-up     frames  139  console    5  getError    0
+    5× GL_INVALID_OPERATION: glDrawElements: Feedback loop formed between Framebuffer and active Texture.
+grand lid shut     frames  139  console    5  getError    0
+    5× GL_INVALID_OPERATION: glDrawElements: Feedback loop formed between Framebuffer and active Texture.
+upright            frames  139  console    4  getError    0
+    4× GL_INVALID_OPERATION: glDrawElements: Feedback loop formed between Framebuffer and active Texture.
+upright close-up   frames  139  console    2  getError    0
+    2× GL_INVALID_OPERATION: glDrawElements: Feedback loop formed between Framebuffer and active Texture.
+violin             frames  139  console    0  getError    0
+viola              frames  139  console    0  getError    0
+cello              frames  139  console    0  getError    0
+flute              frames  139  console    0  getError    0
+trumpet            frames  139  console    0  getError    0
+
+## after
+grand              frames  138  console    0  getError    0  (lid mirror on)
+grand close-up     frames  139  console    0  getError    0
+grand lid shut     frames  139  console    0  getError    0
+upright            frames  140  console    0  getError    0
+upright close-up   frames  139  console    0  getError    0
+violin             frames  139  console    0  getError    0
+viola              frames  139  console    0  getError    0
+cello              frames  139  console    0  getError    0
+flute              frames  139  console    0  getError    0
+trumpet            frames  139  console    0  getError    0
+
+# 390×844 (the phones' light scene: no lid mirror)
+## before
+grand              frames  139  console    0  getError    0
+grand close-up     frames  139  console    0  getError    0
+grand lid shut     frames  139  console    0  getError    0
+upright            frames  139  console    0  getError    0
+upright close-up   frames  139  console    0  getError    0
+violin             frames  139  console    0  getError    0
+viola              frames  139  console    0  getError    0
+cello              frames  139  console    0  getError    0
+flute              frames  138  console    0  getError    0
+trumpet            frames  139  console    0  getError    0
+
+## after
+grand              frames  139  console    0  getError    0
+grand close-up     frames  139  console    0  getError    0
+grand lid shut     frames  139  console    0  getError    0
+upright            frames  139  console    0  getError    0
+upright close-up   frames  139  console    0  getError    0
+violin             frames  139  console    0  getError    0
+viola              frames  139  console    0  getError    0
+cello              frames  139  console    0  getError    0
+flute              frames  139  console    0  getError    0
+trumpet            frames  139  console    0  getError    0
