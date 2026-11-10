@@ -12,8 +12,8 @@ import { fft } from '../src/analysis/index.ts';
 
 const FS = 48000;
 const DIR = join(import.meta.dirname, 'golden');
-const PASSAGE: Record<string, number[]> = { piano: [48, 60, 64, 67], violin: [67, 71, 74], cello: [43, 50, 55], bass: [28, 33, 40], flute: [72, 76, 79], oboe: [69, 74, 77], clarinet: [55, 67, 74], trumpet: [60, 64, 67] };
-const TOL: Record<string, number> = { piano: 0.3, flute: 0.6, violin: 1.5, cello: 1.5, bass: 1.5, oboe: 1.5, clarinet: 1.5, trumpet: 1.5 };
+const PASSAGE: Record<string, number[]> = { piano: [48, 60, 64, 67], violin: [67, 71, 74], cello: [43, 50, 55], bass: [28, 33, 40], flute: [72, 76, 79], oboe: [69, 74, 77], clarinet: [55, 67, 74], bassoon: [41, 50, 55], trumpet: [60, 64, 67] };
+const TOL: Record<string, number> = { piano: 0.3, flute: 0.6, violin: 1.5, cello: 1.5, bass: 1.5, oboe: 1.5, clarinet: 1.5, bassoon: 1.5, trumpet: 1.5 };
 
 function fingerprint(inst: InstrumentId) {
   const notes = PASSAGE[inst];

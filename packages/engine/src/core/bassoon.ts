@@ -11,9 +11,11 @@
 // first open tone hole and the short one, the missing apex x₀ (the bocal's cone carried on to its point,
 // which the reed's own volume stands in for). Their resonances are the harmonic series n·c / 2(L + x₀): a
 // conical bore plays every harmonic and overblows at the octave. The apex is long on a bassoon (a narrow
-// cone's point is far behind its reed), so the bore's every (L + x₀)/x₀-th harmonic is weak: the comb
-// that, with the open-hole lattice's cutoff (about 400–500 Hz on a bassoon, Benade 1976), sets the
-// bassoon's fixed formant near 500 Hz and its weak low fundamentals.
+// cone's point is far behind its reed; fitted 0.14 m), so the bore's every (L + x₀)/x₀-th harmonic is
+// weak. Its resonances are harmonic, so a note can also hold its octave or twelfth: the losses in the loop
+// are kept light enough that the fundamental is the stable regime (scripts/bassoon-regimes.ts surveys
+// every note at pp, mf and ff at the four sample rates, held two seconds). The bassoon's fixed formant
+// near 500 Hz and its weak low fundamentals are the radiation's colour (below).
 //
 // The reed. Two cane blades, 55–57 mm long, pressed shut by the mouth's pressure (as the oboe's: Almeida,
 // Vergez & Caussé 2007, JASA 121, 536: the double reed's quasi-static flow is the single reed's, u ∝ h·√Δp,
@@ -94,6 +96,13 @@ export interface BassoonVoice {
    *  a scalar loss there held the bore's mean pressure for seconds and the reed's working point crept) */
   cutoff: number;
   wall: number;
+  /** the walls' loss growing with frequency (viscothermal, ∝ √f): a one-pole low-pass in the long
+   *  branch's loop, its corner `wallK` harmonics above the note. Fitted at 27 (1.6 kHz at B♭1): with none,
+   *  a low note's waveform kept sharpening for half a second after it spoke (the recordings' low notes
+   *  are whole in 20–100 ms). Heavier (a corner under ~12 harmonics, or the open-hole lattice's 400–500 Hz
+   *  cutoff, Benade 1976, in the loop) settled them faster but left many low and tenor notes' fundamental
+   *  unstable: held, they slid to their octave or twelfth within two seconds (scripts/bassoon-regimes.ts) */
+  wallK: number;
   /** turbulence in the reed's channel: noise in the flow, ∝ the flow, and a floor ∝ the breath (the jet
    *  through the slit, there at pp where the swing is small) */
   noise: number;
@@ -106,6 +115,10 @@ export interface BassoonVoice {
   lowG: number;
   f1: number;
   g1: number;
+  /** the formant's gain at E5 (g1 is B♭1's; between, on the log of the pitch). The low and tenor notes'
+   *  harmonics gather at the formant (the recordings' strongest harmonic near 450–550 Hz from B♭1 to C4);
+   *  the top notes, their fundamentals at or above it, keep their second harmonic as strong as the first */
+  g1Top: number;
   q1: number;
   f2: number;
   g2: number;
@@ -119,6 +132,9 @@ export interface BassoonVoice {
   lpDyn: number;
   shelfF: number;
   shelfG: number;
+  /** the level across the compass, dB an octave (the radiation's derivative favours the high notes; the
+   *  recordings' low notes are as strong as its tenor ones) */
+  tilt: number;
   /** the tongue's release: a transient wider opening (×(1 + attackBoost), decaying with attackTau, s) */
   attackBoost: number;
   attackTau: number;
@@ -129,37 +145,40 @@ export interface BassoonVoice {
 }
 
 export const BASSOON_VOICE: BassoonVoice = {
-  zeta: 1.2,
-  zetaTop: 1.5,
-  gammaLo: 0.1,
-  gammaHi: 0.8,
-  gammaCurve: 1.3,
-  openPp: 0.35,
-  riseLo: 0.2,
-  riseHi: 0.05,
-  apex: 0.12,
-  cutoff: 3000,
-  wall: 0.995,
-  noise: 0.2,
-  noiseFloor: 0.006,
-  hp: 50,
-  lowG: -3,
-  f1: 500,
-  g1: 10,
-  q1: 1.5,
-  f2: 1150,
-  g2: 4,
-  q2: 1.5,
-  lp: 1600,
-  lpQ: 0.8,
-  lpExp: 0.6,
-  lpDyn: 1.5,
+  zeta: 1.28,
+  zetaTop: 1.25,
+  gammaLo: 0.0544,
+  gammaHi: 0.833,
+  gammaCurve: 1.04,
+  openPp: 0.218,
+  riseLo: 0.0354,
+  riseHi: 0.0526,
+  apex: 0.142,
+  cutoff: 2500,
+  wall: 0.998,
+  wallK: 26.8,
+  noise: 0.171,
+  noiseFloor: 0.0111,
+  hp: 42.3,
+  lowG: -1.09,
+  f1: 482,
+  g1: 18,
+  g1Top: 16.4,
+  q1: 1.67,
+  f2: 871,
+  g2: 2.06,
+  q2: 0.681,
+  lp: 3170,
+  lpQ: 0.881,
+  lpExp: 0.941,
+  lpDyn: 1.39,
   shelfF: 4000,
-  shelfG: -12,
-  attackBoost: 0.3,
+  shelfG: -10.6,
+  tilt: -2.37,
+  attackBoost: 0,
   attackTau: 0.05,
-  tongueHold: 0.03,
-  tongueRel: 0.6,
+  tongueHold: 0.0285,
+  tongueRel: 0.847,
 };
 
 /** the shortest tongued note: the breath stays on this long (s) from the key, as on the flute and
@@ -206,6 +225,9 @@ export class BassoonCore implements InstrumentCore {
   private sx2 = 0;
   private sy1 = 0;
   private sy2 = 0;
+  /** the walls' one-pole (wallK): its coefficient for the note and its state */
+  private wp = 0;
+  private wy = 0;
   /** each end's reflected wave, averaged below ~20 Hz (the part reflected whole) */
   private m1 = 0;
   private m2 = 0;
@@ -261,6 +283,9 @@ export class BassoonCore implements InstrumentCore {
   /** the radiation's corner for the note at ff (Hz), and the corner its section now has */
   private lpNote = 4000;
   private lpSet = -1;
+  /** the note's level across the compass (tilt), and as the output last had it (eased across a block) */
+  private tiltNote = 1;
+  private tiltOut = 1;
   /** the reed's opening now (0 shut, 1 at rest), and the blowing pressure, for the stage */
   private xNow = 1;
   private gammaNow = 0;
@@ -301,10 +326,21 @@ export class BassoonCore implements InstrumentCore {
       biquadLowpass(Math.min(0.45 * fs, V.lp), V.lpQ, fs),
       biquadHighShelf(Math.min(0.4 * fs, V.shelfF), V.shelfG, fs),
     ]);
+    this.formant();
+    this.lpSet = -1;
     this.room.configure(this.params.room, this.params.seat);
-    // matched to the oboe: the median mf note as loud as the oboe's (the recordings' absolute levels are
-    // their microphone's gain; the double reeds sit side by side in the woodwind section)
-    this.gain = 0.266 * this.params.volume;
+    // matched to the oboe: the median mf note B♭1–E5 as loud as the oboe's B♭3–A6 (−22.6 dB dry; the
+    // recordings' absolute levels are their microphone's gain; the double reeds sit side by side in the
+    // woodwind section)
+    this.gain = 0.700 * this.params.volume;
+  }
+
+  /** the formant's gain for the note (g1 at B♭1 … g1Top at E5), written into its section in place (no
+   *  allocation on a note change) */
+  private formant(): void {
+    const V = this.V;
+    const u = clamp((this.note - BASSOON_LO) / (BASSOON_HI - BASSOON_LO), 0, 1);
+    peakingInto(this.eq.c, F1_SECTION * 5, V.f1, V.q1, V.g1 + (V.g1Top - V.g1) * u, this.fs);
   }
 
   /** measured voicing table (scripts/tune-bassoon.ts): cents the bare model plays sharp, by sample rate */
@@ -323,14 +359,21 @@ export class BassoonCore implements InstrumentCore {
     const f = et(m);
     // the period is the round trip of both branches, each through the ends' low-pass (its phase delay
     // at the note) and the interpolation's half sample
-    const lag = biquadPhaseDelay(this.rc, (2 * Math.PI * f) / fs);
-    this.D1target = Math.max(2, (fs / f) * this.tuningCorrection(m) - this.D2 - 2 * lag - 1);
+    const w0 = (2 * Math.PI * f) / fs;
+    const lag = biquadPhaseDelay(this.rc, w0);
+    // (and the walls' one-pole in the long branch: its phase delay at the note)
+    this.wp = Math.exp((-2 * Math.PI * Math.min(0.45 * fs, V.wallK * f)) / fs);
+    const wlag = Math.atan2(this.wp * Math.sin(w0), 1 - this.wp * Math.cos(w0)) / w0;
+    this.D1target = Math.max(2, (fs / f) * this.tuningCorrection(m) - this.D2 - 2 * lag - wlag - 1);
     if (immediate) this.D1 = this.D1target;
     this.zetaNote = V.zeta + (V.zetaTop - V.zeta) * clamp((m - BASSOON_LO) / (BASSOON_HI - BASSOON_LO), 0, 1);
     // the radiation's corner for this note (the dynamic moves it further: render())
     this.lpNote = V.lp * Math.pow(f / 440, V.lpExp);
     this.lpSet = -1;
     this.note = m;
+    this.formant();
+    this.tiltNote = Math.pow(f / et(BASSOON_LO), V.tilt / 6.0206);
+    if (immediate) this.tiltOut = this.tiltNote;
     for (let k = 0; k < 16; k++) this.modeFreqs[k] = (k + 1) * f;
   }
 
@@ -431,7 +474,7 @@ export class BassoonCore implements InstrumentCore {
   private clear(): void {
     this.longB.fill(0);
     this.apexB.fill(0);
-    this.rx1 = this.rx2 = this.ry1 = this.ry2 = this.sx1 = this.sx2 = this.sy1 = this.sy2 = 0;
+    this.rx1 = this.rx2 = this.ry1 = this.ry2 = this.sx1 = this.sx2 = this.sy1 = this.sy2 = this.wy = 0;
     this.m1 = this.m2 = 0;
     this.outPrev = this.sPrev = 0;
     this.tongueN = 0;
@@ -525,6 +568,7 @@ export class BassoonCore implements InstrumentCore {
     const d2i = Math.floor(D2);
     const d2f = D2 - d2i;
     const rc = this.rc;
+    const wp = this.wp;
     const g = V.wall;
     const kDc = this.kDc;
     const longB = this.longB;
@@ -548,8 +592,9 @@ export class BassoonCore implements InstrumentCore {
       this.rx1 = e;
       this.ry2 = this.ry1;
       this.ry1 = y1;
-      this.m1 += (y1 - this.m1) * kDc;
-      const a1 = -(g * y1 + (1 - g) * this.m1);
+      const yw = (this.wy = y1 + wp * (this.wy - y1));
+      this.m1 += (yw - this.m1) * kDc;
+      const a1 = -(g * yw + (1 - g) * this.m1);
       const e2 = apexB[(w - d2i) & mask] * (1 - d2f) + apexB[(w - d2i - 1) & mask] * d2f;
       const y2 = rc[0] * e2 + rc[1] * this.sx1 + rc[2] * this.sx2 - rc[3] * this.sy1 - rc[4] * this.sy2;
       this.sx2 = this.sx1;
@@ -634,9 +679,10 @@ export class BassoonCore implements InstrumentCore {
     this.level = Math.max(peak, this.level * 0.9);
     // (in pascals: the swing in units of pM, times pM ∝ the reed's opening; eased across the block, so a
     // swell's steps never click)
-    const g0 = this.gain * this.openOut;
-    const g1 = this.gain * open;
+    const g0 = this.gain * this.openOut * this.tiltOut;
+    const g1 = this.gain * open * this.tiltNote;
     this.openOut = open;
+    this.tiltOut = this.tiltNote;
     for (let t = 0; t < n; t++) {
       const gn = g0 + ((g1 - g0) * (t + 1)) / n;
       oL[t] *= gn;
@@ -733,8 +779,23 @@ export class BassoonCore implements InstrumentCore {
   }
 }
 
-/** the radiation chain's low-pass section (voiced(): high-pass, low shelf, two formants, low-pass, shelf) */
+/** the radiation chain's low-pass section (voiced(): high-pass, low shelf, two formants, low-pass, shelf),
+ *  and its first formant's */
 const LP_SECTION = 4;
+const F1_SECTION = 2;
+/** RBJ peaking coefficients [b0,b1,b2,a1,a2] written into c at `at` (no allocation) */
+function peakingInto(c: Float64Array, at: number, f: number, q: number, gainDb: number, fs: number): void {
+  const A = Math.pow(10, gainDb / 40);
+  const w = (2 * Math.PI * f) / fs;
+  const alpha = Math.sin(w) / (2 * q);
+  const cs = Math.cos(w);
+  const a0 = 1 + alpha / A;
+  c[at] = (1 + alpha * A) / a0;
+  c[at + 1] = (-2 * cs) / a0;
+  c[at + 2] = (1 - alpha * A) / a0;
+  c[at + 3] = (-2 * cs) / a0;
+  c[at + 4] = (1 - alpha / A) / a0;
+}
 /** RBJ low-pass coefficients [b0,b1,b2,a1,a2] written into c at `at` (no allocation: a note change on the
  *  audio thread) */
 function lowpassInto(c: Float64Array, at: number, f: number, q: number, fs: number): void {
