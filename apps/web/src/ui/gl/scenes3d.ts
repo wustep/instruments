@@ -267,7 +267,7 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
   // little above, the plates and the keywork towards the camera
   if (si.family === 'reed') {
     const c = st.oboe ? st.oboe.bounds.c : ([0, 0.3, 0] as Vec3);
-    return { target: [c[0], c[1], c[2]], dist: 0.78, yaw: 0.32, pitch: 0.16, whole: true };
+    return { target: [c[0], c[1], c[2]], dist: 0.78, yaw: 0.22, pitch: 0.16, whole: true };
   }
   return { target: [0.0, 0.17, 0.0], dist: 0.68, yaw: 0.24, pitch: 0.5 };
 }

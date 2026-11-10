@@ -22,22 +22,25 @@ mkdirSync(OUT, { recursive: true });
 
 // (the oboe stands along its own axis: these views are about the model's points, oboe3d.ts OBOE_VIEWS)
 const V = {
-  front: { yaw: 0.146, pitch: 0.38, dist: 0.95, target: [0.004, 0.293, 0.02] },
-  side: { yaw: 2.184, pitch: 0.845, dist: 0.95, target: [0.004, 0.293, 0.02] },
-  back: { yaw: -2.995, pitch: 0.12, dist: 0.95, target: [0.004, 0.293, 0.02] },
-  reed: { yaw: 0.55, pitch: 0.22, dist: 0.16, target: [-0.245, 0.462, 0.05] },
-  upper: { yaw: 0.3, pitch: 0.18, dist: 0.26, target: [-0.1, 0.366, 0.032] },
-  lower: { yaw: 0.3, pitch: 0.18, dist: 0.26, target: [0.035, 0.278, 0.016] },
-  thumb: { yaw: 3.0, pitch: 0.15, dist: 0.3, target: [-0.06, 0.34, 0.03] },
-  bell: { yaw: 0.6, pitch: 0.05, dist: 0.3, target: [0.215, 0.158, -0.005] },
+  // (square on to the plates, and from the player's left and from behind, each across the oboe's axis)
+  front: { yaw: -0.304, pitch: 0.38, dist: 0.95, target: [0.006, 0.293, 0.02] },
+  side: { yaw: 1.734, pitch: 0.845, dist: 0.95, target: [0.006, 0.293, 0.02] },
+  back: { yaw: 2.838, pitch: 0.12, dist: 0.95, target: [0.006, 0.293, 0.02] },
+  reed: { yaw: 0.45, pitch: 0.22, dist: 0.16, target: [-0.205, 0.462, 0.152] },
+  upper: { yaw: 0.22, pitch: 0.18, dist: 0.26, target: [-0.078, 0.361, 0.07] },
+  lower: { yaw: 0.22, pitch: 0.18, dist: 0.26, target: [0.014, 0.289, 0.011] },
+  thumb: { yaw: 2.84, pitch: 0.15, dist: 0.3, target: [-0.05, 0.34, 0.06] },
+  bell: { yaw: 0.5, pitch: 0.05, dist: 0.3, target: [0.19, 0.155, -0.1] },
   // square on to the plates (the front's own bearing), as oboe-yamaha-side.jpg is taken
-  upperF: { yaw: 0.146, pitch: 0.38, dist: 0.125, target: [-0.088, 0.358, 0.031] },
-  lowerF: { yaw: 0.146, pitch: 0.38, dist: 0.125, target: [0.03, 0.281, 0.017] },
-  bellF: { yaw: 0.146, pitch: 0.38, dist: 0.125, target: [0.17, 0.188, 0.0] },
+  upperF: { yaw: -0.304, pitch: 0.38, dist: 0.125, target: [-0.078, 0.361, 0.07] },
+  lowerF: { yaw: -0.304, pitch: 0.38, dist: 0.125, target: [0.014, 0.289, 0.011] },
+  bellF: { yaw: -0.304, pitch: 0.38, dist: 0.125, target: [0.16, 0.175, -0.082] },
+  // the bell from the hero's own bearing, close
+  bellH: { yaw: 0.22, pitch: 0.16, dist: 0.2, target: [0.205, 0.14, -0.11] },
   // the player's right-hand side of the lower joint and the bell (the big C♯, C and B keys), from below
-  right: { yaw: -0.31, pitch: -0.2, dist: 0.32, target: [0.12, 0.22, 0.006] },
+  right: { yaw: -0.754, pitch: -0.2, dist: 0.32, target: [0.09, 0.23, -0.04] },
   // along the plates of the top joint, low across them: the gap under an open plate shows
-  graze: { yaw: 1.05, pitch: 0.62, dist: 0.16, target: [-0.088, 0.358, 0.031] },
+  graze: { yaw: 0.6, pitch: 0.62, dist: 0.16, target: [-0.078, 0.361, 0.07] },
 };
 const NOTE = 62; // D4: every ring down (L1–L3, R1–R3), the plate shut
 
@@ -79,7 +82,7 @@ const view = async (v) => {
 };
 const want = (n) => !VIEWS || VIEWS.includes(n);
 
-const shots = PHONE || SET === 'before' ? ['hero'] : ['hero', 'front', 'side', 'back', 'reed', 'upper', 'lower', 'thumb', 'bell', 'upperF', 'lowerF', 'bellF', 'right', 'graze'];
+const shots = PHONE || SET === 'before' ? ['hero'] : ['hero', 'front', 'side', 'back', 'reed', 'upper', 'lower', 'thumb', 'bell', 'upperF', 'lowerF', 'bellF', 'right', 'graze', 'bellH'];
 for (const which of shots) {
   if (!want(which)) continue;
   await view(which === 'hero' ? null : V[which]);

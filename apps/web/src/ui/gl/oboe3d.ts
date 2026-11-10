@@ -35,8 +35,8 @@
 // plate below L1 lifting.
 import type { VisualFrame } from '@piano-model/engine';
 import { HALF, L1, L2, L3, LB, LBB, LEB, LGS, OCT1, OCT2, R1, R2, R3, RC, RCS, REB, RF, oboeFingersFor } from '../oboe-fingering.ts';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cross, dot, mulInto, norm, rotX, rotZ, scale, sub, translate, xform } from './gl3d.ts';
-import { M, MeshBuilder, cyl, ellipsoid, grid, variant, type Mat } from './mesh.ts';
+import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cross, dot, mulInto, norm, rotX, rotY, rotZ, scale, sub, translate, xform } from './gl3d.ts';
+import { M, MeshBuilder, cyl, ellipsoid, grid, spline, variant, type Mat } from './mesh.ts';
 import type { WindPose } from './winds3d.ts';
 
 type P2 = [number, number];
@@ -282,8 +282,8 @@ const J1 = 236;
 const J1R = 240.5;
 const J2 = 471.5;
 const J2R = 478;
-/** the bell's rim: its bead starts here */
-const RIM0 = 577;
+/** the bell's rim: its widest (mm down the body) */
+const RIM0 = 589;
 /** the rim's outer radius (m): Ø 50, the photograph's */
 export const OBOE_RIM = 0.025;
 
@@ -292,8 +292,13 @@ export const OBOE_RIM = 0.025;
 // to its rim
 const BULB_B = [2.6, 3.6, 5, 7, 9, 11.5, 13.5, 15.5, 17.2, 18.6, 19.4];
 const BULB_R = [6.15, 7.3, 8.9, 10.3, 11.15, 11.7, 11.85, 11.7, 11.1, 10.45, 10.25];
-const BELL_B = [478, 480, 492, 505, 525, 545, 560, 570, 575, 577];
-const BELL_R = [14.4, 14.45, 14.85, 15.3, 16.0, 17.1, 18.1, 19.2, 20.2, 20.9];
+// the bell (oboe-yamaha-side.jpg's outline): a slow flare that opens quickly over its last 15 mm into
+// the rim, then rolls under to the mouth; inside, the throat flares to the choke at the mouth
+const BELL_OUT: P2[] = [[478, 14.4], [486, 14.6], [500, 15.15], [515, 15.6], [530, 16.25], [545, 17.1], [556, 17.9], [565, 18.8], [571, 19.7], [575, 20.6], [578, 21.8], [580.5, 23.1], [583, 24.2], [586, 24.85], [589, 24.95]];
+const BELL_LIP: P2[] = [[592, 24.6], [594.5, 23.8], [596.6, 22.6], [598.3, 21.2], [599.5, 19.8], [600, 18.6], [599.9, 17.9], [599.4, 17.4], [598.5, 17.15]];
+const BELL_IN: P2[] = [[598.5, 17.15], [596, 17.1], [592, 17.0], [586, 16.4], [578, 15.4], [566, 13.9], [548, 11.9], [528, 10.1], [508, 8.9], [490, 8.2]];
+const BELL_B = BELL_OUT.map((p) => p[0]);
+const BELL_R = BELL_OUT.map((p) => p[1]);
 const bulb = pchip(BULB_B, BULB_R);
 const bell = pchip(BELL_B, BELL_R);
 const TJ_TOP = 23.5;
@@ -394,7 +399,7 @@ function cup(mb: MeshBuilder, Cf: Mat4, style: CupStyle, r: number, hole: number
       rads = [0, 0.0003, 0.0005, 0.0014, 0.0006, 0.0002, 0];
     } else {
       // a domed cup (the screw's head in the middle of an adjustable one)
-      const cap = dome(0, r - 0.0011, top + 0.0003, top - 0.0004);
+      const cap = dome(0, r - 0.0011, top + (r > 0.0048 ? 0.0011 : 0.0003), top - 0.0004);
       prof = [...cap, [r, top - 0.0013], [r, 0.0005], [r - 0.0005, 0.0005]];
       rads = prof.map((_, i) => (i === cap.length - 1 ? 0.0006 : i === cap.length ? 0.0005 : i === cap.length + 1 ? 0.0002 : 0));
     }
@@ -437,7 +442,7 @@ function arm(mb: MeshBuilder, Cf: Mat4, r: number, from: Vec3, cupB: number, cup
 }
 
 /** a hinge tube on a rod line, from b0 to b1, with rounded ends */
-function hinge(mb: MeshBuilder, r: Rod, b0: number, b1: number, rr = 0.00145): void {
+function hinge(mb: MeshBuilder, r: Rod, b0: number, b1: number, rr = 0.0017): void {
   const a = rodP(r, b0);
   const c = rodP(r, b1);
   const L = len3(sub(c, a));
@@ -449,7 +454,7 @@ function post(mb: MeshBuilder, r: Rod, b: number): void {
   const top = rodP(r, b);
   const L = len3(sub(top, base));
   mb.with(frameY(base, sub(top, base)), () => revolve(mb, fillet([[0, 0], [0.0029, 0], [0.0029, 0.00045], [0.0017, 0.0011], [0.0013, L - 0.0017], [0.0017, L - 0.0009]], [0, 0, 0.0004, 0.0006, 0.0006, 0], 3), 20, AG));
-  ellipsoid(mb, top, [0.00185, 0.00185, 0.00185], 18, AG);
+  ellipsoid(mb, top, [0.0021, 0.0021, 0.0021], 18, AG);
 }
 /** the steel pivot of a rod line, seen between its hinge tubes, with its screw's head at the top */
 function steel(mb: MeshBuilder, r: Rod): void {
@@ -461,11 +466,17 @@ function steel(mb: MeshBuilder, r: Rod): void {
 }
 /** a needle spring: from a post, along beside the rod, into a key's catch (a small stud on its tube) */
 function needle(mb: MeshBuilder, r: Rod, bPost: number, bCatch: number): void {
-  const off = (b: number, d: number): Vec3 => P(b, r.phi - 20, rodR(r, b) + d);
-  const p0 = off(bPost, 1.6);
-  const p1 = off(bCatch, 1.6);
-  pipe(mb, [p0, add(scale(add(p0, p1), 0.5), scale(norm(OUT(p0)), -0.00012)), p1], 0.00028, STEEL, 8);
-  ellipsoid(mb, off(bCatch, 1.6), [0.0006, 0.0006, 0.0006], 10, AG);
+  // beside the hinge tube, against it (2.1 mm off the rod's axis, round towards the front)
+  const off = (b: number): Vec3 => {
+    const R = rodR(r, b);
+    return P(b, r.phi - Math.sign(r.phi || 1) * ((2.0 / R) * 180) / Math.PI, R - 0.5);
+  };
+  const p0 = off(bPost);
+  const p1 = off(bCatch);
+  pipe(mb, [p0, add(scale(add(p0, p1), 0.5), scale(norm(OUT(p0)), -0.0001)), p1], 0.00026, STEEL, 8);
+  // the catch: a small stud on the key's tube that takes the spring's tip
+  const c = rodP(r, bCatch);
+  cyl(mb, c, p1, 0.00055, 0.00048, 10, AG);
 }
 /** a touch: a teardrop spoon swept along `path` (its narrow end first), `w` its half-width at the
  *  round end, face out from the tube */
@@ -680,7 +691,7 @@ export interface OboeKey {
 export interface OboeModel {
   T: Mat4;
   statics: Mesh[];
-  /** the bell's rim (it shimmers with the level) */
+  /** the bell: its flare, rim and throat (it shimmers with the level) */
   rim: Mesh;
   keys: OboeKey[];
   /** the reed's two blades (they close with its opening): the side each is on (±1 along y) */
@@ -775,19 +786,16 @@ function body(mb: MeshBuilder): void {
   ring(J1, J1R, 13.85 * mm, 14.15 * mm, 11.45 * mm);
   lx(mb, [...prof(span(J1R, J2 - 0.5, 18)), [13.9 * mm, X(J2)]], 72, WOOD);
   ring(J2, J2R, 14.4 * mm, 14.85 * mm, 13.9 * mm);
-  // the bell, to its rim (the rim is its own mesh)
-  lx(mb, prof(span(J2R, RIM0, 26)), 80, WOOD);
-  // the bell's throat inside: the bore flaring to the rim's choke, and the dark of the bore beyond
-  const inner: P2[] = [[16.6, 597.5], [17.1, 592], [16.2, 580], [14.2, 566], [12.0, 548], [10.2, 528], [9.0, 508], [8.2, 490]].map(([r, b]) => [r * mm, X(b)] as P2);
-  lx(mb, inner, 64, THROAT);
+  // (the bell is its own mesh; the dark of the bore beyond its throat)
   lx(mb, [[8.2 * mm, X(490)], [0, X(489)]], 32, DARK);
 }
-/** the rim: a thick turned bead, rolled under to the choke */
-function rimMesh(): Mesh {
+/** the bell: one turned piece, its flare opening into the rim and rolled under to the mouth, the
+ *  throat inside (dark) flaring to the choke; the profile one smooth curve (no crease, no step) */
+function bellMesh(): Mesh {
   const mb = new MeshBuilder();
-  const pts: P2[] = [[20.9, 577], [21.6, 578.2], [23.3, 580], [24.5, 582], [25, 584.5], [25, 587], [24.4, 590], [23.0, 593], [21.2, 596], [19.6, 598.6], [18.4, 600], [17.2, 600], [16.6, 599.2], [16.6, 597.5]];
-  const rads = [0, 1.0, 1.2, 1.2, 0.8, 0.8, 1.2, 1.2, 1.0, 0.8, 0.5, 0.4, 0.3, 0].map((v) => v * mm);
-  lx(mb, fillet(pts.map(([r, b]) => [r * mm, X(b)] as P2), rads, 4), 80, WOOD);
+  const curve = spline([...BELL_OUT, ...BELL_LIP].map(([b, r]) => [r * mm, X(b)] as P2), 6);
+  lx(mb, curve, 96, WOOD);
+  lx(mb, spline(BELL_IN.map(([b, r]) => [r * mm, X(b)] as P2), 4), 72, THROAT);
   return mb.build();
 }
 
@@ -807,12 +815,13 @@ function thumbRest(mb: MeshBuilder): void {
   sweep(mb, hook, (p) => sub(p, c), () => 0.0042, () => 0.0007, AG, 18, 3);
 }
 
-/** a crossbar: one of the links that reach across the front between the rod lines (a key's tongue
- *  to its neighbour's, with the adjusting screw through its end and the cork under it), at `b` mm
- *  from φ0 to φ1 */
-function crossbar(mb: MeshBuilder, b: number, phi0: number, phi1: number, h = 2.9): void {
+/** a crossbar: one of the links that reach across the front from a key's hinge tube on a rod line to
+ *  its neighbour (a tongue, with the adjusting screw through its end and the cork under it), at `b` mm
+ *  out to φ1 */
+function crossbar(mb: MeshBuilder, rod: Rod, b: number, phi1: number, h = 2.9): void {
   const n = 9;
-  const path = Array.from({ length: n }, (_, i) => S(b, lerp(phi0, phi1, i / (n - 1)), h + 0.25 * Math.sin((Math.PI * i) / (n - 1))));
+  const R0 = rodR(rod, b) - rOut(b);
+  const path = Array.from({ length: n }, (_, i) => S(b, lerp(rod.phi, phi1, i / (n - 1)), lerp(R0, h, Math.min(1, (2 * i) / (n - 1))) + 0.25 * Math.sin((Math.PI * i) / (n - 1))));
   sweep(mb, path, OUT, (f) => 0.00105 + 0.0004 * Math.max(0, 1 - f / 0.15), () => 0.00048, AG, 12, 3);
   // the adjusting screw at its free end, and the cork it bears on
   const e = S(b, phi1, h);
@@ -874,7 +883,7 @@ function aboutAxis(out: Float32Array, p: Vec3, u: Vec3, a: number): Float32Array
 
 /** where the model stands: held as a player holds it, the reed up and back towards the player, the
  *  bell down and out towards the audience, the plates turned to the audience */
-export const OBOE_POSE = { tilt: 56, lean: 0.18, turn: 14, y: 0.3 };
+export const OBOE_POSE = { tilt: 56, lean: 0.18, turn: 14, swing: 0.45, y: 0.3 };
 
 export function buildOboeModel(): OboeModel {
   const mb = new MeshBuilder();
@@ -890,7 +899,7 @@ export function buildOboeModel(): OboeModel {
   for (const k of FIXED) keyPiece(mb, k);
   thumbRest(mb);
   bridge(mb);
-  for (const [b, p0, p1] of [[100.5, -66, -18], [116, 28, -12], [204, -66, -8], [214.5, 32, 4], [336, -70, -26], [342, 30, 2], [372, -62, -16], [395, 30, -6], [440, -62, -20]] as const) crossbar(mb, b, p0, p1);
+  for (const [r, b, p1] of [[TA, 101, -22], [TB, 116, -12], [TA, 209, -10], [TA, 217, 10], [LD, 337, -30], [LBR, 330, 2], [LD, 404, -22], [LBR, 395, -6], [LD, 433, -24]] as const) crossbar(mb, r, b, p1);
   // the keys that move: each its own piece, turning about its rod line
   const keys: OboeKey[] = KEYS.map((k) => {
     const kb = new MeshBuilder();
@@ -907,10 +916,10 @@ export function buildOboeModel(): OboeModel {
     return { name: k.name, kind: k.kind, closed: !!k.closed, open: k.open, mesh: kb.build(), x: ref[0], p0, u, sign, maxAng: (k.lift ?? 0.0016) / Math.max(0.002, arm) };
   });
   const blades = ([1, -1] as const).map((s) => ({ mesh: blade(s), s }));
-  const { tilt, lean, turn, y } = OBOE_POSE;
-  const T = chain(translate(0, y, 0.02), rotX(lean), rotZ(-deg(90 - tilt)), rotX(-Math.PI / 2 + deg(turn)), translate(-OBOE_LEN / 2, 0, 0));
+  const { tilt, lean, turn, swing, y } = OBOE_POSE;
+  const T = chain(translate(0, y, 0.02), rotY(swing), rotX(lean), rotZ(-deg(90 - tilt)), rotX(-Math.PI / 2 + deg(turn)), translate(-OBOE_LEN / 2, 0, 0));
   const holes = ALL.filter((k) => k.b !== undefined).map((k) => ({ x: X(k.b!), name: k.name }));
-  return { T, statics: [mb.build()], rim: rimMesh(), keys, blades, bounds: { c: xform(T, [OBOE_LEN / 2, 0, 0]), r: 0.36 }, holes };
+  return { T, statics: [mb.build()], rim: bellMesh(), keys, blades, bounds: { c: xform(T, [OBOE_LEN / 2, 0, 0]), r: 0.36 }, holes };
 }
 
 // ================================================================ posing

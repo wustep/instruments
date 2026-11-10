@@ -189,8 +189,8 @@ const P: Record<string, Phys> = {
   grenadillaX: { color: '#241e1f', roughness: 0.4, clearcoat: 0.75, clearcoatRoughness: 0.13, tex: 4, axis: [1, 0, 0], texScale: 0.6 },
   // the reed: Arundo donax cane, its bark glossy golden; the scraped tip and heart paler and matte,
   // fibres along the reed (oboe-reeds.jpg); the binding thread, nylon with a sheen
-  cane: { color: '#d4ad5f', roughness: 0.38, clearcoat: 0.5, clearcoatRoughness: 0.18, sheen: 0.25, sheenColor: '#fff0c8', sheenRoughness: 0.5, tex: 3, axis: [1, 0, 0], texScale: 0.25 },
-  caneScraped: { color: '#ecd6a2', roughness: 0.66, sheen: 0.5, sheenColor: '#fff6dc', sheenRoughness: 0.5, tex: 3, axis: [1, 0, 0], texScale: 0.25 },
+  cane: { color: '#ddb865', roughness: 0.36, clearcoat: 0.5, clearcoatRoughness: 0.18, sheen: 0.25, sheenColor: '#fff0c8', sheenRoughness: 0.5, tex: 3, axis: [1, 0, 0], texScale: 0.25 },
+  caneScraped: { color: '#e6cd92', roughness: 0.62, sheen: 0.5, sheenColor: '#fff6dc', sheenRoughness: 0.5, tex: 3, axis: [1, 0, 0], texScale: 0.25 },
   reedThread: { color: '#2f6542', roughness: 0.5, sheen: 1, sheenColor: '#9ae6b8', sheenRoughness: 0.35, tex: 6 },
 };
 
