@@ -1484,14 +1484,22 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     const big = 0.017 * B * coarse;
     const nx = Math.ceil((x1 - x0) / big);
     const nz = Math.ceil((z1 - z0) / big);
-    // scanline inside test at a cell's centre
+    // scanline inside test at a cell's centre (the outline's crossings of a row are found once: the
+    // cells of a row share them)
+    const rows = new Map<number, number[]>();
     const inside = (x: number, z: number) => {
-      let c = false;
-      for (let i = 0, j = n - 1; i < n; j = i++) {
-        const [xi, zi] = Q[i];
-        const [xj, zj] = Q[j];
-        if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) c = !c;
+      let xs = rows.get(z);
+      if (!xs) {
+        xs = [];
+        for (let i = 0, j = n - 1; i < n; j = i++) {
+          const [xi, zi] = Q[i];
+          const [xj, zj] = Q[j];
+          if (zi > z !== zj > z) xs.push(((xj - xi) * (z - zi)) / (zj - zi) + xi);
+        }
+        rows.set(z, xs);
       }
+      let c = false;
+      for (const xc of xs) if (x < xc) c = !c;
       return c;
     };
     // cells the outline passes through (sampled along each edge)
@@ -1535,14 +1543,26 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
       if (poly.length) clip((q) => q[1] <= rz1, iz(rz1));
       return poly;
     };
+    const grid = new Map<number, ReturnType<typeof vtx>>();
+    const gv = (ix: number, iz: number) => {
+      const k = iz * (fx + 2) + ix;
+      let v = grid.get(k);
+      if (!v) grid.set(k, (v = vtx(x0 + ix * small, z0 + iz * small)));
+      return v;
+    };
     const cell = (cx0: number, cz0: number, sz: number, fineIx: number, fineIz: number, span: number) => {
       // any boundary in this cell?
       let edge = false;
       for (let a = 0; a < span && !edge; a++) for (let c2 = 0; c2 < span && !edge; c2++) if (edgeCell[(fineIz + c2) * fx + fineIx + a]) edge = true;
       if (!edge) {
         if (!inside(cx0 + sz / 2, cz0 + sz / 2)) return;
-        tri([cx0, cz0], [cx0 + sz, cz0], [cx0 + sz, cz0 + sz]);
-        tri([cx0, cz0], [cx0 + sz, cz0 + sz], [cx0, cz0 + sz]);
+        // (a whole cell: its corners are grid points, each worked out once for the cells that share it)
+        const A = gv(fineIx, fineIz);
+        const Bv = gv(fineIx + span, fineIz);
+        const Cv = gv(fineIx + span, fineIz + span);
+        const Dv = gv(fineIx, fineIz + span);
+        b.stri(A.pos, Bv.pos, Cv.pos, A.nrm, Bv.nrm, Cv.nrm, m, A.uv, Bv.uv, Cv.uv);
+        b.stri(A.pos, Cv.pos, Dv.pos, A.nrm, Cv.nrm, Dv.nrm, m, A.uv, Cv.uv, Dv.uv);
         return;
       }
       const piece = clipRect(cx0, cz0, cx0 + sz, cz0 + sz);
