@@ -121,8 +121,7 @@
 :root[data-style='vector'] .dim-toggle,
 :root[data-style='vector'] .vec-toggle,
 :root[data-style='vector'] .case-toggle,
-:root[data-style='vector'] .ens-toggle,
-:root[data-style='vector'] .score-btn {
+:root[data-style='vector'] .ens-toggle {
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--v-blue-mid);
@@ -137,8 +136,7 @@
 :root[data-style='vector'] .dim-toggle[aria-pressed='true'],
 :root[data-style='vector'] .vec-toggle[aria-pressed='true'],
 :root[data-style='vector'] .case-toggle[aria-pressed='true'],
-:root[data-style='vector'] .ens-toggle[aria-pressed='true'],
-:root[data-style='vector'] .score-btn[aria-expanded='true'] {
+:root[data-style='vector'] .ens-toggle[aria-pressed='true'] {
   color: var(--v-text);
   background: none;
   border-color: var(--v-blue);

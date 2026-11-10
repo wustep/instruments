@@ -9,10 +9,9 @@ import type { KeyboardHandle } from '../ui/keyboard.ts';
 import { openActionView } from '../ui/action-view.ts';
 import type { Stage3D } from '../ui/gl/stage3d.ts';
 import { webgl2Available } from '../ui/gl/webgl2.ts';
-import { ensembleIcon, glyph, knob, scoreIcon, voiceGlyph, type KnobSpec } from '../ui/controls.ts';
+import { ensembleIcon, glyph, knob, type KnobSpec } from '../ui/controls.ts';
 import { ensemble, QUARTET, stageCap, type PartLive } from '../orchestra/ensemble.ts';
 import { isKeyboard, lineupPlan, planOf, VOICE_INFO, type Voice } from '../orchestra/assign.ts';
-import { PIECES } from '../orchestra/pieces.ts';
 import { drawEnsemble, ensembleCells, newPartDraw, syncPianoState, type Cell, type PartDraw } from '../ui/ensemble-draw.ts';
 import type { EnsPartIn } from '../ui/gl/scenes3d.ts';
 import type { MidiPlayer } from '../ui/player.ts';
@@ -76,11 +75,10 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   });
   // ---------------------------------------------------------------- orchestra mode
   // the ensemble: on, the instrument buttons count instruments into the lineup (a tap adds one, past the
-  // most it may have none); the pieces: a few public-domain scores that bring their own lineup
+  // most it may have none). (The pieces, a few public-domain scores that bring their own lineup, are in
+  // the player's overlay, with play and open: ui/player.ts.)
   const ensBtn = h('button', { class: 'ens-toggle', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Ensemble: several instruments', 'data-tip': 'ensemble · tap instruments to add them' });
   ensBtn.append(ensembleIcon());
-  const scoreBtn = h('button', { class: 'score-btn', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': 'Pieces for the ensemble', 'data-tip': 'pieces' });
-  scoreBtn.append(scoreIcon());
   let lastLineup: Voice[] = QUARTET;
   const pianoVoice = (): Voice => (audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand');
   const voiceOfPick = (id: InstrumentId): Voice => (id === 'piano' ? pianoVoice() : (id as Voice));
@@ -119,42 +117,6 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     ensemble.enter(planOf([{ voice: v, lines: song.lines.map((_, i) => i) }], song.lines), song, null, false);
     void ensemble.ensureEngines();
   };
-  let scoreMenu: HTMLElement | null = null;
-  const closeScore = (refocus = false) => {
-    scoreMenu?.remove();
-    scoreMenu = null;
-    scoreBtn.setAttribute('aria-expanded', 'false');
-    if (refocus) scoreBtn.focus();
-  };
-  scoreBtn.addEventListener('click', () => {
-    if (scoreMenu) return closeScore();
-    const items = PIECES.map((pc, i) => {
-      const b = h('button', { class: 'sm-item', type: 'button', role: 'menuitem', 'data-piece': pc.id }, h('span', { class: 'sm-who' }, pc.composer), h('span', { class: 'sm-what' }, pc.title), h('span', { class: 'sm-lineup', 'aria-hidden': 'true' }, ...pc.parts.map((q) => voiceGlyph(q.voice))));
-      b.setAttribute('aria-label', `${pc.composer}, ${pc.title}: ${pc.parts.map((q) => VOICE_INFO[q.voice].label).join(', ')}`);
-      b.addEventListener('click', () => {
-        closeScore();
-        fadeIn();
-        void player.loadPiece(i).catch((e) => console.warn('piece:', e));
-      });
-      return b;
-    });
-    const credit = h('a', { class: 'sm-credit', href: '#/notes', 'data-route': 'notes' }, 'public domain · Mutopia Project');
-    credit.addEventListener('click', () => closeScore());
-    scoreMenu = h('div', { class: 'score-menu', role: 'menu', 'aria-label': 'Pieces' }, ...items, credit);
-    el.append(scoreMenu);
-    const r = scoreBtn.getBoundingClientRect();
-    const er = el.getBoundingClientRect();
-    scoreMenu.style.left = `${Math.max(8, Math.min(er.width - scoreMenu.offsetWidth - 8, r.left - er.left))}px`;
-    scoreMenu.style.top = `${r.bottom - er.top + 6}px`;
-    scoreBtn.setAttribute('aria-expanded', 'true');
-    (items[0] as HTMLElement | undefined)?.focus();
-  });
-  document.addEventListener('pointerdown', (e) => {
-    if (scoreMenu && !scoreMenu.contains(e.target as Node) && !scoreBtn.contains(e.target as Node)) closeScore();
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && scoreMenu) closeScore(true);
-  });
   const shownPresets = PRESET_IDS.filter((id) => VISIBLE_PRESETS.includes(id));
   const presetBtns = shownPresets.map((id) =>
     h(
@@ -193,7 +155,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   // the vector display: the 2D stage's other style (ui/vector/kit.ts). The stage as it was stays the
   // default; the choice is remembered, and ?style=vector (or =classic) in the address sets it.
   // Its toggle closes the picker's row: every control that was there keeps its place (3d next to the
-  // case toggle it brings, then the ensemble and the pieces), and how the stage is drawn, the choice
+  // case toggle it brings, then the ensemble), and how the stage is drawn, the choice
   // made least often, comes last.
   let wantVector = false;
   try {
@@ -233,7 +195,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     e.preventDefault();
     setCase(!caseHidden);
   });
-  const picker = h('div', { class: 'picker' }, h('div', { class: 'instruments', role: 'group', 'aria-label': 'Instrument' }, instBtns), h('div', { class: 'picker-row' }, presets, dimBtn, caseBtn, ensBtn, scoreBtn, vecBtn));
+  const picker = h('div', { class: 'picker' }, h('div', { class: 'instruments', role: 'group', 'aria-label': 'Instrument' }, instBtns), h('div', { class: 'picker-row' }, presets, dimBtn, caseBtn, ensBtn, vecBtn));
 
   // ---------------------------------------------------------------- readout, spectrum, scope
   const noteEl = h('div', { class: 'r-note' }, '');

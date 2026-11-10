@@ -1762,6 +1762,89 @@ test('orchestra: a piece from the menu puts its ensemble on the stage, in 2D and
   expect(errors).toEqual([]);
 });
 
+test('the pieces are in the player’s overlay, with play and open: one icon, the same for one instrument and for an ensemble; its menu opens under it, on the screen', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  // (the phone: 390×844, where the menu has the least room)
+  if (info.project.name === 'phone') await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const player = page.locator('.player');
+  const btn = page.locator('.score-btn');
+  const menu = page.locator('.score-menu');
+  const box = async (l: ReturnType<Page['locator']>) => (await l.boundingBox())!;
+  const view = page.viewportSize()!;
+  /** the button sits in the player's row, and its menu, open, hangs under it, whole and uncovered */
+  const check = async (mode: string, row: string[]) => {
+    await expect(btn, mode).toHaveCount(1);
+    await expect(player.locator('.pl-row > .score-btn.pl-btn'), mode).toBeVisible();
+    await expect(page.locator('.picker .score-btn'), mode).toHaveCount(0);
+    // one row of icons, in this order, the pieces next to the file they are the alternative to
+    const shown = await player.locator('.pl-row button:visible').evaluateAll((bs) => bs.map((b) => [...b.classList].find((c) => /^pl-(play|stop|route|pieces|open)$/.test(c))));
+    expect(shown, mode).toEqual(row);
+    const [b, o] = [await box(btn), await box(page.locator('.pl-open'))];
+    expect(Math.abs(b.y - o.y), mode).toBeLessThan(1);
+    expect(o.x - (b.x + b.width), mode).toBeLessThanOrEqual(8);
+    expect([b.width, b.height], mode).toEqual([o.width, o.height]);
+    await btn.click();
+    await expect(menu, mode).toBeVisible();
+    await expect(player.locator('.score-menu'), mode).toHaveCount(1);
+    await expect(btn, mode).toHaveAttribute('aria-expanded', 'true');
+    await expect(menu.locator('.sm-item'), mode).toHaveCount(3);
+    const m = await box(menu);
+    expect(m.y, mode).toBeGreaterThanOrEqual(b.y + b.height);
+    expect(m.y, mode).toBeLessThan(b.y + b.height + 10);
+    expect(b.x + b.width / 2, mode).toBeGreaterThan(m.x);
+    expect(b.x + b.width / 2, mode).toBeLessThan(m.x + m.width);
+    expect(m.x, mode).toBeGreaterThanOrEqual(4);
+    expect(m.x + m.width, mode).toBeLessThanOrEqual(view.width - 4);
+    expect(m.y + m.height, mode).toBeLessThanOrEqual(view.height);
+    for (const it of await menu.locator('.sm-item, .sm-credit').all()) {
+      const r = await box(it);
+      expect(await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('.score-menu'), [r.x + r.width / 2, r.y + r.height / 2]), `${mode}: nothing over the menu`).toBe(true);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), mode).toBe(true);
+  };
+  // icon only, named for a screen reader and by its tip
+  await expect(btn).toHaveAttribute('aria-label', 'Pieces for the ensemble');
+  await expect(btn).toHaveAttribute('data-tip', 'pieces');
+  expect((await btn.innerText()).trim()).toBe('');
+  // one instrument, nothing loaded: play, the pieces, open
+  await check('one instrument, at rest', ['pl-play', 'pl-pieces', 'pl-open']);
+  // Escape closes the menu and the button has the focus again; so does a tap anywhere else
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+  await expect(btn).toBeFocused();
+  await expect(btn).toHaveAttribute('aria-expanded', 'false');
+  await btn.click();
+  await expect(menu).toBeVisible();
+  await page.locator('.spec-wrap').click();
+  await expect(menu).toBeHidden();
+  // a piece from it puts its ensemble on the stage; the button keeps its place in the row, by the routing
+  await btn.click();
+  await menu.locator('.sm-item').first().click();
+  await expect(menu).toBeHidden();
+  await expect.poll(() => page.evaluate(() => (window as any).__orchestra.ensemble.piece?.id ?? null), { timeout: 10_000 }).toBe('haydn');
+  await expect(page.locator('.pl-line')).toHaveCount(4);
+  await check('an ensemble, its piece loaded', ['pl-play', 'pl-stop', 'pl-route', 'pl-pieces', 'pl-open']);
+  // the routing grid and the pieces menu are not open together
+  await page.locator('.pl-route').click();
+  await expect(page.locator('.pl-grid')).toBeVisible();
+  await expect(menu).toBeHidden();
+  await btn.click();
+  await expect(menu).toBeVisible();
+  await expect(page.locator('.pl-grid')).toBeHidden();
+  await page.keyboard.press('Escape');
+  await player.getByRole('button', { name: 'Stop' }).click();
+  // the ensemble with nothing loaded (the file let go): the same three icons as for one instrument
+  await page.evaluate(() => (window as any).__player.unload());
+  await expect(player).toHaveClass(/idle/);
+  expect((await ens(page)).active).toBe(true);
+  await check('an ensemble, at rest', ['pl-play', 'pl-pieces', 'pl-open']);
+  await page.keyboard.press('Escape');
+  await page.locator('.ens-toggle').click();
+  expect((await ens(page)).active).toBe(false);
+  expect(errors).toEqual([]);
+});
+
 test('orchestra: with nothing loaded, the overlay’s play icon plays the built-in piece nearest the lineup; an instrument’s own piece makes way for the ensemble', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
