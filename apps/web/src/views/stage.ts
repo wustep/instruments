@@ -536,7 +536,6 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
         piano: st,
         bowed: d?.bowed?.geom ?? null,
         down: (m: number) => p.down.has(m),
-        sounding: (m: number) => p.down.has(m),
       };
     });
   /** the stage as the ensemble changes: the picker counts its instruments, the single instrument's own
@@ -765,7 +764,6 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
         room: roomVal(),
         rms,
         down: (m) => audio.down.has(m),
-        sounding: (m) => audio.isSounding(m),
         caseHidden,
         ensemble: ens ? ensIn() : null,
       }, overTop());

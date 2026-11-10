@@ -7,7 +7,8 @@ import { DEFAULT_PARAMS, PRESETS, buildKeySpecs } from '../../../packages/engine
 import { BOWED } from '../../../packages/engine/src/core/bowed.ts';
 import type { KeySummary, VisualFrame } from '@piano-model/engine';
 import { Batch, type Mesh, xform } from '../src/ui/gl/gl3d.ts';
-import { buildGrandModel, buildUprightModel, newPianoPose, posePiano, zoomFrame, type PianoModel } from '../src/ui/gl/piano3d.ts';
+import { buildGrandModel, buildUprightModel, newPianoPose, pianoStrings, posePiano, zoomFrame, type PianoModel } from '../src/ui/gl/piano3d.ts';
+import { M, MAT_LIST } from '../src/ui/gl/mesh.ts';
 import { buildBowedModel } from '../src/ui/gl/strings3d.ts';
 import { buildFluteModel, buildTrumpetModel, newWindPose, poseFlute, poseTrumpet } from '../src/ui/gl/winds3d.ts';
 import { newPianoState } from '../src/ui/piano-draw.ts';
@@ -97,7 +98,7 @@ describe('3D instruments', () => {
       ps.sustain = sustain;
       for (let f = 0; f < frames; f++) {
         b.clear();
-        posePiano(b, grand, { piano: ps, keys, dt: 1 / 60, lid: 1, down: (m) => down.has(m), sounding: (m) => down.has(m), lite: false }, pose);
+        posePiano(b, grand, { piano: ps, keys, dt: 1 / 60, lid: 1, down: (m) => down.has(m), lite: false }, pose);
       }
     };
     ps.strikes.set(60, 1);
@@ -148,6 +149,129 @@ describe('3D instruments', () => {
     const s = upright.keys[60].strings[0];
     expect(Math.abs(s.a[2] - s.b[2])).toBeLessThan(1e-9);
     expect(s.a[1] - s.b[1]).toBeGreaterThan(0.1);
+  });
+
+  // A sharp is a block of ebony on its key stick, and it overhangs the stick (13.7 mm over 10.4): its
+  // underside shows from below and wherever a key's close-up cuts through it. It was lofted with a top
+  // and no bottom (open below, the shell showed its inside); now every face is ebony and it is closed.
+  it('a sharp is ebony on every face and closed: its underside covers its whole footprint (grand and upright)', () => {
+    for (const pm of [grand, upright]) {
+      for (const midi of [22, 61, 106]) {
+        const m = pm.keys[midi - 21].key;
+        const d = m.data;
+        expect(Array.from(m.mats).every((id) => MAT_LIST[id] === M.ebony), `${pm.kind} ${midi}`).toBe(true);
+        // the faces turned down (by their normals: the renderer winds each face by them), their plan area
+        let down = 0;
+        let y0 = Infinity;
+        for (let t = 0; t < m.count; t += 3) {
+          const o = t * 14;
+          if (d[o + 4] > -0.9) continue;
+          const p = [0, 1, 2].map((k) => [d[o + k * 14], d[o + k * 14 + 2]]);
+          down += Math.abs((p[1][0] - p[0][0]) * (p[2][1] - p[0][1]) - (p[2][0] - p[0][0]) * (p[1][1] - p[0][1])) / 2;
+          y0 = Math.min(y0, d[o + 1]);
+        }
+        // 13.7 × 95 mm, less its rounded corners
+        expect(down, `${pm.kind} ${midi}`).toBeGreaterThan(0.97 * 0.0137 * 0.095);
+        expect(down).toBeLessThan(0.0137 * 0.095);
+        // at the sharp's foot, under the white keys' tops (0.725 m)
+        expect(y0).toBeCloseTo(0.723, 4);
+        // closed: every edge is shared by two faces
+        const edges = new Map<string, number>();
+        const key = (o: number) => `${d[o].toFixed(6)},${d[o + 1].toFixed(6)},${d[o + 2].toFixed(6)}`;
+        for (let t = 0; t < m.count; t += 3)
+          for (let k = 0; k < 3; k++) {
+            const a = key((t + k) * 14);
+            const b = key((t + ((k + 1) % 3)) * 14);
+            const e = a < b ? `${a}|${b}` : `${b}|${a}`;
+            edges.set(e, (edges.get(e) ?? 0) + 1);
+          }
+        const open = [...edges.values()].filter((n) => n % 2).length;
+        expect(open, `${pm.kind} ${midi}: open edges`).toBe(0);
+      }
+    }
+  });
+
+  // Stephen: "for the pianos on 3d, don't turn the string/key/etc red when playing them (just on 3d)".
+  // In 3D the played parts keep their own materials and show the playing by their motion: a held,
+  // sounding chord of white and black keys, struck, with both pedals down, tints no key, stick, jack,
+  // hammer, damper or pedal, and lays no vermilion or amber line over its strings; its strings
+  // (struck and sympathetic) are the wires themselves in their live shapes. (2D keeps its highlights.)
+  it('in 3D a played piano tints nothing: keys, action, dampers, pedals and strings keep their materials; the strings move as wires', () => {
+    const chord = [55, 58, 60, 61, 64, 66];
+    for (const pm of [grand, upright]) {
+      const keys = keysOf(pm.kind);
+      const ps = newPianoState();
+      const pose = newPianoPose();
+      const b = new Batch();
+      const down = new Set(chord);
+      ps.down = down;
+      ps.sustain = 1;
+      ps.soft = 1;
+      for (const m of chord) ps.strikes.set(m, 1);
+      let tint = 0;
+      let hammer = 0;
+      let damper = 0;
+      for (let f = 0; f < 40; f++) {
+        b.clear();
+        posePiano(b, pm, { piano: ps, keys, dt: 1 / 60, lid: 1, down: (m) => down.has(m), lite: false }, pose);
+        hammer = Math.max(hammer, ps.hammer[61 - 21]);
+        damper = Math.max(damper, ps.damper[61 - 21]);
+        // (each instance: its matrix, then its glow: rgb, amount)
+        for (const mesh of b.meshes()) {
+          const buf = b.inst.get(mesh)!;
+          for (let o = 0; o < buf.n; o += 20) tint = Math.max(tint, buf.a[o + 16], buf.a[o + 17], buf.a[o + 18], buf.a[o + 19]);
+        }
+      }
+      // (the frames went through the strike and the damper's lift)
+      expect(hammer, pm.kind).toBeGreaterThan(0.6);
+      expect(damper, pm.kind).toBeGreaterThan(0.9);
+      expect(tint, `${pm.kind}: a played part tinted`).toBe(0);
+      expect(b.glow.nv, pm.kind).toBe(0);
+
+      // the strings: the chord's keys sounding (half-sine shapes, 32 points), C5 sympathetic
+      const P = 32;
+      const live = [...chord, 72];
+      const levels = new Float32Array(88);
+      const symLevels = new Float32Array(88);
+      for (const m of chord) levels[m - 21] = 1;
+      symLevels[72 - 21] = 0.5;
+      const shapes = new Float32Array(live.length * P);
+      live.forEach((_, j) => {
+        for (let i = 0; i < P; i++) shapes[j * P + i] = Math.sin((Math.PI * i) / (P - 1)) * (j === live.length - 1 ? 0.3 : 1);
+      });
+      const fr = { levels, symLevels, pianoShapes: { points: P, midi: Int16Array.from(live), light: Uint8Array.from(live.map((m) => (m === 72 ? 1 : 0))), level: new Float32Array(live.length), shapes } } as unknown as VisualFrame;
+      b.clear();
+      pianoStrings(b, pm, null, (mx) => mx, false);
+      const still = b.wireL.nv;
+      b.clear();
+      pianoStrings(b, pm, fr, (mx) => mx, false);
+      expect(b.glow.nv, `${pm.kind}: a line over the strings`).toBe(0);
+      expect(b.wireL.nv, pm.kind).toBeGreaterThan(still);
+      // the wire itself swings, a few of its diameters: 4 mm at the loudest string's antinode (a
+      // grand's strings up, an upright's towards the keys), 1.2 mm for the sympathetic one
+      const swing = (midi: number): number => {
+        const g = pm.keys[midi - 21];
+        const r = g.strings[0];
+        const lv = b.wireL.lv.a;
+        let mx = 0;
+        for (let v = 0; v < b.wireL.nv; v++) {
+          const o = v * 15;
+          const x = lv[o];
+          const y = lv[o + 1];
+          const z = lv[o + 2];
+          if (Math.abs(x - g.strike[0]) > 0.005) continue;
+          if (pm.kind === 'grand') {
+            if (z > r.a[2] + 0.01 && z < r.b[2] - 0.01) mx = Math.max(mx, Math.abs(y - r.a[1]));
+          } else if (y < r.a[1] - 0.01 && y > r.b[1] + 0.01) mx = Math.max(mx, Math.abs(z - r.a[2]));
+        }
+        return mx;
+      };
+      expect(swing(61), pm.kind).toBeGreaterThan(0.0039);
+      expect(swing(61), pm.kind).toBeLessThan(0.0041);
+      expect(swing(72), pm.kind).toBeGreaterThan(0.0011);
+      expect(swing(72), pm.kind).toBeLessThan(0.0013);
+      expect(swing(84), pm.kind).toBeLessThan(1e-6);
+    }
   });
 
   it('violin < viola < cello, with the real body lengths; the cello stands on its endpin', () => {
