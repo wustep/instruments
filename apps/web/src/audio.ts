@@ -155,6 +155,8 @@ class AudioApp {
   readonly instrumentChanged = new Emitter<InstrumentId>();
   /** about to change (the file player pauses an instrument's own piece before the engine swaps) */
   readonly instrumentChanging = new Emitter<InstrumentId>();
+  /** the piano's preset changed (as it is asked for: the engine follows) */
+  readonly presetChanged = new Emitter<string>();
   /** fires on every incoming MIDI message (for an activity light) */
   readonly midiActivity = new Emitter<void>();
   midi: MidiStatus = { supported: typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator, inputs: [] };
@@ -564,9 +566,14 @@ class AudioApp {
     else this.queue.push((p) => p.bend(semitones));
   }
 
+  /** the engine's last change of preset, done */
+  presetSettled: Promise<void> = Promise.resolve();
   async setPreset(id: string): Promise<void> {
+    const changed = id !== this.preset;
     this.preset = id;
-    if (this.piano) await this.piano.setPreset(id);
+    this.presetSettled = this.piano ? this.piano.setPreset(id) : Promise.resolve();
+    if (changed) this.presetChanged.emit(id);
+    await this.presetSettled;
   }
 
   async setInstrument(id: InstrumentId): Promise<void> {

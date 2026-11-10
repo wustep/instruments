@@ -17,6 +17,7 @@ import { parseMidi, type FileEvent, type MidiSong } from '../midi-file.ts';
 import { canReassign, voicesOfLine, VOICE_INFO, VOICES, type Voice } from '../orchestra/assign.ts';
 import { ensemble, stageCap } from '../orchestra/ensemble.ts';
 import { DEMOS, demoSong, PIECES, pieceForLineup, type Demo, type Piece } from '../orchestra/pieces.ts';
+import { tidyName } from '../orchestra/rules.ts';
 import { voiceGlyph } from './controls.ts';
 import { h } from './dom.ts';
 import type { InstrumentId } from '@piano-model/engine';
@@ -67,10 +68,7 @@ const expressOf = (s: MidiSong): Expressed => {
 };
 
 /** a line's name as the file writes it, tidied ("violinI:" → "violin I"; LilyPond's "\new" is none) */
-export const lineName = (name: string, inst: string, i: number): string => {
-  const n = name.replace(/^\\new:?$/, '').replace(/:$/, '').replace(/^(violin|violino)(I+)$/i, '$1 $2').trim();
-  return n || inst.trim() || `line ${i + 1}`;
-};
+export const lineName = (name: string, inst: string, i: number): string => tidyName(name) || inst.trim() || `line ${i + 1}`;
 
 export class MidiPlayer {
   readonly el: HTMLElement;
@@ -203,7 +201,7 @@ export class MidiPlayer {
       });
       return b;
     });
-    const credit = h('a', { class: 'sm-credit', href: '#/notes', 'data-route': 'notes' }, 'public domain · Mutopia Project');
+    const credit = h('a', { class: 'sm-credit', href: '/notes', 'data-route': 'notes' }, 'public domain · Mutopia Project');
     credit.addEventListener('click', () => this.closePieces());
     const m = h('div', { class: 'score-menu', role: 'menu', 'aria-label': 'Pieces' }, ...items, credit);
     this.el.append(m);
@@ -241,20 +239,28 @@ export class MidiPlayer {
     this.syncExpr(x);
   }
 
-  /** automatic expression on or off (remembered on this device); a file playing goes on from where
-   *  it is heard, with or without it */
-  setAuto(on: boolean): void {
+  /** automatic expression on or off (remembered on this device, unless an address set it for the
+   *  page); a file playing goes on from where it is heard, with or without it */
+  setAuto(on: boolean, remember = true): void {
     if (on === this.auto) return;
     this.auto = on;
-    try {
-      localStorage.setItem(AUTO_KEY, on ? 'on' : 'off');
-    } catch {
-      /* private mode */
-    }
+    if (remember)
+      try {
+        localStorage.setItem(AUTO_KEY, on ? 'on' : 'off');
+      } catch {
+        /* private mode */
+      }
     const was = this.playing;
     if (was) this.pause();
     this.perform();
     if (was) void this.play();
+    this.autoSubs.forEach((cb) => cb());
+  }
+  private autoSubs = new Set<() => void>();
+  /** automatic expression turned on or off (the address follows) */
+  onAuto(cb: () => void): () => void {
+    this.autoSubs.add(cb);
+    return () => this.autoSubs.delete(cb);
   }
 
   /** the hairpin: pressed when automatic expression is on; its tip says when the file has
@@ -319,8 +325,10 @@ export class MidiPlayer {
     this.demo = null;
     this.perform();
     const plan = ensemble.planFor(song, piece);
-    // (a lineup picked by hand stays picked: the file was matched to it)
-    if (piece || ensemble.active || plan.parts.length > 1) ensemble.enter(plan, song, piece, !piece && ensemble.active && ensemble.byUser);
+    // (a lineup picked by hand stays picked: the file was matched to it, by the routing it has if it
+    // has one: an address's, or the last file's)
+    const rules = ensemble.rulesFor(piece);
+    if (piece || ensemble.active || plan.parts.length > 1) ensemble.enter(plan, song, piece, !piece && ensemble.active && ensemble.byUser, rules);
     this.buildStrip();
     this.sync();
     if (this.song) await this.play();

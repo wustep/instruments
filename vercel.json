@@ -4,6 +4,16 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm build",
   "outputDirectory": "apps/web/dist",
+  "rewrites": [
+    {
+      "source": "/(piano|violin|viola|cello|bass|flute|trumpet|double-bass|contrabass|grand|upright|orchestra|ensemble|measurements|notes)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(piano|violin|viola|cello|bass|flute|trumpet|double-bass|contrabass|grand|upright|orchestra|ensemble|measurements|notes)/(.*)",
+      "destination": "/index.html"
+    }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",
