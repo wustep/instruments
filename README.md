@@ -24,7 +24,7 @@ README does not claim it is live. `vercel.json` makes this a static build
   * On the computer keyboard, hold `Space` for sustain and `Shift` for una corda.
 * **Instruments.** Choose one with the selector on the Play page. The piano has
   four presets: concert grand, upright, honky-tonk and prepared.
-* **Vector lines.** The crosshair button beside `3d` redraws the 2D stage as a vector
+* **Vector lines.** The crosshair button that closes the picker's row redraws the 2D stage as a vector
   display: thin glowing lines on black, the instrument in blue, the sound in amber, and
   each knob in a colour of its own that also marks what it moves on the drawing. The
   stage as it was stays the default; the choice is remembered, and `?style=vector` in

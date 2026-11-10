@@ -1783,6 +1783,8 @@ test('the vector display: off by default; the toggle redraws every family in blu
   // the stage as it was is the default
   await expect(root).not.toHaveAttribute('data-style', /.+/);
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  // it closes the picker's row: nothing that was there has moved
+  expect(await page.evaluate(() => document.querySelector('.picker-row')!.lastElementChild!.className)).toBe('vec-toggle');
   const ground = () => page.evaluate(() => getComputedStyle(document.querySelector('.stage')!).backgroundColor + ' / ' + getComputedStyle(document.querySelector('.pick-name')!).fontFamily);
   const classic = await ground();
   await toggle.click();
@@ -1838,6 +1840,36 @@ test('the vector display: off by default; the toggle redraws every family in blu
     await page.getByRole('button', { name: 'Vector lines' }).click();
     await expect(dim).toHaveAttribute('aria-pressed', 'false');
     await expect(root).toHaveAttribute('data-style', 'vector');
+  }
+  // the pianos' action close-up follows: a black panel, the section in blue lines, nothing filled
+  await page.evaluate(() => (window as any).__piano.setInstrument('piano'));
+  await page.waitForTimeout(400);
+  {
+    const k = page.locator('.key[data-midi="48"]');
+    await k.scrollIntoViewIfNeeded();
+    const kb = (await k.boundingBox())!;
+    const cv = (await page.locator('.stage-cv').boundingBox())!;
+    if (info.project.name === 'phone') await page.touchscreen.tap(kb.x + kb.width / 2, cv.y + cv.height * 0.8);
+    else await page.mouse.click(kb.x + kb.width / 2, cv.y + cv.height * 0.8);
+    const panel = page.locator('.av-panel');
+    await expect(panel).toBeVisible();
+    await page.waitForTimeout(300);
+    expect(await panel.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(0, 0, 0)');
+    const av = await page.evaluate(() => {
+      const c = document.querySelector('.av-cv') as HTMLCanvasElement;
+      const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+      let blue = 0, lit = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 40) continue;
+        if (d[i] + d[i + 1] + d[i + 2] > 150) lit++;
+        if (d[i + 2] > 150 && d[i + 2] > d[i] + 60) blue++;
+      }
+      return { blue, lit: lit / (d.length / 4) };
+    });
+    expect(av.blue, 'close-up: blue lines').toBeGreaterThan(1500);
+    expect(av.lit, 'close-up: lines, not fills').toBeLessThan(0.2);
+    await page.keyboard.press('Escape');
+    await expect(panel).toHaveCount(0);
   }
   await page.getByRole('button', { name: 'Vector lines' }).click();
   await expect(root).not.toHaveAttribute('data-style', /.+/);

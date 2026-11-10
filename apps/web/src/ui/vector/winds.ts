@@ -303,8 +303,32 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
   const sounding = !!focus && lvl > 0.02;
 
   ctx.save();
-  /** a tube's two walls along 3D polylines (kept per canvas size under `key`) */
-  const walls = (key: string, polys: () => V3[][], color: string, alpha = 1, off?: V3) => {
+  /** hide what lies behind a shape: lines only, but a nearer part still covers a farther one */
+  const mask = (path: Path2D, strokeWidth = 0) => {
+    ctx.save();
+    ctx.setLineDash([]);
+    if (strokeWidth) {
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = strokeWidth;
+      ctx.lineCap = 'butt';
+      ctx.lineJoin = 'round';
+      ctx.stroke(path);
+    } else {
+      ctx.fillStyle = '#000';
+      ctx.fill(path);
+    }
+    ctx.restore();
+  };
+  /** a tube's two walls along 3D polylines (kept per canvas size under `key`); `near` tubes (the
+   *  leadpipe's side, towards the viewer) hide the casings and the bell section behind them */
+  const walls = (key: string, polys: () => V3[][], color: string, alpha = 1, off?: V3, near = false) => {
+    const centre = near
+      ? memo(`centre:${key}`, () => {
+          const c = new Path2D();
+          for (const pl3 of polys()) pl3.map(P3).forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y)));
+          return c;
+        })
+      : null;
     const p = memo(`walls:${key}`, () => {
       const p = new Path2D();
       const r = TR_RT * S;
@@ -328,6 +352,7 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
       ctx.save();
       ctx.translate(o[0], o[1]);
     }
+    if (centre) mask(centre, 2 * TR_RT * S);
     beam(ctx, p, color, lw, { alpha });
     if (o) ctx.restore();
   };
@@ -380,6 +405,7 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
       });
     const sides = memo(`casing:${k}`, () => {
       const p = new Path2D();
+      const body = new Path2D();
       const col = (y0: number, y1: number, r: number) => {
         // the cylinder's silhouette: the widest points of its rim on the screen
         let x0 = Infinity;
@@ -396,13 +422,18 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
         p.lineTo(x0, yb);
         p.moveTo(x1, ya);
         p.lineTo(x1, yb);
+        body.rect(x0, Math.min(ya, yb), x1 - x0, Math.abs(yb - ya));
       };
       col(-TR_CY - 0.0086, -TR_CY, TR_RC + 0.0018);
       col(-TR_CY, TR_CY, TR_RC);
       col(TR_CY, TR_CY + 0.006, TR_RC + 0.0018);
-      return p;
+      return { p, body };
     });
-    beam(ctx, sides, V.blue, lw);
+    // the casing hides the bell section's tail behind it (its own piston is drawn after, inside)
+    mask(sides.body);
+    mask(rim(-TR_CY - 0.0086, TR_RC + 0.0018, 20));
+    mask(rim(TR_CY + 0.006, TR_RC + 0.0018));
+    beam(ctx, sides.p, V.blue, lw);
     beam(ctx, rim(-TR_CY - 0.0086, TR_RC + 0.0018, 20), V.blue, lw);
     beam(ctx, rim(-TR_CY, TR_RC + 0.0018, 20), V.blueMid, 1);
     beam(ctx, rim(TR_CY, TR_RC + 0.0018, 20), V.blueMid, 1);
@@ -428,13 +459,13 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
   });
   // ---- the slides: the main tuning slide, then each valve's (dim until its piston routes the air
   // through it), the 1st and 3rd riding out when kicked
-  walls('main', () => [TR_MAIN], V.blue);
+  walls('main', () => [TR_MAIN], V.blue, 1, undefined, true);
   for (const k of [2, 0, 1]) {
     const sl = TR_SLIDES[k];
     const on = clamp(press[k], 0, 1);
     const col = mix(V.blueDim, V.blue, on);
-    walls(`fixed${k}`, () => [sl.out, sl.back], col, 0.9);
-    walls(`sleeve${k}`, () => [sl.sleeve], col, 0.9, slideOff(k));
+    walls(`fixed${k}`, () => [sl.out, sl.back], col, 0.9, undefined, true);
+    walls(`sleeve${k}`, () => [sl.sleeve], col, 0.9, slideOff(k), true);
     if (kick[k] > 0.0005) {
       // kicked out: the inner tubes show between the fixed tubes and the sleeve
       const [ox, oy] = shift([sl.dir[0] * kick[k], 0, 0]);
@@ -470,7 +501,7 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
     beam(ctx, null, V.blueMid, 1);
   }
   // ---- the leadpipe and the mouthpiece (its silhouette along the leadpipe's axis, rim to shank)
-  walls('lead', () => [TR_LEAD], V.blue);
+  walls('lead', () => [TR_LEAD], V.blue, 1, undefined, true);
   const rimPt = P3(trAlong(-TR_MP));
   const ax1 = P3(trAlong(0));
   const al = Math.hypot(ax1[0] - rimPt[0], ax1[1] - rimPt[1]);
@@ -487,6 +518,7 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
     p.closePath();
     return p;
   });
+  mask(mp);
   beam(ctx, mp, V.blue, lw);
 
   // ---- the air: its path for this fingering (lips to rim), hatched across by the standing wave

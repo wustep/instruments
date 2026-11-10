@@ -190,6 +190,9 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   dimBtn.hidden = !has3d;
   // the vector display: the 2D stage's other style (ui/vector/kit.ts). The stage as it was stays the
   // default; the choice is remembered, and ?style=vector (or =classic) in the address sets it.
+  // Its toggle closes the picker's row: every control that was there keeps its place (3d next to the
+  // case toggle it brings, then the ensemble and the pieces), and how the stage is drawn, the choice
+  // made least often, comes last.
   let wantVector = false;
   try {
     const q = new URLSearchParams(location.search).get('style') ?? new URLSearchParams(location.hash.split('?')[1] ?? '').get('style');
@@ -228,7 +231,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     e.preventDefault();
     setCase(!caseHidden);
   });
-  const picker = h('div', { class: 'picker' }, h('div', { class: 'instruments', role: 'group', 'aria-label': 'Instrument' }, instBtns), h('div', { class: 'picker-row' }, presets, dimBtn, vecBtn, caseBtn, ensBtn, scoreBtn));
+  const picker = h('div', { class: 'picker' }, h('div', { class: 'instruments', role: 'group', 'aria-label': 'Instrument' }, instBtns), h('div', { class: 'picker-row' }, presets, dimBtn, caseBtn, ensBtn, scoreBtn, vecBtn));
 
   // ---------------------------------------------------------------- readout, spectrum, scope
   const noteEl = h('div', { class: 'r-note' }, '');

@@ -344,7 +344,37 @@
   color: var(--v-frame);
 }
 
-/* the toggle itself, in either style (it sits beside the 3D toggle and looks like it) */
+/* the pianos' action close-up: a framed black panel (ui/vector/pen.ts draws the section in lines) */
+:root[data-style='vector'] .action-view {
+  background: rgba(0, 0, 0, 0.6);
+}
+:root[data-style='vector'] .av-panel {
+  background: #000;
+  border-color: var(--v-blue-dim);
+  border-radius: 0;
+  box-shadow: 0 0 18px rgba(79, 182, 242, 0.18);
+}
+:root[data-style='vector'] .av-name {
+  font: 300 24px/1.1 var(--hershey);
+  letter-spacing: 0.04em;
+  color: var(--v-amber);
+}
+:root[data-style='vector'] .av-speed {
+  font-family: var(--hershey);
+  color: var(--v-blue);
+}
+:root[data-style='vector'] .av-close {
+  border-color: var(--v-frame);
+  border-radius: 0;
+  color: var(--v-blue);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}
+:root[data-style='vector'] .av-close:hover,
+:root[data-style='vector'] .av-close:focus-visible {
+  border-color: var(--v-blue);
+}
+
+/* the toggle itself, in either style: last in the picker's row, framed like the 3D toggle */
 .vec-toggle {
   display: inline-flex;
   align-items: center;

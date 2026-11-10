@@ -2,6 +2,7 @@
 // and the colour roles.
 import { describe, expect, it } from 'vitest';
 import { Contours, SLOTS, V, heat, mix, slotColor } from '../src/ui/vector/kit.ts';
+import { linePen } from '../src/ui/vector/pen.ts';
 
 type Seg = [number, number, number, number];
 const trace = (c: Contours, level: number): Seg[] => {
@@ -71,5 +72,53 @@ describe('colour roles', () => {
     const ramp = [0, 0.2, 0.4, 0.6, 0.8, 1].map(heat).map(luma);
     for (let i = 1; i < ramp.length; i++) expect(ramp[i]).toBeGreaterThan(ramp[i - 1]);
     expect(heat(0.6)).toBe(V.amber);
+  });
+});
+
+describe('the line pen (the action close-up drawn in lines)', () => {
+  /** a context that records what ink reaches it */
+  const fake = () => {
+    const log: string[] = [];
+    const c = {
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+      beginPath: () => log.push('begin'),
+      rect: () => log.push('rect'),
+      fill() {
+        log.push(`fill ${this.fillStyle}`);
+      },
+      stroke() {
+        log.push(`stroke ${this.strokeStyle} ${this.lineWidth}`);
+      },
+    };
+    return { c, log };
+  };
+  const blue = '79,182,242';
+  const amber = '255,179,64';
+  it('a solid fill becomes a black mask with its outline traced; the dark edge line after it is dropped', () => {
+    const { c, log } = fake();
+    const pen = linePen(c as unknown as CanvasRenderingContext2D);
+    pen.beginPath();
+    pen.rect(0, 0, 1, 1);
+    pen.fillStyle = 'rgba(226,201,154,0.950)';
+    pen.fill();
+    pen.strokeStyle = 'rgba(0,0,0,0.550)';
+    pen.lineWidth = 0.8;
+    pen.stroke();
+    expect(log).toEqual(['begin', 'rect', 'fill #000', `stroke rgba(${blue},0.870) 1`]);
+    expect(c.lineWidth).toBe(0.8);
+  });
+  it('a faint fill is only outlined; a line keeps its width; named colours take their role', () => {
+    const { c, log } = fake();
+    const pen = linePen(c as unknown as CanvasRenderingContext2D, { '255,94,56': V.amber });
+    pen.beginPath();
+    pen.fillStyle = 'rgba(125,115,84,0.120)';
+    pen.fill();
+    pen.beginPath();
+    pen.strokeStyle = 'rgba(255,94,56,0.900)';
+    pen.lineWidth = 1.3;
+    pen.stroke();
+    expect(log).toEqual(['begin', `stroke rgba(${blue},0.372) 1`, 'begin', `stroke rgba(${amber},0.950) 1.3`]);
   });
 });
