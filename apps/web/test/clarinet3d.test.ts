@@ -133,11 +133,11 @@ describe('the clarinet in 3D', () => {
     up(s, [...RINGS, 'reg']);
     down(play(frame(W(70))).st, ['A', 'reg']);
     down(play(frame(W(68))).st, ['gs']);
-    // written E♭4: the thumb, the first ring and the side E♭/B♭ key; with the second ring up the ring
-    // pad and the bridge stay open
+    // written E♭4: the thumb, the first two rings and the side E♭/B♭ key (the WFG's T 12-|4); the second
+    // ring down seats the ring pad and the bridge
     s = play(frame(W(63))).st;
-    down(s, ['T', 'L1', 'seb', 'rpad', 'bridge']);
-    up(s, ['L2', 'R1']);
+    down(s, ['T', 'L1', 'L2', 'seb']);
+    up(s, ['R1', 'rpad', 'bridge']);
     // the clarion: B4 is E3 a twelfth up, with the register key
     down(play(frame(W(71))).st, ['reg', 'tE_L', 'T', 'R3']);
     // after the note: a moment's hold, then every ring and key where it rests
