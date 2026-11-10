@@ -187,6 +187,11 @@ Sound:
 - No tone holes, half-hole, flick or whisper key in the sound: each note is the tube whose fundamental it
   is. The top register is approximate: the recordings' G4 and A4 are brighter than their neighbours (their
   second harmonic the strongest), the model's are not.
+- The lowest notes' fundamental is too weak: B♭1's is ~45 dB under its strongest harmonic (the
+  recordings: 9–14 dB), D2's and F2's ~33–42 dB (14–18). The radiation's derivative, its high-pass and the
+  480 Hz formant all weigh against 58–90 Hz. A shelf below 130 Hz (+14 dB) brought them up ~10 dB and the
+  harmonics' error down (8.46 → 8.08 dB held-out), but the judge against the fitted voicing said WORSE
+  (2.07 → 2.13, Δ −0.06 ± 0.03: slower measured attacks), so it was not kept.
 - ff's long-term ⅓-octave spectrum is 11 dB RMS off (pp 3.3, mf 3.9).
 
 Pictures:
