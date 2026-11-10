@@ -82,7 +82,9 @@ export function encName(s: string): string {
     .replace(/[~()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
-const INSTRUMENT_PATHS: Record<string, [InstrumentId, ('grand' | 'upright')?]> = {
+/** every instrument's path and its aliases (vercel.json rewrites each of them to the page: a test keeps
+ *  the two in step) */
+export const INSTRUMENT_PATHS: Record<string, [InstrumentId, ('grand' | 'upright')?]> = {
   piano: ['piano', 'grand'],
   grand: ['piano', 'grand'],
   upright: ['piano', 'upright'],

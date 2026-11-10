@@ -6,11 +6,11 @@
   "outputDirectory": "apps/web/dist",
   "rewrites": [
     {
-      "source": "/(piano|violin|viola|cello|bass|flute|trumpet|double-bass|contrabass|grand|upright|orchestra|ensemble|measurements|notes)",
+      "source": "/(piano|violin|viola|cello|bass|flute|oboe|trumpet|double-bass|contrabass|grand|upright|orchestra|ensemble|measurements|notes)",
       "destination": "/index.html"
     },
     {
-      "source": "/(piano|violin|viola|cello|bass|flute|trumpet|double-bass|contrabass|grand|upright|orchestra|ensemble|measurements|notes)/(.*)",
+      "source": "/(piano|violin|viola|cello|bass|flute|oboe|trumpet|double-bass|contrabass|grand|upright|orchestra|ensemble|measurements|notes)/(.*)",
       "destination": "/index.html"
     }
   ],
