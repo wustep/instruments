@@ -722,8 +722,8 @@ export class BowedCore implements InstrumentCore {
     const bridge = rad ? rad.bridge.map(([f, q]) => biquadLowpass(Math.min(f, 0.45 * fs), q, fs)) : [];
     const hp = biquadHighpass(this.design.strings[0].open < 40 ? 40 : 70, 0.7, fs);
     const body = this.design.body;
-    // design.body: the fitted envelope in place of the hand-set eq and shelf (bands above 0.45 fs,
-    // at the low rates, are left out: the recordings' band edges are above them anyway)
+    // design.body: the fitted envelope in place of the hand-set eq and shelf (a band at or above
+    // 0.45 fs, at the lowest rates, is left out: there is nothing there for it to shape)
     if (body) this.eq.set([hp, ...body.bands.filter(([f]) => f < 0.45 * fs).map(([f, g]) => biquadPeaking(f, body.q, g, fs)), ...bridge]);
     else this.eq.set([hp, ...this.design.eq.map(([f, g, q]) => biquadPeaking(f, q, g, fs)), ...bridge, biquadHighShelf(7000, -3, fs)]);
     this.dK = rad ? fs / (2 * Math.PI * rad.radRef) : 0;
@@ -1068,7 +1068,10 @@ export class BowedCore implements InstrumentCore {
    *  cutoff (what rings on was shaped by it). Bilinear first-order low-pass, so its cutoff is exact at
    *  any rate. */
   private cornerControl(): void {
-    const [k1, g] = this.design.body!.corner;
+    // (index reads, no destructuring: this runs every control block, and must not allocate)
+    const c = this.design.body!.corner;
+    const k1 = c[0];
+    const g = c[1];
     let best: BowedString | null = null;
     for (const s of this.strings) if (s.bowing && s.fBow > 0 && (!best || s.level > best.level)) best = s;
     if (!best && this.fc > 0) return;
