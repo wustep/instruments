@@ -105,7 +105,7 @@ export function notesView(): View {
       id: 'overview',
       title: 'What this is',
       body: [
-        p('Ten acoustic instruments — piano (grand and upright), violin, viola, cello, double bass, flute, oboe, clarinet, bassoon and trumpet — computed as physics, sample by sample, in your browser. No recorded sound is ever played as the instrument. Each is a small set of coupled physical parts: something that carries waves (a string, an air column), something that drives it (a felt hammer, a bow, a jet of breath, a double or a single reed, buzzing lips) and something that radiates (a soundboard, a wooden body, an open end, a bell), heard in a modelled room.'),
+        p('Eleven acoustic instruments — piano (grand and upright), violin, viola, cello, double bass, flute, oboe, clarinet, bassoon, horn and trumpet — computed as physics, sample by sample, in your browser. No recorded sound is ever played as the instrument. Each is a small set of coupled physical parts: something that carries waves (a string, an air column), something that drives it (a felt hammer, a bow, a jet of breath, a double or a single reed, buzzing lips) and something that radiates (a soundboard, a wooden body, an open end, a bell), heard in a modelled room.'),
         p('Everything runs in an AudioWorklet written in TypeScript. The same DSP core runs in Node for the tests, calibration and offline renders, so every number on this page comes from the code you are hearing. What moves on the stage — strings, hammers, bows, holes, valves, wavefronts — is drawn from the same simulation, live.'),
       ],
     },
@@ -193,6 +193,15 @@ export function notesView(): View {
       ],
     },
     {
+      id: 'horn',
+      title: 'Horn',
+      body: [
+        p('The horn is the trumpet’s family played the other way round: buzzing lips on a tube two and a half times as long (3.7 m for the F horn, 2.8 m for the B♭ horn; the double horn has both, and the thumb chooses), narrow and mostly widening, wound in a circle and opening into a bell 30 cm across with the player’s right hand in it. Its lowest resonances are far apart, its highest a tone or less: the horn plays from the second partial of its tube to the twelfth or sixteenth, and the lips alone choose among neighbours that close, which is why a horn note can crack. Players take the F side up to about written G4 (sounding C4) and the B♭ side above, where the partials are wider apart.'),
+        eq('m(ÿ + ω/Q · ẏ + ω² y) = S · Δp,   h = h₀ + y,   u = ζ · h · √|Δp| · sgn Δp,   p = a₁ + a₂ + u/2', 'the lips: a mass on a spring pushed open by Δp = mouth − mouthpiece pressure, their resonance just under the note; Bernoulli’s flow through the slit, solved with the mouthpiece pressure each sample'),
+        p('A tube closed at the lips and open at its bell plays only the odd multiples of its quarter wave (a clarinet). A horn plays every partial because its bore widens like a cone, so the model’s bore is the oboe’s and bassoon’s: two delay lines meeting at the lips, the tube and its missing tip, the bell reflecting the low frequencies and letting the high ones out. The hand in the bell and the bell turned away from the listener make the horn dark: the recordings gather its harmonics near 450–600 Hz whatever the note, the low notes’ fundamental far under them, the top notes almost pure; a loud note’s lips close sharply each cycle and the tone turns brassy. It is monophonic, B♭1 to F5 as it sounds: the horn in F, written a fifth higher (F2–C6). A part written for horn in F, E♭ or D and typed into a file at its written pitch is heard at its sounding pitch in the Orchestra.'),
+      ],
+    },
+    {
       id: 'trumpet',
       title: 'Trumpet',
       body: [
@@ -249,7 +258,7 @@ export function notesView(): View {
       id: 'calibration',
       title: 'Calibration: measured against real instruments',
       body: [
-        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, double bass, flute, oboe, B♭ clarinet, bassoon and trumpet — used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
+        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, double bass, flute, oboe, B♭ clarinet, bassoon, horn and trumpet — used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
         h3('Like with like, and a judge'),
         ul(
           'Each model note is rendered exactly as long as the part of the recording that is analysed, with vibrato only where the player used it; a note’s pitch with vibrato is the centre of its fine pitch track.',
@@ -279,6 +288,7 @@ export function notesView(): View {
             ['oboe', '8.0', '10.5', '0.92', '+2.0', '1.31', '0.8'],
             ['clarinet', '8.8', '4.0', '0.99', '−0.3', '0.80', '1.2'],
             ['bassoon', '8.6', '8.7', '1.05', '+1.6', '0.87', '0.3'],
+            ['horn', '3.9', '14.4', '1.00', '+0.7', '1.14', '0.2'],
             ['trumpet', '4.2', '3.3', '0.93', '+0.8', '1.43', '2.7'],
           ],
         ),

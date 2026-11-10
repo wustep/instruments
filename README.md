@@ -1,8 +1,8 @@
 # instruments
 
-Ten acoustic instruments, physically modelled and computed in real time in the
+Eleven acoustic instruments, physically modelled and computed in real time in the
 browser: a **piano**, a **violin**, a **viola**, a **cello**, a **double bass**, a
-**flute**, an **oboe**, a **clarinet**, a **bassoon** and a **trumpet**.
+**flute**, an **oboe**, a **clarinet**, a **bassoon**, a **horn** and a **trumpet**.
 No samples are ever played as the sound. Every note is a simulation of felt
 hammers, bows, air jets, reeds and lips driving strings and tubes, which in turn drive a
 soundboard or body.
@@ -254,6 +254,7 @@ npx tsx scripts/fit-flute.ts  # fit the flute voicing; scripts/fit-strings.ts <v
 npx tsx scripts/fit-oboe.ts   # fit the oboe voicing (fit half), then scripts/tune-oboe.ts; scripts/oboe-regimes.ts surveys its registers
 npx tsx scripts/fit-clarinet.ts   # the clarinet's, the same way (tune-clarinet.ts, clarinet-regimes.ts, render-clarinet.ts)
 npx tsx scripts/fit-bassoon.ts    # the bassoon's, the same way (tune-bassoon.ts, bassoon-regimes.ts, render-bassoon.ts)
+npx tsx scripts/fit-horn.ts       # the horn's, the same way (tune-horn.ts, horn-regimes.ts: every note on its partial, render-horn.ts)
 npx tsx scripts/render-demos.ts   # re-render artifacts/audio (round 1)
 npx tsx scripts/render-round2.ts  # round-2 MP3 demos into artifacts/round2/audio
 node scripts/screenshots.mjs      # re-capture artifacts/shots (ROUND=2 → artifacts/round2/shots; needs `pnpm preview --port 4199`)

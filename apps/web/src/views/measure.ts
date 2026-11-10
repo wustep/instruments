@@ -384,7 +384,7 @@ function ensembleSection(e: Ens): HTMLElement {
         'Harmonic profiles',
         'steady-state harmonic levels relative to the strongest, power average over the register’s notes at mf',
         [leg(), grid],
-        'Violin-family registers are thirds of the notes analysed on each instrument (first position on each string, as the model plays them); flute, oboe, clarinet and bassoon registers are thirds of their compass. The flute’s low register shows its strong even harmonics; the oboe’s strongest harmonic sits near 1–1.5 kHz whatever the note (its formant); the clarinet’s low register has its odd harmonics only, up to about 1.5 kHz; the bassoon’s low notes have a weak fundamental under harmonics gathered near 500 Hz (its formant).',
+        'Violin-family registers are thirds of the notes analysed on each instrument (first position on each string, as the model plays them); flute, oboe, clarinet, bassoon and horn registers are thirds of their compass. The flute’s low register shows its strong even harmonics; the oboe’s strongest harmonic sits near 1–1.5 kHz whatever the note (its formant); the clarinet’s low register has its odd harmonics only, up to about 1.5 kHz; the bassoon’s low notes have a weak fundamental under harmonics gathered near 500 Hz (its formant); the horn’s gather near 450–600 Hz too (the hand in its bell), its top notes nearly pure, and brassy at ff.',
         true,
       ),
     );
