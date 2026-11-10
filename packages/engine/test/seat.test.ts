@@ -11,7 +11,7 @@ const note = (m: number, dur: number) => [
   { time: 0.02, event: { type: 'noteOn' as const, midi: m, velocity: 90 } },
   { time: dur - 0.2, event: { type: 'noteOff' as const, midi: m } },
 ];
-const run = (instrument: 'violin' | 'trumpet', params: Record<string, unknown>, dur = 0.8) => renderInstrument({ sampleRate: FS, instrument, events: note(instrument === 'violin' ? 67 : 70, dur), duration: dur, params: params as never });
+const run = (instrument: 'violin' | 'trumpet', params: Record<string, unknown>, dur = 0.8, fs = FS) => renderInstrument({ sampleRate: fs, instrument, events: note(instrument === 'violin' ? 67 : 70, dur), duration: dur, params: params as never });
 const energy = (x: Float32Array) => x.reduce((s, v) => s + v * v, 0);
 const db = (x: number) => 10 * Math.log10(x);
 /** the lag (samples) at which R best matches L: positive, R later */
@@ -55,6 +55,18 @@ describe('a seat on the stage', () => {
     expect(lagL / FS).toBeGreaterThan(0.0006);
     expect(lagL / FS).toBeLessThan(0.0011);
     expect(lagR).toBe(-lagL);
+  });
+
+  it('the same place at 22.05, 44.1 and 96 kHz', () => {
+    for (const fs of [22050, 44100, 96000]) {
+      const mid = run('trumpet', { room: 0 }, 0.6, fs);
+      const left = run('trumpet', { room: 0, seat: [-1.75, 0] }, 0.6, fs);
+      const ild = (r: { left: Float32Array; right: Float32Array }) => db(energy(r.left) / energy(r.right));
+      expect(ild(left) - ild(mid), `${fs}`).toBeGreaterThan(3);
+      const lag = lagOf(left.left, left.right) / fs;
+      expect(lag, `${fs}`).toBeGreaterThan(0.0006);
+      expect(lag, `${fs}`).toBeLessThan(0.0011);
+    }
   });
 
   it('upstage: further from the microphones, its direct sound weaker by the path (1/r)', () => {

@@ -171,9 +171,10 @@ frames.
 
 ## Tests
 
-* **`packages/engine/test/seat.test.ts`** (5):
+* **`packages/engine/test/seat.test.ts`** (6):
   * no seat, a null seat and the middle are bit-identical;
   * left and right mirror each other (level > 3 dB, the far microphone 0.6–1.1 ms later);
+  * the same place at 22.05, 44.1 and 96 kHz;
   * upstage is weaker by the path (−3.1 dB for 1.5 m);
   * a seat moved while playing glides;
   * the taps stay bounded (the sine case above).
