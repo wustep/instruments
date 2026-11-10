@@ -209,6 +209,7 @@ export function tromboneLayout(W: number, H: number, top = 0, size: Size = 'teno
   // ---- the bell section's sleeves, braces and the bell brace
   const sleeves: TubePx[] = [];
   for (const [a, b] of p.sleeves.slice(0, 1)) sleeves.push(nk(a, p.tsUp, b, p.tsUp, p.rT + 0.0011), nk(a, p.tsLo, b, p.tsLo, p.rT + 0.0011));
+  for (const [x, y0, y1] of p.vsleeves) if (y1 - y0 > 0.006) sleeves.push(nk(x, y0, x, y1, p.rT + 0.0011));
   for (const [a, b] of p.sleeves.slice(1)) {
     // (a loop's sleeves, where its legs run straight)
     for (const t of Object.values(p.tubes)) {
@@ -236,13 +237,14 @@ export function tromboneLayout(W: number, H: number, top = 0, size: Size = 'teno
   }
   const tailR = p.bellR(p.rimX - p.braceX);
   const bellBrace = nk(p.braceX, -p.sp + p.rT, p.braceX, p.axisY - tailR, 0.0034);
-  // its flange: a leaf soldered along the bell's tail
+  // its flange: a leaf soldered along the bell's tail, pointed at both ends
   const flange = new Path2D();
-  const fy = p.axisY - tailR + 0.0012;
-  flange.moveTo(X(p.braceX - 0.032), Y(fy));
-  flange.quadraticCurveTo(X(p.braceX - 0.012), Y(fy - 0.0016), X(p.braceX - 0.004), Y(fy - 0.0072));
-  flange.lineTo(X(p.braceX + 0.004), Y(fy - 0.0072));
-  flange.quadraticCurveTo(X(p.braceX + 0.012), Y(fy - 0.0016), X(p.braceX + 0.032), Y(fy));
+  const fy = p.axisY - tailR + 0.0014;
+  flange.moveTo(X(p.braceX - 0.024), Y(fy));
+  flange.quadraticCurveTo(X(p.braceX - 0.008), Y(fy - 0.0012), X(p.braceX - 0.0042), Y(fy - 0.0064));
+  flange.lineTo(X(p.braceX + 0.0042), Y(fy - 0.0064));
+  flange.quadraticCurveTo(X(p.braceX + 0.008), Y(fy - 0.0012), X(p.braceX + 0.024), Y(fy));
+  flange.quadraticCurveTo(X(p.braceX), Y(fy + 0.0016), X(p.braceX - 0.024), Y(fy));
   flange.closePath();
   // ---- the mouthpiece: its outline from the rim to where it goes into the receiver
   const mp = new Path2D();
@@ -538,6 +540,8 @@ export const crankAngle = (p: Plan, k: number, press: number): number => {
 const BRASS_BODY = '#4a3416';
 const BRASS_DEEP = '#2a1d0c';
 const NICKEL_BODY = '#3c3a36';
+/** a polished nickel-silver tube's body (the slide's inner tubes, the sleeves, the braces) */
+const NICKEL_TUBE = '#55534e';
 const nickel = (a: number) => rgba('236,230,216', a);
 const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
 
@@ -559,18 +563,20 @@ export function drawTrombone(ctx: CanvasRenderingContext2D, W: number, H: number
   ctx.lineCap = 'round';
   const tube = (t: TubePx, on: boolean) => {
     if (t.nickel) {
-      ctx.fillStyle = NICKEL_BODY;
+      // nickel silver, polished: a cool grey body, its shaded underside, a broad sheen and a bright streak
+      // along its lit side
+      ctx.fillStyle = NICKEL_TUBE;
       ctx.fill(t.body);
-      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-      ctx.lineWidth = Math.max(1, 0.42 * t.r);
-      ctx.stroke(t.sh);
-      ctx.strokeStyle = nickel(0.3);
+      ctx.strokeStyle = 'rgba(10,10,12,0.32)';
       ctx.lineWidth = Math.max(1, 0.5 * t.r);
+      ctx.stroke(t.sh);
+      ctx.strokeStyle = nickel(0.32);
+      ctx.lineWidth = Math.max(1, 0.7 * t.r);
+      ctx.stroke(t.hi);
+      ctx.strokeStyle = nickel(0.78);
+      ctx.lineWidth = Math.max(0.7, 0.16 * t.r);
       ctx.stroke(t.hi);
       ctx.strokeStyle = nickel(0.62);
-      ctx.lineWidth = Math.max(0.7, 0.14 * t.r);
-      ctx.stroke(t.hi);
-      ctx.strokeStyle = nickel(0.58);
       ctx.lineWidth = 1;
       ctx.stroke(t.edges);
       return;
@@ -649,8 +655,8 @@ export function drawTrombone(ctx: CanvasRenderingContext2D, W: number, H: number
       ctx.fillStyle = rgba(INK.vermilion, 0.1 + 0.22 * A * lv.lvl);
       ctx.fill(B.mouth);
     }
-    ctx.strokeStyle = rgba(INK.amber, 0.92);
-    ctx.lineWidth = Math.max(1.4, 0.004 * sc);
+    ctx.strokeStyle = rgba(INK.amber, 0.88);
+    ctx.lineWidth = Math.max(1.3, 0.0032 * sc);
     ctx.stroke(B.mouth);
     ctx.strokeStyle = rgba('255,236,190', 0.45);
     ctx.lineWidth = Math.max(0.8, 0.0012 * sc);

@@ -96,6 +96,8 @@ export interface Plan {
   bowC: P;
   bowR: number;
   sleeves: [number, number][];
+  /** sleeves on upright legs (x, from y, to y): the bass's loops' tuning slides */
+  vsleeves: [number, number, number][];
   /** the bell brace (x), from the bell's tail down to the receiver */
   braceX: number;
   /** the rotors (none on the alto; the F valve, then the bass's G♭ valve) */
@@ -168,6 +170,7 @@ function build(size: Size, shift: { bow: number; f: number; g: number }): Plan {
   const bowC: P = [bowX, (tsUp + tsLo) / 2];
   const tailX = bowX + (alto ? 0.075 : 0.112);
   const sleeves: [number, number][] = [[bowX + 0.001, tailX - 0.002]];
+  const vsleeves: [number, number, number][] = [];
   const braceX = alto ? -0.037 : -0.067;
   const tubes: Record<string, Tube> = {};
   const rotors: Rotor[] = [];
@@ -266,6 +269,9 @@ function build(size: Size, shift: { bow: number; f: number; g: number }): Plan {
         layer: 1,
       };
       sleeves.push([-0.3, -0.255], [-0.21, -0.17]);
+      // (each loop's hairpin is its tuning slide: sleeves on its legs)
+      for (const x of [ux, ux + 0.026]) vsleeves.push([x, yF2 + 0.014, yF2 + 0.034]);
+      for (const x of [gux, gux + 0.024]) vsleeves.push([x, yG2 + 0.012, Math.min(guh - 0.012, yG2 + 0.03)]);
     }
   }
   // ---- the bell's run: its tail out of the tuning slide's upper leg, along its axis to the rim
@@ -300,6 +306,7 @@ function build(size: Size, shift: { bow: number; f: number; g: number }): Plan {
     bowC,
     bowR,
     sleeves,
+    vsleeves,
     braceX,
     rotors,
     tubes,
