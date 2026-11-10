@@ -9,7 +9,7 @@
 // state object is the stage's, so a change of style carries the keys, reed and wave over.
 
 import type { VisualFrame } from '@piano-model/engine';
-import { CL_KEYS, CL_LEN, CL_TOUCHES, REED_HW, clBore, clLobeBase, clR, clRecord, clarinetLayout, clarinetLive, keyV, mpHW, type ClarinetState } from '../clarinet-draw.ts';
+import { CL_KEYS, CL_LEN, CL_TOUCHES, clBore, clLobeBase, clR, clRecord, clarinetLayout, clarinetLive, keyV, mpHW, tipEyePaths, type ClarinetState } from '../clarinet-draw.ts';
 import { V, beam, dot, handle, heat, label, mix, ring, seg } from './kit.ts';
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -155,13 +155,8 @@ export function drawClarinetV(ctx: CanvasRenderingContext2D, W: number, H: numbe
   });
   beam(ctx, arms, V.blueDim, 1);
   // ---- the tip: the opening between the reed and the tip rail, an eye (exaggerated), shut once a cycle when loud
-  const hl = REED_HW * 0.94 * sc;
-  const o = Math.max(0, lv.open) * 0.0024 * sc;
-  const eye = new Path2D();
-  eye.moveTo(X(0), Y(0) - hl);
-  eye.bezierCurveTo(X(0) - o * 1.33, Y(0) - hl * 0.55, X(0) - o * 1.33, Y(0) + hl * 0.55, X(0), Y(0) + hl);
-  eye.closePath();
-  beam(ctx, eye, V.blue, lw, { hot: true });
+  const eye = tipEyePaths(X, Y, Math.max(0, lv.open) * 0.0024);
+  beam(ctx, eye.reed, V.blue, lw, { hot: true });
   // ---- the slots at the mouthpiece, each where its knob acts
   const hr = clamp(0.0034 * sc, 2.6, 6);
   const live = Math.min(1, 0.45 + 2 * lv.blow);

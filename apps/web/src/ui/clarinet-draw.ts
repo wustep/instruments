@@ -82,7 +82,7 @@ export const REED_HW = 0.0065;
 const REED_LEN = 0.067;
 const REED_VAMP = 0.034;
 const MP_PROFILE: [number, number][] = [
-  [0.0022, 0.0066], [0.0046, 0.0079], [0.0076, 0.0089], [0.0122, 0.0099], [0.018, 0.0106], [0.024, 0.011], [0.031, 0.0114], [0.04, 0.0119], [0.05, 0.0124], [0.06, 0.0129], [CL_MP, 0.0131],
+  [0.003, 0.0072], [0.0046, 0.0079], [0.0076, 0.0089], [0.0122, 0.0099], [0.018, 0.0106], [0.024, 0.011], [0.031, 0.0114], [0.04, 0.0119], [0.05, 0.0124], [0.06, 0.0129], [CL_MP, 0.0131],
 ];
 /** the wood's outer radius against x: the barrel (its rings, its swell), the upper joint's slight taper,
  *  the lower joint's socket ring, the bell's ring, flare and rim */
@@ -108,12 +108,18 @@ function lerpTab(t: [number, number][], x: number): number {
   }
   return t[t.length - 1][1];
 }
-/** the mouthpiece's half-width from the front (its beak): the tip's rounded rail, then widening to the
+/** the beak's rounded end seen from the front (the tip rail's curve, the reed's tip cut to it): a
+ *  superellipse `MP_TIP` long, as wide as the photograph's 3 mm from the tip */
+export const MP_TIP = 0.003;
+const TIP_HW = 0.0072;
+const TIP_N = 2.6;
+/** the tip's outline at t (−π/2 … π/2 across it): along (m from the tip) and across (m) */
+export const tipAt = (t: number, hw = TIP_HW): [number, number] => [MP_TIP * (1 - Math.pow(Math.abs(Math.cos(t)), 2 / TIP_N)), hw * Math.sign(t) * Math.pow(Math.abs(Math.sin(t)), 2 / TIP_N)];
+/** the mouthpiece's half-width from the front (its beak): the tip's rounded end, then widening to the
  *  barrel (the photograph's outline) */
 export const mpHW = (x: number): number => {
-  const TIP = 0.0022;
-  if (x <= 0) return 0.0042;
-  if (x < TIP) return 0.0042 + (0.0066 - 0.0042) * Math.sqrt(1 - (1 - x / TIP) ** 2);
+  if (x <= 0) return 0;
+  if (x < MP_TIP) return TIP_HW * Math.pow(Math.max(0, 1 - Math.pow(1 - x / MP_TIP, TIP_N)), 1 / TIP_N);
   return lerpTab(MP_PROFILE, x);
 };
 /** the outer radius at x: the mouthpiece's, then the wood's */
@@ -241,20 +247,21 @@ export const CL_TOUCHES: ClTouch[] = [
   { id: 'a', bit: LA, x0: 0.2075, v0: -0.0008, x1: 0.2315, v1: -0.0034, w: 0.0034 },
   { id: 'gs', bit: LGS, x0: 0.2215, v0: -0.0102, x1: 0.2515, v1: -0.0178, w: 0.0033 },
   // the right index's side keys: three trills and, lowest, the E♭/B♭ key
-  { id: 'tr1', bit: 0, x0: 0.3005, v0: 0.0164, x1: 0.3165, v1: 0.0292, w: 0.0027, fixed: true },
-  { id: 'tr2', bit: 0, x0: 0.3065, v0: 0.0164, x1: 0.3255, v1: 0.0292, w: 0.0027, fixed: true },
-  { id: 'tr3', bit: 0, x0: 0.3125, v0: 0.0164, x1: 0.3345, v1: 0.0252, w: 0.0027, fixed: true },
-  { id: 'seb', bit: SEB, x0: 0.3185, v0: 0.0164, x1: 0.3435, v1: 0.0252, w: 0.0028 },
-  // the left little finger by the lower joint's head: C♯/G♯, F♯/C♯, E/B (long rods down to their pads)
-  { id: 'lcs', bit: LCS, x0: 0.3175, v0: -0.0136, x1: 0.3285, v1: -0.0222, w: 0.0033 },
-  { id: 'lfs', bit: LFS, x0: 0.3265, v0: -0.0148, x1: 0.3425, v1: -0.0282, w: 0.0041 },
-  { id: 'le', bit: LE, x0: 0.3375, v0: -0.0154, x1: 0.3565, v1: -0.0302, w: 0.0043 },
+  { id: 'tr1', bit: 0, x0: 0.3035, v0: 0.0164, x1: 0.3135, v1: 0.0288, w: 0.0023, fixed: true },
+  { id: 'tr2', bit: 0, x0: 0.3085, v0: 0.0164, x1: 0.3235, v1: 0.0288, w: 0.0023, fixed: true },
+  { id: 'tr3', bit: 0, x0: 0.3135, v0: 0.0164, x1: 0.3325, v1: 0.024, w: 0.0023, fixed: true },
+  { id: 'seb', bit: SEB, x0: 0.3185, v0: 0.0164, x1: 0.3415, v1: 0.024, w: 0.0024 },
+  // the left little finger: the C♯/G♯ key's teardrop under L3 (its lever across the front from the right
+  // rod), then by the lower joint's head the F♯/C♯ and E/B spatulas (long rods down to their pads)
+  { id: 'lcs', bit: LCS, x0: 0.3145, v0: 0.0146, x1: 0.3095, v1: -0.0128, w: 0.0036 },
+  { id: 'lfs', bit: LFS, x0: 0.3255, v0: -0.0146, x1: 0.3425, v1: -0.0284, w: 0.0047 },
+  { id: 'le', bit: LE, x0: 0.3365, v0: -0.0154, x1: 0.3575, v1: -0.0306, w: 0.0049 },
   // the B/F♯ sliver between R2 and R3, across the front from the right rod
   { id: 'rb', bit: RB, x0: 0.4035, v0: 0.0146, x1: 0.4012, v1: -0.0036, w: 0.0015 },
   // the right little finger at the lower joint's foot: A♭/E♭, F/C, E/B
-  { id: 'rab', bit: RAB, x0: 0.4195, v0: 0.0148, x1: 0.4325, v1: 0.0226, w: 0.0033 },
-  { id: 'rf', bit: RF, x0: 0.4265, v0: 0.0154, x1: 0.4435, v1: 0.0286, w: 0.0041 },
-  { id: 're', bit: RE, x0: 0.4365, v0: 0.0158, x1: 0.4555, v1: 0.0306, w: 0.0043 },
+  { id: 'rab', bit: RAB, x0: 0.4185, v0: 0.0148, x1: 0.4315, v1: 0.0232, w: 0.0036 },
+  { id: 'rf', bit: RF, x0: 0.4255, v0: 0.0154, x1: 0.4435, v1: 0.0292, w: 0.0047 },
+  { id: 're', bit: RE, x0: 0.4365, v0: 0.0158, x1: 0.4575, v1: 0.0312, w: 0.0049 },
 ];
 /** the keys', touches' and bell's farthest reach across the body (m) */
 export const CL_REACH = 0.0366;
@@ -267,8 +274,10 @@ export const CL_RODS: [number, number, number][] = [
   [ROD_LL, 0.3405, 0.551],
 ];
 const CL_POSTS: [number, number][] = [
-  [ROD_UL, 0.1975], [ROD_UL, 0.2205], [ROD_UL, 0.3125], [ROD_UL, 0.3245], [ROD_UR, 0.1885], [ROD_UR, 0.2605], [ROD_UR, 0.322],
-  [ROD_LR, 0.3405], [ROD_LR, 0.4235], [ROD_LR, 0.552], [ROD_LL, 0.3405], [ROD_LL, 0.4635], [ROD_LL, 0.551], [ROD_LONG, 0.5095],
+  [ROD_UL, 0.1975], [ROD_UL, 0.2205], [ROD_UL, 0.3125], [ROD_UL, 0.3245],
+  [ROD_UR, 0.1885], [ROD_UR, 0.2245], [ROD_UR, 0.2605], [ROD_UR, 0.2975], [ROD_UR, 0.322],
+  [ROD_LR, 0.3405], [ROD_LR, 0.3775], [ROD_LR, 0.4235], [ROD_LR, 0.4605], [ROD_LR, 0.5105], [ROD_LR, 0.552],
+  [ROD_LL, 0.3405], [ROD_LL, 0.4155], [ROD_LL, 0.4835], [ROD_LL, 0.551], [ROD_LONG, 0.5095],
 ];
 /** each key's hinge tube along its rod (m) */
 const hingeOf = (k: ClKey): [number, number] => {
@@ -534,8 +543,8 @@ export function clarinetLayout(W: number, H: number, top = 0): ClLayout {
     }
   }
   // the reed behind the beak: its outline (the tip's corners rounded) and the end of its vamp
-  const reedHW = (x: number) => (x < 0.0012 ? REED_HW * (0.8 + 0.2 * Math.sqrt(Math.max(0, x / 0.0012))) : REED_HW - 0.0004 * Math.min(1, x / REED_LEN));
-  const reed = outline(0, REED_LEN, reedHW, 0.0006);
+  const reedHW = (x: number) => (x < MP_TIP ? (mpHW(x) * REED_HW) / TIP_HW : REED_HW - 0.0004 * Math.min(1, x / REED_LEN));
+  const reed = outline(0, REED_LEN, reedHW, 0.0003);
   const vamp = new Path2D();
   vamp.moveTo(X(0.0016), Y(-REED_HW * 0.82));
   vamp.bezierCurveTo(X(0.016), Y(-REED_HW * 0.7), X(0.028), Y(-REED_HW * 0.32), X(REED_VAMP), Y(0));
@@ -834,6 +843,8 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
   ctx.fill(L.lig);
   ctx.fillStyle = metalGrad(ctx, Y, 0.0125);
   ctx.fill(L.lig);
+  ctx.fillStyle = metalGrad(ctx, Y, 0.0125);
+  ctx.fill(L.lig);
   ctx.strokeStyle = 'rgba(0,0,0,0.45)';
   ctx.lineWidth = Math.max(0.6, 0.0004 * sc);
   ctx.stroke(L.ligRib);
@@ -939,7 +950,7 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
   ctx.strokeStyle = 'rgba(226,196,130,0.16)';
   ctx.stroke(L.vamp);
   ctx.restore();
-  clTipEye(ctx, X(0), Y(0), REED_HW * 0.94 * sc, lv.open * 0.0024 * sc, sc);
+  clTipEye(ctx, X, Y, lv.open * 0.0024, sc);
   // the breath into the mouthpiece: a faint stream from the lips, flowing in
   if (lv.blow > 0.02) {
     const a = Math.min(1, 0.3 + lv.blow) * (1 + 2.5 * lv.vib);
@@ -1132,29 +1143,39 @@ function ghostKey(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: numb
   }
   ctx.restore();
 }
-/** the tip opening, seen a little from the mouthpiece's end: the tip rail's edge (the ebonite), the gap
- *  between it and the reed's tip (dark), the reed's tip (pale cane) beyond, across the tip's width `hl`
- *  either side; `t` the gap (shut: the reed's tip against the rail in one line) */
-function clTipEye(ctx: CanvasRenderingContext2D, cx: number, cy: number, hl: number, t: number, sc: number): void {
-  const o = Math.max(0, t);
-  // the gap: widest in the middle, closing at the side rails
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - hl);
-  ctx.bezierCurveTo(cx - o * 1.33, cy - hl * 0.55, cx - o * 1.33, cy + hl * 0.55, cx, cy + hl);
-  ctx.closePath();
-  ctx.fillStyle = '#060504';
-  ctx.fill();
-  // the reed's tip beyond it, and the rail's edge
+/** The tip opening between the reed's tip and the tip rail, a thin crescent round the beak's rounded end
+ *  (`o` m at its middle, closing at the side rails; shut: the reed's tip on the rail), as two paths in the
+ *  box's px: the crescent, and the reed's tip beyond it (shared with the vector look) */
+export function tipEyePaths(X: (x: number) => number, Y: (v: number) => number, o: number): { gap: Path2D; reed: Path2D; rail: Path2D } {
+  const n = 28;
+  const gap = new Path2D();
+  const reed = new Path2D();
+  const rail = new Path2D();
+  const out: [number, number][] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = -Math.PI / 2 + (Math.PI * i) / n;
+    const [a, v] = tipAt(t);
+    const [ra, rv] = tipAt(t, TIP_HW * 0.93);
+    const w = Math.pow(Math.cos(t), 0.7);
+    out.push([X(ra - Math.max(0, o) * w - 0.00015 * w), Y(rv)]);
+    if (i) rail.lineTo(X(a), Y(v));
+    else rail.moveTo(X(a), Y(v));
+    if (i) gap.lineTo(X(a), Y(v));
+    else gap.moveTo(X(a), Y(v));
+  }
+  for (let i = n; i >= 0; i--) gap.lineTo(out[i][0], out[i][1]);
+  gap.closePath();
+  out.forEach(([x, y], i) => (i ? reed.lineTo(x, y) : reed.moveTo(x, y)));
+  return { gap, reed, rail };
+}
+function clTipEye(ctx: CanvasRenderingContext2D, X: (x: number) => number, Y: (v: number) => number, o: number, sc: number): void {
+  const { gap, reed, rail } = tipEyePaths(X, Y, o);
+  ctx.fillStyle = '#050404';
+  ctx.fill(gap);
   ctx.strokeStyle = 'rgba(236,212,160,0.9)';
   ctx.lineWidth = Math.max(0.9, 0.0004 * sc);
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - hl);
-  ctx.bezierCurveTo(cx - o * 1.33, cy - hl * 0.55, cx - o * 1.33, cy + hl * 0.55, cx, cy + hl);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - hl);
-  ctx.lineTo(cx, cy + hl);
-  ctx.strokeStyle = 'rgba(210,214,224,0.55)';
+  ctx.stroke(reed);
+  ctx.strokeStyle = 'rgba(210,214,224,0.45)';
   ctx.lineWidth = Math.max(0.7, 0.00025 * sc);
-  ctx.stroke();
+  ctx.stroke(rail);
 }
