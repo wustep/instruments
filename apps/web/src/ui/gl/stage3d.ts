@@ -551,8 +551,9 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       // the view for this instrument (and preset), framed for this stage: its size and what lies over
       // its top (a grand is framed with its lid wide open, whatever its opening: piano3d's posePiano,
       // so moving the lid never moves the camera)
-      // (the reeds by instrument: the oboe and the clarinet are each framed for themselves)
-      const key = si.ensemble?.length ? `ens:${W / H < 1.1 ? 'tall' : 'wide'}:${si.ensemble.map((p) => (p.family === 'piano' ? p.kind : p.family === 'bowed' ? (p.bowed?.id ?? 'bowed') : p.family === 'reed' ? (p.reed ?? 'oboe') : p.family)).join(',')}` : si.family === 'piano' ? si.kind : si.family === 'bowed' ? (si.bowed?.id ?? 'bowed') : si.family === 'reed' ? (si.reed ?? 'oboe') : si.family;
+      // (the reeds and the brass by instrument: the oboe, the clarinet, the trumpet, the horn are each
+      // framed for themselves)
+      const key = si.ensemble?.length ? `ens:${W / H < 1.1 ? 'tall' : 'wide'}:${si.ensemble.map((p) => (p.family === 'piano' ? p.kind : p.family === 'bowed' ? (p.bowed?.id ?? 'bowed') : p.family === 'reed' ? (p.reed ?? 'oboe') : p.family === 'brass' ? (p.brass ?? 'trumpet') : p.family)).join(',')}` : si.family === 'piano' ? si.kind : si.family === 'bowed' ? (si.bowed?.id ?? 'bowed') : si.family === 'reed' ? (si.reed ?? 'oboe') : si.family === 'brass' ? (si.brass ?? 'trumpet') : si.family;
       const clear = Math.max(0, Math.min(0.4 * H, clearPx));
       const sig = `${key}|${W}|${H}|${Math.round(clear)}`;
       // a key's close-up outlives a change of piano (grand ↔ upright: the same key, the other
