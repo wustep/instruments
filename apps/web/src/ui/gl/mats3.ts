@@ -214,7 +214,9 @@ export function materialFor(m: Mat, lite: boolean): THREE.Material {
   if (mat) return mat;
   const name = m.name ?? 'plain';
   const base = P[name] ?? { color: new THREE.Color().setRGB(m.col[0], m.col[1], m.col[2], THREE.SRGBColorSpace), roughness: m.rough, metalness: m.metal };
-  const { tex = 0, axis = [1, 0, 0], texScale = 1, cap: cap0, cut, ...params } = base;
+  const { tex = 0, axis = [1, 0, 0], texScale: texScale0 = 1, cap: cap0, cut, ...params } = base;
+  // (a part may scale its family's texture: a double bass's flame is broader than a violin's)
+  const texScale = m.texScale ?? texScale0;
   const metal = (params.metalness ?? 0) >= 0.5;
   const cap = cap0 ?? (WOODS.includes(tex) ? 1 : tex === 6 || tex === 12 ? 2 : metal ? 3 : 0);
   const pm = new THREE.MeshPhysicalMaterial({ side: THREE.DoubleSide, ...params });

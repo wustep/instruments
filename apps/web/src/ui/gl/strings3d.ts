@@ -33,6 +33,7 @@ import { M, MeshBuilder, cyl, grid, lathe, spline, tube, variant, type Mat, type
 import { fholeOf } from './fholes.ts';
 import { CELLO, VIOLIN, type Outline } from './outlines.ts';
 import { BASS } from './bass-outline.ts';
+import { bassBridge, buildMachines, type HeadFrame } from './bass3d.ts';
 
 type P2 = [number, number];
 type RGB = [number, number, number];
@@ -87,6 +88,19 @@ interface Spec {
   vTop: RGB;
   vBack: RGB;
   vEdge: RGB;
+  /** The double bass's own (bass3d.ts builds its fittings):
+   *  `flat` — its back flat (a slight crown across, from the bars), bent towards the top at the
+   *    break: u along the body from the neck end, the cant above it (rad) and the bend's width (m);
+   *    the ribs follow it, so they are shallowest at the neck block;
+   *  `rollers` — machines instead of pegs: the rollers' places along the pegbox (head-profile units,
+   *    from the nut) and how deep they sit between the cheeks' front edge and the back (0–1);
+   *  `stand` — how far it leans back (rad) and the endpin socket's height off the floor (m);
+   *  `bowK` — a French bass bow's frog, head and stick height over the cello's (×), its hair the
+   *    engine's */
+  flat?: { at: number; cant: number; bend: number; crown: number };
+  rollers?: { a: number[]; depth: number };
+  stand?: [number, number];
+  bowK?: number;
 }
 const mm = 0.001;
 const SPEC: Record<BowedGeom['id'], Spec> = {
@@ -114,15 +128,29 @@ const SPEC: Record<BowedGeom['id'], Spec> = {
     dia: [1.6 * mm, 1.3 * mm, 1.05 * mm, 0.8 * mm], wound: [true, true, true, true], grain: [1.4 * mm, 3.2 * mm], flame: 7 * mm,
     vTop: [138, 54, 22], vBack: [130, 48, 18], vEdge: [58, 20, 8],
   },
-  // a 3/4 orchestral double bass (stage-draw.ts BOWED_PLAN.bass; makers' figures): body 1110, ribs
-  // 195, top arch 30, bridge 160 high, projection 140
+  // A 3/4 orchestral double bass, as makers build them (docs/3d-reference.md, "Double bass"): body 1110
+  // (Gewa Ideale 3/4: 111 cm, bouts 487/370/645, ribs 203; Thomann 11: 1090, ribs 200; Walther Solo:
+  // 1102), the bouts in bass-outline.ts; ribs 200 at the tail, a little less towards the shoulders,
+  // and the flat back's break (at the upper bout's widest, canted 10.5°) takes another 45 mm off at
+  // the neck block (≈ 148 mm there); the top arched 30 mm. String length the engine's 1.05 m, neck
+  // (nut to the body's edge) 430, so the stop is 620 (the f-holes' nicks); fingerboard 880, 44 wide at
+  // the nut and 108 at its end; bridge 160 high on 150 mm feet (a cut-down 3/4 blank: 160–191 mm as
+  // sold); the fingerboard's plane 181 mm over the ribs at the bridge, so the strings stand ≈ 7 mm off
+  // its end (orchestral action: 5–7 on the G, 7–10 on the E); head 330 (nut to the scroll's back),
+  // pegbox 62 wide at the nut, 90 across the eyes; string spacing 31 at the bridge, 10.5 at the nut;
+  // strings E 2.7, A 2.3, D 1.9, G 1.6 mm (steel-core orchestral sets). Over all: 1.87 m from the
+  // scroll to the tail (retail listings: 1.83–1.84 m without the endpin).
   bass: {
-    body: 1.11, ol: BASS, rib: 0.195, archT: 0.03, archB: 0.006, edgeT: 7 * mm, over: 4.5 * mm, rE: 3.2 * mm, plateT: 5 * mm, ribT: 2 * mm,
+    body: 1.11, ol: BASS, rib: 0.2, archT: 0.03, archB: 0.006, edgeT: 7 * mm, over: 4.5 * mm, rE: 3.2 * mm, plateT: 5 * mm, ribT: 2.2 * mm,
     purf: [8 * mm, 2 * mm], chan: [11 * mm, 5 * mm, 1.2 * mm], rise: 60 * mm, button: 26 * mm,
-    neck: 0.43, fbLen: 0.88, fbW: [0.044, 0.108], fbThick: 0.011, fbCrown: 0.009, bridgeH: 0.16, bridgeW: 0.14, bridgeR: 0.095, proj: 0.14, overstand: 0.03,
-    head: 0.33, pbW: 0.062, eyeW: 0.09, tail: 0.36, spreadB: 0.031, spreadN: 0.0105, neckDepth: [0.04, 0.05], stick: [0.006, 0.0041], hairW: 0.018,
+    neck: 0.43, fbLen: 0.88, fbW: [0.044, 0.108], fbThick: 0.011, fbCrown: 0.011, bridgeH: 0.16, bridgeW: 0.15, bridgeR: 0.12, proj: 0.181, overstand: 0.03,
+    head: 0.33, pbW: 0.062, eyeW: 0.09, tail: 0.36, spreadB: 0.031, spreadN: 0.0105, neckDepth: [0.04, 0.05], stick: [0.0068, 0.0047], hairW: 0.016,
     dia: [2.7 * mm, 2.3 * mm, 1.9 * mm, 1.6 * mm], wound: [true, true, true, true], grain: [1.6 * mm, 3.6 * mm], flame: 8.5 * mm,
     vTop: [120, 64, 30], vBack: [112, 56, 24], vEdge: [56, 24, 10],
+    flat: { at: 0.24, cant: 0.183, bend: 0.05, crown: 3 * mm },
+    rollers: { a: [0.11, 0.23, 0.35, 0.47], depth: 0.45 },
+    stand: [0.27, 0.22],
+    bowK: 1.3,
   },
 };
 /** standing on an endpin: the cello and the double bass */
@@ -1090,12 +1118,15 @@ interface ScrollDims {
   /** the neck's depth and a half-width inside its section, at the nut (where the chin grows out of it) */
   neckD: number;
   wNeck: number;
+  /** where the pegs (or a bass's rollers) go along the pegbox, and how deep between its front and back */
+  pegA?: number[];
+  pegDepth?: number;
 }
 
 /** the scroll, carved: the pegbox (cheeks, floor, open throat), the back fluted from the chin over the
  *  crown, the volute's 2.6 turns stepping out towards the eye, each turn's side hollowed inside a
  *  chamfered rim, and the eye. Returns where the pegs go. */
-function buildScroll(mb: MeshBuilder, d: ScrollDims, wood: Mat, inside: Mat, dark: Mat): { peg: (k: number) => { c: Vec3; w: number; depth: number } } {
+function buildScroll(mb: MeshBuilder, d: ScrollDims, wood: Mat, inside: Mat, dark: Mat): { peg: (k: number) => { c: Vec3; w: number; depth: number }; frame: HeadFrame } {
   const { N, A, H, Lh } = d;
   const toL = (p: P2, z: number): Vec3 => [N[0] + Lh * (p[0] * A[0] + p[1] * H[0]), N[1] + Lh * (p[0] * A[1] + p[1] * H[1]), N[2] + z];
   const dirL = (p: P2): Vec3 => norm([p[0] * A[0] + p[1] * H[0], p[0] * A[1] + p[1] * H[1], 0]);
@@ -1365,11 +1396,12 @@ function buildScroll(mb: MeshBuilder, d: ScrollDims, wood: Mat, inside: Mat, dar
   };
   return {
     peg: (k: number) => {
-      const a = SCROLL.pegA[k];
+      const a = (d.pegA ?? SCROLL.pegA)[k];
       const hf = hAt(frontL, a);
       const hb = hAt(backL, a);
-      return { c: toL([a, hf + (hb - hf) * SCROLL.pegDepth], 0), w: wPeg(a), depth: (hf - hb) * Lh };
+      return { c: toL([a, hf + (hb - hf) * (d.pegDepth ?? SCROLL.pegDepth)], 0), w: wPeg(a), depth: (hf - hb) * Lh };
     },
+    frame: { toL: (a, h, z) => toL([a, h], z), A, H, Lh, w: wPeg, front: (a) => hAt(frontL, a), back: (a) => hAt(backL, a), cheek: d.cheek },
   };
 }
 
@@ -1404,6 +1436,8 @@ export interface BowedModel {
   bowLine: { a: Vec3; b: Vec3; pos: number } | null;
   /** the bow at the middle of its hair (the stage frames the instrument with it there: fit3d.ts) */
   bowFit?: { mesh: Mesh; m: Mat4 };
+  /** a bass's machines: its rollers' centres (local), nearest the nut first; null where it has pegs */
+  rollers: Vec3[] | null;
 }
 
 export function buildBowedModel(g: BowedGeom): BowedModel {
@@ -1420,9 +1454,23 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   const plB = makePlate(sp.ol, B, N, sp.button);
   // the inside (seen only through the f-holes) needs far less
   const plIn = makePlate(sp.ol, B, Math.round(N / 4), 0);
-  const ribH = (x: number) => sp.rib * (0.955 + 0.045 * clamp(x / B, 0, 1));
+  const fl = sp.flat;
+  // the ribs: a little shallower towards the neck; a flat back's break takes more off above it (the
+  // cant, bent over `bend`: a smooth ramp, (d + √(d² + w²) − w) / 2 of the distance d above the break)
+  const ribH = fl
+    ? (x: number) => {
+        const d = fl.at * B - x;
+        return sp.rib * (0.965 + 0.035 * clamp(x / B, 0, 1)) - Math.tan(fl.cant) * (d + Math.sqrt(d * d + fl.bend * fl.bend) - fl.bend) * 0.5;
+      }
+    : (x: number) => sp.rib * (0.955 + 0.045 * clamp(x / B, 0, 1));
   const yTop = (x: number, z: number) => sp.edgeT + arch(sp, pl, x, z, sp.archT - sp.edgeT);
-  const yBack = (x: number, z: number) => -ribH(x) - sp.edgeT - arch(sp, plB, x, z, sp.archB - sp.edgeT);
+  // a flat back: no channel, no arch, only the slight crown across that its bars give it
+  const yBack = fl
+    ? (x: number, z: number) => {
+        const t = Math.min(1, Math.abs(z) / plB.W(x));
+        return -ribH(x) - sp.edgeT - fl.crown * (1 - t * t) * Math.sin(Math.PI * clamp(x / B, 0, 1)) ** 0.5;
+      }
+    : (x: number, z: number) => -ribH(x) - sp.edgeT - arch(sp, plB, x, z, sp.archB - sp.edgeT);
   // f-holes: constructed (fholes.ts: round eyes, an S stem, the wings' tips, the nicks), their nicks
   // on the bridge line. (The photograph's trace was lumpy, however it was smoothed.)
   const fb = fholeOf(sp.ol);
@@ -1439,9 +1487,11 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   // ---- materials (painted plates; the rest flamed or plain)
   const mTop = variant(M.varnishTop, { paint: paintPlate(g.id, sp, pl, holes, 'top'), kind: 1 });
   const mBack = variant(M.varnish, { paint: paintPlate(g.id, sp, plB, null, 'back') });
-  const flamed = variant(M.varnish, { col: [sp.vBack[0] / 255, sp.vBack[1] / 255, sp.vBack[2] / 255], tint: true });
-  const flamedW = variant(M.varnishWorn, { col: [sp.vBack[0] / 255, sp.vBack[1] / 255, sp.vBack[2] / 255], tint: true });
-  const flamedDark = variant(M.varnishDark,{ col: [sp.vEdge[0] / 255, sp.vEdge[1] / 255, sp.vEdge[2] / 255], tint: true });
+  // (a bass's maple is figured broader: its flame at 1.7× the violin's)
+  const tx = g.id === 'bass' ? { texScale: 1.7 } : {};
+  const flamed = variant(M.varnish, { col: [sp.vBack[0] / 255, sp.vBack[1] / 255, sp.vBack[2] / 255], tint: true, ...tx });
+  const flamedW = variant(M.varnishWorn, { col: [sp.vBack[0] / 255, sp.vBack[1] / 255, sp.vBack[2] / 255], tint: true, ...tx });
+  const flamedDark = variant(M.varnishDark,{ col: [sp.vEdge[0] / 255, sp.vEdge[1] / 255, sp.vEdge[2] / 255], tint: true, ...tx });
   // ---- plates: arched surfaces fanned from the spine to the edge round's inner line
   // the plate's surface over its outline (inset by `inset`): a grid clipped to the outline — whole
   // cells inside, boundary cells cut to it (Sutherland–Hodgman) and triangulated — finer near the
@@ -1781,14 +1831,28 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     chTop: 0.7 * mm * S ** 0.8,
     neckD: sp.neckDepth[0],
     wNeck: 0.36 * fbW(xn),
+    pegA: sp.rollers?.a,
+    pegDepth: sp.rollers?.depth,
   }, flamedW, M.interior, flamedDark);
   // pegs: two each side, through both cheeks; the strings wind on their shafts. String i (0 = lowest)
   // → its peg, from the nut: the treble side's lower, the bass side's lower, the treble's upper, the bass's
+  // (a bass's machines the same: string i on roller pegK[i], its machine on side pegSide[i])
   const pegK = [3, 1, 0, 2];
   const pegSide = [1, 1, -1, -1];
   const pegEnd: Vec3[] = [];
   const pegMat = standing(g.id) ? M.rosewood : M.fittings;
-  for (let i = 0; i < 4; i++) {
+  let rollerC: Vec3[] | null = null;
+  if (sp.rollers) {
+    const zOf = (i: number) => (1.5 - i) * sp.spreadN * 1.3;
+    const rollers = sp.rollers.a.map((a, k) => {
+      const i = pegK.indexOf(k);
+      return { a, side: pegSide[i], z: zOf(i), dia: sp.dia[i] };
+    });
+    const mc = buildMachines(mb, head.frame, rollers, sp.rollers.depth, [xn, yNut, 0]);
+    rollerC = mc.centres;
+    for (let i = 0; i < 4; i++) pegEnd.push(mc.departs[pegK[i]]);
+  }
+  for (let i = 0; i < 4 && !sp.rollers; i++) {
     const side = pegSide[i];
     const pk = head.peg(pegK[i]);
     const c = pk.c;
@@ -1830,7 +1894,8 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   const ub = xb / B;
   const yArchB = yTop(xb, sp.bridgeW * 0.32);
   const yBtop = (z: number) => yArchB + sp.bridgeH - (z * z) / (2 * sp.bridgeR);
-  bridge(mb, g.id, sp, xb, yArchB, (z) => yTop(xb, z));
+  if (g.id === 'bass') bassBridge(mb, xb, sp.bridgeW, sp.bridgeH, sp.bridgeR, yArchB, (z) => yTop(xb, z), M.bridgeMaple);
+  else bridge(mb, g.id, sp, xb, yArchB, (z) => yTop(xb, z));
   void ub;
   // ---- strings' geometry; tailpiece, saddle, end button or endpin, chinrest
   const zN = [0, 1, 2, 3].map((i) => (1.5 - i) * sp.spreadN);
@@ -1850,14 +1915,27 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
       const a = v * Math.PI * 2;
       return [B - 0.006 * S + Math.cos(a) * 0.0035 * S ** 0.6, ys + 0.0012 * S ** 0.6 + Math.max(-0.002, Math.sin(a)) * 0.002 * S ** 0.6, (s - 0.5) * 0.034 * S ** 0.8];
     }, M.fittings, { wrapV: true });
-    for (const sgn of [-1, 1]) tube(mb, [[tpEnd + 0.002 * S, tpY1 + 0.0015 * S, sgn * 0.0035 * S ** 0.7], [B - 0.006 * S, ys + 0.0035 * S ** 0.6, sgn * 0.004 * S ** 0.7], [B + 0.0022 * S, sp.edgeT * 0.4, sgn * 0.003 * S ** 0.7], [B + 0.003 * S, -ribH(B) * 0.5, 0]], 0.0009 * S ** 0.6, 8, M.gut);
+    // (a bass's tailpiece hangs on a steel cable, 3.5 mm, looped round the endpin's socket)
+    const wire = g.id === 'bass';
+    for (const sgn of [-1, 1]) tube(mb, [[tpEnd + 0.002 * S, tpY1 + 0.0015 * S, sgn * 0.0035 * S ** 0.7], [B - 0.006 * S, ys + 0.0035 * S ** 0.6, sgn * 0.004 * S ** 0.7], [B + 0.0022 * S, sp.edgeT * 0.4, sgn * 0.003 * S ** 0.7], [B + 0.003 * S, -ribH(B) * 0.5, 0]], wire ? 1.75 * mm : 0.0009 * S ** 0.6, wire ? 10 : 8, wire ? M.wire : M.gut);
   }
   if (standing(g.id)) {
-    // endpin: the socket (ebony, with its collar) and the steel rod (to the floor, set below)
+    // endpin: the socket (ebony, with its collar) and the steel rod (to the floor, set below); a bass's
+    // is larger (a 45 mm collar, a 12 mm rod) and has its thumbscrew on the side
     const yc = -ribH(B) / 2;
+    const k = g.id === 'bass' ? 1.25 : 1;
     mb.with(chain(translate(B, yc, 0), rotZ(-Math.PI / 2)), () =>
-      lathe(mb, [[0, -0.003], [0.0175, -0.003], [0.019, 0.004], [0.017, 0.012], [0.0185, 0.016], [0.0185, 0.022], [0.012, 0.028], [0.009, 0.042], [0.0105, 0.044], [0.0105, 0.05], [0, 0.05]], 28, M.fittings),
+      lathe(mb, [[0, -0.003], [0.0175, -0.003], [0.019, 0.004], [0.017, 0.012], [0.0185, 0.016], [0.0185, 0.022], [0.012, 0.028], [0.009, 0.042], [0.0105, 0.044], [0.0105, 0.05], [0, 0.05]].map(([r, y]): [number, number] => [r * k, y * k]), 28, M.fittings),
     );
+    if (g.id === 'bass') {
+      // the thumbscrew through the barrel: a steel stem and a knurled nickel head, on the treble side
+      const xs = B + 0.034 * k;
+      cyl(mb, [xs, yc, -0.008], [xs, yc, -0.022], 2.2 * mm, 2.2 * mm, 12, M.darkSteel);
+      const prof: [number, number][] = [[0.00001, 0], [6.5 * mm, 0], [7.5 * mm, 1 * mm]];
+      for (let q = 1; q < 8; q++) prof.push([q % 2 ? 7.2 * mm : 7.5 * mm, 1 * mm + q * 0.75 * mm]);
+      prof.push([7.5 * mm, 7 * mm], [6.5 * mm, 8 * mm], [0.00001, 8 * mm]);
+      mb.with(chain(translate(xs, yc, -0.021), rotXm(Math.PI / 2)), () => lathe(mb, prof, 24, M.nickelSatin));
+    }
   } else {
     // the end button, and a chinrest on the bass side of the tailpiece
     mb.with(chain(translate(B, -ribH(B) / 2, 0), rotZ(-Math.PI / 2)), () => lathe(mb, [[0, -0.001], [0.0045, -0.001], [0.0052, 0.002], [0.0042, 0.004], [0.0056, 0.0065], [0.0045, 0.0095], [0, 0.0102]], 18, M.fittings));
@@ -1871,7 +1949,8 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     const te = tailEnd[i];
     const silk = [M.silkGold, M.silk, M.silkGold, M.silk][i];
     const dirT = norm(sub(br, te));
-    tube(mb, [te, add(te, scale(dirT, 0.012 * S ** 0.7))], r * 1.4, 10, silk);
+    // (a bass string's silk runs 5–6 cm out of the tailpiece)
+    tube(mb, [te, add(te, scale(dirT, g.id === 'bass' ? 0.055 : 0.012 * S ** 0.7))], r * 1.4, 10, silk);
   }
   // ---- the bow (along +x from the frog's hair end, stick above the hair at +y)
   const hairLen = g.bowLength;
@@ -1882,9 +1961,8 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
   let T: Mat4;
   let floorY: number;
   if (standing(g.id)) {
-    // standing on its endpin, leaning back towards the (absent) player
-    const lean = 0.32;
-    const tailY = 0.33;
+    // standing on its endpin, leaning back towards the (absent) player (a bass more upright)
+    const [lean, tailY] = sp.stand ?? [0.32, 0.33];
     // local x (scroll → tail) down, local y (the top's normal) towards the front (−z), local z across
     const R0 = new Float32Array([0, -1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0, 0, 0, 1]);
     T = chain(translate(0, tailY, 0), rotXm(lean), R0, translate(-B, sp.rib / 2, 0));
@@ -1896,10 +1974,11 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     const a = xform(Tinv, base);
     const b2 = xform(Tinv, add(base, scale(dir, len - 0.03)));
     const tip = xform(Tinv, add(base, scale(dir, len)));
-    cyl(mb, a, b2, 0.0045, 0.0045, 16, M.darkSteel);
+    const kb = g.id === 'bass' ? 1.33 : 1;
+    cyl(mb, a, b2, 0.0045 * kb, 0.0045 * kb, 16, M.darkSteel);
     // the rubber stop on its point
-    cyl(mb, b2, xform(Tinv, add(base, scale(dir, len - 0.004))), 0.011, 0.012, 20, M.rubber);
-    cyl(mb, xform(Tinv, add(base, scale(dir, len - 0.004))), tip, 0.012, 0.009, 20, M.rubber);
+    cyl(mb, b2, xform(Tinv, add(base, scale(dir, len - 0.004))), 0.011 * kb, 0.012 * kb, 20, M.rubber);
+    cyl(mb, xform(Tinv, add(base, scale(dir, len - 0.004))), tip, 0.012 * kb, 0.009 * kb, 20, M.rubber);
   } else {
     // held at playing height on the shoulder, scroll up and to the left, top tilted up to the light
     const h = g.id === 'viola' ? 0.24 : 0.22;
@@ -1925,6 +2004,7 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
     yB,
     tailEnd,
     pegEnd,
+    rollers: rollerC,
     fbY,
     bounds: { c: [c[0], Math.max(c[1], extent * 0.35), c[2]], r: extent * 0.9 + 0.1 },
     floorY,
@@ -2068,7 +2148,8 @@ function tailpiece(mb: MeshBuilder, id: string, sp: Spec, x0: number, x1: number
     return [xf + Math.cos(a) * 0.0018 * S ** 0.6, y0 + th0 + 0.0012 * S ** 0.6 + Math.sin(a) * 0.0016 * S ** 0.6, (s - 0.5) * wTop * 0.86];
   }, M.boxwood, { wrapV: true });
   for (const e of ends) cyl(mb, [e[0], e[1] - 0.0045 * S ** 0.7, e[2]], [e[0], e[1] + 0.0004, e[2]], 0.0011 * S ** 0.6, 0.0011 * S ** 0.6, 10, M.hole);
-  // a fine tuner on the highest string: lever, screw and its knurled head (nickel)
+  // a fine tuner on the highest string: lever, screw and its knurled head (nickel); a bass has none
+  if (id === 'bass') return;
   const e = ends[3];
   const sc = S ** 0.55;
   // (satin: a polished head facing the softbox bloomed into a white dot)
@@ -2082,7 +2163,6 @@ function tailpiece(mb: MeshBuilder, id: string, sp: Spec, x0: number, x1: number
     prof.push([rh, hh - rh * 0.3], [rh * 0.7, hh], [0.00001, hh + rh * 0.12]);
     mb.with(translate(e[0] + 0.011 * sc, e[1] + 0.0075 * sc, e[2]), () => lathe(mb, prof, 20, M.nickelSatin));
   }
-  void id;
 }
 
 /** a side-mounted chinrest over the lower bout's edge on the bass side, beside the tailpiece (the shape
@@ -2218,7 +2298,9 @@ function chinrest(mb: MeshBuilder, sp: Spec, pl: Plate, yTop: (x: number, z: num
 
 /** the bow: stick (octagonal, cambered), head and its plate, hair, frog, winding, leather, button */
 function buildBow(bm: MeshBuilder, sp: Spec, hairLen: number): void {
-  const S2 = hairLen / 0.65;
+  // (a French bass bow: its frog, head and the stick's rise over the hair larger than the cello's;
+  // the hair its own length)
+  const S2 = (hairLen / 0.65) * (sp.bowK ?? 1);
   const hh = 0.0006;
   const hw = sp.hairW;
   // the hair: a flat ribbon from the frog's ferrule to the head

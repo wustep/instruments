@@ -318,6 +318,100 @@ describe('3D instruments', () => {
     }
   });
 
+  // The double bass (docs/3d-reference.md, "Double bass"): a 3/4 orchestral bass of 1110 mm, built as
+  // a bass is, not a cello scaled up: its back flat, bent towards the top at the break so that the
+  // ribs are shallowest at the neck block (the Met's Plumerel bass: ribs 156 / 200 / 197 mm, upper /
+  // centre / tail); worm-and-cog machines in place of pegs, four rollers through the pegbox; standing
+  // on its endpin, 1.9–2 m to the scroll's top. Its varnished top is as smooth an arch as the others'.
+  it('the double bass: 1110 mm, taller than the cello, a flat back with its break, four machine rollers and no pegs, on its endpin, its top a smooth arch', () => {
+    const mk = (id: 'cello' | 'bass') => {
+      const d = BOWED[id];
+      return buildBowedModel({ id, L: d.L, bowLength: d.bowLength, strings: d.strings.map((s) => ({ name: s.name, open: s.open })) });
+    };
+    const bass = mk('bass');
+    const cello = mk('cello');
+    expect(bass.xb - bass.xn).toBeCloseTo(BOWED.bass.L, 6);
+    const top = bounds([bass.top]);
+    expect(top.hi[0] - top.lo[0]).toBeCloseTo(1.11, 2);
+    const wb = bounds([...bass.meshes, bass.top], bass.T);
+    const wc = bounds([...cello.meshes, cello.top], cello.T);
+    expect(wb.hi[1] - wc.hi[1]).toBeGreaterThan(0.35);
+    expect(wb.hi[1]).toBeGreaterThan(1.85);
+    expect(wb.hi[1]).toBeLessThan(2.02);
+    // the endpin's rubber on the floor
+    let tip = Infinity;
+    for (const m of bass.meshes)
+      for (let i = 0; i < m.count; i++) if (MAT_LIST[m.mats![i]] === M.rubber) tip = Math.min(tip, xform(bass.T, [m.data[i * 14], m.data[i * 14 + 1], m.data[i * 14 + 2]])[1]);
+    expect(tip).toBeGreaterThan(-0.005);
+    expect(tip).toBeLessThan(0.005);
+    // machines: four rollers at four heights along the pegbox, each string leaving its own; no pegs
+    // (the cello's are rosewood: the bass has none), brass plates and cogs
+    expect(cello.rollers).toBeNull();
+    expect(bass.rollers).toHaveLength(4);
+    const along = bass.rollers!.map((c) => c[0]);
+    for (let k = 1; k < 4; k++) expect(along[k - 1] - along[k]).toBeGreaterThan(0.03);
+    expect(new Set(bass.pegEnd.map((p) => p.map((v) => v.toFixed(4)).join())).size).toBe(4);
+    const mats = new Set<unknown>();
+    for (const m of bass.meshes) for (let i = 0; i < m.count; i += 3) mats.add(MAT_LIST[m.mats![i]]);
+    expect(mats.has(M.rosewood)).toBe(false);
+    expect(mats.has(M.brass)).toBe(true);
+    expect(mats.has(M.brassHandled)).toBe(true);
+    // the back: its outer surface (facing away from the top) below the break is flat — a plane in x
+    // within 6 mm (the bars' slight crown) — and above it bent towards the top, 30 mm and more by the
+    // neck block, where the ribs are 140–165 mm against 190–210 at the tail (the depth along the
+    // centre line, less the plates' 7 mm edge; the back's crown adds its few millimetres)
+    const pts: number[][] = [];
+    for (const m of bass.meshes)
+      for (let i = 0; i < m.count; i++) {
+        const mat = MAT_LIST[m.mats![i]];
+        const o = i * 14;
+        if (mat.paint?.key === 'bass-back' && m.data[o + 4] < -0.95) pts.push([m.data[o], m.data[o + 1], m.data[o + 2]]);
+      }
+    expect(pts.length).toBeGreaterThan(1000);
+    const B = 1.11;
+    const low = pts.filter((p) => p[0] > 0.36 * B && p[0] < 0.95 * B);
+    let sx = 0;
+    let sy = 0;
+    let sxx = 0;
+    let sxy = 0;
+    for (const [x, y] of low) {
+      sx += x;
+      sy += y;
+      sxx += x * x;
+      sxy += x * y;
+    }
+    const n = low.length;
+    const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+    const icpt = (sy - slope * sx) / n;
+    const dev = Math.max(...low.map(([x, y]) => Math.abs(y - (icpt + slope * x))));
+    expect(dev).toBeLessThan(0.006);
+    const neck = pts.filter((p) => p[0] < 0.06 * B && Math.abs(p[2]) < 0.03);
+    expect(neck.length).toBeGreaterThan(5);
+    const lift = Math.min(...neck.map(([x, y]) => y - (icpt + slope * x)));
+    expect(lift).toBeGreaterThan(0.03);
+    const depth = (x0: number, x1: number) => -Math.max(...pts.filter((p) => p[0] > x0 && p[0] < x1 && Math.abs(p[2]) < 0.03).map((p) => p[1]));
+    const ribTop = depth(0.0, 0.03 * B) - 0.007;
+    const ribTail = depth(0.9 * B, 0.97 * B) - 0.007;
+    expect(ribTop).toBeGreaterThan(0.14);
+    expect(ribTop).toBeLessThan(0.165);
+    expect(ribTail).toBeGreaterThan(0.19);
+    expect(ribTail).toBeLessThan(0.21);
+    // the top: no facet over the arch turns the varnish's reflection by more than 12°
+    const v = bass.top.data;
+    let hi = 0;
+    for (let i = 0; i < bass.top.count; i++) hi = Math.max(hi, v[i * 14 + 1]);
+    let worst = 1;
+    for (let t = 0; t < bass.top.count; t += 3) {
+      const o = [t * 14, (t + 1) * 14, (t + 2) * 14];
+      if (o.some((k) => v[k + 1] < 0.4 * hi)) continue;
+      for (let a = 0; a < 3; a++) {
+        const b = (a + 1) % 3;
+        worst = Math.min(worst, v[o[a] + 3] * v[o[b] + 3] + v[o[a] + 4] * v[o[b] + 4] + v[o[a] + 5] * v[o[b] + 5]);
+      }
+    }
+    expect((Math.acos(worst) * 180) / Math.PI).toBeLessThan(12);
+  });
+
   // the measured sizes in docs/3d-reference.md, within ~3%: a Boehm C flute is 670–672 mm overall
   // (McGee); the Bach Strad B♭ is 480 mm from the receiver to the bell rim (NMM 9107) with a 122 mm
   // bell, and its 7C mouthpiece (88 mm long, 22 mm of it in the receiver) adds 66 mm
