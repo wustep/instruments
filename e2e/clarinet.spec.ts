@@ -1,4 +1,4 @@
-// The clarinet end to end: the picker ("clarinet" under its glyph, "clar." on a phone, nine instruments
+// The clarinet end to end: the picker ("clarinet" under its glyph, "clar." on a phone, ten instruments since the bassoon
 // in the phone's band and no taller for a note), the keys' compass (D3–B♭6, concert pitch), the worklet at
 // the sample rates the site meets (22.05 to 96 kHz) on the note's own register (not its twelfth), its own
 // piece from the overlay, and Orchestra mode: a constructed file whose tracks carry the names and programs
@@ -164,7 +164,7 @@ test('orchestra: Clarinetto I (GM 71), “Klarinette” and “Cl. 2” (no prog
   expect(errors).toEqual([]);
 });
 
-test('the clarinet on a phone: nine picks in the band six took (271 px), “clar.” under its glyph, the band no taller with a note sounding, names clear of each other, no horizontal scroll', async ({ page }, info) => {
+test('the clarinet on a phone: ten picks (since the bassoon) in the band six took (271 px), “clar.” under its glyph, the band no taller with a note sounding, names clear of each other, no horizontal scroll', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone', 'the phone layout');
   for (const size of [null, { width: 390, height: 844 }]) {
     if (size) await page.setViewportSize(size);
@@ -180,10 +180,10 @@ test('the clarinet on a phone: nine picks in the band six took (271 px), “clar
     await page.evaluate(() => (window as any).__piano.noteOff(79, 'keys'));
     expect(during, `${size?.width ?? 'Pixel 7'}`).toBe(before);
     const boxes = await page.locator('.instruments .pick').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ l: r.left, r: r.right, t: r.top })));
-    expect(boxes.length).toBe(9);
-    expect(boxes[8].r - boxes[0].l, 'the picks’ row').toBeLessThanOrEqual(271.5);
+    expect(boxes.length).toBe(10);
+    expect(boxes[9].r - boxes[0].l, 'the picks’ row').toBeLessThanOrEqual(271.5);
     // the phone shows the clarinet's score abbreviation
-    expect(await page.locator('.instruments .pick-name[data-short]').evaluate((el) => getComputedStyle(el, '::after').content)).toBe('"clar."');
+    expect(await page.locator('.instruments').getByRole('button', { name: 'Clarinet' }).locator('.pick-name').evaluate((el) => getComputedStyle(el, '::after').content)).toBe('"clar."');
     for (let i = 1; i < boxes.length; i++) {
       expect(boxes[i].l).toBeGreaterThanOrEqual(boxes[i - 1].r - 0.5);
       expect(boxes[i].t).toBeCloseTo(boxes[0].t, 0);

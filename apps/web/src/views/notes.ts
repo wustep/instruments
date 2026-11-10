@@ -105,7 +105,7 @@ export function notesView(): View {
       id: 'overview',
       title: 'What this is',
       body: [
-        p('Nine acoustic instruments — piano (grand and upright), violin, viola, cello, double bass, flute, oboe, clarinet and trumpet — computed as physics, sample by sample, in your browser. No recorded sound is ever played as the instrument. Each is a small set of coupled physical parts: something that carries waves (a string, an air column), something that drives it (a felt hammer, a bow, a jet of breath, a double or a single reed, buzzing lips) and something that radiates (a soundboard, a wooden body, an open end, a bell), heard in a modelled room.'),
+        p('Ten acoustic instruments — piano (grand and upright), violin, viola, cello, double bass, flute, oboe, clarinet, bassoon and trumpet — computed as physics, sample by sample, in your browser. No recorded sound is ever played as the instrument. Each is a small set of coupled physical parts: something that carries waves (a string, an air column), something that drives it (a felt hammer, a bow, a jet of breath, a double or a single reed, buzzing lips) and something that radiates (a soundboard, a wooden body, an open end, a bell), heard in a modelled room.'),
         p('Everything runs in an AudioWorklet written in TypeScript. The same DSP core runs in Node for the tests, calibration and offline renders, so every number on this page comes from the code you are hearing. What moves on the stage — strings, hammers, bows, holes, valves, wavefronts — is drawn from the same simulation, live.'),
       ],
     },
@@ -184,6 +184,15 @@ export function notesView(): View {
       ],
     },
     {
+      id: 'bassoon',
+      title: 'Bassoon',
+      body: [
+        p('The bassoon is the oboe’s bass: the same double reed, larger (its blades about 56 mm long), on a cone two and a half metres long, folded in two so a player can reach its holes. The reed sits on a curved metal crook, the bocal; the bore runs down the wing joint, round a U-bend at the foot of the boot, up the long joint and out of the bell, 1.34 m above the floor. As on the oboe, a cone is a cylinder open at both ends driven where its missing tip would end: two delay lines meet at the reed. A bassoon’s cone is so narrow that its tip is far behind the reed, so the short line is long, and its comb thins the bore’s harmonics where it falls.'),
+        eq('x = 1 − Δ,   u = ζ · x · √|Δ| · sgn Δ,   p = a₁ + a₂ + u/2', 'the oboe’s reed and two-tube bore; Δ: mouth − bocal pressure in units of the closing pressure'),
+        p('Its open holes let everything above about 400–500 Hz out of the bore (the lattice’s cutoff, Benade 1976), which is where the bassoon’s fixed formant sits: its low notes have a weak fundamental under a cluster of strong harmonics near 500 Hz, the reedy sound that does not move with the note. In the model the bore loses its high resonances a few harmonics above the note (the walls and the open holes), so a low note settles in a few tens of milliseconds as the recorded one does; the radiation carries the formants. The lips set the dynamic, the tongue holds the blades while the breath builds; each note is played on the tube whose fundamental it is (the half-hole, the flick keys and the whisper key are drawn, not modelled). It is monophonic, B♭1 to E5, in C: written as it sounds, in bass and tenor clef.'),
+      ],
+    },
+    {
       id: 'trumpet',
       title: 'Trumpet',
       body: [
@@ -240,7 +249,7 @@ export function notesView(): View {
       id: 'calibration',
       title: 'Calibration: measured against real instruments',
       body: [
-        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, double bass, flute, oboe, B♭ clarinet and trumpet — used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
+        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, double bass, flute, oboe, B♭ clarinet, bassoon and trumpet — used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
         h3('Like with like, and a judge'),
         ul(
           'Each model note is rendered exactly as long as the part of the recording that is analysed, with vibrato only where the player used it; a note’s pitch with vibrato is the centre of its fine pitch track.',
@@ -268,7 +277,8 @@ export function notesView(): View {
             ['double bass', '6.9', '4.9', '0.95', '+1.7', '1.37', '2.1'],
             ['flute', '7.1', '4.7', '0.97', '+5.4', '1.14', '1.0'],
             ['oboe', '8.0', '10.5', '0.92', '+2.0', '1.31', '0.8'],
-            ['clarinet', '8.8', '4.1', '0.99', '−0.3', '0.81', '5.5'],
+            ['clarinet', '8.8', '4.0', '0.99', '−0.3', '0.80', '1.2'],
+            ['bassoon', '8.6', '8.7', '1.05', '+1.6', '0.87', '0.3'],
             ['trumpet', '4.2', '3.3', '0.93', '+0.8', '1.43', '2.7'],
           ],
         ),
