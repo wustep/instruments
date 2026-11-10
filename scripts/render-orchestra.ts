@@ -8,6 +8,7 @@
 // --one-player: every part player 0 (two of a voice on one line as one instrument twice: the comparison)
 // --wav: keep the WAV next to the MP3 (for scripts/spectrogram.ts)
 // --flat: every part from the single instrument's place (no seats: the mix as it was before seating)
+// --json: also write <name>.json, each part's numbers (for scripts/stage-chart.mjs)
 // Each part's place in the picture is printed: its level difference between the channels (L − R, dB)
 // and the time lag between them (positive: the right channel later, the part on the left).
 import { execFileSync } from 'node:child_process';
@@ -39,6 +40,7 @@ const NAME = opt('--name', '');
 const ONE = args.includes('--one-player') ? (args.splice(args.indexOf('--one-player'), 1), true) : false;
 const WAV = args.includes('--wav') ? (args.splice(args.indexOf('--wav'), 1), true) : false;
 const FLAT = args.includes('--flat') ? (args.splice(args.indexOf('--flat'), 1), true) : false;
+const JSON_OUT = args.includes('--json') ? (args.splice(args.indexOf('--json'), 1), true) : false;
 const FS = 48000;
 mkdirSync(OUT, { recursive: true });
 
@@ -96,6 +98,7 @@ for (const job of jobs) {
   let cpu = 0;
   const outs: Float32Array[] = [];
   const seats = SOLO || FLAT ? null : soundSeats(plan.parts.map((p) => VOICE_INFO[p.voice]));
+  const rows: { voice: string; lines: number[]; seat: number[] | null; peakDb: number; rmsDb: number; ildDb: number; lagMs: number }[] = [];
   for (const [k, part] of plan.parts.entries()) {
     const info = VOICE_INFO[part.voice];
     const events: TimedEvent[] = [];
@@ -118,6 +121,7 @@ for (const job of jobs) {
       R[i] += g * r.right[i];
     }
     const im = image(r.left, r.right);
+    rows.push({ voice: part.voice, lines: part.lines, seat: seats ? [...seats[k]] : null, peakDb: +db(pk), rmsDb: +db(Math.sqrt(s2 / n)), ildDb: +im.ild.toFixed(2), lagMs: +im.lag.toFixed(3) });
     console.log(`  ${part.voice.padEnd(8)} peak ${db(pk)} dBFS  rms ${db(Math.sqrt(s2 / n))} dBFS  L−R ${im.ild.toFixed(1).padStart(5)} dB  lag ${im.lag.toFixed(2).padStart(5)} ms${seats ? `  seat ${seats[k].map((v) => v.toFixed(2)).join(', ')}` : ''}  (${(r.cpuMs / dur / 10).toFixed(1)} % of real time)`);
   }
   // two of a voice on one line: how alike they sound (1: one instrument twice; two players less)
@@ -144,6 +148,7 @@ for (const job of jobs) {
   }
   console.log(`  mix      peak ${db(pk)} dBFS  rms ${db(Math.sqrt(s2 / n))} dBFS  (all parts ${(cpu / dur / 10).toFixed(1)} % of real time)`);
   const name = SOLO ? `${job.name}-before-one-${SOLO}` : ONE ? `${job.name}-one-player` : FLAT ? `${job.name}-flat` : job.name;
+  if (JSON_OUT) writeFileSync(join(OUT, `${name}.json`), JSON.stringify({ piece: job.name, seconds: dur, flat: FLAT, bus: g, parts: rows, mix: { peakDb: +db(pk), rmsDb: +db(Math.sqrt(s2 / n)) } }, null, 1));
   const wav = join(OUT, `${name}.wav`);
   writeFileSync(wav, encodeWav({ sampleRate: FS, channels: [L, R] }));
   execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', wav, '-b:a', '160k', join(OUT, `${name}.mp3`)]);
