@@ -804,7 +804,7 @@ test('icon-only stage controls say what they are: a short tooltip and an accessi
   await page.keyboard.press('ArrowUp');
   await expect(tip).not.toHaveText(t0!);
   // the other icon-only controls
-  for (const [sel, text] of [['.oct-btn >> nth=0', 'octave down · Z'], ['.oct-btn >> nth=1', 'octave up · X'], ['.knob-toggle', 'knobs']] as const) {
+  for (const [sel, text] of [['.oct-btn >> nth=0', 'octave down · Z'], ['.oct-btn >> nth=1', 'octave up · X'], ['.knob-toggle', 'knobs'], ['.ens-toggle', 'ensemble · tap instruments to add them'], ['.score-btn', 'pieces']] as const) {
     const el = page.locator(sel);
     if (!(await el.isVisible())) continue;
     await el.hover();
@@ -1284,5 +1284,159 @@ test('the bow in the hand: a drag on the bow sounds the string and moves the bow
   expect(await page.evaluate(() => (window as any).__piano.sounding.size)).toBe(0);
   await page.locator('.dim-toggle').click();
   await page.evaluate(() => (window as any).__piano.setInstrument('piano'));
+  expect(errors).toEqual([]);
+});
+
+// ================================================================ orchestra mode
+const ens = (page: Page) =>
+  page.evaluate(() => {
+    const e = (window as any).__orchestra.ensemble;
+    return { active: e.active as boolean, lineup: e.lineup as string[], engines: e.parts.filter((p: any) => p.engine).length as number, frames: e.parts.filter((p: any) => p.frame).length as number, held: e.parts.map((p: any) => p.down.size) as number[], kinds: e.parts.map((p: any) => p.engine?.instrument ?? null) as (string | null)[] };
+  });
+
+test('orchestra: a piece from the menu puts its ensemble on the stage, in 2D and 3D, and the ensemble steps back', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await startAudio(page);
+  await page.locator('.score-btn').click();
+  const menu = page.locator('.score-menu');
+  await expect(menu).toBeVisible();
+  await expect(menu.locator('.sm-item')).toHaveCount(3);
+  // (a credit, minimal, to the notes)
+  await expect(menu.locator('.sm-credit')).toHaveText(/public domain · Mutopia/);
+  await menu.locator('.sm-item').first().click();
+  await expect(menu).toBeHidden();
+  // the quartet: four engines on the one context, each drawing from its own frames
+  await expect.poll(async () => (await ens(page)).frames, { timeout: 8000 }).toBe(4);
+  const s = await ens(page);
+  expect(s.lineup).toEqual(['violin', 'violin', 'viola', 'cello']);
+  expect(s.kinds).toEqual(['violin', 'violin', 'viola', 'cello']);
+  expect(await page.evaluate(() => (window as any).__piano.ctx.state)).toBe('running');
+  // the picker counts the lineup; the file's four lines show their instruments
+  await expect(page.locator('.ens-toggle')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.pick[aria-label="Violin"] .pick-n')).toHaveText('×2');
+  for (const [name, on] of [['Violin', 'true'], ['Viola', 'true'], ['Cello', 'true'], ['Flute', 'false'], ['Piano', 'false']]) await expect(page.locator(`.pick[aria-label="${name}"]`)).toHaveAttribute('aria-pressed', on);
+  await expect(page.locator('.pl-line')).toHaveCount(4);
+  expect(await page.locator('.pl-line').evaluateAll((b) => b.map((x) => x.getAttribute('data-voice')))).toEqual(['violin', 'violin', 'viola', 'cello']);
+  // it sounds: the tune is played, and the mix reaches the analyser
+  await expect.poll(async () => (await ens(page)).held.reduce((a, b) => a + b, 0), { timeout: 4000 }).toBeGreaterThan(0);
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const a = (window as any).__piano.analyser as AnalyserNode;
+          const b = new Float32Array(2048);
+          a.getFloatTimeDomainData(b);
+          return Math.sqrt(b.reduce((s, x) => s + x * x, 0) / b.length);
+        }),
+      { timeout: 4000 },
+    )
+    .toBeGreaterThan(1e-4);
+  // the single instrument's own controls step aside; nothing scrolls sideways
+  await expect(page.locator('.knob-toggle')).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  // the player and its lines cover none of the top band
+  const p = (await page.locator('.player').boundingBox())!;
+  for (const sel of ['.picker', '.readout']) {
+    const r = (await page.locator(sel).boundingBox())!;
+    expect(p.x < r.x + r.width && r.x < p.x + p.width && p.y < r.y + r.height && r.y < p.y + p.height, sel).toBe(false);
+  }
+  // 3D: the four instruments drawn from their frames
+  await page.locator('.dim-toggle').click();
+  await expect(page.locator('.stage-3d')).toBeVisible();
+  await page.evaluate(() => ((window as any).__stage3d.probe = true));
+  await expect.poll(() => page.evaluate(() => (window as any).__stage3d.stats.lit), { timeout: 8000 }).toBeGreaterThan(20);
+  const v3 = await page.evaluate(() => (window as any).__stage3d.stats.vertices);
+  expect(v3).toBeGreaterThan(50_000);
+  await page.locator('.dim-toggle').click();
+  // the ensemble off: the single instrument back, playing and in the graph
+  await page.locator('.ens-toggle').click();
+  await expect(page.locator('.ens-toggle')).toHaveAttribute('aria-pressed', 'false');
+  expect((await ens(page)).active).toBe(false);
+  await expect(page.locator('.pl-lines')).toBeHidden();
+  await expect(page.locator('.pick[aria-pressed="true"]')).toHaveCount(1);
+  await page.evaluate(() => (window as any).__piano.noteOn(67, 90, 'keys'));
+  await expect.poll(() => page.evaluate(() => (window as any).__piano.sounding.size), { timeout: 2000 }).toBeGreaterThan(0);
+  await page.evaluate(() => (window as any).__piano.noteOff(67, 'keys'));
+  expect(errors).toEqual([]);
+});
+
+test('orchestra: a dropped file with several parts is shared out by name, program and range; a line moves to another instrument', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'files are dropped on desktops');
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await startAudio(page);
+  const name = (t: string) => [0xff, 0x03, t.length, ...[...t].map((c) => c.charCodeAt(0))];
+  const tune: [number, ...number[]][] = [];
+  for (let i = 0; i < 8; i++) tune.push([0, 0x90, [72, 76, 79, 84][i % 4], 90], [480, 0x80, [72, 76, 79, 84][i % 4], 0]);
+  const bass: [number, ...number[]][] = [];
+  for (let i = 0; i < 4; i++) bass.push([0, 0x91, [36, 43, 41, 43][i], 90], [960, 0x81, [36, 43, 41, 43][i], 0]);
+  // an unnamed line of chords (no program): the piano's
+  const chords: [number, ...number[]][] = [];
+  for (let i = 0; i < 4; i++) chords.push([0, 0x92, 60, 70], [0, 0x92, 64, 70], [0, 0x92, 67, 70], [0, 0x92, 71, 70], [960, 0x82, 60, 0], [0, 0x82, 64, 0], [0, 0x82, 67, 0], [0, 0x82, 71, 0]);
+  const file = smf(480, [[[0, 0xff, 0x51, 3, 0x07, 0xa1, 0x20]], [[0, ...name('Flauto')], [0, 0xc0, 73], ...tune], [[0, ...name('Violoncello')], ...bass], chords]);
+  await page.evaluate((b) => {
+    const dt = new DataTransfer();
+    dt.items.add(new File([new Uint8Array(b)], 'trio.mid', { type: 'audio/midi' }));
+    window.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt }));
+    window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, cancelable: true }));
+  }, Array.from(file));
+  await expect.poll(async () => (await ens(page)).engines, { timeout: 8000 }).toBe(3);
+  expect((await ens(page)).lineup).toEqual(['flute', 'cello', 'grand']);
+  // the cello's line to the viola: its own instrument changes (a new engine), the others play on
+  await page.locator('.pl-line').nth(1).click();
+  const menu = page.locator('.pl-menu');
+  await expect(menu).toBeVisible();
+  await expect(menu.locator('.pl-pick[aria-checked="true"]')).toHaveAttribute('aria-label', 'cello');
+  await menu.locator('.pl-pick[aria-label="viola"]').click();
+  await expect(menu).toBeHidden();
+  await expect.poll(async () => (await ens(page)).kinds, { timeout: 5000 }).toEqual(['flute', 'viola', 'piano']);
+  await expect(page.locator('.pl-line').nth(1)).toHaveAttribute('data-voice', 'viola');
+  // a line can be left silent; Escape closes the menu without a change
+  await page.locator('.pl-line').nth(0).click();
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+  await page.locator('.pl-line').nth(0).click();
+  await menu.locator('.pl-pick[aria-label="silent"]').click();
+  await expect.poll(async () => (await ens(page)).lineup).toEqual(['viola', 'grand']);
+  await expect(page.locator('.pl-line').nth(0)).toHaveAttribute('data-voice', 'none');
+  await page.locator('.player').getByRole('button', { name: 'Stop' }).click();
+  expect(errors).toEqual([]);
+});
+
+test('orchestra by hand: the ensemble toggle, instruments counted in, a chord dealt out one note each by register', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await startAudio(page);
+  await page.locator('.ens-toggle').click();
+  await expect.poll(async () => (await ens(page)).engines, { timeout: 8000 }).toBe(4);
+  expect((await ens(page)).lineup).toEqual(['violin', 'violin', 'viola', 'cello']);
+  // a tap adds one; past the most an instrument may have, it has none
+  await page.locator('.pick[aria-label="Flute"]').click();
+  await expect.poll(async () => (await ens(page)).lineup).toEqual(['flute', 'violin', 'violin', 'viola', 'cello']);
+  await page.locator('.pick[aria-label="Viola"]').click();
+  await page.locator('.pick[aria-label="Viola"]').click();
+  await expect.poll(async () => (await ens(page)).lineup).toEqual(['flute', 'violin', 'violin', 'cello']);
+  await expect.poll(async () => (await ens(page)).engines, { timeout: 8000 }).toBe(4);
+  // the keys span the ensemble: the cello's C2 to the violin's top
+  await expect(page.locator('.key[data-midi="36"]')).not.toHaveClass(/out/);
+  await expect(page.locator('.key[data-midi="35"]')).toHaveClass(/out/);
+  // a chord by hand: the lowest note to the cello, the highest to the flute, one each
+  await page.evaluate(async () => {
+    for (const m of [43, 67, 74, 84]) (window as any).__piano.noteOn(m, 90, 'keys');
+  });
+  const held = await page.evaluate(() => (window as any).__orchestra.ensemble.parts.map((p: any) => [p.voice, [...p.down]]));
+  expect(held).toEqual([
+    ['flute', [84]],
+    ['violin', [67]],
+    ['violin', [74]],
+    ['cello', [43]],
+  ]);
+  await page.evaluate(async () => {
+    for (const m of [43, 67, 74, 84]) (window as any).__piano.noteOff(m, 'keys');
+  });
+  expect((await ens(page)).held).toEqual([0, 0, 0, 0]);
+  await page.locator('.ens-toggle').click();
+  expect((await ens(page)).active).toBe(false);
   expect(errors).toEqual([]);
 });

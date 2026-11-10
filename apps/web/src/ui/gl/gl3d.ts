@@ -121,28 +121,35 @@ export class LineSet {
     this.lv.n = this.li.n = 0;
     this.nv = 0;
   }
-  add(pts: Vec3[], color: RGBA | RGBA[], width: number): void {
+  /** `world`: a transform for every point (an ensemble's instrument placed on the stage) */
+  add(pts: Vec3[], color: RGBA | RGBA[], width: number, world: Mat4 | null = null): void {
     const n = pts.length;
     if (n < 2) return;
     const base = this.nv;
     this.lv.need(n * 30);
     const a = this.lv.a;
     let o = this.lv.n;
+    const W = world;
+    const put = (q: Vec3) => {
+      if (!W) {
+        a[o++] = q[0];
+        a[o++] = q[1];
+        a[o++] = q[2];
+        return;
+      }
+      a[o++] = W[0] * q[0] + W[4] * q[1] + W[8] * q[2] + W[12];
+      a[o++] = W[1] * q[0] + W[5] * q[1] + W[9] * q[2] + W[13];
+      a[o++] = W[2] * q[0] + W[6] * q[1] + W[10] * q[2] + W[14];
+    };
     for (let i = 0; i < n; i++) {
       const p = pts[i];
       const pr = pts[i > 0 ? i - 1 : 0];
       const nx = pts[i < n - 1 ? i + 1 : n - 1];
       const c = Array.isArray(color[0]) ? (color as RGBA[])[i] : (color as RGBA);
       for (let side = -1; side <= 1; side += 2) {
-        a[o++] = p[0];
-        a[o++] = p[1];
-        a[o++] = p[2];
-        a[o++] = pr[0];
-        a[o++] = pr[1];
-        a[o++] = pr[2];
-        a[o++] = nx[0];
-        a[o++] = nx[1];
-        a[o++] = nx[2];
+        put(p);
+        put(pr);
+        put(nx);
         a[o++] = side;
         a[o++] = c[0];
         a[o++] = c[1];
@@ -179,6 +186,9 @@ export class Batch {
    *  `m` (a model matrix), facing −y there; k scales the reflection (the case's dissolve); `body` is the mesh
    *  the mirror is the face of (left out of its own reflection) */
   mirror: { m: Float32Array; poly: [number, number][]; y: number; k: number; body?: Mesh } | null = null;
+  /** a transform applied to everything added while it is set (an ensemble places each instrument on
+   *  its seat; null: the instrument's own frame is the world) */
+  world: Mat4 | null = null;
   /** vertex count (for the performance budget) */
   get vertices(): number {
     let n = this.glow.nv + this.inkL.nv + this.wireL.nv;
@@ -195,18 +205,19 @@ export class Batch {
     this.clip = null;
     this.keepOut = null;
     this.mirror = null;
+    this.world = null;
   }
   /** a glowing polyline (additive) of `width` px; colour per point or one for all */
   line(pts: Vec3[], color: RGBA | RGBA[], width = 1.2): void {
-    this.glow.add(pts, color, width);
+    this.glow.add(pts, color, width, this.world);
   }
   /** an ordinary (alpha-blended) polyline: strings, purfling */
   ink(pts: Vec3[], color: RGBA | RGBA[], width = 1): void {
-    this.inkL.add(pts, color, width);
+    this.inkL.add(pts, color, width, this.world);
   }
   /** a wire (string): `diameter` in metres, shaded as a metal cylinder */
   wire(pts: Vec3[], color: RGBA | RGBA[], diameter: number): void {
-    this.wireL.add(pts, color, -diameter);
+    this.wireL.add(pts, color, -diameter, this.world);
   }
   loop(pts: Vec3[], color: RGBA, width = 1.2): void {
     this.line([...pts, pts[0]], color, width);
@@ -222,7 +233,9 @@ export class Batch {
     b.need(ISTRIDE);
     const a = b.a;
     const o = b.n;
-    if (m) a.set(m, o);
+    const w = this.world;
+    if (w) mulInto(a, o, w, m ?? IDENT);
+    else if (m) a.set(m, o);
     else a.set(IDENT, o);
     a[o + 16] = glow ? glow[0] : 0;
     a[o + 17] = glow ? glow[1] : 0;
@@ -277,6 +290,10 @@ export function lookAt(eye: Vec3, at: Vec3, up: Vec3): Mat4 {
   m[14] = -dot(z, eye);
   m[15] = 1;
   return m;
+}
+/** a·b written into out[o…o+15] (no allocation) */
+export function mulInto(out: Float32Array, o: number, a: Mat4, b: Mat4): void {
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) out[o + c * 4 + r] = a[r] * b[c * 4] + a[4 + r] * b[c * 4 + 1] + a[8 + r] * b[c * 4 + 2] + a[12 + r] * b[c * 4 + 3];
 }
 export function mul(a: Mat4, b: Mat4): Mat4 {
   const o = new Float32Array(16);

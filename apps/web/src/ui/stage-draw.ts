@@ -436,7 +436,9 @@ interface BowedLayers {
   body: Path2D;
   glow: Path2D;
 }
-let bowedLayers: BowedLayers | null = null;
+/** the painted layers by instrument and size: a few at once (an ensemble draws a violin, a viola and a
+ *  cello side by side), the oldest let go */
+const bowedLayers = new Map<string, BowedLayers>();
 let bwScratch: HTMLCanvasElement | null = null;
 
 /** a line at distance d inside a closed path, w wide (the path stroked wide, the inner part cut away,
@@ -1060,8 +1062,15 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
   const sh = bowedShapes(g.id, p, g.L);
   const dpr = Math.max(1, Math.abs(ctx.getTransform().a) || 1);
   const key = `${g.id}|${g.L}|${W}|${H}|${dpr}`;
-  if (!bowedLayers || bowedLayers.key !== key) bowedLayers = paintBowedLayers(g, p, sh, bowedLayout(g, p, sh, W, H), W, H, dpr, key);
-  const ly = bowedLayers;
+  let ly = bowedLayers.get(key);
+  if (!ly) {
+    ly = paintBowedLayers(g, p, sh, bowedLayout(g, p, sh, W, H), W, H, dpr, key);
+    bowedLayers.set(key, ly);
+    for (const k of bowedLayers.keys()) {
+      if (bowedLayers.size <= 6) break;
+      bowedLayers.delete(k);
+    }
+  }
   const { sc } = ly.lay;
   const B = p.body;
   const S = B / 0.356;

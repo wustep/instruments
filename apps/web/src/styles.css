@@ -1299,13 +1299,103 @@ figure[title] {
   left: 50%;
   top: calc(var(--stage-band-y, 140px) + 8px);
   transform: translateX(-50%);
+  /* (as wide as its contents: a fixed box from the middle would otherwise get half the screen) */
+  width: max-content;
+  max-width: calc(100vw - 24px);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
   padding: 3px 12px 3px 4px;
   border-radius: 6px;
   background: rgba(14, 13, 11, 0.55);
   backdrop-filter: blur(6px);
+}
+.pl-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* an ensemble's file: its lines, each showing its instrument (lit while it sounds) */
+.pl-lines {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 1px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 0 0 2px 8px;
+}
+.pl-lines[hidden] {
+  display: none;
+}
+.pl-line,
+.pl-pick {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.12s;
+}
+.pl-line .glyph,
+.pl-pick .glyph {
+  width: 24px;
+  height: 24px;
+}
+.pl-line:hover,
+.pl-pick:hover:not(:disabled) {
+  color: var(--ink);
+}
+.pl-line.on {
+  color: var(--ink);
+}
+.pl-line.on .glyph {
+  stroke: var(--amber);
+  filter: drop-shadow(0 0 4px rgba(242, 166, 70, 0.5));
+}
+.pl-line[aria-expanded='true'] {
+  background: rgba(236, 226, 206, 0.1);
+}
+.pl-line[data-voice='none'] {
+  opacity: 0.6;
+}
+.mute-glyph path {
+  fill: currentColor;
+  stroke: none;
+  opacity: 0.75;
+}
+.pl-line:focus-visible,
+.pl-pick:focus-visible {
+  outline: 1px solid rgba(242, 166, 70, 0.8);
+  outline-offset: -1px;
+}
+/* a line's instruments: a row of glyphs under its chip */
+.pl-menu {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  gap: 1px;
+  padding: 3px;
+  border: 1px solid var(--rule-2);
+  border-radius: 6px;
+  background: rgba(14, 13, 11, 0.92);
+  backdrop-filter: blur(6px);
+}
+.pl-pick[aria-checked='true'] {
+  color: var(--ink);
+  background: rgba(236, 226, 206, 0.12);
+}
+.pl-pick[aria-checked='true'] .glyph {
+  stroke: var(--amber);
+}
+.pl-pick:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 .player[hidden] {
   display: none;
@@ -1556,6 +1646,123 @@ figure[title] {
 }
 .case-toggle[hidden] {
   display: none;
+}
+/* orchestra mode: the ensemble toggle and the pieces */
+.ens-toggle,
+.score-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 5px;
+  color: var(--ink-2, #c9bfab);
+  background: transparent;
+  border: 1px solid rgba(236, 226, 206, 0.18);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.ens-icon circle {
+  fill: currentColor;
+}
+.ens-icon path,
+.score-icon path,
+.score-icon {
+  stroke: currentColor;
+  fill: none;
+  stroke-linecap: round;
+}
+.score-icon circle {
+  fill: currentColor;
+}
+.ens-toggle[aria-pressed='true'],
+.score-btn[aria-expanded='true'] {
+  color: var(--ground, #0e0d0b);
+  background: rgba(236, 226, 206, 0.82);
+  border-color: transparent;
+}
+.ens-toggle:focus-visible,
+.score-btn:focus-visible {
+  outline: 1px solid rgba(242, 166, 70, 0.8);
+}
+/* how many of an instrument the ensemble has (two or more) */
+.pick {
+  position: relative;
+}
+.pick-n {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  font: 500 10px/1 var(--mono);
+  color: var(--amber);
+}
+.pick-n:empty {
+  display: none;
+}
+:root[data-ensemble] .knob-toggle,
+:root[data-ensemble] .knobs {
+  display: none !important;
+}
+.score-menu {
+  position: absolute;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 4px;
+  border: 1px solid var(--rule-2);
+  border-radius: 6px;
+  background: rgba(14, 13, 11, 0.94);
+  backdrop-filter: blur(6px);
+}
+.sm-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: 'who what' 'lineup lineup';
+  align-items: baseline;
+  gap: 0 8px;
+  padding: 6px 8px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--ink-2);
+  text-align: left;
+  cursor: pointer;
+}
+.sm-item:hover,
+.sm-item:focus-visible {
+  background: rgba(236, 226, 206, 0.08);
+  color: var(--ink);
+  outline: none;
+}
+.sm-who {
+  grid-area: who;
+  font: italic 17px/1.2 var(--serif);
+  color: var(--ink);
+}
+.sm-what {
+  grid-area: what;
+  font: 400 11px/1.3 var(--mono);
+  color: var(--muted);
+}
+.sm-lineup {
+  grid-area: lineup;
+  display: flex;
+  gap: 0;
+  margin-top: 2px;
+}
+.sm-lineup .glyph {
+  width: 20px;
+  height: 20px;
+  stroke: var(--ink-2);
+}
+.sm-credit {
+  padding: 6px 8px 3px;
+  border-top: 1px solid var(--rule);
+  margin-top: 2px;
+  font: 400 10px/1.3 var(--mono);
+  color: var(--muted);
+  text-decoration: none;
+}
+.sm-credit:hover {
+  color: var(--ink-2);
 }
 .case-toggle svg {
   display: block;

@@ -2,6 +2,7 @@
 // The one page allowed to be long; the stage itself stays nearly wordless.
 
 import { h, type View } from '../ui/dom.ts';
+import { PIECES } from '../orchestra/pieces.ts';
 
 type Kid = string | Node;
 const p = (...c: Kid[]) => h('p', {}, ...c);
@@ -194,6 +195,17 @@ export function notesView(): View {
         p('The stage draws the engine’s own state, about 30 times a second: every sounding string’s shape (each voice’s, not just the last note’s), the hammers and dampers, the soundboard’s or body’s modes as a Chladni-like field, the bow and its contact point, each string’s stopping point rocking with the vibrato, the flute’s covered and open holes pulsing with the breath vibrato, the trumpet’s pistons, lips and the standing wave in its bore, and wavefronts leaving the instrument and returning from the walls, fading with the room’s T₆₀. Keys light only for notes the engine is really sounding.'),
         p('The same frames drive a 3D view (the 3d button; drag to turn, pinch or scroll to zoom): the instruments built to their real measures in three.js, physically based materials under a studio light, the strings drawn as wires of their real gauges, moving and glowing as they sound. The waves and mode fields are the 2D view’s; the 3D view keeps to what an eye could see. It costs under a millisecond of CPU per frame; phones draw at reduced resolution and a lighter scene; without WebGL2 the button never appears.'),
         p('On the pianos, a click on a key or its strings opens that key’s action close up: in 2D a section drawn to scale, replayed slowly from the engine’s own record of the strike; in 3D the camera flies to the key and a section cuts away the keys in front of it (Esc, or a click off the keys, flies back). The I key, or the icon beside 3d, lifts the case away and leaves the plate, strings, soundboard and action playing.'),
+      ],
+    },
+    {
+      id: 'ensemble',
+      title: 'Ensemble',
+      body: [
+        p('The ensemble button puts several instruments on the stage at once; tap an instrument to add one (up to three violins, two of most others, six in all). Each is its own engine — its own AudioWorklet node on the page’s one audio context — so a quartet is four violins’ worth of physics, a few per cent of a core each; they share one bus and a limiter. Played by hand, a chord is dealt out by register, one note to each melodic instrument (the lowest to the cello, the highest to the violin or flute), and a piano takes what is left.'),
+        p('Drop a MIDI file with several parts and each part (a track, or a channel in a single-track file) gets an instrument of its own: by its name (“Violin I”, “Violoncello”, “Flauto”), else its General MIDI program, else its range and whether it plays chords; a name counts only if that instrument can play the part as written. A part outside its instrument’s range moves by octaves into it. Piano parts share one piano; with more parts than the stage holds, string parts become sections (double stops) and a piano takes the rest. With a lineup picked first, the parts are matched to it by register. The row of instruments under the player shows each part’s; tap one to move it, or to silence it.'),
+        h3('The pieces'),
+        ul(...PIECES.map((pc) => [h('a', { href: pc.source, target: '_blank', rel: 'noopener' }, `${pc.composer}, ${pc.title}`), '. ', pc.credit] as Kid[])),
+        p('The MIDI files are the Mutopia Project’s own (mutopiaproject.org), unchanged; each typesetting is placed in the public domain by its typesetter.'),
       ],
     },
     {

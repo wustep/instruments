@@ -101,6 +101,19 @@ const readStored = (): InstrumentId => {
 /** see AudioApp.isSounding */
 export const SOUNDING_GRACE_MS = 60;
 
+/** orchestra mode (orchestra/ensemble.ts): several instruments take the notes, pedals, controllers
+ *  and a file's events in place of the single instrument */
+export interface Route {
+  noteOn(midi: number, velocity: number): void;
+  noteOff(midi: number): void;
+  pedal(kind: 'sustain' | 'soft' | 'sostenuto', v: number): void;
+  control(cc: number, v: number): void;
+  bend(semitones: number): void;
+  setParams(p: Record<string, unknown>): void;
+  schedule(e: { t: number; kind: 'on' | 'off' | 'pedal'; line?: number; midi?: number; vel?: number; cc?: number; value?: number }, at: number): void;
+  stopFile(): void;
+}
+
 class AudioApp {
   ctx: AudioContext | null = null;
   piano: Piano | null = null;
@@ -141,6 +154,8 @@ class AudioApp {
   startMs = 0;
   /** input that arrived before the instrument was ready, replayed in order */
   private queue: ((p: Piano) => void)[] = [];
+  /** orchestra mode: where notes go instead of the single instrument (null: to it) */
+  route: Route | null = null;
 
   private send(fn: (p: Piano) => void): void {
     if (this.piano) fn(this.piano);
@@ -361,14 +376,18 @@ class AudioApp {
     }
     set.add(source);
     this.pressedAt.set(midi, performance.now());
-    this.send((p) => p.noteOn(midi, velocity));
+    if (this.route) {
+      if (!this.ctx) void this.start().catch(() => undefined);
+      this.route.noteOn(midi, velocity);
+    } else this.send((p) => p.noteOn(midi, velocity));
     this.notes.emit({ midi, velocity, on: true, source });
   }
 
   /** Is this key's note really sounding? The engine's word; a key pressed in the last 60 ms
    *  counts until the engine has had a chance to answer (it does within a few ms). */
   isSounding(midi: number): boolean {
-    if (!this.soundingKnown || !this.piano) return this.down.has(midi);
+    // (an ensemble's keys light while held: its instruments may play them an octave away)
+    if (this.route || !this.soundingKnown || !this.piano) return this.down.has(midi);
     if (this.sounding.has(midi)) return true;
     const t = this.pressedAt.get(midi);
     return this.down.has(midi) && t !== undefined && performance.now() - t < SOUNDING_GRACE_MS;
@@ -381,7 +400,8 @@ class AudioApp {
       if (set.size > 0) return;
       this.down.delete(midi);
     }
-    if (this.piano) this.piano.noteOff(midi);
+    if (this.route) this.route.noteOff(midi);
+    else if (this.piano) this.piano.noteOff(midi);
     else if (this.queue.length) this.queue.push((p) => p.noteOff(midi));
     this.notes.emit({ midi, velocity: 0, on: false, source });
   }
@@ -389,17 +409,21 @@ class AudioApp {
   sustain(v: number): void {
     this.sustainValue = v;
     this.piano?.sustain(v);
+    this.route?.pedal('sustain', v);
   }
   soft(v: number): void {
     this.softValue = v;
     this.piano?.softPedal(v);
+    this.route?.pedal('soft', v);
   }
   sostenuto(v: number): void {
     this.middleValue = v;
+    this.route?.pedal('sostenuto', v);
     if (this.piano) this.piano.sostenuto(v);
     else this.queue.push((p) => p.sostenuto(v));
   }
   control(cc: number, v: number): void {
+    if (this.route) return this.route.control(cc, v);
     if (this.piano) this.piano.control(cc, v);
     else this.queue.push((p) => p.control(cc, v));
   }
@@ -409,10 +433,12 @@ class AudioApp {
    * An event from a MIDI file, sample-accurate at AudioContext time `at`; the keys on
    * screen follow at (about) the same moment.
    */
-  scheduleFileEvent(e: { kind: 'on' | 'off' | 'pedal'; midi?: number; vel?: number; cc?: number; value?: number }, at: number): void {
+  scheduleFileEvent(e: { t: number; kind: 'on' | 'off' | 'pedal'; line?: number; midi?: number; vel?: number; cc?: number; value?: number }, at: number): void {
     const p = this.piano;
     const ctx = this.ctx;
     if (!p || !ctx) return;
+    // orchestra: the ensemble plays it; the keys on screen still show the file's own notes
+    const route = this.route;
     // the keys on screen follow what is heard: the moment `at` reaches the speakers
     const later = (fn: () => void) => {
       const id = window.setTimeout(() => {
@@ -421,6 +447,12 @@ class AudioApp {
       }, Math.max(0, (at - this.audibleTime()) * 1000));
       this.fileTimers.add(id);
     };
+    if (route) {
+      route.schedule(e, at);
+      if (e.kind === 'on') later(() => this.markFile(e.midi!, e.vel!, true));
+      else if (e.kind === 'off') later(() => this.markFile(e.midi!, 0, false));
+      return;
+    }
     if (e.kind === 'on') {
       p.noteOn(e.midi!, e.vel!, at);
       later(() => this.markFile(e.midi!, e.vel!, true));
@@ -456,6 +488,7 @@ class AudioApp {
     for (const id of this.fileTimers) window.clearTimeout(id);
     this.fileTimers.clear();
     this.piano?.clearScheduled();
+    this.route?.stopFile();
     for (const [m, set] of [...this.down]) if (set.has('file')) {
       this.piano?.noteOff(m);
       this.markFile(m, 0, false);
@@ -467,6 +500,7 @@ class AudioApp {
 
   /** pitch bend, semitones (strings, flute) */
   bend(semitones: number): void {
+    if (this.route) return this.route.bend(semitones);
     if (this.piano) this.piano.bend(semitones);
     else this.queue.push((p) => p.bend(semitones));
   }
@@ -495,6 +529,7 @@ class AudioApp {
 
   setParams(p: Record<string, unknown>): void {
     this.piano?.setParams(p);
+    this.route?.setParams(p);
   }
 
   // ------------------------------------------------------------- MIDI
