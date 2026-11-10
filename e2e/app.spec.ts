@@ -1863,6 +1863,116 @@ test('orchestra by hand: the ensemble toggle, instruments counted in, a chord de
   expect(errors).toEqual([]);
 });
 
+/**
+ * The bows of an ensemble on the 2D stage, measured on the canvas. The stage says where each bow's hair
+ * lies (`__ens2d`: its frog end and its tip end, client px); 48 stations along that line are then read
+ * from the canvas's own pixels, each a small patch across the hair, for the colours of a bow being
+ * played. On the stage's own style: light and warm, the hair's ivory and the lit side of the stick
+ * (the ground is near black, the varnish dark, strings and a flute's silver cool). On the vector
+ * lines: the red of the hair's two edges, or white where the stick's blue lies over it (an outline's
+ * blue has little red). `drawn` is the share of the stations that have it, `first` and `last` the
+ * outermost ones that do (0 the frog, 1 the tip).
+ */
+const bowsDrawn = (page: Page, vector: boolean) =>
+  page.evaluate((vector) => {
+    const cv = document.querySelector('.stage-cv') as HTMLCanvasElement;
+    const r = cv.getBoundingClientRect();
+    const k = cv.width / r.width;
+    const copy = document.createElement('canvas');
+    copy.width = cv.width;
+    copy.height = cv.height;
+    const c2 = copy.getContext('2d', { willReadFrequently: true })!;
+    c2.drawImage(cv, 0, 0);
+    const px = c2.getImageData(0, 0, cv.width, cv.height).data;
+    const ink = (x: number, y: number) => {
+      if (x < 0 || y < 0 || x >= cv.width || y >= cv.height) return false;
+      const i = 4 * (y * cv.width + x);
+      const [R, G, B] = [px[i], px[i + 1], px[i + 2]];
+      return vector ? R >= 110 && R + 20 >= G : Math.min(R, G, B) >= 100 && R >= B + 8;
+    };
+    type Part = { voice: string; cell: { x: number; y: number; w: number; h: number }; bow: { fx: number; fy: number; tx: number; ty: number; pos: number } | null } | null;
+    return ((window as any).__ens2d() as Part[])
+      .filter((p) => p?.bow)
+      .map((p) => {
+        const { fx, fy, tx, ty, pos } = p!.bow!;
+        const len = Math.hypot(tx - fx, ty - fy);
+        const [ux, uy] = [(tx - fx) / len, (ty - fy) / len];
+        const N = 48;
+        let hit = 0;
+        let first = 2;
+        let last = -1;
+        for (let s = 0; s < N; s++) {
+          const t = 0.02 + (0.96 * s) / (N - 1);
+          let on = false;
+          // 9 px either way along the hair (the glow where it meets the string, a neighbour's frog lying
+          // over it, hide no station), 7 px either side of it (the hair gives under the bow's force)
+          for (let a = -9; a <= 9 && !on; a++)
+            for (let b = -7; b <= 7 && !on; b += 0.5) on = ink(Math.round((fx + ux * (t * len + a) - uy * b - r.left) * k), Math.round((fy + uy * (t * len + a) + ux * b - r.top) * k));
+          if (!on) continue;
+          hit++;
+          first = Math.min(first, t);
+          last = Math.max(last, t);
+        }
+        return { voice: p!.voice, pos, len, drawn: hit / N, first, last, cell: p!.cell, line: { fx, fy, tx, ty } };
+      });
+  }, vector);
+
+test('orchestra in 2D: every bow is drawn whole, frog to tip, at either end of its travel and in the middle: over its neighbours, on the stage, in both styles', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  // (the phone: 390×844, the narrowest the layout is kept for)
+  if (info.project.name === 'phone') await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await startAudio(page);
+  // the lineup the bows were first seen cut in: a flute and the quartet
+  await page.locator('.ens-toggle').click();
+  await page.locator('.pick[aria-label="Flute"]').click();
+  await expect.poll(async () => (await ens(page)).frames, { timeout: 8000 }).toBe(5);
+  expect((await ens(page)).lineup).toEqual(['flute', 'violin', 'violin', 'viola', 'cello']);
+  const stage = (await page.locator('.stage-cv').boundingBox())!;
+  const under = (await page.locator('.player').boundingBox())!;
+  for (const vector of [false, true]) {
+    if (vector) {
+      await page.locator('.vec-toggle').click();
+      await expect(page.locator('html')).toHaveAttribute('data-style', 'vector');
+    }
+    for (const pos of [0, 1, 0.5]) {
+      // the bow in the hand on every bowed string (controllers 128 and 129: its speed, m/s, and the
+      // string's place along the hair), so each is played at the frog, at the tip and in the middle
+      await page.evaluate((pos) => {
+        for (const p of (window as any).__orchestra.ensemble.parts) {
+          if (!['violin', 'viola', 'cello'].includes(p.voice)) continue;
+          p.engine.control(128, 0.25);
+          p.engine.control(129, pos);
+        }
+      }, pos);
+      const where = `${vector ? 'vector lines' : 'the stage’s own style'}, the string ${pos * 100} % of the hair from the frog`;
+      await expect.poll(async () => (await bowsDrawn(page, vector)).map((b) => Math.round(b.pos * 100)), { message: `${where}: the bows are there`, timeout: 5000 }).toEqual([pos * 100, pos * 100, pos * 100, pos * 100]);
+      // (a bow set down on its string comes up to full strength in a few frames)
+      await expect.poll(async () => Math.min(...(await bowsDrawn(page, vector)).map((b) => b.drawn)), { message: `${where}: the least share of a bow’s length that is drawn`, timeout: 5000 }).toBeGreaterThan(0.9);
+      const bows = await bowsDrawn(page, vector);
+      expect(bows.map((b) => b.voice)).toEqual(['violin', 'violin', 'viola', 'cello']);
+      for (const b of bows) {
+        const who = `${where}: ${b.voice} in the cell at ${Math.round(b.cell.x)}, ${Math.round(b.cell.y)}`;
+        // drawn out to both its ends
+        expect(b.first, `${who}: drawn from the frog`).toBeLessThan(0.07);
+        expect(b.last, `${who}: drawn to the tip`).toBeGreaterThan(0.93);
+        // and all of it on the stage, clear of the file player above
+        for (const [x, y] of [[b.line.fx, b.line.fy], [b.line.tx, b.line.ty]]) {
+          expect(x, `${who}: on the stage`).toBeGreaterThan(stage.x + 2);
+          expect(x, `${who}: on the stage`).toBeLessThan(stage.x + stage.width - 2);
+          expect(y, `${who}: under the player`).toBeGreaterThan(under.y + under.height);
+          expect(y, `${who}: on the stage`).toBeLessThan(stage.y + stage.height - 2);
+        }
+      }
+    }
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  // the hands let go
+  await page.evaluate(() => (window as any).__orchestra.ensemble.parts.forEach((p: any) => p.engine.control(130, 0)));
+  await page.locator('.ens-toggle').click();
+  expect(errors).toEqual([]);
+});
+
 test('orchestra seats: each instrument is heard from its seat, the first violin on the left and the cello on the right', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');

@@ -401,6 +401,15 @@ export function bowedLayout(g: BowedGeom, p: BowedPlan, sh: BowedShapes, W: numb
   const along = (Lw - len * sc) / 2 - x0 * sc;
   return vertical ? { vertical, sc, ox: W / 2, oy: along } : { vertical, sc, ox: along, oy: H / 2 };
 }
+/** How far the bow reaches across its instrument, from the centre line (m): on the frog's side (the
+ *  bass side) with the tip on the string, and on the tip's side with the frog on it. The far ends of
+ *  what drawBowed draws (the button behind the frog, the face plate of the head), from the string
+ *  farthest off the centre line; an ensemble keeps that much of the stage clear (ensemble-draw.ts). */
+export function bowReach(g: BowedGeom, p: BowedPlan): { frog: number; tip: number } {
+  const S2 = g.bowLength / 0.65;
+  const off = 1.5 * p.spreadB;
+  return { frog: off + g.bowLength + 0.101 * S2, tip: off + g.bowLength + 0.0128 * S2 };
+}
 /** local drawing frame: x along the strings (px from the body's neck end), y towards the bass side */
 export function bwPlace(c: CanvasRenderingContext2D, lay: BowedLayout): void {
   c.translate(lay.ox, lay.oy);
@@ -1055,7 +1064,13 @@ function bwHull(pts: Pt[]): Pt[] {
   return lo.slice(0, -1).concat(up.slice(0, -1));
 }
 
-export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g: BowedGeom, fr: VisualFrame | null, st: BowedState, field: ModeField, now: number): void {
+/**
+ * A violin, viola or cello in the W×H box at the context's origin, nothing drawn outside the box.
+ * With `bowLater` the bow is left out and handed back: called, it draws the bow with no clip. An
+ * ensemble draws its bows that way, after every instrument (ensemble-draw.ts): a bow is longer than
+ * its instrument's cell is wide, and it lies over the neighbours.
+ */
+export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g: BowedGeom, fr: VisualFrame | null, st: BowedState, field: ModeField, now: number, bowLater = false): (() => void) | null {
   const p = BOWED_PLAN[g.id];
   const sh = bowedShapes(g.id, p, g.L);
   const dpr = Math.max(1, Math.abs(ctx.getTransform().a) || 1);
@@ -1308,185 +1323,201 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     const [tx, ty] = P(lv.cx, Zs(Hh));
     st.bowLine = { fx, fy, tx, ty, pos };
   }
-  // the hair gives under the string: δ = F·a·(H − a)/(T·H) for hair tension T ≈ 60 N, drawn 3× larger
-  const F = bwForce(fr?.excite?.meta);
-  const s0 = 0.003 * S2;
-  const s1 = Hh - 0.002 * S2;
-  const ac = bwClamp(pos * Hh, s0 + 1e-4, s1 - 1e-4);
-  const d0 = playing ? Math.min(0.6 * p.hairW, (3 * F * ac * (Hh - ac)) / (60 * Hh)) : 0;
-  const defl = (s: number) => (s <= ac ? (d0 * s) / Math.max(1e-6, ac) : (d0 * (Hh - s)) / Math.max(1e-6, Hh - ac));
-  const Xh = (s: number, h: number) => X(lv.cx - h * tilt - defl(bwClamp(s, 0, Hh)));
-  const alpha = 1 - 0.55 * lv.lift;
-  ctx.globalAlpha = alpha;
-  // hair: a pale ribbon, its strands dashed so that they ride along with the bow
-  const hw = (p.hairW * tiltC) / 2;
-  ctx.beginPath();
-  for (const s of [s0, ac, s1]) ctx.lineTo(Xh(s, 0) - X(hw), X(Zs(s)));
-  for (const s of [s1, ac, s0]) ctx.lineTo(Xh(s, 0) + X(hw), X(Zs(s)));
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(240,234,218,0.8)';
-  ctx.fill();
-  ctx.lineCap = 'butt';
-  ctx.lineWidth = 0.7;
-  const dashes = [[18, 4, 30, 3, 11, 5], [26, 3, 9, 6, 20, 4], [12, 5, 34, 2, 16, 3], [22, 4, 14, 3, 28, 5]];
-  for (let k = 0; k < 4; k++) {
-    const off = X(hw) * ((k + 0.5) / 2 - 1);
-    ctx.setLineDash(dashes[k]);
-    ctx.strokeStyle = 'rgba(140,126,104,0.55)';
+  const lay = ly.lay;
+  /** the bow, the contact and which way it goes (in the local frame bwPlace sets) */
+  const drawBow = () => {
+    // the hair gives under the string: δ = F·a·(H − a)/(T·H) for hair tension T ≈ 60 N, drawn 3× larger
+    const F = bwForce(fr?.excite?.meta);
+    const s0 = 0.003 * S2;
+    const s1 = Hh - 0.002 * S2;
+    const ac = bwClamp(pos * Hh, s0 + 1e-4, s1 - 1e-4);
+    const d0 = playing ? Math.min(0.6 * p.hairW, (3 * F * ac * (Hh - ac)) / (60 * Hh)) : 0;
+    const defl = (s: number) => (s <= ac ? (d0 * s) / Math.max(1e-6, ac) : (d0 * (Hh - s)) / Math.max(1e-6, Hh - ac));
+    const Xh = (s: number, h: number) => X(lv.cx - h * tilt - defl(bwClamp(s, 0, Hh)));
+    const alpha = 1 - 0.55 * lv.lift;
+    ctx.globalAlpha = alpha;
+    // hair: a pale ribbon, its strands dashed so that they ride along with the bow
+    const hw = (p.hairW * tiltC) / 2;
     ctx.beginPath();
-    for (const s of [s0, ac, s1]) ctx.lineTo(Xh(s, 0) + off, X(Zs(s)));
-    ctx.stroke();
-  }
-  ctx.setLineDash([]);
-  // the stick (pernambuco), round and tapering: Tourte's 110 mm of full diameter, then a taper
-  const sBack = -0.085 * S2;
-  const sHead = Hh + 0.006 * S2;
-  const dia = (s: number) => {
-    const t = bwClamp((s - (sBack + 0.11 * S2)) / (sHead - sBack - 0.11 * S2), 0, 1);
-    return p.stick[0] * Math.pow(p.stick[1] / p.stick[0], Math.pow(t, 1.2));
-  };
-  const NS = 28;
-  const stick = new Path2D();
-  for (let k = 0; k <= NS; k++) {
-    const s = sBack + ((sHead - sBack) * k) / NS;
-    const x = X(lv.cx - hgt(s) * tilt) - X(dia(s) / 2);
-    if (k) stick.lineTo(x, X(Zs(s)));
-    else stick.moveTo(x, X(Zs(s)));
-  }
-  for (let k = NS; k >= 0; k--) {
-    const s = sBack + ((sHead - sBack) * k) / NS;
-    stick.lineTo(X(lv.cx - hgt(s) * tilt) + X(dia(s) / 2), X(Zs(s)));
-  }
-  stick.closePath();
-  // the head: its profile from strings3d.ts, the ivory face plate at the tip
-  // a profile (s along the bow, h above the hair) seen from above, and a part of thickness t as the
-  // profile swept across t (its near face turned a little towards us)
-  const proj = (pts: Pt[]) => pts.map(([s, h]): Pt => [X(lv.cx - h * tilt), X(Zs(s))]);
-  const slab = (pts: Pt[], t: number): Pt[] => {
-    const q = proj(pts);
-    const d = X((t / 2) * tiltC);
-    return bwHull([...q.map(([x, y]): Pt => [x - d, y]), ...q.map(([x, y]): Pt => [x + d, y])]);
-  };
-  const hTop = hgt(Hh + 0.006 * S2) + 0.003 * S2;
-  const headProf: Pt[] = [
-    [Hh - 0.004 * S2, 0.0035 * S2], [Hh, -0.0012], [Hh + 0.0085 * S2, -0.0015], [Hh + 0.0105 * S2, 0.004 * S2], [Hh + 0.0095 * S2, 0.0125 * S2], [Hh + 0.006 * S2, hTop], [Hh - 0.006 * S2, hgt(Hh - 0.006 * S2) + 0.4 * p.stick[1]],
-  ];
-  const headT = p.stick[1] * 1.15;
-  const headP = slab(headProf, headT);
-  const plateP = slab([[Hh + 0.0086 * S2, -0.0016], [Hh + 0.0108 * S2, -0.0016], [Hh + 0.0128 * S2, 0.004 * S2], [Hh + 0.0116 * S2, 0.0128 * S2], [Hh + 0.0096 * S2, 0.0125 * S2], [Hh + 0.0105 * S2, 0.004 * S2]], p.stick[1] * 1.17);
-  const pathOf = (pts: Pt[]) => {
-    const q = new Path2D();
-    pts.forEach(([x, y], i) => (i ? q.lineTo(x, y) : q.moveTo(x, y)));
-    q.closePath();
-    return q;
-  };
-  ctx.fillStyle = 'rgb(98,42,18)';
-  ctx.fill(stick);
-  const head = pathOf(headP);
-  ctx.fill(head);
-  ctx.strokeStyle = 'rgba(16,6,2,0.7)';
-  ctx.lineWidth = 0.7;
-  ctx.stroke(stick);
-  ctx.stroke(head);
-  ctx.fillStyle = 'rgb(132,62,28)';
-  ctx.fill(pathOf(proj(headProf).map(([x, y]): Pt => [x + X((headT / 2) * tiltC), y])));
-  ctx.fillStyle = rgba(INK.ivory, 0.92);
-  ctx.fill(pathOf(plateP));
-  // the stick is round: lit along one side, in shade along the other
-  for (const [off, w, col] of [[-0.2, 0.34, 'rgba(206,120,70,0.55)'], [-0.24, 0.1, 'rgba(255,214,176,0.7)'], [0.3, 0.22, 'rgba(30,10,4,0.45)']] as const) {
-    ctx.strokeStyle = col;
-    ctx.beginPath();
+    for (const s of [s0, ac, s1]) ctx.lineTo(Xh(s, 0) - X(hw), X(Zs(s)));
+    for (const s of [s1, ac, s0]) ctx.lineTo(Xh(s, 0) + X(hw), X(Zs(s)));
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(240,234,218,0.8)';
+    ctx.fill();
+    ctx.lineCap = 'butt';
+    ctx.lineWidth = 0.7;
+    const dashes = [[18, 4, 30, 3, 11, 5], [26, 3, 9, 6, 20, 4], [12, 5, 34, 2, 16, 3], [22, 4, 14, 3, 28, 5]];
+    for (let k = 0; k < 4; k++) {
+      const off = X(hw) * ((k + 0.5) / 2 - 1);
+      ctx.setLineDash(dashes[k]);
+      ctx.strokeStyle = 'rgba(140,126,104,0.55)';
+      ctx.beginPath();
+      for (const s of [s0, ac, s1]) ctx.lineTo(Xh(s, 0) + off, X(Zs(s)));
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    // the stick (pernambuco), round and tapering: Tourte's 110 mm of full diameter, then a taper
+    const sBack = -0.085 * S2;
+    const sHead = Hh + 0.006 * S2;
+    const dia = (s: number) => {
+      const t = bwClamp((s - (sBack + 0.11 * S2)) / (sHead - sBack - 0.11 * S2), 0, 1);
+      return p.stick[0] * Math.pow(p.stick[1] / p.stick[0], Math.pow(t, 1.2));
+    };
+    const NS = 28;
+    const stick = new Path2D();
     for (let k = 0; k <= NS; k++) {
-      const s = sBack + 0.01 * S2 + ((sHead - sBack - 0.012 * S2) * k) / NS;
-      ctx.lineTo(X(lv.cx - hgt(s) * tilt) + X(dia(s) * off), X(Zs(s)));
+      const s = sBack + ((sHead - sBack) * k) / NS;
+      const x = X(lv.cx - hgt(s) * tilt) - X(dia(s) / 2);
+      if (k) stick.lineTo(x, X(Zs(s)));
+      else stick.moveTo(x, X(Zs(s)));
     }
-    ctx.lineWidth = Math.max(0.6, X(p.stick[1] * w));
-    ctx.stroke();
-  }
-  // the winding (silver wire) and the thumb leather by the frog; the button at the end
-  const band = (sA: number, sB: number, fill: string, wire: boolean) => {
-    const xa = X(lv.cx - hgt((sA + sB) / 2) * tilt);
-    const r = X(dia(sA) / 2 + 0.0004);
-    ctx.fillStyle = fill;
-    ctx.fillRect(xa - r, Math.min(X(Zs(sA)), X(Zs(sB))), 2 * r, Math.abs(X(Zs(sB)) - X(Zs(sA))));
-    if (wire) {
-      ctx.strokeStyle = 'rgba(90,96,102,0.6)';
-      ctx.lineWidth = 0.5;
-      const n = Math.max(2, Math.round(Math.abs(X(Zs(sB)) - X(Zs(sA))) / 1.6));
+    for (let k = NS; k >= 0; k--) {
+      const s = sBack + ((sHead - sBack) * k) / NS;
+      stick.lineTo(X(lv.cx - hgt(s) * tilt) + X(dia(s) / 2), X(Zs(s)));
+    }
+    stick.closePath();
+    // the head: its profile from strings3d.ts, the ivory face plate at the tip
+    // a profile (s along the bow, h above the hair) seen from above, and a part of thickness t as the
+    // profile swept across t (its near face turned a little towards us)
+    const proj = (pts: Pt[]) => pts.map(([s, h]): Pt => [X(lv.cx - h * tilt), X(Zs(s))]);
+    const slab = (pts: Pt[], t: number): Pt[] => {
+      const q = proj(pts);
+      const d = X((t / 2) * tiltC);
+      return bwHull([...q.map(([x, y]): Pt => [x - d, y]), ...q.map(([x, y]): Pt => [x + d, y])]);
+    };
+    const hTop = hgt(Hh + 0.006 * S2) + 0.003 * S2;
+    const headProf: Pt[] = [
+      [Hh - 0.004 * S2, 0.0035 * S2], [Hh, -0.0012], [Hh + 0.0085 * S2, -0.0015], [Hh + 0.0105 * S2, 0.004 * S2], [Hh + 0.0095 * S2, 0.0125 * S2], [Hh + 0.006 * S2, hTop], [Hh - 0.006 * S2, hgt(Hh - 0.006 * S2) + 0.4 * p.stick[1]],
+    ];
+    const headT = p.stick[1] * 1.15;
+    const headP = slab(headProf, headT);
+    const plateP = slab([[Hh + 0.0086 * S2, -0.0016], [Hh + 0.0108 * S2, -0.0016], [Hh + 0.0128 * S2, 0.004 * S2], [Hh + 0.0116 * S2, 0.0128 * S2], [Hh + 0.0096 * S2, 0.0125 * S2], [Hh + 0.0105 * S2, 0.004 * S2]], p.stick[1] * 1.17);
+    const pathOf = (pts: Pt[]) => {
+      const q = new Path2D();
+      pts.forEach(([x, y], i) => (i ? q.lineTo(x, y) : q.moveTo(x, y)));
+      q.closePath();
+      return q;
+    };
+    ctx.fillStyle = 'rgb(98,42,18)';
+    ctx.fill(stick);
+    const head = pathOf(headP);
+    ctx.fill(head);
+    ctx.strokeStyle = 'rgba(16,6,2,0.7)';
+    ctx.lineWidth = 0.7;
+    ctx.stroke(stick);
+    ctx.stroke(head);
+    ctx.fillStyle = 'rgb(132,62,28)';
+    ctx.fill(pathOf(proj(headProf).map(([x, y]): Pt => [x + X((headT / 2) * tiltC), y])));
+    ctx.fillStyle = rgba(INK.ivory, 0.92);
+    ctx.fill(pathOf(plateP));
+    // the stick is round: lit along one side, in shade along the other
+    for (const [off, w, col] of [[-0.2, 0.34, 'rgba(206,120,70,0.55)'], [-0.24, 0.1, 'rgba(255,214,176,0.7)'], [0.3, 0.22, 'rgba(30,10,4,0.45)']] as const) {
+      ctx.strokeStyle = col;
       ctx.beginPath();
-      for (let k = 1; k < n; k++) {
-        const y = X(Zs(sA + ((sB - sA) * k) / n));
-        ctx.moveTo(xa - r, y);
-        ctx.lineTo(xa + r, y);
+      for (let k = 0; k <= NS; k++) {
+        const s = sBack + 0.01 * S2 + ((sHead - sBack - 0.012 * S2) * k) / NS;
+        ctx.lineTo(X(lv.cx - hgt(s) * tilt) + X(dia(s) * off), X(Zs(s)));
       }
+      ctx.lineWidth = Math.max(0.6, X(p.stick[1] * w));
       ctx.stroke();
     }
+    // the winding (silver wire) and the thumb leather by the frog; the button at the end
+    const band = (sA: number, sB: number, fill: string, wire: boolean) => {
+      const xa = X(lv.cx - hgt((sA + sB) / 2) * tilt);
+      const r = X(dia(sA) / 2 + 0.0004);
+      ctx.fillStyle = fill;
+      ctx.fillRect(xa - r, Math.min(X(Zs(sA)), X(Zs(sB))), 2 * r, Math.abs(X(Zs(sB)) - X(Zs(sA))));
+      if (wire) {
+        ctx.strokeStyle = 'rgba(90,96,102,0.6)';
+        ctx.lineWidth = 0.5;
+        const n = Math.max(2, Math.round(Math.abs(X(Zs(sB)) - X(Zs(sA))) / 1.6));
+        ctx.beginPath();
+        for (let k = 1; k < n; k++) {
+          const y = X(Zs(sA + ((sB - sA) * k) / n));
+          ctx.moveTo(xa - r, y);
+          ctx.lineTo(xa + r, y);
+        }
+        ctx.stroke();
+      }
+    };
+    band(0.004 * S2, 0.034 * S2, 'rgb(196,202,208)', true);
+    band(-0.008 * S2, 0.004 * S2, 'rgb(64,40,26)', false);
+    band(sBack - 0.016 * S2, sBack - 0.013 * S2, 'rgb(200,206,212)', false);
+    band(sBack - 0.013 * S2, sBack - 0.004 * S2, 'rgb(20,17,15)', false);
+    band(sBack - 0.004 * S2, sBack, 'rgb(200,206,212)', false);
+    // the frog (ebony): its side profile seen from above with the bow tilted, the silver ferrule where the
+    // hair leaves it, the pearl eye
+    const fl = 0.047 * S2;
+    const top = hgt(-0.02 * S2) - 0.003;
+    const fw = 0.0124 * S2;
+    const frogProf: Pt[] = [[0.002 * S2, -0.0025], [-fl + 0.004 * S2, -0.0028], [-fl, 0.004 * S2], [-fl + 0.003 * S2, top - 0.001 * S2], [-fl + 0.012 * S2, top], [-0.004 * S2, top], [0, 0.006 * S2]];
+    const frog = pathOf(slab(frogProf, fw));
+    ctx.fillStyle = 'rgb(14,12,11)';
+    ctx.fill(frog);
+    ctx.strokeStyle = rgba(INK.ivory, 0.4);
+    ctx.lineWidth = 0.8;
+    ctx.stroke(frog);
+    // its near side face (the one the tilt turns up towards us): polished ebony, the pearl slide along
+    // its hair edge, the silver underslide at its back, the pearl eye
+    const side = (pts: Pt[]) => pathOf(proj(pts).map(([x, y]): Pt => [x + X((fw / 2) * tiltC), y]));
+    ctx.fillStyle = 'rgb(36,33,30)';
+    ctx.fill(side(frogProf));
+    ctx.fillStyle = 'rgba(226,232,236,0.75)';
+    ctx.fill(side([[-0.0005 * S2, -0.0028], [-fl + 0.005 * S2, -0.0028], [-fl + 0.005 * S2, -0.0008], [-0.0005 * S2, -0.0008]]));
+    ctx.fillStyle = 'rgb(186,192,198)';
+    ctx.fill(side([[-fl + 0.0006 * S2, 0.004 * S2], [-fl + 0.0062 * S2, 0.004 * S2], [-fl + 0.0062 * S2, top - 0.0015 * S2], [-fl + 0.0028 * S2, top - 0.0015 * S2]]));
+    ctx.fillStyle = 'rgb(206,212,218)';
+    ctx.fill(pathOf(slab([[0.0015 * S2, -0.003 * S2], [0.0047 * S2, -0.003 * S2], [0.0047 * S2, 0.0054 * S2], [0.0015 * S2, 0.0054 * S2]], fw * 1.04)));
+    const eye = proj([[-0.022 * S2, 0.006 * S2]])[0];
+    ctx.beginPath();
+    ctx.ellipse(eye[0] + X((fw / 2) * tiltC), eye[1], X(0.0028 * S2 * tilt), X(0.0028 * S2), 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(232,238,244,0.95)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(160,170,180,0.9)';
+    ctx.lineWidth = 0.6;
+    ctx.stroke();
+    // the contact: rosin-bright where hair meets string, by the power the bow puts in; and which way it goes
+    if (playing && bow) {
+      const v = Math.abs(bow.speed);
+      const pw = Math.min(1, Math.sqrt((v * F) / 0.25));
+      const gx = X(lv.cx);
+      const gz = X(lv.cz);
+      const rc = Math.max(4, X(p.spreadB) * (0.35 + 0.45 * Math.min(1.5, Math.sqrt(F / 0.5))));
+      const gr = ctx.createRadialGradient(gx, gz, 0, gx, gz, rc);
+      gr.addColorStop(0, rgba(INK.vermilion, 0.9 * pw));
+      gr.addColorStop(1, rgba(INK.vermilion, 0));
+      ctx.fillStyle = gr;
+      ctx.fillRect(gx - rc, gz - rc, 2 * rc, 2 * rc);
+      if (!bow.changing && v > 0.02) {
+        // down-bow draws the frog away from the strings (towards the player)
+        const d = bow.dir > 0 ? 1 : -1;
+        const zc = gz + d * 26;
+        const xc = Xh(ac, 0);
+        ctx.strokeStyle = rgba(INK.vermilion, Math.min(1, 0.4 + v));
+        ctx.lineWidth = 1.6;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(xc - 4.5, zc - d * 4);
+        ctx.lineTo(xc, zc);
+        ctx.lineTo(xc + 4.5, zc - d * 4);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
   };
-  band(0.004 * S2, 0.034 * S2, 'rgb(196,202,208)', true);
-  band(-0.008 * S2, 0.004 * S2, 'rgb(64,40,26)', false);
-  band(sBack - 0.016 * S2, sBack - 0.013 * S2, 'rgb(200,206,212)', false);
-  band(sBack - 0.013 * S2, sBack - 0.004 * S2, 'rgb(20,17,15)', false);
-  band(sBack - 0.004 * S2, sBack, 'rgb(200,206,212)', false);
-  // the frog (ebony): its side profile seen from above with the bow tilted, the silver ferrule where the
-  // hair leaves it, the pearl eye
-  const fl = 0.047 * S2;
-  const top = hgt(-0.02 * S2) - 0.003;
-  const fw = 0.0124 * S2;
-  const frogProf: Pt[] = [[0.002 * S2, -0.0025], [-fl + 0.004 * S2, -0.0028], [-fl, 0.004 * S2], [-fl + 0.003 * S2, top - 0.001 * S2], [-fl + 0.012 * S2, top], [-0.004 * S2, top], [0, 0.006 * S2]];
-  const frog = pathOf(slab(frogProf, fw));
-  ctx.fillStyle = 'rgb(14,12,11)';
-  ctx.fill(frog);
-  ctx.strokeStyle = rgba(INK.ivory, 0.4);
-  ctx.lineWidth = 0.8;
-  ctx.stroke(frog);
-  // its near side face (the one the tilt turns up towards us): polished ebony, the pearl slide along
-  // its hair edge, the silver underslide at its back, the pearl eye
-  const side = (pts: Pt[]) => pathOf(proj(pts).map(([x, y]): Pt => [x + X((fw / 2) * tiltC), y]));
-  ctx.fillStyle = 'rgb(36,33,30)';
-  ctx.fill(side(frogProf));
-  ctx.fillStyle = 'rgba(226,232,236,0.75)';
-  ctx.fill(side([[-0.0005 * S2, -0.0028], [-fl + 0.005 * S2, -0.0028], [-fl + 0.005 * S2, -0.0008], [-0.0005 * S2, -0.0008]]));
-  ctx.fillStyle = 'rgb(186,192,198)';
-  ctx.fill(side([[-fl + 0.0006 * S2, 0.004 * S2], [-fl + 0.0062 * S2, 0.004 * S2], [-fl + 0.0062 * S2, top - 0.0015 * S2], [-fl + 0.0028 * S2, top - 0.0015 * S2]]));
-  ctx.fillStyle = 'rgb(206,212,218)';
-  ctx.fill(pathOf(slab([[0.0015 * S2, -0.003 * S2], [0.0047 * S2, -0.003 * S2], [0.0047 * S2, 0.0054 * S2], [0.0015 * S2, 0.0054 * S2]], fw * 1.04)));
-  const eye = proj([[-0.022 * S2, 0.006 * S2]])[0];
-  ctx.beginPath();
-  ctx.ellipse(eye[0] + X((fw / 2) * tiltC), eye[1], X(0.0028 * S2 * tilt), X(0.0028 * S2), 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(232,238,244,0.95)';
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(160,170,180,0.9)';
-  ctx.lineWidth = 0.6;
-  ctx.stroke();
-  // the contact: rosin-bright where hair meets string, by the power the bow puts in; and which way it goes
-  if (playing && bow) {
-    const v = Math.abs(bow.speed);
-    const pw = Math.min(1, Math.sqrt((v * F) / 0.25));
-    const gx = X(lv.cx);
-    const gz = X(lv.cz);
-    const rc = Math.max(4, X(p.spreadB) * (0.35 + 0.45 * Math.min(1.5, Math.sqrt(F / 0.5))));
-    const gr = ctx.createRadialGradient(gx, gz, 0, gx, gz, rc);
-    gr.addColorStop(0, rgba(INK.vermilion, 0.9 * pw));
-    gr.addColorStop(1, rgba(INK.vermilion, 0));
-    ctx.fillStyle = gr;
-    ctx.fillRect(gx - rc, gz - rc, 2 * rc, 2 * rc);
-    if (!bow.changing && v > 0.02) {
-      // down-bow draws the frog away from the strings (towards the player)
-      const d = bow.dir > 0 ? 1 : -1;
-      const zc = gz + d * 26;
-      const xc = Xh(ac, 0);
-      ctx.strokeStyle = rgba(INK.vermilion, Math.min(1, 0.4 + v));
-      ctx.lineWidth = 1.6;
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      ctx.moveTo(xc - 4.5, zc - d * 4);
-      ctx.lineTo(xc, zc);
-      ctx.lineTo(xc + 4.5, zc - d * 4);
-      ctx.stroke();
-    }
+  if (!bowLater) {
+    drawBow();
+    ctx.restore();
+    return null;
   }
-  ctx.globalAlpha = 1;
   ctx.restore();
+  return () => {
+    ctx.save();
+    ctx.setTransform(base);
+    bwPlace(ctx, lay);
+    drawBow();
+    ctx.restore();
+  };
 }
 
 // ---------------------------------------------------------------- winds: the bore's standing wave

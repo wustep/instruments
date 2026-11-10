@@ -210,7 +210,9 @@ function build(g: BowedGeom, W: number, H: number): Statics {
   return { lay, body, plate, holes, board, head, scroll, pegs, tail, bridge, inside, strings };
 }
 
-export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, g: BowedGeom, fr: VisualFrame | null, st: BowedState, field: Contours, now: number): void {
+/** (`bowLater`, as the stage's own drawBowed: the bow is handed back, to be drawn with no clip after
+ *  every instrument of an ensemble) */
+export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, g: BowedGeom, fr: VisualFrame | null, st: BowedState, field: Contours, now: number, bowLater = false): (() => void) | null {
   const p = BOWED_PLAN[g.id];
   const sh = bowedShapes(g.id, p, g.L);
   const key = `${g.id}|${g.L}|${W}|${H}`;
@@ -394,80 +396,97 @@ export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, 
   const d0 = playing ? Math.min(0.6 * p.hairW, (3 * F * ac * (Hh - ac)) / (60 * Hh)) : 0;
   const defl = (q: number) => (q <= ac ? (d0 * q) / Math.max(1e-6, ac) : (d0 * (Hh - q)) / Math.max(1e-6, Hh - ac));
   const Xh = (q: number, h: number) => X(lv.cx - h * tilt - defl(bwClamp(q, 0, Hh)));
-  const up = 1 - 0.6 * lv.lift;
-  // the hair: a ribbon, its two edges (red while it bends under the bow's force)
-  const hw = (p.hairW * tiltC) / 2;
-  for (const sg of [-1, 1]) {
-    ctx.beginPath();
-    for (const q of [s0, ac, s1]) ctx.lineTo(Xh(q, 0) + sg * X(hw), X(Zs(q)));
-    beam(ctx, null, playing ? RED : V.blueMid, 0.9 * lw, { alpha: (playing ? 0.85 : 0.7) * up });
-  }
-  // the stick, round and tapering (Tourte's taper), seen beside the hair as the player tilts it
-  const sBack = -0.085 * S2;
-  const sHead = Hh + 0.006 * S2;
-  const dia = (q: number) => {
-    const t = bwClamp((q - (sBack + 0.11 * S2)) / (sHead - sBack - 0.11 * S2), 0, 1);
-    return p.stick[0] * Math.pow(p.stick[1] / p.stick[0], Math.pow(t, 1.2));
-  };
-  const NS = 28;
-  ctx.beginPath();
-  for (let k = 0; k <= NS; k++) {
-    const q = sBack + ((sHead - sBack) * k) / NS;
-    const x = X(lv.cx - hgt(q) * tilt) - X(dia(q) / 2);
-    if (k) ctx.lineTo(x, X(Zs(q)));
-    else ctx.moveTo(x, X(Zs(q)));
-  }
-  for (let k = NS; k >= 0; k--) {
-    const q = sBack + ((sHead - sBack) * k) / NS;
-    ctx.lineTo(X(lv.cx - hgt(q) * tilt) + X(dia(q) / 2), X(Zs(q)));
-  }
-  ctx.closePath();
-  beam(ctx, null, V.blue, 1.1 * lw, { alpha: up });
-  // the head and the frog: their side profiles (s along the bow, h above the hair), seen from above
-  const proj = (pts: Pt[]) => pts.map(([q, h]): Pt => [X(lv.cx - h * tilt), X(Zs(q))]);
-  const outline = (pts: Pt[]) => {
-    ctx.beginPath();
-    proj(pts).forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-    ctx.closePath();
-    beam(ctx, null, V.blue, 1 * lw, { alpha: up });
-  };
-  const hTop = hgt(Hh + 0.006 * S2) + 0.003 * S2;
-  outline([[Hh - 0.004 * S2, 0.0035 * S2], [Hh, -0.0012], [Hh + 0.0085 * S2, -0.0015], [Hh + 0.0105 * S2, 0.004 * S2], [Hh + 0.0095 * S2, 0.0125 * S2], [Hh + 0.006 * S2, hTop], [Hh - 0.006 * S2, hgt(Hh - 0.006 * S2) + 0.4 * p.stick[1]]]);
-  const fl = 0.047 * S2;
-  const top = hgt(-0.02 * S2) - 0.003;
-  outline([[0.002 * S2, -0.0025], [-fl + 0.004 * S2, -0.0028], [-fl, 0.004 * S2], [-fl + 0.003 * S2, top - 0.001 * S2], [-fl + 0.012 * S2, top], [-0.004 * S2, top], [0, 0.006 * S2]]);
-
-  // ---- the contact: the handle where hair meets string (green: the contact point), the ring round it
-  //      by the bow's force (red), and which way the bow goes
-  const gx = X(lv.cx);
-  const gz = X(lv.cz);
-  handle(ctx, gx, gz, GREEN, small ? 4 : 7, up);
-  let rc = 0;
-  if (playing && bow) {
-    const v = Math.abs(bow.speed);
-    rc = Math.max(small ? 6 : 10, X(p.spreadB) * (0.5 + 0.7 * Math.min(1.5, Math.sqrt(F / 0.5)))) + 4;
-    ring(ctx, gx, gz, rc, RED, 1.2, { alpha: 0.9 });
-    if (!bow.changing && v > 0.02) {
-      // down-bow draws the frog away from the strings (towards the player)
-      const d = bow.dir > 0 ? 1 : -1;
-      const zc = gz + d * (rc + 14);
+  /** the bow, the contact, which way it goes and its two readings (in the local frame bwPlace sets) */
+  const drawBow = () => {
+    const up = 1 - 0.6 * lv.lift;
+    // the hair: a ribbon, its two edges (red while it bends under the bow's force)
+    const hw = (p.hairW * tiltC) / 2;
+    for (const sg of [-1, 1]) {
       ctx.beginPath();
-      ctx.moveTo(gx - 4.5, zc - d * 4);
-      ctx.lineTo(gx, zc);
-      ctx.lineTo(gx + 4.5, zc - d * 4);
-      beam(ctx, null, V.blue, 1.5, { alpha: Math.min(1, 0.4 + v), hot: true });
+      for (const q of [s0, ac, s1]) ctx.lineTo(Xh(q, 0) + sg * X(hw), X(Zs(q)));
+      beam(ctx, null, playing ? RED : V.blueMid, 0.9 * lw, { alpha: (playing ? 0.85 : 0.7) * up });
     }
-  }
-  // ---- the two readings beside the contact, upright on the stage: where on the string (β, the
-  //      distance from the bridge as a fraction of the sounding length) and how hard (N)
-  ctx.setTransform(base);
-  if (!small && playing) {
-    // (beside the bow where it leaves the plate on the treble side, clear of the strings and f-holes)
-    const [sx, sy] = P(lv.cx, -sh.hwMax);
-    // (never off the top of the stage or an ensemble's cell)
-    const [x, y] = vertical ? [sx + 10, sy - 10] : [sx + 12, Math.max(34, sy - 12)];
-    label(ctx, lv.beta.toFixed(3), x, y, { color: GREEN, size: 11 });
-    label(ctx, `${F.toFixed(2)} N`, x, y - 15, { color: RED, size: 11 });
+    // the stick, round and tapering (Tourte's taper), seen beside the hair as the player tilts it
+    const sBack = -0.085 * S2;
+    const sHead = Hh + 0.006 * S2;
+    const dia = (q: number) => {
+      const t = bwClamp((q - (sBack + 0.11 * S2)) / (sHead - sBack - 0.11 * S2), 0, 1);
+      return p.stick[0] * Math.pow(p.stick[1] / p.stick[0], Math.pow(t, 1.2));
+    };
+    const NS = 28;
+    ctx.beginPath();
+    for (let k = 0; k <= NS; k++) {
+      const q = sBack + ((sHead - sBack) * k) / NS;
+      const x = X(lv.cx - hgt(q) * tilt) - X(dia(q) / 2);
+      if (k) ctx.lineTo(x, X(Zs(q)));
+      else ctx.moveTo(x, X(Zs(q)));
+    }
+    for (let k = NS; k >= 0; k--) {
+      const q = sBack + ((sHead - sBack) * k) / NS;
+      ctx.lineTo(X(lv.cx - hgt(q) * tilt) + X(dia(q) / 2), X(Zs(q)));
+    }
+    ctx.closePath();
+    beam(ctx, null, V.blue, 1.1 * lw, { alpha: up });
+    // the head and the frog: their side profiles (s along the bow, h above the hair), seen from above
+    const proj = (pts: Pt[]) => pts.map(([q, h]): Pt => [X(lv.cx - h * tilt), X(Zs(q))]);
+    const outline = (pts: Pt[]) => {
+      ctx.beginPath();
+      proj(pts).forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.closePath();
+      beam(ctx, null, V.blue, 1 * lw, { alpha: up });
+    };
+    const hTop = hgt(Hh + 0.006 * S2) + 0.003 * S2;
+    outline([[Hh - 0.004 * S2, 0.0035 * S2], [Hh, -0.0012], [Hh + 0.0085 * S2, -0.0015], [Hh + 0.0105 * S2, 0.004 * S2], [Hh + 0.0095 * S2, 0.0125 * S2], [Hh + 0.006 * S2, hTop], [Hh - 0.006 * S2, hgt(Hh - 0.006 * S2) + 0.4 * p.stick[1]]]);
+    const fl = 0.047 * S2;
+    const top = hgt(-0.02 * S2) - 0.003;
+    outline([[0.002 * S2, -0.0025], [-fl + 0.004 * S2, -0.0028], [-fl, 0.004 * S2], [-fl + 0.003 * S2, top - 0.001 * S2], [-fl + 0.012 * S2, top], [-0.004 * S2, top], [0, 0.006 * S2]]);
+
+    // ---- the contact: the handle where hair meets string (green: the contact point), the ring round it
+    //      by the bow's force (red), and which way the bow goes
+    const gx = X(lv.cx);
+    const gz = X(lv.cz);
+    handle(ctx, gx, gz, GREEN, small ? 4 : 7, up);
+    let rc = 0;
+    if (playing && bow) {
+      const v = Math.abs(bow.speed);
+      rc = Math.max(small ? 6 : 10, X(p.spreadB) * (0.5 + 0.7 * Math.min(1.5, Math.sqrt(F / 0.5)))) + 4;
+      ring(ctx, gx, gz, rc, RED, 1.2, { alpha: 0.9 });
+      if (!bow.changing && v > 0.02) {
+        // down-bow draws the frog away from the strings (towards the player)
+        const d = bow.dir > 0 ? 1 : -1;
+        const zc = gz + d * (rc + 14);
+        ctx.beginPath();
+        ctx.moveTo(gx - 4.5, zc - d * 4);
+        ctx.lineTo(gx, zc);
+        ctx.lineTo(gx + 4.5, zc - d * 4);
+        beam(ctx, null, V.blue, 1.5, { alpha: Math.min(1, 0.4 + v), hot: true });
+      }
+    }
+    // ---- the two readings beside the contact, upright on the stage: where on the string (β, the
+    //      distance from the bridge as a fraction of the sounding length) and how hard (N)
+    ctx.setTransform(base);
+    if (!small && playing) {
+      // (beside the bow where it leaves the plate on the treble side, clear of the strings and f-holes)
+      const [sx, sy] = P(lv.cx, -sh.hwMax);
+      // (never off the top of the stage or an ensemble's cell; in an ensemble's cell, closed up for
+      // the bows, not far into the next instrument's)
+      const [x, y] = vertical ? [bowLater ? Math.min(sx + 10, W - 30) : sx + 10, sy - 10] : [sx + 12, Math.max(34, sy - 12)];
+      label(ctx, lv.beta.toFixed(3), x, y, { color: GREEN, size: 11 });
+      label(ctx, `${F.toFixed(2)} N`, x, y - 15, { color: RED, size: 11 });
+    }
+  };
+  if (!bowLater) {
+    drawBow();
+    ctx.restore();
+    return null;
   }
   ctx.restore();
+  const lay = s.lay;
+  return () => {
+    ctx.save();
+    ctx.setTransform(base);
+    bwPlace(ctx, lay);
+    drawBow();
+    ctx.restore();
+  };
 }
