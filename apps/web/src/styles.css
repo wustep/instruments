@@ -1306,7 +1306,7 @@ figure[title] {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 3px 12px 3px 4px;
+  padding: 3px 4px;
   border-radius: 6px;
   background: rgba(14, 13, 11, 0.55);
   backdrop-filter: blur(6px);
@@ -1522,6 +1522,22 @@ figure[title] {
 }
 .player[hidden] {
   display: none;
+}
+/* at rest (nothing loaded): two icons, play and open */
+.player.idle .pl-row {
+  gap: 2px;
+}
+.pl-btn[hidden],
+.pl-bar[hidden] {
+  display: none;
+}
+/* phones: the overlay is how a piece or a file starts, so a fingertip's target */
+@media (pointer: coarse) {
+  .pl-btn {
+    width: 36px;
+    height: 36px;
+    padding: 8px;
+  }
 }
 :root:not([data-route='stage']) .player {
   display: none;

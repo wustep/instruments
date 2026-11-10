@@ -103,7 +103,9 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       ensemble.exit();
       player.ensembleLeft();
     } else {
-      // a file already loaded is shared out over the lineup
+      // a file already loaded is shared out over the lineup (an instrument's own piece is not: the
+      // overlay comes back to rest, its play icon now the ensemble's piece)
+      if (player.demo) player.unload();
       const song = player.loaded;
       player.stop();
       ensemble.enter(song ? ensemble.planForLineup(song, lastLineup) : lineupPlan(lastLineup), song, null, true);
