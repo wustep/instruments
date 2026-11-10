@@ -1,0 +1,494 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="656" viewBox="0 0 1080 656" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif">
+<rect width="1080" height="656" fill="#fcfcfb"/>
+<text x="64" y="30" font-size="17" font-weight="600" fill="#2b2b29">Long-term spectrum of the Iowa notes: recording, main, this change</text>
+<text x="64" y="52" font-size="12.5" fill="#6b6a64">Third-octave power average over every reference note of each dynamic, 0 dB = total 100 Hz–10 kHz. RMS error vs the recording per panel.</text>
+<line x1="64" y1="72" x2="86" y2="72" stroke="#2b2b29" stroke-width="2.5" stroke-linecap="round"/>
+<text x="92" y="76" font-size="12.5" fill="#2b2b29">Recording (Iowa MIS)</text>
+<line x1="254" y1="72" x2="276" y2="72" stroke="#eb6834" stroke-width="2.5" stroke-linecap="round"/>
+<text x="282" y="76" font-size="12.5" fill="#2b2b29">Before (main)</text>
+<line x1="444" y1="72" x2="466" y2="72" stroke="#2a78d6" stroke-width="2.5" stroke-linecap="round"/>
+<text x="472" y="76" font-size="12.5" fill="#2b2b29">After (fitted body)</text>
+<g transform="translate(64,118)">
+<line x1="0" x2="300" y1="0.0" y2="0.0" stroke="#e4e3de" stroke-width="1"/>
+<text x="-8" y="4.0" font-size="11" fill="#6b6a64" text-anchor="end">0 dB</text>
+<line x1="0" x2="300" y1="66.7" y2="66.7" stroke="#e4e3de" stroke-width="1"/>
+<text x="-8" y="70.7" font-size="11" fill="#6b6a64" text-anchor="end">-15 dB</text>
+<line x1="0" x2="300" y1="133.3" y2="133.3" stroke="#e4e3de" stroke-width="1"/>
+<text x="-8" y="137.3" font-size="11" fill="#6b6a64" text-anchor="end">-30 dB</text>
+<line x1="0" x2="300" y1="200.0" y2="200.0" stroke="#e4e3de" stroke-width="1"/>
+<text x="-8" y="204.0" font-size="11" fill="#6b6a64" text-anchor="end">-45 dB</text>
+<text x="0.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">100</text>
+<text x="71.6" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">300</text>
+<text x="150.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">1k</text>
+<text x="221.6" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">3k</text>
+<text x="300.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">10k</text>
+<text x="0" y="-10" font-size="13" font-weight="600" fill="#2b2b29">Violin pp</text>
+<text x="300" y="-10" font-size="11.5" fill="#6b6a64" text-anchor="end">RMS error 9.3 → 6.4 dB</text>
+<polyline fill="none" stroke="#2b2b29" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,200.0 30.6,200.0 45.2,137.1 59.7,93.4 74.7,63.9 90.3,31.2 104.8,35.2 119.9,53.8 135.5,33.3 150.0,73.2 164.5,58.8 180.6,58.8 195.2,50.5 209.7,44.2 224.7,64.1 240.3,77.3 254.8,104.9 269.9,115.1 285.5,133.0 300.0,154.0"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>violin pp · recording · 100 Hz: -49.5 dB</title></circle>
+<circle cx="14.5" cy="200.0" r="6" fill="transparent"><title>violin pp · recording · 125 Hz: -46.8 dB</title></circle>
+<circle cx="30.6" cy="200.0" r="6" fill="transparent"><title>violin pp · recording · 160 Hz: -46.2 dB</title></circle>
+<circle cx="45.2" cy="137.1" r="6" fill="transparent"><title>violin pp · recording · 200 Hz: -30.9 dB</title></circle>
+<circle cx="59.7" cy="93.4" r="6" fill="transparent"><title>violin pp · recording · 250 Hz: -21.0 dB</title></circle>
+<circle cx="74.7" cy="63.9" r="6" fill="transparent"><title>violin pp · recording · 315 Hz: -14.4 dB</title></circle>
+<circle cx="90.3" cy="31.2" r="6" fill="transparent"><title>violin pp · recording · 400 Hz: -7.0 dB</title></circle>
+<circle cx="104.8" cy="35.2" r="6" fill="transparent"><title>violin pp · recording · 500 Hz: -7.9 dB</title></circle>
+<circle cx="119.9" cy="53.8" r="6" fill="transparent"><title>violin pp · recording · 630 Hz: -12.1 dB</title></circle>
+<circle cx="135.5" cy="33.3" r="6" fill="transparent"><title>violin pp · recording · 800 Hz: -7.5 dB</title></circle>
+<circle cx="150.0" cy="73.2" r="6" fill="transparent"><title>violin pp · recording · 1000 Hz: -16.5 dB</title></circle>
+<circle cx="164.5" cy="58.8" r="6" fill="transparent"><title>violin pp · recording · 1250 Hz: -13.2 dB</title></circle>
+<circle cx="180.6" cy="58.8" r="6" fill="transparent"><title>violin pp · recording · 1600 Hz: -13.2 dB</title></circle>
+<circle cx="195.2" cy="50.5" r="6" fill="transparent"><title>violin pp · recording · 2000 Hz: -11.4 dB</title></circle>
+<circle cx="209.7" cy="44.2" r="6" fill="transparent"><title>violin pp · recording · 2500 Hz: -10.0 dB</title></circle>
+<circle cx="224.7" cy="64.1" r="6" fill="transparent"><title>violin pp · recording · 3150 Hz: -14.4 dB</title></circle>
+<circle cx="240.3" cy="77.3" r="6" fill="transparent"><title>violin pp · recording · 4000 Hz: -17.4 dB</title></circle>
+<circle cx="254.8" cy="104.9" r="6" fill="transparent"><title>violin pp · recording · 5000 Hz: -23.6 dB</title></circle>
+<circle cx="269.9" cy="115.1" r="6" fill="transparent"><title>violin pp · recording · 6300 Hz: -25.9 dB</title></circle>
+<circle cx="285.5" cy="133.0" r="6" fill="transparent"><title>violin pp · recording · 8000 Hz: -29.9 dB</title></circle>
+<circle cx="300.0" cy="154.0" r="6" fill="transparent"><title>violin pp · recording · 10000 Hz: -34.7 dB</title></circle>
+<polyline fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,200.0 30.6,200.0 45.2,147.5 59.7,130.5 74.7,116.9 90.3,53.5 104.8,13.9 119.9,50.1 135.5,43.8 150.0,75.3 164.5,61.7 180.6,77.0 195.2,39.9 209.7,72.0 224.7,65.7 240.3,103.9 254.8,126.9 269.9,191.0 285.5,200.0 300.0,200.0"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>violin pp · before · 100 Hz: -60.6 dB</title></circle>
+<circle cx="14.5" cy="200.0" r="6" fill="transparent"><title>violin pp · before · 125 Hz: -54.2 dB</title></circle>
+<circle cx="30.6" cy="200.0" r="6" fill="transparent"><title>violin pp · before · 160 Hz: -51.7 dB</title></circle>
+<circle cx="45.2" cy="147.5" r="6" fill="transparent"><title>violin pp · before · 200 Hz: -33.2 dB</title></circle>
+<circle cx="59.7" cy="130.5" r="6" fill="transparent"><title>violin pp · before · 250 Hz: -29.4 dB</title></circle>
+<circle cx="74.7" cy="116.9" r="6" fill="transparent"><title>violin pp · before · 315 Hz: -26.3 dB</title></circle>
+<circle cx="90.3" cy="53.5" r="6" fill="transparent"><title>violin pp · before · 400 Hz: -12.0 dB</title></circle>
+<circle cx="104.8" cy="13.9" r="6" fill="transparent"><title>violin pp · before · 500 Hz: -3.1 dB</title></circle>
+<circle cx="119.9" cy="50.1" r="6" fill="transparent"><title>violin pp · before · 630 Hz: -11.3 dB</title></circle>
+<circle cx="135.5" cy="43.8" r="6" fill="transparent"><title>violin pp · before · 800 Hz: -9.9 dB</title></circle>
+<circle cx="150.0" cy="75.3" r="6" fill="transparent"><title>violin pp · before · 1000 Hz: -16.9 dB</title></circle>
+<circle cx="164.5" cy="61.7" r="6" fill="transparent"><title>violin pp · before · 1250 Hz: -13.9 dB</title></circle>
+<circle cx="180.6" cy="77.0" r="6" fill="transparent"><title>violin pp · before · 1600 Hz: -17.3 dB</title></circle>
+<circle cx="195.2" cy="39.9" r="6" fill="transparent"><title>violin pp · before · 2000 Hz: -9.0 dB</title></circle>
+<circle cx="209.7" cy="72.0" r="6" fill="transparent"><title>violin pp · before · 2500 Hz: -16.2 dB</title></circle>
+<circle cx="224.7" cy="65.7" r="6" fill="transparent"><title>violin pp · before · 3150 Hz: -14.8 dB</title></circle>
+<circle cx="240.3" cy="103.9" r="6" fill="transparent"><title>violin pp · before · 4000 Hz: -23.4 dB</title></circle>
+<circle cx="254.8" cy="126.9" r="6" fill="transparent"><title>violin pp · before · 5000 Hz: -28.6 dB</title></circle>
+<circle cx="269.9" cy="191.0" r="6" fill="transparent"><title>violin pp · before · 6300 Hz: -43.0 dB</title></circle>
+<circle cx="285.5" cy="200.0" r="6" fill="transparent"><title>violin pp · before · 8000 Hz: -50.1 dB</title></circle>
+<circle cx="300.0" cy="200.0" r="6" fill="transparent"><title>violin pp · before · 10000 Hz: -57.2 dB</title></circle>
+<polyline fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,200.0 30.6,200.0 45.2,148.0 59.7,98.5 74.7,63.1 90.3,49.1 104.8,12.2 119.9,67.4 135.5,32.7 150.0,74.4 164.5,84.7 180.6,90.0 195.2,63.1 209.7,77.1 224.7,83.0 240.3,84.0 254.8,107.5 269.9,123.6 285.5,154.4 300.0,177.6"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>violin pp · after · 100 Hz: -67.2 dB</title></circle>
+<circle cx="14.5" cy="200.0" r="6" fill="transparent"><title>violin pp · after · 125 Hz: -61.8 dB</title></circle>
+<circle cx="30.6" cy="200.0" r="6" fill="transparent"><title>violin pp · after · 160 Hz: -51.7 dB</title></circle>
+<circle cx="45.2" cy="148.0" r="6" fill="transparent"><title>violin pp · after · 200 Hz: -33.3 dB</title></circle>
+<circle cx="59.7" cy="98.5" r="6" fill="transparent"><title>violin pp · after · 250 Hz: -22.2 dB</title></circle>
+<circle cx="74.7" cy="63.1" r="6" fill="transparent"><title>violin pp · after · 315 Hz: -14.2 dB</title></circle>
+<circle cx="90.3" cy="49.1" r="6" fill="transparent"><title>violin pp · after · 400 Hz: -11.1 dB</title></circle>
+<circle cx="104.8" cy="12.2" r="6" fill="transparent"><title>violin pp · after · 500 Hz: -2.7 dB</title></circle>
+<circle cx="119.9" cy="67.4" r="6" fill="transparent"><title>violin pp · after · 630 Hz: -15.2 dB</title></circle>
+<circle cx="135.5" cy="32.7" r="6" fill="transparent"><title>violin pp · after · 800 Hz: -7.4 dB</title></circle>
+<circle cx="150.0" cy="74.4" r="6" fill="transparent"><title>violin pp · after · 1000 Hz: -16.7 dB</title></circle>
+<circle cx="164.5" cy="84.7" r="6" fill="transparent"><title>violin pp · after · 1250 Hz: -19.1 dB</title></circle>
+<circle cx="180.6" cy="90.0" r="6" fill="transparent"><title>violin pp · after · 1600 Hz: -20.2 dB</title></circle>
+<circle cx="195.2" cy="63.1" r="6" fill="transparent"><title>violin pp · after · 2000 Hz: -14.2 dB</title></circle>
+<circle cx="209.7" cy="77.1" r="6" fill="transparent"><title>violin pp · after · 2500 Hz: -17.3 dB</title></circle>
+<circle cx="224.7" cy="83.0" r="6" fill="transparent"><title>violin pp · after · 3150 Hz: -18.7 dB</title></circle>
+<circle cx="240.3" cy="84.0" r="6" fill="transparent"><title>violin pp · after · 4000 Hz: -18.9 dB</title></circle>
+<circle cx="254.8" cy="107.5" r="6" fill="transparent"><title>violin pp · after · 5000 Hz: -24.2 dB</title></circle>
+<circle cx="269.9" cy="123.6" r="6" fill="transparent"><title>violin pp · after · 6300 Hz: -27.8 dB</title></circle>
+<circle cx="285.5" cy="154.4" r="6" fill="transparent"><title>violin pp · after · 8000 Hz: -34.7 dB</title></circle>
+<circle cx="300.0" cy="177.6" r="6" fill="transparent"><title>violin pp · after · 10000 Hz: -40.0 dB</title></circle>
+</g>
+<g transform="translate(404,118)">
+<line x1="0" x2="300" y1="0.0" y2="0.0" stroke="#e4e3de" stroke-width="1"/>
+<line x1="0" x2="300" y1="66.7" y2="66.7" stroke="#e4e3de" stroke-width="1"/>
+<line x1="0" x2="300" y1="133.3" y2="133.3" stroke="#e4e3de" stroke-width="1"/>
+<line x1="0" x2="300" y1="200.0" y2="200.0" stroke="#e4e3de" stroke-width="1"/>
+<text x="0.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">100</text>
+<text x="71.6" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">300</text>
+<text x="150.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">1k</text>
+<text x="221.6" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">3k</text>
+<text x="300.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">10k</text>
+<text x="0" y="-10" font-size="13" font-weight="600" fill="#2b2b29">Violin mf</text>
+<text x="300" y="-10" font-size="11.5" fill="#6b6a64" text-anchor="end">RMS error 10.7 → 3.6 dB</text>
+<polyline fill="none" stroke="#2b2b29" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,200.0 30.6,200.0 45.2,139.5 59.7,99.0 74.7,67.3 90.3,37.2 104.8,39.7 119.9,56.7 135.5,35.2 150.0,46.3 164.5,67.8 180.6,53.3 195.2,51.3 209.7,36.9 224.7,64.6 240.3,77.1 254.8,84.9 269.9,102.9 285.5,125.3 300.0,137.9"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>violin mf · recording · 100 Hz: -58.5 dB</title></circle>
+<circle cx="14.5" cy="200.0" r="6" fill="transparent"><title>violin mf · recording · 125 Hz: -57.0 dB</title></circle>
+<circle cx="30.6" cy="200.0" r="6" fill="transparent"><title>violin mf · recording · 160 Hz: -49.2 dB</title></circle>
+<circle cx="45.2" cy="139.5" r="6" fill="transparent"><title>violin mf · recording · 200 Hz: -31.4 dB</title></circle>
+<circle cx="59.7" cy="99.0" r="6" fill="transparent"><title>violin mf · recording · 250 Hz: -22.3 dB</title></circle>
+<circle cx="74.7" cy="67.3" r="6" fill="transparent"><title>violin mf · recording · 315 Hz: -15.1 dB</title></circle>
+<circle cx="90.3" cy="37.2" r="6" fill="transparent"><title>violin mf · recording · 400 Hz: -8.4 dB</title></circle>
+<circle cx="104.8" cy="39.7" r="6" fill="transparent"><title>violin mf · recording · 500 Hz: -8.9 dB</title></circle>
+<circle cx="119.9" cy="56.7" r="6" fill="transparent"><title>violin mf · recording · 630 Hz: -12.7 dB</title></circle>
+<circle cx="135.5" cy="35.2" r="6" fill="transparent"><title>violin mf · recording · 800 Hz: -7.9 dB</title></circle>
+<circle cx="150.0" cy="46.3" r="6" fill="transparent"><title>violin mf · recording · 1000 Hz: -10.4 dB</title></circle>
+<circle cx="164.5" cy="67.8" r="6" fill="transparent"><title>violin mf · recording · 1250 Hz: -15.2 dB</title></circle>
+<circle cx="180.6" cy="53.3" r="6" fill="transparent"><title>violin mf · recording · 1600 Hz: -12.0 dB</title></circle>
+<circle cx="195.2" cy="51.3" r="6" fill="transparent"><title>violin mf · recording · 2000 Hz: -11.5 dB</title></circle>
+<circle cx="209.7" cy="36.9" r="6" fill="transparent"><title>violin mf · recording · 2500 Hz: -8.3 dB</title></circle>
+<circle cx="224.7" cy="64.6" r="6" fill="transparent"><title>violin mf · recording · 3150 Hz: -14.5 dB</title></circle>
+<circle cx="240.3" cy="77.1" r="6" fill="transparent"><title>violin mf · recording · 4000 Hz: -17.4 dB</title></circle>
+<circle cx="254.8" cy="84.9" r="6" fill="transparent"><title>violin mf · recording · 5000 Hz: -19.1 dB</title></circle>
+<circle cx="269.9" cy="102.9" r="6" fill="transparent"><title>violin mf · recording · 6300 Hz: -23.1 dB</title></circle>
+<circle cx="285.5" cy="125.3" r="6" fill="transparent"><title>violin mf · recording · 8000 Hz: -28.2 dB</title></circle>
+<circle cx="300.0" cy="137.9" r="6" fill="transparent"><title>violin mf · recording · 10000 Hz: -31.0 dB</title></circle>
+<polyline fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,200.0 30.6,191.6 45.2,137.0 59.7,132.3 74.7,109.7 90.3,58.3 104.8,19.1 119.9,40.9 135.5,35.5 150.0,51.2 164.5,67.3 180.6,83.2 195.2,48.7 209.7,51.7 224.7,69.7 240.3,109.4 254.8,140.1 269.9,199.4 285.5,200.0 300.0,200.0"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>violin mf · before · 100 Hz: -68.4 dB</title></circle>
+<circle cx="14.5" cy="200.0" r="6" fill="transparent"><title>violin mf · before · 125 Hz: -64.5 dB</title></circle>
+<circle cx="30.6" cy="191.6" r="6" fill="transparent"><title>violin mf · before · 160 Hz: -43.1 dB</title></circle>
+<circle cx="45.2" cy="137.0" r="6" fill="transparent"><title>violin mf · before · 200 Hz: -30.8 dB</title></circle>
+<circle cx="59.7" cy="132.3" r="6" fill="transparent"><title>violin mf · before · 250 Hz: -29.8 dB</title></circle>
+<circle cx="74.7" cy="109.7" r="6" fill="transparent"><title>violin mf · before · 315 Hz: -24.7 dB</title></circle>
+<circle cx="90.3" cy="58.3" r="6" fill="transparent"><title>violin mf · before · 400 Hz: -13.1 dB</title></circle>
+<circle cx="104.8" cy="19.1" r="6" fill="transparent"><title>violin mf · before · 500 Hz: -4.3 dB</title></circle>
+<circle cx="119.9" cy="40.9" r="6" fill="transparent"><title>violin mf · before · 630 Hz: -9.2 dB</title></circle>
+<circle cx="135.5" cy="35.5" r="6" fill="transparent"><title>violin mf · before · 800 Hz: -8.0 dB</title></circle>
+<circle cx="150.0" cy="51.2" r="6" fill="transparent"><title>violin mf · before · 1000 Hz: -11.5 dB</title></circle>
+<circle cx="164.5" cy="67.3" r="6" fill="transparent"><title>violin mf · before · 1250 Hz: -15.1 dB</title></circle>
+<circle cx="180.6" cy="83.2" r="6" fill="transparent"><title>violin mf · before · 1600 Hz: -18.7 dB</title></circle>
+<circle cx="195.2" cy="48.7" r="6" fill="transparent"><title>violin mf · before · 2000 Hz: -11.0 dB</title></circle>
+<circle cx="209.7" cy="51.7" r="6" fill="transparent"><title>violin mf · before · 2500 Hz: -11.6 dB</title></circle>
+<circle cx="224.7" cy="69.7" r="6" fill="transparent"><title>violin mf · before · 3150 Hz: -15.7 dB</title></circle>
+<circle cx="240.3" cy="109.4" r="6" fill="transparent"><title>violin mf · before · 4000 Hz: -24.6 dB</title></circle>
+<circle cx="254.8" cy="140.1" r="6" fill="transparent"><title>violin mf · before · 5000 Hz: -31.5 dB</title></circle>
+<circle cx="269.9" cy="199.4" r="6" fill="transparent"><title>violin mf · before · 6300 Hz: -44.9 dB</title></circle>
+<circle cx="285.5" cy="200.0" r="6" fill="transparent"><title>violin mf · before · 8000 Hz: -51.3 dB</title></circle>
+<circle cx="300.0" cy="200.0" r="6" fill="transparent"><title>violin mf · before · 10000 Hz: -56.5 dB</title></circle>
+<polyline fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,200.0 30.6,200.0 45.2,151.6 59.7,96.5 74.7,64.2 90.3,56.3 104.8,24.7 119.9,58.5 135.5,28.9 150.0,41.4 164.5,76.0 180.6,68.6 195.2,45.6 209.7,65.9 224.7,61.3 240.3,83.7 254.8,114.5 269.9,126.9 285.5,135.7 300.0,152.5"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>violin mf · after · 100 Hz: -74.6 dB</title></circle>
+<circle cx="14.5" cy="200.0" r="6" fill="transparent"><title>violin mf · after · 125 Hz: -70.9 dB</title></circle>
+<circle cx="30.6" cy="200.0" r="6" fill="transparent"><title>violin mf · after · 160 Hz: -56.6 dB</title></circle>
+<circle cx="45.2" cy="151.6" r="6" fill="transparent"><title>violin mf · after · 200 Hz: -34.1 dB</title></circle>
+<circle cx="59.7" cy="96.5" r="6" fill="transparent"><title>violin mf · after · 250 Hz: -21.7 dB</title></circle>
+<circle cx="74.7" cy="64.2" r="6" fill="transparent"><title>violin mf · after · 315 Hz: -14.4 dB</title></circle>
+<circle cx="90.3" cy="56.3" r="6" fill="transparent"><title>violin mf · after · 400 Hz: -12.7 dB</title></circle>
+<circle cx="104.8" cy="24.7" r="6" fill="transparent"><title>violin mf · after · 500 Hz: -5.6 dB</title></circle>
+<circle cx="119.9" cy="58.5" r="6" fill="transparent"><title>violin mf · after · 630 Hz: -13.2 dB</title></circle>
+<circle cx="135.5" cy="28.9" r="6" fill="transparent"><title>violin mf · after · 800 Hz: -6.5 dB</title></circle>
+<circle cx="150.0" cy="41.4" r="6" fill="transparent"><title>violin mf · after · 1000 Hz: -9.3 dB</title></circle>
+<circle cx="164.5" cy="76.0" r="6" fill="transparent"><title>violin mf · after · 1250 Hz: -17.1 dB</title></circle>
+<circle cx="180.6" cy="68.6" r="6" fill="transparent"><title>violin mf · after · 1600 Hz: -15.4 dB</title></circle>
+<circle cx="195.2" cy="45.6" r="6" fill="transparent"><title>violin mf · after · 2000 Hz: -10.3 dB</title></circle>
+<circle cx="209.7" cy="65.9" r="6" fill="transparent"><title>violin mf · after · 2500 Hz: -14.8 dB</title></circle>
+<circle cx="224.7" cy="61.3" r="6" fill="transparent"><title>violin mf · after · 3150 Hz: -13.8 dB</title></circle>
+<circle cx="240.3" cy="83.7" r="6" fill="transparent"><title>violin mf · after · 4000 Hz: -18.8 dB</title></circle>
+<circle cx="254.8" cy="114.5" r="6" fill="transparent"><title>violin mf · after · 5000 Hz: -25.8 dB</title></circle>
+<circle cx="269.9" cy="126.9" r="6" fill="transparent"><title>violin mf · after · 6300 Hz: -28.6 dB</title></circle>
+<circle cx="285.5" cy="135.7" r="6" fill="transparent"><title>violin mf · after · 8000 Hz: -30.5 dB</title></circle>
+<circle cx="300.0" cy="152.5" r="6" fill="transparent"><title>violin mf · after · 10000 Hz: -34.3 dB</title></circle>
+</g>
+<g transform="translate(744,118)">
+<line x1="0" x2="300" y1="0.0" y2="0.0" stroke="#e4e3de" stroke-width="1"/>
+<line x1="0" x2="300" y1="66.7" y2="66.7" stroke="#e4e3de" stroke-width="1"/>
+<line x1="0" x2="300" y1="133.3" y2="133.3" stroke="#e4e3de" stroke-width="1"/>
+<line x1="0" x2="300" y1="200.0" y2="200.0" stroke="#e4e3de" stroke-width="1"/>
+<text x="0.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">100</text>
+<text x="71.6" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">300</text>
+<text x="150.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">1k</text>
+<text x="221.6" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">3k</text>
+<text x="300.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">10k</text>
+<text x="0" y="-10" font-size="13" font-weight="600" fill="#2b2b29">Violin ff</text>
+<text x="300" y="-10" font-size="11.5" fill="#6b6a64" text-anchor="end">RMS error 14.9 → 4.3 dB</text>
+<polyline fill="none" stroke="#2b2b29" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,200.0 30.6,200.0 45.2,161.3 59.7,111.3 74.7,86.0 90.3,49.6 104.8,45.8 119.9,51.1 135.5,36.1 150.0,46.5 164.5,71.2 180.6,58.7 195.2,42.4 209.7,32.5 224.7,64.3 240.3,55.9 254.8,77.2 269.9,83.6 285.5,99.9 300.0,114.2"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>violin ff · recording · 100 Hz: -62.4 dB</title></circle>
+<circle cx="14.5" cy="200.0" r="6" fill="transparent"><title>violin ff · recording · 125 Hz: -59.1 dB</title></circle>
+<circle cx="30.6" cy="200.0" r="6" fill="transparent"><title>violin ff · recording · 160 Hz: -52.4 dB</title></circle>
+<circle cx="45.2" cy="161.3" r="6" fill="transparent"><title>violin ff · recording · 200 Hz: -36.3 dB</title></circle>
+<circle cx="59.7" cy="111.3" r="6" fill="transparent"><title>violin ff · recording · 250 Hz: -25.0 dB</title></circle>
+<circle cx="74.7" cy="86.0" r="6" fill="transparent"><title>violin ff · recording · 315 Hz: -19.3 dB</title></circle>
+<circle cx="90.3" cy="49.6" r="6" fill="transparent"><title>violin ff · recording · 400 Hz: -11.2 dB</title></circle>
+<circle cx="104.8" cy="45.8" r="6" fill="transparent"><title>violin ff · recording · 500 Hz: -10.3 dB</title></circle>
+<circle cx="119.9" cy="51.1" r="6" fill="transparent"><title>violin ff · recording · 630 Hz: -11.5 dB</title></circle>
+<circle cx="135.5" cy="36.1" r="6" fill="transparent"><title>violin ff · recording · 800 Hz: -8.1 dB</title></circle>
+<circle cx="150.0" cy="46.5" r="6" fill="transparent"><title>violin ff · recording · 1000 Hz: -10.5 dB</title></circle>
+<circle cx="164.5" cy="71.2" r="6" fill="transparent"><title>violin ff · recording · 1250 Hz: -16.0 dB</title></circle>
+<circle cx="180.6" cy="58.7" r="6" fill="transparent"><title>violin ff · recording · 1600 Hz: -13.2 dB</title></circle>
+<circle cx="195.2" cy="42.4" r="6" fill="transparent"><title>violin ff · recording · 2000 Hz: -9.5 dB</title></circle>
+<circle cx="209.7" cy="32.5" r="6" fill="transparent"><title>violin ff · recording · 2500 Hz: -7.3 dB</title></circle>
+<circle cx="224.7" cy="64.3" r="6" fill="transparent"><title>violin ff · recording · 3150 Hz: -14.5 dB</title></circle>
+<circle cx="240.3" cy="55.9" r="6" fill="transparent"><title>violin ff · recording · 4000 Hz: -12.6 dB</title></circle>
+<circle cx="254.8" cy="77.2" r="6" fill="transparent"><title>violin ff · recording · 5000 Hz: -17.4 dB</title></circle>
+<circle cx="269.9" cy="83.6" r="6" fill="transparent"><title>violin ff · recording · 6300 Hz: -18.8 dB</title></circle>
+<circle cx="285.5" cy="99.9" r="6" fill="transparent"><title>violin ff · recording · 8000 Hz: -22.5 dB</title></circle>
+<circle cx="300.0" cy="114.2" r="6" fill="transparent"><title>violin ff · recording · 10000 Hz: -25.7 dB</title></circle>
+<polyline fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,200.0 30.6,194.5 45.2,135.3 59.7,131.5 74.7,107.0 90.3,49.1 104.8,13.5 119.9,43.4 135.5,32.7 150.0,61.9 164.5,71.0 180.6,90.2 195.2,79.7 209.7,72.4 224.7,82.4 240.3,132.0 254.8,165.1 269.9,200.0 285.5,200.0 300.0,200.0"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>violin ff · before · 100 Hz: -66.5 dB</title></circle>
+<circle cx="14.5" cy="200.0" r="6" fill="transparent"><title>violin ff · before · 125 Hz: -61.6 dB</title></circle>
+<circle cx="30.6" cy="194.5" r="6" fill="transparent"><title>violin ff · before · 160 Hz: -43.8 dB</title></circle>
+<circle cx="45.2" cy="135.3" r="6" fill="transparent"><title>violin ff · before · 200 Hz: -30.5 dB</title></circle>
+<circle cx="59.7" cy="131.5" r="6" fill="transparent"><title>violin ff · before · 250 Hz: -29.6 dB</title></circle>
+<circle cx="74.7" cy="107.0" r="6" fill="transparent"><title>violin ff · before · 315 Hz: -24.1 dB</title></circle>
+<circle cx="90.3" cy="49.1" r="6" fill="transparent"><title>violin ff · before · 400 Hz: -11.0 dB</title></circle>
+<circle cx="104.8" cy="13.5" r="6" fill="transparent"><title>violin ff · before · 500 Hz: -3.0 dB</title></circle>
+<circle cx="119.9" cy="43.4" r="6" fill="transparent"><title>violin ff · before · 630 Hz: -9.8 dB</title></circle>
+<circle cx="135.5" cy="32.7" r="6" fill="transparent"><title>violin ff · before · 800 Hz: -7.4 dB</title></circle>
+<circle cx="150.0" cy="61.9" r="6" fill="transparent"><title>violin ff · before · 1000 Hz: -13.9 dB</title></circle>
+<circle cx="164.5" cy="71.0" r="6" fill="transparent"><title>violin ff · before · 1250 Hz: -16.0 dB</title></circle>
+<circle cx="180.6" cy="90.2" r="6" fill="transparent"><title>violin ff · before · 1600 Hz: -20.3 dB</title></circle>
+<circle cx="195.2" cy="79.7" r="6" fill="transparent"><title>violin ff · before · 2000 Hz: -17.9 dB</title></circle>
+<circle cx="209.7" cy="72.4" r="6" fill="transparent"><title>violin ff · before · 2500 Hz: -16.3 dB</title></circle>
+<circle cx="224.7" cy="82.4" r="6" fill="transparent"><title>violin ff · before · 3150 Hz: -18.5 dB</title></circle>
+<circle cx="240.3" cy="132.0" r="6" fill="transparent"><title>violin ff · before · 4000 Hz: -29.7 dB</title></circle>
+<circle cx="254.8" cy="165.1" r="6" fill="transparent"><title>violin ff · before · 5000 Hz: -37.2 dB</title></circle>
+<circle cx="269.9" cy="200.0" r="6" fill="transparent"><title>violin ff · before · 6300 Hz: -48.8 dB</title></circle>
+<circle cx="285.5" cy="200.0" r="6" fill="transparent"><title>violin ff · before · 8000 Hz: -54.4 dB</title></circle>
+<circle cx="300.0" cy="200.0" r="6" fill="transparent"><title>violin ff · before · 10000 Hz: -57.6 dB</title></circle>
+<polyline fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,200.0 30.6,200.0 45.2,155.1 59.7,105.5 74.7,70.0 90.3,50.2 104.8,16.8 119.9,69.4 135.5,30.3 150.0,53.9 164.5,80.2 180.6,80.0 195.2,54.2 209.7,65.6 224.7,65.7 240.3,92.5 254.8,108.6 269.9,104.6 285.5,114.2 300.0,127.7"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>violin ff · after · 100 Hz: -76.7 dB</title></circle>
+<circle cx="14.5" cy="200.0" r="6" fill="transparent"><title>violin ff · after · 125 Hz: -72.4 dB</title></circle>
+<circle cx="30.6" cy="200.0" r="6" fill="transparent"><title>violin ff · after · 160 Hz: -53.9 dB</title></circle>
+<circle cx="45.2" cy="155.1" r="6" fill="transparent"><title>violin ff · after · 200 Hz: -34.9 dB</title></circle>
+<circle cx="59.7" cy="105.5" r="6" fill="transparent"><title>violin ff · after · 250 Hz: -23.7 dB</title></circle>
+<circle cx="74.7" cy="70.0" r="6" fill="transparent"><title>violin ff · after · 315 Hz: -15.7 dB</title></circle>
+<circle cx="90.3" cy="50.2" r="6" fill="transparent"><title>violin ff · after · 400 Hz: -11.3 dB</title></circle>
+<circle cx="104.8" cy="16.8" r="6" fill="transparent"><title>violin ff · after · 500 Hz: -3.8 dB</title></circle>
+<circle cx="119.9" cy="69.4" r="6" fill="transparent"><title>violin ff · after · 630 Hz: -15.6 dB</title></circle>
+<circle cx="135.5" cy="30.3" r="6" fill="transparent"><title>violin ff · after · 800 Hz: -6.8 dB</title></circle>
+<circle cx="150.0" cy="53.9" r="6" fill="transparent"><title>violin ff · after · 1000 Hz: -12.1 dB</title></circle>
+<circle cx="164.5" cy="80.2" r="6" fill="transparent"><title>violin ff · after · 1250 Hz: -18.0 dB</title></circle>
+<circle cx="180.6" cy="80.0" r="6" fill="transparent"><title>violin ff · after · 1600 Hz: -18.0 dB</title></circle>
+<circle cx="195.2" cy="54.2" r="6" fill="transparent"><title>violin ff · after · 2000 Hz: -12.2 dB</title></circle>
+<circle cx="209.7" cy="65.6" r="6" fill="transparent"><title>violin ff · after · 2500 Hz: -14.8 dB</title></circle>
+<circle cx="224.7" cy="65.7" r="6" fill="transparent"><title>violin ff · after · 3150 Hz: -14.8 dB</title></circle>
+<circle cx="240.3" cy="92.5" r="6" fill="transparent"><title>violin ff · after · 4000 Hz: -20.8 dB</title></circle>
+<circle cx="254.8" cy="108.6" r="6" fill="transparent"><title>violin ff · after · 5000 Hz: -24.4 dB</title></circle>
+<circle cx="269.9" cy="104.6" r="6" fill="transparent"><title>violin ff · after · 6300 Hz: -23.5 dB</title></circle>
+<circle cx="285.5" cy="114.2" r="6" fill="transparent"><title>violin ff · after · 8000 Hz: -25.7 dB</title></circle>
+<circle cx="300.0" cy="127.7" r="6" fill="transparent"><title>violin ff · after · 10000 Hz: -28.7 dB</title></circle>
+</g>
+<g transform="translate(64,390)">
+<line x1="0" x2="300" y1="0.0" y2="0.0" stroke="#e4e3de" stroke-width="1"/>
+<text x="-8" y="4.0" font-size="11" fill="#6b6a64" text-anchor="end">0 dB</text>
+<line x1="0" x2="300" y1="66.7" y2="66.7" stroke="#e4e3de" stroke-width="1"/>
+<text x="-8" y="70.7" font-size="11" fill="#6b6a64" text-anchor="end">-15 dB</text>
+<line x1="0" x2="300" y1="133.3" y2="133.3" stroke="#e4e3de" stroke-width="1"/>
+<text x="-8" y="137.3" font-size="11" fill="#6b6a64" text-anchor="end">-30 dB</text>
+<line x1="0" x2="300" y1="200.0" y2="200.0" stroke="#e4e3de" stroke-width="1"/>
+<text x="-8" y="204.0" font-size="11" fill="#6b6a64" text-anchor="end">-45 dB</text>
+<text x="0.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">100</text>
+<text x="71.6" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">300</text>
+<text x="150.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">1k</text>
+<text x="221.6" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">3k</text>
+<text x="300.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">10k</text>
+<text x="0" y="-10" font-size="13" font-weight="600" fill="#2b2b29">Viola pp</text>
+<text x="300" y="-10" font-size="11.5" fill="#6b6a64" text-anchor="end">RMS error 10.3 → 2.8 dB</text>
+<polyline fill="none" stroke="#2b2b29" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,200.0 30.6,147.2 45.2,82.1 59.7,70.1 74.7,40.9 90.3,37.2 104.8,48.1 119.9,48.9 135.5,42.7 150.0,53.0 164.5,45.4 180.6,42.8 195.2,40.7 209.7,73.0 224.7,94.0 240.3,133.4 254.8,155.2 269.9,171.0 285.5,200.0 300.0,200.0"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>viola pp · recording · 100 Hz: -61.6 dB</title></circle>
+<circle cx="14.5" cy="200.0" r="6" fill="transparent"><title>viola pp · recording · 125 Hz: -46.7 dB</title></circle>
+<circle cx="30.6" cy="147.2" r="6" fill="transparent"><title>viola pp · recording · 160 Hz: -33.1 dB</title></circle>
+<circle cx="45.2" cy="82.1" r="6" fill="transparent"><title>viola pp · recording · 200 Hz: -18.5 dB</title></circle>
+<circle cx="59.7" cy="70.1" r="6" fill="transparent"><title>viola pp · recording · 250 Hz: -15.8 dB</title></circle>
+<circle cx="74.7" cy="40.9" r="6" fill="transparent"><title>viola pp · recording · 315 Hz: -9.2 dB</title></circle>
+<circle cx="90.3" cy="37.2" r="6" fill="transparent"><title>viola pp · recording · 400 Hz: -8.4 dB</title></circle>
+<circle cx="104.8" cy="48.1" r="6" fill="transparent"><title>viola pp · recording · 500 Hz: -10.8 dB</title></circle>
+<circle cx="119.9" cy="48.9" r="6" fill="transparent"><title>viola pp · recording · 630 Hz: -11.0 dB</title></circle>
+<circle cx="135.5" cy="42.7" r="6" fill="transparent"><title>viola pp · recording · 800 Hz: -9.6 dB</title></circle>
+<circle cx="150.0" cy="53.0" r="6" fill="transparent"><title>viola pp · recording · 1000 Hz: -11.9 dB</title></circle>
+<circle cx="164.5" cy="45.4" r="6" fill="transparent"><title>viola pp · recording · 1250 Hz: -10.2 dB</title></circle>
+<circle cx="180.6" cy="42.8" r="6" fill="transparent"><title>viola pp · recording · 1600 Hz: -9.6 dB</title></circle>
+<circle cx="195.2" cy="40.7" r="6" fill="transparent"><title>viola pp · recording · 2000 Hz: -9.2 dB</title></circle>
+<circle cx="209.7" cy="73.0" r="6" fill="transparent"><title>viola pp · recording · 2500 Hz: -16.4 dB</title></circle>
+<circle cx="224.7" cy="94.0" r="6" fill="transparent"><title>viola pp · recording · 3150 Hz: -21.2 dB</title></circle>
+<circle cx="240.3" cy="133.4" r="6" fill="transparent"><title>viola pp · recording · 4000 Hz: -30.0 dB</title></circle>
+<circle cx="254.8" cy="155.2" r="6" fill="transparent"><title>viola pp · recording · 5000 Hz: -34.9 dB</title></circle>
+<circle cx="269.9" cy="171.0" r="6" fill="transparent"><title>viola pp · recording · 6300 Hz: -38.5 dB</title></circle>
+<circle cx="285.5" cy="200.0" r="6" fill="transparent"><title>viola pp · recording · 8000 Hz: -49.2 dB</title></circle>
+<circle cx="300.0" cy="200.0" r="6" fill="transparent"><title>viola pp · recording · 10000 Hz: -54.0 dB</title></circle>
+<polyline fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,191.1 30.6,142.8 45.2,106.2 59.7,95.3 74.7,96.9 90.3,56.8 104.8,25.2 119.9,27.4 135.5,79.9 150.0,50.3 164.5,43.4 180.6,48.4 195.2,45.2 209.7,68.2 224.7,87.2 240.3,118.6 254.8,200.0 269.9,200.0 285.5,200.0 300.0,200.0"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>viola pp · before · 100 Hz: -63.2 dB</title></circle>
+<circle cx="14.5" cy="191.1" r="6" fill="transparent"><title>viola pp · before · 125 Hz: -43.0 dB</title></circle>
+<circle cx="30.6" cy="142.8" r="6" fill="transparent"><title>viola pp · before · 160 Hz: -32.1 dB</title></circle>
+<circle cx="45.2" cy="106.2" r="6" fill="transparent"><title>viola pp · before · 200 Hz: -23.9 dB</title></circle>
+<circle cx="59.7" cy="95.3" r="6" fill="transparent"><title>viola pp · before · 250 Hz: -21.4 dB</title></circle>
+<circle cx="74.7" cy="96.9" r="6" fill="transparent"><title>viola pp · before · 315 Hz: -21.8 dB</title></circle>
+<circle cx="90.3" cy="56.8" r="6" fill="transparent"><title>viola pp · before · 400 Hz: -12.8 dB</title></circle>
+<circle cx="104.8" cy="25.2" r="6" fill="transparent"><title>viola pp · before · 500 Hz: -5.7 dB</title></circle>
+<circle cx="119.9" cy="27.4" r="6" fill="transparent"><title>viola pp · before · 630 Hz: -6.2 dB</title></circle>
+<circle cx="135.5" cy="79.9" r="6" fill="transparent"><title>viola pp · before · 800 Hz: -18.0 dB</title></circle>
+<circle cx="150.0" cy="50.3" r="6" fill="transparent"><title>viola pp · before · 1000 Hz: -11.3 dB</title></circle>
+<circle cx="164.5" cy="43.4" r="6" fill="transparent"><title>viola pp · before · 1250 Hz: -9.8 dB</title></circle>
+<circle cx="180.6" cy="48.4" r="6" fill="transparent"><title>viola pp · before · 1600 Hz: -10.9 dB</title></circle>
+<circle cx="195.2" cy="45.2" r="6" fill="transparent"><title>viola pp · before · 2000 Hz: -10.2 dB</title></circle>
+<circle cx="209.7" cy="68.2" r="6" fill="transparent"><title>viola pp · before · 2500 Hz: -15.3 dB</title></circle>
+<circle cx="224.7" cy="87.2" r="6" fill="transparent"><title>viola pp · before · 3150 Hz: -19.6 dB</title></circle>
+<circle cx="240.3" cy="118.6" r="6" fill="transparent"><title>viola pp · before · 4000 Hz: -26.7 dB</title></circle>
+<circle cx="254.8" cy="200.0" r="6" fill="transparent"><title>viola pp · before · 5000 Hz: -46.1 dB</title></circle>
+<circle cx="269.9" cy="200.0" r="6" fill="transparent"><title>viola pp · before · 6300 Hz: -66.3 dB</title></circle>
+<circle cx="285.5" cy="200.0" r="6" fill="transparent"><title>viola pp · before · 8000 Hz: -76.4 dB</title></circle>
+<circle cx="300.0" cy="200.0" r="6" fill="transparent"><title>viola pp · before · 10000 Hz: -76.5 dB</title></circle>
+<polyline fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,193.1 30.6,155.4 45.2,93.6 59.7,66.2 74.7,39.7 90.3,60.4 104.8,45.8 119.9,24.4 135.5,65.1 150.0,52.4 164.5,62.0 180.6,34.9 195.2,52.8 209.7,66.9 224.7,88.3 240.3,136.4 254.8,160.0 269.9,183.0 285.5,200.0 300.0,200.0"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>viola pp · after · 100 Hz: -71.5 dB</title></circle>
+<circle cx="14.5" cy="193.1" r="6" fill="transparent"><title>viola pp · after · 125 Hz: -43.4 dB</title></circle>
+<circle cx="30.6" cy="155.4" r="6" fill="transparent"><title>viola pp · after · 160 Hz: -35.0 dB</title></circle>
+<circle cx="45.2" cy="93.6" r="6" fill="transparent"><title>viola pp · after · 200 Hz: -21.1 dB</title></circle>
+<circle cx="59.7" cy="66.2" r="6" fill="transparent"><title>viola pp · after · 250 Hz: -14.9 dB</title></circle>
+<circle cx="74.7" cy="39.7" r="6" fill="transparent"><title>viola pp · after · 315 Hz: -8.9 dB</title></circle>
+<circle cx="90.3" cy="60.4" r="6" fill="transparent"><title>viola pp · after · 400 Hz: -13.6 dB</title></circle>
+<circle cx="104.8" cy="45.8" r="6" fill="transparent"><title>viola pp · after · 500 Hz: -10.3 dB</title></circle>
+<circle cx="119.9" cy="24.4" r="6" fill="transparent"><title>viola pp · after · 630 Hz: -5.5 dB</title></circle>
+<circle cx="135.5" cy="65.1" r="6" fill="transparent"><title>viola pp · after · 800 Hz: -14.6 dB</title></circle>
+<circle cx="150.0" cy="52.4" r="6" fill="transparent"><title>viola pp · after · 1000 Hz: -11.8 dB</title></circle>
+<circle cx="164.5" cy="62.0" r="6" fill="transparent"><title>viola pp · after · 1250 Hz: -13.9 dB</title></circle>
+<circle cx="180.6" cy="34.9" r="6" fill="transparent"><title>viola pp · after · 1600 Hz: -7.9 dB</title></circle>
+<circle cx="195.2" cy="52.8" r="6" fill="transparent"><title>viola pp · after · 2000 Hz: -11.9 dB</title></circle>
+<circle cx="209.7" cy="66.9" r="6" fill="transparent"><title>viola pp · after · 2500 Hz: -15.1 dB</title></circle>
+<circle cx="224.7" cy="88.3" r="6" fill="transparent"><title>viola pp · after · 3150 Hz: -19.9 dB</title></circle>
+<circle cx="240.3" cy="136.4" r="6" fill="transparent"><title>viola pp · after · 4000 Hz: -30.7 dB</title></circle>
+<circle cx="254.8" cy="160.0" r="6" fill="transparent"><title>viola pp · after · 5000 Hz: -36.0 dB</title></circle>
+<circle cx="269.9" cy="183.0" r="6" fill="transparent"><title>viola pp · after · 6300 Hz: -41.2 dB</title></circle>
+<circle cx="285.5" cy="200.0" r="6" fill="transparent"><title>viola pp · after · 8000 Hz: -47.6 dB</title></circle>
+<circle cx="300.0" cy="200.0" r="6" fill="transparent"><title>viola pp · after · 10000 Hz: -54.6 dB</title></circle>
+</g>
+<g transform="translate(404,390)">
+<line x1="0" x2="300" y1="0.0" y2="0.0" stroke="#e4e3de" stroke-width="1"/>
+<line x1="0" x2="300" y1="66.7" y2="66.7" stroke="#e4e3de" stroke-width="1"/>
+<line x1="0" x2="300" y1="133.3" y2="133.3" stroke="#e4e3de" stroke-width="1"/>
+<line x1="0" x2="300" y1="200.0" y2="200.0" stroke="#e4e3de" stroke-width="1"/>
+<text x="0.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">100</text>
+<text x="71.6" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">300</text>
+<text x="150.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">1k</text>
+<text x="221.6" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">3k</text>
+<text x="300.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">10k</text>
+<text x="0" y="-10" font-size="13" font-weight="600" fill="#2b2b29">Viola mf</text>
+<text x="300" y="-10" font-size="11.5" fill="#6b6a64" text-anchor="end">RMS error 7.9 → 4.0 dB</text>
+<polyline fill="none" stroke="#2b2b29" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,200.0 30.6,163.8 45.2,104.3 59.7,87.1 74.7,56.9 90.3,44.5 104.8,51.0 119.9,62.7 135.5,49.2 150.0,42.1 164.5,44.4 180.6,41.4 195.2,26.0 209.7,66.5 224.7,75.7 240.3,132.2 254.8,155.6 269.9,186.0 285.5,200.0 300.0,200.0"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>viola mf · recording · 100 Hz: -68.1 dB</title></circle>
+<circle cx="14.5" cy="200.0" r="6" fill="transparent"><title>viola mf · recording · 125 Hz: -51.5 dB</title></circle>
+<circle cx="30.6" cy="163.8" r="6" fill="transparent"><title>viola mf · recording · 160 Hz: -36.9 dB</title></circle>
+<circle cx="45.2" cy="104.3" r="6" fill="transparent"><title>viola mf · recording · 200 Hz: -23.5 dB</title></circle>
+<circle cx="59.7" cy="87.1" r="6" fill="transparent"><title>viola mf · recording · 250 Hz: -19.6 dB</title></circle>
+<circle cx="74.7" cy="56.9" r="6" fill="transparent"><title>viola mf · recording · 315 Hz: -12.8 dB</title></circle>
+<circle cx="90.3" cy="44.5" r="6" fill="transparent"><title>viola mf · recording · 400 Hz: -10.0 dB</title></circle>
+<circle cx="104.8" cy="51.0" r="6" fill="transparent"><title>viola mf · recording · 500 Hz: -11.5 dB</title></circle>
+<circle cx="119.9" cy="62.7" r="6" fill="transparent"><title>viola mf · recording · 630 Hz: -14.1 dB</title></circle>
+<circle cx="135.5" cy="49.2" r="6" fill="transparent"><title>viola mf · recording · 800 Hz: -11.1 dB</title></circle>
+<circle cx="150.0" cy="42.1" r="6" fill="transparent"><title>viola mf · recording · 1000 Hz: -9.5 dB</title></circle>
+<circle cx="164.5" cy="44.4" r="6" fill="transparent"><title>viola mf · recording · 1250 Hz: -10.0 dB</title></circle>
+<circle cx="180.6" cy="41.4" r="6" fill="transparent"><title>viola mf · recording · 1600 Hz: -9.3 dB</title></circle>
+<circle cx="195.2" cy="26.0" r="6" fill="transparent"><title>viola mf · recording · 2000 Hz: -5.8 dB</title></circle>
+<circle cx="209.7" cy="66.5" r="6" fill="transparent"><title>viola mf · recording · 2500 Hz: -15.0 dB</title></circle>
+<circle cx="224.7" cy="75.7" r="6" fill="transparent"><title>viola mf · recording · 3150 Hz: -17.0 dB</title></circle>
+<circle cx="240.3" cy="132.2" r="6" fill="transparent"><title>viola mf · recording · 4000 Hz: -29.8 dB</title></circle>
+<circle cx="254.8" cy="155.6" r="6" fill="transparent"><title>viola mf · recording · 5000 Hz: -35.0 dB</title></circle>
+<circle cx="269.9" cy="186.0" r="6" fill="transparent"><title>viola mf · recording · 6300 Hz: -41.8 dB</title></circle>
+<circle cx="285.5" cy="200.0" r="6" fill="transparent"><title>viola mf · recording · 8000 Hz: -51.1 dB</title></circle>
+<circle cx="300.0" cy="200.0" r="6" fill="transparent"><title>viola mf · recording · 10000 Hz: -58.6 dB</title></circle>
+<polyline fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,163.3 30.6,126.8 45.2,105.5 59.7,90.0 74.7,85.2 90.3,43.4 104.8,20.4 119.9,29.2 135.5,75.4 150.0,56.0 164.5,63.4 180.6,46.0 195.2,52.9 209.7,73.2 224.7,100.4 240.3,122.8 254.8,196.1 269.9,200.0 285.5,200.0 300.0,200.0"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>viola mf · before · 100 Hz: -69.7 dB</title></circle>
+<circle cx="14.5" cy="163.3" r="6" fill="transparent"><title>viola mf · before · 125 Hz: -36.8 dB</title></circle>
+<circle cx="30.6" cy="126.8" r="6" fill="transparent"><title>viola mf · before · 160 Hz: -28.5 dB</title></circle>
+<circle cx="45.2" cy="105.5" r="6" fill="transparent"><title>viola mf · before · 200 Hz: -23.7 dB</title></circle>
+<circle cx="59.7" cy="90.0" r="6" fill="transparent"><title>viola mf · before · 250 Hz: -20.2 dB</title></circle>
+<circle cx="74.7" cy="85.2" r="6" fill="transparent"><title>viola mf · before · 315 Hz: -19.2 dB</title></circle>
+<circle cx="90.3" cy="43.4" r="6" fill="transparent"><title>viola mf · before · 400 Hz: -9.8 dB</title></circle>
+<circle cx="104.8" cy="20.4" r="6" fill="transparent"><title>viola mf · before · 500 Hz: -4.6 dB</title></circle>
+<circle cx="119.9" cy="29.2" r="6" fill="transparent"><title>viola mf · before · 630 Hz: -6.6 dB</title></circle>
+<circle cx="135.5" cy="75.4" r="6" fill="transparent"><title>viola mf · before · 800 Hz: -17.0 dB</title></circle>
+<circle cx="150.0" cy="56.0" r="6" fill="transparent"><title>viola mf · before · 1000 Hz: -12.6 dB</title></circle>
+<circle cx="164.5" cy="63.4" r="6" fill="transparent"><title>viola mf · before · 1250 Hz: -14.3 dB</title></circle>
+<circle cx="180.6" cy="46.0" r="6" fill="transparent"><title>viola mf · before · 1600 Hz: -10.4 dB</title></circle>
+<circle cx="195.2" cy="52.9" r="6" fill="transparent"><title>viola mf · before · 2000 Hz: -11.9 dB</title></circle>
+<circle cx="209.7" cy="73.2" r="6" fill="transparent"><title>viola mf · before · 2500 Hz: -16.5 dB</title></circle>
+<circle cx="224.7" cy="100.4" r="6" fill="transparent"><title>viola mf · before · 3150 Hz: -22.6 dB</title></circle>
+<circle cx="240.3" cy="122.8" r="6" fill="transparent"><title>viola mf · before · 4000 Hz: -27.6 dB</title></circle>
+<circle cx="254.8" cy="196.1" r="6" fill="transparent"><title>viola mf · before · 5000 Hz: -44.1 dB</title></circle>
+<circle cx="269.9" cy="200.0" r="6" fill="transparent"><title>viola mf · before · 6300 Hz: -67.0 dB</title></circle>
+<circle cx="285.5" cy="200.0" r="6" fill="transparent"><title>viola mf · before · 8000 Hz: -75.7 dB</title></circle>
+<circle cx="300.0" cy="200.0" r="6" fill="transparent"><title>viola mf · before · 10000 Hz: -75.3 dB</title></circle>
+<polyline fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,193.0 30.6,148.1 45.2,84.1 59.7,56.7 74.7,34.5 90.3,55.3 104.8,44.2 119.9,29.3 135.5,55.5 150.0,48.9 164.5,61.4 180.6,42.0 195.2,54.9 209.7,66.5 224.7,100.6 240.3,121.7 254.8,145.0 269.9,180.4 285.5,200.0 300.0,200.0"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>viola mf · after · 100 Hz: -72.1 dB</title></circle>
+<circle cx="14.5" cy="193.0" r="6" fill="transparent"><title>viola mf · after · 125 Hz: -43.4 dB</title></circle>
+<circle cx="30.6" cy="148.1" r="6" fill="transparent"><title>viola mf · after · 160 Hz: -33.3 dB</title></circle>
+<circle cx="45.2" cy="84.1" r="6" fill="transparent"><title>viola mf · after · 200 Hz: -18.9 dB</title></circle>
+<circle cx="59.7" cy="56.7" r="6" fill="transparent"><title>viola mf · after · 250 Hz: -12.8 dB</title></circle>
+<circle cx="74.7" cy="34.5" r="6" fill="transparent"><title>viola mf · after · 315 Hz: -7.8 dB</title></circle>
+<circle cx="90.3" cy="55.3" r="6" fill="transparent"><title>viola mf · after · 400 Hz: -12.4 dB</title></circle>
+<circle cx="104.8" cy="44.2" r="6" fill="transparent"><title>viola mf · after · 500 Hz: -9.9 dB</title></circle>
+<circle cx="119.9" cy="29.3" r="6" fill="transparent"><title>viola mf · after · 630 Hz: -6.6 dB</title></circle>
+<circle cx="135.5" cy="55.5" r="6" fill="transparent"><title>viola mf · after · 800 Hz: -12.5 dB</title></circle>
+<circle cx="150.0" cy="48.9" r="6" fill="transparent"><title>viola mf · after · 1000 Hz: -11.0 dB</title></circle>
+<circle cx="164.5" cy="61.4" r="6" fill="transparent"><title>viola mf · after · 1250 Hz: -13.8 dB</title></circle>
+<circle cx="180.6" cy="42.0" r="6" fill="transparent"><title>viola mf · after · 1600 Hz: -9.4 dB</title></circle>
+<circle cx="195.2" cy="54.9" r="6" fill="transparent"><title>viola mf · after · 2000 Hz: -12.4 dB</title></circle>
+<circle cx="209.7" cy="66.5" r="6" fill="transparent"><title>viola mf · after · 2500 Hz: -15.0 dB</title></circle>
+<circle cx="224.7" cy="100.6" r="6" fill="transparent"><title>viola mf · after · 3150 Hz: -22.6 dB</title></circle>
+<circle cx="240.3" cy="121.7" r="6" fill="transparent"><title>viola mf · after · 4000 Hz: -27.4 dB</title></circle>
+<circle cx="254.8" cy="145.0" r="6" fill="transparent"><title>viola mf · after · 5000 Hz: -32.6 dB</title></circle>
+<circle cx="269.9" cy="180.4" r="6" fill="transparent"><title>viola mf · after · 6300 Hz: -40.6 dB</title></circle>
+<circle cx="285.5" cy="200.0" r="6" fill="transparent"><title>viola mf · after · 8000 Hz: -46.5 dB</title></circle>
+<circle cx="300.0" cy="200.0" r="6" fill="transparent"><title>viola mf · after · 10000 Hz: -51.6 dB</title></circle>
+</g>
+<g transform="translate(744,390)">
+<line x1="0" x2="300" y1="0.0" y2="0.0" stroke="#e4e3de" stroke-width="1"/>
+<line x1="0" x2="300" y1="66.7" y2="66.7" stroke="#e4e3de" stroke-width="1"/>
+<line x1="0" x2="300" y1="133.3" y2="133.3" stroke="#e4e3de" stroke-width="1"/>
+<line x1="0" x2="300" y1="200.0" y2="200.0" stroke="#e4e3de" stroke-width="1"/>
+<text x="0.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">100</text>
+<text x="71.6" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">300</text>
+<text x="150.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">1k</text>
+<text x="221.6" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">3k</text>
+<text x="300.0" y="216" font-size="11" fill="#6b6a64" text-anchor="middle">10k</text>
+<text x="0" y="-10" font-size="13" font-weight="600" fill="#2b2b29">Viola ff</text>
+<text x="300" y="-10" font-size="11.5" fill="#6b6a64" text-anchor="end">RMS error 10.8 → 3.9 dB</text>
+<polyline fill="none" stroke="#2b2b29" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,200.0 30.6,159.2 45.2,94.8 59.7,84.1 74.7,52.3 90.3,41.3 104.8,51.9 119.9,67.5 135.5,46.8 150.0,48.6 164.5,44.6 180.6,39.3 195.2,27.9 209.7,64.4 224.7,70.8 240.3,120.7 254.8,153.2 269.9,178.3 285.5,200.0 300.0,200.0"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>viola ff · recording · 100 Hz: -69.9 dB</title></circle>
+<circle cx="14.5" cy="200.0" r="6" fill="transparent"><title>viola ff · recording · 125 Hz: -51.6 dB</title></circle>
+<circle cx="30.6" cy="159.2" r="6" fill="transparent"><title>viola ff · recording · 160 Hz: -35.8 dB</title></circle>
+<circle cx="45.2" cy="94.8" r="6" fill="transparent"><title>viola ff · recording · 200 Hz: -21.3 dB</title></circle>
+<circle cx="59.7" cy="84.1" r="6" fill="transparent"><title>viola ff · recording · 250 Hz: -18.9 dB</title></circle>
+<circle cx="74.7" cy="52.3" r="6" fill="transparent"><title>viola ff · recording · 315 Hz: -11.8 dB</title></circle>
+<circle cx="90.3" cy="41.3" r="6" fill="transparent"><title>viola ff · recording · 400 Hz: -9.3 dB</title></circle>
+<circle cx="104.8" cy="51.9" r="6" fill="transparent"><title>viola ff · recording · 500 Hz: -11.7 dB</title></circle>
+<circle cx="119.9" cy="67.5" r="6" fill="transparent"><title>viola ff · recording · 630 Hz: -15.2 dB</title></circle>
+<circle cx="135.5" cy="46.8" r="6" fill="transparent"><title>viola ff · recording · 800 Hz: -10.5 dB</title></circle>
+<circle cx="150.0" cy="48.6" r="6" fill="transparent"><title>viola ff · recording · 1000 Hz: -10.9 dB</title></circle>
+<circle cx="164.5" cy="44.6" r="6" fill="transparent"><title>viola ff · recording · 1250 Hz: -10.0 dB</title></circle>
+<circle cx="180.6" cy="39.3" r="6" fill="transparent"><title>viola ff · recording · 1600 Hz: -8.9 dB</title></circle>
+<circle cx="195.2" cy="27.9" r="6" fill="transparent"><title>viola ff · recording · 2000 Hz: -6.3 dB</title></circle>
+<circle cx="209.7" cy="64.4" r="6" fill="transparent"><title>viola ff · recording · 2500 Hz: -14.5 dB</title></circle>
+<circle cx="224.7" cy="70.8" r="6" fill="transparent"><title>viola ff · recording · 3150 Hz: -15.9 dB</title></circle>
+<circle cx="240.3" cy="120.7" r="6" fill="transparent"><title>viola ff · recording · 4000 Hz: -27.2 dB</title></circle>
+<circle cx="254.8" cy="153.2" r="6" fill="transparent"><title>viola ff · recording · 5000 Hz: -34.5 dB</title></circle>
+<circle cx="269.9" cy="178.3" r="6" fill="transparent"><title>viola ff · recording · 6300 Hz: -40.1 dB</title></circle>
+<circle cx="285.5" cy="200.0" r="6" fill="transparent"><title>viola ff · recording · 8000 Hz: -47.6 dB</title></circle>
+<circle cx="300.0" cy="200.0" r="6" fill="transparent"><title>viola ff · recording · 10000 Hz: -57.4 dB</title></circle>
+<polyline fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,174.9 30.6,130.1 45.2,102.4 59.7,106.2 74.7,89.3 90.3,52.7 104.8,24.5 119.9,27.8 135.5,71.7 150.0,51.8 164.5,53.6 180.6,35.9 195.2,54.1 209.7,75.9 224.7,100.7 240.3,126.0 254.8,200.0 269.9,200.0 285.5,200.0 300.0,200.0"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>viola ff · before · 100 Hz: -66.6 dB</title></circle>
+<circle cx="14.5" cy="174.9" r="6" fill="transparent"><title>viola ff · before · 125 Hz: -39.3 dB</title></circle>
+<circle cx="30.6" cy="130.1" r="6" fill="transparent"><title>viola ff · before · 160 Hz: -29.3 dB</title></circle>
+<circle cx="45.2" cy="102.4" r="6" fill="transparent"><title>viola ff · before · 200 Hz: -23.0 dB</title></circle>
+<circle cx="59.7" cy="106.2" r="6" fill="transparent"><title>viola ff · before · 250 Hz: -23.9 dB</title></circle>
+<circle cx="74.7" cy="89.3" r="6" fill="transparent"><title>viola ff · before · 315 Hz: -20.1 dB</title></circle>
+<circle cx="90.3" cy="52.7" r="6" fill="transparent"><title>viola ff · before · 400 Hz: -11.9 dB</title></circle>
+<circle cx="104.8" cy="24.5" r="6" fill="transparent"><title>viola ff · before · 500 Hz: -5.5 dB</title></circle>
+<circle cx="119.9" cy="27.8" r="6" fill="transparent"><title>viola ff · before · 630 Hz: -6.3 dB</title></circle>
+<circle cx="135.5" cy="71.7" r="6" fill="transparent"><title>viola ff · before · 800 Hz: -16.1 dB</title></circle>
+<circle cx="150.0" cy="51.8" r="6" fill="transparent"><title>viola ff · before · 1000 Hz: -11.7 dB</title></circle>
+<circle cx="164.5" cy="53.6" r="6" fill="transparent"><title>viola ff · before · 1250 Hz: -12.1 dB</title></circle>
+<circle cx="180.6" cy="35.9" r="6" fill="transparent"><title>viola ff · before · 1600 Hz: -8.1 dB</title></circle>
+<circle cx="195.2" cy="54.1" r="6" fill="transparent"><title>viola ff · before · 2000 Hz: -12.2 dB</title></circle>
+<circle cx="209.7" cy="75.9" r="6" fill="transparent"><title>viola ff · before · 2500 Hz: -17.1 dB</title></circle>
+<circle cx="224.7" cy="100.7" r="6" fill="transparent"><title>viola ff · before · 3150 Hz: -22.7 dB</title></circle>
+<circle cx="240.3" cy="126.0" r="6" fill="transparent"><title>viola ff · before · 4000 Hz: -28.3 dB</title></circle>
+<circle cx="254.8" cy="200.0" r="6" fill="transparent"><title>viola ff · before · 5000 Hz: -46.7 dB</title></circle>
+<circle cx="269.9" cy="200.0" r="6" fill="transparent"><title>viola ff · before · 6300 Hz: -67.1 dB</title></circle>
+<circle cx="285.5" cy="200.0" r="6" fill="transparent"><title>viola ff · before · 8000 Hz: -76.3 dB</title></circle>
+<circle cx="300.0" cy="200.0" r="6" fill="transparent"><title>viola ff · before · 10000 Hz: -75.7 dB</title></circle>
+<polyline fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0.0,200.0 14.5,198.9 30.6,148.3 45.2,85.8 59.7,60.6 74.7,31.6 90.3,59.3 104.8,38.7 119.9,31.6 135.5,56.4 150.0,52.7 164.5,59.2 180.6,43.8 195.2,50.2 209.7,75.7 224.7,93.0 240.3,121.8 254.8,140.0 269.9,170.7 285.5,182.6 300.0,200.0"/>
+<circle cx="0.0" cy="200.0" r="6" fill="transparent"><title>viola ff · after · 100 Hz: -72.0 dB</title></circle>
+<circle cx="14.5" cy="198.9" r="6" fill="transparent"><title>viola ff · after · 125 Hz: -44.8 dB</title></circle>
+<circle cx="30.6" cy="148.3" r="6" fill="transparent"><title>viola ff · after · 160 Hz: -33.4 dB</title></circle>
+<circle cx="45.2" cy="85.8" r="6" fill="transparent"><title>viola ff · after · 200 Hz: -19.3 dB</title></circle>
+<circle cx="59.7" cy="60.6" r="6" fill="transparent"><title>viola ff · after · 250 Hz: -13.6 dB</title></circle>
+<circle cx="74.7" cy="31.6" r="6" fill="transparent"><title>viola ff · after · 315 Hz: -7.1 dB</title></circle>
+<circle cx="90.3" cy="59.3" r="6" fill="transparent"><title>viola ff · after · 400 Hz: -13.3 dB</title></circle>
+<circle cx="104.8" cy="38.7" r="6" fill="transparent"><title>viola ff · after · 500 Hz: -8.7 dB</title></circle>
+<circle cx="119.9" cy="31.6" r="6" fill="transparent"><title>viola ff · after · 630 Hz: -7.1 dB</title></circle>
+<circle cx="135.5" cy="56.4" r="6" fill="transparent"><title>viola ff · after · 800 Hz: -12.7 dB</title></circle>
+<circle cx="150.0" cy="52.7" r="6" fill="transparent"><title>viola ff · after · 1000 Hz: -11.9 dB</title></circle>
+<circle cx="164.5" cy="59.2" r="6" fill="transparent"><title>viola ff · after · 1250 Hz: -13.3 dB</title></circle>
+<circle cx="180.6" cy="43.8" r="6" fill="transparent"><title>viola ff · after · 1600 Hz: -9.8 dB</title></circle>
+<circle cx="195.2" cy="50.2" r="6" fill="transparent"><title>viola ff · after · 2000 Hz: -11.3 dB</title></circle>
+<circle cx="209.7" cy="75.7" r="6" fill="transparent"><title>viola ff · after · 2500 Hz: -17.0 dB</title></circle>
+<circle cx="224.7" cy="93.0" r="6" fill="transparent"><title>viola ff · after · 3150 Hz: -20.9 dB</title></circle>
+<circle cx="240.3" cy="121.8" r="6" fill="transparent"><title>viola ff · after · 4000 Hz: -27.4 dB</title></circle>
+<circle cx="254.8" cy="140.0" r="6" fill="transparent"><title>viola ff · after · 5000 Hz: -31.5 dB</title></circle>
+<circle cx="269.9" cy="170.7" r="6" fill="transparent"><title>viola ff · after · 6300 Hz: -38.4 dB</title></circle>
+<circle cx="285.5" cy="182.6" r="6" fill="transparent"><title>viola ff · after · 8000 Hz: -41.1 dB</title></circle>
+<circle cx="300.0" cy="200.0" r="6" fill="transparent"><title>viola ff · after · 10000 Hz: -45.1 dB</title></circle>
+</g>
+<text x="64" y="642" font-size="11" fill="#6b6a64">Frequency (Hz), third-octave bands. Notes: violin 79, viola 76 (pp/mf/ff runs, both halves). Hover a point for its value.</text>
+</svg>

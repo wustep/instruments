@@ -1,0 +1,258 @@
+{
+ "pieces": [
+  {
+   "name": "violin-dynamics",
+   "what": "59, 71, 81 each at pp, mf, ff (velocity 30, 70, 112), 1.5 s, vibrato"
+  },
+  {
+   "name": "viola-dynamics",
+   "what": "52, 64, 72 each at pp, mf, ff (velocity 30, 70, 112), 1.5 s, vibrato"
+  },
+  {
+   "name": "violin-phrase",
+   "what": "an original legato line from G4, crescendo to ff and back"
+  },
+  {
+   "name": "viola-phrase",
+   "what": "the same line from C4"
+  },
+  {
+   "name": "violin-pressure",
+   "what": "71 held at mf while the mod wheel presses the bow from light to hard and back (5 s)"
+  },
+  {
+   "name": "viola-pressure",
+   "what": "64 held at mf while the mod wheel presses the bow from light to hard and back (5 s)"
+  }
+ ],
+ "metrics": {
+  "before": {
+   "violin-dynamics": [
+    {
+     "midi": 59,
+     "velocity": 30,
+     "centroidHz": 1342,
+     "rmsDb": -36.3
+    },
+    {
+     "midi": 59,
+     "velocity": 70,
+     "centroidHz": 781,
+     "rmsDb": -27.4
+    },
+    {
+     "midi": 59,
+     "velocity": 112,
+     "centroidHz": 724,
+     "rmsDb": -16
+    },
+    {
+     "midi": 71,
+     "velocity": 30,
+     "centroidHz": 666,
+     "rmsDb": -38.3
+    },
+    {
+     "midi": 71,
+     "velocity": 70,
+     "centroidHz": 620,
+     "rmsDb": -29.7
+    },
+    {
+     "midi": 71,
+     "velocity": 112,
+     "centroidHz": 608,
+     "rmsDb": -20.2
+    },
+    {
+     "midi": 81,
+     "velocity": 30,
+     "centroidHz": 1003,
+     "rmsDb": -36.5
+    },
+    {
+     "midi": 81,
+     "velocity": 70,
+     "centroidHz": 1002,
+     "rmsDb": -30
+    },
+    {
+     "midi": 81,
+     "velocity": 112,
+     "centroidHz": 997,
+     "rmsDb": -18.2
+    }
+   ],
+   "viola-dynamics": [
+    {
+     "midi": 52,
+     "velocity": 30,
+     "centroidHz": 943,
+     "rmsDb": -31.5
+    },
+    {
+     "midi": 52,
+     "velocity": 70,
+     "centroidHz": 946,
+     "rmsDb": -28.2
+    },
+    {
+     "midi": 52,
+     "velocity": 112,
+     "centroidHz": 998,
+     "rmsDb": -22.5
+    },
+    {
+     "midi": 64,
+     "velocity": 30,
+     "centroidHz": 1377,
+     "rmsDb": -35.3
+    },
+    {
+     "midi": 64,
+     "velocity": 70,
+     "centroidHz": 679,
+     "rmsDb": -29.5
+    },
+    {
+     "midi": 64,
+     "velocity": 112,
+     "centroidHz": 668,
+     "rmsDb": -23.6
+    },
+    {
+     "midi": 72,
+     "velocity": 30,
+     "centroidHz": 1465,
+     "rmsDb": -43.6
+    },
+    {
+     "midi": 72,
+     "velocity": 70,
+     "centroidHz": 802,
+     "rmsDb": -31.3
+    },
+    {
+     "midi": 72,
+     "velocity": 112,
+     "centroidHz": 639,
+     "rmsDb": -25.5
+    }
+   ]
+  },
+  "after": {
+   "violin-dynamics": [
+    {
+     "midi": 59,
+     "velocity": 30,
+     "centroidHz": 1648,
+     "rmsDb": -42.5
+    },
+    {
+     "midi": 59,
+     "velocity": 70,
+     "centroidHz": 1709,
+     "rmsDb": -29.8
+    },
+    {
+     "midi": 59,
+     "velocity": 112,
+     "centroidHz": 1862,
+     "rmsDb": -20.3
+    },
+    {
+     "midi": 71,
+     "velocity": 30,
+     "centroidHz": 1883,
+     "rmsDb": -45.7
+    },
+    {
+     "midi": 71,
+     "velocity": 70,
+     "centroidHz": 943,
+     "rmsDb": -33.1
+    },
+    {
+     "midi": 71,
+     "velocity": 112,
+     "centroidHz": 1368,
+     "rmsDb": -23.8
+    },
+    {
+     "midi": 81,
+     "velocity": 30,
+     "centroidHz": 970,
+     "rmsDb": -32.9
+    },
+    {
+     "midi": 81,
+     "velocity": 70,
+     "centroidHz": 1076,
+     "rmsDb": -26.7
+    },
+    {
+     "midi": 81,
+     "velocity": 112,
+     "centroidHz": 1250,
+     "rmsDb": -17.5
+    }
+   ],
+   "viola-dynamics": [
+    {
+     "midi": 52,
+     "velocity": 30,
+     "centroidHz": 988,
+     "rmsDb": -35.6
+    },
+    {
+     "midi": 52,
+     "velocity": 70,
+     "centroidHz": 563,
+     "rmsDb": -24.4
+    },
+    {
+     "midi": 52,
+     "velocity": 112,
+     "centroidHz": 603,
+     "rmsDb": -14.9
+    },
+    {
+     "midi": 64,
+     "velocity": 30,
+     "centroidHz": 751,
+     "rmsDb": -34.1
+    },
+    {
+     "midi": 64,
+     "velocity": 70,
+     "centroidHz": 688,
+     "rmsDb": -27.8
+    },
+    {
+     "midi": 64,
+     "velocity": 112,
+     "centroidHz": 677,
+     "rmsDb": -19.1
+    },
+    {
+     "midi": 72,
+     "velocity": 30,
+     "centroidHz": 1512,
+     "rmsDb": -40.8
+    },
+    {
+     "midi": 72,
+     "velocity": 70,
+     "centroidHz": 1357,
+     "rmsDb": -30.8
+    },
+    {
+     "midi": 72,
+     "velocity": 112,
+     "centroidHz": 1421,
+     "rmsDb": -23.7
+    }
+   ]
+  }
+ }
+}

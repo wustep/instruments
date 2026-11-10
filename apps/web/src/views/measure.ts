@@ -531,7 +531,7 @@ function shortfalls(): HTMLElement {
         {},
         h('li', {}, h('strong', {}, 'Bass aftersound: '), '×0.8 of the recording’s (the string-loss filter caps it).'),
         h('li', {}, h('strong', {}, 'Flute low register: '), 'second harmonic ~10 dB short at mf/ff.'),
-        h('li', {}, h('strong', {}, 'String bodies: '), 'modal sketches; radiation fitted, not measured.'),
+        h('li', {}, h('strong', {}, 'String bodies: '), 'modes from the literature; violin and viola radiation fitted note by note to the recordings, the cello’s by its spectrum.'),
         h('li', {}, h('strong', {}, 'Soundboard: '), '~150 plausible modes, not a measured board.'),
         h('li', {}, h('strong', {}, 'Action noises: '), 'short synthetic pulses; no key travel.'),
         h('li', {}, h('strong', {}, 'Room and lid: '), 'a modelled hall and a shelf, not the instrument.'),

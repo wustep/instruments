@@ -1,0 +1,152 @@
+{
+ "violin": {
+  "notes": 78,
+  "harmRmsDb": 11.67,
+  "ltasRmsDb": 14.04,
+  "ltasRmsDbByDyn": {
+   "pp": 9.28,
+   "mf": 10.66,
+   "ff": 14.88
+  },
+  "centroidRatio": 0.76,
+  "centroidRatioByDyn": {
+   "pp": 1.18,
+   "mf": 0.82,
+   "ff": 0.61
+  },
+  "evenOddErrDb": -1.1,
+  "evenOddErrByRegister": [
+   1.67,
+   -1.07,
+   -5.14
+  ],
+  "evenOddRef": [
+   -0.57,
+   -2.19,
+   -3.12
+  ],
+  "evenOddModel": [
+   0.67,
+   -2.7,
+   -8.59
+  ],
+  "registerCuts": [
+   65,
+   74
+  ],
+  "hnrDiffDb": 0.33,
+  "attackRatio": 0.27,
+  "dynSpreadDb": {
+   "ref": 19.14,
+   "model": 17.35
+  },
+  "vibrato": {
+   "refRate": 5.7,
+   "refDepth": 6.61,
+   "modelRate": 5.55,
+   "modelDepth": 13.59,
+   "refShare": 0.22
+  },
+  "pitchCentsRms": 2.41
+ },
+ "viola": {
+  "notes": 77,
+  "harmRmsDb": 10.98,
+  "ltasRmsDb": 10.52,
+  "ltasRmsDbByDyn": {
+   "pp": 10.34,
+   "mf": 7.93,
+   "ff": 10.78
+  },
+  "centroidRatio": 0.85,
+  "centroidRatioByDyn": {
+   "pp": 1.18,
+   "mf": 0.85,
+   "ff": 0.78
+  },
+  "evenOddErrDb": -2.92,
+  "evenOddErrByRegister": [
+   -2.2,
+   2.1,
+   -7.08
+  ],
+  "evenOddRef": [
+   0.55,
+   -0.9,
+   -1.51
+  ],
+  "evenOddModel": [
+   -1.54,
+   1.08,
+   -10.43
+  ],
+  "registerCuts": [
+   56,
+   67
+  ],
+  "hnrDiffDb": -0.91,
+  "attackRatio": 0.52,
+  "dynSpreadDb": {
+   "ref": 9.86,
+   "model": 9.48
+  },
+  "vibrato": {
+   "refRate": 3.4,
+   "refDepth": 7.28,
+   "modelRate": 5.4,
+   "modelDepth": 10.54,
+   "refShare": 0.06
+  },
+  "pitchCentsRms": 1.7
+ },
+ "cello": {
+  "notes": 67,
+  "harmRmsDb": 11.15,
+  "ltasRmsDb": 4.2,
+  "ltasRmsDbByDyn": {
+   "pp": 4.02,
+   "mf": 4.26,
+   "ff": 4.27
+  },
+  "centroidRatio": 0.94,
+  "centroidRatioByDyn": {
+   "pp": 1.35,
+   "mf": 1.05,
+   "ff": 0.76
+  },
+  "evenOddErrDb": 2.65,
+  "evenOddErrByRegister": [
+   2.65,
+   4.58,
+   2.65
+  ],
+  "evenOddRef": [
+   -0.17,
+   -3.08,
+   -4.81
+  ],
+  "evenOddModel": [
+   1.6,
+   -1.09,
+   0.06
+  ],
+  "registerCuts": [
+   43,
+   56
+  ],
+  "hnrDiffDb": 0.18,
+  "attackRatio": 0.93,
+  "dynSpreadDb": {
+   "ref": 12.48,
+   "model": 14.25
+  },
+  "vibrato": {
+   "refRate": 5.4,
+   "refDepth": 16.81,
+   "modelRate": 5.25,
+   "modelDepth": 15.13,
+   "refShare": 0.81
+  },
+  "pitchCentsRms": 2.47
+ }
+}
