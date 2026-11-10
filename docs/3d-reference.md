@@ -210,11 +210,41 @@ measured in pixels at 6.69 px/mm) and checked against the measured instruments b
 | Fingerings modelled | the standard conservatoire fingerings B♭3–A6 (`apps/web/src/ui/oboe-fingering.ts`, shared with the 2D stage) | [WFG-oboe] |
 | Wood | grenadilla (African blackwood); student oboes resin | [Wikipedia-oboe] |
 
+## Clarinet (Boehm system, B♭)
+
+Modelled as Yamaha's YCL-CSG III (17 keys, 6 rings), laid out in pixels from Yamaha's own full-length
+photograph of it (`clarinet-yamaha-csg3-front.jpg`, 651 × 5786). Its 54 mm barrel (Yamaha's specification)
+is 470.5 px, so 8.71 px/mm; the whole is then 664 mm from the mouthpiece's tip to the bell, which is what
+Debut, Kergomard & Laloë measured on a Buffet Crampon from the reed's tip to the bell's end. The photograph is
+to scale both ways (its diameters at 8.71 px/mm agree with the joints' and the bell's).
+
+| part | value | source |
+|---|---|---|
+| Overall, assembled with the mouthpiece | 664 (the photograph); 664 reed tip to bell end (Buffet Crampon); "approx. 66 cm" | photograph, [Debut], [VSL-clarinet] |
+| Mouthpiece | 67.9 out of the barrel (89–90 overall: Buffet 89.3–89.9, Selmer 89.3–90.2, so a ≈ 21 mm tenon); Ø 13.5 two mm behind the tip, Ø 27 at its shank | photograph, [CP-mouthpieces] |
+| Lay | facing 21 (Yamaha Custom), tip opening 1.1 (Yamaha Custom 1.05–1.15; Vandoren B45 1.195); window 31–33.6 long | [Yamaha-mp], [Vandoren-B45], [CP-mouthpieces] |
+| Reed | 68 long, 13 wide at the tip, heel 2.9–3.0 thick; the vamp 34 at its heart (modelled) | [Thomann-reed] |
+| Ligature | 24.5 wide (photograph); two screws, their heads ≈ 7 off the mouthpiece. Modelled as the standard band with its two screws on the reed's side ([`clarinet-mouthpiece-side.jpg`]) | photograph |
+| Barrel | 54 (YCL-CSG III; R13 65–66); Ø 28.7 under its top ring swelling to 31.9 about 40 down, its rings 6.2 and 6.8 tall | [Yamaha-CSG], photograph |
+| Upper joint | 196 between the barrel and the lower joint's socket ring; Ø 30 under the barrel, then 28.5 | photograph (Buffet BC20: 190, NMM 05834) |
+| Lower joint | 234 with its socket ring (7.8 tall); Ø 28.7, flaring to 31.5 into the bell's ring | photograph (Buffet BC20: 235) |
+| Bell | 112 with its socket ring (7.2 tall, Ø 32.4); the rim Ø 73.6 outside, its mouth Ø 60 inside | photograph (Buffet BC20: 110.1), [Debut] |
+| Bore | 14.6–15.0 (R13 14.64 polycylindrical; Debut's Buffet 14.4–14.8) | [CP-bores], [Debut] |
+| Finger holes (mm from the tip) | L1 245, L2 278, L3 300 (no ring), R1 357, R2 382, R3 404 | photograph |
+| Keys modelled | the register key's vent at 149 on the back and its touch over the thumb ring (thumb hole 239); the A key's pad at 195 on its cross hinge (214) with the spatula below; the G♯ key's pad at 208 and its touch on the player's left; the side keys' vents at 165, 180, 204 and the side E♭/B♭ key's at 264, their touches stacked at 309–335 on the player's right; the ring pad between L1 and L2 (263); the E♭/B♭ sliver (287); the C♯/G♯ key (vent at 306, spatula across the front at 315); the bridge (lower pad at 340); the B/F♯ sliver (393); the left little finger's E/B, F♯/C♯ and F/C spatulas beside the joint (320–347), the right little finger's A♭/E♭, F/C, F♯/C♯, E/B spatulas across the front (418–440); the G♯/D♯ key (452); the F♯ (464), F (494) and E (533) pads on the low keys' line; the thumb rest at 362 | photograph, `clarinet-lower-joint-front-selmer10s.jpg`, `clarinet-upper-joint-front-and-back-selmer10s.jpg` |
+| Key travel (modelled) | rings 1.35 (they stand 1.5 off the wood); vents 1.6–2.0; the low pads 2.8–3.0 (at least a third of the tone hole: "≈ 2.5–3 for 7–9 mm holes") | [clarinets-keys]; per key **typical, unsourced** |
+| Fingerings modelled | the standard Boehm chart, written E3–C7 (`apps/web/src/ui/clarinet-fingering.ts`, shared with the 2D stage) | [WFG-clarinet] |
+| Wood, mouthpiece | grenadilla (the oboe's material); hard rubber (ebonite) | |
+
+The tone holes' bore positions (Debut's Table 3: 23 holes, register vent Ø 2.8 at 152.7 from the reed tip)
+were used to check the photograph's places, not to place the keys: the paper does not say which hole is which.
+
 ## Reference photos
 
 The photos are in `.cache/refs-3d/`, which is not committed. Full attributions are in `.cache/refs-3d/SOURCES.md`.
 The double bass's are in `.cache/refs-bass/` (`bass/` below), the oboe's in `.cache/refs-oboe/` (`oboe/` below,
-fetched from Wikimedia Commons' API, the 1920 px thumbnails), also not committed.
+fetched from Wikimedia Commons' API, the 1920 px thumbnails), the clarinet's in `.cache/refs-clarinet/`
+(`clarinet/` below, with its own `SOURCES.md`), also not committed.
 
 | file | license | shows |
 |---|---|---|
@@ -256,6 +286,15 @@ fetched from Wikimedia Commons' API, the 1920 px thumbnails), also not committed
 | `oboe/oboe-wlm-5641.jpg`, `oboe-wlm-5642.jpg` (`Wiki_loves_Music_-_Hamburg-5641/5642.jpg`) | CC BY-SA 4.0, Wuselig | a Yamaha oboe taken apart (bell, lower and top joints, reed), and its top joint from the back |
 | `oboe/oboe-keys-moennig.jpg` (`Keys_oboe+clarinet.jpg`) | CC BY-SA 4.0, Gebr. Mönnig + F. Arthur Uebel | oboe keywork, lying horizontal: plates, posts, rods |
 | `oboe/oboe-yamaha-bottom.jpg` (`Yamaha_bottom_joint.jpg`) | Public domain, Glio | a YOB-241's lower joint |
+| `clarinet/clarinet-yamaha-csg3-front.jpg` (`Yamaha_Clarinet_YCL-CSGIII.tif`) | CC BY-SA 4.0, Yamaha Corporation | YCL-CSG III, full length, front, white background (the TIFF converted to JPEG at its full 651 × 5786): the outline, the joints and every key's place were measured off it |
+| `clarinet/clarinet-mouthpiece-side.jpg` (`Clarinet002.jpg`) | CC BY-SA 3.0, Fewskulchor | a mouthpiece with its reed and a two-screw ligature, side view |
+| `clarinet/clarinet-upper-joint-front-and-back-selmer10s.jpg` (`Clarinette_Selmer_10S_corps_du_haut_(2x).jpg`) | CC BY-SA 4.0, Clarioio | Selmer 10S upper joint, front and back (register key, thumb ring) |
+| `clarinet/clarinet-lower-joint-front-selmer10s.jpg` (`Clarinette_10S_corps_du_bas.jpg`) | CC BY-SA 4.0, Clarioio | Selmer 10S lower joint, front: rings, both little fingers' keys |
+| `clarinet/clarinet-buffet-front-boehm-trio.jpg` (`Boehm_3.jpg`) | CC BY-SA 4.0, Buffet Crampon, Patricola, Wurlitzer; collage Gisbert König | three Boehm clarinets, front (left: Buffet Crampon) |
+| `clarinet/clarinet-lower-joint-back-thumb-rest.jpg` (`Clarinet_thumb_rest.jpg`) | CC BY-SA 4.0, Jud McCranie | the thumb rest on a Signet 100's lower joint |
+| `clarinet/clarinet-{upper-joint,lower-joint,bell}-with-tape-selmer-signet.jpg` | CC BY-SA 4.0, Jud McCranie | Signet 100 joints and bell beside a tape measure (L3 plain, L1 and L2 ringed) |
+| `clarinet/clarinet-five-pieces-labeled.jpg` (`Parts_of_clarinet_6.jpg`) | CC0, Gisbert König | a clarinet in its five pieces, labelled lengths |
+| `Clarinette_auriculaire_droit.jpg` (not saved; on Commons) | CC BY-SA 1.0, Clarioio | the right little finger's four spatulas and the long rods, close up |
 
 [HJ-vc]: https://www.hansjohannsson.com/resources/mescello.html
 [HJ-vn]: https://hansjohannsson.com/resources/mesvioli.html
@@ -309,3 +348,13 @@ fetched from Wikimedia Commons' API, the 1920 px thumbnails), also not committed
 [Bate-oboes]: https://www.bate.ox.ac.uk/files/oboespdf
 [Wikipedia-oboe]: https://en.wikipedia.org/wiki/Oboe
 [WFG-oboe]: https://www.wfg.woodwind.org/oboe/ob_bas_1.html
+[Debut]: https://arxiv.org/pdf/physics/0309051
+[VSL-clarinet]: https://www.vsl.co.at/academy/woodwinds/clarinet
+[CP-mouthpieces]: https://web.archive.org/web/2025/https://www.woodwindforum.com/clarinetperfection/?p=353
+[CP-bores]: https://web.archive.org/web/2025/https://www.woodwindforum.com/clarinetperfection/?p=492
+[Yamaha-mp]: https://usa.yamaha.com/products/musical_instruments/winds/mouthpieces/clarinets/custom_standard.html
+[Yamaha-CSG]: https://usa.yamaha.com/products/musical_instruments/winds/clarinets/ycl-csgiii/specs.html
+[Vandoren-B45]: https://vandoren.fr/en/?p=6243
+[Thomann-reed]: https://www.thomann.co.uk/pilgerstorfer_morr_french_cut_bb_clar_4.0.htm
+[clarinets-keys]: https://www.the-clarinets.net/clarinet-keys.html
+[WFG-clarinet]: https://www.wfg.woodwind.org/clarinet/cl_fing.html
