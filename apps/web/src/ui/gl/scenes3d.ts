@@ -162,9 +162,9 @@ function caseParts(pm: PianoModel): PianoModel {
 }
 
 /** The room's light pool round an instrument of radius `r` (its bounds): its radius for the room
- *  parameter (0 … 1, the reverberation time 0.7 … 2.4 s), and back. A pool 0.75 r across in the
- *  driest room (the instrument just inside it), 1.5 r in the largest; the default rooms (0.14 … 0.25)
- *  about where the floor's glow fell before it was a handle. */
+ *  parameter (0 … 1, the reverberation time 0.7 … 2.4 s), and back. A radius of 0.75 r in the driest
+ *  room, 1.5 r in the largest; in the default rooms (0.14 … 0.25) it lights the floor about as far as
+ *  the floor's glow reached before it was a handle. */
 export const poolRadius = (r: number, room: number): number => r * (0.75 + 0.75 * Math.min(1, Math.max(0, room)));
 export const poolRoom = (r: number, R: number): number => Math.min(1, Math.max(0, (R / r - 0.75) / 0.75));
 /** the floor under the instrument (the renderer draws it: shadowed, fading into the ground), and the
@@ -181,7 +181,7 @@ function floor(b: Batch, st: Scene3State, _key: string, c: Vec3, r: number, si: 
   st.poolLevel += (lvl - st.poolLevel) * (1 - Math.exp(-si.dt / (lvl > st.poolLevel ? 0.03 : 0.12)));
   const R = poolRadius(r, si.room);
   // the floor is whole inside the pool and fades into the ground past it
-  b.floor = { y: 0, c: [c[0], 0, c[2]], r0: R * 0.92, r1: R + 0.6 * r, pool: { R, soft: Math.max(0.02, R * 0.07), lift: 0.22 * st.poolLevel } };
+  b.floor = { y: 0, c: [c[0], 0, c[2]], r0: R * 0.92, r1: R + 0.6 * r, pool: { R, soft: Math.max(0.02, R * 0.09), lift: 0.22 * st.poolLevel } };
 }
 
 /** build this frame's scene */

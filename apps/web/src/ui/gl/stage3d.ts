@@ -5,13 +5,11 @@
 // action, a section cutting away the keys in front of it (`zoomTo`, `zoomOut`; the stage wires them).
 // Where WebGL2 is missing the toggle never appears and the 2D stage carries on (`webgl2.ts`).
 import { Batch, project, type Mat4, type Mesh, type Vec3 } from './gl3d.ts';
-import { buildScene, newScene3State, viewFor, type SceneIn, type View3 } from './scenes3d.ts';
-import type { Mesh as MeshT } from './gl3d.ts';
+import { buildScene, newScene3State, poolRoom, viewFor, type SceneIn, type View3 } from './scenes3d.ts';
 import { fitView, screenBox } from './fit3d.ts';
 import { lidPoint, lidRay, zoomFrame } from './piano3d.ts';
 import { Renderer3 } from './three3d.ts';
 import { blocked, floorHit, invert4, lidFor, rayAt } from './handles3d.ts';
-import { poolRoom } from './scenes3d.ts';
 
 /** the lens: a 24° vertical field (about a 55 mm lens on full frame at the stage's aspect), not the
  *  wide 34° the views were first set for; the views' distances are scaled to keep the framing */
@@ -84,8 +82,11 @@ export interface Stage3D {
   /** the handle the pointer is over (the pool's rim brightens) */
   hover: Handle | null;
   /** where each handle is on the picture (CSS px in the canvas; null: not on this stage): a point on
-   *  the lid near its free edge; the point of the pool's rim lowest on the picture that shows */
-  handlePoints(): { lid: [number, number] | null; room: [number, number] | null };
+   *  the lid near its free edge; the point of the pool's rim lowest on the picture that shows, and the
+   *  way out of the pool from it on the picture (a unit vector: pulled that way, the room grows) */
+  handlePoints(): { lid: [number, number] | null; room: [number, number] | null; roomOut: [number, number] | null };
+  /** tests: the grand's prop sticks' swing as posed last frame (the long, the short: 0 folded … 1 up) */
+  readonly sticks: number[];
 }
 export type Handle = 'lid' | 'room';
 
@@ -296,9 +297,9 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     return invVP ? rayAt(invVP, x, y, cssW, cssH) : null;
   };
   /** the lid and its sticks are what is pointed at: they hide nothing from themselves */
-  const lidParts = (): Set<MeshT> => {
+  const lidParts = (): Set<Mesh> => {
     const pm = st.grand;
-    const out = new Set<MeshT>();
+    const out = new Set<Mesh>();
     if (pm?.lid) out.add(pm.lid);
     for (const p of pm?.props ?? []) out.add(p.mesh);
     return out;
@@ -347,6 +348,9 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     get dragging() {
       return drag?.kind ?? null;
     },
+    get sticks() {
+      return [...st.pianoPose.props];
+    },
     take(x, y, touch = false) {
       const local = lidUnder(x, y);
       if (local) {
@@ -381,7 +385,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       drag = null;
     },
     handlePoints() {
-      const out: { lid: [number, number] | null; room: [number, number] | null } = { lid: null, room: null };
+      const out: { lid: [number, number] | null; room: [number, number] | null; roomOut: [number, number] | null } = { lid: null, room: null, roomOut: null };
       if (!lastVP) return out;
       // (a point on the picture that nothing lies over: the file player, the top band)
       const box = el.getBoundingClientRect();
@@ -411,14 +415,22 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       const f = batch.floor;
       if (p && f) {
         // (the rim's points on the picture, lowest first: the first that shows)
-        const qs: [number, number][] = [];
+        const qs: { q: [number, number]; a: number }[] = [];
         for (let k = 0; k < 72; k++) {
           const a = (k / 72) * Math.PI * 2;
           const q = project(lastVP, [f.c[0] + p.R * Math.cos(a), f.y, f.c[2] + p.R * Math.sin(a)], cssW, cssH);
-          if (q && free(q)) qs.push(q);
+          if (q && free(q)) qs.push({ q, a });
         }
-        qs.sort((a, b) => b[1] - a[1]);
-        out.room = qs.find((q) => rimUnder(q[0], q[1], false) !== null) ?? null;
+        qs.sort((a, b) => b.q[1] - a.q[1]);
+        const best = qs.find((e) => rimUnder(e.q[0], e.q[1], false) !== null);
+        if (best) {
+          out.room = best.q;
+          const q0 = project(lastVP, [f.c[0] + 0.9 * p.R * Math.cos(best.a), f.y, f.c[2] + 0.9 * p.R * Math.sin(best.a)], cssW, cssH);
+          if (q0) {
+            const l = Math.hypot(best.q[0] - q0[0], best.q[1] - q0[1]) || 1;
+            out.roomOut = [(best.q[0] - q0[0]) / l, (best.q[1] - q0[1]) / l];
+          }
+        }
       }
       return out;
     },

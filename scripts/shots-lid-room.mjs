@@ -1,8 +1,9 @@
 // NEXT5 item 4: the grand's lid and the room in 3D, desktop and phone.
 //   OUT=<dir> TAG=before|after BASE=http://localhost:5341 [PHONE=0|1] [ONLY=lid,room,…] node scripts/shots-lid-room.mjs
-// Writes <OUT>/<desktop|phone>-<shot>-<TAG>.png (the 3D canvas): the grand with its lid at 1, 0.5, 0.15
-// and 0 (the prop stick and the lid as the parameter sets them), the room at 0, 0.5 and 1 on the grand
-// and on the cello, and the upright. The same parameters on both builds, so before and after compare.
+// Writes <OUT>/<desktop|phone>-<shot>-<TAG>.png (the 3D canvas): the grand with its lid at its three
+// rests (1 on the long stick, 0.45 on the short one, 0 shut), the room at 0, the grand's 0.22 and 1 on
+// the grand and on the cello (and 0.8 with a chord sounding), and the upright. The same parameters on
+// both builds, so before and after compare.
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
@@ -19,8 +20,7 @@ const DEV = {
 /** shot → what is set: the instrument (grand, upright, cello), its params, notes sounding */
 const SHOT = {
   'lid-100': { inst: 'grand', params: { lid: 1, room: 0.22 } },
-  'lid-50': { inst: 'grand', params: { lid: 0.5, room: 0.22 } },
-  'lid-15': { inst: 'grand', params: { lid: 0.15, room: 0.22 } },
+  'lid-45': { inst: 'grand', params: { lid: 0.45, room: 0.22 } },
   'lid-0': { inst: 'grand', params: { lid: 0, room: 0.22 } },
   'room-0': { inst: 'grand', params: { lid: 1, room: 0 } },
   'room-100': { inst: 'grand', params: { lid: 1, room: 1 } },

@@ -144,7 +144,7 @@ const FLOOR_FS = /* glsl */ `
   float rr = length((vWorldP - uFloorC).xz);
   float inPool = 1.0 - smoothstep(uPool.x - uPool.y, uPool.x + uPool.y, rr);
   float e = (rr - uPool.x) / max(uPool.y, 1e-3);
-  float k = mix(uPool.z, 1.0 + uPool.w, inPool) + uPoolHot * 0.55 * exp(-e * e);
+  float k = mix(uPool.z, 1.0 + uPool.w, inPool) + uPoolHot * 0.3 * exp(-e * e);
   gl_FragColor.rgb *= k;
   gl_FragColor.a *= 1.0 - smoothstep(uFloorR.x, uFloorR.y, rr);
 }`;
@@ -518,7 +518,7 @@ export class Renderer3 {
       this.floorU.uFloorR.value.set(f.r0, f.r1);
       // (no pool: the whole floor as one, as an ensemble's)
       const p = f.pool;
-      if (p) this.floorU.uPool.value.set(p.R, p.soft, 0.42, p.lift);
+      if (p) this.floorU.uPool.value.set(p.R, p.soft, 0.5, p.lift);
       else this.floorU.uPool.value.set(1e3, 1, 1, 0);
       this.floorU.uPoolHot.value = p ? this.poolHot : 0;
     }

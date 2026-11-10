@@ -243,6 +243,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     // lid comes down onto its stick (ui/lid.ts)
     let held: { id: number; kind: 'lid' | 'room' } | null = null;
     const takeHandle = (e: PointerEvent) => {
+      // (a second finger while one holds a handle: neither turns the stage nor takes another)
+      if (held) return true;
       if (e.button > 0 || ensemble.active) return false;
       const r = cv3.getBoundingClientRect();
       const k = s.take(e.clientX - r.left, e.clientY - r.top, e.pointerType !== 'mouse');
@@ -804,7 +806,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     if (vec) glow(ctx);
     // the 3D lid, let go of, coming down onto its rest (the sound follows it)
     if (lidFall) {
-      if (fam !== 'piano' || !in3d) lidFall = null;
+      if (!grand || !in3d) lidFall = null;
       else {
         const f = lidSettle(lidFall.v0, lidFall.rest, (performance.now() - lidFall.t0) / 1000);
         setLid(f.v);
