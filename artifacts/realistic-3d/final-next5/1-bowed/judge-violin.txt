@@ -1,0 +1,8 @@
+violin: before → this checkout: BETTER
+  score (mean |error| / spread): fit 3.56 → 2.94 (n=37); held-out 3.86 → 3.03 (n=41, Δ 0.83 ± 0.22)
+  harmonics  held-out |err| 11.88 → 9.15 (spread 5.31)
+  centroid   held-out |err| 0.83 → 0.67 (spread 0.20)
+  noise      held-out |err| 11.02 → 6.87 (spread 1.69)
+  attack     held-out |err| 2.20 → 2.09 (spread 0.41)
+  pitch      held-out |err| 1.76 → 1.69 (spread 10.15)
+  level      held-out |err| 5.82 → 4.68 (spread 1.28)

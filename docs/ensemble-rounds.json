@@ -2058,5 +2058,261 @@
     "pitchCentsRms": 0.97
    }
   }
+ },
+ {
+  "label": "NEXT5-1: violin and viola bodies fitted to the recordings (fit half), brightness follows bow force; cello unchanged",
+  "date": "2026-11-10T02:44:02.120Z",
+  "summary": {
+   "violin": {
+    "notes": 79,
+    "harmRmsDb": 9.05,
+    "ltasRmsDb": 4.01,
+    "ltasRmsDbByDyn": {
+     "pp": 6.37,
+     "mf": 3.64,
+     "ff": 4.28
+    },
+    "centroidRatio": 0.87,
+    "centroidRatioByDyn": {
+     "pp": 1.07,
+     "mf": 0.85,
+     "ff": 0.82
+    },
+    "evenOddErrDb": -2.43,
+    "evenOddErrByRegister": [
+     -3.36,
+     1.98,
+     -3.1
+    ],
+    "evenOddRef": [
+     -0.57,
+     -2.19,
+     -3.12
+    ],
+    "evenOddModel": [
+     -3.35,
+     -0.84,
+     -7.43
+    ],
+    "registerCuts": [
+     65,
+     74
+    ],
+    "hnrDiffDb": -1.95,
+    "attackRatio": 0.32,
+    "dynSpreadDb": {
+     "ref": 19.14,
+     "model": 18.9
+    },
+    "vibrato": {
+     "refRate": 5.7,
+     "refDepth": 6.61,
+     "modelRate": 5.55,
+     "modelDepth": 13.3,
+     "refShare": 0.22
+    },
+    "pitchCentsRms": 1.97
+   },
+   "viola": {
+    "notes": 76,
+    "harmRmsDb": 9.51,
+    "ltasRmsDb": 3.98,
+    "ltasRmsDbByDyn": {
+     "pp": 2.76,
+     "mf": 4.02,
+     "ff": 4.08
+    },
+    "centroidRatio": 0.89,
+    "centroidRatioByDyn": {
+     "pp": 0.88,
+     "mf": 0.9,
+     "ff": 0.89
+    },
+    "evenOddErrDb": -1.91,
+    "evenOddErrByRegister": [
+     -0.15,
+     -2.38,
+     -1.3
+    ],
+    "evenOddRef": [
+     0.55,
+     -0.9,
+     -1.47
+    ],
+    "evenOddModel": [
+     2.69,
+     -3.11,
+     -3.69
+    ],
+    "registerCuts": [
+     56,
+     67
+    ],
+    "hnrDiffDb": -2.75,
+    "attackRatio": 0.84,
+    "dynSpreadDb": {
+     "ref": 9.86,
+     "model": 15.14
+    },
+    "vibrato": {
+     "refRate": 3.4,
+     "refDepth": 7.28,
+     "modelRate": 5.4,
+     "modelDepth": 10.89,
+     "refShare": 0.07
+    },
+    "pitchCentsRms": 1.63
+   },
+   "cello": {
+    "notes": 67,
+    "harmRmsDb": 11.15,
+    "ltasRmsDb": 4.2,
+    "ltasRmsDbByDyn": {
+     "pp": 4.02,
+     "mf": 4.26,
+     "ff": 4.27
+    },
+    "centroidRatio": 0.94,
+    "centroidRatioByDyn": {
+     "pp": 1.35,
+     "mf": 1.05,
+     "ff": 0.76
+    },
+    "evenOddErrDb": 2.65,
+    "evenOddErrByRegister": [
+     2.65,
+     4.58,
+     2.65
+    ],
+    "evenOddRef": [
+     -0.17,
+     -3.08,
+     -4.81
+    ],
+    "evenOddModel": [
+     1.6,
+     -1.09,
+     0.06
+    ],
+    "registerCuts": [
+     43,
+     56
+    ],
+    "hnrDiffDb": 0.18,
+    "attackRatio": 0.93,
+    "dynSpreadDb": {
+     "ref": 12.48,
+     "model": 14.25
+    },
+    "vibrato": {
+     "refRate": 5.4,
+     "refDepth": 16.81,
+     "modelRate": 5.25,
+     "modelDepth": 15.13,
+     "refShare": 0.81
+    },
+    "pitchCentsRms": 2.47
+   },
+   "flute": {
+    "notes": 109,
+    "harmRmsDb": 7.11,
+    "ltasRmsDb": 4.67,
+    "ltasRmsDbByDyn": {
+     "pp": 6.22,
+     "mf": 4.08,
+     "ff": 6.57
+    },
+    "centroidRatio": 0.97,
+    "centroidRatioByDyn": {
+     "pp": 1.09,
+     "mf": 0.92,
+     "ff": 0.8
+    },
+    "evenOddErrDb": -5.15,
+    "evenOddErrByRegister": [
+     -8.58,
+     -3.32,
+     -2.92
+    ],
+    "evenOddRef": [
+     -3.64,
+     -11.71,
+     -18.81
+    ],
+    "evenOddModel": [
+     -11.57,
+     -14.12,
+     -20.34
+    ],
+    "registerCuts": [
+     71,
+     84
+    ],
+    "hnrDiffDb": 5.42,
+    "attackRatio": 1.14,
+    "dynSpreadDb": {
+     "ref": 12.55,
+     "model": 10.22
+    },
+    "vibrato": {
+     "refRate": 4.05,
+     "refDepth": 3.7,
+     "modelRate": 0,
+     "modelDepth": 0.71,
+     "refShare": 0.04
+    },
+    "pitchCentsRms": 0.97
+   },
+   "trumpet": {
+    "notes": 105,
+    "harmRmsDb": 4.19,
+    "ltasRmsDb": 3.28,
+    "ltasRmsDbByDyn": {
+     "pp": 4.09,
+     "mf": 2.1,
+     "ff": 3.25
+    },
+    "centroidRatio": 0.93,
+    "centroidRatioByDyn": {
+     "pp": 0.91,
+     "mf": 0.91,
+     "ff": 0.96
+    },
+    "evenOddErrDb": -1.42,
+    "evenOddErrByRegister": [
+     0.24,
+     -1.26,
+     -5.22
+    ],
+    "evenOddRef": [
+     -0.1,
+     -0.44,
+     0.91
+    ],
+    "evenOddModel": [
+     0.26,
+     -1.23,
+     -4.04
+    ],
+    "registerCuts": [
+     63,
+     75
+    ],
+    "hnrDiffDb": 1.03,
+    "attackRatio": 0.64,
+    "dynSpreadDb": {
+     "ref": 9.57,
+     "model": 9.19
+    },
+    "vibrato": {
+     "refRate": 5.7,
+     "refDepth": 8.9,
+     "modelRate": 0,
+     "modelDepth": 1.63,
+     "refShare": 0.84
+    },
+    "pitchCentsRms": 2.68
+   }
+  }
  }
 ]

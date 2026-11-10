@@ -27,8 +27,11 @@ describe('cello (v2)', () => {
       expect(BOWED[id].torsion, id).toBeUndefined();
       expect(BOWED[id].idleCoupling, id).toBeUndefined();
       expect(BOWED[id].bowWidth, id).toBeUndefined();
-      expect(BOWED[id].rosinNoise, id).toBeUndefined();
+      // (NEXT5: the violin's and viola's rosin noise is fitted to their recordings now, as the cello's
+      // was, and the viola's attack: see bowed-fit.json; their bodies are design.body)
+      expect(BOWED[id].body, id).toBeDefined();
     }
+    expect(BOWED.cello.body).toBeUndefined();
     // the hair ribbon's contact: a physical width, about a centimetre
     expect(BOWED.cello.bowWidth).toBeGreaterThan(0.004);
     expect(BOWED.cello.bowWidth).toBeLessThan(0.016);

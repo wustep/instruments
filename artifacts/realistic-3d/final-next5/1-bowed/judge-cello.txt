@@ -1,0 +1,8 @@
+cello: before → this checkout: NO CLEAR CHANGE
+  score (mean |error| / spread): fit 1.75 → 1.75 (n=35); held-out 1.85 → 1.85 (n=32, Δ 0.00 ± 0.00)
+  harmonics  held-out |err| 11.40 → 11.40 (spread 6.60)
+  centroid   held-out |err| 0.68 → 0.68 (spread 0.28)
+  noise      held-out |err| 5.56 → 5.56 (spread 2.88)
+  attack     held-out |err| 1.44 → 1.44 (spread 0.45)
+  pitch      held-out |err| 1.51 → 1.51 (spread 13.99)
+  level      held-out |err| 3.50 → 3.50 (spread 1.93)

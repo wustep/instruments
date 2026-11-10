@@ -1,0 +1,8 @@
+viola: before → this checkout: BETTER
+  score (mean |error| / spread): fit 5.17 → 4.01 (n=40); held-out 5.20 → 4.34 (n=36, Δ 0.85 ± 0.20)
+  harmonics  held-out |err| 11.56 → 10.17 (spread 5.51)
+  centroid   held-out |err| 0.76 → 0.62 (spread 0.18)
+  noise      held-out |err| 9.02 → 7.39 (spread 1.40)
+  attack     held-out |err| 1.42 → 0.98 (spread 0.19)
+  pitch      held-out |err| 1.18 → 1.27 (spread 6.40)
+  level      held-out |err| 15.46 → 14.62 (spread 1.42)

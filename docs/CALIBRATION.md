@@ -379,3 +379,27 @@ musical defaults are kept.
   level by dB: a normalisation that left β within 0.3 % moved the viola's
   median mf level by 2.7 dB before re-normalisation. A fractional
   (interpolated) bow junction would remove this sensitivity.
+
+### Violin and viola bodies, fitted note by note (NEXT5, 2026-11)
+
+Full notes, numbers and audio: `artifacts/realistic-3d/final-next5/1-bowed/NOTES.md`.
+
+- **Why the top octave was missing.** The round-2 chain sent the high-frequency path to the right
+  channel inverted. It cancelled exactly in a mono sum, so the fits above never reached it. It is now
+  in phase (as the cello's v2 chain was).
+- **`design.body`** replaces the hand-set bridge hill, low shelf and 7 kHz shelf with 15 half-octave
+  sections fitted to every harmonic (k ≤ 16, < 10 kHz) of the fit half's notes (even MIDI; the
+  judge holds out the odd ones). Each note keeps its own level. The envelope sits on 3 knots per
+  octave with a curvature penalty, both chosen by cross-validation inside the fit half
+  (`scripts/fit-bodies.ts`).
+- **Brightness follows bow force.** The bridge force was a sawtooth to its 16th harmonic at every
+  dynamic: the friction law leaves the Helmholtz corner as sharp at pp as at ff. A first-order
+  low-pass on the radiated sound stands in for the corner's rounding, cutoff
+  `corner[0] · f0 · (F/Z)^corner[1]` (violin 1.61, 1.4; viola 2.67, 0.9).
+- Chosen on the fit half with `scripts/fit-half.ts`: rosin noise (violin 0.2, viola 0.08) and the
+  viola's bow-acceleration times (0.2 s pp, 0.12 s ff).
+- **Judge (held-out): violin BETTER** (3.86 → 3.03, Δ 0.83 ± 0.22), **viola BETTER** (5.20 → 4.34,
+  Δ 0.85 ± 0.20). Long-term spectrum 14.0 → 4.0 dB (violin), 10.5 → 4.0 dB (viola); violin ff
+  centroid ×0.61 → ×0.82.
+- **The cello was tried twice and judged WORSE** (centroid guard: its harmonics stop near 1 kHz on
+  the low notes, so the fit is free where the centroid lives). It is unchanged, bit for bit.

@@ -195,6 +195,28 @@ interface BowedDesign {
    *  mainly the flattening of a heavy bow (McIntyre & Woodhouse 1979; Schoonderwaldt 2009 measured
    *  violinists' pitch flattening with bow force), as a player does; open strings stay as tuned. */
   byEar?: number;
+  /** The body as the Iowa recordings hear it (NEXT5; violin and viola: scripts/fit-bodies.ts, the
+   *  values in bowed-fit.json). Absent: the hand-set eq and 7 kHz shelf of rounds 2–3.
+   *  `bands`: the radiated response's envelope, fitted note by note to the recordings' harmonics on
+   *  the fit half (even MIDI notes; the odd ones are held out for scripts/judge.ts): gains (dB) of
+   *  peaking sections at these centres (Hz), Q `q`, in place of `eq` and the shelf. The modal body
+   *  still radiates its own modes through them (the fine structure, the stereo, vibrato's flicker);
+   *  the bands set where its energy goes on average, which the sketched modes had 10–30 dB too low
+   *  above 3 kHz.
+   *  `corner`: the Helmholtz corner's rounding. The friction law here (a function of the slip
+   *  speed alone, McIntyre, Schumacher & Woodhouse 1983) keeps the corner nearly as sharp at pp as at
+   *  ff, so the bridge force is a sawtooth to its 16th harmonic at every dynamic and a louder note
+   *  even came out darker; on a real string the bow re-sharpens the corner on each passage against
+   *  the losses that round it on each round trip, harder the harder it presses (Cremer, The Physics
+   *  of the Violin, 1984, ch. 7: the corner's width falls as the bow force rises; Schoonderwaldt,
+   *  Guettler & Askenfelt 2008, Acta Acustica 94, measured the spectral centroid rising with bow
+   *  force). Both act once per period, so the corner is a fraction of the period. Stood in for by a
+   *  first-order low-pass on the radiated sound at a harmonic of the note that follows the bow force
+   *  over the string's impedance (F/Z, the velocity the bow's grip imposes, as in the friction solve):
+   *  fc = corner[0] · f0 · (F/Z ÷ 1 m/s)^corner[1], fitted with the bands (a cutoff fixed in Hz fits
+   *  the fit half worse: the violin's E string sounds far brighter than its G). It rounds only what
+   *  is heard: the string's own motion (its pitch, attack, the bow's traces) is unchanged. */
+  body?: { bands: [number, number][]; q: number; corner: [number, number] };
 }
 
 const VIOLIN: BowedDesign = {
@@ -528,6 +550,13 @@ export class BowedCore implements InstrumentCore {
   private dK = 0;
   private dL = 0;
   private dR = 0;
+  /** design.body.corner: the first-order low-pass's coefficients (y = cb·(x + x₁) − ca·y₁), its
+   *  states per channel, and the cutoff it was last set to (Hz; 0: not yet) */
+  private cb = 1;
+  private ca = 0;
+  private cx = new Float64Array(2);
+  private cy = new Float64Array(2);
+  private fc = 0;
   /** The bow, shared by all strings as on the instrument: direction (+1 down-bow, −1 up-bow),
    *  position along the hair from the frog (m), and an in-progress change. */
   readonly bow = { dir: 1, pos: 0, changing: false, t: 0, from: 1, changes: 0, lastStroke: -1e12, auto: 0 };
@@ -691,7 +720,12 @@ export class BowedCore implements InstrumentCore {
     const rad = this.design.radiation;
     // v2: the bridge's resonances, as unity-DC resonant low-passes (the force passes the bridge on its way to the body)
     const bridge = rad ? rad.bridge.map(([f, q]) => biquadLowpass(Math.min(f, 0.45 * fs), q, fs)) : [];
-    this.eq.set([biquadHighpass(this.design.strings[0].open < 40 ? 40 : 70, 0.7, fs), ...this.design.eq.map(([f, g, q]) => biquadPeaking(f, q, g, fs)), ...bridge, biquadHighShelf(7000, -3, fs)]);
+    const hp = biquadHighpass(this.design.strings[0].open < 40 ? 40 : 70, 0.7, fs);
+    const body = this.design.body;
+    // design.body: the fitted envelope in place of the hand-set eq and shelf (a band at or above
+    // 0.45 fs, at the lowest rates, is left out: there is nothing there for it to shape)
+    if (body) this.eq.set([hp, ...body.bands.filter(([f]) => f < 0.45 * fs).map(([f, g]) => biquadPeaking(f, body.q, g, fs)), ...bridge]);
+    else this.eq.set([hp, ...this.design.eq.map(([f, g, q]) => biquadPeaking(f, q, g, fs)), ...bridge, biquadHighShelf(7000, -3, fs)]);
     this.dK = rad ? fs / (2 * Math.PI * rad.radRef) : 0;
     this.hfHp.set([biquadHighpass(this.design.hf[1], 0.7, fs)]);
     this.room.configure(this.params.room, this.params.seat);
@@ -1028,6 +1062,30 @@ export class BowedCore implements InstrumentCore {
     }
   }
 
+  /** design.body.corner: the cutoff follows the force the bow presses on the string sounding
+   *  loudest (as applied: the attack's rise, a bow change's easing, the pressure controller), over
+   *  that string's impedance, in harmonics of its note. With no bow on a string it keeps the last
+   *  cutoff (what rings on was shaped by it). Bilinear first-order low-pass, so its cutoff is exact at
+   *  any rate. */
+  private cornerControl(): void {
+    // (index reads, no destructuring: this runs every control block, and must not allocate)
+    const c = this.design.body!.corner;
+    const k1 = c[0];
+    const g = c[1];
+    let best: BowedString | null = null;
+    for (const s of this.strings) if (s.bowing && s.fBow > 0 && (!best || s.level > best.level)) best = s;
+    if (!best && this.fc > 0) return;
+    const x = best ? (best.fBow * best.fScale) / best.Z : 0;
+    const f0 = best ? this.fs / best.Pn : 440;
+    // (at least 150 Hz: the bow's first instants, before any force, are not a muffled note)
+    const fc = clamp(k1 * f0 * Math.pow(Math.max(x, 1e-9), g), 150, 0.45 * this.fs);
+    if (fc === this.fc) return;
+    this.fc = fc;
+    const k = Math.tan((Math.PI * fc) / this.fs);
+    this.cb = k / (1 + k);
+    this.ca = (k - 1) / (k + 1);
+  }
+
   private lift(s: BowedString): void {
     s.bowing = false;
     s.vBowTarget = 0;
@@ -1085,6 +1143,8 @@ export class BowedCore implements InstrumentCore {
     this.s2.fill(0);
     this.H = 0;
     this.dL = this.dR = 0;
+    this.cx.fill(0);
+    this.cy.fill(0);
     this.room.reset();
     this.eq.reset();
     this.limiter.reset();
@@ -1187,6 +1247,7 @@ export class BowedCore implements InstrumentCore {
       s.Dtap = s.D0 * Math.pow(2, -bendC / 1200);
     }
     this.bowControl(dt);
+    if (this.design.body) this.cornerControl();
     const kc = this.design.idleCoupling;
     if (kc !== undefined) {
       // idle open strings couple loosely; a string being bowed (or still stopped) fully (10 ms glide)
@@ -1484,10 +1545,11 @@ export class BowedCore implements InstrumentCore {
       }
     }
     for (let i = 0; i < ns; i++) strs[i].level = Math.max(peak[i], strs[i].level * 0.9);
-    if (this.dK) {
-      // v2: the high-frequency radiation reaches both microphones in phase. The round-2 chain
-      // sends an inverted copy to the right, which cancels in a mono sum (a phone speaker, or
-      // the one-microphone recordings this is fitted to); a delayed copy combs the harmonics.
+    if (this.dK || this.design.body) {
+      // v2 (and design.body): the high-frequency radiation reaches both microphones in phase. The
+      // round-2 chain sends an inverted copy to the right, which cancels in a mono sum (a phone
+      // speaker, or the one-microphone recordings this is fitted to: the violin's and viola's
+      // whole top octave was missing there); a delayed copy combs the harmonics.
       for (let t = 0; t < n; t++) hR[t] = hL[t];
     }
     this.hfHp.process(hL, hR, n);
@@ -1495,6 +1557,29 @@ export class BowedCore implements InstrumentCore {
     for (let t = 0; t < n; t++) {
       oL[t] = (oL[t] + hL[t]) * g;
       oR[t] = (oR[t] + hR[t]) * g;
+    }
+    if (this.design.body) {
+      // design.body.corner: the Helmholtz corner's rounding, on the radiated sound
+      const cb = this.cb;
+      const ca = this.ca;
+      let xl = this.cx[0];
+      let xr = this.cx[1];
+      let yl = this.cy[0];
+      let yr = this.cy[1];
+      for (let t = 0; t < n; t++) {
+        const l = oL[t];
+        const r = oR[t];
+        yl = cb * (l + xl) - ca * yl;
+        yr = cb * (r + xr) - ca * yr;
+        xl = l;
+        xr = r;
+        oL[t] = yl;
+        oR[t] = yr;
+      }
+      this.cx[0] = xl;
+      this.cx[1] = xr;
+      this.cy[0] = Math.abs(yl) < 1e-25 ? 0 : yl;
+      this.cy[1] = Math.abs(yr) < 1e-25 ? 0 : yr;
     }
     if (this.dK) {
       // v2: pressure ∝ volume acceleration — the time derivative of the radiating velocities
