@@ -230,14 +230,20 @@ export function demoSong(song: MidiSong, d: Demo): MidiSong {
       if (!n) continue;
       begun.set(m, n - 1);
       events.push({ t: at(e.t), kind: 'off', midi: m, line });
-    } else {
+    } else if (e.kind === 'pedal') {
       if (e.t >= end) continue;
       down.set(e.cc, e.value);
       events.push({ t: at(e.t), kind: 'pedal', cc: e.cc, value: e.value, line });
+    } else if (e.kind === 'cc') {
+      // the file's volume, expression and mod wheel, as written
+      if (e.t >= end) continue;
+      events.push({ t: at(e.t), kind: 'cc', cc: e.cc, value: e.value, line });
     }
   }
   const last = events.length ? events[events.length - 1].t : 0;
   for (const [cc, v] of down) if (v > 0) events.push({ t: last, kind: 'pedal', cc: cc as 64 | 66 | 67, value: 0, line: 0 });
   const lines = d.lines ? d.lines.map((i) => song.lines[i]).filter(Boolean) : song.lines;
-  return { events, duration: last, lines };
+  // (the bar lines from the first note on, for phrasing: expression.ts)
+  const bars = song.bars?.map(at).filter((b, i, all) => b <= last + 1e-9 && (b > 0 || all[i + 1] === undefined || all[i + 1] > 0));
+  return { events, duration: last, lines, bars };
 }

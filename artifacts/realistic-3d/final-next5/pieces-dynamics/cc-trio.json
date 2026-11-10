@@ -1,0 +1,60 @@
+{
+ "file": "cc-trio",
+ "excerpt": [
+  0,
+  33.96
+ ],
+ "parts": [
+  "violin",
+  "viola",
+  "cello"
+ ],
+ "versions": [
+  {
+   "version": "before",
+   "velocitySd": [
+    10.9,
+    10.9,
+    10.9
+   ],
+   "levelSdDb": 5.83,
+   "level10to90Db": 9.4,
+   "slowSdDb": 2.95,
+   "meanDb": -25.6,
+   "peakDb": -6.2,
+   "followsFileCC": 0.41,
+   "dynEvents": 0
+  },
+  {
+   "version": "written",
+   "velocitySd": [
+    10.9,
+    10.9,
+    10.9
+   ],
+   "levelSdDb": 5.71,
+   "level10to90Db": 12.2,
+   "slowSdDb": 3.84,
+   "meanDb": -29.9,
+   "peakDb": -9.1,
+   "followsFileCC": 0.71,
+   "dynEvents": 0
+  },
+  {
+   "version": "auto",
+   "velocitySd": [
+    10.9,
+    10.9,
+    10.9
+   ],
+   "levelSdDb": 5.71,
+   "level10to90Db": 12.2,
+   "slowSdDb": 3.84,
+   "meanDb": -29.9,
+   "peakDb": -9.1,
+   "followsFileCC": 0.71,
+   "dynEvents": 0,
+   "withTheMusic": null
+  }
+ ]
+}

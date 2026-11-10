@@ -14,7 +14,7 @@
 // frequency path, the bridge-hill formant, a small room.
 
 import { Pump } from './pump.ts';
-import { type ExciteTrace, type InstrumentCore, type InstrumentId } from './instrument.ts';
+import { CC_DYNAMICS, DYN_TAU, type ExciteTrace, type InstrumentCore, type InstrumentId } from './instrument.ts';
 import type { KeySummary } from '../api/messages.ts';
 import type { PianoEvent } from './piano-core.ts';
 import { designLossFilter, onePolePhaseDelay, biquadHighpass, biquadLowpass, biquadPeaking, biquadHighShelf } from './filters.ts';
@@ -356,6 +356,9 @@ for (const [id, fit] of Object.entries(bowedFit as unknown as Record<string, Par
 export const CC_HAND_BOW_SPEED = 128;
 export const CC_HAND_BOW_POS = 129;
 export const CC_HAND_BOW_OFF = 130;
+/** CC_DYNAMICS (instrument.ts): its range, velocity steps either way, and the vibrato's widening per step */
+const DYN_MAX = 64;
+const VIB_PER_STEP = 0.0125;
 
 /** velocity (0..1 of 1..127) at which bowPosition is the actual β: MIDI 80 */
 const X_REF = 79 / 126;
@@ -443,6 +446,8 @@ class BowedString {
    *  with their velocities: releasing the current note gives the string back to the last one */
   displaced: { midi: number; velocity: number }[] = [];
   velocity = 80;
+  /** the CC_DYNAMICS offset this string's bow targets were last set for */
+  dynApplied = 0;
   releasedAt = 0;
   startedAt = 0;
   vibPhase = 0;
@@ -535,6 +540,9 @@ export class BowedCore implements InstrumentCore {
   private modwheel = -1;
   /** live bow-pressure controller: mod wheel / breath / expression (1 = as the note asked) */
   private pressureCC = 1;
+  /** CC_DYNAMICS: velocity steps above (below) the note as begun, asked and as the arm has it */
+  private dynTarget = 0;
+  private dyn = 0;
   /** pitch bend, semitones */
   private bend = 0;
   /** the player's intonation, semitones (util.ts playerCents), under any bend */
@@ -846,6 +854,27 @@ export class BowedCore implements InstrumentCore {
     s.fBowTarget = Math.min(1.3 * fMax, s.fBase * this.pressureCC);
   }
 
+  /** CC_DYNAMICS: a bowing string's speed and force for its note played `dyn` velocity steps harder,
+   *  as bowTargets gives them for that velocity (the bow is where the stroke began: the contact point
+   *  and the attack stay the note's; a whole-sample bow tap must not jump under a held note). Faster,
+   *  the string is louder; the force keeps its place under
+   *  Schelleng's maximum for the new speed, a little higher for louder (design.forceDyn), as players
+   *  lean in with a crescendo. */
+  private dynTargets(s: BowedString): void {
+    const [vlo, vhi] = this.design.bowSpeed;
+    const x = clamp((clamp(s.velocity + this.dyn, 1, 127) - 1) / 126, 0, 1);
+    // (the contact point stays the stroke's: a louder note's would sit nearer the bridge, so the speed
+    // makes up the difference; the Helmholtz amplitude goes as v/β, Cremer 1984 §3)
+    const [bp, bf] = this.design.betaDyn;
+    const v = vlo * Math.pow(vhi / vlo, x) * this.expression * (s.betaDyn / ((bp + (bf - bp) * x) / (bp + (bf - bp) * X_REF)));
+    s.vBowTarget = v;
+    const [fp, ff] = this.design.forceDyn;
+    s.forceDyn = fp + (ff - fp) * x;
+    s.fMax = (2 * s.Zb * v) / (s.beta * (MU_S - MU_D));
+    s.fBase = clamp(this.params.bowPressure * s.forceDyn, 0.02, 1.2) * s.fMax;
+    s.fBowTarget = Math.min(1.3 * s.fMax, s.fBase * this.pressureCC);
+  }
+
   // ------------------------------------------------------------ events
 
   schedule(ev: unknown, frame?: number): void {
@@ -881,6 +910,8 @@ export class BowedCore implements InstrumentCore {
         s.vibPhase = this.rng() * Math.PI * 2;
         s.vibRate = 5.2 + 0.8 * this.rng();
         this.bowTargets(s, ev.velocity);
+        if (this.dyn) this.dynTargets(s);
+        s.dynApplied = this.dyn;
         this.focus = this.strings.indexOf(s);
         this.unplayed = false;
         break;
@@ -895,6 +926,8 @@ export class BowedCore implements InstrumentCore {
             this.setStopped(s, back.midi, false);
             s.velocity = back.velocity;
             this.bowTargets(s, back.velocity);
+            if (this.dyn) this.dynTargets(s);
+            s.dynApplied = this.dyn;
             continue;
           }
           s.held = false;
@@ -913,7 +946,9 @@ export class BowedCore implements InstrumentCore {
       case 'control':
         // mod wheel, breath controller and expression press the bow into the string
         // (×0.3 … ×1.5 of the force the note asked for, capped above Schelleng's maximum)
-        if (ev.cc === 1 || ev.cc === 2 || ev.cc === 11) this.pressureCC = 0.3 + 1.2 * clamp(ev.value, 0, 1);
+        // (below 0, CC_REST: back to the force the note asks for)
+        if (ev.cc === 1 || ev.cc === 2 || ev.cc === 11) this.pressureCC = ev.value < 0 ? 1 : 0.3 + 1.2 * clamp(ev.value, 0, 1);
+        else if (ev.cc === CC_DYNAMICS) this.dynTarget = clamp(ev.value, -DYN_MAX, DYN_MAX);
         else if (ev.cc === CC_HAND_BOW_SPEED) {
           if (!this.hand) this.hand = { target: 0, v: 0, pos: this.bow.pos / this.design.bowLength };
           // no faster than 1.5 × the fortissimo bow: a finger crosses a phone faster than an arm can
@@ -1128,8 +1163,10 @@ export class BowedCore implements InstrumentCore {
 
   allSoundOff(): void {
     this.hand = null;
+    this.dyn = this.dynTarget = 0;
     for (const s of this.strings) {
       s.displaced = [];
+      s.dynApplied = 0;
       s.buf.fill(0);
       s.ly = 0;
       s.tb.fill(0);
@@ -1189,7 +1226,14 @@ export class BowedCore implements InstrumentCore {
   private control(n: number): void {
     const fs = this.fs;
     const dt = n / fs;
-    const vibDepth = this.modwheel >= 0 ? this.modwheel * 30 : this.params.vibrato;
+    // CC_DYNAMICS glides (a time constant: the same at any block length)
+    if (this.dyn !== this.dynTarget) {
+      this.dyn += (this.dynTarget - this.dyn) * (1 - Math.exp(-dt / DYN_TAU));
+      if (Math.abs(this.dynTarget - this.dyn) < 1e-3) this.dyn = this.dynTarget;
+    }
+    // louder, the vibrato a little wider (MacLeod 2008, JRME 56(1): violinists' and violists' vibrato
+    // is wider at forte than at piano); ×(1 ± 0.25) over ±20 velocity steps, within ×0.6…1.4
+    const vibDepth = (this.modwheel >= 0 ? this.modwheel * 30 : this.params.vibrato) * (this.dyn ? clamp(1 + VIB_PER_STEP * this.dyn, 0.6, 1.4) : 1);
     const h = this.hand;
     if (h) {
       h.v += (h.target - h.v) * (1 - Math.exp(-dt / 0.025));
@@ -1197,6 +1241,10 @@ export class BowedCore implements InstrumentCore {
     }
     for (const s of this.strings) {
       if (h && s.bowing) this.handTargets(s, Math.abs(h.v));
+      else if (s.bowing && s.dynApplied !== this.dyn) {
+        this.dynTargets(s);
+        s.dynApplied = this.dyn;
+      }
       // bow speed attack ~ 50 ms, release 15 ms; force follows faster
       const ka = 1 - Math.exp(-dt / (s.bowing ? (this.design.attackTau ? s.tauA : 0.045) : 0.012));
       const wd = this.design.wander;

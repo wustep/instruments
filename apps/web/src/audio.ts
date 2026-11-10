@@ -2,9 +2,11 @@
 // (Web MIDI with hot-plug, computer keyboard, on-screen keyboard).
 
 import { audibleTime, type ClockSource } from './clock.ts';
-import { createInstrument, INSTRUMENT_INFO, processorUrl, type DesignEntry, type InstrumentId, type Piano, type Stats, type KeySummary } from '@piano-model/engine';
+import { CC_DYNAMICS, CC_REST, createInstrument, INSTRUMENT_INFO, processorUrl, type DesignEntry, type InstrumentId, type Piano, type Stats, type KeySummary } from '@piano-model/engine';
 import designUrls from 'virtual:piano-designs';
 import { diag } from './diag.ts';
+import { modLines, modValue, PartLevels, volumeRef, type PartLevel } from './expression.ts';
+import type { FileEvent, MidiSong } from './midi-file.ts';
 
 // Fetch the start-up material as soon as the page loads, before anyone touches a
 // key: the piano's precomputed filter designs and the worklet script.
@@ -110,8 +112,32 @@ export interface Route {
   control(cc: number, v: number): void;
   bend(semitones: number): void;
   setParams(p: Record<string, unknown>): void;
-  schedule(e: { t: number; kind: 'on' | 'off' | 'pedal'; line?: number; midi?: number; vel?: number; cc?: number; value?: number }, at: number): void;
+  schedule(e: FileEvent, at: number): void;
   stopFile(): void;
+}
+
+/** A file's dynamics to one engine at context time `at` (expression.ts): the volume and expression on
+ *  its output (a short glide: no zipper), and on a bowed or wind instrument the mod wheel and the
+ *  swell of a held note (CC_DYNAMICS); a piano, struck, takes only the gain. `prev` is what it has
+ *  (null: at rest). */
+export function sendLevel(engine: Piano, prev: PartLevel | null, next: PartLevel, at: number): void {
+  if (next.gain !== (prev?.gain ?? 1)) engine.output.gain.setTargetAtTime(next.gain, at, 0.02);
+  if (INSTRUMENT_INFO[engine.instrument]?.family === 'piano') return;
+  if (next.mod !== (prev?.mod ?? null)) engine.control(1, next.mod === null ? CC_REST : modValue(next.mod), at);
+  if (next.dyn !== (prev?.dyn ?? 0)) engine.control(CC_DYNAMICS, next.dyn, at);
+}
+
+/** An engine back at rest from a file's dynamics, now: unity gain, no swell, and the mod wheel as the
+ *  hand has it (`hand`; null: as if never moved). */
+export function restLevel(engine: Piano, sent: PartLevel | null, hand: number | null): void {
+  if (!sent) return;
+  const ctx = engine.context;
+  const g = engine.output.gain;
+  g.cancelScheduledValues(ctx.currentTime);
+  g.setTargetAtTime(1, ctx.currentTime, 0.02);
+  if (INSTRUMENT_INFO[engine.instrument]?.family === 'piano') return;
+  engine.control(CC_DYNAMICS, 0);
+  if (sent.mod !== null) engine.control(1, hand ?? CC_REST);
 }
 
 class AudioApp {
@@ -158,6 +184,12 @@ class AudioApp {
   private queue: ((p: Piano) => void)[] = [];
   /** orchestra mode: where notes go instead of the single instrument (null: to it) */
   route: Route | null = null;
+  /** the hand's last bow-pressure / breath controller (CC1, CC2 or CC11; the engines share one), for
+   *  giving it back when a file that moved the mod wheel stops */
+  handPressure: number | null = null;
+  /** a file's dynamics on the single instrument (expression.ts), and the file's lines */
+  private levels: PartLevels | null = null;
+  private levelLines: number[] = [];
 
   private send(fn: (p: Piano) => void): void {
     if (this.piano) fn(this.piano);
@@ -425,6 +457,7 @@ class AudioApp {
     else this.queue.push((p) => p.sostenuto(v));
   }
   control(cc: number, v: number): void {
+    if (cc === 1 || cc === 2 || cc === 11) this.handPressure = v;
     if (this.route) return this.route.control(cc, v);
     if (this.piano) this.piano.control(cc, v);
     else this.queue.push((p) => p.control(cc, v));
@@ -435,7 +468,7 @@ class AudioApp {
    * An event from a MIDI file, sample-accurate at AudioContext time `at`; the keys on
    * screen follow at (about) the same moment.
    */
-  scheduleFileEvent(e: { t: number; kind: 'on' | 'off' | 'pedal'; line?: number; midi?: number; vel?: number; cc?: number; value?: number }, at: number): void {
+  scheduleFileEvent(e: FileEvent, at: number): void {
     const p = this.piano;
     const ctx = this.ctx;
     if (!p || !ctx) return;
@@ -451,16 +484,23 @@ class AudioApp {
     };
     if (route) {
       route.schedule(e, at);
-      if (e.kind === 'on') later(() => this.markFile(e.midi!, e.vel!, true));
-      else if (e.kind === 'off') later(() => this.markFile(e.midi!, 0, false));
+      if (e.kind === 'on') later(() => this.markFile(e.midi, e.vel, true));
+      else if (e.kind === 'off') later(() => this.markFile(e.midi, 0, false));
       return;
     }
     if (e.kind === 'on') {
-      p.noteOn(e.midi!, e.vel!, at);
-      later(() => this.markFile(e.midi!, e.vel!, true));
+      p.noteOn(e.midi, e.vel, at);
+      later(() => this.markFile(e.midi, e.vel, true));
     } else if (e.kind === 'off') {
-      p.noteOff(e.midi!, at);
-      later(() => this.markFile(e.midi!, 0, false));
+      p.noteOff(e.midi, at);
+      later(() => this.markFile(e.midi, 0, false));
+    } else if (e.kind === 'cc' || e.kind === 'dyn') {
+      // the file's dynamics, every line on the one instrument
+      const lv = this.levels;
+      if (!lv?.take(e)) return;
+      const prev = lv.sent;
+      const next = lv.next(this.levelLines);
+      if (next) sendLevel(p, prev, next, at);
     } else if (e.cc === 64) {
       p.sustain(e.value!, at);
       later(() => (this.sustainValue = e.value!));
@@ -485,11 +525,28 @@ class AudioApp {
     }
     this.notes.emit({ midi, velocity, on, source: 'file' });
   }
-  /** Stop a file: forget what is scheduled, lift its notes and pedals. */
+  /** the file whose dynamics the single instrument plays (expression.ts): its volume reference, the
+   *  lines whose mod wheel moves, its lines (null: none) */
+  fileSong(song: MidiSong | null): void {
+    this.restLevels();
+    this.levels = song ? new PartLevels(volumeRef(song), modLines(song)) : null;
+    this.levelLines = song ? song.lines.map((_, i) => i) : [];
+  }
+  /** the single instrument back at rest from a file's dynamics (they are taken up again from where
+   *  the file is when it plays on) */
+  private restLevels(): void {
+    const lv = this.levels;
+    if (!lv) return;
+    if (this.piano) restLevel(this.piano, lv.sent, this.handPressure);
+    this.levels = new PartLevels(...lv.args);
+  }
+
+  /** Stop a file: forget what is scheduled, lift its notes and pedals, its dynamics back at rest. */
   stopFile(): void {
     for (const id of this.fileTimers) window.clearTimeout(id);
     this.fileTimers.clear();
     this.piano?.clearScheduled();
+    this.restLevels();
     this.route?.stopFile();
     for (const [m, set] of [...this.down]) if (set.has('file')) {
       this.piano?.noteOff(m);

@@ -1420,6 +1420,7 @@ figure[title] {
   display: flex;
   align-items: center;
   gap: 8px;
+  max-width: 100%;
 }
 /* an ensemble's file: its lines, each showing its instrument (lit while it sounds) */
 .pl-lines {
@@ -1527,6 +1528,23 @@ figure[title] {
 }
 .pl-route[hidden] {
   display: none;
+}
+/* automatic expression: a hairpin, lit while on; dim when the file has dynamics of its own */
+.pl-btn svg.pl-hairpin {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.pl-expr[aria-pressed='true'] {
+  color: var(--amber);
+}
+.pl-expr[aria-pressed='false'] {
+  opacity: 0.6;
+}
+.pl-expr.own {
+  opacity: 0.45;
 }
 .pl-route[aria-expanded='true'],
 .pl-pieces[aria-expanded='true'] {
@@ -1645,6 +1663,7 @@ figure[title] {
   gap: 2px;
 }
 .pl-btn {
+  flex: none;
   width: 28px;
   height: 28px;
   padding: 5px;
@@ -1673,6 +1692,9 @@ figure[title] {
 .pl-bar {
   position: relative;
   width: min(160px, 34vw);
+  /* (the icons keep their size; on a narrow phone with every icon shown the hairline gives way) */
+  flex: 0 1 auto;
+  min-width: 56px;
   height: 2px;
   background: rgba(236, 226, 206, 0.16);
   cursor: pointer;

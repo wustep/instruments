@@ -1852,6 +1852,121 @@ test('the bow in the hand: a drag on the bow sounds the string and moves the bow
   expect(errors).toEqual([]);
 });
 
+// ================================================================ a file's dynamics
+/** a file at ♩ = 60, 4/4: per part (its channel = its index), notes of `beats` each, at velocity
+ *  `vel(i)`, and controllers [tick, cc, value] */
+const dynFile = (parts: { name: string; pitches: number[]; beats: number; vel: (i: number) => number; cc?: [number, number, number][] }[]) => {
+  const label = (t: string) => [0xff, 0x03, t.length, ...[...t].map((c) => c.charCodeAt(0))];
+  const tracks: [number, ...number[]][][] = [[[0, 0xff, 0x51, 3, 0x0f, 0x42, 0x40], [0, 0xff, 0x58, 4, 4, 2, 24, 8]]];
+  parts.forEach((p, ch) => {
+    const abs: [number, number[]][] = [[0, label(p.name)]];
+    p.pitches.forEach((m, i) => abs.push([i * p.beats * 480, [0x90 | ch, m, p.vel(i)]], [(i + 1) * p.beats * 480 - 10, [0x80 | ch, m, 0]]));
+    for (const [t, c, v] of p.cc ?? []) abs.push([t, [0xb0 | ch, c, v]]);
+    abs.sort((a, b) => a[0] - b[0]);
+    // (as deltas)
+    let prev = 0;
+    tracks.push(
+      abs.map(([t, b]) => {
+        const d = t - prev;
+        prev = t;
+        return [d, ...b] as [number, ...number[]];
+      }),
+    );
+  });
+  return Array.from(smf(480, tracks));
+};
+const scheduled = (page: Page) =>
+  page.evaluate(() => {
+    const ev = (window as any).__player.scheduled as { kind: string; vel?: number }[];
+    return { vels: ev.filter((e) => e.kind === 'on').map((e) => e.vel!), dyn: ev.filter((e) => e.kind === 'dyn').length };
+  });
+
+test('automatic expression: a hairpin by the hairline, on by default; a flat file phrased, as written when off, remembered; a file’s own dynamics left alone', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await page.evaluate(() => localStorage.removeItem('piano-model.expression'));
+  const btn = page.locator('.player .pl-expr');
+  // at rest there is no hairpin (play, the pieces, open)
+  await expect(btn).toBeHidden();
+  // a flat file: one velocity, no controllers, the cello's notes long
+  const flat = dynFile([
+    { name: 'Violin', pitches: Array.from({ length: 24 }, (_, i) => 67 + ((i * 5) % 12)), beats: 1, vel: () => 80 },
+    { name: 'Cello', pitches: [48, 43, 45, 41, 48, 43], beats: 4, vel: () => 80 },
+  ]);
+  await page.evaluate((b) => (window as any).__player.load(new Uint8Array(b).buffer), flat);
+  await expect.poll(() => page.evaluate(() => (window as any).__player.playing), { timeout: 15_000 }).toBe(true);
+  await expect(btn).toBeVisible();
+  // icon only: named for a screen reader, its state pressed, its tip on hover
+  await expect(btn).toHaveAttribute('aria-pressed', 'true');
+  await expect(btn).toHaveAttribute('aria-label', 'Automatic expression');
+  await expect(btn).toHaveAttribute('data-tip', 'expression · on');
+  expect((await btn.innerText()).trim()).toBe('');
+  let s = await scheduled(page);
+  // phrased: velocities spread about the file's 80; the cello's long notes swell
+  expect(new Set(s.vels).size).toBeGreaterThan(5);
+  expect(s.dyn).toBeGreaterThan(10);
+  // off: as written, and it plays on
+  await btn.click();
+  await expect(btn).toHaveAttribute('aria-pressed', 'false');
+  await expect(btn).toHaveAttribute('data-tip', 'expression · off');
+  s = await scheduled(page);
+  expect([...new Set(s.vels)]).toEqual([80]);
+  expect(s.dyn).toBe(0);
+  await expect.poll(() => page.evaluate(() => (window as any).__player.playing)).toBe(true);
+  // remembered on this device
+  await page.reload();
+  await page.evaluate((b) => (window as any).__player.load(new Uint8Array(b).buffer), flat);
+  await expect(btn).toHaveAttribute('aria-pressed', 'false');
+  expect([...new Set((await scheduled(page)).vels)]).toEqual([80]);
+  // and on again, by the keyboard
+  await btn.focus();
+  await page.keyboard.press('Enter');
+  await expect(btn).toHaveAttribute('aria-pressed', 'true');
+  expect(await page.evaluate(() => localStorage.getItem('piano-model.expression'))).toBe('on');
+  expect(new Set((await scheduled(page)).vels).size).toBeGreaterThan(5);
+  // a file with dynamics of its own (expression hairpins throughout): played as written either way
+  const own = dynFile([{ name: 'Violin', pitches: Array.from({ length: 16 }, (_, i) => 67 + (i % 5)), beats: 1, vel: () => 80, cc: Array.from({ length: 64 }, (_, k) => [k * 120, 11, Math.round(70 + 50 * Math.sin((Math.PI * k) / 16) ** 2)] as [number, number, number]) }]);
+  await page.evaluate((b) => (window as any).__player.load(new Uint8Array(b).buffer), own);
+  await expect(btn).toHaveClass(/\bown\b/);
+  await expect(btn).toHaveAttribute('data-tip', 'expression · the file’s own');
+  s = await scheduled(page);
+  expect([...new Set(s.vels)]).toEqual([80]);
+  expect(s.dyn).toBe(0);
+  // the player's row still fits the screen
+  const row = await page.locator('.player .pl-row').boundingBox();
+  const vw = page.viewportSize()!.width;
+  expect(row!.x).toBeGreaterThanOrEqual(0);
+  expect(row!.x + row!.width).toBeLessThanOrEqual(vw);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.evaluate(() => (window as any).__player.unload());
+  await expect(btn).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('a file’s volume and expression reach the instrument that plays the line, alone or in an ensemble, and let go when it stops', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  const gainOf = () => page.evaluate(() => (window as any).__piano.piano?.output.gain.value as number);
+  // one line, on the instrument shown: volume 60 (of the default 100), expression full: (60/100)² = 0.36
+  const solo = dynFile([{ name: 'Piano', pitches: [60, 64, 67, 72, 67, 64, 60, 64], beats: 1, vel: () => 80, cc: [[0, 7, 60], [0, 11, 127]] }]);
+  await page.evaluate((b) => (window as any).__player.load(new Uint8Array(b).buffer), solo);
+  await expect.poll(gainOf, { timeout: 15_000 }).toBeCloseTo(0.36, 2);
+  await page.locator('.player').getByRole('button', { name: 'Stop' }).click();
+  await expect.poll(gainOf).toBeCloseTo(1, 3);
+  // two lines, an ensemble: the violin's expression at 64 ((64/127)² ≈ 0.254), the cello's at full
+  const duo = dynFile([
+    { name: 'Violin', pitches: Array.from({ length: 12 }, (_, i) => 67 + (i % 5)), beats: 1, vel: () => 80, cc: [[0, 11, 64]] },
+    { name: 'Cello', pitches: [48, 43, 45], beats: 4, vel: () => 80, cc: [[0, 11, 127]] },
+  ]);
+  await page.evaluate((b) => (window as any).__player.load(new Uint8Array(b).buffer), duo);
+  const partGains = () => page.evaluate(() => (window as any).__orchestra.ensemble.parts.map((p: any) => [p.voice, +(p.engine?.output.gain.value ?? NaN).toFixed(3)]));
+  await expect.poll(partGains, { timeout: 15_000 }).toEqual([['violin', +((64 / 127) ** 2).toFixed(3)], ['cello', 1]]);
+  await page.locator('.player').getByRole('button', { name: 'Stop' }).click();
+  await expect.poll(partGains).toEqual([['violin', 1], ['cello', 1]]);
+  await page.locator('.ens-toggle').click();
+  expect(errors).toEqual([]);
+});
+
 // ================================================================ orchestra mode
 const ens = (page: Page) =>
   page.evaluate(() => {
@@ -1942,7 +2057,7 @@ test('the pieces are in the player’s overlay, with play and open: one icon, th
     await expect(player.locator('.pl-row > .score-btn.pl-btn'), mode).toBeVisible();
     await expect(page.locator('.picker .score-btn'), mode).toHaveCount(0);
     // one row of icons, in this order, the pieces next to the file they are the alternative to
-    const shown = await player.locator('.pl-row button:visible').evaluateAll((bs) => bs.map((b) => [...b.classList].find((c) => /^pl-(play|stop|route|pieces|open)$/.test(c))));
+    const shown = await player.locator('.pl-row button:visible').evaluateAll((bs) => bs.map((b) => [...b.classList].find((c) => /^pl-(play|stop|expr|route|pieces|open)$/.test(c))));
     expect(shown, mode).toEqual(row);
     const [b, o] = [await box(btn), await box(page.locator('.pl-open'))];
     expect(Math.abs(b.y - o.y), mode).toBeLessThan(1);
@@ -1988,7 +2103,7 @@ test('the pieces are in the player’s overlay, with play and open: one icon, th
   await expect(menu).toBeHidden();
   await expect.poll(() => page.evaluate(() => (window as any).__orchestra.ensemble.piece?.id ?? null), { timeout: 10_000 }).toBe('haydn');
   await expect(page.locator('.pl-line')).toHaveCount(4);
-  await check('an ensemble, its piece loaded', ['pl-play', 'pl-stop', 'pl-route', 'pl-pieces', 'pl-open']);
+  await check('an ensemble, its piece loaded', ['pl-play', 'pl-stop', 'pl-expr', 'pl-route', 'pl-pieces', 'pl-open']);
   // the routing grid and the pieces menu are not open together
   await page.locator('.pl-route').click();
   await expect(page.locator('.pl-grid')).toBeVisible();

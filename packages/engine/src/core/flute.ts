@@ -13,7 +13,7 @@
 // Turbulence noise scales with jet speed.
 
 import { Pump } from './pump.ts';
-import { type ExciteTrace, type InstrumentCore } from './instrument.ts';
+import { CC_DYNAMICS, DYN_TAU, type ExciteTrace, type InstrumentCore } from './instrument.ts';
 import type { KeySummary } from '../api/messages.ts';
 import type { PianoEvent } from './piano-core.ts';
 import { biquadBandpass, biquadHighpass, biquadPeaking, biquadHighShelf } from './filters.ts';
@@ -134,6 +134,9 @@ export class FluteCore implements InstrumentCore {
   private vib0 = 0;
   private vibRate = 1;
   private expression = 1;
+  /** CC_DYNAMICS (instrument.ts): velocity steps above (below) the note as begun, asked and as the breath has it */
+  private dynTarget = 0;
+  private dyn = 0;
   /** pitch bend as a factor on the bore delay */
   private bendFactor = 1;
   /** the player's intonation, semitones (util.ts playerCents), under any bend */
@@ -340,8 +343,10 @@ export class FluteCore implements InstrumentCore {
         if (this.sustain < 0.5 && !this.held.length) this.release();
         break;
       case 'control':
-        // mod wheel, breath controller and expression all blow: breath pressure
-        if (ev.cc === 1 || ev.cc === 2 || ev.cc === 11) this.expression = 0.4 + 0.8 * clamp(ev.value, 0, 1);
+        // mod wheel, breath controller and expression all blow: breath pressure (below 0, CC_REST:
+        // back to the breath the note asks for)
+        if (ev.cc === 1 || ev.cc === 2 || ev.cc === 11) this.expression = ev.value < 0 ? 1 : 0.4 + 0.8 * clamp(ev.value, 0, 1);
+        else if (ev.cc === CC_DYNAMICS) this.dynTarget = clamp(ev.value, -64, 64);
         break;
       case 'bend':
         // the player rolls the flute in/out and lips the pitch: the tube's effective length
@@ -381,6 +386,7 @@ export class FluteCore implements InstrumentCore {
   }
 
   allSoundOff(): void {
+    this.dyn = this.dynTarget = 0;
     this.bore.fill(0);
     this.jet.fill(0);
     this.pressure = this.pTarget = 0;
@@ -445,9 +451,14 @@ export class FluteCore implements InstrumentCore {
     this.vibPhase += 2 * Math.PI * 5.0 * this.vibRate * dt;
     const vib = 1 + P.vibrato * clamp((age - 0.3) / 0.4, 0, 1) * Math.sin(this.vibPhase);
     this.vibNow = vib - 1;
+    // CC_DYNAMICS: the breath goes on as a note begun that much harder or softer would (a time constant)
+    if (this.dyn !== this.dynTarget) {
+      this.dyn += (this.dynTarget - this.dyn) * (1 - Math.exp(-dt / DYN_TAU));
+      if (Math.abs(this.dynTarget - this.dyn) < 1e-3) this.dyn = this.dynTarget;
+    }
     // velocity: mostly loudness (jet flow amplitude), a little blowing pressure
     const V = FLUTE_VOICE;
-    const v01 = this.velocity / 127;
+    const v01 = this.dyn ? clamp(this.velocity + this.dyn, 1, 127) / 127 : this.velocity / 127;
     const velScale = V.driveLo + (V.driveHi - V.driveLo) * Math.pow(v01, V.driveCurve);
     const pBlow = this.nominalPressure(this.note) * this.pressure * vib * P.breath * (V.pressLo + (V.pressHi - V.pressLo) * v01) * this.expression;
     const Uj = Math.sqrt((2 * Math.max(pBlow, 1)) / RHO);

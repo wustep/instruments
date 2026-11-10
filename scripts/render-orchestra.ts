@@ -107,7 +107,7 @@ for (const job of jobs) {
       const sh = plan.lines[e.line].find((r) => r.part === k)?.shift ?? 0;
       if (e.kind === 'on') events.push({ time: e.t + 0.05, event: { type: 'noteOn', midi: placeNote(e.midi, sh, part.voice), velocity: e.vel } });
       else if (e.kind === 'off') events.push({ time: e.t + 0.05, event: { type: 'noteOff', midi: placeNote(e.midi, sh, part.voice) } });
-      else if (e.cc === 64 && (SOLO || part.voice === 'grand' || part.voice === 'upright')) events.push({ time: e.t + 0.05, event: { type: 'sustain', value: e.value } });
+      else if (e.kind === 'pedal' && e.cc === 64 && (SOLO || part.voice === 'grand' || part.voice === 'upright')) events.push({ time: e.t + 0.05, event: { type: 'sustain', value: e.value } });
     }
     const r = renderInstrument({ sampleRate: FS, instrument: info.instrument, preset: info.preset, events, duration: dur, player: players[k], params: seats ? { seat: seats[k] } : undefined, maxVoices: info.instrument === 'piano' ? (plan.parts.filter((q) => q.voice === 'grand' || q.voice === 'upright').length > 1 ? 32 : 48) : undefined });
     cpu += r.cpuMs;

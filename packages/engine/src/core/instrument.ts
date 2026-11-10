@@ -18,6 +18,19 @@ export const INSTRUMENT_INFO: Record<InstrumentId, { label: string; family: 'pia
 /** Extra events beyond the piano's (continuous controllers). */
 export type ControlEvent = { type: 'control'; cc: number; value: number };
 
+/** A controller above MIDI's 0–127 for a file's dynamics within a held note (apps/web/src/expression.ts):
+ *  the player plays on as if the note had been begun this many velocity steps harder (negative:
+ *  softer). Velocity is the dynamic each sustaining core is fitted along (pp/mf/ff of the Iowa
+ *  recordings), so a swell or a hairpin moves the bow (speed, force, contact point) or the breath
+ *  exactly as a louder or softer note would. 0 is the note as begun (nothing changes); the cores
+ *  glide to a new value with DYN_TAU. The piano, struck, has nothing to sustain and ignores it. */
+export const CC_DYNAMICS = 131;
+/** the glide of CC_DYNAMICS: a player's arm or breath, not a fader (seconds, a time constant) */
+export const DYN_TAU = 0.06;
+/** CC1/CC2/CC11 sent below 0: back to rest, as if the controller had never moved (a file that used
+ *  the mod wheel lets go of it when it stops) */
+export const CC_REST = -1;
+
 /** Generic excitation trace for the "look inside" view (bow, jet). */
 export interface ExciteTrace {
   title: string;

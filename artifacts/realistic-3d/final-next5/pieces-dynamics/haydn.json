@@ -1,0 +1,64 @@
+{
+ "file": "haydn",
+ "excerpt": [
+  0,
+  60
+ ],
+ "parts": [
+  "violin",
+  "violin",
+  "viola",
+  "cello"
+ ],
+ "versions": [
+  {
+   "version": "before",
+   "velocitySd": [
+    0.7,
+    1.1,
+    0.9,
+    0.7
+   ],
+   "levelSdDb": 3.61,
+   "level10to90Db": 9.2,
+   "slowSdDb": 2.84,
+   "meanDb": -25.2,
+   "peakDb": -6,
+   "followsFileCC": null,
+   "dynEvents": 0
+  },
+  {
+   "version": "written",
+   "velocitySd": [
+    0.7,
+    1.1,
+    0.9,
+    0.7
+   ],
+   "levelSdDb": 3.61,
+   "level10to90Db": 9.2,
+   "slowSdDb": 2.84,
+   "meanDb": -25.2,
+   "peakDb": -6,
+   "followsFileCC": null,
+   "dynEvents": 0
+  },
+  {
+   "version": "auto",
+   "velocitySd": [
+    6.5,
+    7.5,
+    7.1,
+    6.8
+   ],
+   "levelSdDb": 3.52,
+   "level10to90Db": 9,
+   "slowSdDb": 2.95,
+   "meanDb": -26.6,
+   "peakDb": -7.5,
+   "followsFileCC": null,
+   "dynEvents": 8208,
+   "withTheMusic": -0.25
+  }
+ ]
+}
