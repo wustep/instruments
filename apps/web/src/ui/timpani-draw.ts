@@ -767,8 +767,8 @@ function drawPedal(ctx: CanvasRenderingContext2D, L: TpLayout, pl: DrumPlan, d: 
   f.quad.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
   ctx.closePath();
   const g = ctx.createLinearGradient(f.toe[0], f.toe[1], f.heel[0], f.heel[1]);
-  g.addColorStop(0, '#6d7076');
-  g.addColorStop(1, '#a4a7ad');
+  g.addColorStop(0, '#4c4f54');
+  g.addColorStop(1, '#85888e');
   ctx.fillStyle = g;
   ctx.fill();
   ctx.strokeStyle = chrome(0.7);

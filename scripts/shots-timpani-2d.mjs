@@ -4,8 +4,8 @@
 // each shot just after the stroke (the mallet rebounding, the head's field fresh) and a moment later (the
 // (1,1) ringing on); a double stop (G2 and C3 together, both hands down); a roll (C3 held with the roll on).
 // In the Orchestra among strings in both styles (laptop and phone). Close-ups on the laptop's stage at 3×: a
-// head's mode pattern a few moments after a stroke, and the gauge with the pedal under it at both ends of the
-// drum's range. JPEGs, kept compact for the PR.
+// head's mode pattern a few moments after a stroke, and the gauge with the pedal under it at the bottom of the
+// 32″'s range (C2) and the top of the 23″'s (A3). JPEGs, kept compact for the PR.
 //   pnpm build && pnpm preview --port 4212 --strictPort &
 //   OUT=<dir> BASE=http://localhost:4212 [TAG=after] [SETS=alone,orchestra,close] node scripts/shots-timpani-2d.mjs
 // TAG=before shoots the placeholder's comparison subset (rest, the low stroke and the double stop alone in each
@@ -125,8 +125,8 @@ if (SETS.includes('orchestra'))
     }
 
 if (SETS.includes('close')) {
-  // close-ups at 3×: the 29″ head's field 0.15, 0.5 and 1.2 s after a stroke (G2); the 32″ gauge and pedal at
-  // the bottom of its range (C2) and the top (A2)
+  // close-ups at 3×: the 29″ head's field 0.15, 0.5 and 1.2 s after a stroke (G2); a gauge and pedal at each end
+  // of a pedal's travel
   for (const style of ['classic', 'vector']) {
     const s = style === 'classic' ? '2d' : 'vector';
     const { ctx, page } = await open('zoom', '/timpani', style);
@@ -145,15 +145,16 @@ if (SETS.includes('close')) {
       }
       await off(page, [43]);
       await hush(page);
-      for (const [m, n] of [[36, 'C2'], [45, 'A2']]) {
+      // (notes only that drum reaches: C2 the 32″ at the bottom of its pedal, A3 the 23″ at the top of its)
+      for (const [m, n, k] of [[36, 'C2', 0], [57, 'A3', 3]]) {
         await on(page, [m], 90);
         await page.waitForTimeout(1600);
         const e = await page.evaluate(() => window.__timpani2d?.());
-        const g = e.gauges[0].box;
-        const p = e.pedals[0];
-        const h0 = e.heads[0];
-        const x0 = Math.min(g.x0, p.x) - 40;
-        const x1 = Math.max(g.x1, h0.x + h0.rx * 0.2) + 40;
+        const g = e.gauges[k].box;
+        const p = e.pedals[k];
+        const h0 = e.heads[k];
+        const x0 = Math.min(g.x0, p.x, h0.x - h0.rx * 0.3) - 40;
+        const x1 = Math.max(g.x1, p.x, h0.x + h0.rx * 0.3) + 40;
         await shot(page, `close-${s}-gauge-pedal-${n}`, { x: x0, y: g.y0 - 30, width: x1 - x0, height: p.y + 60 - (g.y0 - 30) });
         await off(page, [m]);
         await hush(page);
