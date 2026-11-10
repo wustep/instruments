@@ -17,7 +17,7 @@ import { type ExciteTrace, type InstrumentCore } from './instrument.ts';
 import type { KeySummary } from '../api/messages.ts';
 import type { PianoEvent } from './piano-core.ts';
 import { biquadBandpass, biquadHighpass, biquadPeaking, biquadHighShelf } from './filters.ts';
-import { BiquadChain, Limiter, Room } from './post.ts';
+import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { clamp, interp, mulberry32, playerCents, playerSeed, playerVibrato } from './util.ts';
 import fluteTuning from './flute-tuning.json';
 
@@ -32,6 +32,8 @@ export interface FluteParams {
   vibrato: number;
   room: number;
   volume: number;
+  /** orchestra mode: where it sits on the stage (post.ts Seat); none, the single instrument's place */
+  seat?: Seat | null;
 }
 
 const RHO = 1.2;
@@ -182,7 +184,7 @@ export class FluteCore implements InstrumentCore {
   private updatePost(): void {
     const fs = this.fs;
     this.eq.set([biquadHighpass(180, 0.7, fs), biquadPeaking(2800, 1.2, 2.5, fs), biquadHighShelf(8000, -4, fs)]);
-    this.room.configure(this.params.room);
+    this.room.configure(this.params.room, this.params.seat);
     // round 2: re-normalised so the fitted voicing keeps the round-1 mf level (ensemble balance)
     this.gain = 0.0188 * this.params.volume;
   }
@@ -369,6 +371,7 @@ export class FluteCore implements InstrumentCore {
     const old = this.params;
     this.params = { ...old, ...(p as Partial<FluteParams>) };
     if (this.params.room !== old.room || this.params.volume !== old.volume) this.updatePost();
+    else if (this.params.seat !== old.seat) this.room.configure(this.params.room, this.params.seat);
   }
 
   /** the one note actually sounding (a monophonic instrument: the last held key wins and a

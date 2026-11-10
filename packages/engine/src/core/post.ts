@@ -101,9 +101,24 @@ class Allpass {
  * input diffusion, slow delay modulation against metallic ringing, and a per-line
  * absorption filter that gives the bass a longer and the treble a shorter decay, as
  * in a real hall. It is still the listener's side, not part of the instrument.
+ *
+ * A seat (orchestra mode) moves the source across the stage. The instrument's own
+ * output is its direct sound at the single instrument's place. From a seat, that direct
+ * sound reaches each microphone at its own time and level: the path's length (1/r) and
+ * the cardioid's angle. The image sources move with the seat. The late field does not
+ * move: it is the hall's. Without a seat nothing changes, sample for sample.
  */
 export class Room {
   private fs: number;
+  // ---- the direct sound from a seat: the delay (samples) and gain at each microphone,
+  // relative to the single instrument's place; where they are heading (a new seat glides there)
+  private seated = false;
+  private dirBuf: [Float64Array, Float64Array];
+  private dirI = 0;
+  private dirD = new Float64Array(2);
+  private dirDT = new Float64Array(2);
+  private dirG = new Float64Array([1, 1]);
+  private dirGT = new Float64Array([1, 1]);
   // ---- early reflections (mono source, stereo microphones)
   private erBuf: Float64Array;
   private erI = 0;
@@ -163,10 +178,14 @@ export class Room {
     this.dBuf = [1.07, 1.73, 2.69, 3.91, 5.63, 7.97].map((ms) => new Float64Array(Math.round((ms * fs) / 1000)));
     this.dG.set([0.75, 0.72, 0.7, 0.66, 0.62, 0.58]);
     this.lowA = Math.exp((-2 * Math.PI * 260) / fs);
+    // (the microphones are 0.6 m apart: 1.75 ms at most between them)
+    const dn = Math.ceil(0.004 * fs) + 4;
+    this.dirBuf = [new Float64Array(dn), new Float64Array(dn)];
     this.configure(0.25);
   }
 
-  configure(room: number): void {
+  /** the room's size and liveness (0–1) and, in an ensemble, the instrument's seat */
+  configure(room: number, seat?: Seat | null): void {
     const fs = this.fs;
     this.size = 0.55 + 0.45 * room;
     this.t60 = 0.7 + 1.7 * room;
@@ -193,7 +212,13 @@ export class Room {
     const Lx = 26 * this.size;
     const Ly = 18 * this.size;
     const Lz = 11 * this.size;
-    const src = [Lx * 0.5, Ly * 0.22, 1.2];
+    // the single instrument's place, and the seat's: x across the stage (the left microphone's side
+    // negative), y from the back wall towards the microphones (upstage is less), z up
+    const ref = [Lx * 0.5, Ly * 0.22, 1.2];
+    const sx = seat ? seat[0] : 0;
+    const sz = seat ? seat[1] : 0;
+    const seated = sx !== 0 || sz !== 0;
+    const src = seated ? [Math.min(Lx - 0.5, Math.max(0.5, ref[0] + sx)), Math.min(ref[1] + 2.4, Math.max(0.5, ref[1] - sz)), ref[2]] : ref;
     // a near-coincident pair of cardioids 0.6 m apart, angled ±50° to the stage
     const micL = [Lx * 0.5 - 0.3, Ly * 0.22 + 3.2, 1.6];
     const micR = [Lx * 0.5 + 0.3, Ly * 0.22 + 3.2, 1.6];
@@ -205,10 +230,27 @@ export class Room {
       const n = Math.hypot(v[0], v[1], v[2]) || 1;
       return 0.5 + (0.5 * (v[0] * ax[0] + v[1] * ax[1] + v[2] * ax[2])) / n;
     };
-    const d0 = dist(src, micL);
-    const g0 = cardioid(micL, axL, src);
+    // the instrument's output is its direct sound from `ref`: every path is measured against it
+    const d0 = dist(ref, micL);
+    const g0 = cardioid(micL, axL, ref);
     const Rw = 0.88; // pressure reflection coefficient of the walls
     const c = 343;
+    // from a seat: each microphone's direct path, and the first arrival (time zero for both)
+    const dL = dist(src, micL);
+    const dR = dist(src, micR);
+    const t0 = seated ? Math.min(dL, dR) : d0;
+    if (seated || this.seated) {
+      this.dirGT[0] = (cardioid(micL, axL, src) / g0) * (d0 / dL);
+      this.dirGT[1] = (cardioid(micR, axR, src) / cardioid(micR, axR, ref)) * (dist(ref, micR) / dR);
+      this.dirDT[0] = Math.round(((dL - t0) / c) * fs);
+      this.dirDT[1] = Math.round(((dR - t0) / c) * fs);
+      // seated for the first time (a new part, before it plays): there at once
+      if (!this.seated) {
+        this.dirG.set(this.dirGT);
+        this.dirD.set(this.dirDT);
+      }
+      this.seated = true;
+    }
     const t1: number[][] = [];
     const t2: number[][] = [];
     const img = (k: number, L: number, s: number) => (k % 2 === 0 ? k * L + s : (k + 1) * L - s);
@@ -219,8 +261,8 @@ export class Room {
           const order = Math.abs(nx) + Math.abs(ny) + Math.abs(nz);
           if (order === 0 || order > 2) continue;
           const p = [img(nx, Lx, src[0]), img(ny, Ly, src[1]), img(nz, Lz, src[2])];
-          const dl = Math.round(((dist(p, micL) - d0) / c) * fs);
-          const dr = Math.round(((dist(p, micR) - d0) / c) * fs);
+          const dl = Math.round(((dist(p, micL) - t0) / c) * fs);
+          const dr = Math.round(((dist(p, micR) - t0) / c) * fs);
           if (dl <= 0 || dr <= 0 || dl > maxD || dr > maxD) continue;
           const g = Math.pow(Rw, order) / g0;
           (order === 1 ? t1 : t2).push([dl, dr, (g * cardioid(micL, axL, p) * d0) / dist(p, micL), (g * cardioid(micR, axR, p) * d0) / dist(p, micR)]);
@@ -252,11 +294,14 @@ export class Room {
     this.erBuf.fill(0);
     this.erLp.fill(0);
     for (const d of this.dBuf) d.fill(0);
+    this.dirBuf[0].fill(0);
+    this.dirBuf[1].fill(0);
   }
 
-  /** Adds the room's sound (early reflections and late reverberation) into L/R, in place. */
+  /** Adds the room's sound (early reflections and late reverberation) into L/R, in place; from a
+   *  seat, the direct sound in L/R is first moved there. */
   process(L: Float64Array, R: Float64Array, len: number, send: number, wet: number): void {
-    if (wet <= 0 && send <= 0) return;
+    if (wet <= 0 && send <= 0 && !this.seated) return;
     const N = Room.N;
     const o = this.o;
     for (let i = 0; i < N; i++) {
@@ -287,9 +332,11 @@ export class Room {
     const tap = (buf: Float64Array, w: number, d: number): number => {
       let p = w - d;
       if (p < 0) p += eN;
-      let i0 = p | 0;
-      // w − d a hair below 0 plus eN can round to exactly eN
-      if (i0 >= eN) i0 -= eN;
+      // w − d a hair below 0 plus eN can round to exactly eN: wrap the position itself, not only its
+      // index (the fraction p − i0 would be eN, and the reflection eN times too loud: a spike the
+      // limiter then ducks the whole sound under, each time round the buffer)
+      if (p >= eN) p -= eN;
+      const i0 = p | 0;
       const fr = p - i0;
       const a0 = buf[i0];
       return a0 + fr * (buf[i0 + 1 < eN ? i0 + 1 : 0] - a0);
@@ -306,8 +353,38 @@ export class Room {
     const wi = this.wi, gMid = this.gMid, lpLow = this.lpLow, lpHi = this.lpHi, hfP = this.hfP;
     const shelfK1 = this.shelfK1, dBuf = this.dBuf, dIdx = this.dIdx, dG = this.dG;
     const erG = this.erMix;
+    // the seat's direct sound: each microphone's delay and gain, gliding with the reflections
+    const seated = this.seated;
+    const [bL, bR] = this.dirBuf;
+    const bN = bL.length;
+    let gL = this.dirG[0], gR = this.dirG[1], dLs = this.dirD[0], dRs = this.dirD[1];
+    let sgL = 0, sgR = 0, sdL = 0, sdR = 0;
+    if (seated) {
+      for (let k = 0; k < 2; k++) {
+        this.dirG[k] += (this.dirGT[k] - this.dirG[k]) * kg;
+        this.dirD[k] += (this.dirDT[k] - this.dirD[k]) * kg;
+        // (within a hair of the target: there, so the delay settles on a whole sample, unfiltered)
+        if (Math.abs(this.dirD[k] - this.dirDT[k]) < 1e-3) this.dirD[k] = this.dirDT[k];
+      }
+      sgL = (this.dirG[0] - gL) / len;
+      sgR = (this.dirG[1] - gR) / len;
+      sdL = (this.dirD[0] - dLs) / len;
+      sdR = (this.dirD[1] - dRs) / len;
+    }
     for (let t = 0; t < len; t++) {
       const x = (L[t] + R[t]) * 0.5 * send;
+      if (seated) {
+        const di = this.dirI;
+        bL[di] = L[t];
+        bR[di] = R[t];
+        gL += sgL;
+        gR += sgR;
+        dLs += sdL;
+        dRs += sdR;
+        L[t] = gL * tapAt(bL, bN, di, dLs);
+        R[t] = gR * tapAt(bR, bN, di, dRs);
+        this.dirI = di + 1 === bN ? 0 : di + 1;
+      }
       // ---- early reflections
       erBuf[this.erI] = x;
       const w = this.erI;
@@ -333,8 +410,8 @@ export class Room {
       const pi = this.preI;
       let rp = pi - this.preLen;
       if (rp < 0) rp += pre.length;
-      let r0 = rp | 0;
-      if (r0 >= pre.length) r0 -= pre.length;
+      if (rp >= pre.length) rp -= pre.length;
+      const r0 = rp | 0;
       const rf = rp - r0;
       let d = pre[r0] + rf * (pre[r0 + 1 < pre.length ? r0 + 1 : 0] - pre[r0]);
       pre[pi] = x + 0.3 * (erL + erR);
@@ -355,8 +432,8 @@ export class Room {
         const ln = line.length;
         let p = wi[i] - dl[i];
         if (p < 0) p += ln;
-        let i0 = p | 0;
-        if (i0 >= ln) i0 -= ln;
+        if (p >= ln) p -= ln;
+        const i0 = p | 0;
         const fr = p - i0;
         const a0 = line[i0];
         let v = (a0 + fr * (line[i0 + 1 < ln ? i0 + 1 : 0] - a0)) * gMid[i];
@@ -387,6 +464,23 @@ export class Room {
     }
   }
 }
+/** a ring buffer `buf` (length n, last written at w) read `d` samples back, linearly interpolated
+ *  (a whole number of samples reads exactly) */
+function tapAt(buf: Float64Array, n: number, w: number, d: number): number {
+  let p = w - d;
+  if (p < 0) p += n;
+  if (p >= n) p -= n;
+  const i0 = p | 0;
+  const fr = p - i0;
+  const a0 = buf[i0];
+  return fr === 0 ? a0 : a0 + fr * (buf[i0 + 1 < n ? i0 + 1 : 0] - a0);
+}
+
+/** where an instrument sits on the stage (orchestra mode), in metres from the single instrument's
+ *  place (the stage's middle, 3.2 m in front of the microphones): x across, negative on the left
+ *  microphone's side (the audience's left); z upstage, away from the audience */
+export type Seat = readonly [number, number];
+
 function hadamard16(o: Float64Array): void {
   for (let h = 1; h < 16; h <<= 1)
     for (let i = 0; i < 16; i += h << 1)

@@ -3,6 +3,7 @@
 
 import { DEFAULT_CALIBRATION, type Breakpoints, type Calibration } from './calibration.ts';
 import { clamp, gauss, interp, interpLog, midiToEtHz, mulberry32, playerCents, playerSeed } from './util.ts';
+import type { Seat } from './post.ts';
 
 export const KEY_LO = 21; // A0
 export const KEY_HI = 108; // C8
@@ -35,6 +36,8 @@ export interface PianoParams {
   lid: number;
   /** 0 = dry (close mics), 1 = large wet room */
   room: number;
+  /** orchestra mode: where it sits on the stage (post.ts Seat); none, the single instrument's place */
+  seat?: Seat | null;
   /** multiplier on intrinsic string decay times */
   sustain: number;
   /** master output gain (linear) */

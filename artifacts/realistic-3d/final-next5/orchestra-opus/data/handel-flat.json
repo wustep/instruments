@@ -1,0 +1,35 @@
+{
+ "piece": "handel",
+ "seconds": 45,
+ "flat": true,
+ "bus": 0.7071067811865475,
+ "parts": [
+  {
+   "voice": "trumpet",
+   "lines": [
+    0
+   ],
+   "seat": null,
+   "peakDb": -1,
+   "rmsDb": -13.2,
+   "ildDb": 0.88,
+   "lagMs": 0
+  },
+  {
+   "voice": "grand",
+   "lines": [
+    1,
+    2
+   ],
+   "seat": null,
+   "peakDb": -1,
+   "rmsDb": -18.2,
+   "ildDb": -1.59,
+   "lagMs": 0.042
+  }
+ ],
+ "mix": {
+  "peakDb": 0.1,
+  "rmsDb": -15.2
+ }
+}

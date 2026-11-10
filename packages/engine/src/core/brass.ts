@@ -9,7 +9,7 @@
 import { Pump } from './pump.ts';
 import type { KeySummary } from '../api/messages.ts';
 import type { ExciteTrace, InstrumentCore } from './instrument.ts';
-import { BiquadChain, Limiter, Room } from './post.ts';
+import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { biquadHighpass, biquadLowpass, biquadPeaking, biquadHighShelf } from './filters.ts';
 import type { PianoEvent } from './piano-core.ts';
 import { clamp, playerCents, playerSeed, playerVibrato } from './util.ts';
@@ -26,6 +26,8 @@ export interface TrumpetParams {
   vibrato: number;
   room: number;
   volume: number;
+  /** orchestra mode: where it sits on the stage (post.ts Seat); none, the single instrument's place */
+  seat?: Seat | null;
 }
 
 const BUF = 8192;
@@ -191,7 +193,7 @@ export class TrumpetCore implements InstrumentCore {
     const fs = this.fs;
     // the bell's radiation: a rising presence region and a gentle top
     this.eq.set([biquadHighpass(120, 0.7, fs), biquadPeaking(1300, 1.0, 3, fs), biquadHighShelf(7000, -6, fs)]);
-    this.room.configure(this.params.room);
+    this.room.configure(this.params.room, this.params.seat);
   }
 
   private setNote(m: number, immediate: boolean): void {
@@ -277,6 +279,7 @@ export class TrumpetCore implements InstrumentCore {
     const old = this.params;
     this.params = { ...old, ...(p as Partial<TrumpetParams>) };
     if (this.params.room !== old.room || this.params.volume !== old.volume) this.updatePost();
+    else if (this.params.seat !== old.seat) this.room.configure(this.params.room, this.params.seat);
   }
 
   /** the one note actually sounding (a monophonic instrument: the last held key wins and a

@@ -7,6 +7,10 @@
 // --parts: a routing by hand (voice:lines; …) over the piece's (or file's) lines, as the routing grid sets it
 // --one-player: every part player 0 (two of a voice on one line as one instrument twice: the comparison)
 // --wav: keep the WAV next to the MP3 (for scripts/spectrogram.ts)
+// --flat: every part from the single instrument's place (no seats: the mix as it was before seating)
+// --json: also write <name>.json, each part's numbers (for scripts/stage-chart.mjs)
+// Each part's place in the picture is printed: its level difference between the channels (L − R, dB)
+// and the time lag between them (positive: the right channel later, the part on the left).
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -16,6 +20,7 @@ import { parseMidi } from '../apps/web/src/midi-file.ts';
 import { autoPlan, placeNote, planOf, playersOf, shiftsOf, VOICE_INFO, VOICES, type Plan, type Voice } from '../apps/web/src/orchestra/assign.ts';
 import { PIECES, piecePlan } from '../apps/web/src/orchestra/pieces.ts';
 import { busGain } from '../apps/web/src/orchestra/mix.ts';
+import { soundSeats } from '../apps/web/src/orchestra/seats.ts';
 
 const args = process.argv.slice(2);
 const opt = (k: string, d: string) => {
@@ -34,6 +39,8 @@ const PARTS = opt('--parts', '');
 const NAME = opt('--name', '');
 const ONE = args.includes('--one-player') ? (args.splice(args.indexOf('--one-player'), 1), true) : false;
 const WAV = args.includes('--wav') ? (args.splice(args.indexOf('--wav'), 1), true) : false;
+const FLAT = args.includes('--flat') ? (args.splice(args.indexOf('--flat'), 1), true) : false;
+const JSON_OUT = args.includes('--json') ? (args.splice(args.indexOf('--json'), 1), true) : false;
 const FS = 48000;
 mkdirSync(OUT, { recursive: true });
 
@@ -55,6 +62,29 @@ if (PIECE) jobs = jobs.filter((j) => j.name === PIECE);
 if (PARTS) jobs = jobs.map((j) => ({ ...j, name: NAME || `${j.name}-routed`, plan: (l) => handPlan(l, j.plan(l)) }));
 
 const db = (x: number) => (20 * Math.log10(Math.max(1e-9, x))).toFixed(1);
+/** a stereo signal's place: the channels' level difference (dB) and the lag (ms, ±2) that best lines
+ *  them up (their cross-correlation's peak; positive: the right channel later) */
+function image(l: Float32Array, r: Float32Array): { ild: number; lag: number } {
+  let el = 0;
+  let er = 0;
+  for (let i = 0; i < l.length; i++) {
+    el += l[i] * l[i];
+    er += r[i] * r[i];
+  }
+  const M = Math.round(0.002 * FS);
+  let best = 0;
+  let bestV = -Infinity;
+  // (every 4th sample: enough for the peak's place)
+  for (let k = -M; k <= M; k++) {
+    let v = 0;
+    for (let i = Math.max(0, -k); i < l.length - Math.max(0, k); i += 4) v += l[i] * r[i + k];
+    if (v > bestV) {
+      bestV = v;
+      best = k;
+    }
+  }
+  return { ild: 10 * Math.log10((el + 1e-30) / (er + 1e-30)), lag: (best / FS) * 1000 };
+}
 for (const job of jobs) {
   const song = parseMidi(job.buf.buffer.slice(job.buf.byteOffset, job.buf.byteOffset + job.buf.byteLength) as ArrayBuffer);
   const plan: Plan = SOLO ? { parts: [{ voice: SOLO, lines: song.lines.map((_, i) => i) }], lines: song.lines.map(() => [{ part: 0, shift: 0 }]) } : job.plan(song.lines);
@@ -67,6 +97,8 @@ for (const job of jobs) {
   console.log(`\n${job.name}: ${plan.parts.map((p, k) => `${p.voice}${players[k] ? `(player ${players[k]})` : ''}[${p.lines.join(',')}]`).join(' ')}  bus ×${g.toFixed(3)}`);
   let cpu = 0;
   const outs: Float32Array[] = [];
+  const seats = SOLO || FLAT ? null : soundSeats(plan.parts.map((p) => VOICE_INFO[p.voice]));
+  const rows: { voice: string; lines: number[]; seat: number[] | null; peakDb: number; rmsDb: number; ildDb: number; lagMs: number }[] = [];
   for (const [k, part] of plan.parts.entries()) {
     const info = VOICE_INFO[part.voice];
     const events: TimedEvent[] = [];
@@ -77,7 +109,7 @@ for (const job of jobs) {
       else if (e.kind === 'off') events.push({ time: e.t + 0.05, event: { type: 'noteOff', midi: placeNote(e.midi, sh, part.voice) } });
       else if (e.cc === 64 && (SOLO || part.voice === 'grand' || part.voice === 'upright')) events.push({ time: e.t + 0.05, event: { type: 'sustain', value: e.value } });
     }
-    const r = renderInstrument({ sampleRate: FS, instrument: info.instrument, preset: info.preset, events, duration: dur, player: players[k], maxVoices: info.instrument === 'piano' ? (plan.parts.filter((q) => q.voice === 'grand' || q.voice === 'upright').length > 1 ? 32 : 48) : undefined });
+    const r = renderInstrument({ sampleRate: FS, instrument: info.instrument, preset: info.preset, events, duration: dur, player: players[k], params: seats ? { seat: seats[k] } : undefined, maxVoices: info.instrument === 'piano' ? (plan.parts.filter((q) => q.voice === 'grand' || q.voice === 'upright').length > 1 ? 32 : 48) : undefined });
     cpu += r.cpuMs;
     outs.push(r.left);
     let pk = 0;
@@ -88,7 +120,9 @@ for (const job of jobs) {
       L[i] += g * r.left[i];
       R[i] += g * r.right[i];
     }
-    console.log(`  ${part.voice.padEnd(8)} peak ${db(pk)} dBFS  rms ${db(Math.sqrt(s2 / n))} dBFS  (${(r.cpuMs / dur / 10).toFixed(1)} % of real time)`);
+    const im = image(r.left, r.right);
+    rows.push({ voice: part.voice, lines: part.lines, seat: seats ? [...seats[k]] : null, peakDb: +db(pk), rmsDb: +db(Math.sqrt(s2 / n)), ildDb: +im.ild.toFixed(2), lagMs: +im.lag.toFixed(3) });
+    console.log(`  ${part.voice.padEnd(8)} peak ${db(pk)} dBFS  rms ${db(Math.sqrt(s2 / n))} dBFS  L−R ${im.ild.toFixed(1).padStart(5)} dB  lag ${im.lag.toFixed(2).padStart(5)} ms${seats ? `  seat ${seats[k].map((v) => v.toFixed(2)).join(', ')}` : ''}  (${(r.cpuMs / dur / 10).toFixed(1)} % of real time)`);
   }
   // two of a voice on one line: how alike they sound (1: one instrument twice; two players less)
   for (let a = 0; a < plan.parts.length; a++)
@@ -113,7 +147,8 @@ for (const job of jobs) {
     s2 += L[i] * L[i];
   }
   console.log(`  mix      peak ${db(pk)} dBFS  rms ${db(Math.sqrt(s2 / n))} dBFS  (all parts ${(cpu / dur / 10).toFixed(1)} % of real time)`);
-  const name = SOLO ? `${job.name}-before-one-${SOLO}` : ONE ? `${job.name}-one-player` : job.name;
+  const name = SOLO ? `${job.name}-before-one-${SOLO}` : ONE ? `${job.name}-one-player` : FLAT ? `${job.name}-flat` : job.name;
+  if (JSON_OUT) writeFileSync(join(OUT, `${name}.json`), JSON.stringify({ piece: job.name, seconds: dur, flat: FLAT, bus: g, parts: rows, mix: { peakDb: +db(pk), rmsDb: +db(Math.sqrt(s2 / n)) } }, null, 1));
   const wav = join(OUT, `${name}.wav`);
   writeFileSync(wav, encodeWav({ sampleRate: FS, channels: [L, R] }));
   execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', wav, '-b:a', '160k', join(OUT, `${name}.mp3`)]);

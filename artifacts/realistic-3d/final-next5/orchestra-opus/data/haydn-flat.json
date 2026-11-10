@@ -1,0 +1,56 @@
+{
+ "piece": "haydn",
+ "seconds": 45,
+ "flat": true,
+ "bus": 0.5,
+ "parts": [
+  {
+   "voice": "violin",
+   "lines": [
+    0
+   ],
+   "seat": null,
+   "peakDb": -12.4,
+   "rmsDb": -28.5,
+   "ildDb": -3.44,
+   "lagMs": 0.958
+  },
+  {
+   "voice": "violin",
+   "lines": [
+    1
+   ],
+   "seat": null,
+   "peakDb": -7.8,
+   "rmsDb": -25.2,
+   "ildDb": -1.83,
+   "lagMs": -1.542
+  },
+  {
+   "voice": "viola",
+   "lines": [
+    2
+   ],
+   "seat": null,
+   "peakDb": -10.1,
+   "rmsDb": -26.9,
+   "ildDb": 1.4,
+   "lagMs": -1.854
+  },
+  {
+   "voice": "cello",
+   "lines": [
+    3
+   ],
+   "seat": null,
+   "peakDb": -10.9,
+   "rmsDb": -28.7,
+   "ildDb": -3.16,
+   "lagMs": 1.917
+  }
+ ],
+ "mix": {
+  "peakDb": -10.4,
+  "rmsDb": -27.2
+ }
+}
