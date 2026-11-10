@@ -17,19 +17,20 @@
 // piano. With a lineup chosen by hand, the lines are matched to it by register instead: the highest
 // line to the highest instrument, and so on down.
 
-export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'flute' | 'trumpet';
-export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'flute', 'trumpet'];
+export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'flute' | 'trumpet' | 'volute';
+export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'flute', 'trumpet', 'volute'];
 
 export interface VoiceInfo {
   label: string;
   /** the engine's instrument and (pianos) preset */
-  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'flute' | 'trumpet';
+  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'flute' | 'trumpet' | 'volute';
   preset?: 'grand' | 'upright';
   /** playable range (MIDI notes) and where the instrument sings best */
   lo: number;
   hi: number;
   centre: number;
-  /** notes it can hold at once: a keyboard any number, a bowed string one per string, a wind one */
+  /** notes it can hold at once: a keyboard any number, a bowed string one per string, a wind one,
+   *  the volute ten */
   poly: number;
 }
 // ranges: the engine's (packages/engine/src/core/instrument.ts INSTRUMENT_INFO); centres: the
@@ -43,7 +44,11 @@ export const VOICE_INFO: Record<Voice, VoiceInfo> = {
   cello: { label: 'cello', instrument: 'cello', lo: 36, hi: 81, centre: 52, poly: 4 },
   flute: { label: 'flute', instrument: 'flute', lo: 60, hi: 96, centre: 79, poly: 1 },
   trumpet: { label: 'trumpet', instrument: 'trumpet', lo: 52, hi: 86, centre: 68, poly: 1 },
+  // (never chosen for a line by itself: no file is written for it; put on the stage by hand, or named)
+  volute: { label: 'volute', instrument: 'volute', lo: 36, hi: 84, centre: 60, poly: 10 },
 };
+/** holds chords without being a keyboard (the volute): live keys all go to it, as to a piano */
+export const isChordal = (v: Voice): boolean => isKeyboard(v) || VOICE_INFO[v].poly > 4;
 export const isKeyboard = (v: Voice): boolean => v === 'grand' || v === 'upright';
 
 /** what assignment needs to know of a line (midi-file.ts MidiLine) */
@@ -80,6 +85,7 @@ export interface Plan {
 export function voiceFromName(s: string): Voice | null {
   const t = s.toLowerCase();
   if (!t.trim()) return null;
+  if (/volute/.test(t)) return 'volute';
   if (/upright|honky/.test(t)) return 'upright';
   if (/cello|violoncell|violincell|\bvc\.?\b|\bvlc\b|contrabass|double ?bass|\bbass(o|e)?\b|violone|kontrabass|bassoon|fagott|tuba/.test(t)) return 'cello';
   if (/viola|\bvla?\.?\b|bratsche|\balto\b/.test(t) && !/viola da gamba/.test(t)) return 'viola';

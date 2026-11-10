@@ -6,6 +6,11 @@ No samples are ever played as the sound. Every note is a simulation of felt
 hammers, bows and air jets driving strings and tubes, which in turn drive a
 soundboard or body.
 
+There is also a **volute**, an instrument that does not exist: one key bows a
+string, blows a pipe and strikes a bar, all on one soundboard with twelve
+sympathetic strings (`packages/engine/src/core/volute.ts`; numbers in
+`artifacts/round3/volute/NOTES.md`).
+
 **Production URL (planned):** https://piano-model-wustep.vercel.app. `main` is
 linked to a Vercel production deployment, which is checked separately; this
 README does not claim it is live. `vercel.json` makes this a static build

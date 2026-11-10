@@ -104,7 +104,7 @@ export function notesView(): View {
       id: 'overview',
       title: 'What this is',
       body: [
-        p('Six acoustic instruments — piano (grand and upright), violin, viola, cello, flute and trumpet — computed as physics, sample by sample, in your browser. No recorded sound is ever played as the instrument. Each is a small set of coupled physical parts: something that carries waves (a string, an air column), something that drives it (a felt hammer, a bow, a jet of breath, buzzing lips) and something that radiates (a soundboard, a wooden body, an open end, a bell), heard in a modelled room.'),
+        p('Six acoustic instruments — piano (grand and upright), violin, viola, cello, flute and trumpet — and one that does not exist, the volute, computed as physics, sample by sample, in your browser. No recorded sound is ever played as the instrument. Each is a small set of coupled physical parts: something that carries waves (a string, an air column), something that drives it (a felt hammer, a bow, a jet of breath, buzzing lips) and something that radiates (a soundboard, a wooden body, an open end, a bell), heard in a modelled room.'),
         p('Everything runs in an AudioWorklet written in TypeScript. The same DSP core runs in Node for the tests, calibration and offline renders, so every number on this page comes from the code you are hearing. What moves on the stage — strings, hammers, bows, holes, valves, wavefronts — is drawn from the same simulation, live.'),
       ],
     },
@@ -177,6 +177,22 @@ export function notesView(): View {
           'Its level, matched to the recordings as the other instruments are (4.1 → 3.3).',
         ),
         p('Eleven other attempts — a tongue release, lower pianissimo pressure, a dynamic brightness tilt, a harmonic cut-off tied to the pitch — were measured too and rejected: none beat the judge. The trumpet plays within ±6 ¢ at pp and ±2 ¢ at ff (2.7 ¢ RMS against the recordings). On the stage its standing wave glows inside the tube along the real wrap, the lips buzz with the engine’s own opening, and the valve slides light up when the air goes through them.'),
+      ],
+    },
+    {
+      id: 'volute',
+      title: 'Volute',
+      body: [
+        p('The volute is not a real instrument. It is built here from the same physics as the others, to see what one player could command if a key did three things at once. It is a horizontal spiral frame about 2.7 m across. Forty-nine steel strings run from a round bridge on a spruce disc at the centre (the hub) out to the frame. Thirty-seven open brass pipes stand on the frame and thirty-seven aluminium bars lie beyond them. A key, C2 to C6, presses its string onto a rosined band that runs under all the strings (as a hurdy-gurdy’s wheel does), opens its pipe, and throws a mallet at its bar as hard as the key was struck. The lowest octave borrows the pipes and bars an octave above, as an orchestra’s basses are doubled.'),
+        ul(
+          'Strings: a waveguide either side of the band, with the bowed strings’ friction law solved every sample. The stick–slip motion forms by itself; a soft key eases the string onto the band and the note blooms.',
+          'Pipes: the flute’s jet on one fixed length per note, on a wind whose pressure does not change. They are tuned a fraction of a hertz above the strings (0.35 Hz at C3, 1.1 Hz at C6), as an organ’s voix céleste is, so the two choirs beat slowly instead of locking.',
+          'Bars: three modes at 1 : 4 : 10 of the fundamental, as a vibraphone’s bars are tuned, struck by a mallet whose contact is shorter the harder it is thrown: a hard blow is bright.',
+          'Hub and halo: every string ends on the hub, a free-edged plate whose first modes stand at 1, 1.73, 2.33 and 3.91 × 60 Hz. Twelve sympathetic strings (C3 to B3) share the bridge and are never damped: they take up whatever the hub does at their harmonics and ring on after the keys are let go.',
+        ),
+        eq('strings ∝ √2·cos(π·weave/2),   pipes ∝ √2·sin(π·weave/2)', 'the weave turns the player’s effort from one sustained choir to the other at equal power'),
+        p('It is played from the keys with four controls: the weave (strings to pipes), the swell (the band’s speed and the wind together), the mallets and the halo. On the 2D stage a hand dragged across turns the weave and up or down the swell; from a MIDI keyboard the mod wheel swells and CC 74 turns the weave. The pedal holds the keys down.'),
+        p('There is no recording to fit, so nothing here is calibrated against one. What is measured is the model itself: each string and pipe is tuned by rendering it and correcting its length (strings within 2 ¢ at 44.1 and 48 kHz, pipes within 0.1 ¢ of their target), and each pipe is trimmed so the rank is even and as loud as the strings at mezzo-forte.'),
       ],
     },
     {

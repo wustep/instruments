@@ -1,0 +1,10 @@
+demo: 30 s, peak 0.890 (written at −1 dBFS, ×1.00), cpu 2.7 % of real time
+  levels (dB RMS, as rendered): strings alone -22.5, tune over chords -17.6, pipes alone -22.0, everything -14.0, halo and room 1 s after the keys -39.7, at 4 s -71.0
+choir-strings: 5 s, peak 0.366, cpu 0.6 % of real time
+  held -19.9 dB, first 150 ms of the last key -20.8 dB, 0.5 s after the keys -91.9 dB
+choir-pipes: 5 s, peak 0.319, cpu 0.5 % of real time
+  held -20.3 dB, first 150 ms of the last key -20.7 dB, 0.5 s after the keys -79.0 dB
+choir-bars: 5 s, peak 0.122, cpu 0.7 % of real time
+  held -39.5 dB, first 150 ms of the last key -26.8 dB, 0.5 s after the keys -145.3 dB
+choir-all: 5 s, peak 0.504, cpu 0.8 % of real time
+  held -17.0 dB, first 150 ms of the last key -19.2 dB, 0.5 s after the keys -32.4 dB

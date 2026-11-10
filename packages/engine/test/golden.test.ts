@@ -2,7 +2,7 @@
 // envelope and ⅓-octave spectrum), compared with the blessed one. A refactor or speed-up that
 // changes the sound fails here; a deliberate change is blessed with
 //   UPDATE_GOLDEN=1 npx vitest run packages/engine/test/golden.test.ts
-// (and its before/after goes in the commit). The bowed strings and the trumpet are chaotic
+// (and its before/after goes in the commit). The bowed strings, the trumpet and the volute's strings are chaotic
 // self-oscillators: any change of timing alters their waveform, so their tolerance is wider.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -12,8 +12,8 @@ import { fft } from '../src/analysis/index.ts';
 
 const FS = 48000;
 const DIR = join(import.meta.dirname, 'golden');
-const PASSAGE: Record<string, number[]> = { piano: [48, 60, 64, 67], violin: [67, 71, 74], cello: [43, 50, 55], flute: [72, 76, 79], trumpet: [60, 64, 67] };
-const TOL: Record<string, number> = { piano: 0.3, flute: 0.6, violin: 1.5, cello: 1.5, trumpet: 1.5 };
+const PASSAGE: Record<string, number[]> = { piano: [48, 60, 64, 67], violin: [67, 71, 74], cello: [43, 50, 55], flute: [72, 76, 79], trumpet: [60, 64, 67], volute: [48, 60, 67, 72] };
+const TOL: Record<string, number> = { piano: 0.3, flute: 0.6, violin: 1.5, cello: 1.5, trumpet: 1.5, volute: 1.5 };
 
 function fingerprint(inst: InstrumentId) {
   const notes = PASSAGE[inst];
