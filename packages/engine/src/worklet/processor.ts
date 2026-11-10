@@ -271,6 +271,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       reed: (v as { reed?: never }).reed,
       lips: (v as { lips?: never }).lips,
       timpani: (v as { timpani?: never }).timpani,
+      trombone: (v as { trombone?: never }).trombone,
       strings: (v as { strings?: never }).strings,
       modeFreqs: core.id === 'flute' || core.id === 'oboe' || core.id === 'clarinet' || core.id === 'bassoon' || core.id === 'horn' || core.id === 'trombone' || core.id === 'timpani' ? Array.from(core.modeFrequencies) : undefined,
     });

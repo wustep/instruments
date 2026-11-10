@@ -86,7 +86,8 @@ test('the trombone through the worklet at 22.05, 44.1, 48 and 96 kHz: at pitch o
     }, [rate, midi, vel] as const);
     const who = `${rate} Hz, MIDI ${midi}, velocity ${vel}`;
     expect(out.n, who).toBe(Math.round(1.4 * rate));
-    expect(out.peak, who).toBeGreaterThan(0.01);
+    // (as loud as the Iowa trombones were recorded: a pianissimo F3 peaks near 0.009)
+    expect(out.peak, who).toBeGreaterThan(0.003);
     expect(out.peak, who).toBeLessThanOrEqual(1);
     expect(Math.abs(out.cents), who).toBeLessThan(8);
     levels[`${midi}/${vel}`] = out.db;
