@@ -2751,26 +2751,34 @@ test('orchestra routing, many to many: a tune on two instruments, the whole file
   await expect(grid.locator('.pg-row[data-part="5"]')).toHaveAttribute('aria-label', /^cello 2/);
   await expect(page.locator('.pick[aria-label="Cello"] .pick-n')).toHaveText('×2');
   await expect.poll(async () => (await ens(page)).held[5], { timeout: 6000 }).toBeGreaterThan(0);
-  if (info.project.name === 'phone') {
-    // a phone's stage holds six: the grid offers no seventh
-    await expect(grid.locator('.pg-add')).toBeDisabled();
-  } else {
-    // two grands, each its own engine and seat; eight is the most
-    for (let k = 0; k < 2; k++) {
-      await grid.locator('.pg-add').click();
-      await page.locator('.pl-menu .pl-pick[data-voice="grand"]').click();
-    }
-    await expect(grid.locator('.pg-add')).toBeDisabled();
-    await grid.locator('.pg-all[data-part="6"]').click();
-    await grid.locator('.pg-all[data-part="7"]').click();
-    await expect.poll(async () => (await ens(page)).frames, { timeout: 10000 }).toBe(8);
-    const g = await routing(page);
-    expect(g.engines).toBe(8);
-    expect(g.lineup.slice(6)).toEqual(['grand', 'grand']);
-    expect(g.players.slice(6)).toEqual([0, 1]);
-    expect((await ens(page)).kinds.slice(6)).toEqual(['piano', 'piano']);
-    // the bus at 1/√n of the instruments that play
-    await expect.poll(() => page.evaluate(() => (window as any).__orchestra.ensemble.bus.gain.value), { timeout: 2000 }).toBeCloseTo(1 / Math.sqrt(8), 2);
+  // two grands, each its own engine and seat: the stage's room is its audio thread's (two pianos and the
+  // heaviest others: eight on a computer, six on a phone, more as far as they cost no more)
+  for (let k = 0; k < 2; k++) {
+    await grid.locator('.pg-add').click();
+    await page.locator('.pl-menu .pl-pick[data-voice="grand"]').click();
+  }
+  // a third piano is more than either carries; on a phone nothing more fits, on a computer a flute still does
+  if (info.project.name === 'phone') await expect(grid.locator('.pg-add')).toBeDisabled();
+  else {
+    await grid.locator('.pg-add').click();
+    await expect(page.locator('.pl-menu .pl-pick[data-voice="grand"]')).toBeDisabled();
+    await expect(page.locator('.pl-menu .pl-pick[data-voice="flute"]')).toBeEnabled();
+    await page.keyboard.press('Escape');
+  }
+  // each its own row while they wait; given every line, the two are one section of two desks
+  await grid.locator('.pg-all[data-part="6"]').click();
+  await grid.locator('.pg-all[data-part="7"]').click();
+  await expect(grid.locator('.pg-row[data-part="6"]')).toHaveAttribute('data-seats', '6 7');
+  await expect(grid.locator('.pg-row[data-part="6"] .pl-more')).toHaveText('×2');
+  await expect.poll(async () => (await ens(page)).frames, { timeout: 10000 }).toBe(8);
+  const g = await routing(page);
+  expect(g.engines).toBe(8);
+  expect(g.lineup.slice(6)).toEqual(['grand', 'grand']);
+  expect(g.players.slice(6)).toEqual([0, 1]);
+  expect((await ens(page)).kinds.slice(6)).toEqual(['piano', 'piano']);
+  // the bus at 1/√n of the instruments that play
+  await expect.poll(() => page.evaluate(() => (window as any).__orchestra.ensemble.bus.gain.value), { timeout: 2000 }).toBeCloseTo(1 / Math.sqrt(8), 2);
+  if (info.project.name !== 'phone') {
     // in 3D: every seat drawn, both grands' open lids mirror the strings
     await page.keyboard.press('Escape');
     await page.locator('.dim-toggle').click();
@@ -2780,22 +2788,23 @@ test('orchestra routing, many to many: a tune on two instruments, the whole file
     expect(await glErrors(page, 10), 'two grands: WebGL errors').toBe(0);
     await page.locator('.dim-toggle').click();
     await page.locator('.pl-route').click();
-    // a grand taken off from its row
-    await grid.locator('.pg-row[data-part="7"]').click();
-    await page.locator('.pl-menu .pl-off').click();
-    await expect.poll(async () => (await routing(page)).engines, { timeout: 5000 }).toBe(7);
   }
+  // one desk fewer, from its section's row: a grand off
+  await grid.locator('.pg-row[data-part="6"]').click();
+  await expect(page.locator('.pl-menu')).toHaveAttribute('aria-label', 'grand piano 1–2');
+  await page.locator('.pl-menu .pl-less').click();
+  await expect.poll(async () => (await routing(page)).engines, { timeout: 5000 }).toBe(7);
+  await page.keyboard.press('Escape');
   // an instrument changed in its seat: the flute becomes a trumpet, the tune with it
   await grid.locator('.pg-row[data-part="0"]').click();
   await page.locator('.pl-menu .pl-pick[data-voice="trumpet"]').click();
   await expect.poll(async () => (await routing(page)).lineup[0]).toBe('trumpet');
-  // (the second cello and, on a desktop, the grand play every line)
-  const desk = info.project.name !== 'phone';
-  await expect(page.locator('.pl-line').nth(0)).toHaveAttribute('data-voices', desk ? 'trumpet violin cello grand' : 'trumpet violin cello');
+  // (the second cello and the grand play every line)
+  await expect(page.locator('.pl-line').nth(0)).toHaveAttribute('data-voices', 'trumpet violin cello grand');
   // off the stage: the tune stays on its violin (and the second cello, and the grand)
   await grid.locator('.pg-row[data-part="0"]').click();
   await page.locator('.pl-menu .pl-off').click();
-  await expect.poll(async () => (await routing(page)).routes[0]).toEqual(desk ? [0, 4, 5] : [0, 4]);
+  await expect.poll(async () => (await routing(page)).routes[0]).toEqual([0, 4, 5]);
   // Escape closes the grid; the line chip still moves a line, and only that line
   await page.keyboard.press('Escape');
   await expect(grid).toBeHidden();

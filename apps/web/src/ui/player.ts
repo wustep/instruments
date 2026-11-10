@@ -338,7 +338,7 @@ export class MidiPlayer {
    * one instrument, or any file while the ensemble is on: the ensemble plays it. Otherwise (a piano
    * piece) the instrument shown plays every line.
    */
-  async load(buf: ArrayBuffer, piece: Piece | null = null): Promise<void> {
+  async load(buf: ArrayBuffer, piece: Piece | null = null, onStage = false): Promise<void> {
     let song: MidiSong;
     try {
       song = pieceSong(parseMidi(buf), piece);
@@ -351,11 +351,12 @@ export class MidiPlayer {
     this.song = song.events.length ? song : null;
     this.demo = null;
     this.perform();
-    const plan = ensemble.planFor(song, piece);
     // (a lineup picked by hand stays picked: the file was matched to it, by the routing it has if it
-    // has one: an address's, or the last file's)
-    const rules = ensemble.rulesFor(piece);
-    if (piece || ensemble.active || plan.parts.length > 1) ensemble.enter(plan, song, piece, !piece && ensemble.active && ensemble.byUser, rules);
+    // has one: an address's, or the last file's; `onStage`: a piece played on the lineup as it stands)
+    const keep = onStage && ensemble.active;
+    const plan = keep ? ensemble.planOnStage(song, piece) : ensemble.planFor(song, piece);
+    const rules = keep ? ensemble.rules : ensemble.rulesFor(piece);
+    if (piece || ensemble.active || plan.parts.length > 1) ensemble.enter(plan, song, piece, keep || (!piece && ensemble.active && ensemble.byUser), rules);
     this.buildStrip();
     this.sync();
     if (this.song) await this.play();
@@ -375,9 +376,11 @@ export class MidiPlayer {
     return p;
   }
 
-  /** nothing loaded: the play icon plays the instrument's own piece, or the ensemble's */
+  /** nothing loaded: the play icon plays the instrument's own piece, or (the ensemble on) the built-in
+   *  piece nearest its lineup, on that lineup as it stands (its seats and routing, organised by hand or by
+   *  an address, kept: a piece chosen from the pieces menu brings its own) */
   async playOwn(): Promise<void> {
-    if (ensemble.active) return this.loadPiece(pieceForLineup(ensemble.lineup));
+    if (ensemble.active) return this.loadPiece(pieceForLineup(ensemble.lineup), true);
     return this.loadDemo(audio.instrument);
   }
 
@@ -435,7 +438,7 @@ export class MidiPlayer {
   }
 
   /** a built-in piece (orchestra/pieces.ts), fetched and played */
-  async loadPiece(i: number): Promise<void> {
+  async loadPiece(i: number, onStage = false): Promise<void> {
     const piece = PIECES[i];
     if (!piece) return;
     // start the sound inside the gesture that asked for it (the fetch would lose it)
@@ -443,7 +446,7 @@ export class MidiPlayer {
     const ask = ++this.asked;
     const buf = await this.fetchFile(piece.file);
     if (ask !== this.asked) return;
-    await this.load(buf, piece);
+    await this.load(buf, piece, onStage);
   }
 
   /** the ensemble left the stage: what is scheduled stops (the file stays, for the one instrument) */

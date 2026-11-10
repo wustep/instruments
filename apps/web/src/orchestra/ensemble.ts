@@ -12,7 +12,7 @@ import { createInstrument, pianoKeySummary, processorUrl, type KeySummary, type 
 import { audio, fetchDesigns, restLevel, sendLevel, type Route } from '../audio.ts';
 import { modLines, PartLevels, volumeRef } from '../expression.ts';
 import type { FileEvent, MidiLine, MidiSong } from '../midi-file.ts';
-import { addPart, autoPlan, deskOf, fitLineup, fitsStage, isKeyboard, lineupOf, lineupPlan, mayBecome, placeNote, playersOf, playsNote, reassign, removePart, setPartLines, setPartVoice, setRoute, tromboneSizeOf, voiceFromName, voiceFromProgram, VOICE_INFO, VOICES, type Plan, type TromboneSize, type Voice } from './assign.ts';
+import { addPart, autoPlan, deskOf, fitLineup, fitsStage, isKeyboard, lineupOf, lineupPlan, mayBecome, placeNote, planOf, playersOf, playsNote, reassign, removePart, setPartLines, setPartVoice, setRoute, shiftsOf, tromboneSizeOf, voiceFromName, voiceFromProgram, VOICE_INFO, VOICES, type Plan, type TromboneSize, type Voice } from './assign.ts';
 import { carryKeys, defaultKeys, keyParts, keysFor, keyTargets, setSplit, toggleKey, toggleKeys, type KeysChoice, type KeyTarget } from './keys.ts';
 import { busGain } from './mix.ts';
 import { piecePlan, type Piece } from './pieces.ts';
@@ -195,6 +195,15 @@ class Ensemble implements Route {
     const rules = this.rulesFor(piece);
     if (rules) return planByRules(song.lines, this.lineup, rules);
     return this.active && this.byUser ? this.planForLineup(song, this.lineup) : autoPlan(song.lines, { cap: AUTO_CAP });
+  }
+  /** a piece on the lineup on the stage as it stands (the play icon at rest plays the piece that fits it):
+   *  by the routing it has (its rules, an address's or set by hand; else by register), the piece's own
+   *  corrections (a part an octave or a tone off) kept, so a lineup organised by hand plays as organised */
+  planOnStage(song: MidiSong, piece: Piece | null): Plan {
+    const lineup = this.lineup;
+    const plan = this.rules ? planByRules(song.lines, lineup, this.rules) : this.planForLineup(song, lineup);
+    if (!piece) return plan;
+    return planOf(plan.parts, song.lines, shiftsOf(piecePlan(piece, song.lines, Math.max(AUTO_CAP, piece.parts.length))));
   }
   /** the rules a file dropped now is placed by (planFor), kept with its plan */
   rulesFor(piece: Piece | null): LineRule[] | null {
