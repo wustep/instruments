@@ -833,8 +833,13 @@ code {
     font-size: 34px;
     min-height: 34px;
   }
+  /* seven instruments in the width six took at 44 px (271 px): a held note's readout still fits beside
+     them on a Pixel 7, so the band (and the stage under it) does not grow when a note sounds */
   .pick {
-    width: 44px;
+    width: 37px;
+  }
+  .pick-name {
+    letter-spacing: 0;
   }
   .glyph {
     width: 30px;
