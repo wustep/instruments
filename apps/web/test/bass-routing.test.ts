@@ -35,8 +35,8 @@ describe('orchestra: the double bass', () => {
   it('its names, in several languages and abbreviations, and its General MIDI programs (32–39 basses, 43 contrabass)', () => {
     for (const n of ['Contrabass', 'Double Bass', 'double bass', 'Contrabbasso', 'Contrebasse', 'Kontrabass', 'Contrabajo', 'Basso', 'Basse', 'Bass', 'Bassi', 'Cb.', 'CB', 'Kb.', 'D.B.', 'Violone', 'Acoustic Bass', 'String Bass', 'Upright Bass', 'Tuba', 'Contrabassoon'])
       expect(voiceFromName(n), n).toBe('bass');
-    // the cello keeps its own, a continuo and the bassoon; a bass clarinet, trombone or drum is no bass
-    for (const [n, v] of [['Violoncello', 'cello'], ['Vc.', 'cello'], ['Basso continuo', 'cello'], ['Bassoon', 'cello'], ['Bass Clarinet', 'clarinet'], ['Bass Trombone', 'trumpet'], ['Upright Piano', 'upright']] as const) expect(voiceFromName(n), n).toBe(v);
+    // the cello keeps its own and a continuo, the bassoon is its own; a bass clarinet, trombone or drum is no bass
+    for (const [n, v] of [['Violoncello', 'cello'], ['Vc.', 'cello'], ['Basso continuo', 'cello'], ['Bassoon', 'bassoon'], ['Bass Clarinet', 'clarinet'], ['Bass Trombone', 'trumpet'], ['Upright Piano', 'upright']] as const) expect(voiceFromName(n), n).toBe(v);
     expect(voiceFromName('Bass Drum')).not.toBe('bass');
     for (let p = 32; p <= 39; p++) expect(voiceFromProgram(p), `program ${p}`).toBe('bass');
     expect(voiceFromProgram(42)).toBe('cello');

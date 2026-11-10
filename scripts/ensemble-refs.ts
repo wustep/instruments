@@ -5,7 +5,8 @@
 // cello: J. Montes on a 1736 Stradivarius (2001); double bass: the MIS "Double Bass" arco set
 // (https://theremin.music.uiowa.edu/MISdoublebass.html); flute: S. Feig (2000), non-vibrato; oboe: the
 // MIS "Oboe" set (https://theremin.music.uiowa.edu/MISoboe.html), B♭3–A♭6, pp/mf/ff; clarinet: the MIS
-// "B♭ Clarinet" set (https://theremin.music.uiowa.edu/MISBbclarinet.html), D3–B6 at concert pitch, pp/mf/ff.
+// "B♭ Clarinet" set (https://theremin.music.uiowa.edu/MISBbclarinet.html), D3–B6 at concert pitch, pp/mf/ff;
+// bassoon: the MIS "Bassoon" set (https://theremin.music.uiowa.edu/MISbassoon.html), B♭1–D5, pp/mf/ff.
 // Terms: "may be downloaded and used for any projects, without restrictions" —
 // https://theremin.music.uiowa.edu/MIS.html
 //
@@ -18,7 +19,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { join } from 'node:path';
 import { analyzeSustained, decodeWav, identifyNote, segmentNotes, type SustainedAnalysis } from '../packages/engine/src/analysis/index.ts';
 
-export type EnsInstrument = 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet' | 'oboe' | 'clarinet';
+export type EnsInstrument = 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet' | 'oboe' | 'clarinet' | 'bassoon';
 export type Dyn = 'pp' | 'mf' | 'ff';
 export const ENS_DYN: Dyn[] = ['pp', 'mf', 'ff'];
 export const ENS_CACHE = join(import.meta.dirname, '..', '.cache', 'iowa-ens');
@@ -120,6 +121,14 @@ export const REF_FILES: RefFile[] = [
     ['D3B3', 'C4B4', 'C5B5', 'C6B6'].map((tag) => {
       const file = `BbClar.${dyn}.${tag}.aiff`;
       return { instrument: 'clarinet' as const, dyn, file, url: `${BASE}/Woodwinds/Bbclarinet/${file}`, range: rangeOf(tag), use: [50, 94] as [number, number], merge: 2 };
+    }),
+  ),
+  // bassoon (in C: as recorded), B♭1–D5 (the model's compass runs on to E5; the ff run C3–B♭3 stops a
+  // semitone short)
+  ...ENS_DYN.flatMap((dyn) =>
+    ['Bb1B1', 'C2B2', dyn === 'ff' ? 'C3Bb3' : 'C3B3', 'C4B4', 'C5D5'].map((tag) => {
+      const file = `Bassoon.${dyn}.${tag}.aiff`;
+      return { instrument: 'bassoon' as const, dyn, file, url: `${BASE}/Woodwinds/bassoon/${file}`, range: rangeOf(tag), use: [34, 76] as [number, number], merge: 2 };
     }),
   ),
 ];

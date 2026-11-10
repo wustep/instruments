@@ -20,9 +20,9 @@ describe('orchestra: the clarinet', () => {
   it('its names and abbreviations, its kin, and General MIDI 71', () => {
     for (const n of ['Clarinet', 'Clarinet in B♭', 'Clarinet 2', 'Clarinets', 'Clarinetto', 'Clarinetti in A', 'Clarinette', 'Klarinette', 'Klarinette in B', 'Cl.', 'Cl. 1', 'Cls', 'Clar.', 'Kl. 2', 'Bass Clarinet', 'Bassetthorn', 'Basset horn', 'Chalumeau']) expect(voiceFromName(n), n).toBe('clarinet');
     // its neighbours keep theirs
-    for (const [n, v] of [['Flauto', 'flute'], ['Oboe', 'oboe'], ['Fagotto', 'cello'], ['Corno in F', 'trumpet'], ['Klavier', 'grand'], ['Kontrabass', 'bass'], ['Tenor Sax', 'flute'], ['Clavichord', 'grand']] as const) expect(voiceFromName(n), n).toBe(v);
+    for (const [n, v] of [['Flauto', 'flute'], ['Oboe', 'oboe'], ['Fagotto', 'bassoon'], ['Corno in F', 'trumpet'], ['Klavier', 'grand'], ['Kontrabass', 'bass'], ['Tenor Sax', 'flute'], ['Clavichord', 'grand']] as const) expect(voiceFromName(n), n).toBe(v);
     expect(voiceFromProgram(71)).toBe('clarinet');
-    for (const p of [64, 65, 66, 67, 70, 72, 73]) expect(voiceFromProgram(p), String(p)).toBe('flute');
+    for (const p of [64, 65, 66, 67, 72, 73]) expect(voiceFromProgram(p), String(p)).toBe('flute');
   });
 
   it('its compass is the engine’s (D3–B♭6, concert pitch); a bass clarinet line moves up an octave', () => {

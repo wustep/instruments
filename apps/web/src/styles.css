@@ -833,27 +833,28 @@ code {
     font-size: 34px;
     min-height: 34px;
   }
-  /* nine instruments in the width six took at 44 px (271 px: nine 28 px picks and their 2 px gaps): a
+  /* ten instruments in the width six took at 44 px (271 px: ten 25 px picks and their 2 px gaps, 268): a
      held note's readout still fits beside them on a Pixel 7, so the band (and the stage under it) does not
-     grow when a note sounds. A name too long for its pick shows its score abbreviation (clarinet:
-     "clar."), and the names are a hair smaller, so "trumpet" clears it */
+     grow when a note sounds. A name too long for its pick shows its score abbreviation (clarinet "clar.",
+     bassoon "bsn."), and the names are a hair smaller, so "violin" and "trumpet" clear their neighbours'
+     (IBM Plex Mono: 0.57 em a letter here) */
   .pick {
-    width: 28px;
+    width: 25px;
   }
   .pick-name {
-    letter-spacing: -0.02em;
-    font-size: 8.5px;
+    letter-spacing: -0.03em;
+    font-size: 8px;
   }
   .pick-name[data-short] {
     font-size: 0;
   }
   .pick-name[data-short]::after {
     content: attr(data-short);
-    font-size: 8.5px;
+    font-size: 8px;
   }
   .glyph {
-    width: 28px;
-    height: 28px;
+    width: 25px;
+    height: 25px;
   }
   .spec-wrap {
     order: 3;

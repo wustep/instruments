@@ -15,3 +15,4 @@ export { FluteCore, fluteFingering, type FluteParams } from './flute.ts';
 export { TrumpetCore, trumpetFingering, type TrumpetParams } from './brass.ts';
 export { OboeCore, OBOE_VOICE, oboeRegister, type OboeParams, type OboeVoice } from './oboe.ts';
 export { ClarinetCore, CLARINET_VOICE, clarinetRegister, type ClarinetParams, type ClarinetVoice } from './clarinet.ts';
+export { BassoonCore, BASSOON_VOICE, bassoonRegister, type BassoonParams, type BassoonVoice } from './bassoon.ts';

@@ -64,10 +64,10 @@ const VISIBLE_PRESETS = ['grand', 'upright'];
 
 /** the order instruments take in a lineup picked by hand: score order (winds, brass, strings, piano),
  *  which is also their seats from the audience's left */
-const SCORE_ORDER: Voice[] = ['flute', 'oboe', 'clarinet', 'trumpet', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
+const SCORE_ORDER: Voice[] = ['flute', 'oboe', 'clarinet', 'bassoon', 'trumpet', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
 /** how many of each one lineup may have (a tap on its button adds one, past this it has none; the
  *  routing grid adds more, up to the stage's cap) */
-const MOST: Record<Voice, number> = { flute: 2, oboe: 2, clarinet: 2, trumpet: 2, violin: 3, viola: 2, cello: 2, bass: 2, grand: 2, upright: 2 };
+const MOST: Record<Voice, number> = { flute: 2, oboe: 2, clarinet: 2, bassoon: 2, trumpet: 2, violin: 3, viola: 2, cello: 2, bass: 2, grand: 2, upright: 2 };
 const familyOf = (v: Voice) => INSTRUMENT_INFO[VOICE_INFO[v].instrument].family;
 
 export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: MidiPlayer): View {
@@ -82,7 +82,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   // (the double bass's name under its glyph is "bass", one word as the others are; its full name is its
   // accessible name and tooltip)
   const instBtns = INSTRUMENT_IDS.map((id) => {
-    const b = h('button', { class: 'pick', type: 'button', 'aria-label': INSTRUMENT_INFO[id].label, title: INSTRUMENT_INFO[id].blurb, 'aria-pressed': String(inst === id), onclick: () => (ensemble.active ? addToLineup(id) : void audio.setInstrument(id)) }, h('span', { class: 'pick-name', 'data-short': id === 'clarinet' ? 'clar.' : undefined }, (id === 'bass' ? 'bass' : INSTRUMENT_INFO[id].label).toLowerCase()), h('span', { class: 'pick-n', 'aria-hidden': 'true' }));
+    const b = h('button', { class: 'pick', type: 'button', 'aria-label': INSTRUMENT_INFO[id].label, title: INSTRUMENT_INFO[id].blurb, 'aria-pressed': String(inst === id), onclick: () => (ensemble.active ? addToLineup(id) : void audio.setInstrument(id)) }, h('span', { class: 'pick-name', 'data-short': id === 'clarinet' ? 'clar.' : id === 'bassoon' ? 'bsn.' : undefined }, (id === 'bass' ? 'bass' : INSTRUMENT_INFO[id].label).toLowerCase()), h('span', { class: 'pick-n', 'aria-hidden': 'true' }));
     b.prepend(glyph(id) as unknown as HTMLElement);
     return b;
   });
