@@ -18,6 +18,7 @@ import { canReassign, voicesOfLine, VOICE_INFO, VOICES, type Voice } from '../or
 import { ensemble, stageCap } from '../orchestra/ensemble.ts';
 import { DEMOS, demoSong, PIECES, pieceForLineup, pieceSong, type Demo, type Piece } from '../orchestra/pieces.ts';
 import { tidyName } from '../orchestra/rules.ts';
+import { familyOf, seatNames, sectionName, type Family, type Section } from '../orchestra/sections.ts';
 import { voiceGlyph } from './controls.ts';
 import { h } from './dom.ts';
 import type { InstrumentId } from '@piano-model/engine';
@@ -37,6 +38,13 @@ const PAUSE = 'M7 5.5h3.5v13H7zM13.5 5.5H17v13h-3.5z';
 const STOP = 'M7 7h10v10H7z';
 /** open a file: a folder */
 const OPEN = 'M3 6.6C3 5.7 3.7 5 4.6 5h4.7l2 2h8.1c.9 0 1.6.7 1.6 1.6v8.8c0 .9-.7 1.6-1.6 1.6H4.6c-.9 0-1.6-.7-1.6-1.6zM4.8 9.4v7.8h14.4V9.4z';
+/** a desk more, a desk fewer, off the stage */
+const PLUS = 'M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z';
+const MINUS = 'M5 11h14v2H5z';
+const CROSS = 'M7.4 6 12 10.6 16.6 6 18 7.4 13.4 12 18 16.6 16.6 18 12 13.4 7.4 18 6 16.6 10.6 12 6 7.4z';
+/** the grid desk by desk (three rows apart) or by section (a bracket round them) */
+const BY_DESK = 'M8 5h11v2.4H8zM8 10.8h11v2.4H8zM8 16.6h11v2.4H8zM4 5h2.4v2.4H4zM4 10.8h2.4v2.4H4zM4 16.6h2.4v2.4H4z';
+const BY_SECTION = 'M8 5h11v2.4H8zM8 10.8h11v2.4H8zM8 16.6h11v2.4H8zM3.5 5H6v1.6H5.1v10.8H6V19H3.5z';
 /** routing: a grid of dots, some lit (instruments by lines) */
 const ROUTE = 'M5 5h3v3H5zM10.5 10.5h3v3h-3zM16 5h3v3h-3zM16 16h3v3h-3zM5 16h3v3H5z';
 /** a piece's lineup in the menu, a glyph per instrument; a large orchestra's (more than ten) a glyph per
@@ -330,7 +338,7 @@ export class MidiPlayer {
    * one instrument, or any file while the ensemble is on: the ensemble plays it. Otherwise (a piano
    * piece) the instrument shown plays every line.
    */
-  async load(buf: ArrayBuffer, piece: Piece | null = null): Promise<void> {
+  async load(buf: ArrayBuffer, piece: Piece | null = null, onStage = false): Promise<void> {
     let song: MidiSong;
     try {
       song = pieceSong(parseMidi(buf), piece);
@@ -343,11 +351,12 @@ export class MidiPlayer {
     this.song = song.events.length ? song : null;
     this.demo = null;
     this.perform();
-    const plan = ensemble.planFor(song, piece);
     // (a lineup picked by hand stays picked: the file was matched to it, by the routing it has if it
-    // has one: an address's, or the last file's)
-    const rules = ensemble.rulesFor(piece);
-    if (piece || ensemble.active || plan.parts.length > 1) ensemble.enter(plan, song, piece, !piece && ensemble.active && ensemble.byUser, rules);
+    // has one: an address's, or the last file's; `onStage`: a piece played on the lineup as it stands)
+    const keep = onStage && ensemble.active;
+    const plan = keep ? ensemble.planOnStage(song, piece) : ensemble.planFor(song, piece);
+    const rules = keep ? ensemble.rules : ensemble.rulesFor(piece);
+    if (piece || ensemble.active || plan.parts.length > 1) ensemble.enter(plan, song, piece, keep || (!piece && ensemble.active && ensemble.byUser), rules);
     this.buildStrip();
     this.sync();
     if (this.song) await this.play();
@@ -367,9 +376,11 @@ export class MidiPlayer {
     return p;
   }
 
-  /** nothing loaded: the play icon plays the instrument's own piece, or the ensemble's */
+  /** nothing loaded: the play icon plays the instrument's own piece, or (the ensemble on) the built-in
+   *  piece nearest its lineup, on that lineup as it stands (its seats and routing, organised by hand or by
+   *  an address, kept: a piece chosen from the pieces menu brings its own) */
   async playOwn(): Promise<void> {
-    if (ensemble.active) return this.loadPiece(pieceForLineup(ensemble.lineup));
+    if (ensemble.active) return this.loadPiece(pieceForLineup(ensemble.lineup), true);
     return this.loadDemo(audio.instrument);
   }
 
@@ -427,7 +438,7 @@ export class MidiPlayer {
   }
 
   /** a built-in piece (orchestra/pieces.ts), fetched and played */
-  async loadPiece(i: number): Promise<void> {
+  async loadPiece(i: number, onStage = false): Promise<void> {
     const piece = PIECES[i];
     if (!piece) return;
     // start the sound inside the gesture that asked for it (the fetch would lose it)
@@ -435,7 +446,7 @@ export class MidiPlayer {
     const ask = ++this.asked;
     const buf = await this.fetchFile(piece.file);
     if (ask !== this.asked) return;
-    await this.load(buf, piece);
+    await this.load(buf, piece, onStage);
   }
 
   /** the ensemble left the stage: what is scheduled stops (the file stays, for the one instrument) */
@@ -547,7 +558,13 @@ export class MidiPlayer {
 
   // ------------------------------------------------------------- the lines and their instruments
   private buildStrip(): void {
+    // (a section's menu opened from the stage is built again where it is, for the section's first seat)
+    const seat = this.menuSeat && this.menuAt ? { ...this.menuSeat, at: this.menuAt } : null;
     this.closeMenu();
+    this.buildChips();
+    if (seat && ensemble.active && seat.k < ensemble.lineup.length) this.openSeatMenu(seat.k, seat.at, { lines: seat.lines, again: true });
+  }
+  private buildChips(): void {
     const song = this.song;
     const show = !!song && ensemble.active && ensemble.song === song;
     this.strip.hidden = !show;
@@ -566,8 +583,8 @@ export class MidiPlayer {
       const to = vs.length ? vs.map((v) => VOICE_INFO[v].label).join(' + ') : 'silent';
       const b = h('button', { class: 'pl-line', type: 'button', 'data-line': String(i), 'data-voice': vs[0] ?? 'none', 'data-voices': vs.join(' '), 'data-menu-anchor': '', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': `${name}: ${to}. Change its instrument`, 'data-tip': `${name} · ${to}` });
       b.append(vs.length ? voiceGlyph(vs[0]) : muteGlyph());
-      // on more than one instrument: how many more
-      if (vs.length > 1) b.append(h('span', { class: 'pl-more', 'aria-hidden': 'true' }, `+${vs.length - 1}`));
+      // on more than one instrument: a section's desks (×2: the flutes on the flutes' staff), else how many more
+      if (vs.length > 1) b.append(h('span', { class: 'pl-more', 'aria-hidden': 'true' }, vs.every((v) => v === vs[0]) ? `×${vs.length}` : `+${vs.length - 1}`));
       b.addEventListener('click', () => this.openLineMenu(i, b));
       return b;
     });
@@ -588,19 +605,21 @@ export class MidiPlayer {
       const on = (plan.lines[i] ?? []).some((r) => sounding(r.part));
       if (c.classList.contains('on') !== on) c.classList.toggle('on', on);
     });
-    this.rowHeads.forEach((c, k) => {
-      const on = sounding(k);
+    this.rowHeads.forEach((c, r) => {
+      const on = (this.rowSeats[r] ?? []).some(sounding);
       if (c.classList.contains('on') !== on) c.classList.toggle('on', on);
     });
   }
 
-  /** a small menu of instruments under `anchor`: each a glyph, `checked` lit, `ok` offered, and
-   *  `extra` items after them */
-  private openMenu(key: string, anchor: HTMLElement, label: string, checked: (v: Voice | null) => boolean, ok: (v: Voice | null) => boolean, pick: (v: Voice | null) => void, opts: { silent?: boolean; extra?: HTMLElement[] } = {}): void {
+  /** a small menu of instruments under `anchor` (an element, or a point on the screen: an instrument tapped
+   *  on the stage): each a glyph, `checked` lit, `ok` offered, and `extra` items after them. `again`: the
+   *  same menu built afresh where it is (a desk added from it), not closed */
+  private openMenu(key: string, anchor: HTMLElement | { x: number; y: number }, label: string, checked: (v: Voice | null) => boolean, ok: (v: Voice | null) => boolean, pick: (v: Voice | null) => void, opts: { silent?: boolean; extra?: HTMLElement[]; again?: boolean; cls?: string } = {}): void {
     const again = this.menu?.dataset.key === key;
     this.closeMenu();
     this.closePieces();
-    if (again) return;
+    if (again && !opts.again) return;
+    const el = anchor instanceof HTMLElement ? anchor : null;
     const item = (v: Voice | null) => {
       const can = checked(v) || ok(v);
       const name = v ? VOICE_INFO[v].label : 'silent';
@@ -610,29 +629,40 @@ export class MidiPlayer {
         this.closeMenu();
         pick(v);
         // back to the anchor, or (the strip and grid rebuilt) its new self, unless the pick moved on
-        if (this.el.contains(document.activeElement) && document.activeElement !== b) return;
-        const again = anchor.isConnected ? anchor : (this.el.querySelector(anchor.dataset.cell ? `[data-cell="${anchor.dataset.cell}"]` : `.pl-line[data-line="${anchor.dataset.line}"]`) as HTMLElement | null);
+        if (!el || (this.el.contains(document.activeElement) && document.activeElement !== b)) return;
+        const again = el.isConnected ? el : (this.el.querySelector(el.dataset.cell ? `[data-cell="${el.dataset.cell}"]` : `.pl-line[data-line="${el.dataset.line}"]`) as HTMLElement | null);
         again?.focus();
       });
       return b;
     };
     const items: HTMLElement[] = VOICES.map(item);
     if (opts.silent) items.push(item(null));
-    const m = h('div', { class: 'pl-menu', role: 'menu', 'aria-label': label, 'data-key': key }, ...items, ...(opts.extra ?? []));
+    const m = h('div', { class: `pl-menu${opts.cls ? ` ${opts.cls}` : ''}`, role: 'menu', 'aria-label': label, 'data-key': key }, ...items, ...(opts.extra ?? []));
+    // (measured where it will stand: at the player's left, a box placed far right would be squeezed)
+    m.style.left = '0px';
     this.el.append(m);
-    // under its anchor, kept on the screen
-    const r = anchor.getBoundingClientRect();
+    // under its anchor (a point on the stage: under it, else over it), kept on the screen
+    const r = el ? el.getBoundingClientRect() : new DOMRect((anchor as { x: number }).x, (anchor as { y: number }).y, 0, 0);
     const pr = this.el.getBoundingClientRect();
     const w = m.offsetWidth;
+    const hh = m.offsetHeight;
     const x = Math.max(6 - pr.left, Math.min(window.innerWidth - 6 - pr.left - w, r.left + r.width / 2 - pr.left - w / 2));
+    const gap = el ? 4 : 14;
+    let y = r.bottom + gap;
+    if (!el && y + hh > window.innerHeight - 6) y = Math.max(6, r.top - gap - hh);
     m.style.left = `${x}px`;
-    m.style.top = `${r.bottom - pr.top + 4}px`;
-    anchor.setAttribute('aria-expanded', 'true');
+    m.style.top = `${y - pr.top}px`;
+    el?.setAttribute('aria-expanded', 'true');
     this.menu = m;
-    this.menuAnchor = anchor;
+    this.menuAnchor = el;
+    this.menuAt = el ? null : { x: r.left, y: r.top };
     ((m.querySelector('[aria-checked="true"]') ?? m.querySelector('button:not(:disabled)')) as HTMLElement | null)?.focus();
   }
   private menuAnchor: HTMLElement | null = null;
+  /** where a menu opened from the stage was asked for (it is built again there as the lineup changes) */
+  private menuAt: { x: number; y: number } | null = null;
+  /** the section a menu is open for, by its first seat, and whether it shows its lines (from the stage) */
+  private menuSeat: { k: number; lines: boolean } | null = null;
 
   /** a line's chip: its instrument, and only that one (a tap moves it; silent leaves it out) */
   private openLineMenu(li: number, chip: HTMLButtonElement): void {
@@ -656,10 +686,109 @@ export class MidiPlayer {
     if (!this.menu) return;
     this.menu.remove();
     this.menu = null;
+    this.menuSeat = null;
+    this.menuAt = null;
     const a = this.menuAnchor;
     this.menuAnchor = null;
     a?.setAttribute('aria-expanded', 'false');
     if (refocus && a?.isConnected) a.focus();
+  }
+
+  // ------------------------------------------------------------- a section's menu
+  /**
+   * The menu of the section seat `k` is a desk of (orchestra/sections.ts), under its row in the grid or
+   * where its instrument was tapped on the stage: the instruments (each desk becomes it, keeping its
+   * lines), then another desk (a seat like its last, playing the same lines), one desk fewer, and off the
+   * stage. From the stage, with a file loaded, the file's lines too, numbered as the grid's columns: a tap
+   * gives the section a line or takes it away. It stays open while desks and lines change.
+   */
+  openSeatMenu(k: number, anchor: HTMLElement | { x: number; y: number }, opts: { lines?: boolean; again?: boolean; seats?: number[] } = {}): void {
+    if (!ensemble.active) return;
+    const secs = ensemble.sections;
+    const sec = opts.seats ? { voice: ensemble.lineup[opts.seats[0]], seats: opts.seats, lines: ensemble.plan.parts[opts.seats[0]]?.lines ?? [] } : secs.find((s) => s.seats.includes(k));
+    if (!sec?.voice) return this.closeMenu();
+    const seats = sec.seats;
+    const k0 = seats[0];
+    const names = seatNames(ensemble.lineup);
+    const label = sectionName(sec, names);
+    const many = seats.length > 1;
+    const song = this.song && ensemble.song === this.song ? this.song : null;
+    const withLines = !!opts.lines && !!song && song.lines.length > 0;
+    const keep = () => ({ lines: withLines, again: true, seats: opts.seats ? seats : undefined });
+    // after a change that keeps the section: its menu again, where it was (the grid's row is rebuilt)
+    const stay = (k: number) => {
+      const at = this.menuAt ?? (anchor instanceof HTMLElement ? null : anchor);
+      const row = this.grid?.querySelector(`[data-cell="r${k}"]`) as HTMLElement | null;
+      const where = at ?? row;
+      if (where) this.openSeatMenu(k, where, keep());
+    };
+    const act = (cls: string, d: string, tip: string, aria: string, can: boolean, go: () => void) => {
+      const b = h('button', { class: `pl-pick ${cls}`, type: 'button', role: 'menuitem', 'aria-label': aria, 'data-tip': tip, disabled: !can });
+      b.append(icon(d));
+      b.addEventListener('click', go);
+      return b;
+    };
+    const voice = sec.voice;
+    const what = VOICE_INFO[voice].label;
+    const extra: HTMLElement[] = [];
+    if (withLines) {
+      extra.push(h('i', { class: 'pl-sep', 'aria-hidden': 'true' }));
+      song!.lines.forEach((l, i) => {
+        const on = sec.lines.includes(i);
+        const nm = lineName(l.name, l.instrument, i);
+        const b = h('button', { class: 'pl-ln', type: 'button', role: 'menuitemcheckbox', 'data-line': String(i), 'aria-checked': String(on), 'aria-label': `${nm} on the ${label}`, 'data-tip': `${i + 1} · ${nm}` }, String(i + 1));
+        b.addEventListener('click', () => {
+          ensemble.seatsRoute(seats, i, !on);
+          stay(k0);
+          (this.menu?.querySelector(`.pl-ln[data-line="${i}"]`) as HTMLElement | null)?.focus();
+        });
+        extra.push(b);
+      });
+    }
+    extra.push(h('i', { class: 'pl-sep', 'aria-hidden': 'true' }));
+    const roomy = ensemble.roomFor(voice);
+    extra.push(
+      act('pl-desk', PLUS, roomy ? 'another desk' : 'another desk · the stage is full', `Another ${what} desk, playing the same lines${roomy ? '' : ' (the stage is full)'}`, roomy, () => {
+        if (!ensemble.addDesk(seats)) return;
+        stay(k0);
+        (this.menu?.querySelector('.pl-desk') as HTMLElement | null)?.focus();
+      }),
+    );
+    if (many)
+      extra.push(
+        act('pl-less', MINUS, 'one desk fewer', `One ${what} desk fewer`, true, () => {
+          if (!ensemble.removeSeats([seats[seats.length - 1]])) return;
+          stay(k0);
+          (this.menu?.querySelector('.pl-less, .pl-desk') as HTMLElement | null)?.focus();
+        }),
+      );
+    extra.push(
+      act('pl-off', CROSS, many ? 'take them off' : 'take it off', `Take the ${label} off the stage`, seats.length < ensemble.lineup.length, () => {
+        this.closeMenu();
+        ensemble.removeSeats(seats);
+        (this.grid?.querySelector('[data-cell="add"]') as HTMLElement | null)?.focus();
+      }),
+    );
+    this.openMenu(
+      `seat:${k0}:${seats.length}`,
+      anchor,
+      label,
+      (v) => v === voice,
+      (v) => !!v && ensemble.roomAs(seats, v),
+      (v) => {
+        if (v && v !== voice) ensemble.seatsVoice(seats, v);
+      },
+      { extra, again: opts.again, cls: 'pl-seat' },
+    );
+    this.menuSeat = { k: k0, lines: withLines };
+    if (!(anchor instanceof HTMLElement)) this.menuAt = anchor;
+  }
+
+  /** an instrument on the stage was tapped (ui/views/stage.ts): its section's menu there, its lines too */
+  tapSeat(k: number, x: number, y: number): void {
+    if (this.menuSeat?.k === k && this.menu) return this.closeMenu();
+    this.closeGrid();
+    this.openSeatMenu(k, { x, y }, { lines: true });
   }
 
   // ------------------------------------------------------------- the routing grid
@@ -668,6 +797,7 @@ export class MidiPlayer {
   private toggleGrid(): void {
     if (this.grid) return this.closeGrid();
     this.closePieces();
+    this.closeMenu();
     const song = this.song;
     if (!song) return;
     if (!ensemble.active || ensemble.song !== song) {
@@ -686,17 +816,26 @@ export class MidiPlayer {
 
   private closeGrid(refocus = false): void {
     if (!this.grid) return;
-    this.closeMenu();
+    if (this.menuAnchor && this.grid.contains(this.menuAnchor)) this.closeMenu();
     this.grid.remove();
     this.grid = null;
     this.rowHeads = [];
+    this.rowSeats = [];
     this.routeBtn.setAttribute('aria-expanded', 'false');
     if (refocus) this.routeBtn.focus();
   }
+  /** each row's seats (a section's desks, or one seat) */
+  private rowSeats: number[][] = [];
+  /** the grid desk by desk (a row per seat) rather than by section */
+  private bySeat = false;
 
-  /** the grid: a row per instrument (its glyph: change it or take it off), a column per line (a dot:
-   *  this instrument plays this line), a last column for every line at once, and a row to add an
-   *  instrument (another of a voice already there is its own) */
+  /**
+   * The grid: a row per section (orchestra/sections.ts: the desks of one instrument playing the same lines,
+   * its glyph and how many, ×2), or desk by desk, a row per seat; the families (woodwinds, brass,
+   * percussion, strings, keyboards) a little apart. A column per line (a dot: the section plays it, every
+   * desk alike), a last column for every line at once, a row to add an instrument (it waits for a line).
+   * A row's glyph opens its section's menu: another instrument, another desk, one fewer, off.
+   */
   private buildGrid(): void {
     const song = this.song;
     if (!song || !ensemble.active) return this.closeGrid();
@@ -705,46 +844,74 @@ export class MidiPlayer {
     const n = song.lines.length;
     const all = song.lines.map((_, i) => i);
     const names = song.lines.map((l, i) => lineName(l.name, l.instrument, i));
-    const cells: HTMLElement[] = [h('span', { class: 'pg-corner', 'aria-hidden': 'true' })];
+    const seatName = seatNames(ensemble.lineup);
+    const secs = ensemble.sections;
+    const grouped = secs.some((s) => s.seats.length > 1);
+    if (!grouped) this.bySeat = false;
+    const rows: Section[] = this.bySeat ? plan.parts.map((p, k) => ({ voice: p.voice, seats: [k], lines: [...p.lines] })) : secs;
+    const cells: HTMLElement[] = [];
+    // the corner: by section, or desk by desk (offered once a section has more than one desk)
+    if (grouped) {
+      const mode = h('button', { class: 'pg-mode', type: 'button', 'data-cell': 'mode', 'aria-pressed': String(this.bySeat), 'aria-label': 'Desk by desk: every seat on a row of its own', 'data-tip': this.bySeat ? 'by section' : 'desk by desk' });
+      mode.append(icon(this.bySeat ? BY_SECTION : BY_DESK));
+      mode.addEventListener('click', () => {
+        this.bySeat = !this.bySeat;
+        this.closeMenu();
+        this.buildGrid();
+      });
+      cells.push(mode);
+    } else cells.push(h('span', { class: 'pg-corner', 'aria-hidden': 'true' }));
     names.forEach((nm, i) => cells.push(h('span', { class: 'pg-col', 'data-tip': nm, title: nm }, String(i + 1))));
     const everyIcon = h('span', { class: 'pg-col pg-all-col', 'data-tip': 'every line', title: 'every line' });
     everyIcon.append(icon('M5 7h14v1.6H5zM5 11.2h14v1.6H5zM5 15.4h14v1.6H5z'));
     cells.push(everyIcon);
-    // a voice's seats are numbered when there are two or more
-    const nth = plan.parts.map((p, k) => plan.parts.slice(0, k + 1).filter((q) => q.voice === p.voice).length);
-    const many = plan.parts.map((p) => plan.parts.filter((q) => q.voice === p.voice).length > 1);
-    this.rowHeads = plan.parts.map((p, k) => {
-      const label = `${VOICE_INFO[p.voice].label}${many[k] ? ` ${nth[k]}` : ''}`;
-      const b = h('button', { class: 'pg-row', type: 'button', 'data-part': String(k), 'data-voice': p.voice, 'data-cell': `r${k}`, 'data-menu-anchor': '', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': `${label}: change it or take it off`, 'data-tip': label });
-      b.append(voiceGlyph(p.voice));
-      if (many[k]) b.append(h('span', { class: 'pl-more', 'aria-hidden': 'true' }, String(nth[k])));
-      b.addEventListener('click', () => this.openPartMenu(k, b, label));
+    const tracks = ['18px'];
+    let fam: Family | null = null;
+    this.rowSeats = rows.map((r) => r.seats);
+    this.rowHeads = rows.map((sec) => {
+      const k = sec.seats[0];
+      const label = sectionName(sec, seatName);
+      const b = h('button', { class: 'pg-row', type: 'button', 'data-part': String(k), 'data-seats': sec.seats.join(' '), 'data-voice': sec.voice, 'data-cell': `r${k}`, 'data-menu-anchor': '', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': `${label}: change it, add a desk or take it off`, 'data-tip': label });
+      b.append(voiceGlyph(sec.voice));
+      // a section's desks (×2), or a seat's number when its instrument has others (2)
+      const badge = sec.seats.length > 1 ? `×${sec.seats.length}` : seatName[k] !== VOICE_INFO[sec.voice].label ? seatName[k].split(' ').pop()! : '';
+      if (badge) b.append(h('span', { class: 'pl-more', 'aria-hidden': 'true' }, badge));
+      b.addEventListener('click', () => this.openSeatMenu(k, b, { seats: this.bySeat ? sec.seats : undefined }));
       return b;
     });
-    plan.parts.forEach((p, k) => {
-      cells.push(this.rowHeads[k]);
-      const label = this.rowHeads[k].dataset.tip!;
+    rows.forEach((sec, r) => {
+      const f = familyOf(sec.voice);
+      if (fam && f !== fam) {
+        cells.push(h('i', { class: 'pg-gap', 'aria-hidden': 'true' }));
+        tracks.push('7px');
+      }
+      fam = f;
+      tracks.push('26px');
+      const k = sec.seats[0];
+      cells.push(this.rowHeads[r]);
+      const label = this.rowHeads[r].dataset.tip!;
       for (let i = 0; i < n; i++) {
-        const on = p.lines.includes(i);
+        const on = sec.lines.includes(i);
         const c = h('button', { class: 'pg-cell', type: 'button', 'data-part': String(k), 'data-line': String(i), 'data-cell': `${k}:${i}`, 'aria-pressed': String(on), 'aria-label': `${names[i]} on ${label}`, 'data-tip': `${names[i]} · ${label}` });
-        c.addEventListener('click', () => ensemble.route(i, k, !on));
+        c.addEventListener('click', () => ensemble.seatsRoute(sec.seats, i, !on));
         cells.push(c);
       }
-      const every = p.lines.length === n;
+      const every = sec.lines.length === n;
       const c = h('button', { class: 'pg-cell pg-all', type: 'button', 'data-part': String(k), 'data-cell': `${k}:all`, 'aria-pressed': String(every), 'aria-label': `every line on ${label}`, 'data-tip': `every line · ${label}` });
-      c.addEventListener('click', () => ensemble.partLines(k, every ? [] : all));
+      c.addEventListener('click', () => ensemble.seatsLines(sec.seats, every ? [] : all));
       cells.push(c);
     });
-    // another instrument
-    const add = h('button', { class: 'pg-row pg-add', type: 'button', 'data-cell': 'add', 'data-menu-anchor': '', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': ensemble.roomForMore ? 'Add an instrument' : 'Add an instrument (the stage is full)', 'data-tip': ensemble.roomForMore ? 'add an instrument' : 'the stage is full', disabled: !ensemble.roomForMore });
-    add.append(icon('M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z'));
+    // another instrument (it waits, silent, for a line)
+    const room = ensemble.roomForMore;
+    const add = h('button', { class: 'pg-row pg-add', type: 'button', 'data-cell': 'add', 'data-menu-anchor': '', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': room ? 'Add an instrument' : 'Add an instrument (the stage is full)', 'data-tip': room ? 'add an instrument' : 'the stage is full', disabled: !room });
+    add.append(icon(PLUS));
     add.addEventListener('click', () =>
       this.openMenu(
         'add',
         add,
         'Add an instrument',
         () => false,
-        () => ensemble.roomForMore,
+        (v) => !!v && ensemble.roomFor(v),
         (v) => {
           if (!v || !ensemble.addPart(v)) return;
           // its row: the last of its voice (a new one sits after the others of its kind)
@@ -754,8 +921,10 @@ export class MidiPlayer {
       ),
     );
     cells.push(add);
+    tracks.push('26px');
     const g = h('div', { class: 'pl-grid', role: 'group', 'aria-label': 'Routing: instruments by lines' }, ...cells);
     g.style.setProperty('--n', String(n));
+    g.style.gridTemplateRows = tracks.join(' ');
     if (this.grid) this.grid.replaceWith(g);
     else this.el.append(g);
     this.grid = g;
@@ -767,31 +936,6 @@ export class MidiPlayer {
     g.style.top = `${pr.height + 4}px`;
     if (focusKey) (g.querySelector(`[data-cell="${focusKey}"]`) as HTMLElement | null)?.focus();
     this.glow();
-  }
-
-  /** an instrument's row header: another instrument in its seat, or off the stage */
-  private openPartMenu(k: number, head: HTMLButtonElement, label: string): void {
-    const plan = ensemble.plan;
-    const cur = plan.parts[k]?.voice;
-    if (!cur) return;
-    const off = h('button', { class: 'pl-pick pl-off', type: 'button', role: 'menuitem', 'aria-label': `Take the ${label} off the stage`, 'data-tip': 'take it off', disabled: plan.parts.length <= 1 });
-    off.append(icon('M7.4 6 12 10.6 16.6 6 18 7.4 13.4 12 18 16.6 16.6 18 12 13.4 7.4 18 6 16.6 10.6 12 6 7.4z'));
-    off.addEventListener('click', () => {
-      this.closeMenu();
-      ensemble.removePart(k);
-      (this.grid?.querySelector('[data-cell="add"]') as HTMLElement | null)?.focus();
-    });
-    this.openMenu(
-      `part:${k}`,
-      head,
-      `Instrument in the seat of the ${label}`,
-      (v) => v === cur,
-      () => true,
-      (v) => {
-        if (v && v !== cur) ensemble.partVoice(k, v);
-      },
-      { extra: [off] },
-    );
   }
 }
 

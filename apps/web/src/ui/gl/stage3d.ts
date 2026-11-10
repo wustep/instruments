@@ -36,6 +36,12 @@ export interface Stage3D {
   setView(v: Partial<View3>): void;
   /** the piano key whose strings are nearest (x, y) (CSS px in the canvas), if close enough */
   pick(x: number, y: number): number | null;
+  /** an ensemble's seat under (x, y) (CSS px in the canvas): the nearest whose instrument, a column from
+   *  the floor to its height and as wide as its footprint, is under the point; null if none */
+  seatAt(x: number, y: number): number | null;
+  /** tests and review shots: where an ensemble's seat is on screen (CSS px in the canvas: the middle of its
+   *  instrument), null if it is not drawn */
+  seatScreen(i: number): [number, number] | null;
   /** the bowed strings' hair on screen (CSS px in the canvas: frog end, tip end) and the contact point along it */
   bowLine(): { fx: number; fy: number; tx: number; ty: number; pos: number } | null;
   /** asked first on every pointer down: true takes the pointer away from the orbit (the bow in the hand) */
@@ -397,6 +403,35 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       if (v.pitch !== undefined) pitch = pitchT = v.pitch;
       // (distances in the views' units: scaled by the lens like the default views)
       if (v.dist !== undefined) dist = distT = v.dist * FRAME;
+    },
+    seatAt(x, y) {
+      if (!lastVP || !st.seats.length) return null;
+      let best: number | null = null;
+      let bd = Infinity;
+      st.seats.forEach((s, i) => {
+        const a = project(lastVP!, [s.c[0], 0, s.c[2]], cssW, cssH);
+        const b = project(lastVP!, [s.c[0], s.top, s.c[2]], cssW, cssH);
+        const e = project(lastVP!, [s.c[0] + s.r, s.top / 2, s.c[2]], cssW, cssH);
+        const m = project(lastVP!, [s.c[0], s.top / 2, s.c[2]], cssW, cssH);
+        if (!a || !b || !e || !m) return;
+        // the distance to the column's axis on the picture, over its half-width there
+        const dx = b[0] - a[0];
+        const dy = b[1] - a[1];
+        const L2 = dx * dx + dy * dy || 1;
+        const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / L2));
+        const half = Math.max(12, Math.hypot(e[0] - m[0], e[1] - m[1]));
+        const d = Math.hypot(x - (a[0] + t * dx), y - (a[1] + t * dy)) / half;
+        if (d < 1 && d < bd) {
+          bd = d;
+          best = i;
+        }
+      });
+      return best;
+    },
+    seatScreen(i) {
+      const s = st.seats[i];
+      if (!lastVP || !s) return null;
+      return project(lastVP, [s.c[0], s.top * 0.55, s.c[2]], cssW, cssH);
     },
     pick(x, y) {
       if (!lastVP || !st.picks.length) return null;

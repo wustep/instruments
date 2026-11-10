@@ -24,7 +24,7 @@
 // that cannot be read is left out, never an error; parameters that are not the app's are kept.
 
 import { INSTRUMENT_IDS, type InstrumentId } from '@piano-model/engine';
-import { VOICES, type Voice } from './orchestra/assign.ts';
+import { MAX_SEATS, VOICES, type Voice } from './orchestra/assign.ts';
 import type { LineRule, Setup } from './orchestra/rules.ts';
 
 export type Page = 'stage' | 'measurements' | 'notes';
@@ -51,7 +51,6 @@ export interface Address {
 export const emptyAddress = (): Address => ({ page: 'stage', instrument: null, preset: null, orchestra: null, look: null, expr: null, rest: [] });
 
 /** the most of anything an address is read for (a longer one is cut there) */
-const MAX_SEATS = 24;
 const MAX_LINES = 128;
 const MAX_NAME = 80;
 

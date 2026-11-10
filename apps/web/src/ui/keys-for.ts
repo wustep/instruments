@@ -4,8 +4,9 @@
 // each instrument). On a phone the row waits behind one button showing what the keys play, as the
 // knobs wait behind ◐. No words on the stage: each control has a tooltip and an accessible name.
 
-import { VOICE_INFO, type Voice } from '../orchestra/assign.ts';
+import { VOICE_INFO } from '../orchestra/assign.ts';
 import { ensemble } from '../orchestra/ensemble.ts';
+import { seatNames, sectionName } from '../orchestra/sections.ts';
 import { voiceGlyph } from './controls.ts';
 import { h } from './dom.ts';
 
@@ -25,14 +26,6 @@ const keysSign = () => svg(16, 12, 'kf-sign', '<path d="M.6.6h14.8v10.8H.6zM5.53
 /** split: one line into three */
 const splitSign = () => svg(18, 16, 'kf-split-sign', '<path d="M1.5 8h5M6.5 8c2.5 0 3-5 6-5h4M6.5 8h10M6.5 8c2.5 0 3 5 6 5h4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>');
 
-/** each seat's name: the voice, numbered when it is on the stage twice ("violin 2") */
-export function seatNames(voices: Voice[]): string[] {
-  return voices.map((v, k) => {
-    const label = VOICE_INFO[v].label;
-    const many = voices.filter((x) => x === v).length > 1;
-    return many ? `${label} ${voices.slice(0, k + 1).filter((x) => x === v).length}` : label;
-  });
-}
 
 export function keysForControl(): { el: HTMLElement; toggle: HTMLButtonElement } {
   const row = h('div', { class: 'kf', role: 'group', 'aria-label': 'The keys play' });
@@ -59,11 +52,18 @@ export function keysForControl(): { el: HTMLElement; toggle: HTMLButtonElement }
     const on = new Set(ensemble.keys.split ? [] : ensemble.keyParts);
     const split = ensemble.keys.split;
     const focus = (document.activeElement as HTMLElement | null)?.dataset?.kf ?? null;
-    const chips = voices.map((v, k) => {
-      const b = h('button', { class: 'kf-part', type: 'button', 'data-kf': `p${k}`, 'data-part': String(k), 'data-voice': v, 'aria-pressed': String(on.has(k)), 'aria-label': names[k], 'data-tip': names[k] });
+    // a chip per section (orchestra/sections.ts: the desks of one instrument playing the same lines), its
+    // desks chosen together; lit when they all play, half lit when some do
+    const chips = ensemble.sections.map((sec) => {
+      const k = sec.seats[0];
+      const v = sec.voice;
+      const label = sectionName(sec, names);
+      const n = sec.seats.filter((x) => on.has(x)).length;
+      const b = h('button', { class: 'kf-part', type: 'button', 'data-kf': `p${k}`, 'data-part': String(k), 'data-seats': sec.seats.join(' '), 'data-voice': v, 'aria-pressed': n === 0 ? 'false' : n === sec.seats.length ? 'true' : 'mixed', 'aria-label': label, 'data-tip': label });
       b.append(voiceGlyph(v));
-      if (names[k] !== VOICE_INFO[v].label) b.append(h('span', { class: 'kf-n', 'aria-hidden': 'true' }, names[k].split(' ').pop()!));
-      b.addEventListener('click', () => ensemble.toggleKey(k));
+      const badge = sec.seats.length > 1 ? `×${sec.seats.length}` : names[k] !== VOICE_INFO[v].label ? names[k].split(' ').pop()! : '';
+      if (badge) b.append(h('span', { class: 'kf-n', 'aria-hidden': 'true' }, badge));
+      b.addEventListener('click', () => ensemble.toggleKeys(sec.seats));
       return b;
     });
     const sp = h('button', { class: 'kf-split', type: 'button', 'data-kf': 'split', 'aria-pressed': String(split), 'aria-label': 'Split: a chord is dealt out by register, one note to each instrument', 'data-tip': 'split · one note each, by register' });
