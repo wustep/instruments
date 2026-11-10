@@ -133,9 +133,9 @@ void main() {
 }`;
 
 // the floor: a lit, shadowed surface whose coverage (alpha) fades into the ground with distance; on
-// it, the room's light (a pool as large as the room, its rim the room's handle: gl3d's Pool). uPool:
-// its radius, its rim's half-width, the light past it (a share of the pool's) and the pool's lift
-// with the sound; uPoolHot: the rim brightened while the pointer is on it or drags it
+// it, the room's light (a pool as large as the room: gl3d's Pool). uPool: its radius, its rim's
+// half-width, the light past it (a share of the pool's) and the pool's lift with the sound; uPoolHot:
+// the rim brightened while the room's grip is under the pointer, held or focused
 const FLOOR_FADE = /* glsl */ `
 uniform vec3 uFloorC; uniform vec2 uFloorR; uniform vec4 uPool; uniform float uPoolHot;
 varying vec3 vWorldP;`;
@@ -248,7 +248,7 @@ export class Renderer3 {
   private fill: THREE.DirectionalLight;
   private floor: THREE.Mesh;
   private floorU = { uFloorC: { value: new THREE.Vector3() }, uFloorR: { value: new THREE.Vector2(1, 2) }, uPool: { value: new THREE.Vector4(1e3, 1, 1, 0) }, uPoolHot: { value: 0 } };
-  /** the room's light pool's rim, brightened (0 … 1: the pointer on it, or dragging it) */
+  /** the room's light pool's rim, brightened (0 … 1: its grip under the pointer, held or focused) */
   poolHot = 0;
   private entries = new Map<Mesh, Entry>();
   private lineScene = new THREE.Scene();
