@@ -16,5 +16,6 @@ export { TrumpetCore, trumpetFingering, type TrumpetParams } from './brass.ts';
 export { OboeCore, OBOE_VOICE, oboeRegister, type OboeParams, type OboeVoice } from './oboe.ts';
 export { ClarinetCore, CLARINET_VOICE, clarinetRegister, type ClarinetParams, type ClarinetVoice } from './clarinet.ts';
 export { BassoonCore, BASSOON_VOICE, bassoonRegister, type BassoonParams, type BassoonVoice } from './bassoon.ts';
+export { TromboneCore, TROMBONE_VOICE, TROMBONE_SIZES, TROMBONE_SIZE_IDS, TROMBONE_LO, TROMBONE_HI, tromboneFingering, tromboneTubeLength, tromboneSlideOut, type TromboneFingering, type TromboneParams, type TromboneVoice, type TromboneSize, type TromboneBore } from './trombone.ts';
 export { HornCore, HORN_VOICE, HORN_LO, HORN_HI, hornFingering, hornTubeLength, type HornFingering, type HornParams, type HornVoice } from './horn.ts';
 export { TimpaniCore, TIMPANI_VOICE, TIMPANI_SPOT, TIMPANI_LO, TIMPANI_HI, TIMPANI_DRUMS, besselJ, besselZeros, type TimpaniParams, type TimpaniVoice, type TimpaniDrum } from './timpani.ts';

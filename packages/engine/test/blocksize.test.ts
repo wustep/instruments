@@ -5,14 +5,16 @@ import { createCore, renderInstrument, type InstrumentId } from '../src/core/ind
 
 const FS = 48000;
 describe('host block size', () => {
-  for (const inst of ['piano', 'violin', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'timpani'] as InstrumentId[]) {
+  for (const inst of ['piano', 'violin', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'timpani'] as InstrumentId[]) {
     it(`${inst}: the same samples at 128, 37 and 500 frames per call`, () => {
-      const m = inst === 'piano' ? 60 : inst === 'bass' ? 40 : inst === 'timpani' ? 48 : 72;
+      const m = inst === 'piano' ? 60 : inst === 'bass' ? 40 : inst === 'timpani' ? 48 : inst === 'trombone' ? 55 : 72;
       const events = [
         { time: 0.013, event: { type: 'noteOn', midi: m, velocity: 90 } },
         { time: 0.2371, event: { type: 'noteOff', midi: m } },
       ];
       // (the timpani: a roll too, its strokes the core's own events, and the pedal under a ringing head)
+      // (the trombone: a slur that moves the slide under its legato tongue, and the wheel moving it)
+      if (inst === 'trombone') events.push({ time: 0.09, event: { type: 'noteOn', midi: 48, velocity: 80 } }, { time: 0.18, event: { type: 'bend', value: -1 } as never });
       if (inst === 'timpani') events.push({ time: 0.05, event: { type: 'noteOn', midi: 43, velocity: 70 } }, { time: 0.1, event: { type: 'control', cc: 1, value: 0.6 } as never }, { time: 0.15, event: { type: 'bend', value: 0.5 } as never });
       const r = [128, 37, 500].map((quantum) => renderInstrument({ instrument: inst, sampleRate: FS, events: events as never, duration: 0.35, quantum, dry: true } as never).left);
       let pk = 0;

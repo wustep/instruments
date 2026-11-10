@@ -10,6 +10,7 @@ import { fitView, screenBox } from './fit3d.ts';
 import { lidGripPoints, lidPoint, zoomFrame, type PianoModel } from './piano3d.ts';
 import { Renderer3 } from './three3d.ts';
 import { lidFor } from './handles3d.ts';
+import { tromboneSizeIn } from './trombone3d.ts';
 
 /** the lens: a 24° vertical field (about a 55 mm lens on full frame at the stage's aspect), not the
  *  wide 34° the views were first set for; the views' distances are scaled to keep the framing */
@@ -462,7 +463,8 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       // so moving the lid never moves the camera)
       // (the reeds and the brass by instrument: the oboe, the clarinet, the trumpet, the horn are each
       // framed for themselves)
-      const key = si.ensemble?.length ? `ens:${W / H < 1.1 ? 'tall' : 'wide'}:${si.ensemble.map((p) => (p.family === 'piano' ? p.kind : p.family === 'bowed' ? (p.bowed?.id ?? 'bowed') : p.family === 'reed' ? (p.reed ?? 'oboe') : p.family === 'brass' ? (p.brass ?? 'trumpet') : p.family)).join(',')}` : si.family === 'piano' ? si.kind : si.family === 'bowed' ? (si.bowed?.id ?? 'bowed') : si.family === 'reed' ? (si.reed ?? 'oboe') : si.family === 'brass' ? (si.brass ?? 'trumpet') : si.family;
+      // (a trombone by its size too: the Size knob makes another instrument, framed for itself)
+      const key = si.ensemble?.length ? `ens:${W / H < 1.1 ? 'tall' : 'wide'}:${si.ensemble.map((p) => (p.family === 'piano' ? p.kind : p.family === 'bowed' ? (p.bowed?.id ?? 'bowed') : p.family === 'reed' ? (p.reed ?? 'oboe') : p.family === 'brass' ? (p.brass ?? 'trumpet') : p.family)).join(',')}` : si.family === 'piano' ? si.kind : si.family === 'bowed' ? (si.bowed?.id ?? 'bowed') : si.family === 'reed' ? (si.reed ?? 'oboe') : si.family === 'brass' ? (si.brass === 'trombone' ? `trombone:${tromboneSizeIn(si.fr, si.tromboneSize)}` : (si.brass ?? 'trumpet')) : si.family;
       const clear = Math.max(0, Math.min(0.4 * H, clearPx));
       const sig = `${key}|${W}|${H}|${Math.round(clear)}`;
       // a key's close-up outlives a change of piano (grand ↔ upright: the same key, the other

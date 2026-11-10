@@ -6,11 +6,11 @@
   "outputDirectory": "apps/web/dist",
   "rewrites": [
     {
-      "source": "/(piano|violin|viola|cello|bass|flute|oboe|clarinet|bassoon|horn|french-horn|trumpet|timpani|kettledrums|double-bass|contrabass|grand|upright|orchestra|ensemble|measurements|notes)",
+      "source": "/(piano|violin|viola|cello|bass|flute|oboe|clarinet|bassoon|horn|french-horn|trumpet|trombone|timpani|kettledrums|double-bass|contrabass|grand|upright|orchestra|ensemble|measurements|notes)",
       "destination": "/index.html"
     },
     {
-      "source": "/(piano|violin|viola|cello|bass|flute|oboe|clarinet|bassoon|horn|french-horn|trumpet|timpani|kettledrums|double-bass|contrabass|grand|upright|orchestra|ensemble|measurements|notes)/(.*)",
+      "source": "/(piano|violin|viola|cello|bass|flute|oboe|clarinet|bassoon|horn|french-horn|trumpet|trombone|timpani|kettledrums|double-bass|contrabass|grand|upright|orchestra|ensemble|measurements|notes)/(.*)",
       "destination": "/index.html"
     }
   ],

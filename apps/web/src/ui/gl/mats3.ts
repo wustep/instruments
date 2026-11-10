@@ -208,6 +208,10 @@ const P: Record<string, Phys> = {
   // in the right, the finger hook), fingerprints: smudges that dull the coat and roughen it, their
   // ridges showing only in the highlights
   hornBrass: { color: '#f4d17f', metalness: 1, roughness: 0.17, clearcoat: 1, clearcoatRoughness: 0.09, envMapIntensity: 1.6, tex: 19 },
+  // the trombone (trombone3d.ts): the inner slides, nickel silver under a hard chrome, lathed (their local y
+  // runs along the tube): brighter and sharper than the nickel silver round them, with the faint streaks of
+  // the drawing along the tube (the slide runs on them: kept polished)
+  slideChrome: { color: '#eeede9', metalness: 1, roughness: 0.07, envMapIntensity: 1.65, tex: 8, axis: [0, 1, 0] },
   // the timpani (timpani3d.ts): copper raised and planished by hand, every blow a shallow facet, under a
   // clear lacquer (20: the facets in the normal, the metal's colour drifting a little between them); a
   // Mylar head, milky and satin, a faint sheen across it; chrome; black stove enamel over a casting

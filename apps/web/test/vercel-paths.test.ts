@@ -20,6 +20,8 @@ describe('vercel.json serves every address the app writes', () => {
     for (const p of ['horn', 'french-horn']) expect(paths, p).toContain(p);
     // (the timpani: their path and their alias)
     for (const p of ['timpani', 'kettledrums']) expect(paths, p).toContain(p);
+    // (the trombone: its path)
+    for (const p of ['trombone']) expect(paths, p).toContain(p);
     for (const p of paths) {
       expect(served(`/${p}`), `/${p}`).toBe(true);
       expect(served(`/${p}/x`), `/${p}/x`).toBe(true);

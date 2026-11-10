@@ -12,7 +12,7 @@ import { createInstrument, pianoKeySummary, processorUrl, type KeySummary, type 
 import { audio, fetchDesigns, restLevel, sendLevel, type Route } from '../audio.ts';
 import { modLines, PartLevels, volumeRef } from '../expression.ts';
 import type { FileEvent, MidiLine, MidiSong } from '../midi-file.ts';
-import { addPart, autoPlan, isKeyboard, lineupOf, lineupPlan, placeNote, playersOf, reassign, removePart, setPartLines, setPartVoice, setRoute, VOICE_INFO, type Plan, type Voice } from './assign.ts';
+import { addPart, autoPlan, isKeyboard, lineupOf, lineupPlan, placeNote, playersOf, reassign, removePart, setPartLines, setPartVoice, setRoute, tromboneSizeOf, VOICE_INFO, type Plan, type TromboneSize, type Voice } from './assign.ts';
 import { carryKeys, defaultKeys, keyParts, keysFor, keyTargets, setSplit, toggleKey, type KeysChoice, type KeyTarget } from './keys.ts';
 import { busGain } from './mix.ts';
 import { piecePlan, type Piece } from './pieces.ts';
@@ -78,6 +78,8 @@ export interface PartLive {
   sustain: number;
   /** the file's dynamics on it (expression.ts): its lines' volume, expression, mod wheel and swells */
   levels: PartLevels | null;
+  /** a trombone's size for its lines (assign.ts tromboneSizeOf): alto, tenor or bass */
+  size?: TromboneSize;
   unsubs: (() => void)[];
 }
 
@@ -312,6 +314,7 @@ class Ensemble implements Route {
     this.applyGain();
     this.applyVoices();
     this.applySeats();
+    this.applySizes();
     if (this.active) void this.ensureEngines();
   }
 
@@ -340,6 +343,18 @@ class Ensemble implements Route {
       if (p.seat && p.seat[0] === s[0] && p.seat[1] === s[1]) return;
       p.seat = s;
       p.engine?.setParams({ seat: s });
+    });
+  }
+
+  /** each trombone the size its lines need (the alto, tenor or bass trombone: one model, three sizes) */
+  private applySizes(): void {
+    this.parts.forEach((p, i) => {
+      if (VOICE_INFO[p.voice].instrument !== 'trombone') return;
+      const lines = this.plan.parts[i]?.lines ?? [];
+      const s = tromboneSizeOf(lines.map((li) => this.lines[li]).filter(Boolean));
+      if (p.size === s) return;
+      p.size = s;
+      p.engine?.setParams({ size: s });
     });
   }
 
@@ -411,6 +426,7 @@ class Ensemble implements Route {
         if (info.preset === 'upright') void e.setPreset('upright');
         // its seat (after the preset: a piano's preset sets its params)
         if (p.seat) e.setParams({ seat: p.seat });
+        if (p.size) e.setParams({ size: p.size });
         this.applyVoices();
         // the ensemble's room: the stage's reverb setting, the grand's lid as the single grand has it
         const room = (audio.piano?.params as Record<string, unknown> | undefined)?.room;

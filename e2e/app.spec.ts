@@ -45,7 +45,7 @@ test('page loads with the keyboard and no errors', async ({ page }) => {
   // no wordmark on the page; the name lives in the tab title
   await expect(page.locator('.inlay')).toHaveCount(0);
   await expect(page).toHaveTitle('instruments');
-  await expect(page.locator('.instruments .pick')).toHaveCount(12);
+  await expect(page.locator('.instruments .pick')).toHaveCount(13);
   await expect(page.locator('.keyboard .key')).toHaveCount(88);
   await page.waitForTimeout(500);
   expect(errors).toEqual([]);
@@ -462,7 +462,7 @@ test('the picker: the ring on the selected instrument is whole, on every instrum
     await page.goto('/');
     await page.waitForTimeout(400);
     const picks = page.locator('.instruments .pick');
-    await expect(picks).toHaveCount(12);
+    await expect(picks).toHaveCount(13);
     for (let i = 0; i < 7; i++) {
       const pick = picks.nth(i);
       await pick.click();
@@ -505,17 +505,17 @@ test('the picker: the ring on the selected instrument is whole, on every instrum
   await page.setViewportSize(vp);
 });
 
-test('all twelve instruments: selectable in the UI and rendered through the worklet at pitch', async ({ page }, info) => {
+test('all thirteen instruments: selectable in the UI and rendered through the worklet at pitch', async ({ page }, info) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await startAudio(page);
-  for (const [label, id] of [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Double bass', 'bass'], ['Flute', 'flute'], ['Oboe', 'oboe'], ['Clarinet', 'clarinet'], ['Bassoon', 'bassoon'], ['Horn', 'horn'], ['Trumpet', 'trumpet'], ['Timpani', 'timpani'], ['Piano', 'piano']] as const) {
+  for (const [label, id] of [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Double bass', 'bass'], ['Flute', 'flute'], ['Oboe', 'oboe'], ['Clarinet', 'clarinet'], ['Bassoon', 'bassoon'], ['Horn', 'horn'], ['Trumpet', 'trumpet'], ['Trombone', 'trombone'], ['Timpani', 'timpani'], ['Piano', 'piano']] as const) {
     await page.locator('.instruments').getByRole('button', { name: label }).click();
     await page.waitForFunction((x) => (window as any).__piano.piano?.instrument === x, id, { timeout: 15_000 });
     await expect(page.locator('.pick[aria-pressed="true"]')).toHaveAttribute('aria-label', label);
     await expect(page.locator('.knobs .knob').first()).toBeVisible({ visible: info.project.name !== 'phone' });
   }
-  for (const [id, midi] of [['violin', 69], ['viola', 62], ['cello', 48], ['bass', 40], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['bassoon', 50], ['horn', 53], ['trumpet', 65], ['timpani', 48]] as const) {
+  for (const [id, midi] of [['violin', 69], ['viola', 62], ['cello', 48], ['bass', 40], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['bassoon', 50], ['horn', 53], ['trumpet', 65], ['trombone', 53], ['timpani', 48]] as const) {
     const out = await page.evaluate(async ([inst, m]) => {
       const { renderOffline } = (window as any).__engine;
       const buf: AudioBuffer = await renderOffline({ instrument: inst, sampleRate: 48000, duration: 1.6, params: { room: 0, vibrato: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: 90 } }] });
@@ -2095,7 +2095,7 @@ test('orchestra: a piece from the menu puts its ensemble on the stage, in 2D and
   await page.locator('.score-btn').click();
   const menu = page.locator('.score-menu');
   await expect(menu).toBeVisible();
-  await expect(menu.locator('.sm-item')).toHaveCount(3);
+  await expect(menu.locator('.sm-item')).toHaveCount(4);
   // (a credit, minimal, to the notes)
   await expect(menu.locator('.sm-credit')).toHaveText(/public domain · Mutopia/);
   await menu.locator('.sm-item').first().click();
@@ -2181,7 +2181,7 @@ test('the pieces are in the player’s overlay, with play and open: one icon, th
     await expect(menu, mode).toBeVisible();
     await expect(player.locator('.score-menu'), mode).toHaveCount(1);
     await expect(btn, mode).toHaveAttribute('aria-expanded', 'true');
-    await expect(menu.locator('.sm-item'), mode).toHaveCount(3);
+    await expect(menu.locator('.sm-item'), mode).toHaveCount(4);
     const m = await box(menu);
     expect(m.y, mode).toBeGreaterThanOrEqual(b.y + b.height);
     expect(m.y, mode).toBeLessThan(b.y + b.height + 10);

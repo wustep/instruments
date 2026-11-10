@@ -189,7 +189,7 @@ export const matchedParams = (r: { vibRate: number }, extra?: Record<string, unk
 
 export async function compareAll(opts: { only?: EnsInstrument[]; params?: Partial<Record<EnsInstrument, Record<string, unknown>>> } = {}) {
   const refs = (await referenceNotes()).filter((r) => !opts.only || opts.only.includes(r.instrument));
-  const models = await pool(refs.map((r) => ({ instrument: r.instrument, dyn: r.dyn, midi: r.midi, params: matchedParams(r, opts.params?.[r.instrument]) })));
+  const models = await pool(refs.map((r) => ({ instrument: r.instrument, dyn: r.dyn, midi: r.midi, params: matchedParams(r, { ...opts.params?.[r.instrument], ...(r.variant ? { size: r.variant } : {}) }) })));
   return refs.map((ref, i) => ({ ref, model: models[i] }));
 }
 
@@ -202,7 +202,7 @@ async function main(): Promise<void> {
   const only = oi >= 0 ? (args[oi + 1].split(',') as EnsInstrument[]) : undefined;
   const t0 = performance.now();
   const pairs = await compareAll({ only });
-  const insts = (['violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet'] as EnsInstrument[]).filter((i) => !only || only.includes(i));
+  const insts = (['violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trombone', 'trumpet'] as EnsInstrument[]).filter((i) => !only || only.includes(i));
   const summary = Object.fromEntries(insts.map((i) => [i, summarise(pairs, i)]));
   const brief = Object.fromEntries(Object.entries(summary).map(([k, v]) => {
     const { ltas: _l, harm: _h, ...rest } = v;

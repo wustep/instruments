@@ -70,6 +70,21 @@ export const PIECES: Piece[] = [
       { voice: 'grand', lines: [1, 2] },
     ],
   },
+  {
+    id: 'air',
+    composer: 'Bach',
+    title: 'Air, for four trombones',
+    file: 'bach-bwv1068-air-trombones.mid',
+    source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=461',
+    credit: 'Air from the Orchestral Suite No. 3 in D, BWV 1068, arranged for trombone quartet: alto, two tenors and bass trombone, each seat the size of its line. Arranged and typeset by Ross Keenum; Mutopia-2008/10/28-461; public domain.',
+    sha256: 'dc3f31aaed2970ea523fbc2038ec0093f53e5026c6292e160181e2d0c1b637f8',
+    parts: [
+      { voice: 'trombone', lines: [0] },
+      { voice: 'trombone', lines: [1] },
+      { voice: 'trombone', lines: [2] },
+      { voice: 'trombone', lines: [3] },
+    ],
+  },
 ];
 
 /** a piece's own plan for its lines, fitted to the stage's room (`cap` instruments) */
@@ -264,6 +279,17 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     sha256: '17bd0a0d48f93c04f5dd5e13c842ca1482952fb779a600a431fc6542e7eca356',
     lines: [0],
     shift: -2,
+  },
+  trombone: {
+    instrument: 'trombone',
+    composer: 'Bach',
+    title: 'Air (the alto trombone’s line, on the tenor)',
+    file: 'bach-bwv1068-air-trombones.mid',
+    source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=461',
+    credit: 'Air from the Orchestral Suite No. 3 in D, BWV 1068, in an arrangement for trombone quartet: its top line (the tune) alone, both strains. The file plays every note at full force (here at about mezzo-forte). Arranged and typeset by Ross Keenum; Mutopia-2008/10/28-461; public domain.',
+    sha256: 'dc3f31aaed2970ea523fbc2038ec0093f53e5026c6292e160181e2d0c1b637f8',
+    lines: [0],
+    vel: 0.55,
   },
   timpani: {
     instrument: 'timpani',

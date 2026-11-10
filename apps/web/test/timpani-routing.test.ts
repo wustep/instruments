@@ -25,7 +25,7 @@ describe('orchestra: the timpani', () => {
     for (const n of ['Timpani', 'timpani', 'Timpano', 'Timp.', 'Timp', 'Timb.', 'Tmp.', 'Kettledrums', 'Kettle drum', 'Pauken', 'Pauke', 'Pk.', 'Timbales', 'Timballes', 'Percussion (Timpani)', 'Timpani in C–G', 'nine: timpani'])
       expect(voiceFromName(n), n).toBe('timpani');
     // their neighbours keep theirs, and a drum that is not a kettledrum is no one's
-    for (const [n, v] of [['Bass Drum', null], ['Percussion', null], ['Snare Drum', null], ['Drums', null], ['Contrabass', 'bass'], ['Tuba', 'bass'], ['Trombone', 'trumpet'], ['Trumpet in D', 'trumpet'], ['Corno in F', 'horn'], ['Fagotto', 'bassoon'], ['Violoncello', 'cello']] as const)
+    for (const [n, v] of [['Bass Drum', null], ['Percussion', null], ['Snare Drum', null], ['Drums', null], ['Contrabass', 'bass'], ['Tuba', 'bass'], ['Trombone', 'trombone'], ['Trumpet in D', 'trumpet'], ['Corno in F', 'horn'], ['Fagotto', 'bassoon'], ['Violoncello', 'cello']] as const)
       expect(voiceFromName(n), n).toBe(v);
     expect(voiceFromProgram(47)).toBe('timpani');
     // the string and voice ensembles around it still go by range
