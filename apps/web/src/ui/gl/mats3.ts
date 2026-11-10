@@ -208,6 +208,14 @@ const P: Record<string, Phys> = {
   // in the right, the finger hook), fingerprints: smudges that dull the coat and roughen it, their
   // ridges showing only in the highlights
   hornBrass: { color: '#f4d17f', metalness: 1, roughness: 0.17, clearcoat: 1, clearcoatRoughness: 0.09, envMapIntensity: 1.6, tex: 19 },
+  // the timpani (timpani3d.ts): copper raised and planished by hand, every blow a shallow facet, under a
+  // clear lacquer (20: the facets in the normal, the metal's colour drifting a little between them); a
+  // Mylar head, milky and satin, a faint sheen across it; chrome; black stove enamel over a casting
+  copperHammered: { color: '#d4865a', metalness: 1, roughness: 0.15, clearcoat: 0.85, clearcoatRoughness: 0.06, envMapIntensity: 1.7, tex: 20 },
+  mylar: { color: '#ddd5c3', roughness: 0.5, specularIntensity: 0.55, clearcoat: 0.3, clearcoatRoughness: 0.35, sheen: 0.4, sheenColor: '#fff6e6', sheenRoughness: 0.55 },
+  chrome: { color: '#eceef2', metalness: 1, roughness: 0.07, envMapIntensity: 1.6 },
+  frameBlack: { color: '#121212', roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.25, tex: 5 },
+  rubberGrip: { color: '#191918', roughness: 0.82, tex: 6 },
 };
 
 // GLSL: hashes, value noise and fbm (all in the part's own metres)
@@ -219,6 +227,19 @@ float vnoise(vec3 p) {
              mix(mix(h13(i + vec3(0, 0, 1)), h13(i + vec3(1, 0, 1)), f.x), mix(h13(i + vec3(0, 1, 1)), h13(i + vec3(1, 1, 1)), f.x), f.y), f.z);
 }
 float fbm(vec3 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a * vnoise(p); p = p * 2.03 + 17.1; a *= 0.5; } return s; }
+// a hammered surface's facets (cellular): x the dish's height at p (0 at its centre, rising to its rim),
+// y a value per facet
+vec2 hammerCell(vec3 p) {
+  vec3 i = floor(p); vec3 f = fract(p);
+  float d1 = 9.0; float id = 0.0;
+  for (int z = -1; z <= 1; z++) for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+    vec3 g = vec3(float(x), float(y), float(z));
+    vec3 c = g + vec3(h13(i + g), h13(i + g + 7.7), h13(i + g + 3.1)) * 0.8 + 0.1 - f;
+    float d = dot(c, c);
+    if (d < d1) { d1 = d; id = h13(i + g + 1.9); }
+  }
+  return vec2(d1, id);
+}
 `;
 
 /** the textures that are wood (their cut faces show grain) */
@@ -497,6 +518,11 @@ float wearCoat = 0.0;
     microR += sm * (0.16 + 0.12 * ridge * fade);
     wearCoat = max(wearCoat, sm * 0.55);
   }
+  #elif TEX == 20
+  // hammered copper: each facet's metal a shade apart (the planishing work-hardens it unevenly)
+  float hc = hammerCell(vLoc * 62.0).y;
+  diffuseColor.rgb *= 0.93 + 0.12 * hc + 0.05 * (vnoise(vLoc * 9.0) - 0.5);
+  microR = 0.05 * (hc - 0.5);
   #endif
   #if PAINTED
   // the painted aux map: r = figure (flame) under the varnish, flipping with the view; g = 1 at the edge
@@ -577,9 +603,14 @@ roughnessFactor = clamp(roughnessFactor + microR, 0.03, 1.0);`,
       .replace(
         '#include <normal_fragment_maps>',
         `#include <normal_fragment_maps>
-#if TEX == 9 || TEX == 12
+#if TEX == 9 || TEX == 12 || TEX == 20
 {
-  #if TEX == 9
+  #if TEX == 20
+  // a planishing hammer's facets, ~16 mm across: each a shallow dish (0.25 mm deep), ridges where they
+  // meet; they fade out before a pixel holds several (no shimmer at a distance)
+  vec3 ph = vLoc * 62.0;
+  float hb = 0.0005 * hammerCell(ph).x * (1.0 - smoothstep(0.5, 1.2, length(fwidth(ph))));
+  #elif TEX == 9
   // a casting is never flat: a gentle waviness (≈ 1 mm over 10 cm, 0.3 mm over 3 cm) breaks the
   // flange's sheen up as a real plate's (a bump in metres: Mikkelsen's surface gradient, unnormalised)
   float hb = 0.0012 * fbm(vLoc * 9.0) + 0.0003 * fbm(vLoc * 37.0);
