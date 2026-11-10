@@ -6,7 +6,7 @@
 import type { KeySummary, VisualFrame } from '@piano-model/engine';
 import { AutoScale, type BowedGeom } from '../stage-draw.ts';
 import type { PianoState } from '../piano-draw.ts';
-import { type Batch, type Mesh, type Vec3 } from './gl3d.ts';
+import { chain, rotY, translate, type Batch, type Mat4, type Mesh, type Vec3 } from './gl3d.ts';
 import { buildGrandModel, buildUprightModel, newPianoPose, pianoPickSegments, pianoStrings, posePiano, type PianoModel, type PianoPose } from './piano3d.ts';
 import { buildBowedModel, poseBowed, type BowedModel } from './strings3d.ts';
 import { buildFluteModel, buildTrumpetModel, newWindPose, poseFlute, poseTrumpet, type FluteModel, type TrumpetModel, type WindPose } from './winds3d.ts';
@@ -36,6 +36,22 @@ export interface SceneIn {
   /** pianos: a key's action close up, and the section that cuts away the keys in front of it */
   zoomKey?: number | null;
   cut?: { at: number; side: 1 | -1 } | null;
+  /** orchestra mode: several instruments, each from its own engine (the fields above are unused) */
+  ensemble?: EnsPartIn[] | null;
+  /** the stage's width over its height (an ensemble's seating and framing follow it) */
+  aspect?: number;
+}
+
+/** one instrument of an ensemble on the 3D stage */
+export interface EnsPartIn {
+  family: 'piano' | 'bowed' | 'wind' | 'brass';
+  kind: 'grand' | 'upright';
+  fr: VisualFrame | null;
+  keys: KeySummary[];
+  piano: PianoState;
+  bowed: BowedGeom | null;
+  down: (m: number) => boolean;
+  sounding: (m: number) => boolean;
 }
 
 /** where the camera looks and from how far, per instrument */
@@ -63,6 +79,16 @@ export interface Scene3State {
   picks: { midi: number; a: Vec3; b: Vec3 }[];
   /** the bowed strings' bow as posed this frame (world: the hair's frog and tip ends), else null */
   bowLine: { a: Vec3; b: Vec3; pos: number } | null;
+  /** an ensemble's instruments, by seat: each its own pose (the meshes are shared with the single
+   *  instrument's model: two violins are one violin's meshes drawn twice) */
+  ens: EnsSeat[];
+}
+interface EnsSeat {
+  key: string;
+  bowed: BowedModel | null;
+  pianoPose: PianoPose;
+  windPose: WindPose;
+  str: AutoScale;
 }
 export const newScene3State = (): Scene3State => ({
   str: new AutoScale(2e-6, 0.99),
@@ -78,6 +104,7 @@ export const newScene3State = (): Scene3State => ({
   buildMs: 0,
   picks: [],
   bowLine: null,
+  ens: [],
 });
 
 
@@ -134,6 +161,7 @@ function floor(b: Batch, _st: Scene3State, _key: string, c: Vec3, r: number): vo
 export function buildScene(b: Batch, si: SceneIn, st: Scene3State): void {
   st.bowLine = null;
   st.picks = [];
+  if (si.ensemble?.length) return buildEnsemble(b, si, si.ensemble, st);
   if (si.family === 'piano') {
     const pm = pianoModel(si, st);
     if (!pm) return;
@@ -178,6 +206,7 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): void {
  *  further: the flute and trumpet are all width, and the violin and viola keep the whole bow in the
  *  picture, as they did before the wide stage's view moved in. */
 export function narrowStep(si: SceneIn): number {
+  if (si.ensemble?.length) return 1;
   if (si.family === 'wind' || si.family === 'brass') return 1.28;
   if (si.family === 'bowed' && si.bowed && si.bowed.id !== 'cello') return 1.16;
   return 1;
@@ -185,6 +214,7 @@ export function narrowStep(si: SceneIn): number {
 
 /** default cameras: a three-quarter view from the audience's side, a little above */
 export function viewFor(si: SceneIn, st: Scene3State): View3 {
+  if (si.ensemble?.length) return ensembleView(si.ensemble, si.aspect);
   // the grand from the treble front corner (as in Steinway's own photographs), above the rim so the
   // plate and strings show; the upright from the treble side, a little above the keys, into the action
   if (si.family === 'piano') return si.kind === 'grand' ? { target: [-0.12, 0.58, 1.0], dist: 3.8, yaw: 0.74, pitch: 0.33 } : { target: [0, 0.62, 0.25], dist: 2.8, yaw: 0.45, pitch: 0.26 };
@@ -203,3 +233,189 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
   return { target: [0.0, 0.17, 0.0], dist: 0.68, yaw: 0.24, pitch: 0.5 };
 }
 
+
+// ================================================================ orchestra mode
+/** where an ensemble's instruments sit: the melodic ones on an arc opening towards the audience (the
+ *  first at the audience's left, as a quartet sits: first violin, second, viola, cello), held about
+ *  where a seated player holds them, each turned to show its best side (the single instrument's hero
+ *  angle); the pianos behind, side-on with the lid open towards the audience. A tall, narrow stage (a
+ *  phone held upright) seats them in two rows. */
+export interface Seat {
+  T: Mat4;
+  /** the seat's footprint centre (x, z), a radius and the instrument's height, for the floor and the framing */
+  c: Vec3;
+  r: number;
+  top: number;
+}
+/** a held instrument's lift above its single-instrument pose (m) */
+const HELD = 0.42;
+type SeatIn = Pick<EnsPartIn, 'family' | 'kind' | 'bowed'>;
+export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
+  const mel = parts.map((p, i) => (p.family === 'piano' ? -1 : i)).filter((i) => i >= 0);
+  const kb = parts.map((p, i) => (p.family === 'piano' ? i : -1)).filter((i) => i >= 0);
+  const out: Seat[] = new Array(parts.length);
+  // one or two players with a piano stand beside it (a soloist at the piano's curve), more sit in front
+  const beside = kb.length > 0 && mel.length <= 2;
+  const rows = aspect < 1.1 && mel.length > 3 ? 2 : 1;
+  const perRow = Math.ceil(mel.length / rows);
+  mel.forEach((i, k) => {
+    const row = rows === 2 ? (k < perRow ? 0 : 1) : 0;
+    const inRow = row === 0 ? Math.min(perRow, mel.length) : mel.length - perRow;
+    const kk = row === 0 ? k : k - perRow;
+    const n = inRow;
+    // neighbours about 0.8 m apart on an arc (flatter as it grows: its ends would come at the camera)
+    const spread = n > 1 ? Math.min(0.72, 0.28 + 0.12 * n) : 0;
+    const R = n > 1 ? (0.8 * (n - 1)) / (2 * spread) : 1;
+    const u = n > 1 ? kk / (n - 1) : 0.5;
+    // first at the audience's left (the renderer's world is mirrored in x: −x is the audience's left)
+    const phi = -spread * (1 - 2 * u);
+    const x = beside ? 1.75 + kk * 0.85 : R * Math.sin(phi) + (rows === 2 && row === 1 ? 0.35 : 0);
+    const z = beside ? 0.55 - kk * 0.5 : R * (Math.cos(phi) - 1) + (kb.length ? -0.35 : 0) + row * 0.95;
+    const p = parts[i];
+    // each faces the arc's middle, turned to its hero angle (the single instrument's camera yaw)
+    const face = phi * 0.5;
+    let T: Mat4;
+    if (p.family === 'bowed' && p.bowed?.id === 'cello') T = chain(translate(x, 0, z), rotY(face - 0.62));
+    else if (p.family === 'bowed') T = chain(translate(x, HELD, z), rotY(face + 0.5));
+    // (a flute or trumpet is held higher, level with the player's mouth)
+    else T = chain(translate(x, HELD + 0.4, z), rotY(face - 0.3));
+    const cello = p.family === 'bowed' && p.bowed?.id === 'cello';
+    const wind = p.family !== 'bowed';
+    out[i] = { T, c: [x, 0, z], r: cello ? 0.45 : 0.36, top: cello ? 1.5 : wind ? HELD + 0.62 : HELD + 0.38 };
+  });
+  kb.forEach((i, k) => {
+    const p = parts[i];
+    const off = (k - (kb.length - 1) / 2) * 2.3;
+    // a grand side-on, its open lid towards the audience; an upright faces them
+    const zP = mel.length > 2 ? 1.55 : 1.1;
+    const T = p.kind === 'grand' ? chain(translate(off - 1.0, 0, zP), rotY(Math.PI / 2)) : chain(translate(off, 0, zP - 0.1), rotY(Math.PI));
+    out[i] = { T, c: [off, 0, zP], r: 1.05, top: 1.75 };
+  });
+  return out;
+}
+
+function ensSeat(st: Scene3State, i: number, key: string): EnsSeat {
+  let e = st.ens[i];
+  if (!e || e.key !== key) e = st.ens[i] = { key, bowed: null, pianoPose: newPianoPose(), windPose: newWindPose(), str: new AutoScale(2e-6, 0.99) };
+  return e;
+}
+
+function buildEnsemble(b: Batch, si: SceneIn, parts: EnsPartIn[], st: Scene3State): void {
+  const seats = ensembleSeats(parts, si.aspect);
+  st.ens.length = Math.min(st.ens.length, parts.length);
+  const lo: Vec3 = [Infinity, 0, Infinity];
+  const hi: Vec3 = [-Infinity, 1.5, -Infinity];
+  parts.forEach((p, i) => {
+    const seat = seats[i];
+    const key = p.family === 'piano' ? p.kind : p.family === 'bowed' ? (p.bowed?.id ?? 'bowed') : p.family;
+    const e = ensSeat(st, i, key);
+    b.world = seat.T;
+    if (p.family === 'piano') {
+      const pm = pianoModel({ ...si, kind: p.kind, keys: p.keys }, st);
+      if (pm) {
+        posePiano(b, pm, { piano: p.piano, keys: p.keys, dt: si.dt, lid: 1, down: p.down, sounding: p.sounding, lite: si.lite, caseHidden: false, zoomKey: null, cut: null }, e.pianoPose);
+        pianoStrings(b, pm, p.fr, (mx) => e.str.of(mx), si.lite, null);
+        // the lid's mirror is in the piano's own frame: placed on its seat
+        if (b.mirror) b.mirror = { ...b.mirror, m: chain(seat.T, b.mirror.m) };
+      }
+    } else if (p.family === 'bowed' && p.bowed) {
+      let bm = st.bowedM.get(p.bowed.id);
+      if (!bm) {
+        const g = p.bowed;
+        bm = timed(st, () => buildBowedModel(g));
+        st.bowedM.set(p.bowed.id, bm);
+      }
+      // the model's meshes, this seat's own bow
+      if (!e.bowed || e.bowed.meshes !== bm.meshes) e.bowed = { ...bm, bowPose: null, bowLine: null };
+      poseBowed(b, e.bowed, p.fr, e.str);
+    } else if (p.family === 'brass') {
+      if (!st.trumpet) st.trumpet = timed(st, () => buildTrumpetModel());
+      poseTrumpet(b, st.trumpet, p.fr, e.windPose, si.dt, si.now, si.rms);
+    } else {
+      if (!st.flute) st.flute = timed(st, () => buildFluteModel());
+      poseFlute(b, st.flute, p.fr, e.windPose, si.dt, si.now);
+    }
+    b.world = null;
+    for (const k of [0, 2]) {
+      lo[k] = Math.min(lo[k], seat.c[k] - seat.r);
+      hi[k] = Math.max(hi[k], seat.c[k] + seat.r);
+    }
+  });
+  const c: Vec3 = [(lo[0] + hi[0]) / 2, 0.6, (lo[2] + hi[2]) / 2];
+  const r = Math.max(1, 0.5 * Math.hypot(hi[0] - lo[0], hi[2] - lo[2], 1.5));
+  b.bounds = { c, r };
+  floor(b, st, 'ensemble', c, r);
+}
+
+/** the camera for an ensemble: from the audience, a little above the players, every instrument in
+ *  frame. Each seat's box is projected through the stage's lens (24° vertical; the views' distances are
+ *  in units stage3d scales by FRAME) and the distance found that fits them all. */
+const ENS_FOV = (24 * Math.PI) / 180;
+const ENS_FRAME = Math.tan(0.3) / Math.tan(ENS_FOV / 2);
+export function ensembleView(parts: EnsPartIn[], aspect = 2): View3 {
+  const seats = ensembleSeats(parts, aspect);
+  let x0 = Infinity;
+  let x1 = -Infinity;
+  let z0 = Infinity;
+  let z1 = -Infinity;
+  let top = 0;
+  for (const s of seats) {
+    x0 = Math.min(x0, s.c[0] - s.r);
+    x1 = Math.max(x1, s.c[0] + s.r);
+    z0 = Math.min(z0, s.c[2] - s.r);
+    z1 = Math.max(z1, s.c[2] + s.r);
+    top = Math.max(top, s.top);
+  }
+  const yaw = 0;
+  const pitch = parts.some((p) => p.family === 'piano') ? 0.42 : top > 1.5 ? 0.36 : 0.32;
+  const target: Vec3 = [(x0 + x1) / 2, top * 0.42, (z0 + z1) / 2];
+  const dir: Vec3 = [Math.cos(pitch) * Math.sin(yaw), Math.sin(pitch), -Math.cos(pitch) * Math.cos(yaw)];
+  const f: Vec3 = [-dir[0], -dir[1], -dir[2]];
+  const rl = Math.hypot(f[2], f[0]) || 1;
+  const r: Vec3 = [-f[2] / rl, 0, f[0] / rl];
+  const u: Vec3 = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
+  const tanV = Math.tan(ENS_FOV / 2);
+  const tanH = tanV * Math.max(0.4, aspect);
+  const pts: Vec3[] = [];
+  for (const s of seats) for (const dx of [-1, 1]) for (const dz of [-1, 1]) for (const y of [0, s.top]) pts.push([s.c[0] + dx * s.r, y, s.c[2] + dz * s.r]);
+  /** the points' extent on screen (NDC) from distance D */
+  const extent = (D: number) => {
+    const E: Vec3 = [target[0] + D * dir[0], target[1] + D * dir[1], target[2] + D * dir[2]];
+    let xm = 0;
+    let y0 = Infinity;
+    let y1 = -Infinity;
+    let near = Infinity;
+    for (const P of pts) {
+      const v: Vec3 = [P[0] - E[0], P[1] - E[1], P[2] - E[2]];
+      const z = v[0] * f[0] + v[1] * f[1] + v[2] * f[2];
+      near = Math.min(near, z);
+      xm = Math.max(xm, Math.abs((v[0] * r[0] + v[2] * r[2]) / (z * tanH)));
+      const y = (v[0] * u[0] + v[1] * u[1] + v[2] * u[2]) / (z * tanV);
+      y0 = Math.min(y0, y);
+      y1 = Math.max(y1, y);
+    }
+    return { xm, y0, y1, near };
+  };
+  const fit = () => {
+    let lo = 0.5;
+    let hi = 40;
+    for (let k = 0; k < 30; k++) {
+      const mid = (lo + hi) / 2;
+      const e = extent(mid);
+      if (e.near > 0.2 && e.xm <= 0.96 && e.y1 - e.y0 <= 1.86) hi = mid;
+      else lo = mid;
+    }
+    return hi;
+  };
+  // fit, centre the picture vertically (the near floor reaches lower than the scrolls reach up), fit again
+  let D = fit();
+  for (let k = 0; k < 2; k++) {
+    const e = extent(D);
+    const mid = (e.y0 + e.y1) / 2;
+    // a shift of the target along the screen's up by mid·tanV·(distance to the target)
+    const sh = mid * tanV * D;
+    for (let j = 0; j < 3; j++) target[j] += u[j] * sh;
+    D = fit();
+  }
+  return { target, dist: D / ENS_FRAME, yaw, pitch };
+}

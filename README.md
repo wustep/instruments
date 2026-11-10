@@ -24,6 +24,14 @@ README does not claim it is live. `vercel.json` makes this a static build
   * On the computer keyboard, hold `Space` for sustain and `Shift` for una corda.
 * **Instruments.** Choose one with the selector on the Play page. The piano has
   four presets: concert grand, upright, honky-tonk and prepared.
+* **Ensemble.** The ensemble button (four dots on an arc) puts several instruments on
+  the stage, each its own engine; tap an instrument to add one. A chord played by hand
+  is dealt out by register, one note per instrument. Drop a MIDI file with several
+  parts and each part gets an instrument by its name, General MIDI program and range;
+  the row under the player shows each part's instrument (tap one to change or silence
+  it). The page icon beside it holds three public-domain pieces from the Mutopia
+  Project: Haydn's "Emperor" quartet (II), Brandenburg No. 5 (III) and Handel's
+  Réjouissance. Pieces and assignment: `apps/web/src/orchestra/`.
 * **Look inside.** See what each instrument is doing as it plays:
   * the string displacement or bore pressure, live;
   * the hammer's contact force with its felt hysteresis loop, or the bow's

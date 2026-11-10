@@ -7,6 +7,9 @@ import { ComputerKeys, createKeyboard } from './ui/keyboard.ts';
 import { h, type View } from './ui/dom.ts';
 import { pedal } from './ui/controls.ts';
 import { MidiPlayer } from './ui/player.ts';
+import { ensemble } from './orchestra/ensemble.ts';
+import { isKeyboard, VOICE_INFO } from './orchestra/assign.ts';
+import { PIECES } from './orchestra/pieces.ts';
 import { installTips } from './ui/tip.ts';
 import { stageView } from './views/stage.ts';
 import { measureView } from './views/measure.ts';
@@ -66,12 +69,12 @@ const links = [
 const backLink = h('a', { class: 'back', href: '#/', 'data-route': 'stage', 'aria-label': 'back to the instruments', 'data-tip': 'back' }, '←');
 const header = h('header', { class: 'top' }, backLink, h('span', { class: 'spacer' }), status, h('nav', { class: 'links', 'aria-label': 'Pages' }, links));
 const main = h('main', { id: 'main' });
-// drop a .mid file anywhere to hear it on the current instrument
+// drop a .mid file anywhere to hear it (an ensemble's file on an ensemble)
 const player = new MidiPlayer();
 app.append(header, main, player.el, dock);
 
 const routes: Record<string, { title: string; make: () => View }> = {
-  stage: { title: '', make: () => stageView(keyboard, knobSlot) },
+  stage: { title: '', make: () => stageView(keyboard, knobSlot, player) },
   measurements: { title: 'Measurements', make: () => measureView() },
   notes: { title: 'Notes', make: () => notesView() },
 };
@@ -169,6 +172,18 @@ const syncInstrument = (id: InstrumentId) => {
 };
 audio.instrumentChanged.on(syncInstrument);
 syncInstrument(audio.instrument);
+// an ensemble: the keys span every instrument's range; the pianos' other pedals while one plays
+ensemble.changed.on(() => {
+  if (!ensemble.active) return syncInstrument(audio.instrument);
+  const lu = ensemble.lineup;
+  const lo = Math.min(...lu.map((v) => VOICE_INFO[v].lo));
+  const hi = Math.max(...lu.map((v) => VOICE_INFO[v].hi));
+  keyboard.setRange(lo, hi);
+  keys.setRange(lo, hi);
+  const kbd = lu.some(isKeyboard);
+  softPedal.el.hidden = !kbd;
+  middlePedal.el.hidden = !kbd;
+});
 void audio.initMidi();
 
 // Any gesture starts audio. Desktop browsers accept pointerdown/keydown, phones only
@@ -185,3 +200,4 @@ installTips();
 (window as unknown as { __piano: typeof audio; __engine: unknown }).__piano = audio;
 (window as unknown as { __engine: unknown }).__engine = { renderOffline };
 (window as unknown as { __player: MidiPlayer }).__player = player;
+(window as unknown as { __orchestra: unknown }).__orchestra = { ensemble, pieces: PIECES, loadPiece: (i: number) => player.loadPiece(i) };

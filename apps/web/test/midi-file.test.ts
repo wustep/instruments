@@ -36,6 +36,28 @@ describe('MIDI file reader', () => {
     expect(s.duration).toBeCloseTo(2, 6);
   });
 
+  it('keeps each line apart: a track per part (format 1), a channel per part (format 0), names, programs, ranges', () => {
+    const name = (t: string) => [0xff, 0x03, t.length, ...[...t].map((c) => c.charCodeAt(0))];
+    const fmt1 = smf(480, [
+      [[0, 0xff, 0x51, 3, 0x07, 0xa1, 0x20]],
+      [[0, ...name('Violin I')], [0, 0xc0, 40], [0, 0x90, 76, 90], [480, 0x80, 76, 0], [0, 0x90, 79, 90], [480, 0x80, 79, 0]],
+      [[0, ...name('Piano')], [0, 0xc1, 0], [0, 0x91, 48, 80], [0, 0x91, 52, 80], [0, 0x91, 55, 80], [960, 0x81, 48, 0], [0, 0x81, 52, 0], [0, 0x81, 55, 0]],
+    ]);
+    const a = parseMidi(fmt1.buffer as ArrayBuffer);
+    expect(a.lines.map((l) => [l.track, l.name, l.program, l.notes, l.lo, l.hi, l.poly])).toEqual([
+      [1, 'Violin I', 40, 2, 76, 79, 1],
+      [2, 'Piano', 0, 3, 48, 55, 3],
+    ]);
+    expect(a.events.filter((e) => e.kind === 'on').map((e) => e.line)).toEqual([0, 1, 1, 1, 0]);
+    // format 0: two channels in one track are two lines
+    const fmt0 = smf(480, [[[0, 0xc0, 73], [0, 0xc1, 42], [0, 0x90, 72, 80], [0, 0x91, 40, 80], [480, 0x80, 72, 0], [0, 0x81, 40, 0]]]);
+    const b = parseMidi(fmt0.buffer as ArrayBuffer);
+    expect(b.lines.map((l) => [l.channel, l.program, l.median])).toEqual([
+      [0, 73, 72],
+      [1, 42, 40],
+    ]);
+  });
+
   it('rejects files that are not MIDI', () => {
     expect(() => parseMidi(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]).buffer)).toThrow();
   });

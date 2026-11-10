@@ -266,6 +266,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
         el.width = pw;
         el.height = ph;
       }
+      si.aspect = W / H;
       // scene (the models are built on first use; that time is kept out of the frame budget)
       batch.clear();
       const built0 = st.buildMs;
@@ -273,14 +274,14 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       const buildMs = st.buildMs - built0;
       stats.buildMs = st.buildMs;
       // the view for this instrument (and preset); reset when it changes
-      const key = si.family === 'piano' ? si.kind : si.family === 'bowed' ? (si.bowed?.id ?? 'bowed') : si.family;
+      const key = si.ensemble?.length ? `ens:${W / H < 1.1 ? 'tall' : 'wide'}:${si.ensemble.map((p) => (p.family === 'piano' ? p.kind : p.family === 'bowed' ? (p.bowed?.id ?? 'bowed') : p.family)).join(',')}` : si.family === 'piano' ? si.kind : si.family === 'bowed' ? (si.bowed?.id ?? 'bowed') : si.family;
       if (key !== viewKey) {
         viewKey = key;
         view = viewFor(si, st);
         view.dist *= FRAME;
         // a narrow or square screen: step back so the instrument fits the width
         const aspect = W / H;
-        if (aspect < 1.4) view.dist *= Math.min(2.6, 1.4 / Math.max(0.45, aspect)) * 0.92 * narrowStep(si);
+        if (aspect < 1.4 && !si.ensemble?.length) view.dist *= Math.min(2.6, 1.4 / Math.max(0.45, aspect)) * 0.92 * narrowStep(si);
         resetView();
       }
       // camera: orbiting the target, eased (τ ≈ 70 ms), never below the floor; or flying (a key's

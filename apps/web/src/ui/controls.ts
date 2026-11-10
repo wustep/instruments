@@ -260,6 +260,18 @@ function pianoGlyph(): SVGElement[] {
   return g;
 }
 
+function uprightGlyph(): SVGElement[] {
+  const g: SVGElement[] = [];
+  // an upright from the front: the tall case, the strings hanging behind the music desk, the keybed
+  g.push(svg('path', { d: 'M8 43 V8 C8 6 9.4 5 11.4 5 H36.6 C38.6 5 40 6 40 8 V43 Z', class: 'g-body' }));
+  g.push(svg('path', { d: 'M10.5 30 V8.5 H37.5 V30', class: 'g-thin' }));
+  for (let i = 0; i < 9; i++) g.push(svg('path', { d: `M${13 + i * 2.8} 29 V${9.5 + Math.max(0, i - 3) * 1.6}`, class: 'g-str' }));
+  g.push(svg('path', { d: 'M12 22 C18 23.5 28 25.5 36 26', class: 'g-bridge' }));
+  g.push(svg('rect', { x: 7, y: 31.5, width: 34, height: 5.5, class: 'g-keys' }));
+  for (let i = 0; i < 11; i++) g.push(svg('rect', { x: 8.6 + i * 2.9, y: 31.5, width: 1.1, height: 3.2, class: 'g-fill' }));
+  return g;
+}
+
 function fluteGlyph(): SVGElement[] {
   const g: SVGElement[] = [];
   // drawn along the diagonal: crown at the top right, foot at the bottom left
@@ -298,7 +310,33 @@ function trumpetGlyph(): SVGElement[] {
   return g;
 }
 
-export function glyph(id: InstrumentId): SVGElement {
-  const g = id === 'piano' ? pianoGlyph() : id === 'flute' ? fluteGlyph() : id === 'trumpet' ? trumpetGlyph() : bowedGlyph(id);
+export function glyph(id: InstrumentId | 'upright'): SVGElement {
+  const g = id === 'piano' ? pianoGlyph() : id === 'upright' ? uprightGlyph() : id === 'flute' ? fluteGlyph() : id === 'trumpet' ? trumpetGlyph() : bowedGlyph(id);
   return svg('svg', { viewBox: '0 0 48 48', class: 'glyph', 'aria-hidden': 'true' }, ...g);
+}
+
+/** an orchestra voice's glyph (the grand is the piano's) */
+export const voiceGlyph = (v: 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'flute' | 'trumpet'): SVGElement => glyph(v === 'grand' ? 'piano' : v);
+
+/** the ensemble: four players' chairs on an arc around the conductor's place */
+export function ensembleIcon(): SVGElement {
+  const g: SVGElement[] = [];
+  for (const [x, y] of [
+    [3.2, 9.6],
+    [6.4, 4.6],
+    [11.6, 4.6],
+    [14.8, 9.6],
+  ])
+    g.push(svg('circle', { cx: x, cy: y, r: 1.9 }));
+  g.push(svg('path', { d: 'M7.4 13.4 H10.6', 'stroke-width': 1.1 }));
+  return svg('svg', { viewBox: '0 0 18 16', width: 18, height: 16, class: 'ens-icon', 'aria-hidden': 'true' }, ...g);
+}
+
+/** a page of music: the built-in pieces */
+export function scoreIcon(): SVGElement {
+  const g: SVGElement[] = [svg('path', { d: 'M2.5 1.5 H11.5 L14.5 4.5 V14.5 H2.5 Z', fill: 'none' })];
+  for (let i = 0; i < 4; i++) g.push(svg('path', { d: `M4.5 ${6 + i * 2} H12.5`, 'stroke-width': 0.8 }));
+  g.push(svg('circle', { cx: 7, cy: 11.6, r: 1.15 }));
+  g.push(svg('path', { d: 'M8.1 11.6 V6.4', 'stroke-width': 0.9 }));
+  return svg('svg', { viewBox: '0 0 17 16', width: 17, height: 16, class: 'score-icon', 'aria-hidden': 'true' }, ...g);
 }
