@@ -65,25 +65,52 @@ export interface ClarinetVoice {
   /** embouchure parameter ζ at D3 and at B♭6 */
   zeta: number;
   zetaTop: number;
-  /** the mouth's pressure, in units of the closing pressure of the reed as opened for a loud note, at
-   *  velocity 1 and 127, and the curve between (velocity^gammaCurve) */
+  /** the mouth's pressure above the note's own threshold of oscillation, in units of the reed's closing
+   *  pressure, at velocity 1 and 127, and the curve between (velocity^gammaCurve). A player blows each
+   *  note from its threshold: just over it, a clarinet's note is nearly a sine and soft (the bifurcation is
+   *  direct: the amplitude grows as √(γ − γ_th), Dalmont, Gilbert & Kergomard 2000; Atig et al. 2004);
+   *  a fixed γ left the soft range a sliver that moved from note to note (losses differ), and pp as bright
+   *  as mf. The threshold is computed for the note: where the reed's negative conductance ζ(3γ − 1)/2√γ
+   *  meets the bore's peak admittance (1 − r)/(1 + r), r the round trip's gain at the note */
   gammaLo: number;
   gammaHi: number;
   gammaCurve: number;
   /** the lips' share of the dynamic: the reed's rest opening at velocity 1, of a loud note's (pM ∝ H₀,
    *  ζ ∝ √H₀, as on the oboe) */
   openPp: number;
-  /** the breath's rise (s, a time constant) for a soft note and a loud one */
+  /** the breath's rise (s, a time constant) for a soft note and a loud one, at D3; a higher note's is
+   *  shorter by (f₀ / D3)^riseExp (the recordings' high notes speak within 20–45 ms, a soft low one swells) */
   riseLo: number;
   riseHi: number;
-  /** the open end's reflection: a low-pass (Hz: the open-hole lattice's cutoff and the radiation), its
-   *  Q, and the round trip's gain at audio frequencies (the mean pressure is reflected whole) */
+  riseExp: number;
+  /** the level's rise across the compass (dB per octave: the open holes and the bell radiate the high
+   *  notes better; the recordings' top octave is ~10 dB over the chalumeau at the same dynamic) */
+  tilt: number;
+  /** the open end's reflection: a fourth-order low-pass (two sections at one corner, Hz, and Q: the
+   *  open-hole lattice reflects below its cutoff and passes the rest, Benade 1960; a second-order one
+   *  left the bore resonating an octave above it, and the clarion's even harmonics 15 dB short), and the
+   *  round trip's gain at audio frequencies (the mean pressure is reflected whole) */
   cutoff: number;
   cutQ: number;
   wall: number;
-  /** turbulence in the reed's channel: noise in the flow, ∝ the flow, and a floor ∝ the breath */
+  /** …the corner follows the register, × (f₀ / D3)^cutExp (the clarion's and the altissimo's vents and
+   *  cross-fingerings leave few resonances above the note: their even harmonics come through), and the
+   *  walls' loss grows down the compass: the round trip's gain is wall^((440 Hz / f₀)^wallExp) (the
+   *  viscothermal loss of a tube ∝ its length × √f) */
+  cutExp: number;
+  wallExp: number;
+  /** the walls' loss grows with frequency (viscothermal, ∝ √f; and the radiation): a one-pole low-pass in
+   *  the loop, its corner `wallK` harmonics above the note. So the bore's first resonance is its
+   *  strongest, and just over the threshold only it sustains: a soft note is nearly a sine. (With a flat
+   *  loss every resonance reached threshold together and the softest note was already a square wave, its
+   *  third harmonic at −9.5 dB: Raman's model; the recordings' pp chalumeau has it at −21 dB.) */
+  wallK: number;
+  /** turbulence in the reed's channel: noise in the flow, ∝ the flow, and a floor ∝ the breath, rising
+   *  up the compass × (f₀ / D3)^noisePitch (the recordings' high notes are as breathy as their low ones
+   *  although they are louder) */
   noise: number;
   noiseFloor: number;
+  noisePitch: number;
   /** the radiation's colour: below `hp` it falls (Hz); a shelf below 400 Hz (dB); two formants (Hz, dB,
    *  Q); above `lp` × (f₀ / 440 Hz)^lpExp a second-order fall (Hz, Q), lpDyn octaves lower at velocity 1
    *  than at 127; a shelf above `shelfF` (dB) */
@@ -111,43 +138,51 @@ export interface ClarinetVoice {
 }
 
 export const CLARINET_VOICE: ClarinetVoice = {
-  zeta: 0.35,
-  zetaTop: 0.42,
-  gammaLo: 0.4,
-  gammaHi: 0.72,
-  gammaCurve: 1,
-  openPp: 0.45,
-  riseLo: 0.08,
-  riseHi: 0.02,
-  cutoff: 1800,
-  cutQ: 0.707,
-  wall: 0.995,
-  noise: 0.12,
-  noiseFloor: 0.004,
-  hp: 200,
-  lowG: 0,
-  f1: 1500,
-  g1: 4,
-  q1: 1.2,
-  f2: 3000,
-  g2: 0,
-  q2: 1.5,
-  lp: 5000,
-  lpQ: 0.7,
-  lpExp: 0.3,
-  lpDyn: 1,
+  zeta: 0.535,
+  zetaTop: 0.757,
+  gammaLo: -0.0211,
+  gammaHi: 0.452,
+  gammaCurve: 1.58,
+  openPp: 0.672,
+  riseLo: 0.0774,
+  riseHi: 0.0544,
+  riseExp: 0.327,
+  tilt: 1.43,
+  cutoff: 3441,
+  cutQ: 0.522,
+  wall: 0.9923,
+  cutExp: 0.0221,
+  wallExp: 0.0915,
+  wallK: 4.48,
+  noise: 0.025,
+  noiseFloor: 0.0108,
+  noisePitch: 0.25,
+  hp: 60,
+  lowG: 6.39,
+  f1: 1121,
+  g1: 7.54,
+  q1: 1.4,
+  f2: 2053,
+  g2: -8.48,
+  q2: 3.83,
+  lp: 3902,
+  lpQ: 1.03,
+  lpExp: 0.27,
+  lpDyn: 2.11,
   shelfF: 7000,
-  shelfG: -10,
-  attackBoost: 0.2,
+  shelfG: -8.95,
+  attackBoost: 0.176,
   attackTau: 0.05,
-  tongueHold: 0.02,
-  tongueRel: 0.6,
+  tongueHold: 0.0159,
+  tongueRel: 1.14,
 };
 
 /** the shortest tongued note: the breath stays on this long (s) from the key, from MIN_BLOW_PP at
- *  velocity 1 to MIN_BLOW at 127, so a 50 ms tap still speaks (as on the oboe) */
+ *  velocity 1 to MIN_BLOW at 127, so a 50 ms tap still speaks (as on the oboe). A soft note blown just
+ *  over its threshold grows slowly (a low pp note takes ~0.4 s to its full level; the recordings' swell
+ *  for 0.2–1 s), so a soft tap keeps its breath longer */
 const MIN_BLOW = 0.1;
-const MIN_BLOW_PP = 0.25;
+const MIN_BLOW_PP = 0.45;
 
 const et = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -175,12 +210,17 @@ export class ClarinetCore implements InstrumentCore {
   /** the round trip (samples), eased towards its target */
   private D1 = 100;
   private D1target = 100;
-  /** the open end's reflection: a low-pass and its state */
+  /** the open end's reflection: a low-pass (two sections, the same coefficients) and its state */
   private rc = new Float64Array(5);
   private rx1 = 0;
   private rx2 = 0;
   private ry1 = 0;
   private ry2 = 0;
+  private qy1 = 0;
+  private qy2 = 0;
+  /** the walls' one-pole (its pole for the note) and its state */
+  private wp = 0;
+  private wy = 0;
   /** the reflected wave, averaged below ~20 Hz (the part reflected whole) */
   private m1 = 0;
   private kDc = 0.003;
@@ -231,6 +271,16 @@ export class ClarinetCore implements InstrumentCore {
   private modeFreqs = new Float64Array(16);
   private gain = 1;
   private zetaNote = 1;
+  /** the round trip's gain at audio frequencies for the note, and its whole gain at the note (the walls
+   *  and the lattice: for the threshold) */
+  private gNote = 0.995;
+  private rNote = 0.9;
+  /** the note's share of the breath's rise, and its level across the compass (tilt) */
+  private riseNote = 1;
+  private tiltNote = 1;
+  private noiseNote = 1;
+  /** the tilt the output last had (eased across a block, as the opening is) */
+  private tiltOut = 1;
   /** the radiation's corner for the note at ff (Hz), and the corner its section now has */
   private lpNote = 4000;
   private lpSet = -1;
@@ -261,8 +311,7 @@ export class ClarinetCore implements InstrumentCore {
   private voiced(): void {
     const fs = this.fs;
     const V = this.V;
-    const lp = biquadLowpass(Math.min(0.45 * fs, V.cutoff), V.cutQ, fs);
-    this.rc.set([lp[0], lp[1], lp[2], lp[3], lp[4]]);
+    lowpassInto(this.rc, 0, Math.min(0.45 * fs, V.cutoff), V.cutQ, fs);
     this.kDc = 1 - Math.exp((-2 * Math.PI * 20) / fs);
     this.eq.set([
       biquadHighpass(V.hp, 0.7, fs),
@@ -273,9 +322,9 @@ export class ClarinetCore implements InstrumentCore {
       biquadHighShelf(Math.min(0.4 * fs, V.shelfF), V.shelfG, fs),
     ]);
     this.room.configure(this.params.room, this.params.seat);
-    // matched to the oboe beside it: the median mf note as loud (the recordings' absolute levels are
-    // their microphone's gain)
-    this.gain = 1 * this.params.volume;
+    // matched to the oboe beside it: the median mf note D4–E6 as loud (−20.9 dB dry; the recordings'
+    // absolute levels are their microphone's gain)
+    this.gain = 1.27 * this.params.volume;
   }
 
   /** measured voicing table (scripts/tune-clarinet.ts): cents the bare model plays sharp, by sample rate */
@@ -292,12 +341,23 @@ export class ClarinetCore implements InstrumentCore {
     const fs = this.fs;
     const V = this.V;
     const f = et(m);
+    // the lattice's corner for the note (written in place: a note change on the audio thread allocates
+    // nothing), the walls' loss for its length
+    lowpassInto(this.rc, 0, Math.min(0.45 * fs, V.cutoff * Math.pow(f / et(CLARINET_LO), V.cutExp)), V.cutQ, fs);
+    this.gNote = Math.pow(V.wall, Math.pow(440 / f, V.wallExp));
+    const w0 = (2 * Math.PI * f) / fs;
+    this.wp = Math.exp((-2 * Math.PI * Math.min(0.45 * fs, V.wallK * f)) / fs);
+    const wp = this.wp;
+    this.rNote = (this.gNote * Math.pow(biquadMag(this.rc, w0), 2) * (1 - wp)) / Math.hypot(1 - wp * Math.cos(w0), wp * Math.sin(w0));
     // the period is two round trips (the open end inverts the wave): each through the end's low-pass
-    // (its phase delay at the note) and the interpolation's half sample
-    const lag = biquadPhaseDelay(this.rc, (2 * Math.PI * f) / fs);
+    // and the walls' (their phase delay at the note) and the interpolation's half sample
+    const lag = 2 * biquadPhaseDelay(this.rc, w0) + Math.atan2(wp * Math.sin(w0), 1 - wp * Math.cos(w0)) / w0;
     this.D1target = Math.max(2, (fs / (2 * f)) * this.tuningCorrection(m) - lag - 0.5);
     if (immediate) this.D1 = this.D1target;
     this.zetaNote = V.zeta + (V.zetaTop - V.zeta) * clamp((m - CLARINET_LO) / (CLARINET_HI - CLARINET_LO), 0, 1);
+    this.riseNote = Math.pow(f / et(CLARINET_LO), -V.riseExp);
+    this.tiltNote = Math.pow(f / et(CLARINET_LO), V.tilt / 6.0206);
+    this.noiseNote = Math.pow(f / et(CLARINET_LO), V.noisePitch);
     this.lpNote = V.lp * Math.pow(f / 440, V.lpExp);
     this.lpSet = -1;
     this.note = m;
@@ -323,7 +383,7 @@ export class ClarinetCore implements InstrumentCore {
         this.velocity = ev.velocity;
         this.setNote(m, !legato && this.level < 1e-3);
         this.pTarget = 1;
-        this.attackTau = legato ? 0.01 : this.V.riseLo + (this.V.riseHi - this.V.riseLo) * (ev.velocity / 127);
+        this.attackTau = legato ? 0.01 : (this.V.riseLo + (this.V.riseHi - this.V.riseLo) * (ev.velocity / 127)) * this.riseNote;
         if (!legato) {
           this.tongueN = Math.round(this.V.tongueHold * this.fs);
           this.tongueLen = Math.max(1, Math.round((this.V.tongueRel * this.fs) / et(m)));
@@ -395,7 +455,7 @@ export class ClarinetCore implements InstrumentCore {
 
   private clear(): void {
     this.bore.fill(0);
-    this.rx1 = this.rx2 = this.ry1 = this.ry2 = 0;
+    this.rx1 = this.rx2 = this.ry1 = this.ry2 = this.qy1 = this.qy2 = this.wy = 0;
     this.m1 = 0;
     this.outPrev = this.sPrev = 0;
     this.tongueN = 0;
@@ -457,16 +517,21 @@ export class ClarinetCore implements InstrumentCore {
     const v01 = this.dyn ? clamp(this.velocity + this.dyn, 1, 127) / 127 : this.velocity / 127;
     const vc = Math.pow(v01, V.gammaCurve);
     const open = V.openPp + (1 - V.openPp) * vc;
-    const gNote = (V.gammaLo + (V.gammaHi - V.gammaLo) * vc) / open;
+    // the note's threshold with the reed as the lips hold it: ζ(3γ − 1) / 2√γ = (1 − r) / (1 + r), in
+    // s = √γ a quadratic, 3ζs² − 2cs − ζ = 0
+    const zSteady = this.zetaNote * Math.sqrt(open) * P.embouchure;
+    const cTh = (1 - this.rNote) / (1 + this.rNote);
+    const sTh = (cTh + Math.sqrt(cTh * cTh + 3 * zSteady * zSteady)) / (3 * Math.max(1e-6, zSteady));
+    const gNote = sTh * sTh + V.gammaLo + (V.gammaHi - V.gammaLo) * vc;
     const gamma = gNote * this.pressure * vib * P.breath * this.expression;
     this.gammaNow = gamma;
-    const zeta = this.zetaNote * Math.sqrt(open) * P.embouchure * (1 + V.attackBoost * Math.exp(-age / V.attackTau));
+    const zeta = zSteady * (1 + V.attackBoost * Math.exp(-age / V.attackTau));
     const lpF = Math.min(0.45 * fs, this.lpNote * Math.pow(2, V.lpDyn * (vc - 1)));
     if (Math.abs(lpF - this.lpSet) > 0.5) {
       lowpassInto(this.eq.c, 5 * LP_SECTION, lpF, V.lpQ, fs);
       this.lpSet = lpF;
     }
-    const nzF = V.noiseFloor * P.noise * gamma;
+    const nzF = V.noiseFloor * P.noise * gamma * this.noiseNote;
     // (Newton's method below needs ζ < 1: the flow's slope never turns the solution back)
     const zh = Math.min(0.95, zeta);
     const nz = V.noise * P.noise;
@@ -474,7 +539,8 @@ export class ClarinetCore implements InstrumentCore {
     // (a time constant, not a per-block fraction: a slur's glide must not depend on block length)
     const ease = 1 - Math.exp(-1 / (0.004 * fs));
     const rc = this.rc;
-    const g = V.wall;
+    const g = this.gNote;
+    const wp = this.wp;
     const kDc = this.kDc;
     const bore = this.bore;
     const mask = BUF - 1;
@@ -490,13 +556,17 @@ export class ClarinetCore implements InstrumentCore {
       const fr = D1 - di;
       // the wave back from the open end: reflected through the low-pass, inverted, with the walls' loss
       const e = bore[(w - di) & mask] * (1 - fr) + bore[(w - di - 1) & mask] * fr;
-      const y1 = rc[0] * e + rc[1] * this.rx1 + rc[2] * this.rx2 - rc[3] * this.ry1 - rc[4] * this.ry2;
+      const y0 = rc[0] * e + rc[1] * this.rx1 + rc[2] * this.rx2 - rc[3] * this.ry1 - rc[4] * this.ry2;
       this.rx2 = this.rx1;
       this.rx1 = e;
+      const y1 = rc[0] * y0 + rc[1] * this.ry1 + rc[2] * this.ry2 - rc[3] * this.qy1 - rc[4] * this.qy2;
       this.ry2 = this.ry1;
-      this.ry1 = y1;
-      this.m1 += (y1 - this.m1) * kDc;
-      const a = -(g * y1 + (1 - g) * this.m1);
+      this.ry1 = y0;
+      this.qy2 = this.qy1;
+      this.qy1 = y1;
+      const yw = (this.wy = y1 + wp * (this.wy - y1));
+      this.m1 += (yw - this.m1) * kDc;
+      const a = -(g * yw + (1 - g) * this.m1);
       // the reed and the bore together: p = 2a + u, Δ = γ − p, u = ζ(1 − Δ)√Δ (Δ < 0: the reed pushed
       // open, the flow back). In s = √|Δ|: s² ± ζ(s ∓ s³) = |γ − 2a|, by Newton from the last sample's s
       const D0 = gamma - 2 * a;
@@ -566,9 +636,10 @@ export class ClarinetCore implements InstrumentCore {
     this.sPrev = s;
     this.level = Math.max(peak, this.level * 0.9);
     // (in pascals: the swing in units of pM, times pM ∝ the reed's opening; eased across the block)
-    const g0 = this.gain * this.openOut;
-    const g1 = this.gain * open;
+    const g0 = this.gain * this.openOut * this.tiltOut;
+    const g1 = this.gain * open * this.tiltNote;
     this.openOut = open;
+    this.tiltOut = this.tiltNote;
     for (let t = 0; t < n; t++) {
       const gn = g0 + ((g1 - g0) * (t + 1)) / n;
       oL[t] *= gn;
@@ -677,6 +748,12 @@ function lowpassInto(c: Float64Array, at: number, f: number, q: number, fs: numb
   c[at + 2] = (1 - cs) / 2 / a0;
   c[at + 3] = (-2 * cs) / a0;
   c[at + 4] = (1 - alpha) / a0;
+}
+
+/** the magnitude of a biquad [b0,b1,b2,a1,a2] at ω (rad/sample) */
+function biquadMag(c: ArrayLike<number>, w: number): number {
+  const m = (b0: number, b1: number, b2: number) => Math.hypot(b0 + b1 * Math.cos(w) + b2 * Math.cos(2 * w), b1 * Math.sin(w) + b2 * Math.sin(2 * w));
+  return m(c[0], c[1], c[2]) / m(1, c[3], c[4]);
 }
 
 /** phase delay (samples) of a biquad [b0,b1,b2,a1,a2] at ω (rad/sample) */

@@ -1,6 +1,6 @@
 # Working in this repo (agents and people)
 
-`instruments`: eight acoustic instruments computed as physics in an AudioWorklet (TypeScript). Engine:
+`instruments`: nine acoustic instruments computed as physics in an AudioWorklet (TypeScript). Engine:
 `packages/engine/src/core` (DSP), `packages/engine/src/worklet` (the AudioWorklet host),
 `packages/engine/src/api` (the main-thread API). App: `apps/web` (Vite). Scripts for calibration,
 renders and audits: `scripts/`.

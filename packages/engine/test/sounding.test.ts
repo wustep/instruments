@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createCore } from '../src/core/index.ts';
 
 const FS = 48000;
-function run(id: 'flute' | 'oboe' | 'trumpet' | 'violin' | 'piano', steps: [string, number][]): number[][] {
+function run(id: 'flute' | 'oboe' | 'clarinet' | 'trumpet' | 'violin' | 'piano', steps: [string, number][]): number[][] {
   const core = createCore({ instrument: id, sampleRate: FS, dry: true } as never);
   const L = new Float32Array(256);
   const R = new Float32Array(256);
@@ -20,13 +20,13 @@ function run(id: 'flute' | 'oboe' | 'trumpet' | 'violin' | 'piano', steps: [stri
 }
 
 describe('sounding notes', () => {
-  it('flute, oboe and trumpet: the last held key sounds; releasing it returns to the previous one', () => {
-    for (const id of ['flute', 'oboe', 'trumpet'] as const) {
+  it('flute, oboe, clarinet and trumpet: the last held key sounds; releasing it returns to the previous one', () => {
+    for (const id of ['flute', 'oboe', 'clarinet', 'trumpet'] as const) {
       // let go 16 ms after the tongue: the note still sounds through its minimum blow (0.1 s on the
-      // trumpet, 0.12 s on the flute, 0.16 s on the oboe at this velocity), then stops
-      expect(run(id, [['on', 72], ['on', 76], ['off', 76], ['off', 72], ['wait', id === 'oboe' ? 32 : 24]]), id).toEqual([[72], [76], [72], [72], []]);
+      // trumpet, 0.12 s on the flute, 0.16 s on the oboe and 0.23 s on the clarinet at this velocity), then stops
+      expect(run(id, [['on', 72], ['on', 76], ['off', 76], ['off', 72], ['wait', id === 'clarinet' ? 48 : id === 'oboe' ? 32 : 24]]), id).toEqual([[72], [76], [72], [72], []]);
       // held past the minimum blow, it stops with the key
-      expect(run(id, [['on', 72], ['wait', id === 'oboe' ? 32 : 24], ['off', 72]]), id).toEqual([[72], [72], []]);
+      expect(run(id, [['on', 72], ['wait', id === 'clarinet' ? 48 : id === 'oboe' ? 32 : 24], ['off', 72]]), id).toEqual([[72], [72], []]);
     }
   });
   it('violin: two keys on the G string share it; the newer wins and gives it back', () => {

@@ -28,7 +28,7 @@ const note = (m: number, dyn: number | null, at = 0.5): Ev[] => [
 
 describe('CC_DYNAMICS: a held note louder or softer', () => {
   it('the bowed strings and the winds: louder up, softer down, nothing at 0, the same before it moves', () => {
-    for (const [inst, m] of [['violin', 69], ['cello', 50], ['flute', 74], ['oboe', 74], ['trumpet', 67]] as const) {
+    for (const [inst, m] of [['violin', 69], ['cello', 50], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['trumpet', 67]] as const) {
       const none = render(inst, note(m, null));
       const zero = render(inst, note(m, 0));
       const up = render(inst, note(m, 20));
@@ -64,7 +64,7 @@ describe('CC_DYNAMICS: a held note louder or softer', () => {
   });
 
   it('CC_REST: the mod wheel as if never moved', () => {
-    for (const inst of ['cello', 'flute', 'oboe', 'trumpet'] as const) {
+    for (const inst of ['cello', 'flute', 'oboe', 'clarinet', 'trumpet'] as const) {
       const m = inst === 'cello' ? 50 : 67;
       const none = render(inst, note(m, null), 0.8);
       const rest = render(inst, [{ time: 0, event: { type: 'control', cc: 1, value: 0 } }, { time: 0, event: { type: 'control', cc: 1, value: CC_REST } }, ...note(m, null)], 0.8);
