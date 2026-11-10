@@ -1736,7 +1736,7 @@ export interface PianoIn {
 /** a key's action, close up: the camera beside it (on the nearer end's side), looking across the
  *  keyboard at three-quarters, a section cutting away the keys between it and that end. Returns the
  *  target, the side (+1: the treble end), the cut's x, and the extents to frame (z across, y up, m) */
-export function zoomFrame(kind: 'grand' | 'upright', midi: number): { target: Vec3; side: 1 | -1; cut: number; edge: number; w: number; h: number } {
+export function zoomFrame(kind: 'grand' | 'upright', midi: number): { target: Vec3; side: 1 | -1; cut: number; edge: number; w: number; h: number; lo: Vec3; hi: Vec3 } {
   const x = actX(midi);
   const side: 1 | -1 = x >= 0 ? 1 : -1;
   // the cut just past this key's parts (its hammer is 11–15 mm wide, the next one 13.9 mm on)
@@ -1744,7 +1744,13 @@ export function zoomFrame(kind: 'grand' | 'upright', midi: number): { target: Ve
   const edge = side * 0.85;
   // the upright: key front to strings (z −0.02…0.5), keybed to dampers (y 0.68…1.08); the grand:
   // key front to the dampers' heads (z 0…0.66), keybed to the strings (y 0.68…0.97)
-  return kind === 'upright' ? { target: [x, 0.91, 0.31], side, cut, edge, w: 0.46, h: 0.37 } : { target: [x, 0.81, 0.3], side, cut, edge, w: 0.56, h: 0.26 };
+  // `lo`, `hi`: this key's action whole, as a box (a narrow stage frames exactly that): the key's
+  // front to the damper's head (the upright: to its strings), the key's underside to the top of the
+  // damper's head (the upright: of the hammer's)
+  const half = PITCH / 2;
+  return kind === 'upright'
+    ? { target: [x, 0.91, 0.31], side, cut, edge, w: 0.46, h: 0.37, lo: [x - half, 0.69, -0.005], hi: [x + half, 1.06, 0.49] }
+    : { target: [x, 0.81, 0.3], side, cut, edge, w: 0.56, h: 0.26, lo: [x - half, 0.69, -0.005], hi: [x + half, 0.935, 0.53] };
 }
 
 const C = {

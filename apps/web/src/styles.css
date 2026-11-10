@@ -1856,6 +1856,16 @@ figure[title] {
     height: min(62vh, 520px);
     border-radius: 12px 12px 0 0;
   }
+  /* (the grand's section is long and low: its panel leaves the rest of the stage in view) */
+  .av-panel[data-kind='grand'] {
+    height: min(62vh, 300px);
+  }
+}
+/* a low stage (a phone on its side): the panel takes its whole height */
+@media (max-height: 500px) {
+  .av-panel {
+    height: calc(100% - 12px);
+  }
 }
 
 /* ------------------------------------------------------------ 3D stage */

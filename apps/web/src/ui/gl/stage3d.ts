@@ -4,7 +4,7 @@
 // On the pianos, a click on a key (its strings or its key top) flies the camera to that key's own
 // action, a section cutting away the keys in front of it (`zoomTo`, `zoomOut`; the stage wires them).
 // Where WebGL2 is missing the toggle never appears and the 2D stage carries on (`webgl2.ts`).
-import { Batch, project, type Mat4, type Vec3 } from './gl3d.ts';
+import { Batch, project, type Mat4, type Mesh, type Vec3 } from './gl3d.ts';
 import { buildScene, newScene3State, viewFor, type SceneIn, type View3 } from './scenes3d.ts';
 import { fitView, screenBox } from './fit3d.ts';
 import { zoomFrame } from './piano3d.ts';
@@ -51,6 +51,8 @@ export interface Stage3D {
   /** tests and review shots: the box of the instrument as drawn last frame (CSS px in the canvas,
    *  every vertex projected) */
   box(): { x0: number; y0: number; x1: number; y1: number } | null;
+  /** tests and review shots: where the zoomed key's action (its box, `zoomFrame`) is on the canvas, in CSS pixels */
+  zoomBox(): { x0: number; y0: number; x1: number; y1: number } | null;
   /** the view the instrument is first seen from, and comes back to (tests) */
   readonly home: View3 | null;
   /** tests: a close-up's section as drawn last frame (everything with side·(x − at) > 0 is cut away), and
@@ -65,6 +67,20 @@ export interface Stage3D {
   probe: boolean;
   /** the renderer (debugging) */
   r3: Renderer3;
+}
+
+/** a box as a scene of its eight corners (the framing reads positions only) */
+function boxBatch(lo: Vec3, hi: Vec3): Batch {
+  const data = new Float32Array(8 * 14);
+  for (let i = 0; i < 8; i++) {
+    data[i * 14] = i & 1 ? hi[0] : lo[0];
+    data[i * 14 + 1] = i & 2 ? hi[1] : lo[1];
+    data[i * 14 + 2] = i & 4 ? hi[2] : lo[2];
+  }
+  const b = new Batch();
+  const mesh: Mesh = { data, count: 8 };
+  b.mesh(mesh, null);
+  return b;
 }
 
 export function createStage3D(host: HTMLElement): Stage3D | null {
@@ -107,7 +123,12 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     cut: number;
   }
   /** `dist`: the close-up's own framing distance (the wheel and the pinch move about it) */
-  let zoom: { midi: number; side: 1 | -1; cut: number; dist: number } | null = null;
+  let zoom: { midi: number; side: 1 | -1; cut: number; dist: number; sig: string } | null = null;
+  /** the stage a close-up is framed for (the piano, the stage's size, what lies over its top), as of
+   *  the last frame; and a close-up to frame again because that changed under it */
+  let stageSig = '';
+  let clearNow = 0;
+  let rezoom: number | null = null;
   /** how far into a key's close-up the camera is (0 the whole piano … 1 there), eased with its flight */
   let closeK = 0;
   let fly: { t0: number; dur: number; from: Cam; to: Cam; out: boolean } | null = null;
@@ -208,19 +229,31 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     const nearest = Math.min(...fits.map((f) => f.dist));
     return fits.find((f) => f.dist <= nearest * 1.01) ?? v;
   };
-  function zoomTo(midi: number): void {
-    if (family !== 'piano' || !view || (zoom && zoom.midi === midi && !fly)) return;
+  function zoomTo(midi: number, again = false): void {
+    if (family !== 'piano' || !view || (!again && zoom && zoom.midi === midi && !fly)) return;
     const f = zoomFrame(kind, midi);
     // framed to the action's extents on this canvas: its height, or its depth across the width
     const tanH = Math.tan(((FOV / 2) * Math.PI) / 180);
     const aspect = cssW / Math.max(1, cssH);
-    const d = 1.04 * Math.max(f.h / (2 * tanH), (f.w * 0.99) / (2 * tanH * aspect));
+    let d = 1.04 * Math.max(f.h / (2 * tanH), (f.w * 0.99) / (2 * tanH * aspect));
     // from the nearer end, nearly in profile (the action reads as a side drawing; the keys behind
     // the cut recede a little), a little above the keys
     const to: Cam = { target: f.target, yaw: f.side * 1.4, pitch: 0.1, dist: d, cut: f.cut };
+    // A narrow stage (a phone held upright) frames the key's action exactly, as it frames the whole
+    // instrument: every corner of its box inside the stage's margins and under what lies over the
+    // top. (The rule above measures the depth across the width as if seen square on and from far
+    // away; from 80° and this near, the key's front and the damper ran out of the two sides.)
+    if (aspect < NARROW || cssW < SMALL) {
+      const rect = { l: -1 + 2 * FIT.side, r: 1 - 2 * FIT.side, b: -1 + 2 * FIT.bottom, t: 1 - 2 * (clearNow / Math.max(1, cssH) + FIT.top) };
+      const fit = fitView(boxBatch(f.lo, f.hi), to, tanH, aspect, rect);
+      if (fit) {
+        to.target = fit.target;
+        to.dist = d = fit.dist;
+      }
+    }
     // the section starts at the case's end (or where it already is) and sweeps in to the key
     if (!zoom || zoom.side !== f.side) cutAt = f.edge;
-    zoom = { midi, side: f.side, cut: f.cut, dist: d };
+    zoom = { midi, side: f.side, cut: f.cut, dist: d, sig: stageSig };
     flyTo(to, false);
   }
   function zoomOut(): void {
@@ -249,6 +282,20 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     },
     get section() {
       return zoom ? { at: cutAt, side: zoom.side, zoom: dist / zoom.dist } : null;
+    },
+    zoomBox() {
+      if (!zoom || !lastVP) return null;
+      const f = zoomFrame(kind, zoom.midi);
+      const out = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+      for (let i = 0; i < 8; i++) {
+        const q = project(lastVP, [i & 1 ? f.hi[0] : f.lo[0], i & 2 ? f.hi[1] : f.lo[1], i & 4 ? f.hi[2] : f.lo[2]], cssW, cssH);
+        if (!q) return null;
+        out.x0 = Math.min(out.x0, q[0]);
+        out.x1 = Math.max(out.x1, q[0]);
+        out.y0 = Math.min(out.y0, q[1]);
+        out.y1 = Math.max(out.y1, q[1]);
+      }
+      return out;
     },
     box() {
       return lastVP ? screenBox(batch, lastVP, cssW, cssH) : null;
@@ -335,6 +382,11 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       const key = si.ensemble?.length ? `ens:${W / H < 1.1 ? 'tall' : 'wide'}:${si.ensemble.map((p) => (p.family === 'piano' ? p.kind : p.family === 'bowed' ? (p.bowed?.id ?? 'bowed') : p.family)).join(',')}` : si.family === 'piano' ? si.kind : si.family === 'bowed' ? (si.bowed?.id ?? 'bowed') : si.family;
       const clear = Math.max(0, Math.min(0.4 * H, clearPx));
       const sig = `${key}|${W}|${H}|${Math.round(clear)}|${key === 'grand' ? si.lid.toFixed(2) : ''}`;
+      // a key's close-up outlives a change of piano (grand ↔ upright: the same key, the other
+      // action) and of the stage (the phone turned): it is framed again, once the view is
+      clearNow = clear;
+      stageSig = `${key}|${W}|${H}|${Math.round(clear)}`;
+      if (zoom && !(fly && fly.out) && zoom.sig !== stageSig) rezoom = zoom.midi;
       // scene (the models are built on first use; that time is kept out of the frame budget)
       batch.clear();
       batch.wantFit = sig !== fitSig && !si.ensemble?.length;
@@ -351,6 +403,14 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
         if (si.ensemble?.length || batch.meshes().length) fitSig = sig;
         view = homeView(si, W, H, clear);
         if (home) resetView();
+      }
+      if (rezoom !== null) {
+        if (si.family !== 'piano' || si.ensemble?.length) rezoom = null;
+        else if (fitSig === sig && view) {
+          const m = rezoom;
+          rezoom = null;
+          zoomTo(m, true);
+        }
       }
       // camera: orbiting the target, eased (τ ≈ 70 ms), never below the floor; or flying (a key's
       // action, close up, and back), eased in and out, the section sweeping with it

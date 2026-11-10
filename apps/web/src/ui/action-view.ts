@@ -1,85 +1,72 @@
 // One key's action, close up: key lever, wippen and jack (and the grand's repetition lever),
 // escapement at the let-off button, the hammer's flight, strike and check, the damper, and the
-// vibrating string. Driven by the engine's own record of that key:
+// vibrating string. Driven by the engine's own record of that key (ui/action-motion.ts):
 //   * live: whether the key is held, the damper's contact (pedals included), the string's shape;
-//   * each strike is replayed in slow motion from its record: the hammer's speed at the string,
-//     the felt's contact force and compression over time, and the rebound that follows from
-//     them (m·Δv = ∫F dt). The travel before the strike is reconstructed from that speed (the
-//     jack accelerates the hammer from rest; it flies free for the last few mm).
+//   * each strike is replayed in slow motion from its record, the key and the damper with it.
+// It shows the key being played: a note played by hand on another key (the keyboard, a plugged-in
+// one; not a file's notes) moves the close-up to that key, and a change of piano (grand, upright)
+// redraws it as that piano's action.
 // A schematic: the levers show the sequence; the hammer's travel and the string's position are
-// in proportion (blow distance 47 mm grand / 45 mm upright, let-off 2.5 mm).
+// in proportion (blow distance 47 mm grand / 45 mm upright, let-off 2.5 mm). The whole section is
+// drawn at every size, the key's front included: a phone shows it smaller, never cut.
 import { midiName, type VisualFrame, type WatchKey } from '@piano-model/engine';
 import { audio } from '../audio.ts';
+import { ActionMotion, type ActionState, type Kind } from './action-motion.ts';
 import { h } from './dom.ts';
 import { AutoScale, INK, rgba } from './stage-draw.ts';
 import { glow, V } from './vector/kit.ts';
 import { linePen } from './vector/pen.ts';
 
-type Kind = 'grand' | 'upright';
-const BLOW = { grand: 47, upright: 45 };
-/** let-off: where the jack's toe meets its button, mm before the string (the grand's 2 mm as the 3D
- *  model's `G.letoff` and [Askenfelt-Jansson]'s 1-3 mm; the upright's 2.5) */
-const LETOFF_OF = { grand: 2, upright: 2.5 };
-const KEY_DIP = 10;
-/** the check (backcheck catching the hammer) and, for the grand, where the repetition lever holds it */
-const CHECK = { grand: 16, upright: 13 };
-const REP = 9;
-/** slowest replay of the travel before the strike, s (soft notes are slower) */
-const MAX_DRIVE_S = 2.2;
-
-interface Replay {
-  t0: number;
-  slow: number;
-  vH: number;
-  ta: number;
-  tb: number;
-  force: Float32Array;
-  comp: Float32Array;
-  fs: number;
-  tc: number;
-  vOut: number;
+/** the drawn section's box on the canvas (CSS px), and where the key's front is */
+export interface SectionBox {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+/** tests and review shots: the open close-up (`window.__action`) */
+export interface ActionProbe {
+  readonly midi: number;
+  readonly kind: Kind;
+  readonly state: ActionState;
+  readonly box: SectionBox | null;
 }
 
-/** hammer height (mm above rest) and phase at physical time t (s) of a replay */
-function replayAt(r: Replay, kind: Kind, t: number, held: boolean): { y: number; phase: 'drive' | 'free' | 'contact' | 'fall' | 'checked'; comp: number; escaped: boolean } {
-  const D = BLOW[kind];
-  const LETOFF = LETOFF_OF[kind];
-  if (t < r.ta) return { y: (D - LETOFF) * (t / r.ta) ** 2, phase: 'drive', comp: 0, escaped: false };
-  if (t < r.ta + r.tb) return { y: D - LETOFF + r.vH * 1000 * (t - r.ta), phase: 'free', comp: 0, escaped: true };
-  const tc = t - r.ta - r.tb;
-  if (tc < r.tc) {
-    const i = Math.min(r.comp.length - 1, Math.floor(tc * r.fs));
-    return { y: D, phase: 'contact', comp: r.comp[i] * 1000, escaped: true };
-  }
-  // after the strike: back down at the rebound speed, against gravity and the shank's spring
-  const tf = tc - r.tc;
-  const g = kind === 'grand' ? 9.8 : 14; // the upright's hammer is returned by a spring
-  const y = D - r.vOut * 1000 * tf - 0.5 * g * 1000 * tf * tf;
-  const stop = held ? D - CHECK[kind] : 0;
-  if (y <= stop) return { y: stop, phase: held ? 'checked' : 'fall', comp: 0, escaped: true };
-  return { y, phase: 'fall', comp: 0, escaped: true };
-}
-
-export function openActionView(opts: { midi: number; kind: Kind; host: HTMLElement; latest: () => VisualFrame | null; onClose: () => void }): { el: HTMLElement; close: () => void } {
-  const { midi, kind } = opts;
-  const canvas = h('canvas', { class: 'av-cv', 'data-tip-follow': '', role: 'img', 'aria-label': `The ${kind} action of ${midiName(midi)}: key, jack, hammer, damper and string` }) as HTMLCanvasElement;
+export function openActionView(opts: { midi: number; kind: () => Kind; host: HTMLElement; latest: () => VisualFrame | null; onClose: () => void }): { el: HTMLElement; close: () => void } {
+  let midi = opts.midi;
+  let kind = opts.kind();
+  const canvas = h('canvas', { class: 'av-cv', 'data-tip-follow': '', role: 'img' }) as HTMLCanvasElement;
   const close = h('button', { class: 'av-close', type: 'button', 'aria-label': 'Close', 'data-tip': 'close · Esc' }, '×');
-  const name = h('div', { class: 'av-name' }, midiName(midi));
+  const name = h('div', { class: 'av-name' });
   const speed = h('div', { class: 'av-speed', 'aria-hidden': 'true' });
-  const panel = h('div', { class: 'av-panel', tabindex: '-1', role: 'dialog', 'aria-label': `${midiName(midi)}: the ${kind} action` }, canvas, name, speed, close);
+  const panel = h('div', { class: 'av-panel', tabindex: '-1', role: 'dialog' }, canvas, name, speed, close);
   const el = h('div', { class: 'action-view' }, panel);
+  const motion = new ActionMotion(kind);
+  /** the drawing's own easing of the key and the jack (drawGrand, drawUpright) */
+  const mem: Mem = { key: 0, jack: 0 };
+  let strScale = new AutoScale(1e-7, 0.985);
+  let box: SectionBox | null = null;
+  /** this key, this mechanism: named, watched, at rest. `since`: see ActionMotion.begin */
+  const show = (m: number, k: Kind, since: number | null) => {
+    midi = m;
+    kind = k;
+    canvas.setAttribute('aria-label', `The ${kind} action of ${midiName(midi)}: key, jack, hammer, damper and string`);
+    panel.setAttribute('aria-label', `${midiName(midi)}: the ${kind} action`);
+    panel.dataset.kind = kind;
+    name.textContent = midiName(midi);
+    motion.begin(kind, since);
+    mem.key = mem.jack = 0;
+    strScale = new AutoScale(1e-7, 0.985);
+    audio.piano?.watchKey(midi);
+  };
+  /** the newest strike the engine has reported, of any key */
+  const newest = () => opts.latest()?.strike?.serial ?? null;
+  show(midi, kind, newest());
   opts.host.append(el);
-  audio.piano?.watchKey(midi);
 
-  let replay: Replay | null = null;
-  let lastSerial = -1;
-  let first = true;
-  let keyPos = 0; // 0 up … 1 down (eased), when not replaying
-  let hamY = 0; // live hammer height (mm above rest)
-  let jackOut = 0; // 0 under the knuckle … 1 tipped out
-  const strScale = new AutoScale(1e-7, 0.985);
   let raf = 0;
-  let playing = false;
+  /** the note sounding from a press on the drawing */
+  let playing: number | null = null;
   // under the vector display the same section is drawn through a line pen (ui/vector/pen.ts): blue
   // structure, the string's motion and the strike amber, the hammer's felt in the hammer knob's green
   let pen: CanvasRenderingContext2D | null = null;
@@ -102,12 +89,41 @@ export function openActionView(opts: { midi: number; kind: Kind; host: HTMLEleme
     else delete canvas.dataset.tip;
   });
 
+  // a note played by hand on another key: the close-up goes to that key (its strike, still to come,
+  // is news: everything up to now is history)
+  const offNotes = audio.notes.on((n) => {
+    if (n.on && n.source !== 'file' && n.midi !== midi && n.midi >= 21 && n.midi <= 108) show(n.midi, kind, newest() ?? -1);
+  });
+  const probe: ActionProbe = {
+    get midi() {
+      return midi;
+    },
+    get kind() {
+      return kind;
+    },
+    get state() {
+      return motion.state;
+    },
+    get box() {
+      return box;
+    },
+  };
+  const win = window as unknown as { __action?: ActionProbe };
+  win.__action = probe;
+
+  const lift = () => {
+    if (playing === null) return;
+    audio.noteOff(playing, 'mouse');
+    playing = null;
+  };
   const done = () => {
     cancelAnimationFrame(raf);
+    offNotes();
     audio.piano?.watchKey(null);
     window.removeEventListener('keydown', onKey, true);
-    if (playing) audio.noteOff(midi, 'mouse');
+    lift();
     el.remove();
+    if (win.__action === probe) delete win.__action;
     opts.onClose();
   };
   const onKey = (e: KeyboardEvent) => {
@@ -125,43 +141,31 @@ export function openActionView(opts: { midi: number; kind: Kind; host: HTMLEleme
   // press the drawn key (anywhere on the drawing) to play this note
   canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
-    playing = true;
+    lift();
+    playing = midi;
     audio.noteOn(midi, 84, 'mouse');
   });
-  const lift = () => {
-    if (!playing) return;
-    playing = false;
-    audio.noteOff(midi, 'mouse');
-  };
   canvas.addEventListener('pointerup', lift);
   canvas.addEventListener('pointercancel', lift);
   window.setTimeout(() => panel.focus({ preventScroll: true }), 0);
 
+  let lastNow = 0;
   const loop = (now: number) => {
-    const w = opts.latest()?.watch ?? null;
-    const st = w?.strike;
-    if (w && st && st.serial !== lastSerial) {
-      // a new strike of this key: replay it (not the one that was there when the view opened)
-      if (!first) replay = makeReplay(st, w, kind, now);
-      lastSerial = st.serial;
-    }
-    first = false;
-    draw(now, w);
+    // the piano changed under the close-up (grand ↔ upright): the same key, the other action
+    const k = opts.kind();
+    if (k !== kind) show(midi, k, null);
+    const f = opts.latest();
+    // (a frame still carrying the key watched before is not this key's)
+    const w = f?.watch && f.watch.midi === midi ? f.watch : null;
+    const st = motion.step(now, w, f?.sustain ?? 0);
+    const text = st.slow ? `×1/${Math.round(st.slow)}` : '';
+    if (speed.textContent !== text) speed.textContent = text;
+    draw(st, w, f, lastNow ? Math.min(0.1, (now - lastNow) / 1000) : 0);
+    lastNow = now;
     raf = requestAnimationFrame(loop);
   };
 
-  function makeReplay(st: NonNullable<WatchKey['strike']>, w: WatchKey, k: Kind, now: number): Replay {
-    const vH = Math.max(0.2, st.vHammer);
-    const ta = (2 * (BLOW[k] - LETOFF_OF[k])) / 1000 / vH;
-    const tb = LETOFF_OF[k] / 1000 / vH;
-    let imp = 0;
-    for (let i = 0; i < st.force.length; i++) imp += st.force[i] / st.fs;
-    const vOut = Math.max(0.05 * vH, imp / Math.max(1e-4, w.hammerMass) - vH);
-    const slow = Math.max(12, Math.min(40, ta > 0 ? MAX_DRIVE_S / ta : 25));
-    return { t0: now, slow, vH, ta, tb, force: st.force, comp: st.compression, fs: st.fs, tc: Math.max(st.duration, st.force.length / st.fs), vOut };
-  }
-
-  function draw(now: number, w: WatchKey | null) {
+  function draw(st: ActionState, w: WatchKey | null, f: VisualFrame | null, dt: number) {
     const dpr = window.devicePixelRatio || 1;
     const cw = canvas.clientWidth;
     const ch = canvas.clientHeight;
@@ -172,49 +176,8 @@ export function openActionView(opts: { midi: number; kind: Kind; host: HTMLEleme
     const ctx = canvas.getContext('2d')!;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, cw, ch);
-    const held = !!w?.held;
-    // ---- state: from the replay while it runs, else live
-    let y = 0;
-    let comp = 0;
-    let phase = 'rest';
-    let escaped = false;
-    if (replay) {
-      const t = (now - replay.t0) / 1000 / replay.slow;
-      const r = replayAt(replay, kind, t, held);
-      y = r.y;
-      comp = r.comp;
-      phase = r.phase;
-      escaped = r.escaped;
-      speed.textContent = `×1/${Math.round(replay.slow)}`;
-      if ((r.phase === 'checked' || (r.phase === 'fall' && r.y <= 0)) && t > replay.ta + replay.tb + replay.tc + 0.05) {
-        replay = null;
-        hamY = y;
-        jackOut = 1;
-      }
-    }
-    if (!replay) {
-      speed.textContent = '';
-      const D = BLOW[kind];
-      const target = held ? (kind === 'grand' && jackOut < 0.5 ? D - REP : D - CHECK[kind]) : 0;
-      hamY += (target - hamY) * 0.25;
-      y = hamY;
-      // the jack resets under the knuckle once the key has risen (the grand's repetition lever
-      // lets it do so with the key only part-way up)
-      if (!held) jackOut = Math.max(0, jackOut - 0.08);
-      escaped = jackOut > 0.5;
-      phase = held ? 'checked' : 'rest';
-    }
-    const D = BLOW[kind];
-    // the key follows the hammer while the jack drives it, then sits on the key bed while held
-    const driveFrac = Math.min(1, y / (D - LETOFF_OF[kind]));
-    const keyT = replay ? (phase === 'drive' ? driveFrac : held || phase !== 'fall' ? 1 : driveFrac) : held ? 1 : 0;
-    keyPos += (keyT - keyPos) * (replay ? 1 : 0.35);
-    // the damper: live from the engine (0 lifted … 1 on the string); while replaying, the key
-    // lifts it in the second half of its travel, as on the instrument
-    const damperLive = w ? w.damper : 1;
-    const damperOn = replay && phase === 'drive' ? Math.max(Math.min(damperLive, 1 - smooth((keyPos - 0.45) / 0.45)), damperLive === 0 && held ? 0 : 0) : damperLive;
     const hasDamper = w ? w.hasDamper : true;
-    // ---- layout: model units (≈ mm) into the canvas, y up
+    // ---- layout: model units (≈ mm) into the canvas, y up (the hover names' positions)
     const MW = kind === 'grand' ? 640 : 560;
     const MH = kind === 'grand' ? 300 : 460;
     const pad = 18;
@@ -228,25 +191,46 @@ export function openActionView(opts: { midi: number; kind: Kind; host: HTMLEleme
     if (shape) for (let i = 0; i < shape.length; i++) mx = Math.max(mx, Math.abs(shape[i]));
     const sc = strScale.of(mx);
     const parts: [string, number, number][] = [];
-    const pedals = opts.latest();
-    const geo = { soft: pedals?.soft ?? 0, middle: pedals?.middle ?? 0, parts, X, Y, s, y, comp, keyPos, escaped: escaped || phase === 'free' || phase === 'contact' || phase === 'fall' || phase === 'checked', damperOn: hasDamper ? damperOn : 0, hasDamper, shape, sc, beta: w?.beta ?? 0.12, active: phase === 'drive' || phase === 'free' || phase === 'contact', contact: phase === 'contact', jackOut: replay ? (phase === 'drive' ? 0 : 1) : jackOut };
+    const geo: GrandGeo = { soft: f?.soft ?? 0, middle: f?.middle ?? 0, parts, X, Y, s, y: st.y, comp: st.comp, keyPos: st.keyPos, escaped: st.escaped, damperOn: hasDamper ? st.damperOn : 0, hasDamper, shape, sc, beta: w?.beta ?? 0.12, active: st.active, contact: st.contact, jackOut: st.jackOut, dt, mem, midi, watch: w, sustain: f?.sustain ?? 0 };
     const vector = document.documentElement.dataset.style === 'vector';
     const c = vector ? (pen ??= linePen(ctx, { [INK.vermilion]: V.amber, [INK.amber]: V.white, [GC.hFelt]: V.green })) : ctx;
-    if (kind === 'grand') drawGrand(c, { ...geo, midi, watch: w, sustain: pedals?.sustain ?? 0 });
-    else drawUpright(c, { ...geo, midi, watch: w, sustain: pedals?.sustain ?? 0 });
+    box = kind === 'grand' ? drawGrand(c, geo) : drawUpright(c, geo);
     if (vector) glow(ctx);
     hover = parts.map(([n, px, py]) => [n, X(px), Y(py)] as [string, number, number]);
-    if (!replay && held) jackOut = 1;
   }
 
   raf = requestAnimationFrame(loop);
   return { el, close: done };
 }
 
-const smooth = (x: number) => {
-  const t = Math.max(0, Math.min(1, x));
-  return t * t * (3 - 2 * t);
-};
+/** the drawing's own state from frame to frame: the key and the jack as drawn (eased) */
+interface Mem {
+  key: number;
+  jack: number;
+}
+/** eased towards a target with a time constant (s), whatever the frame rate */
+const ease = (v: number, target: number, dt: number, tau: number) => v + (target - v) * (1 - Math.exp(-dt / tau));
+
+/** Where a section z0…z1 by y0…y1 (mm) goes on a cw×ch canvas: as large as fits, in the middle. The
+ *  note's name sits in the top left corner and the close button in the top right: a band is kept
+ *  for them only when the section is too wide to stand between them. */
+function fitSection(cw: number, ch: number, z0: number, z1: number, y0: number, y1: number): { s: number; X: (z: number) => number; Y: (y: number) => number; box: SectionBox } {
+  const pad = cw < 500 ? 8 : 16;
+  const W = z1 - z0;
+  const H = y1 - y0;
+  let top = pad;
+  let s = Math.min((cw - 2 * pad) / W, (ch - top - pad) / H);
+  if ((cw - W * s) / 2 < 96) {
+    top = 44;
+    s = Math.min((cw - 2 * pad) / W, (ch - top - pad) / H);
+  }
+  s = Math.max(0.01, s);
+  const ox = (cw - W * s) / 2 - z0 * s;
+  const oy = top + (ch - top - pad - H * s) / 2 + y1 * s;
+  const X = (z: number) => ox + z * s;
+  const Y = (y: number) => oy - y * s;
+  return { s, X, Y, box: { x0: X(z0), y0: Y(y1), x1: X(z1), y1: Y(y0) } };
+}
 
 interface Geo {
   X: (x: number) => number;
@@ -271,6 +255,9 @@ interface Geo {
   jackOut: number;
   /** part names at their positions (model units), for the hover names */
   parts: [string, number, number][];
+  /** s since the last frame, and the drawing's own eased key and jack */
+  dt: number;
+  mem: Mem;
   /** the pedals, live: soft (an upright's half-blow rail) and the middle (an upright's muffler) */
   soft?: number;
   middle?: number;
@@ -437,26 +424,16 @@ const HEAD_FELT = egg(14.5, 32, 16, 0);
 const HEAD_UNDER = egg(9, 22.6, 16, 1.2);
 // the moulding: as the 3D's, its tail drawn down and back to meet the backcheck
 const HEAD_MOULD: Q[] = [[-9, -9.5], [5, -9.5], [9, -13], [11.5, -19.5], [15, -19], [15, -8], [12.8, -2], [9.5, 3], ...egg(7.5, 21.1, 16, 3, 14), [-9.5, 3], [-9.8, -2]];
-let grandKey = 0;
-let grandJack = 0;
-
-function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
+function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): SectionBox {
   const cw = ctx.canvas.clientWidth;
   const ch = ctx.canvas.clientHeight;
-  // the section shown (mm): key front to the underlever's rail, keybed to the dampers' heads; a tall
-  // panel (a phone) shows the action from behind the key's front
-  const narrow = cw / Math.max(1, ch) < 1.3;
-  const z0 = narrow ? 215 : -14;
+  // the section shown (mm): key front to the underlever's rail, keybed to the dampers' heads, whole
+  // on every panel
+  const z0 = -14;
   const z1 = 712;
   const y0 = 640;
   const y1 = 950;
-  const pad = 16;
-  const top = narrow ? 52 : 40;
-  const s = Math.min((cw - 2 * pad) / (z1 - z0), (ch - top - pad) / (y1 - y0));
-  const ox = (cw - (z1 - z0) * s) / 2 - z0 * s;
-  const oy = top + (ch - top - pad - (y1 - y0) * s) / 2 + y1 * s;
-  const X = (z: number) => ox + z * s;
-  const Y = (y: number) => oy - y * s;
+  const { s, X, Y, box: sect } = fitSection(cw, ch, z0, z1, y0, y1);
   // hover names: positions in the panel's shared model units
   const part = (n: string, p: Q) => g.parts.push([n, (X(p[0]) - g.X(0)) / g.s, (g.Y(0) - Y(p[1])) / g.s]);
   const lw = (mm: number) => Math.max(0.6, mm * s);
@@ -522,8 +499,8 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
   const driving = g.active && !g.escaped;
   const keyFromHammer = Math.min(1, (((g.y * GA.knR) / GA.shank / 99) * 66) / (GA.capZ - GA.balZ) / (GA.dip / GA.balZ));
   const keyT = driving ? keyFromHammer : g.keyPos;
-  grandKey += (keyT - grandKey) * (driving || keyT < grandKey ? 1 : 0.35);
-  const kp = grandKey;
+  g.mem.key = driving || keyT < g.mem.key ? keyT : ease(g.mem.key, keyT, g.dt, 0.039);
+  const kp = g.mem.key;
   const kA = (kp * GA.dip) / GA.balZ;
   const K = R([GA.balZ, GA.pivY], kA);
   const capRise = (GA.capZ - GA.balZ) * Math.sin(kA);
@@ -534,8 +511,8 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
   const toeY = Wp(toe0)[1];
   const contactTip = Math.max(0, Math.min(0.3, Math.asin(Math.max(0, Math.min(1, (toeY - 767) / 19)))));
   const jTarget = Math.max(contactTip, g.escaped || g.jackOut > 0.5 ? 0.28 : 0);
-  grandJack += (jTarget - grandJack) * (jTarget > grandJack ? 1 : 0.3);
-  const jA = grandJack;
+  g.mem.jack = jTarget > g.mem.jack ? jTarget : ease(g.mem.jack, jTarget, g.dt, 0.047);
+  const jA = g.mem.jack;
   const sA = Math.atan2(g.y, GA.shank);
   const Sh = R([GA.hamZ, GA.hamY], sA);
   // ---- background: the action bracket (cast, behind this key), the fallboard folded back
@@ -759,6 +736,7 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
     }
     ctx.stroke();
   }
+  return sect;
 }
 
 // ---------------------------------------------------------------- upright (side section, player left)
@@ -799,25 +777,16 @@ const UA = {
   /** the damper's head swings off the strings by about 4.5 mm at the felt */
   dampA: 0.05,
 };
-let uprightKey = 0;
-let uprightJack = 0;
-function drawUpright(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
+function drawUpright(ctx: CanvasRenderingContext2D, g: GrandGeo): SectionBox {
   const cw = ctx.canvas.clientWidth;
   const ch = ctx.canvas.clientHeight;
-  // the section shown (mm): the key's front to the soundboard, the keybed to the tuning pins; a tall
-  // panel (a phone) starts behind the key's front
-  const narrow = cw / Math.max(1, ch) < 1.0;
-  const z0 = narrow ? 140 : -12;
+  // the section shown (mm): the key's front to the soundboard, the keybed to the tuning pins, whole
+  // on every panel
+  const z0 = -12;
   const z1 = 560;
   const y0 = 645;
   const y1 = 1165;
-  const pad = 16;
-  const top = narrow ? 52 : 40;
-  const s = Math.min((cw - 2 * pad) / (z1 - z0), (ch - top - pad) / (y1 - y0));
-  const ox = (cw - (z1 - z0) * s) / 2 - z0 * s;
-  const oy = top + (ch - top - pad - (y1 - y0) * s) / 2 + y1 * s;
-  const X = (z: number) => ox + z * s;
-  const Y = (y: number) => oy - y * s;
+  const { s, X, Y, box: sect } = fitSection(cw, ch, z0, z1, y0, y1);
   const part = (n: string, p: Q) => g.parts.push([n, (X(p[0]) - g.X(0)) / g.s, (g.Y(0) - Y(p[1])) / g.s]);
   const shape = (pts: Q[], fill: string | null, stroke: string | null = null, w = 1) => {
     ctx.beginPath();
@@ -873,14 +842,14 @@ function drawUpright(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
   const driving = g.active && !g.escaped;
   const fromHammer = Math.min(1, ((g.y / UA.shank) * 10 / 58) * (UA.wipZ - UA.capZ) / (UA.capZ - UA.balZ) / (UA.dip / UA.balZ));
   const keyT = driving ? fromHammer : g.keyPos;
-  uprightKey += (keyT - uprightKey) * (driving || keyT < uprightKey ? 1 : 0.35);
-  const kA = (uprightKey * UA.dip) / UA.balZ;
+  g.mem.key = driving || keyT < g.mem.key ? keyT : ease(g.mem.key, keyT, g.dt, 0.039);
+  const kA = (g.mem.key * UA.dip) / UA.balZ;
   const K = R([UA.balZ, UA.pivY], kA); // the back of the key rises
   const capRise = (UA.capZ - UA.balZ) * Math.sin(kA);
   const wA = capRise / (UA.wipZ - UA.capZ);
   const Wp = R([UA.wipZ, UA.wipY], -wA); // the wippen's front rises about its back
   const jTarget = g.escaped || g.jackOut > 0.5 ? 0.22 : 0;
-  uprightJack += (jTarget - uprightJack) * (jTarget > uprightJack ? 1 : 0.3);
+  g.mem.jack = jTarget > g.mem.jack ? jTarget : ease(g.mem.jack, jTarget, g.dt, 0.047);
   // the hammer: the soft pedal's half-blow rest, the muffler's felt stopping it short of the string
   const half = (g.soft ?? 0) * 0.45 * UA.blow;
   const mu = g.middle ?? 0;
@@ -937,7 +906,7 @@ function drawUpright(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
   }
   // ---- the fixed frame, quiet: keybed, key frame rails, the bracket, main rail, damper rail,
   //      let-off rail and its button
-  box(z0 - 20, 655, 440, 682, rgba(GC.lacquer, 0.9), rgba(GC.sheen, 0.4), 0.8);
+  box(z0, 655, 440, 682, rgba(GC.lacquer, 0.9), rgba(GC.sheen, 0.4), 0.8);
   box(4, 682, 30, 692, FIX, FIXS, 0.7);
   box(UA.balZ - 11, 682, UA.balZ + 11, 698, FIX, FIXS, 0.7);
   box(385, 682, 420, 698, FIX, FIXS, 0.7);
@@ -993,7 +962,7 @@ function drawUpright(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
   // the jack: on the wippen, up to the butt; tipped out after let-off (its top towards the player)
   {
     const jp = W([UA.jackZ - UA.wipZ, 6]);
-    const J = (p: Q): Q => rot(jp[0], jp[1], jp[0] + p[0], jp[1] + p[1], uprightJack);
+    const J = (p: Q): Q => rot(jp[0], jp[1], jp[0] + p[0], jp[1] + p[1], g.mem.jack);
     const hot = g.active && !g.escaped;
     shape([J([-3.5, 0]), J([3.5, 0]), J([3.5, 68]), J([-3.5, 68]), J([-3.5, 24]), J([-13, 20]), J([-13, 14]), J([-3.5, 14])], hot ? rgba(INK.vermilion, 0.9) : rgba(GC.hornbeam, 0.95), outline, 0.7);
     centrePin(jp);
@@ -1050,4 +1019,5 @@ function drawUpright(ctx: CanvasRenderingContext2D, g: GrandGeo): void {
     box(UA.mufZ, 1038 - d, UA.mufZ + 3.5, 1076 - d, rgba(GC.green, 0.5 + 0.45 * mu));
     part('muffler', [UA.mufZ + 2, 1056 - d]);
   }
+  return sect;
 }
