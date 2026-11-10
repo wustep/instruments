@@ -13,6 +13,7 @@ import type { FileEvent, MidiLine, MidiSong } from '../midi-file.ts';
 import { addPart, autoPlan, isKeyboard, lineupOf, lineupPlan, placeNote, playersOf, reassign, removePart, setPartLines, setPartVoice, setRoute, VOICE_INFO, type Plan, type Voice } from './assign.ts';
 import { busGain } from './mix.ts';
 import { piecePlan, type Piece } from './pieces.ts';
+import { soundSeats } from './seats.ts';
 
 /** the most instruments a file is shared out over by itself, and a piece's (each a few per cent of the
  *  audio thread: artifacts/realistic-3d/final-orchestra/NOTES.md) */
@@ -51,6 +52,8 @@ export interface PartLive {
   voice: Voice;
   /** a second player of the same voice on the same line (assign.ts playersOf): its own vibrato */
   player: number;
+  /** where it sits, and is heard from (seats.ts): x across, z upstage, metres */
+  seat: [number, number] | null;
   engine: Piano | null;
   /** the engine's latest visual frame, and the piano's last hammer strike */
   frame: VisualFrame | null;
@@ -240,11 +243,12 @@ class Ensemble implements Route {
     this.parts = next;
     this.applyGain();
     this.applyVoices();
+    this.applySeats();
     if (this.active) void this.ensureEngines();
   }
 
   private newPart(v: Voice, player = 0): PartLive {
-    return { voice: v, player, engine: null, frame: null, strike: null, down: new Set(), sched: new Map(), heard: new Map(), epoch: 0, strikes: new Map(), vels: new Map(), lastOn: 0, lastNote: -1, sustain: 0, unsubs: [] };
+    return { voice: v, player, seat: null, engine: null, frame: null, strike: null, down: new Set(), sched: new Map(), heard: new Map(), epoch: 0, strikes: new Map(), vels: new Map(), lastOn: 0, lastNote: -1, sustain: 0, unsubs: [] };
   }
 
   /** a part lets go of every note it holds or has been sent */
@@ -255,6 +259,17 @@ class Ensemble implements Route {
     p.sched.clear();
     p.heard.clear();
     for (const m of [...p.down]) this.mark(p, m, 0, false);
+  }
+
+  /** each part heard from its seat on the stage (an engine kept moves, gliding, when the lineup does) */
+  private applySeats(): void {
+    const seats = soundSeats(this.parts.map((p) => VOICE_INFO[p.voice]));
+    this.parts.forEach((p, i) => {
+      const s = seats[i];
+      if (p.seat && p.seat[0] === s[0] && p.seat[1] === s[1]) return;
+      p.seat = s;
+      p.engine?.setParams({ seat: s });
+    });
   }
 
   /** each piano's polyphony for the number of pianos on the stage */
@@ -310,6 +325,8 @@ class Ensemble implements Route {
         p.engine = e;
         e.connect(this.bus!);
         if (info.preset === 'upright') void e.setPreset('upright');
+        // its seat (after the preset: a piano's preset sets its params)
+        if (p.seat) e.setParams({ seat: p.seat });
         this.applyVoices();
         // the ensemble's room: the stage's reverb setting, the grand's lid as the single grand has it
         const room = (audio.piano?.params as Record<string, unknown> | undefined)?.room;

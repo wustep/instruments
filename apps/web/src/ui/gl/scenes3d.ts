@@ -10,6 +10,7 @@ import { chain, rotY, translate, type Batch, type Mat4, type Mesh, type Vec3 } f
 import { buildGrandModel, buildUprightModel, newPianoPose, pianoPickSegments, pianoStrings, posePiano, type PianoModel, type PianoPose } from './piano3d.ts';
 import { buildBowedModel, poseBowed, type BowedModel } from './strings3d.ts';
 import { buildFluteModel, buildTrumpetModel, newWindPose, poseFlute, poseTrumpet, type FluteModel, type TrumpetModel, type WindPose } from './winds3d.ts';
+import { seatPlaces } from '../../orchestra/seats.ts';
 
 export { keyX3 } from './piano3d.ts';
 
@@ -251,50 +252,28 @@ export interface Seat {
 const HELD = 0.42;
 type SeatIn = Pick<EnsPartIn, 'family' | 'kind' | 'bowed'>;
 export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
-  const mel = parts.map((p, i) => (p.family === 'piano' ? -1 : i)).filter((i) => i >= 0);
-  const kb = parts.map((p, i) => (p.family === 'piano' ? i : -1)).filter((i) => i >= 0);
-  const out: Seat[] = new Array(parts.length);
-  // one or two players with a piano stand beside it (a soloist at the piano's curve), more sit in front;
-  // two pianos stand side by side, 2.5 m apart, and the players beside the one on the right
-  const beside = kb.length > 0 && mel.length <= 2;
-  const kbOff = (k: number) => (k - (kb.length - 1) / 2) * (kb.length > 1 ? 2.5 : 2.3);
-  const right = kb.length ? kbOff(kb.length - 1) : 0;
-  const rows = aspect < 1.1 && mel.length > 3 ? 2 : 1;
-  const perRow = Math.ceil(mel.length / rows);
-  mel.forEach((i, k) => {
-    const row = rows === 2 ? (k < perRow ? 0 : 1) : 0;
-    const inRow = row === 0 ? Math.min(perRow, mel.length) : mel.length - perRow;
-    const kk = row === 0 ? k : k - perRow;
-    const n = inRow;
-    // neighbours about 0.8 m apart on an arc (flatter as it grows: its ends would come at the camera)
-    const spread = n > 1 ? Math.min(0.72, 0.28 + 0.12 * n) : 0;
-    const R = n > 1 ? (0.8 * (n - 1)) / (2 * spread) : 1;
-    const u = n > 1 ? kk / (n - 1) : 0.5;
-    // first at the audience's left (the renderer's world is mirrored in x: −x is the audience's left)
-    const phi = -spread * (1 - 2 * u);
-    const x = beside ? right + 1.75 + kk * 0.85 : R * Math.sin(phi) + (rows === 2 && row === 1 ? 0.35 : 0);
-    const z = beside ? 0.55 - kk * 0.5 : R * (Math.cos(phi) - 1) + (kb.length ? -0.35 : 0) + row * 0.95;
-    const p = parts[i];
-    // each faces the arc's middle, turned to its hero angle (the single instrument's camera yaw)
-    const face = phi * 0.5;
+  const places = seatPlaces(
+    parts.map((p) => ({ family: p.family, kind: p.kind, cello: p.family === 'bowed' && p.bowed?.id === 'cello' })),
+    aspect,
+  );
+  return parts.map((p, i) => {
+    const { x, z, face } = places[i];
+    if (p.family === 'piano') {
+      // a grand side-on, its open lid towards the audience; an upright faces them
+      const T = p.kind === 'grand' ? chain(translate(x - 1.0, 0, z), rotY(Math.PI / 2)) : chain(translate(x, 0, z - 0.1), rotY(Math.PI));
+      return { T, c: [x, 0, z], r: 1.05, top: 1.75 };
+    }
+    // held about where a seated player holds it, turned to its hero angle (the single instrument's
+    // camera yaw); the renderer's world is mirrored in x: −x is the audience's left
+    const cello = p.family === 'bowed' && p.bowed?.id === 'cello';
+    const wind = p.family !== 'bowed';
     let T: Mat4;
-    if (p.family === 'bowed' && p.bowed?.id === 'cello') T = chain(translate(x, 0, z), rotY(face - 0.62));
+    if (cello) T = chain(translate(x, 0, z), rotY(face - 0.62));
     else if (p.family === 'bowed') T = chain(translate(x, HELD, z), rotY(face + 0.5));
     // (a flute or trumpet is held higher, level with the player's mouth)
     else T = chain(translate(x, HELD + 0.4, z), rotY(face - 0.3));
-    const cello = p.family === 'bowed' && p.bowed?.id === 'cello';
-    const wind = p.family !== 'bowed';
-    out[i] = { T, c: [x, 0, z], r: cello ? 0.45 : 0.36, top: cello ? 1.5 : wind ? HELD + 0.62 : HELD + 0.38 };
+    return { T, c: [x, 0, z], r: cello ? 0.45 : 0.36, top: cello ? 1.5 : wind ? HELD + 0.62 : HELD + 0.38 };
   });
-  kb.forEach((i, k) => {
-    const p = parts[i];
-    const off = kbOff(k);
-    // a grand side-on, its open lid towards the audience; an upright faces them
-    const zP = mel.length > 2 ? 1.55 : 1.1;
-    const T = p.kind === 'grand' ? chain(translate(off - 1.0, 0, zP), rotY(Math.PI / 2)) : chain(translate(off, 0, zP - 0.1), rotY(Math.PI));
-    out[i] = { T, c: [off, 0, zP], r: 1.05, top: 1.75 };
-  });
-  return out;
 }
 
 function ensSeat(st: Scene3State, i: number, key: string): EnsSeat {

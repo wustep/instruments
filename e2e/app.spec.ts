@@ -1576,6 +1576,61 @@ test('orchestra by hand: the ensemble toggle, instruments counted in, a chord de
   expect(errors).toEqual([]);
 });
 
+test('orchestra seats: each instrument is heard from its seat, the first violin on the left and the cello on the right', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await startAudio(page);
+  await page.locator('.ens-toggle').click();
+  await expect.poll(async () => (await ens(page)).engines, { timeout: 8000 }).toBe(4);
+  // the seats: the 3D stage's, a computer's wide stage whatever the view
+  const seats = await page.evaluate(() => (window as any).__orchestra.ensemble.parts.map((p: any) => p.seat));
+  expect(seats[0][0]).toBeLessThan(-0.9);
+  expect(seats[3][0]).toBeGreaterThan(0.9);
+  // what each engine itself sends: its two channels' levels while it holds a note (the worklet's own
+  // output, before the bus)
+  const ild = (k: number, midi: number) =>
+    page.evaluate(
+      async ([k, midi]) => {
+        const ctx = (window as any).__piano.ctx as AudioContext;
+        const eng = (window as any).__orchestra.ensemble.parts[k].engine;
+        const split = ctx.createChannelSplitter(2);
+        const an = [ctx.createAnalyser(), ctx.createAnalyser()];
+        const sink = ctx.createGain();
+        sink.gain.value = 0;
+        eng.output.connect(split);
+        an.forEach((a, c) => {
+          a.fftSize = 2048;
+          split.connect(a, c);
+          a.connect(sink);
+        });
+        sink.connect(ctx.destination);
+        eng.noteOn(midi, 90);
+        const e = [0, 0];
+        const b = new Float32Array(2048);
+        await new Promise((r) => setTimeout(r, 250));
+        for (let i = 0; i < 16; i++) {
+          an.forEach((a, c) => {
+            a.getFloatTimeDomainData(b);
+            e[c] += b.reduce((s, x) => s + x * x, 0);
+          });
+          await new Promise((r) => setTimeout(r, 40));
+        }
+        eng.noteOff(midi);
+        eng.output.disconnect(split);
+        sink.disconnect();
+        return 10 * Math.log10((e[0] + 1e-20) / (e[1] + 1e-20));
+      },
+      [k, midi],
+    );
+  const first = await ild(0, 67);
+  const cello = await ild(3, 48);
+  // (each bowed body has its own lean between the microphones: from the middle of the stage these two
+  // notes come to −3.75 dB, from their seats +3.89 dB, offline; the worklet's is the seated one)
+  expect(first - cello).toBeGreaterThan(2);
+  await page.locator('.ens-toggle').click();
+  expect(errors).toEqual([]);
+});
+
 // ================================================================ orchestra routing, many to many
 const routing = (page: Page) =>
   page.evaluate(() => {
