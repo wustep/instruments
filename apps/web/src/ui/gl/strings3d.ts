@@ -137,6 +137,8 @@ interface Plate {
   xb: number;
   /** distance to the outline (from a precomputed grid) */
   dist: (x: number, z: number) => number;
+  /** the same without its creases (smoothed; 0 outside): what the arch rises by */
+  distS: (x: number, z: number) => number;
 }
 
 /** resample a closed polyline to n points, closer together where it turns (the corners) */
@@ -368,18 +370,66 @@ function makePlate(ol: Outline, B: number, n: number, button: number): Plate {
     }
   // Catmull–Rom across the grid: smooth (C1), so the channel's normals have no kinks at the cells
   const r = GX + 1;
-  const g = (ix: number, iz: number) => D[clamp(iz, 0, GZ) * r + clamp(ix, 0, GX)];
   const cr = (p0: number, p1: number, p2: number, p3: number, t: number) => 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
-  const dist = (x: number, z: number) => {
-    const fx = clamp(((x - x0) / (x1 - x0)) * GX, 0, GX - 1e-6);
-    const fz = clamp(((z - z0) / (z1 - z0)) * GZ, 0, GZ - 1e-6);
-    const ix = Math.floor(fx);
-    const iz = Math.floor(fz);
-    const tx = fx - ix;
-    const tz = fz - iz;
-    const row = (k: number) => cr(g(ix - 1, iz + k), g(ix, iz + k), g(ix + 1, iz + k), g(ix + 2, iz + k), tx);
-    return Math.max(0, cr(row(-1), row(0), row(1), row(2), tz));
+  const sampler = (G: Float32Array) => {
+    const g = (ix: number, iz: number) => G[clamp(iz, 0, GZ) * r + clamp(ix, 0, GX)];
+    return (x: number, z: number) => {
+      const fx = clamp(((x - x0) / (x1 - x0)) * GX, 0, GX - 1e-6);
+      const fz = clamp(((z - z0) / (z1 - z0)) * GZ, 0, GZ - 1e-6);
+      const ix = Math.floor(fx);
+      const iz = Math.floor(fz);
+      const tx = fx - ix;
+      const tz = fz - iz;
+      const row = (k: number) => cr(g(ix - 1, iz + k), g(ix, iz + k), g(ix + 1, iz + k), g(ix + 2, iz + k), tx);
+      return Math.max(0, cr(row(-1), row(0), row(1), row(2), tz));
+    };
   };
+  const dist = sampler(D);
+  // The same distance, smoothed, for the arch's rise. The exact distance has a crease wherever the
+  // nearest point of the edge changes sides: along a line in from each corner. A height that follows it
+  // has that crease too, and the varnish's reflection broke along it in steps the size of the mesh's
+  // cells (a hard, stepped smear across a bout's highlight). So: signed (negative outside, so that a
+  // smooth edge stays where it is), then a Gaussian of σ = 1.6 % of the body length (a cello: 12 mm).
+  const DS = new Float32Array(D.length);
+  {
+    const xs: number[] = [];
+    for (let gz = 0; gz <= GZ; gz++) {
+      const z = z0 + ((z1 - z0) * gz) / GZ;
+      xs.length = 0;
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        if (pz[i] > z !== pz[j] > z) xs.push(px[i] + ((z - pz[i]) * (px[j] - px[i])) / (pz[j] - pz[i]));
+      }
+      xs.sort((a, b) => a - b);
+      let k = 0;
+      for (let gx = 0; gx <= GX; gx++) {
+        const x = x0 + ((x1 - x0) * gx) / GX;
+        while (k < xs.length && xs[k] < x) k++;
+        DS[gz * r + gx] = k % 2 ? D[gz * r + gx] : -D[gz * r + gx];
+      }
+    }
+    const sig = (0.016 * B * GX) / (x1 - x0);
+    const R = Math.ceil(3 * sig);
+    const ker = Array.from({ length: 2 * R + 1 }, (_, i) => Math.exp(-0.5 * ((i - R) / sig) ** 2));
+    const ksum = ker.reduce((a, b) => a + b, 0);
+    // (beyond the grid the distance runs on as it left it)
+    const blur = (len: number, stride: number, lines: number, step: number) => {
+      const line = new Float32Array(len);
+      for (let l = 0; l < lines; l++) {
+        const o = l * step;
+        for (let i = 0; i < len; i++) line[i] = DS[o + i * stride];
+        const at = (i: number) => (i < 0 ? line[0] + (line[0] - line[1]) * -i : i >= len ? line[len - 1] + (line[len - 1] - line[len - 2]) * (i - len + 1) : line[i]);
+        for (let i = 0; i < len; i++) {
+          let s = 0;
+          for (let k = -R; k <= R; k++) s += ker[k + R] * at(i + k);
+          DS[o + i * stride] = s / ksum;
+        }
+      }
+    };
+    blur(GX + 1, 1, GZ + 1, r);
+    blur(GZ + 1, r, GX + 1, 1);
+  }
+  const distS = sampler(DS);
   // insets: offset along the sharp normals, then collapse any stretch that folded back on itself
   // (inside a corner's tip) to one point, so the inset keeps a sharp corner without loops
   const sharp = poly.map((_, i): P2 => {
@@ -460,16 +510,20 @@ function makePlate(ol: Outline, B: number, n: number, button: number): Plate {
     cache.set(d, q);
     return q;
   };
-  return { B, poly, nrm, inset, hwMax, W, xa: (ia / (N - 1)) * B, xb: (ib / (N - 1)) * B, dist };
+  return { B, poly, nrm, inset, hwMax, W, xa: (ia / (N - 1)) * B, xb: (ib / (N - 1)) * B, dist, distS };
 }
 
-/** the arch above the edge level: a long × cross arch, rising out of the channel round the edge */
+/** the arch above the edge level: a long × cross arch, rising out of the channel round the edge (the
+ *  channel follows the edge exactly; the rise follows the smoothed distance, which has no creases) */
 function arch(sp: Spec, pl: Plate, x: number, z: number, h: number): number {
   const d = pl.dist(x, z);
   const u = x / pl.B;
   const t = Math.min(1, Math.abs(z) / pl.W(x));
   const [cc, cw, cd] = sp.chan;
-  const S = sstep(cc * 0.8, cc * 0.8 + sp.rise, d);
+  // (a quintic step: its curvature starts and ends at zero. A cubic one's stops dead where the rise
+  // ends, a line round the plate that showed as a hard edge in the varnish's reflection)
+  const ts = clamp((pl.distS(x, z) - cc * 0.8) / sp.rise, 0, 1);
+  const S = ts * ts * ts * (ts * (6 * ts - 15) + 10);
   const L = Math.pow(Math.max(0, 1 - Math.pow(Math.abs(2 * u - 1), 2.4)), 0.62);
   const C = Math.pow(Math.cos((Math.PI / 2) * t), 1.25);
   return h * L * C * S - cd * Math.exp(-(((d - cc) / cw) ** 2));
@@ -632,47 +686,69 @@ function paintPlate(id: string, sp: Spec, pl: Plate, holes: P2[][] | null, kind:
         }
         glow(mx, mz, 0.07 * B, sp.vEdge, 0.22);
       }
-      for (let k = 0; k < 180; k++) glow(r() * B, (r() * 2 - 1) * pl.hwMax, (0.008 + 0.05 * r()) * B, r() < 0.6 ? sp.vEdge : [214, 130, 60], 0.06 + 0.12 * r());
-      // ---- wear, where a player's hands, chin, knees and bow have been (the Met's photographs: the
-      // varnish rubbed through to the golden ground at the contact points, darkened where sweat has
-      // worked into it, the edges and corners rubbed pale, small scratches and chips everywhere); each
-      // worn place is also written into the aux map's blue channel, which dulls the clear coat there
-      const hw = pl.hwMax;
-      const S = B / 0.356;
-      const wear: [number, number, number, number, number][] = [];
-      const spot = (cx: number, cz: number, rx: number, rz: number, a: number, col: RGB, wa: number) => {
+      // (the mottle: long, faint drifts along the grain, as a brushed coat lies; round clouds of it read as
+      // stains close up)
+      for (let k = 0; k < 150; k++) {
+        const col: RGB = r() < 0.6 ? sp.vEdge : [214, 130, 60];
+        const rx = (0.03 + 0.11 * r()) * B;
+        const rz = (0.005 + 0.016 * r()) * B;
         c.save();
-        c.translate(X(cx), Z(cz));
-        c.scale(1, rz / rx);
+        c.translate(X(r() * B), Z((r() * 2 - 1) * pl.hwMax));
+        c.scale(1, (rz * sz) / (rx * sx));
         const g = c.createRadialGradient(0, 0, 0, 0, 0, rx * sx);
-        g.addColorStop(0, rgba(col, a * 0.45));
-        g.addColorStop(0.6, rgba(col, a * 0.2));
+        const a = 0.04 + 0.07 * r();
+        g.addColorStop(0, rgba(col, a));
+        g.addColorStop(0.5, rgba(col, a * 0.55));
         g.addColorStop(1, rgba(col, 0));
         c.fillStyle = g;
         c.fillRect(-rx * sx, -rx * sx, 2 * rx * sx, 2 * rx * sx);
         c.restore();
-        // the varnish wears unevenly: rubbed through in irregular islands, denser towards the middle
-        for (let k = 0; k < 70; k++) {
-          const t = r() * Math.PI * 2;
-          const q = Math.pow(r(), 0.8) * 0.95;
-          const ix = cx + Math.cos(t) * rx * q;
-          const iz = cz + Math.sin(t) * rz * q;
-          const ir = (0.03 + 0.09 * r()) * rx * (1.2 - q);
-          c.fillStyle = rgba([col[0] + (r() - 0.5) * 20, col[1] + (r() - 0.5) * 16, col[2] + (r() - 0.5) * 12].map(Math.round) as RGB, a * (0.25 + 0.45 * r()) * (1.1 - q));
-          c.beginPath();
-          const nv = 7;
-          for (let v = 0; v <= nv; v++) {
-            const tv = (v / nv) * Math.PI * 2;
-            const rv = ir * (0.6 + 0.6 * r());
-            const px = X(ix + Math.cos(tv) * rv);
-            const pz = Z(iz + Math.sin(tv) * rv * 0.7);
-            if (v) c.lineTo(px, pz);
-            else c.moveTo(px, pz);
+      }
+      // ---- wear, where a player's hands, chin, knees and bow have been (the Met's photographs: the
+      // varnish rubbed thin towards the golden ground at the contact points, darkened where sweat has
+      // worked into it, the edges and corners rubbed pale); each worn place is also written into the aux
+      // map's blue channel, which dulls the clear coat there
+      const hw = pl.hwMax;
+      const S = B / 0.356;
+      const wear: (() => void)[] = [];
+      // A worn place has no edge: the varnish thins towards its middle, unevenly (its outline wanders,
+      // and it is streaked along the grain, the way a hand or a sleeve rubs), and never in spots. Drawn
+      // per pixel on a small canvas and laid on smoothly. (It used to be strewn with 70 pale polygons
+      // as well, "islands" rubbed through to the ground: close up they were blotches of speckle.)
+      const spot = (cx: number, cz: number, rx: number, rz: number, a: number, col: RGB, wa: number) => {
+        const bw = 256;
+        const bh = Math.max(16, Math.round((bw * rz) / rx));
+        const mk = () => {
+          const cv = document.createElement('canvas');
+          cv.width = bw;
+          cv.height = bh;
+          const g = cv.getContext('2d')!;
+          return { cv, g, img: g.createImageData(bw, bh) };
+        };
+        const C = mk();
+        const A = mk();
+        const s0 = r() * 64;
+        for (let py = 0; py < bh; py++)
+          for (let qx = 0; qx < bw; qx++) {
+            // (the canvas is 1.3 radii each way)
+            const u = ((qx + 0.5) / bw) * 2 - 1;
+            const v = ((py + 0.5) / bh) * 2 - 1;
+            const q = 1.3 * Math.hypot(u, v) * (0.78 + 0.44 * vnoise(s0 + u * 1.6, s0 + v * 1.6));
+            const fall = 1 - sstep(0.15, 1, q);
+            const streak = 0.6 + 0.4 * vnoise(s0 + (u * rx * 1.3) / (30 * mm * S), (cz + v * rz * 1.3) / (2.2 * mm * S ** 0.5));
+            const o = (py * bw + qx) * 4;
+            C.img.data[o] = col[0];
+            C.img.data[o + 1] = col[1];
+            C.img.data[o + 2] = col[2];
+            C.img.data[o + 3] = Math.round(255 * a * 0.5 * fall * streak);
+            A.img.data[o + 2] = 255;
+            A.img.data[o + 3] = Math.round(255 * wa * 0.45 * fall);
           }
-          c.closePath();
-          c.fill();
-        }
-        wear.push([cx, cz, rx, rz, wa]);
+        C.g.putImageData(C.img, 0, 0);
+        A.g.putImageData(A.img, 0, 0);
+        const box: [number, number, number, number] = [X(cx - 1.3 * rx), Z(cz - 1.3 * rz), 2.6 * rx * sx, 2.6 * rz * sz];
+        c.drawImage(C.cv, ...box);
+        wear.push(() => aux.drawImage(A.cv, ...box));
       };
       const ground: RGB = [212, 150, 88];
       const sweat: RGB = [64, 26, 10];
@@ -693,22 +769,13 @@ function paintPlate(id: string, sp: Spec, pl: Plate, holes: P2[][] | null, kind:
         // the C-bouts' edges, where the bow scrapes at the extremes of the string crossing
         for (const sd of [-1, 1]) spot(0.5 * B, sd * 0.6 * hw, 0.05 * B, 0.022 * B, 0.3, ground, 0.6);
         // rosin dust under the strings between the fingerboard's end and the bridge, heaviest by the
-        // bridge, and round its feet
+        // bridge: a faint pale haze (it used to be 2200 dots as well, a square of speckle close up)
         let bx = 0;
         if (holes) for (const hp of holes) for (const [x] of hp) bx += x / (hp.length * holes.length);
         const fbEnd = sp.fbLen - sp.neck;
         const span = bx - fbEnd;
-        for (let k = 0; k < 2200; k++) {
-          const u = Math.pow(r(), 1.7);
-          const x = bx - u * span * 1.05;
-          const z = (r() * 2 - 1) * sp.spreadB * (2.1 - 0.5 * u) + (r() - 0.5) * 0.004 * S;
-          c.fillStyle = `rgba(238,230,208,${(0.03 + 0.1 * r()) * (1 - 0.75 * u)})`;
-          c.beginPath();
-          c.arc(X(x), Z(z), (0.08 + 0.28 * r()) * pm * S ** 0.5, 0, Math.PI * 2);
-          c.fill();
-        }
         glow(bx - 0.25 * span, 0, 0.55 * span, [235, 225, 200], 0.1);
-        glow(bx - 0.02 * B, 0, 0.18 * span, [235, 225, 200], 0.12);
+        glow(bx - 0.02 * B, 0, 0.18 * span, [235, 225, 200], 0.1);
       } else if (cello) {
         // the back's upper bout rests against the player's chest; the lower edges by the knees
         spot(0.24 * B, 0.25 * hw, 0.12 * B, 0.1 * B, 0.3, ground, 0.8);
@@ -719,27 +786,27 @@ function paintPlate(id: string, sp: Spec, pl: Plate, holes: P2[][] | null, kind:
         spot(0.84 * B, 0.3 * hw, 0.1 * B, 0.09 * B, 0.3, ground, 0.8);
         spot(0.86 * B, 0.1 * hw, 0.05 * B, 0.05 * B, 0.2, sweat, 0.6);
       }
-      // scratches (dark hairlines) and chips (where the varnish has flaked off to the ground)
-      for (let k = 0; k < 70; k++) {
+      // a few fine scratches (hairlines), and chips along the edge (where the varnish has flaked off)
+      for (let k = 0; k < 36; k++) {
         const x = (0.05 + 0.9 * r()) * B;
         const z = (r() * 2 - 1) * hw * 0.85;
         const t = r() * Math.PI;
         const len = (2 + 12 * r() * r()) * mm * S;
         // dark where dirt has filled them, pale where they cut through to the ground
-        c.strokeStyle = r() < 0.55 ? `rgba(52,22,8,${0.08 + 0.12 * r()})` : `rgba(226,170,110,${0.1 + 0.14 * r()})`;
+        c.strokeStyle = r() < 0.55 ? `rgba(52,22,8,${0.05 + 0.08 * r()})` : `rgba(226,170,110,${0.05 + 0.08 * r()})`;
         c.lineWidth = Math.max(0.5, (0.05 + 0.07 * r()) * pm * S ** 0.5);
         c.beginPath();
         c.moveTo(X(x), Z(z));
         c.quadraticCurveTo(X(x + Math.cos(t) * len * 0.5 + (r() - 0.5) * len * 0.2), Z(z + Math.sin(t) * len * 0.5), X(x + Math.cos(t) * len), Z(z + Math.sin(t) * len));
         c.stroke();
       }
-      for (let k = 0; k < 60; k++) {
-        // chips mostly near the edge
+      for (let k = 0; k < 40; k++) {
+        // (on the edge only, outside the purfling: out on the plate a chip is a bright speck)
         const i = Math.floor(r() * pl.poly.length);
-        const d = r() < 0.7 ? (0.5 + 4 * r()) * mm * S : (4 + 40 * r()) * mm * S;
+        const d = (0.3 + 0.7 * r()) * sp.purf[0] * 0.8;
         const [px, pz] = pl.poly[i];
         const [nx, nz] = pl.nrm[i];
-        c.fillStyle = `rgba(222,160,92,${0.25 + 0.35 * r()})`;
+        c.fillStyle = `rgba(222,160,92,${0.2 + 0.3 * r()})`;
         c.beginPath();
         c.ellipse(X(px - nx * d), Z(pz - nz * d), (0.25 + 0.8 * r()) * pm * S ** 0.6, (0.2 + 0.5 * r()) * pm * S ** 0.6, r() * Math.PI, 0, Math.PI * 2);
         c.fill();
@@ -760,37 +827,38 @@ function paintPlate(id: string, sp: Spec, pl: Plate, holes: P2[][] | null, kind:
       for (let k = 0; k < 26; k++) runs.push([Math.floor(r() * npl), 4 + Math.floor(r() * 22), 0.2 + 0.3 * r()]);
       c.lineCap = 'round';
       for (const [i0, len, a] of runs) {
-        c.beginPath();
-        for (let j = -len; j <= len; j++) {
-          const [px, pz] = pl.poly[(i0 + j + npl) % npl];
-          const [nx, nz] = pl.nrm[(i0 + j + npl) % npl];
-          const d = 0.6 * mm * S ** 0.5;
-          if (j === -len) c.moveTo(X(px - nx * d), Z(pz - nz * d));
-          else c.lineTo(X(px - nx * d), Z(pz - nz * d));
+        // (a run fades out towards its ends: three strokes, each shorter. One stroke at full strength
+        // ended dead, a pale dash on the edge)
+        const lw = (1.0 + 1.4 * r()) * pm * S ** 0.5;
+        for (const f of [1, 0.68, 0.36]) {
+          const half = Math.max(1, Math.round(len * f));
+          const run = new Path2D();
+          for (let j = -half; j <= half; j++) {
+            const [px, pz] = pl.poly[(i0 + j + npl) % npl];
+            const [nx, nz] = pl.nrm[(i0 + j + npl) % npl];
+            const d = 0.6 * mm * S ** 0.5;
+            if (j === -half) run.moveTo(X(px - nx * d), Z(pz - nz * d));
+            else run.lineTo(X(px - nx * d), Z(pz - nz * d));
+          }
+          c.strokeStyle = `rgba(226,166,98,${a * 0.42})`;
+          c.lineWidth = lw;
+          c.stroke(run);
+          // (the coat dulled along the rubbed edge itself: it used to be a disc round the run's middle,
+          // up to 4 cm across on a cello, a dull patch out on the plate)
+          wear.push(() => {
+            aux.lineCap = 'round';
+            aux.strokeStyle = `rgba(0,0,255,${a * 0.25})`;
+            aux.lineWidth = lw * 2;
+            aux.stroke(run);
+          });
         }
-        c.strokeStyle = `rgba(226,166,98,${a})`;
-        c.lineWidth = (1.0 + 1.4 * r()) * pm * S ** 0.5;
-        c.stroke();
-        const [px, pz] = pl.poly[i0];
-        wear.push([px, pz, 0.006 * S + len * 0.0006 * S, 0.006 * S + len * 0.0006 * S, a]);
       }
       c.lineCap = 'butt';
       // (the wear into the aux map's blue channel, once the aux is laid down below)
       const wearToAux = () => {
         aux.save();
         aux.globalCompositeOperation = 'lighter';
-        for (const [cx, cz, rx, rz, a] of wear) {
-          aux.save();
-          aux.translate(X(cx), Z(cz));
-          aux.scale(1, rz / rx);
-          const g = aux.createRadialGradient(0, 0, 0, 0, 0, rx * sx);
-          g.addColorStop(0, `rgba(0,0,255,${a})`);
-          g.addColorStop(0.6, `rgba(0,0,255,${a * 0.5})`);
-          g.addColorStop(1, 'rgba(0,0,255,0)');
-          aux.fillStyle = g;
-          aux.fillRect(-rx * sx, -rx * sx, 2 * rx * sx, 2 * rx * sx);
-          aux.restore();
-        }
+        for (const w of wear) w();
         aux.restore();
       };
 
@@ -1374,7 +1442,7 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
       return c;
     };
     // cells the outline passes through (sampled along each edge)
-    const fine = 2;
+    const fine = 4;
     const fx = nx * fine;
     const fz = nz * fine;
     const small = big / fine;
@@ -1448,8 +1516,10 @@ export function buildBowedModel(g: BowedGeom): BowedModel {
       for (let i = 0; i < nx; i++) {
         const cx0 = x0 + i * big;
         const cz0 = z0 + j * big;
-        // near the edge (the channel, the corners): four smaller cells
-        const near = p.dist(cx0 + big / 2, cz0 + big / 2) < 0.035 * B * Math.max(1, coarse * 0.5);
+        // over the rise (the channel, the corners, the recurve and the shoulder above it, where the
+        // surface curves most): smaller cells. At the old 13 mm cells of a cello's plate the shoulder's
+        // reflection ran along the cells' edges in steps
+        const near = p.dist(cx0 + big / 2, cz0 + big / 2) < Math.max(0.035 * B, sp.chan[0] * 0.8 + sp.rise + big) * Math.max(1, coarse * 0.5);
         if (near && coarse <= 1) {
           for (let b2 = 0; b2 < fine; b2++) for (let a = 0; a < fine; a++) cell(cx0 + a * small, cz0 + b2 * small, small, i * fine + a, j * fine + b2, 1);
         } else cell(cx0, cz0, big, i * fine, j * fine, fine);
