@@ -240,10 +240,63 @@ function hookCorners(pts: P2[], B: number): P2[] {
   return out;
 }
 
+/** The traced half-widths with their two ends closed, as points (u, half-width / body length).
+ *  The row scan sees an outline's end as a single row: the width jumps from nothing to 10–15 % of the
+ *  length, and at the tail it also takes in the lower rib under the plate's edge (a few rows of one
+ *  width). Left so, each end was a straight cut with a sharp corner at either side, and at a cello's
+ *  tail the ribs folded over at the corner (a black slit). Each end is closed instead by the conic
+ *  through its end point, square to the centre line there, that fits the bout's own stations from 1.5
+ *  to 8 % of the length in (hw² = 2Re + ke²: the flat-bottomed curve of a real bout's end); it takes
+ *  over from the trace between 4 and 2 % in. */
+function closeEnds(hw: number[]): P2[] {
+  const N = hw.length;
+  const du = 1 / (N - 1);
+  const fit = (at: (i: number) => number): ((e: number) => number) | null => {
+    let a11 = 0;
+    let a12 = 0;
+    let a22 = 0;
+    let b1 = 0;
+    let b2 = 0;
+    for (let i = 1; i < N; i++) {
+      const e = i * du;
+      if (e < 0.015 || e > 0.08) continue;
+      const y = at(i) ** 2;
+      const p = 2 * e;
+      const q = e * e;
+      a11 += p * p;
+      a12 += p * q;
+      a22 += q * q;
+      b1 += p * y;
+      b2 += q * y;
+    }
+    const det = a11 * a22 - a12 * a12;
+    const R = (b1 * a22 - b2 * a12) / det;
+    const k = (a11 * b2 - a12 * b1) / det;
+    // (a curve that still widens over the stretch it is used for, or none)
+    if (!(R > 0) || !(R + k * 0.04 > 0)) return null;
+    return (e) => Math.sqrt(Math.max(0, 2 * R * e + k * e * e));
+  };
+  const head = fit((i) => hw[i]);
+  const tail = fit((i) => hw[N - 1 - i]);
+  const E0 = 0.02;
+  const E1 = 0.04;
+  const K = 24;
+  const out: P2[] = [];
+  if (head) for (let j = 0; j < K; j++) out.push([E0 * (j / K) ** 2, head(E0 * (j / K) ** 2)]);
+  for (let i = 0; i < N; i++) {
+    const u = i * du;
+    const cap = u < 0.5 ? head : tail;
+    const e = u < 0.5 ? u : 1 - u;
+    if (!cap) out.push([u, hw[i]]);
+    else if (e >= E0) out.push([u, hw[i] + (cap(e) - hw[i]) * (1 - sstep(E0, E1, e))]);
+  }
+  if (tail) for (let j = K - 1; j >= 0; j--) out.push([1 - E0 * (j / K) ** 2, tail(E0 * (j / K) ** 2)]);
+  return out;
+}
+
 function makePlate(ol: Outline, B: number, n: number, button: number): Plate {
   const N = ol.hw.length;
-  const bass0: P2[] = [];
-  for (let i = 0; i < N; i++) bass0.push([(i / (N - 1)) * B, ol.hw[i] * B]);
+  const bass0: P2[] = closeEnds(ol.hw).map(([u, h]): P2 => [u * B, h * B]);
   const bass = hookCorners(bass0, B);
   let pts: P2[] = [...bass, ...bass.slice(1, bass.length - 1).reverse().map(([x, z]): P2 => [x, -z])];
   if (button > 0) {
