@@ -75,7 +75,8 @@ function crossesItself(p: P2[]): boolean {
 }
 
 describe('f-holes', () => {
-  for (const [name, ol, body] of [['violin', VIOLIN, 0.356], ['cello', CELLO, 0.755]] as const) {
+  // (length and the gap between the two upper eyes, mm: H. Jóhannsson's tables, docs/3d-reference.md)
+  for (const [name, ol, body, lenMm, gapMm] of [['violin', VIOLIN, 0.356, 73, 42], ['cello', CELLO, 0.755, 130, 98]] as const) {
     it(`${name}: two round eyes, a smooth S, two nicks, two wing tips`, () => {
       const p = fholeOf(ol) as P2[];
       expect(crossesItself(p)).toBe(false);
@@ -101,6 +102,9 @@ describe('f-holes', () => {
         u0 = Math.min(u0, u);
         u1 = Math.max(u1, u);
       }
+      // the real instrument's sizes, within 5 %
+      expect(Math.abs((u1 - u0) * body * 1000 - lenMm) / lenMm).toBeLessThan(0.05);
+      expect(Math.abs(2 * (e[0].c[1] - e[0].r) * body * 1000 - gapMm) / gapMm).toBeLessThan(0.05);
       const nicks = sharp.filter(([u]) => Math.abs(u - (u0 + u1) / 2) < 0.004);
       expect(nicks.length).toBe(2);
       expect(Math.abs(nicks[0][1] - nicks[1][1])).toBeGreaterThan(0.012);

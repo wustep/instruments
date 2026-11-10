@@ -95,7 +95,9 @@ S stem widest at the middle; each hook a wide arc that runs into its eye along a
 outer edge becomes the eye's circle and its inner edge meets it at the wing's tip; a nick in each edge
 on the bridge line. One `FHole` (eyes, turns, three stem points, seven widths, the nick) per family: the
 violin's from the Met's "Francesca" Stradivari, used for the viola too, and the cello's from the Met's
-Vuillaume, both measured off the same photographs as before. A double bass adds one more. The treble
+Vuillaume, both measured off the same photographs as before. Against Jóhannsson's tables
+(`docs/3d-reference.md`): the cello's is 131 mm long with 97 mm between the upper eyes (130 / 98), the
+violin's 72 mm and 43 mm (73 / 42). A double bass adds one more. The treble
 hole is the bass hole mirrored. The two 2D styles and the 3D top all draw the one outline.
 
 ## 4. Orchestra in 2D: the bows were cut
