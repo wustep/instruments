@@ -98,7 +98,61 @@ violin's from the Met's "Francesca" Stradivari, used for the viola too, and the 
 Vuillaume, both measured off the same photographs as before. A double bass adds one more. The treble
 hole is the bass hole mirrored. The two 2D styles and the 3D top all draw the one outline.
 
-## 4. Checks
+## 4. Orchestra in 2D: the bows were cut
+
+`reported-bows.jpg` → `bows-before-*.jpg`, `bows-after-*.jpg` (flute and string quartet: a 1440×900
+window in both styles, the 1535×1330 window of the report, and a phone; bows at the frog or at the tip).
+
+Each bowed instrument of an ensemble was drawn inside two clips, both its own cell (the ensemble's, and
+the instrument's own). A bow is longer than its instrument, so in a cell it was a stub. Now every bow is
+drawn last, unclipped, over all the instruments, in both styles, and the vector style's two readings by
+the contact go with it.
+
+Overflow alone was not enough. A violin's bow travels 1.43 m and the violin is 0.6 m long: at the old
+sizes a bow at the frog or the tip ran off the stage itself (on a 1440×900 window 48 % of a violin's bow
+travel was off the stage). So a lineup with bowed strings is now laid out where every bow, frog or tip on
+the string, ends on the stage and under the player, at the largest size that allows. **That makes the
+instruments smaller in several layouts.** A violin's scale, px per metre, before → after:
+
+| Window | Lineup | Before | After |
+|---|---|---|---|
+| 1440×900 | flute + quartet | 679 | 733 |
+| 1440×900 | quartet | 874 | 733 |
+| 1440×900 | with a grand | 553 | 396 |
+| 1440×900 | eight parts | 727 | 622 |
+| 1535×1330 (the report's) | flute + quartet | 1240 | 792 |
+| 390×844 | flute + quartet | 339 | 237 |
+| 390×844 | quartet | 428 | 237 |
+
+A cello alone in an ensemble of one goes 945 → 360. Desktop ensembles with strings now stand upright in
+one row (it was a grid of lying instruments at 1440×900). Lineups without bowed strings are laid out as
+before. To have the old sizes back with bows running off the stage's edge, drop the
+`if (melV.some(bowedId))` block in `ensembleCells`.
+
+Left: on a single instrument's 2D stage the bow still runs off the stage at the ends of its travel.
+
+## 5. The pieces (set list) button
+
+`setlist-before-*.jpg`, `setlist-after-*.jpg` (the menu open: one instrument and an ensemble, desktop
+and phone).
+
+It was a chip in the picker's row, at the far left of the top band, away from the transport it feeds. It
+is now one icon of the player's overlay, between routing and open: at rest `play · pieces · open`,
+loaded `play/pause · stop · position · routing · pieces · open`. Same label, same tip, the player's own
+icon language; no new text. Its menu hangs under it and stays 6 px inside the window (at 390 px wide it
+spans 85–305 px at rest, 165–385 px with a piece loaded). It shows for one instrument and for an
+ensemble alike, as it did: a piece brings its own ensemble.
+
+The two small amber icons under the transport in `reported-bows.jpg` are not this button. They are the
+player's line chips (one per line of the file, lit while it sounds), and they are unchanged.
+
+## 6. The trumpet's line
+
+`reported-trumpet.jpg`. The thin rod off the main slide's crook, ending in a small circle, is the water
+key (default 2D style, `drawTrumpet`), and the two curved lines at the mouthpiece rim in 3D are the lip
+buzz. Both are meant. Neither was changed.
+
+## 7. Checks
 
 - `apps/web/test/fholes.test.ts`: two eyes each on one circle for more than 240°, the upper smaller and
   nearer the centre line; the edge changes the way it bends fewer than 30 times; exactly four sharp
@@ -107,3 +161,15 @@ hole is the bass hole mirrored. The two 2D styles and the 3D top all draw the on
 - `apps/web/test/models3d.test.ts` "a smooth arch": no facet of a bowed top turns more than 12°.
 - e2e "3D varnish …": the speckle measure above, on the live painted map, cello and violin. Run against
   main it fails (cello 1.52, limit 0.8).
+- `apps/web/test/ensemble-cells.test.ts`: 8 lineups × 6 stage sizes, every bow's whole travel ends on the
+  stage and the cells do not overlap (47 of the 48 fail with the old cells).
+- e2e "orchestra in 2D: every bow is drawn whole …": each bowed part played at the frog, the middle and
+  the tip, both styles, desktop and 390×844: the hair's line is bow-coloured along more than 90 % of its
+  length, both ends on the stage and under the player. With the old drawing the least share was 0.21
+  (desktop) and 0.40 (phone).
+- e2e "the pieces are in the player's overlay …": the button is in the player's row and not in the
+  picker; the row's icons in order at rest, loaded and for an ensemble; the menu under its button, whole
+  and on the screen. It fails on main.
+
+Whole suite on the branch: typecheck clean; unit 33 files; e2e desktop and Pixel 7, 90 passed, 10
+skipped (the phone project's own skips), none failed.
