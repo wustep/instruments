@@ -73,12 +73,11 @@ const QUICK_AIM = 2;
  *  a break is left as it was. */
 const FALL = 0.45;
 const FALL_TAU = 0.05;
-/** …and a tongued note of the third register after one of a lower gets no stop of the jet but a first attack's
- *  push, its aim this many times a long tone's. Ten rises across the two breaks at the same lengths and
- *  dynamics (scripts/winds-midi-joined.ts --seq rises): 20 of 120 joined notes off their pitch,
- *  where the stroke left 32 (A5→E6 alone 12 of 12) and the engine before, which never stopped the jet, 20.
- *  Into the second register the stroke is kept: without it C♯5→D♯5 failed. Rising across a break is still
- *  the flute's weakest join. */
+/** …and a tongued note of the third register after one of a lower is let go with a first attack's push, its
+ *  aim this many times a long tone's. Ten rises across the two breaks at the same lengths and dynamics
+ *  (scripts/winds-midi-joined.ts --seq rises): 25 of 120 joined notes off their pitch, where the stroke's
+ *  lighter push left 32 (A5→E6 alone 12 of 12) and the engine before, which never stopped the jet, 20.
+ *  Rising across a break is still the flute's weakest join. */
 const RISE_AIM = 2;
 /** tongued over the breath (mono.ts): the tongue lets the air go again in this long (s) */
 const LICK_OPEN = 0.003;
@@ -466,28 +465,22 @@ export class FluteCore implements InstrumentCore {
       this.setNote(m, false);
       this.pTarget = 1;
       this.attackTau = Math.min(this.attackTau, quickRise(0.06 - 0.035 * v, a.len));
-      const wait = this.lick.retongue(a.struck, this.fs, same, LICK_OPEN * this.fs);
-      this.tongueAt = this.frame + wait;
       // (the jet's push as the tongue lets go: a lighter one than a first attack's, unless the tongue has
       // held the tube silent over a rest: then a short note's)
       const first = this.afterStop;
       this.afterStop = false;
       this.fallNow = this.modeStep < 0;
-      // (…and a note of the third register after one of a lower: no stop of the jet, which would leave the
-      // tube to the old note's ring; the tongue only pushes it, as a first attack's does, the jet aimed
-      // RISE_AIM sharper)
+      // (…and a note of the third register after one of a lower: the tongue lets the jet go with a first
+      // attack's push, aimed RISE_AIM sharper, or the tube stays with the old note's ring)
       const up = this.modeStep > 0 && this.mode === 3 && !first;
+      const wait = this.lick.retongue(a.struck, this.fs, same, LICK_OPEN * this.fs);
+      this.tongueAt = this.frame + wait;
       this.chiff = first || up ? 0.6 + 0.8 * v : 0.3 + 0.4 * v;
       this.tongueAmp = TONGUE_PUSH * (first || up ? 1 : LICK_BOOST) * (0.5 + 0.5 * v);
       this.tongueLen = Math.max(4, Math.round((0.5 * this.fs) / et(m)));
       this.tongueN = this.tongueLen;
       this.tongueWait = wait;
       this.attackBoost = ATTACK_BOOST * (0.6 + 0.4 * v) * (first ? 1 + QUICK_AIM - v : up ? RISE_AIM : LICK_BOOST);
-      if (up) {
-        this.lick.reset();
-        this.tongueWait = 0;
-        this.tongueAt = this.frame;
-      }
       this.noteStart = this.frame;
       this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
     }
