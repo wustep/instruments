@@ -1,0 +1,90 @@
+[
+ {
+  "clip": "mid-chord",
+  "what": "bars 1–2 (fortissimo): the upright asked for in the middle of the third chord, the grand again in the middle of bar 2",
+  "before": {
+   "peak dBFS": -2,
+   "changes": [
+    {
+     "to": "upright",
+     "at s": 3.69,
+     "next note in ms": 357,
+     "before dBFS (100 ms)": -24.3,
+     "after dBFS (first 50 ms)": -50.2,
+     "after dBFS (50–150 ms)": -71.7,
+     "silence ms": 340,
+     "step ×": 1.14
+    },
+    {
+     "to": "grand",
+     "at s": 7.98,
+     "next note in ms": 714,
+     "before dBFS (100 ms)": -23,
+     "after dBFS (first 50 ms)": -50.6,
+     "after dBFS (50–150 ms)": -70.3,
+     "silence ms": 695,
+     "step ×": 7.3
+    }
+   ]
+  },
+  "after": {
+   "peak dBFS": -1.7,
+   "changes": [
+    {
+     "to": "upright",
+     "at s": 3.69,
+     "next note in ms": 357,
+     "before dBFS (100 ms)": -24.3,
+     "after dBFS (first 50 ms)": -25.5,
+     "after dBFS (50–150 ms)": -26.1,
+     "silence ms": 0,
+     "step ×": 0.59
+    },
+    {
+     "to": "grand",
+     "at s": 7.98,
+     "next note in ms": 714,
+     "before dBFS (100 ms)": -23,
+     "after dBFS (first 50 ms)": -24,
+     "after dBFS (50–150 ms)": -23.1,
+     "silence ms": 0,
+     "step ×": 0.8
+    }
+   ]
+  }
+ },
+ {
+  "clip": "at-the-turn",
+  "what": "bars 4–5: the upright asked for 50 ms before bar 5, where the piece turns from loud to quiet",
+  "before": {
+   "peak dBFS": -2,
+   "changes": [
+    {
+     "to": "upright",
+     "at s": 5.78,
+     "next note in ms": 50,
+     "before dBFS (100 ms)": -28.8,
+     "after dBFS (first 50 ms)": -38.6,
+     "after dBFS (50–150 ms)": -15.4,
+     "silence ms": 30,
+     "step ×": 6.45
+    }
+   ]
+  },
+  "after": {
+   "peak dBFS": -1.8,
+   "changes": [
+    {
+     "to": "upright",
+     "at s": 5.78,
+     "next note in ms": 50,
+     "before dBFS (100 ms)": -28.8,
+     "after dBFS (first 50 ms)": -28.5,
+     "after dBFS (50–150 ms)": -15.3,
+     "silence ms": 0,
+     "step ×": 0.93
+    }
+   ]
+  }
+ }
+]

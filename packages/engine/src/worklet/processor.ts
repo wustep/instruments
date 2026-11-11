@@ -4,6 +4,8 @@
 import { createCore, setBus, type AnyParams } from '../core/factory.ts';
 import { foresees, type InstrumentCore, type InstrumentId } from '../core/instrument.ts';
 import type { PianoCore } from '../core/piano-core.ts';
+import { PRESETS } from '../core/design.ts';
+import { Limiter } from '../core/post.ts';
 import type { ToProcessor, FromProcessor } from '../api/messages.ts';
 import type { DesignEntry } from '../core/voice.ts';
 
@@ -36,6 +38,24 @@ interface ProcOptions {
 
 type Core = InstrumentCore & { process: (L: Float32Array, R: Float32Array, n: number) => void };
 
+/** A piano that has handed over to another (a change of preset: `changePiano`), still ringing. `quiet`:
+ *  how long its output has been silent (frames); `left`: how long it may still ring (frames); `fade`:
+ *  being taken off, the frames of its fade left (−1: not) */
+interface Tail {
+  core: PianoCore;
+  quiet: number;
+  left: number;
+  fade: number;
+}
+/** a tail is done when its output has stayed under this (−100 dBFS) for TAIL_QUIET_S */
+const TAIL_SILENT = 1e-5;
+const TAIL_QUIET_S = 0.25;
+/** a key held on the old piano does not keep it for ever: after this long it is faded off */
+const TAIL_MAX_S = 30;
+const TAIL_FADE_S = 0.03;
+/** the pianos still ringing at once (a kind changed back and forth: the oldest is faded off) */
+const TAILS_MAX = 2;
+
 class InstrumentProcessor extends AudioWorkletProcessor {
   private core: Core;
   private vis = false;
@@ -59,6 +79,13 @@ class InstrumentProcessor extends AudioWorkletProcessor {
   private player = 0;
   /** the mix's gain after this instrument (params.bus: an Orchestra part's share of the bus; setBus) */
   private bus = 1;
+  /** pianos a change of preset retired, each rendered and added to the output until it has died away */
+  private tails: Tail[] = [];
+  private tailL = new Float32Array(128);
+  private tailR = new Float32Array(128);
+  /** over the sum while a tail rings (each piano's own limiter knows nothing of the other's level) */
+  private sumLimiter: Limiter | null = null;
+  private sumLimiting = false;
 
   private storeDesigns(entries: DesignEntry[] | undefined): void {
     if (!entries) return;
@@ -114,24 +141,31 @@ class InstrumentProcessor extends AudioWorkletProcessor {
         const frame = m.time === undefined ? undefined : Math.round(m.time * sampleRate) - this.frameOffset;
         // (a note to come is for a bow to plan with: the others have no use for it)
         if (m.event.type !== 'foresee' || foresees(this.core.id)) this.core.schedule(m.event, frame);
+        // (a piano still ringing after a change of piano: its keys' releases and the pedals are its too)
+        for (const t of this.tails) t.core.schedule(m.event as never, frame);
         break;
       }
       case 'params': {
         // (the bus's share is the limiter's, not a parameter of the instrument)
         const { bus, ...rest } = m.params as Record<string, unknown>;
-        if (typeof bus === 'number') setBus(this.core, (this.bus = bus));
+        if (typeof bus === 'number') {
+          setBus(this.core, (this.bus = bus));
+          for (const t of this.tails) setBus(t.core as unknown as InstrumentCore, bus);
+          if (this.sumLimiter) this.sumLimiter.bus = Math.min(1, Math.max(1e-3, bus));
+        }
         this.core.setParams(rest);
         if (this.core.id === 'piano') this.post({ type: 'keys', keys: this.core.keySummary() });
         break;
       }
       case 'preset':
         if (this.core.id === 'piano') {
-          (this.core as unknown as PianoCore).setPreset(m.preset);
+          this.changePiano(m.preset);
           this.post({ type: 'preset', instrument: 'piano', preset: m.preset, params: this.core.params as Record<string, unknown>, modeFreqs: Array.from(this.core.modeFrequencies), keys: this.core.keySummary() });
         }
         break;
       case 'instrument': {
         this.core.allSoundOff();
+        this.tails.length = 0;
         const frame = this.core.frame;
         this.storeDesigns(m.designs);
         try {
@@ -162,15 +196,93 @@ class InstrumentProcessor extends AudioWorkletProcessor {
         break;
       case 'panic':
         this.core.allSoundOff();
+        this.tails.length = 0;
         break;
       case 'clearScheduled': {
         const q = (this.core as unknown as { queue?: unknown[] }).queue;
         if (q) q.length = 0;
+        // (and what a piano still ringing was to let go: the notes' ends are sent again, stopFile)
+        for (const t of this.tails) (t.core as unknown as { queue: unknown[] }).queue.length = 0;
         // and what a bow, or a wind player, was told is to come
         (this.core as unknown as { forget?: () => void }).forget?.();
         break;
       }
     }
+  }
+
+  /**
+   * The piano's other kind (grand ↔ upright) without a silence. It used to be one piano rebuilt in
+   * place, which stopped everything sounding, the room's tail included: a piece playing had a hole
+   * until its next note. Now another piano is built and takes over from this sample on (every note
+   * to come, the pedals as they stand: PianoCore.handOver); the one that was playing keeps the notes
+   * it has, lets each go where its key is let go, and rings out through its own soundboard and room,
+   * added to the output until it has died away. Nothing sounding: the same as before, a new piano.
+   */
+  private changePiano(preset: string): void {
+    const d = PRESETS[preset];
+    if (!d) return;
+    const old = this.core as unknown as PianoCore;
+    let next: PianoCore;
+    try {
+      next = createCore({ sampleRate, instrument: 'piano', preset, params: { ...old.params, ...d.defaults }, maxVoices: this.baseMaxVoices, designs: [...this.designs.values()], player: this.player, bus: this.bus }) as unknown as PianoCore;
+    } catch (err) {
+      this.post({ type: 'error', message: `the ${preset} piano could not be built at ${sampleRate} Hz: ${String((err as Error)?.message ?? err)}` });
+      return;
+    }
+    old.handOver(next);
+    // (the polyphony the load has it at: the new piano starts no heavier)
+    next.maxVoices = old.maxVoices;
+    this.core = next as unknown as Core;
+    this.coreMaxVoices = this.baseMaxVoices;
+    const max = Math.round(TAIL_MAX_S * sampleRate);
+    this.tails.push({ core: old, quiet: 0, left: max, fade: -1 });
+    // (more than two ringing: the oldest goes, over a moment)
+    const fade = Math.round(TAIL_FADE_S * sampleRate);
+    for (let i = 0; i < this.tails.length - TAILS_MAX; i++) if (this.tails[i].fade < 0) this.tails[i].fade = fade;
+    if (!this.sumLimiter) this.sumLimiter = new Limiter(sampleRate);
+    this.sumLimiter.bus = this.bus;
+  }
+
+  /** the pianos still ringing after a change of piano, added to the output; each is dropped when it has
+   *  died away. Then the sum's own limiter (it does nothing under the level one piano alone is held to). */
+  private mixTails(L: Float32Array, R: Float32Array): void {
+    const n = L.length;
+    if (this.tailL.length < n) {
+      // (a host whose blocks are longer than 128: once)
+      this.tailL = new Float32Array(n);
+      this.tailR = new Float32Array(n);
+    }
+    const tl = this.tailL;
+    const tr = this.tailR;
+    const fadeLen = Math.round(TAIL_FADE_S * sampleRate);
+    const tails = this.tails;
+    for (let i = tails.length - 1; i >= 0; i--) {
+      const t = tails[i];
+      t.core.process(tl, tr, n);
+      let pk = 0;
+      for (let k = 0; k < n; k++) {
+        const a = tl[k] < 0 ? -tl[k] : tl[k];
+        const b = tr[k] < 0 ? -tr[k] : tr[k];
+        if (a > pk) pk = a;
+        if (b > pk) pk = b;
+      }
+      t.quiet = pk < TAIL_SILENT ? t.quiet + n : 0;
+      t.left -= n;
+      if (t.left <= 0 && t.fade < 0) t.fade = fadeLen;
+      // (one channel out: the right, as the piano itself gives it)
+      const mono = R === L;
+      for (let k = 0; k < n; k++) {
+        const g = t.fade < 0 ? 1 : Math.max(0, t.fade - k) / fadeLen;
+        if (mono) L[k] += g * tr[k];
+        else {
+          L[k] += g * tl[k];
+          R[k] += g * tr[k];
+        }
+      }
+      if (t.fade >= 0) t.fade = Math.max(0, t.fade - n);
+      if (t.fade === 0 || t.quiet >= TAIL_QUIET_S * sampleRate) tails.splice(i, 1);
+    }
+    this.sumLimiting = true;
   }
 
   process(_inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
@@ -187,6 +299,15 @@ class InstrumentProcessor extends AudioWorkletProcessor {
     const t0 = clock();
     try {
       this.core.process(L, R, L.length);
+      if (this.tails.length) this.mixTails(L, R);
+      if (this.sumLimiting && this.sumLimiter) {
+        // (Limiter takes any float arrays; held on until its gain is back at 1 after the last tail)
+        this.sumLimiter.process(L as unknown as Float64Array, R as unknown as Float64Array, L.length);
+        if (!this.tails.length && this.sumLimiter.reduction > 0.9999) {
+          this.sumLimiter.reset();
+          this.sumLimiting = false;
+        }
+      }
     } catch (err) {
       // latch: one message saying why, then silence (a throwing process() would otherwise go
       // quiet with nothing on screen, or throw again on every quantum)
@@ -210,6 +331,8 @@ class InstrumentProcessor extends AudioWorkletProcessor {
     }
     // which notes really sound (the keyboard lights those): posted as soon as it changes
     const snd = this.core.sounding();
+    // (and those a piano still holds after a change of piano)
+    for (const t of this.tails) for (const m of t.core.sounding()) if (!snd.includes(m)) snd.push(m);
     let same = snd.length === this.lastSounding.length;
     for (let i = 0; same && i < snd.length; i++) same = snd[i] === this.lastSounding[i];
     if (!same) {
@@ -228,7 +351,10 @@ class InstrumentProcessor extends AudioWorkletProcessor {
     if (!this.adaptive) return;
     const core = this.core;
     if (this.load > 0.7) {
-      if (core.sympatheticAllowed) core.sympatheticAllowed = false;
+      // (a piano still ringing after a change of piano goes first)
+      const t = this.tails.find((x) => x.fade < 0);
+      if (t) t.fade = Math.round(TAIL_FADE_S * sampleRate);
+      else if (core.sympatheticAllowed) core.sympatheticAllowed = false;
       else if (core.maxVoices > 12) core.maxVoices = Math.max(12, Math.floor(core.maxVoices * 0.8));
     } else if (this.load < 0.35) {
       if (core.maxVoices < this.coreMaxVoices) core.maxVoices = Math.min(this.coreMaxVoices, core.maxVoices + 2);
@@ -241,8 +367,8 @@ class InstrumentProcessor extends AudioWorkletProcessor {
     const base = {
       instrument: core.id,
       load: this.load,
-      voices: core.activeVoiceCount,
-      sympathetic: core.activeSympatheticCount,
+      voices: core.activeVoiceCount + this.tails.reduce((s, t) => s + t.core.activeVoiceCount, 0),
+      sympathetic: core.activeSympatheticCount + this.tails.reduce((s, t) => s + t.core.activeSympatheticCount, 0),
       maxVoices: core.maxVoices,
       sustain: core.sustain,
       soft: core.soft,
