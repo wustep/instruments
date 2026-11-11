@@ -2,8 +2,9 @@
 // versioned query that round-trips, old addresses still opening where they did, and anything that
 // cannot be read left out rather than failing.
 import { describe, expect, it } from 'vitest';
-import { emptyAddress, formatAddress, parseAddress, tabOf, type Address } from '../src/address.ts';
-import { QUINTET } from './presets.ts';
+import { emptyAddress, formatAddress, ownSetup, parseAddress, PIECE_PATHS, tabOf, type Address } from '../src/address.ts';
+import type { LineRule } from '../src/orchestra/rules.ts';
+import { QUINTET, THIRTEEN } from './presets.ts';
 
 const at = (url: string, hash = '') => {
   const u = new URL(url, 'https://instruments-wustep.vercel.app');
@@ -151,5 +152,49 @@ describe('the address', () => {
     const junk = ['%', '%%', '=&=&', '?seats=,,,&lines=:::,~~~,', '?v=&seats=%ZZ', `?lines=${'a:1,'.repeat(500)}`, '?keys=split.1', '?seats=violin&keys=1e9'];
     for (const j of junk) expect(() => formatAddress(at(`/orchestra${j.startsWith('?') ? j : `?${j}`}`))).not.toThrow();
     expect(at(`/orchestra?seats=violin&lines=${'a:1,'.repeat(500)}`).orchestra!.lines!.length).toBe(128);
+  });
+});
+
+describe('a piece’s own address: /symphony', () => {
+  const tm = PIECE_PATHS.symphony;
+  const seats = ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'timpani', 'violin', 'violin', 'viola', 'cello', 'bass'];
+  /** the piece's lines as the ensemble knows them once its file is loaded: each on its own seat */
+  const lines: LineRule[] = ['Flute~73', 'Oboe~68', 'Clarinet~71', 'Bassoon~70', 'Horn~60', 'Trumpet~56', 'Trombone~57', 'Timpani~47', 'Violin I~40', 'Violin II~40', 'Viola~41', 'Cello~42', 'Double Bass~43'].map((x, i) => ({ name: x.split('~')[0], program: Number(x.split('~')[1]), seats: [i] }));
+
+  it('opens Toward Morning’s orchestra, thirteen seats, with the piece named; the look, the expression and the keys are still the address’s', () => {
+    expect(tm.id).toBe('toward-morning');
+    const a = at('/symphony');
+    expect(a).toEqual({ ...emptyAddress(), piece: 'toward-morning', orchestra: { seats, lines: null, keys: null } });
+    expect(tabOf(a)).toBe('orchestra');
+    // as loosely as any path: a capital, a slash after it
+    expect(at('/Symphony/')).toEqual(a);
+    const b = at('/symphony?view=3d&expr=off&keys=9.10&debug');
+    expect(b).toEqual({ ...a, look: '3d', expr: false, orchestra: { seats, lines: null, keys: [8, 9] }, rest: ['debug'] });
+    expect(formatAddress(b)).toBe('/symphony?keys=9.10&view=3d&expr=off&debug');
+    // seats in its query are not read: the address is the piece's orchestra
+    expect(at('/symphony?v=1&seats=violin,cello').orchestra!.seats).toEqual(seats);
+    // an Orchestra address names no piece
+    expect(at('/orchestra').piece).toBe(null);
+    expect(at(THIRTEEN).piece).toBe(null);
+  });
+
+  it('is written for as long as the piece is on its own orchestra as it came: before its file has come, once loaded, with the keys chosen; reorganised, the Orchestra’s own address', () => {
+    const own = (o: Partial<Address> = {}): Address => ({ ...emptyAddress(), piece: 'toward-morning', orchestra: { seats: seats as never, lines: null, keys: null }, ...o });
+    expect(formatAddress(own())).toBe('/symphony');
+    expect(formatAddress(own({ orchestra: { seats: seats as never, lines, keys: null }, look: '2d', expr: true }))).toBe('/symphony?view=2d&expr=on');
+    expect(formatAddress(own({ orchestra: { seats: seats as never, lines, keys: 'split' } }))).toBe('/symphony?keys=split');
+    expect(ownSetup({ seats: seats as never, lines, keys: [0] }, tm)).toBe(true);
+    // the same orchestra with no piece, or another's: the Orchestra's address (it is THIRTEEN, the preset)
+    const general = formatAddress({ ...own({ orchestra: { seats: seats as never, lines, keys: null } }), piece: null });
+    expect(general).toBe(THIRTEEN);
+    expect(formatAddress({ ...own({ orchestra: { seats: seats as never, lines, keys: null } }), piece: 'beethoven5-i' })).toBe(THIRTEEN);
+    // a line moved to another seat, a line silenced, an instrument off the stage: no longer the piece's own
+    const moved = lines.map((r, i) => (i === 0 ? { ...r, seats: [1] } : r));
+    expect(formatAddress(own({ orchestra: { seats: seats as never, lines: moved, keys: null } }))).toMatch(/^\/orchestra\?v=1&seats=flute,oboe,.*&lines=Flute~73:2,/);
+    const silent = lines.map((r, i) => (i === 7 ? { ...r, seats: [] } : r));
+    expect(formatAddress(own({ orchestra: { seats: seats as never, lines: silent, keys: null } }))).toMatch(/Timpani~47:-/);
+    expect(formatAddress(own({ orchestra: { seats: seats.slice(0, 12) as never, lines: null, keys: null } }))).toBe(`/orchestra?v=1&seats=${seats.slice(0, 12).join(',')}`);
+    expect(ownSetup({ seats: [...seats.slice(1), 'flute'] as never, lines: null, keys: null }, tm)).toBe(false);
+    expect(ownSetup({ seats: seats as never, lines: lines.slice(0, 12), keys: null }, tm)).toBe(false);
   });
 });

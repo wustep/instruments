@@ -1,5 +1,5 @@
 // The page's address. Every tab has a path of its own (/piano, /piano/upright, /violin, /viola,
-// /cello, /bass, /flute, /oboe, /clarinet, /bassoon, /horn, /trumpet, /trombone, /timpani, /orchestra, /measurements, /notes), and the Orchestra's
+// /cello, /bass, /flute, /oboe, /clarinet, /bassoon, /horn, /trumpet, /trombone, /timpani, /orchestra, /symphony, /measurements, /notes), and the Orchestra's
 // carries its whole setup in a short, readable, versioned query, so the address itself is a preset; nav.ts keeps
 // it in step with the page. Pure (no DOM), tested fast.
 //
@@ -20,12 +20,17 @@
 //   view   2d, vector or 3d (absent: as this device last had it)
 //   expr   automatic expression, on or off (absent: as this device has it)
 //
+// A piece with an address of its own (orchestra/pieces.ts `path`: /symphony, "Toward Morning") stands
+// for its orchestra and its routing, with the piece loaded: /symphony?view=3d. It is written so for as
+// long as the piece is on its own orchestra as it came; reorganised, the address is the Orchestra's.
+//
 // An instrument's path carries ?view= too when the stage is not the plain 2D one. Old addresses still
 // open where they did: #/, #/notes, #/measurements (and #/play, #/inside), ?style=vector. Anything
 // that cannot be read is left out, never an error; parameters that are not the app's are kept.
 
 import { INSTRUMENT_IDS, type InstrumentId } from '@piano-model/engine';
 import { MAX_SEATS, VOICES, type Voice } from './orchestra/assign.ts';
+import { PIECES, type Piece } from './orchestra/pieces.ts';
 import type { LineRule, Setup } from './orchestra/rules.ts';
 
 export type Page = 'stage' | 'measurements' | 'notes';
@@ -43,13 +48,15 @@ export interface Address {
   preset: 'grand' | 'upright' | null;
   /** the stage's Orchestra (seats empty: the one it last had, or the quartet) */
   orchestra: Setup | null;
+  /** the built-in piece loaded on it (its id), when that piece has an address of its own */
+  piece: string | null;
   look: Look | null;
   expr: boolean | null;
   /** the address's other parameters, as written (?debug) */
   rest: string[];
 }
 
-export const emptyAddress = (): Address => ({ page: 'stage', instrument: null, preset: null, orchestra: null, look: null, expr: null, rest: [] });
+export const emptyAddress = (): Address => ({ page: 'stage', instrument: null, preset: null, orchestra: null, piece: null, look: null, expr: null, rest: [] });
 
 /** the most of anything an address is read for (a longer one is cut there) */
 const MAX_LINES = 128;
@@ -96,6 +103,24 @@ export const INSTRUMENT_PATHS: Record<string, [InstrumentId, ('grand' | 'upright
 };
 for (const id of INSTRUMENT_IDS) INSTRUMENT_PATHS[id] ??= [id];
 
+/** the pieces with a path of their own, by that path (/symphony; vercel.json rewrites each to the page) */
+export const PIECE_PATHS: Record<string, Piece> = Object.fromEntries(PIECES.filter((p) => p.path).map((p) => [p.path!, p]));
+/** a piece's own orchestra: its instruments, one to a seat, in its order */
+const pieceSeats = (p: Piece): Voice[] => p.parts.map((q) => q.voice);
+/** Is a setup a piece's own, as the piece comes: its seats, and its lines each on the seats the piece
+ *  gives them (no lines yet: the piece is still on its way)? The keys are the page's, not the piece's. */
+export function ownSetup(s: Setup, p: Piece): boolean {
+  const seats = pieceSeats(p);
+  if (s.seats.length !== seats.length || s.seats.some((v, k) => v !== seats[k])) return false;
+  if (!s.lines) return true;
+  const n = Math.max(...p.parts.flatMap((q) => q.lines)) + 1;
+  if (s.lines.length !== n) return false;
+  return s.lines.every((r, i) => {
+    const want = p.parts.flatMap((q, k) => (q.lines.includes(i) ? [k] : []));
+    return r.seats.length === want.length && r.seats.every((k, j) => k === want[j]);
+  });
+}
+
 /** seats as written (1-based, "1.3") into the lineup's indices: `at` maps a seat number to where
  *  it now is (−1: a seat that was left out) */
 const seatList = (s: string, at: number[]): number[] =>
@@ -135,6 +160,11 @@ export function parseAddress(path: string, search: string, hash = ''): Address {
   const [route, sub] = old ? [old[1].toLowerCase(), ''] : [segs[0] ?? '', segs[1] ?? ''];
   if (route === 'measurements' || route === 'notes') a.page = route;
   else if (route === 'orchestra' || route === 'ensemble') a.orchestra = { seats: [], lines: null, keys: null };
+  else if (PIECE_PATHS[route]) {
+    // a piece's address: its orchestra (the lines are the piece's own, set when it has loaded)
+    a.piece = PIECE_PATHS[route].id;
+    a.orchestra = { seats: pieceSeats(PIECE_PATHS[route]), lines: null, keys: null };
+  }
   else if (INSTRUMENT_PATHS[route]) {
     const [id, preset] = INSTRUMENT_PATHS[route];
     a.instrument = id;
@@ -150,7 +180,12 @@ export function parseAddress(path: string, search: string, hash = ''): Address {
   const expr = dec(get('expr') ?? '').toLowerCase();
   a.expr = expr === 'on' || expr === '1' ? true : expr === 'off' || expr === '0' ? false : null;
   const v = get('v');
-  if (a.orchestra && (v === undefined || v === String(FORMAT))) {
+  if (a.orchestra && a.piece) {
+    // (its seats are the piece's; the keys may still be chosen)
+    const keys = dec(get('keys') ?? '').trim().toLowerCase();
+    const ks = keys === 'split' ? 'split' : seatList(keys, a.orchestra.seats.map((_, k) => k));
+    a.orchestra.keys = ks.length ? ks : null;
+  } else if (a.orchestra && (v === undefined || v === String(FORMAT))) {
     const at: number[] = [];
     const seats: Voice[] = [];
     for (const s of (get('seats') ?? '').split(',').slice(0, MAX_SEATS)) {
@@ -176,11 +211,14 @@ export function formatAddress(a: Address): string {
   else if (a.orchestra) {
     path = '/orchestra';
     const s = a.orchestra;
-    if (s.seats.length) {
+    const own = PIECES.find((p) => p.path && p.id === a.piece && ownSetup(s, p));
+    // (a piece on its own orchestra as it came: its short address stands for the seats and the lines)
+    if (own) path = `/${own.path}`;
+    else if (s.seats.length) {
       q.push(`v=${FORMAT}`, `seats=${s.seats.join(',')}`);
       if (s.lines?.length) q.push(`lines=${s.lines.map(formatLine).join(',')}`);
-      if (s.keys) q.push(`keys=${s.keys === 'split' ? 'split' : s.keys.map((k) => k + 1).join('.')}`);
     }
+    if (s.seats.length && s.keys) q.push(`keys=${s.keys === 'split' ? 'split' : s.keys.map((k) => k + 1).join('.')}`);
   } else if (a.instrument) path = a.instrument === 'piano' && a.preset === 'upright' ? '/piano/upright' : `/${a.instrument}`;
   if (a.page === 'stage') {
     // (an instrument's address shows the look only when it is not the plain stage; the Orchestra's

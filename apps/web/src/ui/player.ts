@@ -239,7 +239,8 @@ export class MidiPlayer {
       });
       return b;
     });
-    const credit = h('a', { class: 'sm-credit', href: '/notes', 'data-route': 'notes' }, 'public domain · Mutopia Project');
+    // (the typesettings are Mutopia's; Toward Morning is this project's own, CC0)
+    const credit = h('a', { class: 'sm-credit', href: '/notes', 'data-route': 'notes' }, 'public domain · Mutopia, Fable 5.2');
     credit.addEventListener('click', () => this.closePieces());
     const m = h('div', { class: 'score-menu', role: 'menu', 'aria-label': 'Pieces' }, ...items, credit);
     this.el.append(m);
@@ -347,9 +348,10 @@ export class MidiPlayer {
   /**
    * Load a file (replacing the current one) and play it. A piece, a file whose lines want more than
    * one instrument, or any file while the ensemble is on: the ensemble plays it. Otherwise (a piano
-   * piece) the instrument shown plays every line.
+   * piece) the instrument shown plays every line. `play` false: loaded and left ready (an address that
+   * names a piece: nothing has been pressed yet).
    */
-  async load(buf: ArrayBuffer, piece: Piece | null = null, onStage = false): Promise<void> {
+  async load(buf: ArrayBuffer, piece: Piece | null = null, onStage = false, play = true): Promise<void> {
     let song: MidiSong;
     try {
       song = pieceSong(parseMidi(buf), piece);
@@ -370,7 +372,7 @@ export class MidiPlayer {
     if (piece || ensemble.active || plan.parts.length > 1) ensemble.enter(plan, song, piece, keep || (!piece && ensemble.active && ensemble.byUser), rules);
     this.buildStrip();
     this.sync();
-    if (this.song) await this.play();
+    if (this.song && play) await this.play();
   }
 
   /** a file of public/pieces/, fetched once */
@@ -429,7 +431,8 @@ export class MidiPlayer {
   }
 
   /** the overlay's icons for what is loaded: at rest, play (the piece it would play, in its tip) and
-   *  open; loaded, play or pause, stop, the hairline, routing (a file's lines) and open */
+   *  open; loaded, play (a built-in piece's name in its tip) or pause, stop, the hairline, routing (a
+   *  file's lines) and open */
   private sync(): void {
     const rest = !this.song;
     this.el.classList.toggle('idle', rest);
@@ -443,21 +446,26 @@ export class MidiPlayer {
       this.playBtn.dataset.tip = name ? `play · ${name}` : 'play';
       this.playBtn.setAttribute('aria-label', name ? `Play ${name}` : 'Play');
     } else if (!this.playing) {
-      this.playBtn.dataset.tip = 'play';
-      this.playBtn.setAttribute('aria-label', 'Play');
+      // (a built-in piece loaded and waiting, as its own address leaves it: the icon says whose it is)
+      const pc = ensemble.active && ensemble.song === this.song ? ensemble.piece : null;
+      const name = pc ? `${pc.composer}, ${pc.title}` : '';
+      this.playBtn.dataset.tip = name ? `play · ${name}` : 'play';
+      this.playBtn.setAttribute('aria-label', name ? `Play ${name}` : 'Play');
     }
   }
 
-  /** a built-in piece (orchestra/pieces.ts), fetched and played */
-  async loadPiece(i: number, onStage = false): Promise<void> {
+  /** a built-in piece (orchestra/pieces.ts), fetched and played; `play` false: fetched and left
+   *  loaded, ready to play (its own address opened: no gesture yet, so no sound is asked for).
+   *  `still`: asked once its file has come; false (the stage has moved on meanwhile), it is dropped */
+  async loadPiece(i: number, onStage = false, play = true, still?: () => boolean): Promise<void> {
     const piece = PIECES[i];
     if (!piece) return;
     // start the sound inside the gesture that asked for it (the fetch would lose it)
-    void audio.start().catch(() => undefined);
+    if (play) void audio.start().catch(() => undefined);
     const ask = ++this.asked;
     const buf = await this.fetchFile(piece.file);
-    if (ask !== this.asked) return;
-    await this.load(buf, piece, onStage);
+    if (ask !== this.asked || (still && !still())) return;
+    await this.load(buf, piece, onStage, play);
   }
 
   /** the ensemble left the stage: what is scheduled stops (the file stays, for the one instrument) */

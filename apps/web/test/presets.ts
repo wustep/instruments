@@ -13,3 +13,10 @@ export const QUINTET = '/orchestra?v=1&seats=violin,violin,viola,cello,bass&line
 export const SYMPHONY =
   '/orchestra?v=1&seats=flute,flute,oboe,oboe,clarinet,clarinet,bassoon,bassoon,horn,horn,trumpet,trumpet,timpani,violin,violin,viola,cello,bass' +
   '&lines=one~73:1.2,two~68:3.4,three~71:5.6,four~70:7.8,five~69:9.10,six~69:11.12,seven~47:13,eight~40:14,nine~40:15,ten~41:16,eleven~42:17,twelve~43:18';
+
+/** thirteen players, one of each wind and brass, the timpani and the strings, each line by its name and
+ *  program: the orchestra of "Toward Morning" (orchestra/pieces.ts), whose own address is /symphony. This
+ *  one is the Orchestra's, the same seats and lines written out: its play icon plays the piece too */
+export const THIRTEEN =
+  '/orchestra?v=1&seats=flute,oboe,clarinet,bassoon,horn,trumpet,trombone,timpani,violin,violin,viola,cello,bass' +
+  '&lines=Flute~73:1,Oboe~68:2,Clarinet~71:3,Bassoon~70:4,Horn~60:5,Trumpet~56:6,Trombone~57:7,Timpani~47:8,Violin+I~40:9,Violin+II~40:10,Viola~41:11,Cello~42:12,Double+Bass~43:13';
