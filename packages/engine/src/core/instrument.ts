@@ -9,6 +9,16 @@ export const INSTRUMENT_IDS: InstrumentId[] = ['piano', 'violin', 'viola', 'cell
 export type BowedId = 'violin' | 'viola' | 'cello' | 'bass';
 export const isBowed = (id: string): id is BowedId => id === 'violin' || id === 'viola' || id === 'cello' || id === 'bass';
 
+/** Played (not in the dry calibration renders), this many dB over the level an instrument was fitted at: a
+ *  recording session's microphone gain given back. The trombone was matched to the Iowa trombones, whose ff
+ *  notes sit 9 dB under the Iowa horn's and trumpet's (trombone.ts); the horn, trumpet and bassoon sessions
+ *  agree within 1 dB, and orchestral sound powers put a trombone with the other brass (Kahle 1995, Table 1,
+ *  after J. Meyer, Acustica 71, 1990: trombone 101 dB re 1 pW, bassoon and clarinet 93, cello 90). Measured
+ *  (scripts/audio-levels.ts, held, each voice's centre ±7 semitones): the trombone was 12 dB under the
+ *  trumpet at ff, 18 dB at mf (audio audit 2). The Orchestra's bus counts a part at this level
+ *  (apps/web/src/orchestra/mix.ts), so a lineup of trombones alone sounds as it did. */
+export const PLAYBACK_DB: Partial<Record<InstrumentId, number>> = { trombone: 9 };
+
 /** the instrument families: the piano, the bowed strings, the flute (an air jet), the reeds (the oboe: a
  *  double reed on a conical bore; the clarinet: a single reed on a cylinder; the bassoon: the oboe's double
  *  reed on a cone two and a half metres long) and the brass (the trumpet; the horn: the trumpet's buzzing lips

@@ -27,6 +27,7 @@ import { express, modLines, modValue, PartLevels, PHRASING, volumeRef, type Part
 import { autoPlan, placeNote, VOICE_INFO, type Plan } from '../apps/web/src/orchestra/assign.ts';
 import { PIECES, piecePlan } from '../apps/web/src/orchestra/pieces.ts';
 import { busGain } from '../apps/web/src/orchestra/mix.ts';
+import { PLAYBACK_DB } from '../packages/engine/src/core/instrument.ts';
 import { soundSeats } from '../apps/web/src/orchestra/seats.ts';
 import { spectrogramPng } from './spectrogram.ts';
 
@@ -136,7 +137,7 @@ if (FIXTURE) {
 plan = PIECE ? piecePlan(PIECES.find((p) => p.id === PIECE)!, song.lines, 6) : autoPlan(song.lines, { cap: 6 });
 const ensemble = plan.parts.length > 1;
 const seats = ensemble ? soundSeats(plan.parts.map((p) => VOICE_INFO[p.voice])) : null;
-const bus = ensemble ? busGain(plan.parts.filter((p) => p.lines.length).length) : 1;
+const bus = ensemble ? busGain(plan.parts.filter((p) => p.lines.length).map((p) => PLAYBACK_DB[VOICE_INFO[p.voice].instrument] ?? 0)) : 1;
 const a = Math.max(0, START - 8);
 const b = Math.min(song.duration + 2, START + SECONDS);
 const dur = b - a;

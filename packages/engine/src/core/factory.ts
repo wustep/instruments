@@ -27,9 +27,24 @@ export interface InstrumentOptions {
   /** orchestra mode: a second (third…) player of the same instrument, its own random stream (0: the
    *  instrument as it is) */
   player?: number;
+  /** the gain the mix puts on it after (an Orchestra part's share of the bus): see setBus */
+  bus?: number;
+}
+
+/** The gain the mix puts on an instrument after it (an Orchestra part's share of the bus, 0…1): its own
+ *  limiter works on the level that is heard (Limiter.bus). Every core keeps its limiter as `limiter`. */
+export function setBus(core: InstrumentCore, g: number): void {
+  const lim = (core as unknown as { limiter?: { bus: number } }).limiter;
+  if (lim && Number.isFinite(g)) lim.bus = Math.min(1, Math.max(1e-3, g));
 }
 
 export function createCore(opts: InstrumentOptions): InstrumentCore & { process: PianoCore['process'] } {
+  const core = makeCore(opts);
+  if (opts.bus !== undefined) setBus(core, opts.bus);
+  return core;
+}
+
+function makeCore(opts: InstrumentOptions): InstrumentCore & { process: PianoCore['process'] } {
   const id = opts.instrument ?? 'piano';
   switch (id) {
     case 'violin':

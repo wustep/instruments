@@ -562,6 +562,11 @@ export class Limiter {
   private gain = 1;
   private rel: number;
   thr = 0.89;
+  /** The gain the mix puts on this instrument after it (an Orchestra part's share of the bus, 0…1; setBus in
+   *  factory.ts). The limiter and the soft clip act on the level that is heard: a part of an ensemble at a
+   *  quarter of its own level is not limited for a level its bus then takes 12 dB off (audio audit 2: every
+   *  lineup had parts working their own limiters while the mix sat 6–10 dB under the bus's). */
+  bus = 1;
   /** most recent gain reduction (linear), for metering */
   reduction = 1;
   constructor(fs: number) {
@@ -571,15 +576,21 @@ export class Limiter {
     let g = this.gain;
     const thr = this.thr;
     const rel = this.rel;
+    const k = this.bus;
     let minG = 1;
     for (let t = 0; t < len; t++) {
-      const pk = Math.max(Math.abs(L[t]), Math.abs(R[t]));
+      const pk = k * Math.max(Math.abs(L[t]), Math.abs(R[t]));
       const target = pk > thr ? thr / pk : 1;
       if (target < g) g = target;
       else g = target + (g - target) * rel;
       if (g < minG) minG = g;
-      L[t] = softClip(L[t] * g);
-      R[t] = softClip(R[t] * g);
+      if (k === 1) {
+        L[t] = softClip(L[t] * g);
+        R[t] = softClip(R[t] * g);
+      } else {
+        L[t] = softClip(k * L[t] * g) / k;
+        R[t] = softClip(k * R[t] * g) / k;
+      }
     }
     this.gain = g;
     this.reduction = minG;
