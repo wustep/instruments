@@ -683,6 +683,8 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       const progs = r.r.info.programs?.length ?? 0;
       r.draw(batch, eye, target, FOV, pw, ph, ground);
       lastVP = r.vp.elements as unknown as Mat4;
+      // (a piano shown whole: its key's close-up will draw a section; its shaders are compiled ahead)
+      if (si.family === 'piano' && !si.ensemble?.length && !zoom && !fly) r.warmSection();
       stats.mirror = r.mirrored > 0;
       stats.mirrors = r.mirrored;
       // budget: if a frame costs more than ~9 ms, drop the occlusion, then draw the light scene

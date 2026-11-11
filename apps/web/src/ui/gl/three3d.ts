@@ -389,6 +389,8 @@ export class Renderer3 {
     im.receiveShadow = true;
     if (m.fade) im.customDepthMaterial = fadeDepthMaterial();
     this.root.add(im);
+    this.cold = true;
+    this.still = 0;
     e = { im, glow, cap, src: m.dyn !== undefined ? src : undefined, ver };
     this.entries.set(m, e);
     return e;
@@ -418,6 +420,94 @@ export class Renderer3 {
    *  whose shaders differ, never loses the comparison with its own surface; a dissolving part's
    *  screen-door as in its colour pass */
   private depthPre = depthFirstMaterial();
+  /** the materials whose section shaders are compiled or queued (`warmSection`) */
+  private warmed = new WeakSet<THREE.Material>();
+  /** the materials still to compile, each on a part that draws with it */
+  private warmQ: { geo: THREE.BufferGeometry; m: THREE.Material }[] = [];
+  /** the passes drawn with one material over the whole scene still to compile (`warmSection`) */
+  private warmPasses = false;
+  /** a mesh made (`entry`) since the section's shaders were last looked for */
+  private cold = false;
+  /** frames drawn since the last mesh was made (the warming waits for the scene to settle) */
+  private still = 0;
+  /** the section's shadow pass: a depth material for each side a part casts from (`warmSection`) */
+  private warmDepth = new Map<THREE.Side, THREE.MeshDepthMaterial>();
+
+  /** Compile, in the background, the shaders a section draws with, before it is first drawn. A clipping
+   *  plane is part of every material's program: switched on, every material of the scene, the shadow
+   *  pass's, the depth-first pass's and the occlusion's normals each need a program of their own (36
+   *  for a grand), and three.js compiled them as the first section frame drew, synchronously: a click
+   *  on a key froze the stage for ≈ 200 ms (330 ms on a phone's CPU) before the flight began.
+   *  Compiled here ahead, a few a frame (with KHR_parallel_shader_compile the driver compiles them off
+   *  the page's thread; without it the commands are sent and the GPU process works through them
+   *  meanwhile), the first section frame only selects them. Nothing is drawn, and the materials are
+   *  left as they were. Called after each frame while a piano shows whole; nothing to do, it returns
+   *  at once. */
+  warmSection(): void {
+    if (this.sectioned) return;
+    if (this.cold && ++this.still >= 20) {
+      this.cold = false;
+      for (const e of this.entries.values())
+        for (const m of e.im.material as THREE.Material[])
+          if (!this.warmed.has(m)) {
+            this.warmed.add(m);
+            this.warmQ.push({ geo: e.im.geometry, m });
+            this.warmPasses = true;
+          }
+    }
+    if (!this.warmQ.length && !this.warmPasses) return;
+    const r = this.r;
+    const was = r.getRenderTarget();
+    // (the scene draws into the HDR target: its programs are keyed by that target's colour space)
+    r.setRenderTarget(this.rt);
+    this.section(true);
+    const tmp = new THREE.Group();
+    try {
+      if (this.warmQ.length) {
+        // the colour pass: four of the scene's materials, cut, each on a part of its own
+        // (section() has given them the plane)
+        for (const { geo, m } of this.warmQ.splice(0, 4)) tmp.add(new THREE.InstancedMesh(geo, m, 1));
+      } else {
+        this.warmPasses = false;
+        // the passes drawn with one material over the whole scene (depth first; the occlusion's
+        // normals), on a part and on the floor; and the shadow pass's depth, on each side a part
+        // casts from (a dissolving part's own screen-door too)
+        const first = this.entries.values().next().value;
+        if (!first) return;
+        const geo = first.im.geometry;
+        const over: THREE.Material[] = [this.depthPre];
+        if (this.gtao) over.push(this.gtao.normalMaterial);
+        for (const m of over) tmp.add(new THREE.InstancedMesh(geo, m, 1), new THREE.Mesh(this.floor.geometry, m));
+        const flip = { [THREE.FrontSide]: THREE.BackSide, [THREE.BackSide]: THREE.FrontSide, [THREE.DoubleSide]: THREE.DoubleSide } as Record<THREE.Side, THREE.Side>;
+        const sides = new Set<THREE.Side>();
+        let fade = false;
+        for (const e of this.entries.values()) {
+          if (e.im.customDepthMaterial) fade = true;
+          for (const m of e.im.material as THREE.Material[]) sides.add(m.shadowSide ?? flip[m.side]);
+        }
+        for (const side of sides) {
+          let d = this.warmDepth.get(side);
+          if (!d) this.warmDepth.set(side, (d = new THREE.MeshDepthMaterial({ side })));
+          d.clippingPlanes = this.clipPlanes;
+          d.clipShadows = true;
+          tmp.add(new THREE.InstancedMesh(geo, d, 1));
+        }
+        if (fade) {
+          const fd = fadeDepthMaterial();
+          const side = fd.side;
+          fd.clippingPlanes = this.clipPlanes;
+          fd.clipShadows = true;
+          r.compile(new THREE.InstancedMesh(geo, fd, 1), this.cam, this.scene);
+          fd.clippingPlanes = null;
+          fd.side = side;
+        }
+      }
+      r.compile(tmp, this.cam, this.scene);
+    } finally {
+      this.section(false);
+      r.setRenderTarget(was);
+    }
+  }
   /** review shots (scripts/review-3d.mjs SECTION=x): a section without a zoomed key */
   debugClip: { at: number; side: 1 | -1 } | null = null;
   /** the view-projection the lines and picks use (world, unmirrored, → clip) */
