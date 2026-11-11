@@ -2,11 +2,12 @@
 // (Web MIDI with hot-plug, computer keyboard, on-screen keyboard).
 
 import { audibleTime, type ClockSource } from './clock.ts';
-import { CC_DYNAMICS, CC_REST, createInstrument, INSTRUMENT_INFO, isBowed, processorUrl, type DesignEntry, type InstrumentId, type Piano, type Stats, type KeySummary } from '@piano-model/engine';
+import { CC_DYNAMICS, CC_REST, createInstrument, foresees, INSTRUMENT_INFO, processorUrl, type DesignEntry, type InstrumentId, type Piano, type Stats, type KeySummary } from '@piano-model/engine';
 import designUrls from 'virtual:piano-designs';
 import { diag } from './diag.ts';
 import { modLines, modValue, PartLevels, volumeRef, type PartLevel } from './expression.ts';
 import type { FileEvent, MidiSong } from './midi-file.ts';
+import { FileKeys } from './file-keys.ts';
 
 // Fetch the start-up material as soon as the page loads, before anyone touches a
 // key: the piano's precomputed filter designs and the worklet script.
@@ -473,6 +474,9 @@ class AudioApp {
    *  it has just forgotten: a note begun in the engine an instant ago is not yet on the keys (they
    *  follow what is heard), and would sound on for ever on a bowed or blown instrument. */
   private fileHeld = new Map<number, number>();
+  /** the file's notes as the single instrument's keys: a pitch the file holds twice at once is let go when
+   *  the last of them ends (file-keys.ts) */
+  private fileKeys = new FileKeys();
   /**
    * An event from a MIDI file, sample-accurate at AudioContext time `at`; the keys on
    * screen follow at (about) the same moment.
@@ -498,10 +502,13 @@ class AudioApp {
       return;
     }
     if (e.kind === 'on') {
+      this.fileKeys.on(e.midi);
       p.noteOn(e.midi, e.vel, at);
       this.fileHeld.set(e.midi, Infinity);
       later(() => this.markFile(e.midi, e.vel, true));
     } else if (e.kind === 'off') {
+      // (another of the file's notes still holds this pitch: the key stays down)
+      if (!this.fileKeys.off(e.midi)) return;
       p.noteOff(e.midi, at);
       if (this.fileHeld.has(e.midi)) this.fileHeld.set(e.midi, at);
       later(() => this.markFile(e.midi, 0, false));
@@ -525,16 +532,18 @@ class AudioApp {
     }
   }
   /**
-   * A file's note to come, said to the bowed instruments that will play it some seconds before it is
-   * scheduled (the player knows the whole file): it will begin at AudioContext time `at` and last
-   * `dur` seconds, its line's automatic dynamics over it `dyn` velocity steps on average. Their bows
-   * are planned with it (engine bowed.ts foresee); nothing sounds, and the note itself is still
-   * scheduled as ever (scheduleFileEvent).
+   * A file's note to come, said to the bowed, wind and brass instruments that will play it some seconds
+   * before it is scheduled (the player knows the whole file): it will begin at AudioContext time `at`
+   * and last `dur` seconds, its line's automatic dynamics over it `dyn` velocity steps on average. The
+   * bows are planned with it (engine bowed.ts foresee), the winds' tongue and breath (engine mono.ts: a
+   * short note is tongued to speak in time, a note joined to the last tongued ahead of it, a short rest
+   * held by the tongue); nothing sounds, and the note itself is still scheduled as ever
+   * (scheduleFileEvent).
    */
   foreseeFileEvent(e: FileEvent & { kind: 'on' }, at: number, dur: number, dyn: number): void {
     if (this.route) return this.route.foresee(e, at, dur, dyn);
     const p = this.piano;
-    if (p && this.ctx && isBowed(p.instrument)) p.foresee(e.midi, e.vel, at, dur, dyn);
+    if (p && this.ctx && foresees(p.instrument)) p.foresee(e.midi, e.vel, at, dur, dyn);
   }
   private markFile(midi: number, velocity: number, on: boolean): void {
     let set = this.down.get(midi);
@@ -573,6 +582,7 @@ class AudioApp {
     const now = this.ctx?.currentTime ?? 0;
     for (const [m, end] of this.fileHeld) if (end > now) this.piano?.noteOff(m);
     this.fileHeld.clear();
+    this.fileKeys.clear();
     this.restLevels();
     this.route?.stopFile();
     for (const [m, set] of [...this.down]) if (set.has('file')) {

@@ -35,9 +35,10 @@ export type PianoEvent =
   | { type: 'control'; cc: number; value: number }
   /** pitch bend in semitones (strings and flute; a struck piano string cannot bend) */
   | { type: 'bend'; value: number }
-  /** bowed strings: a note to come (a file playing), scheduled at the frame it will begin: its
-   *  strength, its length in seconds, and the file's dynamics over it (CC_DYNAMICS steps, on average).
-   *  Nothing sounds; the bow is planned with it (bowed.ts foresee) */
+  /** bowed strings, winds and brass: a note to come (a file playing), scheduled at the frame it will
+   *  begin: its strength, its length in seconds, and the file's dynamics over it (CC_DYNAMICS steps, on
+   *  average). Nothing sounds; the bow is planned with it (bowed.ts foresee), the tongue and the breath
+   *  (mono.ts) */
   | { type: 'foresee'; midi: number; velocity: number; dur: number; dyn?: number };
 
 export interface CoreOptions {

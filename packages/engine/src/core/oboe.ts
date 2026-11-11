@@ -36,6 +36,7 @@
 // the note and the dynamic.
 
 import { Pump } from './pump.ts';
+import { LICK_CLOSE, LICK_MOVE, LICK_REPEAT, MonoKeys, quickRise, Tongue } from './mono.ts';
 import { CC_DYNAMICS, DYN_TAU, type ExciteTrace, type InstrumentCore } from './instrument.ts';
 import type { KeySummary } from '../api/messages.ts';
 import type { PianoEvent } from './piano-core.ts';
@@ -170,6 +171,22 @@ export const OBOE_VOICE: OboeVoice = {
  *  swells, riseLo: the recordings' soft notes do), from MIN_BLOW_PP at velocity 1 to MIN_BLOW at 127 */
 const MIN_BLOW = 0.1;
 const MIN_BLOW_PP = 0.3;
+/** a note known to be short (mono.ts): the breath's rise is at most this share of it (a time constant; the
+ *  others' 1/12 put more of the oboe's notes on their octave: with 1/6, 10 of 720 notes begun from silence
+ *  at 139–700 ms sit on another register, scattered, where the long tone's attack leaves 6 of them and 86
+ *  that do not speak: scripts/winds-midi-fresh.ts) */
+const QUICK_SHARE = 1 / 6;
+/** a note known to be short: the tongue holds the blades shut for at most this share of it */
+const HOLD_SHARE = 0.1;
+/** tongued over the breath (mono.ts): the release's wider opening is this much of a first attack's */
+const LICK_BOOST = 0.5;
+/** What the tongue on the blades takes from the bore while it lies there (dB/s). A note stopped by the tongue
+ *  decays at about the rate of a real bore's resonances, 400 dB/s (Li, Almeida, Smith & Wolfe 2016, JASA
+ *  139, the clarinet); this bore, fitted on held notes, rings on at about 70 dB/s with the reed shut (a
+ *  repeated note fell 1.6 dB under a 30 ms tongue). With 100 more it falls 5.6 dB between its strokes. More
+ *  (200: 10 dB) left the reed more often on the note's octave as it was let go (scripts/winds-midi-bench.ts,
+ *  joined notes across the compass: 9 of 396 against 7; the bassoon's 5 of 480 against 1) */
+const STOP_RATE = 100;
 
 const et = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -232,7 +249,18 @@ export class OboeCore implements InstrumentCore {
   /** the player's intonation, semitones (util.ts playerCents), under any bend */
   private tune = 0;
   private note = 69;
-  private held: number[] = [];
+  /** the keys as one player takes them (mono.ts), and the tongue's stroke on a sounding note */
+  private keys: MonoKeys;
+  private lick = new Tongue();
+  /** the tongue has held the last note stopped over a rest: the next is let go as a first attack is */
+  private afterStop = false;
+  /** a strength taken up once the tongue is down (0: none): tongued over the breath, the air through the
+   *  stroke's first milliseconds is still the last note's, so nothing steps under a sounding tone */
+  private velNext = 0;
+  /** when the tongue last let go (frame), and how much of the release's wider opening that stroke has
+   *  (1: a note from silence) */
+  private tongueAt = 0;
+  private boostNow = 1;
   private velocity = 80;
   private noteStart = 0;
   /** frame until which a tongued note keeps its breath (MIN_BLOW), and a key let go before it */
@@ -275,6 +303,7 @@ export class OboeCore implements InstrumentCore {
     this.dry = !!opts.dry;
     this.params = { breath: 1, embouchure: 1, noise: 1, vibrato: 0.035, room: 0.3, volume: 1, ...opts.params };
     this.V = { ...OBOE_VOICE, ...this.params.voice };
+    this.keys = new MonoKeys(this.fs);
     this.rng = mulberry32(playerSeed(68, opts.player));
     const pv = playerVibrato(opts.player);
     this.vib0 = this.vibPhase = pv.phase;
@@ -338,45 +367,39 @@ export class OboeCore implements InstrumentCore {
 
   schedule(ev: unknown, frame?: number): void {
     const f = frame === undefined ? this.frame : Math.max(this.frame, Math.floor(frame));
+    const fe = ev as { type?: string; midi: number; velocity: number; dur: number };
+    // a note to come is not an event: it is known at once, and nothing happens at its frame (mono.ts)
+    if (fe.type === 'foresee') return this.keys.foresee(f, fe.midi, fe.velocity, fe.dur);
     const q = this.queue;
     let i = q.length;
     while (i > 0 && q[i - 1].frame > f) i--;
     q.splice(i, 0, { frame: f, ev: ev as PianoEvent });
   }
 
+  /** the tongue's withdrawal for a note, samples (tongueRel periods of it) */
+  private tongueOpen(m: number): number {
+    return Math.max(1, Math.round((this.V.tongueRel * this.fs) / et(m)));
+  }
+
+  /** what was foreseen is forgotten (the file paused or stopped) */
+  forget(): void {
+    // (a rest held for a note that will not come now: the breath is let go)
+    if (this.keys.forget()) this.pTarget = 0;
+  }
+
   private apply(ev: PianoEvent | { type: 'control'; cc: number; value: number }): void {
     switch (ev.type) {
-      case 'noteOn': {
-        if (ev.velocity <= 0) return this.apply({ type: 'noteOff', midi: ev.midi });
-        const m = clamp(ev.midi, OBOE_LO, OBOE_HI);
-        const legato = this.pTarget > 0 && this.held.length > 0;
-        this.held = this.held.filter((x) => x !== m);
-        this.held.push(m);
-        this.velocity = ev.velocity;
-        this.setNote(m, !legato && this.level < 1e-3);
-        this.pTarget = 1;
-        this.attackTau = legato ? 0.01 : this.V.riseLo + (this.V.riseHi - this.V.riseLo) * (ev.velocity / 127);
-        if (!legato) {
-          // tongued: the blades held shut while the breath builds, then let go
-          this.tongueN = Math.round(this.V.tongueHold * this.fs);
-          this.tongueLen = Math.max(1, Math.round((this.V.tongueRel * this.fs) / et(m)));
-          this.tongueI = 0;
-          this.vibPhase = this.vib0;
-          this.noteStart = this.frame;
-          this.blowUntil = this.frame + Math.round((MIN_BLOW_PP + (MIN_BLOW - MIN_BLOW_PP) * (ev.velocity / 127)) * this.fs);
-        }
-        this.releasePending = false;
+      // the notes of one instant are taken together (settle)
+      case 'noteOn':
+        if (ev.velocity <= 0) this.keys.off(ev.midi);
+        else this.keys.on(ev.midi, ev.velocity);
         break;
-      }
-      case 'noteOff': {
-        this.held = this.held.filter((x) => x !== ev.midi);
-        if (this.held.length && ev.midi === this.note) this.setNote(this.held[this.held.length - 1], false);
-        else if (!this.held.length && this.sustain < 0.5) this.release();
+      case 'noteOff':
+        this.keys.off(ev.midi);
         break;
-      }
       case 'sustain':
         this.sustain = clamp(ev.value, 0, 1);
-        if (this.sustain < 0.5 && !this.held.length) this.release();
+        this.keys.poke();
         break;
       case 'control':
         // mod wheel, breath controller and expression blow (below 0, CC_REST: back to the note's breath)
@@ -388,13 +411,76 @@ export class OboeCore implements InstrumentCore {
         this.bendFactor = Math.pow(2, -(clamp(ev.value, -12, 12) + this.tune) / 12);
         break;
       case 'allNotesOff':
-        this.held = [];
+        this.keys.clear();
         this.pTarget = 0;
         this.releasePending = false;
         break;
       default:
         break;
     }
+  }
+
+  /** The instant's notes, as one player takes them (mono.ts): a note from silence is tongued, a note over
+   *  a held one slurred, a note joined to the last (or its pitch struck again) tongued over the breath. */
+  private settle(): void {
+    const a = this.keys.settle(this.frame, this.pTarget > 0, this.sustain >= 0.5);
+    if (!a) return;
+    if (a.kind === 'release') return this.release();
+    if (a.kind === 'stop') {
+      // a foreseen note is so near that the breath stays: the tongue stops this one until it begins
+      this.lick.stop(this.fs, a.len * this.fs, this.tongueOpen(this.note));
+      this.releasePending = false;
+      this.afterStop = true;
+      return;
+    }
+    const m = clamp(a.midi, OBOE_LO, OBOE_HI);
+    const was = this.velocity;
+    const vel = a.velocity || this.velocity;
+    this.velocity = vel;
+    this.velNext = 0;
+    if (a.kind === 'retongue' && !(a.struck && this.lick.landed)) {
+      this.velNext = vel;
+      this.velocity = was;
+    }
+    this.releasePending = false;
+    // (a stroke made ahead for a note that came otherwise lets go)
+    if (this.lick.down && !(a.kind === 'retongue' && a.struck)) this.lick.release(this.tongueOpen(m));
+    if (a.kind === 'slur') {
+      this.setNote(m, false);
+      // (back to a note still held: the fingers only)
+      if (a.velocity) {
+        this.pTarget = 1;
+        this.attackTau = 0.01;
+      }
+    } else if (a.kind === 'tongue') {
+      this.setNote(m, this.level < 1e-3);
+      this.pTarget = 1;
+      // a note known to be short speaks within a share of its length (mono.ts); one of unknown length (a
+      // key in the hand) gets the long tone's rise the recordings were fitted on
+      this.attackTau = quickRise(this.V.riseLo + (this.V.riseHi - this.V.riseLo) * (vel / 127), a.len, QUICK_SHARE);
+      // tongued: the blades held shut while the breath builds, then let go
+      this.tongueN = Math.round(quickRise(this.V.tongueHold, a.len, HOLD_SHARE) * this.fs);
+      this.tongueLen = this.tongueOpen(m);
+      this.tongueI = 0;
+      this.vibPhase = this.vib0;
+      this.noteStart = this.frame;
+      this.tongueAt = this.frame;
+      this.boostNow = 1;
+      this.afterStop = false;
+      this.blowUntil = this.frame + Math.round((MIN_BLOW_PP + (MIN_BLOW - MIN_BLOW_PP) * (vel / 127)) * this.fs);
+    } else {
+      // tongued over the breath: the fingers move, the tongue stops the blades and lets them go again
+      const same = m === this.note;
+      this.setNote(m, false);
+      this.pTarget = 1;
+      this.attackTau = Math.min(this.attackTau, quickRise(this.V.riseLo + (this.V.riseHi - this.V.riseLo) * (vel / 127), a.len, QUICK_SHARE));
+      this.tongueAt = this.frame + this.lick.retongue(a.struck, this.fs, same, this.tongueOpen(m));
+      this.boostNow = this.afterStop ? 1 : LICK_BOOST;
+      this.afterStop = false;
+      this.noteStart = this.frame;
+      this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
+    }
+    if (a.tap) this.release();
   }
 
   /** The key is up: stop blowing, but not before the tongued note has had its minimum breath. */
@@ -416,7 +502,7 @@ export class OboeCore implements InstrumentCore {
 
   /** the one note sounding (monophonic: the last held key wins, a release returns to the previous) */
   sounding(): number[] {
-    return this.pTarget > 0 ? [this.note] : [];
+    return this.pTarget > 0 && !this.keys.silent ? [this.note] : [];
   }
 
   allSoundOff(): void {
@@ -424,7 +510,9 @@ export class OboeCore implements InstrumentCore {
     this.clear();
     this.pressure = this.pTarget = 0;
     this.releasePending = false;
-    this.held = [];
+    this.keys.clear();
+    this.keys.forget();
+    this.lick.reset();
     this.room.reset();
     this.eq.reset();
     this.limiter.reset();
@@ -457,6 +545,7 @@ export class OboeCore implements InstrumentCore {
     this.pump.pull(outL, outR, frames, (L, R) => {
       const q = this.queue;
       while (q.length && q[0].frame <= this.frame) this.apply(q.shift()!.ev);
+      this.settle();
       let n = 64;
       if (q.length) n = Math.max(1, Math.min(n, q[0].frame - this.frame));
       if (this.releasePending) {
@@ -464,8 +553,21 @@ export class OboeCore implements InstrumentCore {
         // cut there, as at an event)
         if (this.frame >= this.blowUntil) {
           this.releasePending = false;
-          if (!this.held.length && this.sustain < 0.5) this.pTarget = 0;
+          if (!this.keys.any && this.sustain < 0.5) this.pTarget = 0;
         } else n = Math.min(n, this.blowUntil - this.frame);
+      }
+      // a foreseen note joined to the one sounding: the tongue's stroke is made ahead of it (mono.ts)
+      n = this.keys.plan(this.frame, n, this.pTarget > 0 && !this.releasePending);
+      if (this.keys.overdue) {
+        // (the note a rest was held for never came: the breath is let go, behind the tongue if it is down)
+        this.keys.overdue = false;
+        this.pTarget = 0;
+        if (this.lick.down) this.pressure = 0;
+      }
+      if (this.keys.strokeNow >= 0) {
+        this.lick.ahead(this.fs, this.keys.strokeNow - this.frame, this.tongueOpen(this.note));
+        // (the fingers move under the tongue, as a player's do: the reed is let go on the new note's tube)
+        this.setNote(clamp(this.keys.comingMidi, OBOE_LO, OBOE_HI), false);
       }
       this.render(n);
       for (let t = 0; t < n; t++) {
@@ -482,6 +584,10 @@ export class OboeCore implements InstrumentCore {
   }
 
   private render(n: number): void {
+    if (this.velNext && this.lick.landed) {
+      this.velocity = this.velNext;
+      this.velNext = 0;
+    }
     const fs = this.fs;
     const dt = n / fs;
     const P = this.params;
@@ -508,7 +614,8 @@ export class OboeCore implements InstrumentCore {
     const gamma = gNote * this.pressure * vib * P.breath * this.expression;
     this.gammaNow = gamma;
     // the tongue's release: a transient wider opening (the lips not yet settled), decaying
-    const zeta = this.zetaNote * Math.sqrt(open) * P.embouchure * (1 + V.attackBoost * Math.exp(-age / V.attackTau));
+    const ageT = Math.max(0, this.frame - this.tongueAt) / fs;
+    const zeta = this.zetaNote * Math.sqrt(open) * P.embouchure * (1 + V.attackBoost * this.boostNow * Math.exp(-ageT / V.attackTau));
     // the radiation's corner for the note and the dynamic, written into its section in place (only when
     // it moves: a swell's glide)
     const lpF = Math.min(0.45 * fs, this.lpNote * Math.pow(2, V.lpDyn * (vc - 1)));
@@ -536,6 +643,10 @@ export class OboeCore implements InstrumentCore {
     const oR = this.oR;
     let peak = 0;
     let s = this.sPrev;
+    // a stroke of the tongue on the sounding reed (mono.ts): the flow through it, and what it absorbs
+    const lick = this.lick;
+    let licking = lick.busy;
+    const stopLoss = 1 - Math.pow(10, -STOP_RATE / (20 * et(this.note)));
     for (let t = 0; t < n; t++) {
       const w = this.frame + t;
       this.D1 += (DT - this.D1) * ease;
@@ -574,6 +685,13 @@ export class OboeCore implements InstrumentCore {
       } else if (this.tongueI < this.tongueLen) {
         tg = 0.5 - 0.5 * Math.cos((Math.PI * this.tongueI) / this.tongueLen);
         this.tongueI++;
+      }
+      let damp = 1;
+      if (licking) {
+        const o = lick.next();
+        tg *= o;
+        damp = 1 - stopLoss * (1 - o);
+        licking = lick.busy;
       }
       if (tg === 0) {
         Dl = D0;
@@ -614,8 +732,8 @@ export class OboeCore implements InstrumentCore {
       if (tg < 1) u *= tg;
       if (nz || nzF) u += (nz * u + (u !== 0 ? nzF : 0)) * (this.rng() * 2 - 1);
       const p = a1 + a2 + 0.5 * u;
-      longB[w & mask] = p - a1;
-      apexB[w & mask] = p - a2;
+      longB[w & mask] = (p - a1) * damp;
+      apexB[w & mask] = (p - a2) * damp;
       // radiation: the flow leaving the open end (incident minus reflected), differentiated
       const flow = e - a1;
       const out = flow - this.outPrev;

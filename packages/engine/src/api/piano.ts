@@ -64,10 +64,11 @@ export interface Piano {
   readonly ready: Promise<void>;
   noteOn(midi: number, velocity?: number, time?: number): void;
   noteOff(midi: number, time?: number): void;
-  /** bowed strings: a note that will begin at `time` (AudioContext seconds) and last `dur` seconds,
-   *  said ahead of its noteOn (4 s or more: BOW_LOOK) by a player that knows what is coming, so the
-   *  bow is planned like a player's who reads the part (`dyn`: the dynamics over the note, CC_DYNAMICS
-   *  steps on average). The other instruments ignore it. */
+  /** bowed strings, winds and brass: a note that will begin at `time` (AudioContext seconds) and last
+   *  `dur` seconds, said ahead of its noteOn (4 s or more: BOW_LOOK) by a player that knows what is
+   *  coming, so the bow is planned like a player's who reads the part (`dyn`: the dynamics over the
+   *  note, CC_DYNAMICS steps on average), and a wind's tongue and breath (a short note tongued to speak
+   *  in time, a note joined to the last tongued ahead of it). The other instruments ignore it. */
   foresee(midi: number, velocity: number, time: number, dur: number, dyn?: number): void;
   /** CC64, continuous 0..1 (half-pedalling supported) */
   sustain(value: number | boolean, time?: number): void;
