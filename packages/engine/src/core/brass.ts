@@ -7,7 +7,7 @@
 // instrument. The bell reflects the lows and radiates the highs.
 
 import { Pump } from './pump.ts';
-import { MonoKeys, Tongue } from './mono.ts';
+import { LICK_CLOSE, MonoKeys, Tongue } from './mono.ts';
 import type { KeySummary } from '../api/messages.ts';
 import { CC_DYNAMICS, DYN_TAU, type ExciteTrace, type InstrumentCore } from './instrument.ts';
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
@@ -71,6 +71,11 @@ const MIN_BLOW = 0.1;
  *  transient as they are set buzzing again is this much of a first attack's */
 const LICK_OPEN = 0.003;
 const LICK_BOOST = 0.5;
+/** valves and lips sent ahead to a note that has not come this long after it was due (s) go back */
+const FINGER_LATE = 0.03;
+/** after a rest this long (s) held by the tongue, a note on the last one's partial is kicked too: the bore's
+ *  standing wave (130 dB/s with the lips shut) is 5 dB down by then and falling */
+const REST_KICK = 0.04;
 /** dynamic brightness: output low-pass 18 kHz at ff falling as exp(−k·(0.93 − p)) towards pp (0: off) */
 const TILT_K = 0;
 /** spectral enrichment: a two-pole low-pass at N·f0, N growing with the blowing pressure (0: off) */
@@ -163,6 +168,8 @@ export class TrumpetCore implements InstrumentCore {
   private lick = new Tongue();
   /** the tongue has held the last note stopped over a rest: the next is let go as a first attack is */
   private afterStop = false;
+  /** …and for how long it has (s) */
+  private stopLen = 0;
   /** a strength taken up once the tongue is down (0: none): tongued over the breath, the air through the
    *  stroke's first milliseconds is still the last note's, so nothing steps under a sounding tone */
   private velNext = 0;
@@ -172,6 +179,14 @@ export class TrumpetCore implements InstrumentCore {
   private boostNow = 1;
   /** the lips are kicked as the stroke under way lets go */
   private lickKick = false;
+  /** the lips are kicked with the next sample (a stroke made ahead of its note lets go at the note) */
+  private kickNow = false;
+  /** Under a stroke made ahead of a note on another pitch, and over a rest the tongue holds, the valves and
+   *  the lips go to the note to come once the tongue is down: when (frame; −1: not), to which note, and the
+   *  frame of the note they went for (−1: none) */
+  private fingerAt = -1;
+  private fingerNote = 70;
+  private fingeredFor = -1;
   private velocity = 80;
   private eq = new BiquadChain();
   private room: Room;
@@ -220,13 +235,30 @@ export class TrumpetCore implements InstrumentCore {
     this.room.configure(this.params.room, this.params.seat);
   }
 
-  private setNote(m: number, immediate: boolean): void {
-    const { partial, lower } = trumpetFingering(m);
+  /** the valves and the lips set for a note: where the bore's length and the lips' tension are heading */
+  private finger(m: number): void {
+    const { partial } = trumpetFingering(m);
     // the bore's round trip is one period of its fundamental; the note is its n-th partial
     // the lips pull the pitch above the bore's mode; a measured table lengthens the bore
     // (and lowers the lips) so each note plays at equal temperament
     const c = Math.pow(2, (TUNING[m] ?? 0) / 1200);
     this.Dtarget = ((partial * this.fs) / et(m)) * c;
+    this.lipFTarget = et(m) / c;
+  }
+
+  /** The valves and the lips go to a note to come (it begins at frame `at`) once the tongue is down: under a
+   *  stroke made ahead of it, or over a rest the tongue holds. So the tongue lets go onto a bore and lips
+   *  that are the note's, where it let go onto the last note's and both moved under the new note's first
+   *  20 ms. The note sounding stays `note` until its own beat. */
+  private fingerAhead(midi: number, at: number): void {
+    this.fingerAt = this.frame + Math.round(LICK_CLOSE * this.fs);
+    this.fingerNote = clamp(midi, 52, 86);
+    this.fingeredFor = at;
+  }
+
+  private setNote(m: number, immediate: boolean): void {
+    const { lower } = trumpetFingering(m);
+    this.finger(m);
     if (immediate) {
       // A note from near silence takes its length at once; what is left of the last note's ring in the bore
       // is stretched to the new length, so that the read goes on from where it was. Set in one sample over that
@@ -236,7 +268,6 @@ export class TrumpetCore implements InstrumentCore {
       if (this.level > 0 && this.D !== this.Dtarget) this.restretch(this.D, this.Dtarget);
       this.D = this.Dtarget;
     }
-    this.lipFTarget = et(m) / c;
     if (immediate) this.lipF = this.lipFTarget;
     this.note = m;
     const fb = et(PEDAL - lower);
@@ -317,17 +348,28 @@ export class TrumpetCore implements InstrumentCore {
   private settle(): void {
     const a = this.keys.settle(this.frame, this.pTarget > 0, this.sustain >= 0.5);
     if (!a) return;
-    if (a.kind === 'release') return this.release();
+    // (the valves and lips sent ahead to a note that came otherwise: they go where this one asks)
+    const fingered = this.fingeredFor >= 0;
+    this.fingeredFor = -1;
+    this.fingerAt = -1;
+    if (a.kind === 'release') {
+      if (fingered) this.finger(this.note);
+      return this.release();
+    }
     if (a.kind === 'stop') {
       // a foreseen note is so near that the breath stays: the tongue stops this one until it begins
       this.lick.stop(this.fs, a.len * this.fs, LICK_OPEN * this.fs);
       this.releasePending = false;
       this.afterStop = true;
+      this.stopLen = a.len;
+      // (and the valves and the lips go to it during the rest, under the tongue)
+      this.fingerAhead(a.midi, this.frame + Math.round(a.len * this.fs));
       return;
     }
     const m = clamp(a.midi, 52, 86);
     // (a stroke made ahead for a note that came otherwise lets go)
-    if (this.lick.down && !(a.kind === 'retongue' && a.struck)) this.lick.release(LICK_OPEN * this.fs);
+    const letGo = this.lick.down && !(a.kind === 'retongue' && a.struck);
+    if (letGo) this.lick.release(LICK_OPEN * this.fs);
     if (a.kind === 'slur' && !a.velocity) {
       // back to a note still held: the valves and the lips only
       this.setNote(m, false);
@@ -343,15 +385,26 @@ export class TrumpetCore implements InstrumentCore {
     }
     this.releasePending = false;
     const XA = (globalThis as { __tpt?: Record<string, number> }).__tpt ?? (KNOBS ??= knobs());
+    // (the partial of the bore the last note is on: the lips have a new one to find if this note's is another)
+    const leap = trumpetFingering(this.note).partial !== trumpetFingering(m).partial;
     if (a.kind === 'slur') {
       this.setNote(m, false);
       this.pTarget = 1;
       this.attackTau = 0.01 * (XA.att ?? 1);
+      if (letGo && fingered && leap) {
+        // (a file's notes that overlap by less than the tongue can tell: the stroke was made, the valves and
+        // lips went under it, and it lets go now as the note comes held over the last: kicked as a note
+        // joined to the last is)
+        this.kickNow = true;
+        this.boostNow = LICK_BOOST;
+        this.tongueAt = this.frame;
+      }
     } else if (a.kind === 'tongue') {
       this.setNote(m, this.level < 1e-3);
       this.pTarget = 1;
       this.lick.reset();
       this.lickKick = false;
+      this.kickNow = false;
       // tongued attacks are quick; louder ones quicker
       this.attackTau = (0.03 - 0.02 * (vel / 127)) * (XA.att ?? 1);
       // the tongue releases the lips: they start from a kick, not from rest
@@ -368,10 +421,26 @@ export class TrumpetCore implements InstrumentCore {
       this.setNote(m, false);
       this.pTarget = 1;
       this.attackTau = Math.min(this.attackTau, (0.03 - 0.02 * (vel / 127)) * (XA.att ?? 1));
-      this.tongueAt = this.frame + this.lick.retongue(a.struck, this.fs, same, LICK_OPEN * this.fs);
+      const wait = this.lick.retongue(a.struck, this.fs, same, LICK_OPEN * this.fs);
+      this.tongueAt = this.frame + wait;
       this.boostNow = this.afterStop ? 1 : LICK_BOOST;
+      // The lips are kicked as the tongue lets go. A stroke made ahead of its note (a file playing) lets go
+      // now, with the note: the kick is given with the next sample. It never was: the stroke under way was
+      // let go from here, and the kick waited for the tongue to come off by itself, so a note joined to
+      // another on a new partial of the bore had to grow out of the last note's ring (the Fifth's C4 after G3
+      // came within 6 dB of its level 65–82 ms after its beat; with the kick, and the valves and lips moved
+      // under the stroke, 30–45: scripts/trumpet-retongue.ts). Only where the lips have a new partial to
+      // find: on the same one (a pitch struck again, the valves alone) the standing wave outlives the stroke,
+      // is carried over by the valves, and sets the lips buzzing again by itself within a round trip of the
+      // bore or two; a kick against it throws them out of step with it (measured both ways: E3–C4 repeated,
+      // the worst note back after 55 ms without the kick, 132 ms with it; steps in C♯4–C5, 12.5 ms median
+      // without, 22.5–27.5 with). After a rest of REST_KICK or more that the tongue held, that wave is down and
+      // any note is kicked, as a first one is: a staccato G3 repeated over 70 ms rests is 6 dB under the first
+      // note 10–40 ms after its beat, 19 dB without; over rests of a few ms (Toward Morning) the wave is
+      // whole, and kicked such notes spoke in 19 ms for 12.
+      this.lickKick = wait > 0;
+      this.kickNow = wait === 0 && (leap || (this.afterStop && this.stopLen >= REST_KICK));
       this.afterStop = false;
-      this.lickKick = true;
       this.noteStart = this.frame;
       this.blowUntil = this.frame + Math.round((XA.minBlow ?? MIN_BLOW) * this.fs);
     }
@@ -406,6 +475,8 @@ export class TrumpetCore implements InstrumentCore {
     this.keys.forget();
     this.lick.reset();
     this.lickKick = false;
+    this.kickNow = false;
+    this.fingerAt = this.fingeredFor = -1;
     this.y1 = this.y2 = this.dcX = this.dcY = this.lp = 0;
     this.room.reset();
     this.eq.reset();
@@ -447,7 +518,21 @@ export class TrumpetCore implements InstrumentCore {
         this.pTarget = 0;
         if (this.lick.down) this.pressure = 0;
       }
-      if (this.keys.strokeNow >= 0) this.lick.ahead(this.fs, this.keys.strokeNow - this.frame, LICK_OPEN * this.fs);
+      if (this.keys.strokeNow >= 0) {
+        this.lick.ahead(this.fs, this.keys.strokeNow - this.frame, LICK_OPEN * this.fs);
+        // (to a note on another pitch: the valves and the lips move under the stroke, as a player's do)
+        if (!this.keys.comingSame) this.fingerAhead(this.keys.comingMidi, this.keys.strokeNow);
+      }
+      if (this.fingerAt >= 0) {
+        if (this.frame >= this.fingerAt) {
+          this.fingerAt = -1;
+          this.finger(this.fingerNote);
+        } else n = Math.min(n, this.fingerAt - this.frame);
+      } else if (this.fingeredFor >= 0 && this.frame > this.fingeredFor + Math.round(FINGER_LATE * this.fs)) {
+        // (the note they went for never came: back to the note that is sounding)
+        this.fingeredFor = -1;
+        this.finger(this.note);
+      }
       this.render(n);
       for (let t = 0; t < n; t++) {
         L[t] = this.oL[t];
@@ -533,6 +618,11 @@ export class TrumpetCore implements InstrumentCore {
     // a stroke of the tongue on the sounding note (mono.ts): the air it lets through to the lips
     const lick = this.lick;
     let licking = lick.busy;
+    if (this.kickNow) {
+      // (a stroke made ahead lets go with this sample: the lips are kicked, as where it lets go by itself)
+      this.kickNow = false;
+      this.y1 += (X.kick ?? TONGUE_KICK) * this.boostNow * (0.5 + 0.5 * v01);
+    }
     for (let t = 0; t < n; t++) {
       this.D += (DT - this.D) * 0.003;
       const w = this.frame + t;

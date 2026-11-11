@@ -58,7 +58,9 @@ export function chart(spec: ChartSpec): HTMLElement {
     const t = ylog ? (Math.log(v) - Math.log(spec.y.min)) / (Math.log(spec.y.max) - Math.log(spec.y.min)) : (v - spec.y.min) / (spec.y.max - spec.y.min);
     return m.t + ih * (1 - Math.max(-0.02, Math.min(1.02, t)));
   };
-  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img' });
+  // (a picture a keyboard can stop on, the arrow keys reading its points out: it says what it is, its
+  // title where it has one and what its two axes measure)
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${spec.title ? `${spec.title}: ` : 'Chart: '}${spec.y.label} against ${spec.x.label}` });
   if (spec.title) {
     const t = el('text', { x: m.l, y: 13, class: 'panel-title' });
     t.textContent = spec.title;

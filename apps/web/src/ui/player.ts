@@ -249,6 +249,9 @@ export class MidiPlayer {
     const w = m.offsetWidth;
     m.style.left = `${Math.max(6 - pr.left, Math.min(window.innerWidth - 6 - pr.left - w, r.left + r.width / 2 - pr.left - w / 2))}px`;
     m.style.top = `${r.bottom - pr.top + 4}px`;
+    // (never past the window's bottom: on a phone held sideways its last pieces were out of reach; it
+    // scrolls in its own box there)
+    m.style.maxHeight = `${Math.max(120, window.innerHeight - (r.bottom + 4) - 6)}px`;
     this.pieces = m;
     this.piecesBtn.setAttribute('aria-expanded', 'true');
     (items[0] as HTMLElement | undefined)?.focus();

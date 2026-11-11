@@ -1,0 +1,37 @@
+{
+ "engine": "main at a561109 (packages/engine/src/core/index.ts)",
+ "bassoon-named-before": [
+  "0.00 s: C♯3 v80 (hand, player 0, start 0): on its fundamental",
+  "1.85 s: C♯3 v80 (hand, player 1, start 5): on regime 2",
+  "3.77 s: D3 v80 (hand, player 0, start 0): on its fundamental",
+  "5.62 s: D3 v80 (hand, player 0, start 1): on regime 2",
+  "7.48 s: B2 v80 (hand, player 0, start 1): on its fundamental",
+  "9.35 s: B2 v80 (hand, player 0, start 0): on regime 2"
+ ],
+ "oboe-named-before": [
+  "0.00 s: G4 v80 (hand, player 0, start 1): on its fundamental",
+  "1.86 s: G4 v80 (hand, player 0, start 0): on regime 2",
+  "3.71 s: C5 v80 (up, player 0, start 0): on its fundamental",
+  "5.21 s: C5 v80 (up, player 0, start 6): on regime 2",
+  "6.80 s: D6 v80 (hand, player 0, start 0): on its fundamental",
+  "8.65 s: D6 v80 (hand, player 0, start 3): on regime 2"
+ ],
+ "bassoon-passage-before": {
+  "piece": "Beethoven 5 I, bassoon I",
+  "player": 0,
+  "from": 158.32,
+  "wrongNotesPerPlayer": [
+   3,
+   4,
+   1,
+   5,
+   0,
+   1
+  ],
+  "wrong": [
+   "4.00 s: E♭3 on regime 2",
+   "6.22 s: D3 on regime 2",
+   "8.17 s: E♭3 on regime 2"
+  ]
+ }
+}

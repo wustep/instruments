@@ -99,7 +99,8 @@ interface BowedDesign {
    *  Cremer, The Physics of the Violin, ch. 9) shape the "bridge hill" and the steep fall
    *  above it. `radRef` is the frequency (Hz) at which the derivative has unit gain. */
   radiation?: { radRef: number; bridge: [number, number][]; statRad: number };
-  /** Coupling of an idle open string to the bridge motion the bowed string drives (cello only).
+  /** Coupling of an idle open string to the bridge motion the bowed string drives (the cello, the
+   *  bass and, since audio audit 3, the viola: see VIOLA; absent, the violin: 1, the round-2 junction).
    *  A one-point, one-degree-of-freedom bridge lets an undamped open string pin the bridge at its
    *  harmonics (a dynamic absorber): the octave above each open string came out 5–11 dB weaker
    *  than its neighbours and pulled up to 15 ¢ off pitch, which the Iowa cello does not show.
@@ -310,6 +311,21 @@ const VIOLA: BowedDesign = {
   outputGain: 80,
   defaults: { bowPosition: 0.113, bowPressure: 0.32, vibrato: 12, bodyDamping: 1, room: 0.35, volume: 1, sympathetic: true },
   seed: 22,
+  // Audio audit 3: the idle open strings loosely coupled, as the cello's and the bass's. Fully coupled, an
+  // open string in tune with the note bowed beside it pinned the bridge at that partial and rang on for
+  // seconds once the bow had left: G4 (the open G's octave) and C5 (the open C's fourth partial) played
+  // 9–11 dB under the Iowa viola's at mf (D5 so far under that no pitch was found in it), and the bands,
+  // fitted around them, left A4 and B4 as far under, so that A♯4, level with the recording's, stood
+  // 9.8 dB over its neighbours (the recording's 3.3 dB). After such a note the sound took 1.73 s to fall
+  // from 10 to 30 dB under the held level, the recording's 0.35 s (scripts/strings-tails.ts: the median
+  // of 8 recorded notes, mf and ff). The ratio is the one whose tails are the recording's: 0.2 gives
+  // 0.32 s (0.3: 0.52 s, 0.5: 1.77 s; the cello's, fitted, is 0.306). Bands refitted with it
+  // (scripts/fit-bodies.ts viola --levels 6 --keep-speed --keep-hf --iters 4): A♯4 5.3 dB over its
+  // neighbours, model − recording over the recorded notes 5.21 → 4.06 dB RMS at mf and 4.17 → 3.45 at ff
+  // (the held-out notes 6.14 → 4.45 and 4.90 → 3.59: scripts/strings-levels.ts). Judge: NO CLEAR CHANGE
+  // (held-out 4.42 → 4.29, Δ +0.13 ± 0.18; harmonics 10.06 → 9.59 dB, attack 1.02 → 0.69 oct). The violin
+  // keeps the full coupling: see artifacts/round3/audio-audit-3/strings/NOTES.md.
+  idleCoupling: 0.2,
 };
 
 const CELLO: BowedDesign = {

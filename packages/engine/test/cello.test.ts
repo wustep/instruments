@@ -25,7 +25,10 @@ describe('cello (v2)', () => {
     for (const id of ['violin', 'viola']) {
       expect(BOWED[id].radiation, id).toBeUndefined();
       expect(BOWED[id].torsion, id).toBeUndefined();
-      expect(BOWED[id].idleCoupling, id).toBeUndefined();
+      // (audio audit 3: the viola's idle open strings are loosely coupled too, by the ratio whose release
+      // tails are the recording's: scripts/strings-tails.ts; the violin's are as they were)
+      if (id === 'violin') expect(BOWED[id].idleCoupling, id).toBeUndefined();
+      else expect(BOWED[id].idleCoupling, id).toBe(0.2);
       expect(BOWED[id].bowWidth, id).toBeUndefined();
       // (NEXT5: the violin's and viola's rosin noise is fitted to their recordings now, as the cello's
       // was, and the viola's attack: see bowed-fit.json; their bodies are design.body)

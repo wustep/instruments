@@ -47,7 +47,7 @@
 // with its F attachment (13.9 mm, 8½"), the bass in B♭ with F and G♭ valves (14.3 mm, 9½").
 
 import { Pump } from './pump.ts';
-import { MonoKeys, quickness, quickRise, Tongue } from './mono.ts';
+import { MonoKeys, QUICK_FULL, quickness, quickRise, Tongue } from './mono.ts';
 import type { KeySummary } from '../api/messages.ts';
 import { CC_DYNAMICS, DYN_TAU, PLAYBACK_DB, type ExciteTrace, type InstrumentCore } from './instrument.ts';
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
@@ -332,6 +332,23 @@ const ONSET_TAU = 0.012;
 /** the slide's top speed (m/s) and its smoothing (s) */
 const SLIDE_SPEED = 4;
 const SLIDE_TAU = 0.012;
+/** A valve's turn: it begins VALVE_LAG after the soft tongue (s: the tongue is down by then, its dip has a
+ *  6 ms time constant), and its loop is in or out of the tube with the time constant VALVE_TAU (s): through
+ *  in VALVE_TIME. It was moved as the slide is: the F attachment's 0.9 m of tube came in at the slide's
+ *  4 m/s, 115 ms and more, under a soft tongue as long (B♭2 to C3 slurred: C3 lost at every length under
+ *  300 ms, scripts/trombone-slurs.ts). Turned at once and faster (no lag, 5 ms), a sample of the turn stepped
+ *  5.0 times the steps around it in a run of thirds; so, 2.9 (before: 3.5 in the same runs). */
+const VALVE_LAG = 0.012;
+const VALVE_TAU = 0.008;
+const VALVE_TIME = VALVE_LAG + 3 * VALVE_TAU;
+/** a file playing: how far ahead the note to come is looked for, for the slide (s; the longest travel, first
+ *  position to seventh, takes 0.18 s), and how long after its beat a slide sent ahead waits for a note that
+ *  does not come before it goes back (s) */
+const SLIDE_AHEAD = 0.25;
+const SLIDE_LATE = 0.03;
+/** …and only where the note playing keeps this much of its own before the slide leaves it (s): in a run
+ *  faster than that the slide sets off on the beat, as it did */
+const MIN_OWN = 0.035;
 /** the phase table's resolution (Hz) and reach */
 const PH_DF = 1;
 const PH_FMAX = 1700;
@@ -390,6 +407,36 @@ export class TromboneCore implements InstrumentCore {
   private D = 400;
   private Dtarget = 400;
   private Dvel = 0;
+  /** what a valve that is turning has still to add to the round trip (samples; 0: none is) */
+  private valveLeft = 0;
+  /** …and how long until it begins to turn (samples) */
+  private valveWait = 0;
+  /** what the round trip is heading for: the side (how far its valves lower the tube, semitones) and the
+   *  slide's place (m out); how far the slide was last sent (m) and whether a valve turned with it */
+  private sideAsk = 0;
+  private slideAsk = 0;
+  private slideMove = 0;
+  private valveTurn = false;
+  /** the loop the last aim turned in (samples of round trip; 0: no valve turned), and what of a valve's loop
+   *  a slide sent ahead has turned in that the note playing's side does not have (for the pictures) */
+  private loopTurn = 0;
+  private aheadLoop = 0;
+  /** `weigh`'s answers */
+  private wD = 400;
+  private wLoop = 0;
+  private wMove = 0;
+  private wOut = 0;
+  /** a file playing: the note to come the slide was last weighed for (its frame; −1: none), when it is to
+   *  set off for it (frame; −1: it need not), its fingering; and the frame of the note it has set off for
+   *  (−1: none) */
+  private upAt = -1;
+  private upFrom = -1;
+  private upStart = -1;
+  private upNote = 0;
+  private upFg: TromboneFingering = tromboneFingering(53);
+  private aheadFor = -1;
+  /** the beat of the note playing (frame) */
+  private beatAt = 0;
   /** the slide's first position on this side (samples of round trip), for the pictures */
   private Dopen = 400;
   /** the rim's reflection state, the wall's one-pole state */
@@ -753,25 +800,131 @@ export class TromboneCore implements InstrumentCore {
     for (let k = 0; k < 16; k++) this.modeFreqs[k] = (k + 1) * fb;
   }
 
-  /** where the slide goes for the note (and the wheel, and the player's intonation), and the lips' tension */
+  /**
+   * What a note's tube asks of the slide and the valves, from where they are heading now (into wD, wLoop,
+   * wMove, wOut): the cylinder's round trip for it, the loop a valve has to turn in or out (samples of round
+   * trip; 0: none turns) and how far the slide has to go (m). Where a valve's loop and the slide's travel
+   * oppose each other (C3 on the F valve in first position to C♯3 in fifth: the loop out, the slide 36 cm
+   * out), what cancels is not moved at all: the tube is reached the short way, as a player takes such a pair
+   * on the slide alone (C3 in sixth). What is left of the loop is the valve's, the rest the slide's.
+   */
+  private weigh(m: number, fg: TromboneFingering): void {
+    const c = this.tuningCorrection(m) / Math.pow(2, (this.bend + this.tune) / 12);
+    const f = et(m) / c;
+    // a pedal note is played on the resonances above it: tune the 2nd to its octave
+    const n = Math.max(2, fg.partial);
+    const D = Math.max(8, this.roundTrip(f * (n / fg.partial), n));
+    const out = tromboneSlideOut(fg, this.size);
+    let loop = 0;
+    let slide = D - this.Dtarget;
+    if (fg.sideLower !== this.sideAsk) {
+      // (the slide's own part by its place; what of the change is not the slide's is the valve's loop)
+      slide = ((out - this.slideAsk) * 4 * this.fs) / C_AIR;
+      loop = D - this.Dtarget - slide;
+      if (loop * slide < 0) {
+        const both = Math.min(Math.abs(loop), Math.abs(slide));
+        loop -= Math.sign(loop) * both;
+        slide -= Math.sign(slide) * both;
+      }
+    }
+    this.wD = D;
+    this.wLoop = loop;
+    this.wMove = Math.abs(slide) * (C_AIR / (4 * this.fs));
+    this.wOut = out;
+  }
+
+  /** The tube set for a note (and the wheel, and the player's intonation): where the cylinder's round trip
+   *  is heading. The slide travels there at a hand's speed; a valve's loop is in or out in a few ms. */
+  private aim(m: number, fg: TromboneFingering, immediate: boolean): void {
+    this.weigh(m, fg);
+    this.Dtarget = this.wD;
+    this.loopTurn = this.wLoop;
+    this.slideMove = this.wMove;
+    this.valveTurn = this.wLoop !== 0;
+    if (immediate) {
+      this.D = this.Dtarget;
+      this.Dvel = 0;
+      this.valveLeft = 0;
+    } else if (this.wLoop !== 0) {
+      // (the valve turns once the soft tongue is down)
+      if (this.valveLeft === 0) this.valveWait = Math.round(VALVE_LAG * this.fs);
+      this.valveLeft += this.wLoop;
+    }
+    this.sideAsk = fg.sideLower;
+    this.slideAsk = this.wOut;
+    this.setWall(this.Dtarget);
+  }
+
+  /** where the slide goes for the note, and the lips' tension */
   private retarget(immediate: boolean): void {
     const m = this.note;
     const fg = this.fingering;
     const c = this.tuningCorrection(m) / Math.pow(2, (this.bend + this.tune) / 12);
     const f = et(m) / c;
-    // a pedal note is played on the resonances above it: tune the 2nd to its octave
     const n = Math.max(2, fg.partial);
-    this.Dtarget = Math.max(8, this.roundTrip(f * (n / fg.partial), n));
+    this.aim(m, fg, immediate);
+    this.aheadLoop = 0;
     // first position on this side: the same partial with the slide closed (the side's open note)
     const fOpen = (et(this.B.pedal - fg.sideLower) * fg.partial) / this.tuningCorrection(m);
     this.Dopen = this.roundTrip(fOpen * (n / fg.partial), n);
-    if (immediate) {
-      this.D = this.Dtarget;
-      this.Dvel = 0;
-    }
-    this.setWall(this.Dtarget);
     this.lipFTarget = f;
     if (immediate) this.lipF = f * Math.pow(2, -this.V.lipBelow / 12);
+  }
+
+  /** how long the slide takes over `move` m (s; at least 25 ms, or a valve's turn); 0: it stays (the lips
+   *  alone) */
+  private travel(move: number, valve: boolean): number {
+    if (move < 0.004 && !valve) return 0;
+    return Math.max(valve ? VALVE_TIME : 0.025, move / SLIDE_SPEED + 2 * SLIDE_TAU);
+  }
+
+  /**
+   * A file playing says the note to come (mono.ts `upcoming`): the slide sets off for it ahead of its beat,
+   * by its travel, and is there on the beat, the last note that much shorter under the soft tongue, as a
+   * player's is. It set off on the beat: a note a third or more away on the slide spent its first 65–90 ms
+   * under the soft tongue with the tube still moving, and in a run of 139 ms notes never spoke. Before a
+   * block of up to `n` samples; returns the block's length (cut where the slide is to set off).
+   */
+  private slideAhead(n: number): number {
+    if (this.aheadFor >= 0) {
+      // (the note it set off for has not come: back to the note that is sounding)
+      if (this.frame > this.aheadFor + Math.round(SLIDE_LATE * this.fs)) {
+        this.aheadFor = -1;
+        this.upAt = -1;
+        this.retarget(false);
+      }
+      return n;
+    }
+    if (!(this.pTarget > 0) || this.releasePending || this.portamento || this.params.gliss >= 0.5) return n;
+    const at = this.keys.upcoming(this.frame, SLIDE_AHEAD);
+    if (at < 0) return n;
+    if (at !== this.upAt || this.note !== this.upFrom) {
+      // (weighed once for each note to come)
+      this.upAt = at;
+      this.upFrom = this.note;
+      this.upStart = -1;
+      const m = this.noteOf(this.keys.upMidi);
+      if (m !== this.note && this.keys.upSlur) {
+        const fg = tromboneFingering(m, this.size);
+        this.weigh(m, fg);
+        const t = this.travel(this.wMove, this.wLoop !== 0);
+        if (t > 0 && t <= (at - this.beatAt) / this.fs - MIN_OWN) {
+          this.upNote = m;
+          this.upFg = fg;
+          this.upStart = at - Math.round(t * this.fs);
+        }
+      }
+    }
+    if (this.upStart < 0) return n;
+    if (this.upStart > this.frame) return Math.min(n, this.upStart - this.frame);
+    // it sets off: the tube only (the lips stay on the note sounding), under the soft tongue until the beat,
+    // or until it is there if the note is nearer than its travel
+    this.aheadFor = at;
+    this.aim(this.upNote, this.upFg, false);
+    this.aheadLoop += this.loopTurn;
+    this.legatoUntil = Math.max(this.legatoUntil, at, this.frame + Math.round(this.travel(this.slideMove, this.valveTurn) * this.fs));
+    this.upStart = -1;
+    return n;
   }
 
   schedule(ev: unknown, frame?: number): void {
@@ -835,7 +988,14 @@ export class TromboneCore implements InstrumentCore {
   private settle(): void {
     const a = this.keys.settle(this.frame, this.pTarget > 0, this.sustain >= 0.5);
     if (!a) return;
-    if (a.kind === 'release') return this.release();
+    // (a slide sent ahead: the note has come, or another has, and the slide goes where this one asks)
+    const ahead = this.aheadFor >= 0;
+    this.aheadFor = -1;
+    this.upAt = -1;
+    if (a.kind === 'release') {
+      if (ahead) this.retarget(false);
+      return this.release();
+    }
     if (a.kind === 'stop') {
       // a foreseen note is so near that the breath stays: the tongue stops this one until it begins
       this.lick.stop(this.fs, a.len * this.fs, this.tongueOpen(this.note));
@@ -847,6 +1007,7 @@ export class TromboneCore implements InstrumentCore {
       return;
     }
     const m = a.midi;
+    this.beatAt = this.frame;
     const was = this.velocity;
     const vel = a.velocity || this.velocity;
     this.velocity = vel;
@@ -856,8 +1017,6 @@ export class TromboneCore implements InstrumentCore {
       this.velocity = was;
     }
     this.releasePending = false;
-    const before = this.fingering;
-    const D0 = this.Dtarget;
     // (a stroke made ahead for a note that came otherwise lets go)
     if (this.lick.down && !(a.kind === 'retongue' && a.struck)) this.lick.release(this.tongueOpen(this.note));
     if (a.kind === 'slur') {
@@ -867,7 +1026,8 @@ export class TromboneCore implements InstrumentCore {
         this.pTarget = 1;
         this.attackTau = 0.01;
       }
-      this.legatoMove(before, D0);
+      // (a slide sent ahead has had its soft tongue: what is left, the partial's own correction, moves without)
+      if (!ahead) this.legatoMove();
     } else if (a.kind === 'tongue') {
       this.setNote(m, this.level < 1e-3);
       this.pTarget = 1;
@@ -895,11 +1055,21 @@ export class TromboneCore implements InstrumentCore {
       this.setNote(m, false);
       this.pTarget = 1;
       this.attackTau = Math.min(this.attackTau, quickRise((this.V.riseLo + (this.V.riseHi - this.V.riseLo) * (vel / 127)) * this.riseNote, a.len));
-      this.tongueAt = this.frame + this.lick.retongue(a.struck, this.fs, same, this.tongueOpen(this.note));
+      const wait = this.lick.retongue(a.struck, this.fs, same, this.tongueOpen(this.note));
+      this.tongueAt = this.frame + wait;
       this.qDipNow = LICK_BOOST;
       this.kickNow = this.afterStop ? 1 + QUICK_KICK : LICK_BOOST;
+      // The lips are kicked as the tongue lets go. After a rest the tongue held, the stroke lets go now, with
+      // the note (it was begun ahead: mono.ts), and a note known to be short is kicked with the next sample,
+      // as a short note from silence is. It never was (the kick waited for the tongue to come off by itself,
+      // which a stroke let go from here does not), so a file's detached notes grew out of what was left in
+      // the tube: of a scale of 70 ms notes with 70 ms rests, one note lost and the weakest 19 dB under its
+      // held level; kicked, none and 5 dB (scripts/winds-midi-bench.ts, `detached`). Longer notes after such
+      // a rest are left as they were (kicked, Toward Morning's spoke in 62–70 ms, median, for 47), and so is a
+      // note joined to the last with no rest (kicked, the bench's joined scale spoke in 42 ms for 27).
+      if (wait === 0 && this.afterStop && a.len <= QUICK_FULL) this.kickPending = true;
       this.afterStop = false;
-      this.lickKick = true;
+      this.lickKick = wait > 0;
       this.noteStart = this.frame;
       this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
     }
@@ -915,13 +1085,11 @@ export class TromboneCore implements InstrumentCore {
 
   /** a legato change: if the slide has to move, a soft tongue masks it while it travels (unless the player
    *  glides); a change of partial with the slide still is a lip slur */
-  private legatoMove(before: TromboneFingering, D0: number): void {
-    const moved = Math.abs(this.Dtarget - D0) * (C_AIR / (4 * this.fs));
-    if (moved < 0.004 || this.portamento || this.params.gliss >= 0.5) return;
-    // its travel time at the slide's speed, at least 25 ms
-    const t = Math.max(0.025, moved / SLIDE_SPEED + 2 * SLIDE_TAU);
-    this.legatoUntil = this.frame + Math.round(t * this.fs);
-    void before;
+  private legatoMove(): void {
+    if (this.portamento || this.params.gliss >= 0.5) return;
+    // the slide's travel time at its speed, at least 25 ms (a valve alone: its turn)
+    const t = this.travel(this.slideMove, this.valveTurn);
+    if (t > 0) this.legatoUntil = this.frame + Math.round(t * this.fs);
   }
 
   private release(): void {
@@ -976,6 +1144,11 @@ export class TromboneCore implements InstrumentCore {
     this.tongueI = this.tongueLen;
     this.legatoUntil = 0;
     this.legatoDip = 0;
+    this.aheadFor = -1;
+    this.upAt = -1;
+    this.valveLeft = 0;
+    this.valveWait = 0;
+    this.aheadLoop = 0;
     this.level = 0;
     this.lastOut = 0;
   }
@@ -1012,6 +1185,8 @@ export class TromboneCore implements InstrumentCore {
         if (this.lick.down) this.pressure = 0;
       }
       if (this.keys.strokeNow >= 0) this.lick.ahead(this.fs, this.keys.strokeNow - this.frame, this.tongueOpen(this.note));
+      // the slide sets off ahead for a note to come that is known
+      n = this.slideAhead(n);
       // (the legato tongue's end cuts the block too: nothing may depend on the host's block length)
       if (this.legatoUntil > this.frame) n = Math.min(n, this.legatoUntil - this.frame);
       this.render(n);
@@ -1092,6 +1267,8 @@ export class TromboneCore implements InstrumentCore {
     const vMax = (4 * SLIDE_SPEED) / C_AIR; // samples of round trip per sample
     const sk = 1 / (SLIDE_TAU * fs);
     const vk = 1 - Math.exp(-1 / (0.004 * fs));
+    const kv = 1 - Math.exp(-1 / (VALVE_TAU * fs));
+    let vl = this.valveLeft;
     // the steepening: samples earlier per pascal over the outgoing leg (β·L/ρc³)
     const legM = (this.D * C_AIR) / (2 * fs);
     const stp = (V.steep * BETA * legM * fs) / (RHO * C_AIR * C_AIR * C_AIR);
@@ -1130,8 +1307,17 @@ export class TromboneCore implements InstrumentCore {
     let prevShift = this.lastOut;
     for (let t = 0; t < n; t++) {
       const w = this.frame + t;
+      // a valve turning: its loop comes in (or goes out) within a few ms
+      if (vl !== 0) {
+        if (this.valveWait > 0) this.valveWait--;
+        else {
+          const dv = Math.abs(vl) < 1e-3 ? vl : vl * kv;
+          vl -= dv;
+          this.D += dv;
+        }
+      }
       // the slide
-      const want = clamp((DT - this.D) * sk, -vMax, vMax);
+      const want = clamp((DT - this.D - vl) * sk, -vMax, vMax);
       this.Dvel += (want - this.Dvel) * vk;
       this.D += this.Dvel;
       const half = 0.5 * this.D;
@@ -1244,6 +1430,7 @@ export class TromboneCore implements InstrumentCore {
       if (ao > peak) peak = ao;
     }
     this.lastOut = prevShift;
+    this.valveLeft = vl;
     this.y1 = y1;
     this.y2 = y2;
     this.dpPrev = dpPrev;
@@ -1277,9 +1464,10 @@ export class TromboneCore implements InstrumentCore {
     return out;
   }
 
-  /** the slide now (m out from first position on this side) */
+  /** the slide now (m out from first position on this side): the round trip less the side's own, a valve's
+   *  loop counted whole while it turns */
   private slideNow(): number {
-    return ((this.D - this.Dopen) * C_AIR) / (4 * this.fs);
+    return ((this.D + this.valveLeft - this.Dopen - this.aheadLoop) * C_AIR) / (4 * this.fs);
   }
 
   getVisual(points = 160): object {

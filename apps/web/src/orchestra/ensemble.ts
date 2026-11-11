@@ -508,6 +508,8 @@ class Ensemble implements Route {
     if (audio.analyser) this.limiter!.connect(audio.analyser);
     this.applyGain();
     const designs = this.parts.some((p) => isKeyboard(p.voice) && !p.engine) ? await fetchDesigns(ctx.sampleRate) : null;
+    // (an upright's own, shipped: each upright's engine used to design them in the page)
+    const uprights = this.parts.some((p) => VOICE_INFO[p.voice].preset === 'upright' && !p.engine) ? await fetchDesigns(ctx.sampleRate, 'upright') : null;
     await Promise.all(
       this.parts.map(async (p) => {
         if (p.engine) return;
@@ -521,7 +523,10 @@ class Ensemble implements Route {
         p.engine = e;
         e.connect(this.bus!);
         e.setParams({ bus: this.busNow });
-        if (info.preset === 'upright') void e.setPreset('upright');
+        if (info.preset === 'upright') {
+          if (uprights) e.addDesigns(uprights);
+          void e.setPreset('upright');
+        }
         // its seat (after the preset: a piano's preset sets its params)
         if (p.seat) e.setParams({ seat: p.seat });
         if (p.size) e.setParams({ size: p.size });

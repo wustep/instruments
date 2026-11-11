@@ -9,8 +9,9 @@
 // saturating (tanh) flow law. The ratio of τj to the period selects the pipe
 // mode: blowing harder shortens τj, raising pitch slightly, brightening the tone
 // and eventually overblowing to the next register, as on a real flute. Notes
-// above C5 are fingered as overblown 2nd (octave) and 3rd (twelfth) modes.
-// Turbulence noise scales with jet speed.
+// above C5 are fingered as overblown 2nd (octave) and 3rd (twelfth) modes; a
+// fingering that goes up a register replaces the tube (FINGER), and the notes
+// fingered with a vent hole have one (VENT). Turbulence noise scales with jet speed.
 
 import { Pump } from './pump.ts';
 import { MonoKeys, quickness, quickRise, Tongue } from './mono.ts';
@@ -69,16 +70,50 @@ const QUICK_AIM = 2;
  *  Beethoven's Fifth, I, bars 303 on, 12 of 86 flute notes at a wrong pitch. Measured on eleven falls across
  *  the breaks at 139 and 278 ms, pp/mf/ff (scripts/winds-midi-bench.ts): the note or the one after it off its
  *  pitch in 62 of 162 tongued and 106 of 198 slurred; with this, 4 and 26 of 198. A player lets the air
- *  drop to come down a register (Fletcher 1975, JASA 57: blowing pressure follows the note). Rising across
- *  a break is left as it was. */
+ *  drop to come down a register (Fletcher 1975, JASA 57: blowing pressure follows the note). (Rising across
+ *  a break: FINGER and VENT, below.) */
 const FALL = 0.45;
 const FALL_TAU = 0.05;
 /** …and a tongued note of the third register after one of a lower is let go with a first attack's push, its
  *  aim this many times a long tone's. Ten rises across the two breaks at the same lengths and dynamics
  *  (scripts/winds-midi-joined.ts --seq rises): 25 of 120 joined notes off their pitch, where the stroke's
  *  lighter push left 32 (A5→E6 alone 12 of 12) and the engine before, which never stopped the jet, 20.
- *  Rising across a break is still the flute's weakest join. */
+ *  (Since then the tube itself does most of it: FINGER and VENT, below; the same rises now 3 of 120.) */
 const RISE_AIM = 2;
+/** Rising to another register the fingering is another tube, not the old one made longer. The tube's length
+ *  used to be glided to every new note (as a finger shading one hole does bend the pitch, and that is kept
+ *  within a register): C♯5→D5 is then the C♯5 tube stretched to the D4 tube with its standing wave carried
+ *  along, 554 Hz bent down to 294 Hz, the new tube's first mode, which the jet then had to overblow again:
+ *  150–250 ms on the octave below, a crack on every step up across a break (scripts/flute-rise.ts: 526 of
+ *  1008 rises not on their note, both breaks, slurred and tongued, pp–ff, 100–600 ms; 100 and 150 ms notes
+ *  396 of 504). Now the wave is turned back from both places while the fingers move, the new tube's share
+ *  growing over FINGER (s): what rings on is the old note at its own pitch, a step under the new tube's next
+ *  mode, and the jet, already set for that mode, takes it there. A key is closed or opened in about 10 ms
+ *  (Almeida, Chow, Smith & Wolfe 2009, "The kinetics and acoustics of fingering and note transitions on the
+ *  flute", JASA 126, 1521–1529). */
+const FINGER = 0.01;
+/** The vent. Every note of a flute's third register, and D5 and E♭5 of its second, is fingered with a hole
+ *  open part-way up the tube, where the mode that is wanted has a pressure node: that mode does not feel it,
+ *  the others leak through it (Wolfe & Smith 2003, "Cutoff frequencies and cross fingerings in baroque,
+ *  classical, and modern flutes", JASA 114, 2263–2272; the register hole as a junction in a waveguide:
+ *  Scavone 1997, thesis, CCRMA, Stanford). Without it the tube here was as ready to sound its second or fourth
+ *  mode as its third, and a rise to the third register took whichever the last note's ring was nearest:
+ *  G5→D6 and A5→E6 (one tube, no finger moves in this model) never arrived, 48 of 48. The hole is a leak
+ *  across the bore one period of the note from the foot's reflection: the pressure there (the wave going
+ *  down and the wave coming back) loses this share (the junction's 1 − 2Z_hole/(2Z_hole + Z_0), taken as a
+ *  resistance: the mass of the air in the hole is left out), sent back both ways inverted. On its own mode the two waves cancel there and it takes nothing, so it is only
+ *  computed for a note joined to another (a note from silence speaks on its mode without it and stays
+ *  bit-identical). */
+const VENT = 0.2;
+/** A note joined to one of another register, slurred either way or tongued coming down: the jet is aimed as
+ *  for a long tone's attack (ATTACK_BOOST, this many times; RISE_AIM up to a note with a vent, slurred as
+ *  tongued), since nothing but the jet's own gain raises the new mode. A slur had none and a stroke over the
+ *  breath half (LICK_BOOST): slurred up, the note took 130–300 ms to grow; coming down across a break, 105–
+ *  230 ms slurred and 50–90 ms tongued (the last note's mode has to die first: FALL), which the rises, once
+ *  they arrived, laid bare (a note after a rise that failed had no register to come down from). Fifteen
+ *  falls, pp–ff, 100–600 ms (scripts/flute-rise.ts --also falls): 71 of 180 slurred and 11 of 180 tongued
+ *  not on their note in time, now 1 and 3. */
+const CROSS_AIM = 1;
 /** tongued over the breath (mono.ts): the tongue lets the air go again in this long (s) */
 const LICK_OPEN = 0.003;
 /** …and the jet's push and sharper aim as it does are this much of a first attack's */
@@ -257,6 +292,17 @@ export class FluteCore implements InstrumentCore {
     this.jetK = (2 * this.jetGainNote) / (1 - this.tanhOff * this.tanhOff);
     this.modeStep = immediate ? 0 : mode - this.mode;
     this.mode = mode;
+    if (immediate) {
+      this.fingNow = false;
+      this.fing = 1;
+      this.ventTo = this.ventG = 0;
+      this.ventLive = 0;
+    } else {
+      // up to another register on another tube: the fingering is replaced (FINGER); the note's vent (VENT)
+      if (this.modeStep > 0 && boreMidi !== this.tube) this.fingNow = true;
+      this.ventTo = mode === 3 || m === 74 || m === 75 ? VENT : 0;
+    }
+    this.tube = boreMidi;
     this.fTarget = et(m);
     this.boreNominal = (mode * fs) / et(m);
     // jet receptivity falls off above a Strouhal-limited frequency (the player's lip
@@ -265,6 +311,12 @@ export class FluteCore implements InstrumentCore {
     const tauNom = (fs * this.lj) / (0.45 * UjNom);
     this.Dnom = this.boreDelayFor(tauNom) * this.tuningCorrection(m);
     this.Dtarget = this.Dnom;
+    {
+      // the vent's place: from it to the foot and back is one period of the note, less the foot's own delay
+      // there (the loss filter's phase), so that the wave coming back cancels the wave going down
+      const w = (2 * Math.PI * et(m)) / fs;
+      this.ventSpan = fs / et(m) - Math.atan2(-this.lossA * Math.sin(w), 1 + this.lossA * Math.cos(w)) / w;
+    }
     if (immediate) {
       this.D = this.Dtarget;
       this.jetD = this.jetDTarget = tauNom;
@@ -272,6 +324,20 @@ export class FluteCore implements InstrumentCore {
     this.note = m;
     for (let k = 0; k < 16; k++) this.modeFreqs[k] = (k + 1) * fb;
   }
+  /** the tube fingered (its fundamental's note), and a fingering being replaced (FINGER): the old tube's
+   *  length, the new one's share of the reflection (1: done) */
+  private tube = -1;
+  private fingNow = false;
+  private fing = 1;
+  private Dold = 100;
+  /** the vent (VENT): what it has sent back (its history), its share now and asked, the foot's filter as
+   *  the wave coming back meets it, its distance from the foot and back (samples), samples left to compute */
+  private vent = new Float64Array(BUF);
+  private ventG = 0;
+  private ventTo = 0;
+  private ventLp = 0;
+  private ventSpan = 50;
+  private ventLive = 0;
   private fTarget = 440;
   private off = 0.8;
   private tanhOff = Math.tanh(0.8);
@@ -431,7 +497,8 @@ export class FluteCore implements InstrumentCore {
       this.tongueAmp = TONGUE_PUSH * 0.3;
       this.tongueLen = Math.max(4, Math.round((0.5 * this.fs) / et(m)));
       this.tongueN = this.tongueLen;
-      this.attackBoost = 0;
+      // (to another register: the jet aimed for it, CROSS_AIM)
+      this.attackBoost = this.modeStep ? ATTACK_BOOST * (0.6 + 0.4 * v) * (this.modeStep > 0 && this.ventTo > 0 ? RISE_AIM : CROSS_AIM) : 0;
       this.noteStart = this.frame;
       this.tongueAt = this.frame;
       this.fallNow = this.modeStep < 0;
@@ -480,7 +547,7 @@ export class FluteCore implements InstrumentCore {
       this.tongueLen = Math.max(4, Math.round((0.5 * this.fs) / et(m)));
       this.tongueN = this.tongueLen;
       this.tongueWait = wait;
-      this.attackBoost = ATTACK_BOOST * (0.6 + 0.4 * v) * (first ? 1 + QUICK_AIM - v : up ? RISE_AIM : LICK_BOOST);
+      this.attackBoost = ATTACK_BOOST * (0.6 + 0.4 * v) * (first ? 1 + QUICK_AIM - v : up ? RISE_AIM : this.modeStep < 0 ? CROSS_AIM : LICK_BOOST);
       this.noteStart = this.frame;
       this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
     }
@@ -527,6 +594,11 @@ export class FluteCore implements InstrumentCore {
     this.keys.forget();
     this.lick.reset();
     this.tongueWait = 0;
+    this.fingNow = false;
+    this.fing = 1;
+    this.vent.fill(0);
+    this.ventG = this.ventTo = this.ventLp = 0;
+    this.ventLive = 0;
     this.lp = this.dcX = this.dcY = 0;
     this.uPrev = 0;
     this.jkPrev = -1;
@@ -620,6 +692,23 @@ export class FluteCore implements InstrumentCore {
     this.jetDTarget = clamp((fs * ljEff) / (0.45 * Math.max(Uj, 4) * fall), 2, BUF / 2);
     // players "lip" the pitch back as they blow harder; compensate 75 % of the drift
     this.Dtarget = (this.Dnom + 0.75 * (this.boreDelayFor(this.jetDTarget) * this.tuningCorrection(this.note) - this.Dnom)) * this.bendFactor;
+    if (this.fingNow) {
+      // the fingering is replaced: the new tube from here, the old one's reflection fading (a change begun
+      // before the last was over starts from whichever tube had the larger share)
+      this.fingNow = false;
+      if (this.fing >= 0.5) this.Dold = this.D;
+      this.D = this.Dtarget;
+      this.fing = 0;
+    }
+    const fingStep = 1 / (FINGER * fs);
+    if (this.ventTo > 0 && this.ventLive <= 0) {
+      this.vent.fill(0);
+      this.ventLp = 0;
+      this.ventLive = 1;
+    }
+    let venting = this.ventLive > 0;
+    const ventSpan = this.ventSpan * this.bendFactor;
+    const vt = this.vent;
     // normalised drive (flow) and turbulence ∝ Uj²
     const drive = this.pressure * vib * velScale * this.expression * Math.min(1.6, P.breath);
     const turb = V.noise * P.noise * (Uj * Uj) / 400 * (this.pressure > 0 ? 1 : 0);
@@ -661,13 +750,50 @@ export class FluteCore implements InstrumentCore {
       // bore return at the embouchure (fractional read, linear is enough at this length)
       const Di = Math.floor(this.D);
       const fr = this.D - Di;
-      const r = this.bore[(w - Di) & mask] * (1 - fr) + this.bore[(w - Di - 1) & mask] * fr;
+      let r = this.bore[(w - Di) & mask] * (1 - fr) + this.bore[(w - Di - 1) & mask] * fr;
+      if (this.fing < 1) {
+        // (a fingering being replaced: the old tube's reflection beside the new one's)
+        const Do = Math.floor(this.Dold);
+        const fo = this.Dold - Do;
+        const r0 = this.bore[(w - Do) & mask] * (1 - fo) + this.bore[(w - Do - 1) & mask] * fo;
+        this.fing = Math.min(1, this.fing + fingStep);
+        r = r0 + (r - r0) * (0.5 - 0.5 * Math.cos(Math.PI * this.fing));
+      }
+      // the vent: the pressure at it is the wave going down and the wave back from the foot; the share it
+      // lets out goes back both ways, inverted: to the foot and round (into r), and straight to the embouchure
+      let vUp = 0;
+      if (venting) {
+        if (this.ventG !== this.ventTo) {
+          const d = this.ventTo - this.ventG;
+          this.ventG += d > fingStep ? fingStep : d < -fingStep ? -fingStep : d;
+        }
+        const d1 = Math.max(1, 0.5 * (this.D - ventSpan));
+        let vi = Math.floor(d1);
+        let vf = d1 - vi;
+        const down = this.bore[(w - vi) & mask] * (1 - vf) + this.bore[(w - vi - 1) & mask] * vf;
+        vUp = vt[(w - vi) & mask] * (1 - vf) + vt[(w - vi - 1) & mask] * vf;
+        let del = this.D - d1;
+        vi = Math.floor(del);
+        vf = del - vi;
+        let back = this.bore[(w - vi) & mask] * (1 - vf) + this.bore[(w - vi - 1) & mask] * vf;
+        r -= vt[(w - vi) & mask] * (1 - vf) + vt[(w - vi - 1) & mask] * vf;
+        del = Math.max(1, this.D - 2 * d1);
+        vi = Math.floor(del);
+        vf = del - vi;
+        back -= vt[(w - vi) & mask] * (1 - vf) + vt[(w - vi - 1) & mask] * vf;
+        this.ventLp = -lb * back - la * this.ventLp;
+        vt[w & mask] = this.ventG * (down + this.ventLp);
+        // (shut again: computed until what it sent has left the tube)
+        if (this.ventG > 0 || this.ventTo > 0) this.ventLive = BUF >> 3;
+        else if (--this.ventLive <= 0) venting = false;
+      }
       // open foot: pressure reflection inverts (open-open pipe => all harmonics);
       // radiation + wall losses (lowpass), DC block
       this.lp = -lb * r - la * this.lp;
-      const y = this.lp - this.dcX + 0.995 * this.dcY;
+      const yF = this.lp - this.dcX + 0.995 * this.dcY;
       this.dcX = this.lp;
-      this.dcY = y;
+      this.dcY = yF;
+      const y = venting ? yF - vUp : yF;
       const pRet = y;
       // turbulence noise (bandpassed), plus attack chiff
       const white = this.rng() * 2 - 1;

@@ -83,6 +83,9 @@ export interface Piano {
   clearScheduled(): void;
   setParams(p: Record<string, unknown>): void;
   setPreset(id: string): Promise<void>;
+  /** Filter designs made elsewhere (a shipped file: another piano's), handed to the worklet ahead of a
+   *  change that needs them, so that nothing is designed in the page (setPreset finds none missing). */
+  addDesigns(entries: DesignEntry[]): void;
   /** switch the instrument hosted by this node (silences it); resolves when ready */
   setInstrument(id: InstrumentId): Promise<void>;
   /** continuous controller (0..1): 1 / 2 / 11 = bow pressure (strings) or breath (flute) */
@@ -372,6 +375,12 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
           send({ type: 'preset', preset: id });
         });
       }),
+    addDesigns: (entries) => {
+      const fresh = entries.filter((e) => !sent.has(e.key));
+      if (!fresh.length) return;
+      send({ type: 'designs', entries: fresh });
+      for (const e of fresh) sent.add(e.key);
+    },
     setMaxVoices: (n) => send({ type: 'maxVoices', value: n }),
     watchKey: (midi) => send({ type: 'watch', midi: midi ?? -1 }),
     onStats: (cb) => {
@@ -401,7 +410,8 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
     connect: (dest) => output.connect(dest),
     disconnect: () => output.disconnect(),
     dispose: () => {
-      send({ type: 'panic' });
+      // (the processor is told: a node only disconnected is rendered for ever, process() keeping it alive)
+      send({ type: 'dispose' });
       node.port.onmessage = null;
       node.disconnect();
       output.disconnect();

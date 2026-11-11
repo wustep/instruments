@@ -148,7 +148,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   // most it may have, or with no room for another, it has none), every other seat's routing kept
   // (orchestra/ensemble.ts addVoice). (The pieces, a few public-domain scores that bring their own
   // lineup, are in the player's overlay, with play and open: ui/player.ts.)
-  const ensBtn = h('button', { class: 'ens-toggle', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Ensemble: several instruments', 'data-tip': 'ensemble · tap instruments to add them' }, h('span', { class: 'pick-name' }, 'orchestra'));
+  const ensBtn = h('button', { class: 'ens-toggle', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Orchestra: several instruments', 'data-tip': 'orchestra · tap instruments to add them' }, h('span', { class: 'pick-name' }, 'orchestra'));
   ensBtn.prepend(ensembleIcon() as unknown as HTMLElement);
   const pianoVoice = (): Voice => (audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand');
   const voiceOfPick = (id: InstrumentId): Voice => (id === 'piano' ? pianoVoice() : (id as Voice));
@@ -915,7 +915,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       const name = INSTRUMENT_INFO[id].label.toLowerCase();
       // (what a tap will do: another, or (past the most, or no room) none; a kind there is no room for)
       const adds = on && tapAdds(id);
-      b.dataset.tip = on ? (n ? `${name} ×${n} · ${adds ? 'tap for another' : n > 1 ? 'tap to take them off' : 'tap to take it off'}` : adds ? `add a ${name}` : `${name} · the stage is full`) : '';
+      b.dataset.tip = on ? (n ? `${name} ×${n} · ${adds ? 'tap for another' : n > 1 ? 'tap to take them off' : 'tap to take it off'}` : adds ? `add ${/^[aeiou]/.test(name) ? 'an' : 'a'} ${name}` : `${name} · the stage is full`) : '';
       if (!on) delete b.dataset.tip;
     });
     presets.hidden = on ? !lineup.some(isKeyboard) : inst !== 'piano';
@@ -1099,8 +1099,9 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       if (vec) drawPianoV(ctx, w, ih, pg, frame, pianoState, vfields!.piano, now);
       else drawPiano(ctx, w, ih, pg, frame, pianoState, fields.piano, now);
     } else if (family() === 'bowed' && bowedGeom) {
-      // (the double bass keeps clear of the file player at the top of the stage: bowedLayout)
-      const pl = bowedGeom.id === 'bass' && !player.el.hidden ? Math.max(0, Math.round(player.el.getBoundingClientRect().bottom - top.getBoundingClientRect().bottom)) : 0;
+      // (the double bass keeps clear of the file player at the top of the stage, and the others where
+      // they stand under it, on a phone: bowedLayout)
+      const pl = !player.el.hidden ? Math.max(0, Math.round(player.el.getBoundingClientRect().bottom - top.getBoundingClientRect().bottom)) : 0;
       if (vec) drawBowedV(ctx, w, ih, bowedGeom, frame, bowedState, vfields!.bowed, now, false, undefined, pl);
       else drawBowed(ctx, w, ih, bowedGeom, frame, bowedState, fields.bowed, now, false, undefined, pl);
     } else if (family() === 'brass') {
@@ -1124,7 +1125,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       else if (inst === 'bassoon') (vec ? drawBassoonV : drawBassoon)(ctx, w, ih, frame, bassoonState, pl);
       else (vec ? drawOboeV : drawOboe)(ctx, w, ih, frame, oboeState, pl);
     }
-    else (vec ? drawFluteV : drawFlute)(ctx, w, ih, frame, fluteState);
+    else (vec ? drawFluteV : drawFlute)(ctx, w, ih, frame, fluteState, player.el.hidden ? 0 : Math.max(0, Math.round(player.el.getBoundingClientRect().bottom - top.getBoundingClientRect().bottom)));
     // the room: wavefronts from the instrument, reflections, the lid's throw
     let rms = 0;
     if (audio.analyser) {
@@ -1195,7 +1196,14 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     // its hinge (in 3D beside the lid on the treble side, under the rim: stage3d `lidKnob`)
     const kh = mqCoarse?.matches ? 22 : 18;
     const rx = Math.max(kh + 10, Math.min(w - kh - 10, rk ? rk[0] : w));
-    const ry = rk ? Math.min(ih - kh - 6, Math.max(kh + 6, rk[1])) : kh + 10;
+    let ry = rk ? Math.min(ih - kh - 6, Math.max(kh + 6, rk[1])) : kh + 10;
+    // (2D: its corner, or under the file player where that reaches the corner: on a phone a piece's
+    // controls lay over the knob, and a tap on the knob opened the file picker)
+    if (!in3d && !player.el.hidden) {
+      const pr = player.el.getBoundingClientRect();
+      const sr = canvas.getBoundingClientRect();
+      if (pr.width > 0 && pr.right > sr.left + rx - kh - 6 && pr.bottom > sr.top + topH) ry = Math.max(ry, pr.bottom - (sr.top + topH) + kh + 6);
+    }
     kr.style.transform = `translate(${Math.round(rx - kh)}px, ${Math.round(topH + ry - kh)}px)`;
     knobRoom.show(roomVal());
     const cb = pianoState.caseBox;
