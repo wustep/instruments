@@ -71,3 +71,16 @@ describe('no click where a note begins or a controller moves', () => {
     });
   }
 });
+
+describe('the trombone played at the level its recordings lost', () => {
+  it('sounds 9 dB above its dry calibration level', () => {
+    const level = (dry: boolean) => {
+      const r = renderInstrument({ sampleRate: 48000, instrument: 'trombone', dry, params: { room: 0 } as never, events: [on(0.05, 53, 100), off(1.2, 53)] as never, duration: 1.2 });
+      let s = 0;
+      for (let i = 24000; i < 52800; i++) s += r.left[i] ** 2;
+      return 10 * Math.log10(s);
+    };
+    // (the room off; the limiter does not reach a mf note)
+    expect(level(false) - level(true)).toBeCloseTo(9, 0);
+  });
+});

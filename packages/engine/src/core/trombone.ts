@@ -310,6 +310,15 @@ const MIN_BLOW = 0.1;
 const LP_SECTION = 2;
 /** the brightness corner's glide to a new note or dynamic (s): within the attack, slower than a click */
 const LP_GLIDE = 0.01;
+/** Played (not the dry calibration renders), the level the Iowa trombone session's microphone gain took off:
+ *  its ff notes sit 9 dB under the Iowa horn's and trumpet's, whose sessions agree with each other and with
+ *  the bassoon's within 1 dB. Measured (scripts/audio-levels.ts, each voice's centre ±7 semitones, held):
+ *  the trombone was 11.3 dB under the trumpet at ff, 18.4 dB at mf and 9 dB under the bassoon at ff, where
+ *  orchestral sound powers put a trombone with the brass and above the woodwinds (Kahle 1995, Table 1,
+ *  after J. Meyer, Acustica 71, 1990: trombone 101 dB, bassoon and clarinet 93 dB, cello 90 dB re 1 pW, a
+ *  good forte). With it the trombone's ff sits with the bassoon's and 3 dB under the trumpet's (audio audit,
+ *  Nov 2026). Like the piano's PLAYBACK_GAIN_DB: the fit (scripts/judge.ts) and the golden are untouched. */
+const PLAYBACK_GAIN_DB = 9;
 /** the tongue's release: the breath reaches its onset fraction this fast (s, a time constant) */
 const ONSET_TAU = 0.012;
 /** the slide's top speed (m/s) and its smoothing (s) */
@@ -652,8 +661,9 @@ export class TromboneCore implements InstrumentCore {
     this.room.configure(this.params.room, this.params.seat);
     // (in pascals at the bell) matched to the Iowa trombones: the median recorded note's level (tenor pp, mf, ff
     // within 2.5 dB of it, the bass set's within 1.7; their ff, −26.4 and −28.4 dB, sit 9 dB under the Iowa
-    // horn's and trumpet's: the sessions' own gain, kept as the other instruments keep theirs)
-    this.gain = 5.652e-05 * this.params.volume;
+    // horn's and trumpet's: the sessions' own gain). The calibration renders (dry) keep that level; played,
+    // the trombone takes back the session's 9 dB (PLAYBACK_GAIN_DB)
+    this.gain = 5.652e-05 * this.params.volume * (this.dry ? 1 : Math.pow(10, PLAYBACK_GAIN_DB / 20));
   }
 
   /** measured tuning (scripts/tune-trombone.ts): cents the bare model plays sharp, by size and sample rate */
