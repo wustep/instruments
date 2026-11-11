@@ -99,6 +99,24 @@ interface Sec {
   body: Kid[];
 }
 
+
+function creditIcon(href: string, label: string, inner: string): HTMLAnchorElement {
+  const a = h('a', {
+    class: 'credit-icon',
+    href,
+    target: '_blank',
+    rel: 'noopener noreferrer',
+    'aria-label': label,
+    title: label,
+  });
+  const s = document.createElementNS(SVGNS, 'svg');
+  s.setAttribute('viewBox', '0 0 24 24');
+  s.setAttribute('aria-hidden', 'true');
+  s.innerHTML = inner;
+  a.appendChild(s);
+  return a;
+}
+
 export function notesView(): View {
   const secs: Sec[] = [
     {
@@ -399,6 +417,22 @@ export function notesView(): View {
         'University of Iowa Musical Instrument Samples (analysis only; never played as the instrument)',
         'The stage’s vector lines follow the screens of J. Hodge’s Chimera vocal synth (github.com/jamesondh/chimera-vocal-synth); their type is AVHershey Simplex by S. C. Russell (CC0), from A. V. Hershey’s vector fonts, US Naval Weapons Laboratory, 1967',
       ].map((r) => h('li', {}, r)),
+    ),
+    h(
+      'p',
+      { class: 'credit' },
+      'Built by Stephen Wu ',
+      creditIcon(
+        'https://wustep.me',
+        'Stephen Wu’s site',
+        '<g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M3.5 11.5 12 4l8.5 7.5"/><path d="M6 10.5V19.5h12V10.5"/></g>',
+      ),
+      creditIcon(
+        'https://x.com/wustep',
+        'Stephen Wu on X',
+        '<path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.749l7.73-8.835L1.5 2.25h7.914l4.258 5.464 5.572-5.464z"/>',
+      ),
+      ' with Opus 5.5 and Fable 5.2.',
     ),
   );
   return { el, dock: false };
