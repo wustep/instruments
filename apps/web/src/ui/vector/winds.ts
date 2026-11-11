@@ -252,8 +252,9 @@ const pitchTrack = new WeakMap<TrumpetState, { mean: number; dev: number }>();
  *  with their pistons and buttons (lit when down), the slides (kicked out on the notes that need it),
  *  the bell's flare with its mouth and a few sections. The air's path for the fingering is amber: a
  *  line along the bore through the pressed valves' slides (dashed inside the casings), hatched across
- *  by the standing wave and opening out in the bell. At the mouthpiece the breath (green) meets the
- *  lips (red), which buzz with the engine's lip opening; the vibrato's handle (pink) rides the pitch. */
+ *  by the standing wave and opening out in the bell. At the mouthpiece, drawn as on the reeds (kit.ts
+ *  breathFlow, lipLine), the breath (green) flows into the lips (red) on the rim, parted as they buzz;
+ *  the vibrato's handle (pink) rides the pitch. */
 export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: TrumpetState): void {
   const L = trumpetLayout(W, H);
   const { S } = L;

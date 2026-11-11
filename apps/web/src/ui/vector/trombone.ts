@@ -8,7 +8,8 @@
 // hatched across the bore along the air's path (dashed through the rotors) and opening out in the bell. At
 // the mouthpiece the knobs' slots mark where each acts, drawn as on the reeds (kit.ts breathFlow,
 // lipLine): the breath (green) flowing into the lips, the lips (red) on the rim parted by the engine's lip
-// opening, the turbulence in their slit (pink), the vibrato (white) riding the pitch. The state object is the stage's, so a change of style carries the slide, levers and wave over.
+// opening, the turbulence in their slit (pink), the vibrato (white) riding the pitch. The state object is
+// the stage's, so a change of style carries the slide, levers and wave over.
 
 import type { VisualFrame } from '@piano-model/engine';
 import { CRANK, MOUTH_K, crankAngle, leverOf, tromboneLayout, tromboneLive, tromboneRecord, turned, type TbLayout, type TbLive, type TromboneState, type TubePx } from '../trombone-draw.ts';

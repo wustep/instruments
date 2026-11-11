@@ -28,9 +28,9 @@ const hash = (n: number) => {
 const pitchTrack = new WeakMap<HornState, { mean: number; dev: number; t: number }>();
 
 /** The double horn from its outside, as lines: the tubes' walls (the air's path bright), the bell's flare
- *  and mouth, the rotors (their passages turning), the lever bar and paddles; the
- *  standing wave hatched across the bore along the air's path; the four slots at the mouthpiece. `top`: the
- *  file player's px over the box's top. */
+ *  and mouth, the rotors (their passages turning), the lever bar and paddles; the standing wave hatched
+ *  across the bore along the air's path; the four slots at the mouthpiece. `top`: the file player's px over
+ *  the box's top. */
 export function drawHornV(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: HornState, top = 0): void {
   const L = hornLayout(W, H, top);
   const { sc } = L;
