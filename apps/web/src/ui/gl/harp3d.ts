@@ -172,7 +172,7 @@ export function poseHarp(b: Batch, hm: HarpModel, fr: VisualFrame | null, _dt: n
       m[10] = -1;
     }
     mulInto(PM, 0, T, m);
-    b.mesh(hm.pedal, new Float32Array(PM));
+    b.mesh(hm.pedal, PM);
   });
   if (T === hm.T) stageState = { swing, pedals: ped, ringing };
 }

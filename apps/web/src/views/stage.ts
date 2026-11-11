@@ -81,6 +81,8 @@ const TROMBONE_KNOBS: KnobSpec[] = [
 ];
 /** a pedal's three notches, as the note it gives */
 const pedalKnob = (key: string, letter: string): KnobSpec => ({ key, label: `${letter} pedal`, short: letter, sub: `every ${letter} string: up, flat · the middle notch, natural · down, sharp`, min: -1, max: 1, step: 1, fmt: (v) => `${letter}${v < -0.5 ? '♭' : v > 0.5 ? '♯' : '♮'}` });
+/** the pedals' parameters, in their order at the harpist's feet */
+const HARP_PEDAL_KEYS = ['pedalD', 'pedalC', 'pedalB', 'pedalE', 'pedalF', 'pedalG', 'pedalA'];
 const HARP_KNOBS: KnobSpec[] = [
   { key: 'pluck', label: 'Pluck point', short: 'pluck', sub: 'where the finger takes the string, from the soundboard: by the board, thin (près de la table) … the middle, round', min: 0.08, max: 0.5, step: 0.01, fmt: (v) => fmt(v, 2) },
   { key: 'damp', label: 'Damping', short: 'damp', sub: 'a key let go: the string rings on (0, laissez vibrer) … the hand stops it (1, étouffé)', min: 0, max: 1, step: 0.01, fmt: (v) => (v < 0.02 ? 'l.v.' : fmt(v, 2)) },
@@ -764,6 +766,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
 
   // ---------------------------------------------------------------- state for drawing
   let frame: VisualFrame | null = null;
+  /** the harp's pedal notches as the knobs last showed them (D C B E F G A) */
+  let pedalsShown: number[] = [0, 0, 0, 0, 0, 0, 0];
   let strike: VisualFrame['strike'] = null;
   let lastFocus: VisualFrame['focus'] = null;
   let keysFallback: KeySummary[] = pianoKeySummary(audio.preset);
@@ -1297,6 +1301,18 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     syncKnobs(p.params as unknown as Record<string, number>);
     unsubVis = p.onVisual((v) => {
       frame = v;
+      // the harp's pedals move themselves for a note no string has (engine core/harp.ts): the pedals' knobs
+      // follow the engine's notches
+      if (v.harp && inst === 'harp') {
+        const set = v.harp.set;
+        if (set.some((x, k) => x !== pedalsShown[k])) {
+          pedalsShown = set.slice();
+          for (const x of knobEls) {
+            const k = HARP_PEDAL_KEYS.indexOf(x.c.key);
+            if (k >= 0) x.k.set(set[k]);
+          }
+        }
+      }
       if (v.strike) strike = v.strike;
     });
   };

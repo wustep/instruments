@@ -150,17 +150,39 @@ export function harpStringFor(m: number, acc: ArrayLike<number>): number {
   return best;
 }
 
-/** The pedals a set of pitch classes asks for: each of the seven letters at the accidental (−1, 0, 1) that
- *  spells one of them, the natural first (a scale or a chord's glissando setting: C major's pitch classes
- *  give all naturals; C, E♭, G♭, A give D♯ C♮ B♯ | E♭ F♯ G♭ A♮, every string on a note of the chord). Letters
- *  none of them can spell stay natural. In HARP_PEDALS' order: D C B E F G A. */
+/** The pedals a set of pitch classes asks for: the setting (each of the seven letters flat, natural or sharp)
+ *  whose strings sound only those notes, as many different ones of them as can be, with the fewest pedals off
+ *  the middle notch (a scale's seven notes, one to a letter: D major is F♯ and C♯; a chord's glissando
+ *  setting: C, E♭, G♭, A give D♯ C♮ B♯ | E♭ F♯ G♭ A♮, every string on a note of the chord). A letter that can
+ *  spell none of them stays natural. In HARP_PEDALS' order: D C B E F G A. */
 export function harpPedalsFor(pitchClasses: readonly number[]): number[] {
   const want = new Set(pitchClasses.map((p) => ((p % 12) + 12) % 12));
-  const out = new Array<number>(7).fill(0);
-  for (let li = 0; li < 7; li++) for (const a of [0, -1, 1]) if (want.has((NAT[li] + a + 12) % 12)) {
-    out[PEDAL_OF[li]] = a;
-    break;
+  let best: number[] = [0, 0, 0, 0, 0, 0, 0];
+  let bestScore = -Infinity;
+  const acc = [0, 0, 0, 0, 0, 0, 0];
+  for (let code = 0; code < 2187; code++) {
+    let c = code;
+    let off = 0;
+    let stray = 0;
+    const seen = new Set<number>();
+    for (let li = 0; li < 7; li++) {
+      const a = (c % 3) - 1;
+      c = Math.floor(c / 3);
+      acc[li] = a;
+      const pc = (NAT[li] + a + 12) % 12;
+      if (want.has(pc)) seen.add(pc);
+      // (a string on none of the notes: only where its letter can spell none, and then natural)
+      else stray += a === 0 && ![-1, 1].some((x) => want.has((NAT[li] + x + 12) % 12)) ? 0 : 1;
+      off += Math.abs(a);
+    }
+    const score = -100 * stray + 10 * seen.size - off;
+    if (score > bestScore) {
+      bestScore = score;
+      best = acc.slice();
+    }
   }
+  const out = new Array<number>(7).fill(0);
+  for (let li = 0; li < 7; li++) out[PEDAL_OF[li]] = best[li];
   return out;
 }
 
