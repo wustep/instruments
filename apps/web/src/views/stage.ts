@@ -148,7 +148,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   // most it may have, or with no room for another, it has none), every other seat's routing kept
   // (orchestra/ensemble.ts addVoice). (The pieces, a few public-domain scores that bring their own
   // lineup, are in the player's overlay, with play and open: ui/player.ts.)
-  const ensBtn = h('button', { class: 'ens-toggle', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Ensemble: several instruments', 'data-tip': 'ensemble · tap instruments to add them' }, h('span', { class: 'pick-name' }, 'orchestra'));
+  const ensBtn = h('button', { class: 'ens-toggle', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Orchestra: several instruments', 'data-tip': 'orchestra · tap instruments to add them' }, h('span', { class: 'pick-name' }, 'orchestra'));
   ensBtn.prepend(ensembleIcon() as unknown as HTMLElement);
   const pianoVoice = (): Voice => (audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand');
   const voiceOfPick = (id: InstrumentId): Voice => (id === 'piano' ? pianoVoice() : (id as Voice));
@@ -915,7 +915,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       const name = INSTRUMENT_INFO[id].label.toLowerCase();
       // (what a tap will do: another, or (past the most, or no room) none; a kind there is no room for)
       const adds = on && tapAdds(id);
-      b.dataset.tip = on ? (n ? `${name} ×${n} · ${adds ? 'tap for another' : n > 1 ? 'tap to take them off' : 'tap to take it off'}` : adds ? `add a ${name}` : `${name} · the stage is full`) : '';
+      b.dataset.tip = on ? (n ? `${name} ×${n} · ${adds ? 'tap for another' : n > 1 ? 'tap to take them off' : 'tap to take it off'}` : adds ? `add ${/^[aeiou]/.test(name) ? 'an' : 'a'} ${name}` : `${name} · the stage is full`) : '';
       if (!on) delete b.dataset.tip;
     });
     presets.hidden = on ? !lineup.some(isKeyboard) : inst !== 'piano';

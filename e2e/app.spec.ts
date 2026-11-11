@@ -157,7 +157,7 @@ test('measurements: charts render and the A/B model renders in the browser', asy
   expect(await page.locator('figure svg').count()).toBeGreaterThanOrEqual(10);
   await expect(page.getByText('Where it falls short')).toBeVisible();
   // round 2: strings and flute compared with their own recordings (and the oboe and clarinet, since they came)
-  await expect(page.getByRole('heading', { name: 'Strings and woodwinds against recordings' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Strings, woodwinds and brass against recordings' })).toBeVisible({ timeout: 15_000 });
   expect(await page.locator('.ensemble figure svg').count()).toBeGreaterThanOrEqual(8);
   const btn = page.locator('.ab-item').filter({ hasText: 'C#4' }).getByRole('button', { name: 'model' });
   await btn.click();
@@ -1245,7 +1245,7 @@ test('icon-only stage controls say what they are: a short tooltip and an accessi
   await page.keyboard.press('ArrowUp');
   await expect(tip).not.toHaveText(t0!);
   // the other icon-only controls
-  for (const [sel, text] of [['.oct-btn >> nth=0', 'octave down · Z'], ['.oct-btn >> nth=1', 'octave up · X'], ['.knob-toggle', 'knobs'], ['.ens-toggle', 'ensemble · tap instruments to add them'], ['.score-btn', 'pieces'], ['.vec-toggle', 'vector lines'], ['.pl-route', 'routing'], ['.pl-open', 'open a MIDI file'], ['.pl-play', 'play · Chopin, Prelude in C minor, Op. 28 No. 20']] as const) {
+  for (const [sel, text] of [['.oct-btn >> nth=0', 'octave down · Z'], ['.oct-btn >> nth=1', 'octave up · X'], ['.knob-toggle', 'knobs'], ['.ens-toggle', 'orchestra · tap instruments to add them'], ['.score-btn', 'pieces'], ['.vec-toggle', 'vector lines'], ['.pl-route', 'routing'], ['.pl-open', 'open a MIDI file'], ['.pl-play', 'play · Chopin, Prelude in C minor, Op. 28 No. 20']] as const) {
     const el = page.locator(sel);
     if (!(await el.isVisible())) continue;
     await el.hover();

@@ -1,5 +1,6 @@
 // The pieces that come with the stage: public-domain typesettings from the Mutopia Project
-// (mutopiaproject.org), each placed in the public domain by its typesetter, compositions long out of
+// (mutopiaproject.org), each placed in the public domain by its typesetter (the oboe's alone is Creative
+// Commons Attribution 3.0: its credit says so), compositions long out of
 // copyright. The MIDI files in public/pieces/ are Mutopia's own, byte for byte (sha256 below); what
 // plays what is set here, as a player would set out the parts. Two kinds, one catalogue: the
 // ensemble's pieces (PIECES, the pieces menu), and each instrument's own short piece (DEMOS), which the

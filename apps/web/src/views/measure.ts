@@ -190,7 +190,7 @@ function build(d: Data): HTMLElement[] {
         'Decay of the first partial',
         'T60 at mf, log scale; double decay from coupled unison strings',
         [REF_LEGEND(), mk('e'), mk('l')],
-        `Median model/recording ratio over partials 1–3 by register — ${reg}. Round 2 fixed the tenor (×2.2 too slow before) by fitting the bridge admittance per bridge segment, and the top octave (×0.6 too fast) by keeping treble unisons within a beat rate a tuner would accept. The bass aftersound is still about two-thirds as long as the recording's; per-note scatter in the recording itself is a factor of ten.`,
+        `Median model/recording ratio over partials 1–3 by register — ${reg}. Round 2 fixed the tenor (×2.2 too slow before) by fitting the bridge admittance per bridge segment, and the top octave (×0.6 too fast) by keeping treble unisons within a beat rate a tuner would accept. The bass aftersound is still about four-fifths as long as the recording’s; per-note scatter in the recording itself is a factor of ten.`,
         true,
       ),
     );
@@ -215,7 +215,7 @@ function build(d: Data): HTMLElement[] {
         'Partial levels across dynamics',
         'levels 60–160 ms after the attack, dB re full scale (one global gain), recording points below −100 dB are noise and omitted',
         [REF_LEGEND(), grid],
-        `The nonlinear felt makes loud notes brighter: upper partials gain more than the fundamental from pp to ff. The model reproduces the direction and most of the size: it brightens ${fmt(Math.abs(d.summary.brightnessContrastErr.biasDbPerPartial), 1)} dB per partial ${d.summary.brightnessContrastErr.biasDbPerPartial < 0 ? 'less' : 'more'} than the Steinway (median; ${fmt(d.summary.brightnessContrastErr.rmsDbPerPartial, 1)} dB RMS over keys). Individual partials also differ by soundboard colouration — the model's board is plausible, not this board.`,
+        `The nonlinear felt makes loud notes brighter: upper partials gain more than the fundamental from pp to ff. The model reproduces the direction and most of the size: it brightens ${fmt(Math.abs(d.summary.brightnessContrastErr.biasDbPerPartial), 1)} dB per partial ${d.summary.brightnessContrastErr.biasDbPerPartial < 0 ? 'less' : 'more'} than the Steinway (median; ${fmt(d.summary.brightnessContrastErr.rmsDbPerPartial, 1)} dB RMS over keys). Individual partials also differ by soundboard colouration — the model’s board is plausible, not this board.`,
         true,
       ),
     );
@@ -233,7 +233,7 @@ function build(d: Data): HTMLElement[] {
         'Loudness',
         'RMS of the first 0.5 s, dB re full scale; one global gain fitted at mf',
         [REF_LEGEND(), grid],
-        `Per-note error ${fmt(d.summary.levelErrDb.pp, 1)} / ${fmt(d.summary.levelErrDb.mf, 1)} / ${fmt(d.summary.levelErrDb.ff, 1)} dB RMS at pp / mf / ff. The recording's pp notes are single human performances and swing by ±10 dB between neighbours; the model's dynamic range follows the hammer-velocity mapping fitted to the median.`,
+        `Per-note error ${fmt(d.summary.levelErrDb.pp, 1)} / ${fmt(d.summary.levelErrDb.mf, 1)} / ${fmt(d.summary.levelErrDb.ff, 1)} dB RMS at pp / mf / ff. The recording’s pp notes are single human performances and swing by ±10 dB between neighbours; the model’s dynamic range follows the hammer-velocity mapping fitted to the median.`,
         true,
       ),
     );
@@ -412,7 +412,7 @@ function ensembleSection(e: Ens): HTMLElement {
   return h(
     'section',
     { class: 'ensemble' },
-    h('h2', {}, 'Strings and woodwinds against recordings'),
+    h('h2', {}, 'Strings, woodwinds and brass against recordings'),
     h('p', { class: 'hint', style: 'margin-top:8px' }, `Iowa MIS anechoic · ${insts.map((i) => `${e.summary[i].notes} ${i}`).join(', ')} notes · same notes, dry, same analysis`),
     tiles,
     figs,
