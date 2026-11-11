@@ -1,0 +1,4 @@
+# main a561109, 12 players each (scripts/winds-midi-players.ts <part> --players 12)
+beethoven5-i bassoon 1: 523 notes, 12 players: on another register 3 4 1 5 0 1 0 5 2 0 1 1 (mean 1.9); by pitch 44: 1, 46: 3, 50: 5, 51: 6, 55: 1, 56: 2, 57: 3, 58: 2
+demo bassoon: 72 notes, 12 players: on another register 1 1 0 0 1 0 0 1 1 0 0 0 (mean 0.4); by pitch 65: 5
+beethoven5-i oboe 1: 418 notes, 12 players: on another register 0 0 0 0 0 3 4 0 0 0 0 0 (mean 0.6); by pitch 72: 5, 74: 1, 75: 1
