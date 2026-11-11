@@ -78,7 +78,7 @@ test('WebKit: the page loads, a key pressed starts the worklet and its note soun
   const errors = collectErrors(page);
   await page.goto('/');
   await expect(page).toHaveTitle(/instruments/i);
-  await expect(page.locator('.instruments .pick')).toHaveCount(13);
+  await expect(page.locator('.instruments .pick')).toHaveCount(14);
   await expect(page.locator('.keyboard .key')).toHaveCount(88);
   await expect(page.locator('html')).toHaveAttribute('data-audio', 'idle');
   // the layout fits the window (a phone has no horizontal scroll)

@@ -366,6 +366,18 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     lines: [0],
     vel: 0.55,
   },
+  tuba: {
+    instrument: 'tuba',
+    composer: 'Bach',
+    title: 'Air (the bass line, an octave down)',
+    file: 'bach-bwv1068-air-trombones.mid',
+    source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=461',
+    credit: 'Air from the Orchestral Suite No. 3 in D, BWV 1068, in an arrangement for trombone quartet: its bass line alone (the walking bass in octaves, written for the bass trombone), an octave lower, where a tuba plays it: D♭1 to D3. The file plays every note at full force (here at about mezzo-forte). Arranged and typeset by Ross Keenum; Mutopia-2008/10/28-461; public domain.',
+    sha256: 'dc3f31aaed2970ea523fbc2038ec0093f53e5026c6292e160181e2d0c1b637f8',
+    lines: [3],
+    shift: -12,
+    vel: 0.6,
+  },
   timpani: {
     instrument: 'timpani',
     composer: 'Mozart',

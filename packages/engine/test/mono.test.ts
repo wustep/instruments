@@ -12,7 +12,7 @@ import { createCore, INSTRUMENT_INFO, type InstrumentId } from '../src/core/inde
 import { FASTEST, LICK_MOVE, LICK_REPEAT, MonoKeys, REST, Tongue } from '../src/core/mono.ts';
 
 const FS = 48000;
-const WINDS: InstrumentId[] = ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone'];
+const WINDS: InstrumentId[] = ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba'];
 type Ev = { t: number; e: Record<string, unknown> };
 const on = (t: number, midi: number, velocity = 84): Ev => ({ t, e: { type: 'noteOn', midi, velocity } });
 const off = (t: number, midi: number): Ev => ({ t, e: { type: 'noteOff', midi } });
@@ -390,7 +390,11 @@ describe('a file’s notes on each wind and brass instrument', () => {
       // every note is there (none more than 9 dB under the loudest), and the rests are rests (a horn's long
       // tube rings on longest: 5 dB down 30–50 ms after the tongue; the woodwinds are 20 and more)
       for (const l of levels) expect(l).toBeGreaterThan(Math.max(...levels) - 9);
-      for (let i = 0; i < 3; i++) expect(db(rms(x, notes[i].end + 0.03, notes[i].end + 0.05))).toBeLessThan(db(rms(x, notes[i + 1].t + 0.05, notes[i + 1].end)) - 3);
+      // (a tuba's five metres: its sound leaves the bell 14 ms after the lips, and the tube takes a round trip
+      // more, 28 ms, to empty behind the tongue: its rests and its notes are read 25 ms later; there the rest
+      // is 14 dB down)
+      const lag = id === 'tuba' ? 0.025 : 0;
+      for (let i = 0; i < 3; i++) expect(db(rms(x, notes[i].end + 0.03 + lag, notes[i].end + 0.05 + lag))).toBeLessThan(db(rms(x, notes[i + 1].t + 0.05 + lag, notes[i + 1].end + lag)) - 3);
       // the host's block size changes nothing (strokes made ahead cut the core's own blocks)
       for (const block of [37, 500]) {
         const y = play(id, ev, 1.6, block);

@@ -25,7 +25,7 @@ const hash = (n: number) => {
 };
 /** the vibrato has no place in the visual frame: it is read off the sounding pitch (its deviation from its
  *  own slow mean), kept per state object */
-const pitchTrack = new WeakMap<HornState, { mean: number; dev: number; t: number }>();
+const pitchTrack = new WeakMap<object, { mean: number; dev: number; t: number }>();
 
 /** The double horn from its outside, as lines: the tubes' walls (the air's path bright), the bell's flare
  *  and mouth, the rotors (their passages turning), the lever bar and paddles; the standing wave hatched
@@ -164,14 +164,14 @@ function bellSections(L: HnLayout): Path2D {
   return p;
 }
 
-interface Hatch {
+export interface Hatch {
   ribs: Path2D[];
   line: Path2D;
   hidden: boolean;
 }
 /** the wave along the air's path, run by run: ticks across the bore every few px, as bright as the pressure
  *  there (widening with the flare in the bell), and a line along it */
-function airHatch(L: HnLayout, lv: HnLive, small: boolean): Map<string, Hatch> {
+export function airHatch(L: Pick<HnLayout, 'sc' | 'ox' | 'oy' | 'byId'>, lv: Pick<HnLive, 'ampAt' | 'ph'> & { air: HnLive['air'] }, small: boolean, flare: (d: number) => number = bellR): Map<string, Hatch> {
   const { sc } = L;
   const X = (x: number) => L.ox + x * sc;
   const Y = (y: number) => L.oy - y * sc;
@@ -210,7 +210,7 @@ function airHatch(L: HnLayout, lv: HnLive, small: boolean): Map<string, Hatch> {
             const A = Math.min(1, Math.abs(lv.ampAt(sa)));
             const level = Math.round(A * (0.3 + 0.7 * Math.abs(lv.ph)) * LEVELS);
             if (level >= 1) {
-              const half = ri === last ? Math.max(0.0063, 0.82 * bellR(lv.air.total - sa)) * sc : 0.72 * (tp ? tp.r[i] : 0.0055 * sc);
+              const half = ri === last ? Math.max(0.0063, 0.82 * flare(lv.air.total - sa)) * sc : 0.72 * (tp ? tp.r[i] : 0.0055 * sc);
               const cx = px + (x - px) * f;
               const cy = py + (y - py) * f;
               h.ribs[level - 1].moveTo(cx - nx * half, cy - ny * half);
@@ -226,7 +226,7 @@ function airHatch(L: HnLayout, lv: HnLive, small: boolean): Map<string, Hatch> {
   });
   return out;
 }
-function strokeHatch(ctx: CanvasRenderingContext2D, h: Hatch, fade: number, small: boolean, lvl: number): void {
+export function strokeHatch(ctx: CanvasRenderingContext2D, h: Hatch, fade: number, small: boolean, lvl: number): void {
   h.ribs.forEach((p, i) => {
     const l = (i + 1) / LEVELS;
     beam(ctx, p, heat(0.25 + 0.75 * l), 1, { alpha: Math.min(1, (0.18 + 0.82 * l) * fade), butt: true });
@@ -237,12 +237,12 @@ function strokeHatch(ctx: CanvasRenderingContext2D, h: Hatch, fade: number, smal
 /** the four slots at the mouthpiece, drawn as on the reeds: the breath (green) flowing into the lips, the
  *  lips (red) on the rim parted by the engine's opening, the turbulence in their slit (pink), the vibrato
  *  (white) round the breath's handle riding the pitch */
-function slots(ctx: CanvasRenderingContext2D, L: HnLayout, lv: HnLive, st: HornState, fr: VisualFrame | null, now: number, small: boolean, lw: number): void {
+export function slots(ctx: CanvasRenderingContext2D, L: Pick<HnLayout, 'sc' | 'ox' | 'oy' | 'top'>, lv: Pick<HnLive, 'sounding' | 'blow' | 'open' | 'swing' | 'lvl'>, st: object, fr: VisualFrame | null, now: number, small: boolean, lw: number, mpRim: P = MP_RIM, mpDir: P = MP_DIR, lipHalf = 0.0125): void {
   const { sc } = L;
-  const rim: P = [L.ox + MP_RIM[0] * sc, L.oy - MP_RIM[1] * sc];
+  const rim: P = [L.ox + mpRim[0] * sc, L.oy - mpRim[1] * sc];
   // (the axis into the cup on the screen, and across it)
-  const ux = MP_DIR[0];
-  const uy = -MP_DIR[1];
+  const ux = mpDir[0];
+  const uy = -mpDir[1];
   const nx = uy;
   const ny = -ux;
   const at = (a: number, w: number): [number, number] => [rim[0] - ux * a * sc + nx * w * sc, rim[1] - uy * a * sc + ny * w * sc];
@@ -252,7 +252,7 @@ function slots(ctx: CanvasRenderingContext2D, L: HnLayout, lv: HnLive, st: HornS
   const hr = clamp(0.0034 * sc, 2.6, 6);
   const t = now / 1000;
   // the lips: on the rim, parted by the opening
-  lipLine(ctx, at, 0.0006 + 0.0032 * o, 0.0125, lw + 0.3, playing ? 0.6 + 0.4 * Math.min(1, o) : 0.6, playing);
+  lipLine(ctx, at, 0.0006 + 0.0032 * o, lipHalf, lw + 0.3, playing ? 0.6 + 0.4 * Math.min(1, o) : 0.6, playing);
   // the lips' handle beside the rim (towards the bell's side, where the stage has room)
   const lx = rim[0] - ux * 0.006 * sc - nx * 0.026 * sc;
   const ly = rim[1] - uy * 0.006 * sc - ny * 0.026 * sc;

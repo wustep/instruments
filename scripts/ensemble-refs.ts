@@ -12,6 +12,7 @@
 // mf C3–B3 runs); tenor trombone: the MIS "Tenor Trombone" set (https://theremin.music.uiowa.edu/MIStenortrombone.html;
 // 1997), E2–C5, pp/mf/ff; bass trombone: the MIS "Bass Trombone" set (https://theremin.music.uiowa.edu/MISbasstrombone.html;
 // 1997, played with vibrato), C1 (pp; D♭1 mf/ff) to B♭4 (pp), G4 (mf), F4 (ff). Both at concert pitch.
+// Tuba: the MIS "Tuba" set (https://theremin.music.uiowa.edu/MIStuba.html; 1997), C1–C4 as it sounds, pp/mf/ff.
 // Terms: "may be downloaded and used for any projects, without restrictions" —
 // https://theremin.music.uiowa.edu/MIS.html
 //
@@ -24,7 +25,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { join } from 'node:path';
 import { analyzeSustained, decodeWav, identifyNote, segmentNotes, type SustainedAnalysis } from '../packages/engine/src/analysis/index.ts';
 
-export type EnsInstrument = 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trombone';
+export type EnsInstrument = 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'trumpet' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trombone' | 'tuba';
 export type Dyn = 'pp' | 'mf' | 'ff';
 export const ENS_DYN: Dyn[] = ['pp', 'mf', 'ff'];
 export const ENS_CACHE = join(import.meta.dirname, '..', '.cache', 'iowa-ens');
@@ -58,6 +59,12 @@ export interface RefFile {
   /** one instrument's other size recorded as its own set (the bass trombone): its notes are told apart by it,
    *  and the model plays them at that size */
   variant?: string;
+  /** a run with as many notes as its name says is taken in order, whatever pitch each seems to have (the
+   *  tuba's lowest octave: the fundamental of a C1, 33 Hz, is weaker than its second harmonic, and reads as C2) */
+  sequential?: boolean;
+  /** how far off its note a segment may be and still be it (cents; default 60: the tuba's low valve notes are
+   *  played up to 80 cents sharp, as four valves leave them) */
+  tol?: number;
 }
 
 const BASE = 'https://theremin.music.uiowa.edu/sound%20files/MIS';
@@ -167,6 +174,13 @@ export const REF_FILES: RefFile[] = [
     const remote = tag === 'Db1B1' ? `BassTrombone.${dyn}.%20${tag}.aiff` : file;
     return { instrument: 'trombone' as const, dyn, file, url: `${BASE}/Brass/basstrombone/${remote}`, range: rangeOf(tag), use: [24, 70] as [number, number], variant: 'bass' };
   }),
+  // tuba, C1–C4 as recorded (written at pitch): the model's compass runs on to F4
+  ...ENS_DYN.flatMap((dyn) =>
+    ['C1B1', 'C2B2', 'C3C4'].map((tag) => {
+      const file = `Tuba.${dyn}.${tag}.aiff`;
+      return { instrument: 'tuba' as const, dyn, file, url: `${BASE}/Brass/tuba/${file}`, range: rangeOf(tag), use: [24, 65] as [number, number], sequential: true, tol: 90 };
+    }),
+  ),
 ];
 
 export interface RefNote extends SustainedAnalysis {
@@ -201,7 +215,7 @@ export function analyseFile(f: RefFile): RefNote[] {
   segs.forEach((seg, i) => {
     // sequential assignment when the count matches, else nearest identified pitch
     const id = identifyNote(x, fs, seg, Math.max(lo - 1, 24), hi + 1);
-    const m = segs.length === expected && Math.abs(id.midi - (lo + i)) <= 1 ? lo + i : id.midi;
+    const m = segs.length === expected && (f.sequential || Math.abs(id.midi - (lo + i)) <= 1) ? lo + i : id.midi;
     if (m < f.use[0] || m > f.use[1] || m < lo || m > hi) return;
     const len = seg.end - seg.start;
     const prev = picks.get(m);
@@ -211,7 +225,7 @@ export function analyseFile(f: RefFile): RefNote[] {
   for (const [m, { seg }] of [...picks].sort((p, q) => p[0] - q[0])) {
     const s = analyzeSustained(x, fs, seg, m);
     // reject mis-identified segments (more than 60 cents off the note)
-    if (!Number.isFinite(s.f0) || Math.abs(s.cents) > 60) continue;
+    if (!Number.isFinite(s.f0) || Math.abs(s.cents) > (f.tol ?? 60)) continue;
     out.push({ ...s, instrument: f.instrument, dyn: f.dyn, file: f.file, ...(f.variant ? { variant: f.variant } : {}) });
   }
   return out;

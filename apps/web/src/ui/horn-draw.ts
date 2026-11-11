@@ -71,8 +71,9 @@ export const HN_Y1 = MP_RIM[1] + 0.016;
 /** the box (m) the horn is drawn in at one px per metre (an ensemble sizes it from the strings' scale) */
 export const hornBox = (): { w: number; h: number } => ({ w: (HN_X1 - HN_X0) / 0.9, h: (HN_Y1 - HN_Y0) / 0.86 });
 
-/** a tube's outline and shading, in px: its body (filled), its two edges, its lit and shaded bands */
-interface TubePx {
+/** a tube's outline and shading, in px: its body (filled), its two edges, its lit and shaded bands (the
+ *  tuba's drawing uses it too: tuba-draw.ts) */
+export interface TubePx {
   id: string;
   layer: number;
   body: Path2D;
@@ -263,7 +264,7 @@ export function hornLayout(W: number, H: number, top = 0): HnLayout {
   return L;
 }
 /** a tube in px: its outline (from its centre line and radius), its edges and its lit and shaded bands */
-function tubePx(t: Tube, X: (x: number) => number, Y: (y: number) => number, sc: number): TubePx {
+export function tubePx(t: Tube, X: (x: number) => number, Y: (y: number) => number, sc: number): TubePx {
   const pts = t.pts;
   const n = pts.length;
   const xy = new Float32Array(2 * n);
@@ -339,34 +340,10 @@ export interface HnLive {
 const CYC = 32;
 const NONE = [false, false, false, false];
 
-/** the frame into the drawing's live state (the same for both styles: a change of style carries it) */
-export function hornLive(fr: VisualFrame | null, st: HornState, now: number): HnLive {
+/** The lips' opening now and their swing over the cycle, from the engine's trace (one cycle kept from its
+ *  narrowest, played back slowed on the wave's clock); the horn's and the tuba's alike. */
+export function lipsLive(st: Pick<HornState, 'lips'>, fr: VisualFrame | null, blow: number, dt: number, now: number): { open: number; swing: number } {
   const focus = fr?.focus ?? null;
-  const blow = fr?.lips?.blow ?? 0;
-  // ---- the standing wave along the bore (lips 0 → bell 1)
-  const w = (st.wave ??= newBoreWave());
-  const peak = trackBoreWave(w, focus?.shapes[0] ?? null);
-  const scale = (st.waveRef ??= new AutoScale(1e-6, 0.997)).of(peak);
-  const lvl = Math.min(1, peak / scale);
-  // ---- the fingering: the engine's note while it is blown and a moment after, then the levers lift
-  const mc = (st.mech ??= { pos: new Float32Array(4), vel: new Float32Array(4), t: now, quiet: 10, f: null });
-  const dt = Math.min(0.1, Math.max(0, (now - mc.t) / 1000));
-  mc.t = now;
-  mc.quiet = blow > 0.02 || (lvl > 0.04 && blow > 0.002) ? 0 : mc.quiet + dt;
-  const f = focus && mc.quiet < 0.8 ? hornFingering(focus.midi) : null;
-  mc.f = f;
-  const down = f ? valvesDown(f) : NONE;
-  // (a rotary valve's lever: quick, with a small bounce off its stop, 24 Hz)
-  const press = [0, 1, 2, 3].map((k) => spring01(mc.pos, mc.vel, k, down[k] ? 1 : 0, dt, 24, 0.6));
-  const side = f?.side ?? 'F';
-  const air = hornAir(side, down);
-  const ph = Math.cos(slowPhase(focus?.f1 ?? 175, now));
-  const bellStart = air.starts[air.starts.length - 1];
-  const ampAt = (s: number): number => {
-    // in the bell's flare the pressure spreads over the widening mouth: p = ψ/r
-    const taper = s > bellStart ? bellR(air.total - bellStart) / bellR(air.total - s) : 1;
-    return (boreAt(w.amp, s / air.total) / scale) * taper;
-  };
   // ---- the lips: their opening over a cycle, from the cycle's narrowest, played back on the wave's clock
   const lp = (st.lips ??= { cyc: new Float32Array(CYC), last: null, ref: 1 });
   const e = fr?.excite;
@@ -407,7 +384,39 @@ export function hornLive(fr: VisualFrame | null, st: HornState, now: number): Hn
     lo = Math.min(lo, lp.cyc[i]);
     hi = Math.max(hi, lp.cyc[i]);
   }
-  return { f, down, press, air, side, lvl, ph, sounding: !!focus && lvl > 0.02 && !!f, ampAt, open, blow, swing: Math.max(0, hi - lo) };
+  return { open, swing: Math.max(0, hi - lo) };
+}
+
+/** the frame into the drawing's live state (the same for both styles: a change of style carries it) */
+export function hornLive(fr: VisualFrame | null, st: HornState, now: number): HnLive {
+  const focus = fr?.focus ?? null;
+  const blow = fr?.lips?.blow ?? 0;
+  // ---- the standing wave along the bore (lips 0 → bell 1)
+  const w = (st.wave ??= newBoreWave());
+  const peak = trackBoreWave(w, focus?.shapes[0] ?? null);
+  const scale = (st.waveRef ??= new AutoScale(1e-6, 0.997)).of(peak);
+  const lvl = Math.min(1, peak / scale);
+  // ---- the fingering: the engine's note while it is blown and a moment after, then the levers lift
+  const mc = (st.mech ??= { pos: new Float32Array(4), vel: new Float32Array(4), t: now, quiet: 10, f: null });
+  const dt = Math.min(0.1, Math.max(0, (now - mc.t) / 1000));
+  mc.t = now;
+  mc.quiet = blow > 0.02 || (lvl > 0.04 && blow > 0.002) ? 0 : mc.quiet + dt;
+  const f = focus && mc.quiet < 0.8 ? hornFingering(focus.midi) : null;
+  mc.f = f;
+  const down = f ? valvesDown(f) : NONE;
+  // (a rotary valve's lever: quick, with a small bounce off its stop, 24 Hz)
+  const press = [0, 1, 2, 3].map((k) => spring01(mc.pos, mc.vel, k, down[k] ? 1 : 0, dt, 24, 0.6));
+  const side = f?.side ?? 'F';
+  const air = hornAir(side, down);
+  const ph = Math.cos(slowPhase(focus?.f1 ?? 175, now));
+  const bellStart = air.starts[air.starts.length - 1];
+  const ampAt = (s: number): number => {
+    // in the bell's flare the pressure spreads over the widening mouth: p = ψ/r
+    const taper = s > bellStart ? bellR(air.total - bellStart) / bellR(air.total - s) : 1;
+    return (boreAt(w.amp, s / air.total) / scale) * taper;
+  };
+  const { open, swing } = lipsLive(st, fr, blow, dt, now);
+  return { f, down, press, air, side, lvl, ph, sounding: !!focus && lvl > 0.02 && !!f, ampAt, open, blow, swing };
 }
 
 /** record where it was drawn (and the levers held) and where its sound leaves */
@@ -468,7 +477,7 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     ctx.lineWidth = 1;
     ctx.stroke(t.edges);
   };
-  const glow = (t: TubePx) => glowTube(ctx, L, t, lv);
+  const glow = (t: TubePx) => glowTube(ctx, t, lv);
   // ---- the bell (the body's last lap leads into it), behind everything
   {
     const B = L.bell;
@@ -579,7 +588,7 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
 
 /** the wave along a tube on the air's path: its envelope (vermilion, by strength) and its sign (warm
  *  compression, cool rarefaction), drawn slowed */
-function glowTube(ctx: CanvasRenderingContext2D, L: HnLayout, t: TubePx, lv: HnLive): void {
+export function glowTube(ctx: CanvasRenderingContext2D, t: TubePx, lv: Pick<HnLive, 'ampAt' | 'ph'> & { air: { runs: { id: string; offset?: number }[]; starts: number[] } }): void {
   const runs = lv.air.runs;
   const ri = runs.findIndex((r) => r.id === t.id);
   if (ri < 0) return;

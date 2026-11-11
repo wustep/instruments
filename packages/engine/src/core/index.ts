@@ -18,4 +18,7 @@ export { ClarinetCore, CLARINET_VOICE, clarinetRegister, type ClarinetParams, ty
 export { BassoonCore, BASSOON_VOICE, bassoonRegister, type BassoonParams, type BassoonVoice } from './bassoon.ts';
 export { TromboneCore, TROMBONE_VOICE, TROMBONE_SIZES, TROMBONE_SIZE_IDS, TROMBONE_LO, TROMBONE_HI, tromboneFingering, tromboneTubeLength, tromboneSlideOut, type TromboneFingering, type TromboneParams, type TromboneVoice, type TromboneSize, type TromboneBore } from './trombone.ts';
 export { HornCore, HORN_VOICE, HORN_LO, HORN_HI, hornFingering, hornTubeLength, type HornFingering, type HornParams, type HornVoice } from './horn.ts';
+export { TubaCore, TUBA_VOICE, TUBA_LO, TUBA_HI, TUBA_LENGTH, tubaFingering, tubaTubeLength, type TubaFingering, type TubaParams, type TubaVoice } from './tuba.ts';
+export { LipConeCore, type ConeFingering, type LipConeId, type LipConeParams, type LipConeSpec, type LipConeVoice, type TuningTable } from './lipcone.ts';
+export { VALVES3, VALVES4, valveFingering, valvesDown, type ValveFingering } from './valves.ts';
 export { TimpaniCore, TIMPANI_VOICE, TIMPANI_SPOT, TIMPANI_LO, TIMPANI_HI, TIMPANI_DRUMS, besselJ, besselZeros, type TimpaniParams, type TimpaniVoice, type TimpaniDrum } from './timpani.ts';

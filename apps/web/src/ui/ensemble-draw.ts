@@ -10,12 +10,13 @@ import { isKeyboard, VOICE_INFO, type Voice } from '../orchestra/assign.ts';
 import { isOrchestral, orchestraPlan, seatKinds } from '../orchestra/seats.ts';
 import type { PartLive } from '../orchestra/ensemble.ts';
 import { drawPiano, newPianoState, type PianoState } from './piano-draw.ts';
-import { Contours, drawBassoonV, drawBowedV, drawClarinetV, drawFluteV, drawHornV, drawOboeV, drawPianoV, drawTromboneV, drawTrumpetV, drawTimpaniV } from './vector/index.ts';
+import { Contours, drawBassoonV, drawBowedV, drawClarinetV, drawFluteV, drawHornV, drawOboeV, drawPianoV, drawTromboneV, drawTrumpetV, drawTubaV, drawTimpaniV } from './vector/index.ts';
 import { drawOboe, newOboeState, oboeBox, type OboeState } from './oboe-draw.ts';
 import { clarinetBox, drawClarinet, newClarinetState, type ClarinetState } from './clarinet-draw.ts';
 import { bassoonBox, drawBassoon, newBassoonState, type BassoonState } from './bassoon-draw.ts';
 import { drawHorn, hornBox, newHornState, type HornState } from './horn-draw.ts';
 import { drawTrombone, newTromboneState, tromboneBox, type TromboneState } from './trombone-draw.ts';
+import { drawTuba, newTubaState, tubaBox, type TubaState } from './tuba-draw.ts';
 import { drawTimpani, timpaniBox, newTimpaniState, type TimpaniState } from './timpani-draw.ts';
 import { AutoScale, BOWED_PLAN, FL_LEN, ModeField, bowReach, bowedShapes, bowedSpan, drawBowed, drawFlute, drawTrumpet, trumpetBox, type BowedGeom, type BowedState, type FluteState, type TrumpetState } from './stage-draw.ts';
 
@@ -39,6 +40,7 @@ export interface PartDraw {
   bassoon?: BassoonState;
   horn?: HornState;
   trombone?: TromboneState;
+  tuba?: TubaState;
   timpani?: TimpaniState;
   piano?: { st: PianoState; field: ModeField; vfield?: Contours };
 }
@@ -51,6 +53,7 @@ export function newPartDraw(v: Voice): PartDraw {
   if (inst === 'flute') return { voice: v, flute: { pScale: new AutoScale(1e-6), jetScale: new AutoScale(1e-9), env: new Float32Array(0) } as FluteState };
   if (inst === 'trumpet') return { voice: v, trumpet: { pScale: new AutoScale(1e-6), env: new Float32Array(0) } };
   if (inst === 'trombone') return { voice: v, trombone: newTromboneState() };
+  if (inst === 'tuba') return { voice: v, tuba: newTubaState() };
   if (inst === 'horn') return { voice: v, horn: newHornState() };
   if (inst === 'timpani') return { voice: v, timpani: newTimpaniState() };
   if (inst === 'oboe') return { voice: v, oboe: newOboeState() };
@@ -139,6 +142,11 @@ function seatOf(v: Voice, upright: boolean): Seat {
     // (the horn is drawn from its outside either way, its bell to the left; the trombone from its side, its
     // box long enough for its slide all the way out)
     const b = VOICE_INFO[v].instrument === 'horn' ? hornBox() : VOICE_INFO[v].instrument === 'trombone' ? tromboneBox() : trumpetBox();
+    return { across: upright ? b.w : b.h, along: upright ? b.h : b.w, pad: 0, lo: 0, hi: 0 };
+  }
+  if (VOICE_INFO[v].instrument === 'tuba') {
+    // (the tuba stands upright in its row, its bell up, whichever way the stage runs)
+    const b = tubaBox();
     return { across: upright ? b.w : b.h, along: upright ? b.h : b.w, pad: 0, lo: 0, hi: 0 };
   }
   if (VOICE_INFO[v].instrument === 'timpani') {
@@ -452,6 +460,7 @@ export function drawEnsemble(ctx: CanvasRenderingContext2D, cells: Cell[], parts
       d.trombone.sizeHint = p.size;
       (vector ? drawTromboneV : drawTrombone)(ctx, c.w, c.h, fr, d.trombone);
     }
+    else if (d.tuba) (vector ? drawTubaV : drawTuba)(ctx, c.w, c.h, fr, d.tuba);
     else if (d.timpani) (vector ? drawTimpaniV : drawTimpani)(ctx, c.w, c.h, fr, d.timpani);
     else if (d.piano) {
       const st = d.piano.st;

@@ -9,15 +9,26 @@
 // absolute level (the gain matches it after).
 //   npx tsx scripts/fit-horn.ts [--iters 300] [--seed 1] [--from voice.json] [--out voice.json] [--sigma 0.12]
 // A (1+1) evolution strategy in the parameters' normalised ranges, its step adapted by the 1/5 rule.
+// The tuba is the same engine (lipcone.ts) and is fitted the same way to the Iowa MIS tuba, within its own
+// ranges (a lower bell cutoff and colour): --instrument tuba. FIT_WORKERS=<n> caps the worker pool.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { harmErr, matchedParams, modelNote } from './calibrate-ensemble.ts';
 import { referenceNotes, type RefNote } from './ensemble-refs.ts';
 import type { SustainedAnalysis } from '../packages/engine/src/analysis/index.ts';
-import { regime } from './horn-regimes.ts';
+import { regime, type LipConeName } from './horn-regimes.ts';
 import { isHeldOut, sustainedErrors } from './judge.ts';
 import { HORN_VOICE, HORN_HI, HORN_LO, type HornVoice } from '../packages/engine/src/core/horn.ts';
+import { TUBA_VOICE, TUBA_HI, TUBA_LO } from '../packages/engine/src/core/tuba.ts';
+
+/** which instrument of the lips-and-cone engine is fitted (the main thread's --instrument; a worker's data) */
+const INST: LipConeName = ((isMainThread ? (process.argv.includes('--instrument') ? process.argv[process.argv.indexOf('--instrument') + 1] : 'horn') : (workerData as { inst?: string })?.inst) ?? 'horn') as LipConeName;
+const TUBA = INST === 'tuba';
+const VOICE0 = TUBA ? TUBA_VOICE : HORN_VOICE;
+const [LO, HI] = TUBA ? [TUBA_LO, TUBA_HI] : [HORN_LO, HORN_HI];
+/** the compass in thirds, for the level across it (the tuba's: its recorded C1–C4) */
+const THIRDS: [number, number][] = TUBA ? [[24, 35], [36, 47], [48, 60]] : [[34, 47], [48, 61], [62, 77]];
 
 /** what the search may move, and within what */
 export const RANGES: Partial<Record<keyof HornVoice, [number, number]>> = {
@@ -60,6 +71,22 @@ export const RANGES: Partial<Record<keyof HornVoice, [number, number]>> = {
   shelfG: [-24, 6],
   tilt: [-8, 8],
 };
+/** the tuba's own ranges where they differ: a wide bell lets go of the highs from 250–450 Hz (a horn's from
+ *  700), its colour gathers lower, its lips are slower and its breath's rise longer */
+const TUBA_RANGES: Partial<Record<keyof HornVoice, [number, number]>> = {
+  bellFc: [150, 1500],
+  hp: [15, 500],
+  f1: [80, 900],
+  lp: [120, 3000],
+  riseLo: [0.005, 0.25],
+  riseHi: [0.003, 0.15],
+  tongueHold: [0.005, 0.08],
+  qTau: [0.01, 0.4],
+  attackTau: [0.01, 0.4],
+  steep: [0, 0.03],
+  shelfF: [800, 4000],
+};
+if (TUBA) Object.assign(RANGES, TUBA_RANGES);
 const KEYS = Object.keys(RANGES) as (keyof HornVoice)[];
 const MEASURES = ['harmonics', 'centroid', 'noise', 'attack'];
 
@@ -73,17 +100,17 @@ let refs: RefNote[] = [];
 let pool: Worker[] = [];
 /** the register check: every note of the compass at pp, mf and ff, at the four sample rates the site meets,
  *  held 1.5 s and read in the mouthpiece. The model alone: it reads nothing of the recordings */
-const REG_JOBS = [22050, 44100, 48000, 96000].flatMap((fs) => Array.from({ length: HORN_HI - HORN_LO + 1 }, (_, i) => HORN_LO + i).flatMap((m) => [30, 70, 112].map((vel) => ({ m, vel, fs }))));
+const REG_JOBS = [22050, 44100, 48000, 96000].flatMap((fs) => Array.from({ length: HI - LO + 1 }, (_, i) => LO + i).flatMap((m) => [30, 70, 112].map((vel) => ({ m, vel, fs }))));
 let regimes: string[] = [];
 async function render(voice: Partial<HornVoice>): Promise<{ ref: RefNote; model: SustainedAnalysis | null }[]> {
-  if (!refs.length) refs = (await referenceNotes()).filter((r) => r.instrument === 'horn');
-  if (!pool.length) pool = Array.from({ length: Math.max(1, Math.min(refs.length, cpus().length - 2)) }, () => new Worker(new URL(import.meta.url), { workerData: { fitHorn: true }, execArgv: ['--import', 'tsx'] }));
+  if (!refs.length) refs = (await referenceNotes()).filter((r) => r.instrument === INST);
+  if (!pool.length) pool = Array.from({ length: Math.max(1, Math.min(refs.length, +(process.env.FIT_WORKERS ?? 0) || cpus().length - 2)) }, () => new Worker(new URL(import.meta.url), { workerData: { fitHorn: true, inst: INST }, execArgv: ['--import', 'tsx'] }));
   const out: (SustainedAnalysis | null)[] = new Array(refs.length).fill(null);
   await Promise.all(
     pool.map(
       (w, k) =>
         new Promise<void>((resolve) => {
-          const jobs = refs.map((r, i) => ({ i, j: { instrument: 'horn' as const, dyn: r.dyn, midi: r.midi, params: matchedParams(r, { voice }) } })).filter((_, i) => i % pool.length === k);
+          const jobs = refs.map((r, i) => ({ i, j: { instrument: INST, dyn: r.dyn, midi: r.midi, params: matchedParams(r, { voice }) } })).filter((_, i) => i % pool.length === k);
           const reg = REG_JOBS.map((r, i) => ({ i, ...r, voice })).filter((_, i) => i % pool.length === k);
           w.once('message', (m: { notes: { i: number; a: SustainedAnalysis | null }[]; reg: { i: number; r: string }[] }) => {
             for (const x of m.notes) out[x.i] = x.a;
@@ -133,7 +160,7 @@ export async function scoreVoice(voice: Partial<HornVoice>, half: 'fit' | 'held'
     const x = lvl(d, b[0], b[1], 'model') - lvl(d, a[0], a[1], 'model') - (lvl(d, b[0], b[1], 'ref') - lvl(d, a[0], a[1], 'ref'));
     return Number.isFinite(x) ? Math.abs(x) : 0;
   };
-  per.slope = (rstep('ff', [34, 47], [48, 61]) + rstep('ff', [48, 61], [62, 77]) + rstep('mf', [34, 47], [62, 77])) / 9;
+  per.slope = (rstep('ff', THIRDS[0], THIRDS[1]) + rstep('ff', THIRDS[1], THIRDS[2]) + rstep('mf', THIRDS[0], THIRDS[2])) / 9;
   // a note analysed off its pitch by more than 60 cents is on another partial (a wrong note)
   const wrong = ok.filter((p) => Math.abs(p.model!.cents) > 60).length;
   const off = regimes.filter((r) => r !== '1').length;
@@ -148,7 +175,7 @@ const denorm = (k: keyof HornVoice, u: number) => RANGES[k]![0] + Math.min(1, Ma
 
 if (!isMainThread && (workerData as { fitHorn?: boolean })?.fitHorn) {
   parentPort!.on('message', (m: { jobs: { i: number; j: Parameters<typeof modelNote>[0] }[]; reg: { i: number; m: number; vel: number; fs: number; voice: object }[] }) =>
-    parentPort!.postMessage({ notes: m.jobs.map(({ i, j }) => ({ i, a: modelNote(j) })), reg: m.reg.map((r) => ({ i: r.i, r: regime(r.m, r.vel, r.fs, r.voice, 1.5) })) }),
+    parentPort!.postMessage({ notes: m.jobs.map(({ i, j }) => ({ i, a: modelNote(j) })), reg: m.reg.map((r) => ({ i: r.i, r: regime(r.m, r.vel, r.fs, r.voice, TUBA ? 2 : 1.5, INST) })) }),
   );
 } else if (import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2);
@@ -159,7 +186,7 @@ if (!isMainThread && (workerData as { fitHorn?: boolean })?.fitHorn) {
   const gauss = () => Math.sqrt(-2 * Math.log(rand() + 1e-12)) * Math.cos(2 * Math.PI * rand());
   const from = args.includes('--from') ? (JSON.parse(readFileSync(opt('--from', ''), 'utf8')) as Partial<HornVoice>) : {};
   const out = opt('--out', '');
-  let best: Partial<HornVoice> = { ...Object.fromEntries(KEYS.map((k) => [k, HORN_VOICE[k]])), ...from };
+  let best: Partial<HornVoice> = { ...Object.fromEntries(KEYS.map((k) => [k, VOICE0[k]])), ...from };
   let bestS = await scoreVoice(best);
   console.log('start', bestS.score.toFixed(3), JSON.stringify(Object.fromEntries(Object.entries(bestS.per).map(([k, v]) => [k, +v.toFixed(2)]))), 'missing', bestS.missing);
   let sigma = +opt('--sigma', '0.12');

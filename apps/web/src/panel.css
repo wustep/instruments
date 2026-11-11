@@ -529,7 +529,9 @@
   .ens-toggle[aria-pressed='true']::after {
     content: none;
   }
-  /* the sheet: four to a row, a family to a row (the timpani end the brass's) */
+  /* the sheet: four to a row and every row a kind. The first is what is struck or plucked (the piano and the
+     percussion: the keys' family, then the percussion's, brought up beside it), then the strings, the
+     woodwinds, the brass: with a harp and a glockenspiel, four rows of four */
   .picker-pop {
     display: none;
     position: fixed;
@@ -556,11 +558,20 @@
   .fam {
     display: contents;
   }
-  .fam > .pick:first-child {
-    grid-column-start: 1;
+  .fam[data-fam='percussion'] > .pick {
+    order: 1;
   }
-  .fam[data-fam='percussion'] > .pick:first-child {
-    grid-column-start: auto;
+  .fam[data-fam='strings'] > .pick {
+    order: 2;
+  }
+  .fam[data-fam='woodwinds'] > .pick {
+    order: 3;
+  }
+  .fam[data-fam='brass'] > .pick {
+    order: 4;
+  }
+  .fam:not([data-fam='percussion']) > .pick:first-child {
+    grid-column-start: 1;
   }
   .pick {
     min-width: 0;
@@ -577,14 +588,27 @@
     top: 4px;
     right: 14px;
   }
-  /* the piano's kind, beside the piano */
+  /* the piano's kind, where the bar has no room for it (a phone, a narrow window): at the sheet's foot, under
+     the instruments, a hairline between */
   .picker-pop .presets {
+    display: flex;
+    width: max-content;
+    margin: 9px 0 1px 6px;
+    position: relative;
+  }
+  .picker-pop .presets::before {
+    content: '';
     position: absolute;
-    top: 25px;
-    left: calc(25% + 14px);
+    left: -6px;
+    top: -6px;
+    width: min(356px, calc(100vw - 2 * var(--gutter) - 16px));
+    border-top: 1px solid var(--rule);
+  }
+  .picker-pop .presets[hidden] {
+    display: none;
   }
   .picker-pop .presets button {
-    padding: 7px 10px;
+    padding: 7px 12px;
   }
 }
 
@@ -695,9 +719,6 @@
   }
   .pick {
     padding: 2px 0 3px;
-  }
-  .picker-pop .presets {
-    top: 18px;
   }
   .stage-top {
     display: flex;

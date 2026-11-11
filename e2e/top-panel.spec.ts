@@ -1,6 +1,6 @@
 // The top panel: what is on the stage and how it is seen (the bar), and what is sounding (the band under it).
 // The readout says every note sounding (a chord is never one of its notes), an ensemble its parts; the picker
-// is thirteen instruments by family, at a size to read and to touch (behind one button where there is no
+// is fourteen instruments by family, at a size to read and to touch (behind one button where there is no
 // room); the view is one choice of three; the pages are two words that show which one is open.
 import { test, expect, type Page } from '@playwright/test';
 import { openPicker } from './picker.ts';
@@ -172,13 +172,13 @@ test('an ensemble: the readout says the notes its parts sound together and how m
   expect(errors).toEqual([]);
 });
 
-test('the picker on a computer: thirteen instruments in five families on one row, each name whole and clear of its neighbour’s, the one on the stage marked; the orchestra beside them', async ({ page }, info) => {
-  test.skip(info.project.name === 'phone', 'the bar with room for all thirteen');
+test('the picker on a computer: fourteen instruments in five families on one row, each name whole and clear of its neighbour’s, the one on the stage marked; the orchestra beside them', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'the bar with room for all fourteen');
   await page.goto('/piano?view=2d');
   await expect(page.locator('.pick-open')).toBeHidden();
-  expect(await page.locator('.instruments .fam').evaluateAll((els) => els.map((el) => `${(el as HTMLElement).dataset.fam}:${el.querySelectorAll('.pick').length}`))).toEqual(['keys:1', 'strings:4', 'woodwinds:4', 'brass:3', 'percussion:1']);
+  expect(await page.locator('.instruments .fam').evaluateAll((els) => els.map((el) => `${(el as HTMLElement).dataset.fam}:${el.querySelectorAll('.pick').length}`))).toEqual(['keys:1', 'strings:4', 'woodwinds:4', 'brass:4', 'percussion:1']);
   const names = await page.locator('.instruments .pick-name').evaluateAll((els) => els.map((el) => { const r = el.getBoundingClientRect(); return { t: el.textContent, l: r.left, r: r.right, y: r.top, cut: (el as HTMLElement).scrollWidth > (el as HTMLElement).clientWidth + 1 }; }));
-  expect(names.map((n) => n.t)).toEqual(['piano', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'timpani']);
+  expect(names.map((n) => n.t)).toEqual(['piano', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani']);
   for (let i = 1; i < names.length; i++) {
     expect(names[i].l, `${names[i].t} clear of ${names[i - 1].t}`).toBeGreaterThanOrEqual(names[i - 1].r + 4);
     expect(names[i].y).toBeCloseTo(names[0].y, 0);
@@ -196,7 +196,7 @@ test('the picker on a computer: thirteen instruments in five families on one row
   // the orchestra: named, at the end of the instruments
   const ens = page.locator('.ens-toggle');
   await expect(ens.locator('.pick-name')).toHaveText('orchestra');
-  expect((await ens.boundingBox())!.x).toBeGreaterThan(names[12].r);
+  expect((await ens.boundingBox())!.x).toBeGreaterThan(names[names.length - 1].r);
   // a small laptop (1366 px), at its fullest (an upright in 3D: its kind, its case, the view; no sound yet, so
   // the lamp says what to do): still one row, the lamp's words whole; narrower, the picker folds behind its button
   await page.setViewportSize({ width: 1366, height: 768 });
@@ -213,7 +213,7 @@ test('the picker on a computer: thirteen instruments in five families on one row
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test('the picker on a phone: one button names the instrument; its sheet shows all thirteen, each large enough to touch, by family; choosing one shuts it; an orchestra keeps it open to count instruments in', async ({ page }, info) => {
+test('the picker on a phone: one button names the instrument; its sheet shows all fourteen, each large enough to touch, four to a row, every row a kind; the piano’s kind at its foot; choosing one shuts it; an orchestra keeps it open to count instruments in', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone', 'the phone layout');
   const errors = collectErrors(page);
   for (const size of [null, { width: 390, height: 844 }, { width: 320, height: 640 }, { width: 844, height: 390 }]) {
@@ -228,7 +228,7 @@ test('the picker on a phone: one button names the instrument; its sheet shows al
     await open.click();
     await expect(open).toHaveAttribute('aria-expanded', 'true');
     const picks = page.locator('.instruments .pick');
-    await expect(picks).toHaveCount(13);
+    await expect(picks).toHaveCount(14);
     const vp = page.viewportSize()!;
     const boxes = await picks.evaluateAll((els) => els.map((el) => { const r = el.getBoundingClientRect(); const n = el.querySelector('.pick-name')!.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom, nl: n.left, nr: n.right, name: el.querySelector('.pick-name')!.textContent }; }));
     for (const [i, b] of boxes.entries()) {
@@ -244,18 +244,30 @@ test('the picker on a phone: one button names the instrument; its sheet shows al
       // no two overlap
       for (const c of boxes.slice(0, i)) expect(b.l >= c.r - 0.5 || c.l >= b.r - 0.5 || b.t >= c.b - 0.5 || c.t >= b.b - 0.5, `${where}: ${b.name} / ${c.name}`).toBe(true);
     }
-    expect(boxes.map((b) => b.name)).toEqual(['piano', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'timpani']);
-    // a family to a row: the strings on one, the woodwinds on the next, the brass (and the timpani) on the last
-    const rows = [...new Set(boxes.map((b) => Math.round(b.t)))];
+    expect(boxes.map((b) => b.name)).toEqual(['piano', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani']);
+    // four to a row, every row a kind: what is struck or plucked first (the piano, the timpani beside it), then
+    // the strings, the woodwinds, the brass; every row begins in the first column, and none has a gap in it
+    const rows = [...new Set(boxes.map((b) => Math.round(b.t)))].sort((a, b) => a - b);
     expect(rows.length, where).toBe(4);
-    expect(boxes.slice(1, 5).every((b) => Math.round(b.t) === rows[1])).toBe(true);
-    expect(boxes.slice(5, 9).every((b) => Math.round(b.t) === rows[2])).toBe(true);
-    expect(boxes.slice(9).every((b) => Math.round(b.t) === rows[3])).toBe(true);
-    // the piano's kind beside the piano, in its row
-    const pre = (await page.locator('.presets').boundingBox())!;
-    expect(pre.x).toBeGreaterThanOrEqual(boxes[0].r - 0.5);
-    expect(pre.y).toBeGreaterThanOrEqual(boxes[0].t - 0.5);
-    expect(pre.y + pre.height).toBeLessThanOrEqual(boxes[0].b + 0.5);
+    const row = (k: number) => boxes.filter((b) => Math.round(b.t) === rows[k]).sort((a, b) => a.l - b.l);
+    expect(row(0).map((b) => b.name)).toEqual(['piano', 'timpani']);
+    expect(row(1).map((b) => b.name)).toEqual(['violin', 'viola', 'cello', 'bass']);
+    expect(row(2).map((b) => b.name)).toEqual(['flute', 'oboe', 'clarinet', 'bassoon']);
+    expect(row(3).map((b) => b.name)).toEqual(['horn', 'trumpet', 'trombone', 'tuba']);
+    const pitch = row(1)[1].l - row(1)[0].l;
+    for (const k of [0, 1, 2, 3]) row(k).forEach((b, i) => expect(b.l, `${where}: ${b.name} in column ${i + 1}`).toBeCloseTo(row(1)[0].l + i * pitch, 0));
+    // the piano's kind at the sheet's foot: under every instrument, inside the sheet, from the first column
+    const pre = page.locator('.presets');
+    await pre.scrollIntoViewIfNeeded();
+    const pb = (await pre.boundingBox())!;
+    const sheet = (await page.locator('.picker-pop').boundingBox())!;
+    const after = await picks.evaluateAll((els) => Math.max(...els.map((el) => el.getBoundingClientRect().bottom)));
+    expect(pb.y, where).toBeGreaterThanOrEqual(after - 0.5);
+    expect(pb.y + pb.height, where).toBeLessThanOrEqual(sheet.y + sheet.height + 0.5);
+    expect(pb.x, where).toBeGreaterThanOrEqual(sheet.x);
+    expect(pb.x + pb.width, where).toBeLessThanOrEqual(sheet.x + sheet.width);
+    expect(pb.height, where).toBeGreaterThanOrEqual(28);
+    await page.locator('.picker-pop').evaluate((el) => (el.scrollTop = 0));
     // the sheet lies over everything under the bar (the file player too)
     const mid = boxes[6];
     expect(await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('.picker-pop'), [(mid.l + mid.r) / 2, (mid.t + mid.b) / 2])).toBe(true);

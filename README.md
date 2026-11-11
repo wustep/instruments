@@ -4,10 +4,10 @@
 
 # Instruments
 
-Thirteen acoustic instruments, physically modelled and computed in real time in the
+Fourteen acoustic instruments, physically modelled and computed in real time in the
 browser: a **piano**, a **violin**, a **viola**, a **cello**, a **double bass**, a
 **flute**, an **oboe**, a **clarinet**, a **bassoon**, a **horn**, a **trumpet**, a
-**trombone** (alto, tenor and bass) and the **timpani**. No samples are ever played as the sound. Every note is a simulation of
+**trombone** (alto, tenor and bass), a **tuba** and the **timpani**. No samples are ever played as the sound. Every note is a simulation of
 felt hammers, bows, air jets, reeds and lips driving strings and tubes, which in turn
 drive a soundboard or body, or of felt mallets on the air-loaded membranes of kettledrums.
 
@@ -30,6 +30,7 @@ Each instrument has its own address
 [horn](https://instruments-wustep.vercel.app/horn),
 [trumpet](https://instruments-wustep.vercel.app/trumpet),
 [trombone](https://instruments-wustep.vercel.app/trombone),
+[tuba](https://instruments-wustep.vercel.app/tuba),
 [timpani](https://instruments-wustep.vercel.app/timpani)),
 as do the [Orchestra](https://instruments-wustep.vercel.app/orchestra),
 [Notes](https://instruments-wustep.vercel.app/notes) and
@@ -101,7 +102,7 @@ disagree with: every fitted number is in a `*-tuning.json` or `*-fit.json` next 
     that off. `apps/web/src/expression.ts`.
   * On the computer keyboard, hold `Space` for sustain and `Shift` for una corda.
 * **The top panel.** The bar is what is on the stage and how it is seen: the instruments by family (one
-  button and a sheet of all thirteen on a phone or a narrow window), the orchestra, the piano's kind, the
+  button and a sheet of all fourteen on a phone or a narrow window, four to a row and every row a kind), the orchestra, the piano's kind, the
   view, the two pages. The band under it is what is sounding: the readout names every note (one note with
   its frequency; a few notes with the chord they make; many, counted with their span; an ensemble, how
   many of its parts), then the spectrum and one instrument's excitation or an ensemble's parts, each lit
@@ -244,7 +245,7 @@ disagree with: every fitted number is in a `*-tuning.json` or `*-fit.json` next 
   * **Compass.** B♭1–E5, in C (written as it sounds, bass and tenor clef); the keys
     in 2D and 3D follow the Heckel system's standard fingerings (the Woodwind
     Fingering Guide's chart).
-* **Trumpet, horn, trombone.**
+* **Trumpet, horn, trombone, tuba.**
   * **Lips.** The player's lips are a small mass on a spring that the breath blows
     open and the mouthpiece's pressure pulls shut. They lock to a resonance of the
     bore just above their own; the valves or the slide set the tube's length and
@@ -259,6 +260,10 @@ disagree with: every fitted number is in a `*-tuning.json` or `*-fit.json` next 
     bell. Loud, the wave steepens along the cylinder towards a shock, computed in
     pascals: the brassy fortissimo. One model at three sizes (alto, tenor with
     its F valve, bass with F and G♭).
+  * **Tuba.** The contrabass tuba in C: the horn's lips and conical bore (the two
+    share one engine, `core/lipcone.ts`) at five metres, wide, with a bell that lets
+    go of the highs early, and four valves (the fourth in place of 1+3; one valve
+    search for the trumpet, the horn and the tuba, `core/valves.ts`). C1–F4.
 * **Timpani.**
   * **Heads.** Four pedal drums (32″ to 23″, C2–A3), each a Mylar membrane as 96
     of its modes. The air on both sides loads the low modes most, which pulls the
@@ -293,6 +298,7 @@ CPU and latency: [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
 | **Trumpet** | lips as a mass–spring valve, flow growing with the square of the opening (louder is brighter), a bore whose length the three valves set, the partial chosen by lip tension, a bell that radiates ∝ f² below its cutoff, turbulence at the lips; **fitted to the Iowa trumpet** | the bore is one delay loop, not the trumpet's measured profile; no mouthpiece cup, no mutes; per-note tuning uses a measured table |
 | **Horn** | outward-striking lip valve (Bernoulli flow, solved in closed form each sample) on a conical bore as two waveguides, F and B♭ sides with the players' fingering, the wave's steepening when loud; colour (the hand in the bell, the bell turned away) **fitted to the Iowa horn** | the hand is a fitted colour, not a moving obstacle: no stopped or muted notes; the reference set has gaps (no pp C2–B3, no mf C3–B3) |
 | **Trombone** | the same lips in SI units, a cup-and-throat mouthpiece, a lossy cylinder the slide lengthens, a Bessel-horn bell of scattering sections, nonlinear steepening from the air's own constants, slide glissando and legato tongue; three sizes; **fitted to the Iowa tenor and bass trombones** | no mutes; the slide is placed by ear (so the chosen resonance is the note), not by a ruler; the alto has no recording of its own |
+| **Tuba** | the horn's engine (outward-striking lips, a conical bore as two waveguides, the wave's steepening) at the contrabass tuba in C's 4.88 m and four valves; **fitted to the Iowa tuba** | bell high-pass, a formant near 600 Hz, the dynamic's low-pass |
 | **Timpani** | air-loaded membrane modes (96 per drum), the kettle's air as a spring on the symmetric modes, each mode's radiation loss from its own far field, tension rising with the stroke, a felt mallet with hysteresis that bottoms out, rolls, pedals; voicing **fitted to the VSCO 2 CE timpani** | the kettle's own air resonances (above about 300 Hz) are left out; modes above the 96 are a band of noise; the added mass's scale and the floor of the losses are fitted |
 | **Listener** | close "microphones" from mode shapes | lid shelf, small FDN room, safety limiter (audio effects, not physics) |
 
@@ -333,7 +339,7 @@ CPU and latency: [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
 * **The rest of the orchestra.** Each was fitted to its Iowa recordings with a
   judge on held-out notes (a change is kept only if the notes it was not fitted
   to say BETTER). Third-octave spectral error now: double bass 4.9 dB, oboe 10.5,
-  clarinet 4.0, bassoon 8.7, horn 14.4, trumpet 3.3, trombones 5.5; pitch within
+  clarinet 4.0, bassoon 8.7, horn 14.4, trumpet 3.3, trombones 5.5, tuba 14.4; pitch within
   0.2–3 ¢ RMS. The timpani, against the VSCO 2 CE drums in a room: partials within
   31 ¢, their levels within 8 dB, the principal tone's decay matched. The whole
   table is on the [Notes](https://instruments-wustep.vercel.app/notes) page, and the
@@ -359,6 +365,7 @@ npx tsx scripts/fit-oboe.ts   # fit the oboe voicing (fit half), then scripts/tu
 npx tsx scripts/fit-clarinet.ts   # the clarinet's, the same way (tune-clarinet.ts, clarinet-regimes.ts, render-clarinet.ts)
 npx tsx scripts/fit-bassoon.ts    # the bassoon's, the same way (tune-bassoon.ts, bassoon-regimes.ts, render-bassoon.ts)
 npx tsx scripts/fit-horn.ts       # the horn's, the same way (tune-horn.ts, horn-regimes.ts: every note on its partial, render-horn.ts)
+npx tsx scripts/fit-horn.ts --instrument tuba   # the tuba's: the horn's engine, the Iowa tuba (tune-horn.ts and horn-regimes.ts take --instrument tuba too)
 npx tsx scripts/fit-trombone.ts   # the trombone's: the Iowa tenor and bass trombones, three sizes (tune-trombone.ts, trombone-regimes.ts, trombone-grid.ts, render-trombone.ts)
 npx tsx scripts/timpani-refs.ts   # the VSCO 2 CE timpani (CC0; .cache/vsco-timpani), analysed as struck strokes
 npx tsx scripts/fit-timpani.ts    # the timpani's voicing on drums 1, 3, 5 (polish-timpani.ts, tune-timpani.ts, calibrate-timpani.ts --write, render-timpani.ts)
@@ -426,8 +433,8 @@ Claude Fable 5.2, Anthropic's models, working in Claude Code.
 
 * **Reference recordings:** the [University of Iowa Musical Instrument
   Samples](https://theremin.music.uiowa.edu/MIS.html): a Steinway model B (2001), violin, viola (1996),
-  cello (2001), double bass, flute (2000), oboe, B♭ clarinet, bassoon, horn (1997), trumpet, and tenor
-  and bass trombones (1997). They are used for analysis only, never played as an instrument and never
+  cello (2001), double bass, flute (2000), oboe, B♭ clarinet, bassoon, horn (1997), trumpet, tenor
+  and bass trombones (1997) and tuba (1997). They are used for analysis only, never played as an instrument and never
   committed. The six short labelled excerpts on the Measurements page are used under the MIS terms
   ("used for any projects, without restrictions").
 * **Timpani recordings:** the [VSCO 2 Community Edition](https://github.com/sgossner/VSCO-2-CE) by

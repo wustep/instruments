@@ -14,6 +14,7 @@ import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { biquadHighpass, biquadLowpass, biquadPeaking, biquadHighShelf } from './filters.ts';
 import type { PianoEvent } from './piano-core.ts';
 import { clamp, playerCents, playerSeed, playerVibrato } from './util.ts';
+import { valveFingering } from './valves.ts';
 import tuning from './brass-tuning.json';
 /** measured per-note correction (cents the bare model plays sharp; scripts/tune-trumpet.ts) */
 const TUNING = tuning as Record<string, number>;
@@ -91,20 +92,11 @@ let KNOBS: Record<string, number> | null = null;
 /** tube length of the open B♭ trumpet, m */
 const L_OPEN = 1.48;
 
-/** standard fingering: the fewest valves (then the lowest partial) that reach the note */
+/** standard fingering: the fewest valves (then the lowest partial) that reach the note (valves.ts: the
+ *  search the horn and the tuba share) */
 export function trumpetFingering(m: number): { partial: number; lower: number; valves: string } {
-  let best = { partial: 2, lower: 0, valves: 'open' };
-  let bestScore = Infinity;
-  for (const n of PARTIALS)
-    for (let v = 0; v <= 6; v++) {
-      if (PEDAL - v + Math.round(12 * Math.log2(n)) !== m) continue;
-      const score = v * 10 + n;
-      if (score < bestScore) {
-        bestScore = score;
-        best = { partial: n, lower: v, valves: VALVES[v] };
-      }
-    }
-  return best;
+  const f = valveFingering(m, PEDAL, PARTIALS, VALVES);
+  return f ? { partial: f.partial, lower: f.lower, valves: f.valves } : { partial: 2, lower: 0, valves: 'open' };
 }
 
 export class TrumpetCore implements InstrumentCore {
