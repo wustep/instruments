@@ -2136,6 +2136,37 @@ export const slowPhase = (f1: number, now: number): number => 2 * Math.PI * (0.5
 /** compression warm, rarefaction cool */
 const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
 
+/** a stream of the breath: where it starts, where it bends and where it ends, each as [back from the tip
+ *  towards the player, out from the axis] (m) */
+export type BreathPath = readonly [readonly [number, number], readonly [number, number], readonly [number, number]];
+/** The breath going into a wind instrument, drawn alike on each (a reed's tip, a clarinet's mouthpiece, a
+ *  brass mouthpiece's cup): three faint dashed streams from the player's lips converging on the tip, the
+ *  dashes flowing in. `at(a, w)`: the screen point `a` m back from the tip and `w` m across the axis; `sc`
+ *  px per metre; `alpha` the streams' strength (a reed's 0.45 at full breath). */
+export function breathStream(ctx: CanvasRenderingContext2D, at: (a: number, w: number) => readonly [number, number], sc: number, path: BreathPath, alpha: number, now: number): void {
+  ctx.save();
+  ctx.setLineDash([0.003 * sc, 0.0025 * sc]);
+  ctx.lineDashOffset = -((now / 1000) * 0.03 * sc);
+  ctx.strokeStyle = rgba(INK.steel, alpha);
+  ctx.lineWidth = 1;
+  const [p0, p1, p2] = path;
+  for (const j of [-1, 0, 1]) {
+    const m = at(p1[0], j * p1[1]);
+    const e = at(p2[0], j * p2[1]);
+    ctx.beginPath();
+    ctx.moveTo(...at(p0[0], j * p0[1]));
+    ctx.quadraticCurveTo(m[0], m[1], e[0], e[1]);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+/** the brass mouthpieces' streams: from the lips into the aperture they buzz round, at the rim's middle */
+export const BRASS_BREATH: BreathPath = [[0.017, 0.0046], [0.007, 0.0026], [0.0012, 0.0006]];
+/** how strong a brass instrument's breath is drawn: by its level (0…1 of the recent loudest), each stream
+ *  pulsing with the lips' opening `o` (0 shut … 1 at its widest; drawn slowed), as the air through them
+ *  does (the flow is the slit's width × √Δp) */
+export const brassBreath = (lvl: number, o: number): number => 0.45 * Math.min(1, 0.35 + lvl) * (0.6 + 0.4 * Math.max(0, Math.min(1, o)));
+
 /** a damped spring towards `target` that stops at 0 and 1 with a small bounce (a pad seating, a
  *  piston meeting its felt), in fixed 2 ms steps: the same motion as the 3D keys (winds3d springTo) */
 export function spring01(pos: Float32Array, vel: Float32Array, i: number, target: number, dt: number, hz: number, zeta: number): number {
@@ -3091,7 +3122,7 @@ const BRASS_DEEP = '#251a0c';
  *  engine's fingering, on springs), the first and third slides (kicked out on the notes that need it)
  *  and the second's crook, the bell tail, bow and the flare to the rim. The air's path through the
  *  pressed valves' slides glows faintly, and the bore's standing wave (the engine's, with its sign;
- *  drawn slowed) runs along that path from the lips to the bell; the lips buzz at the rim. */
+ *  drawn slowed) runs along that path from the lips to the bell; the breath goes into the mouthpiece. */
 export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: TrumpetState): void {
   const L = trumpetLayout(W, H);
   const { S } = L;
@@ -3623,7 +3654,8 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
   slideTubes(1);
   glow(4);
   for (const e of [TR_SLIDES[1].sleeve[0], TR_SLIDES[1].sleeve[TR_SLIDES[1].sleeve.length - 1]]) ferrule(e);
-  // ---- the lips at the rim: closed at rest; buzzing (drawn slowed) with the engine's lip opening
+  // ---- the breath into the mouthpiece while the note is blown: the reeds' streams (breathStream),
+  // converging on the lips' aperture at the rim's middle, pulsing with the lips' buzz (drawn slowed)
   {
     const tr = fr?.excite?.trace;
     let lo = 1;
@@ -3633,51 +3665,15 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
       hi = Math.max(hi, tr[i]);
     }
     const swing = tr && hi > lo ? Math.sqrt(hi) - Math.sqrt(Math.max(0, lo)) : 0;
-    const playing = swing > 0.02 && lvl > 0.02;
-    const t = now / 1000;
-    // drawn slowed, a little quicker for higher notes (the true buzz is the note itself)
-    const open01 = playing ? 0.5 - 0.5 * Math.cos(2 * Math.PI * 4.5 * Math.sqrt((focus?.f1 ?? 392) / 392) * t) : 0;
-    const gap = (0.0004 + 0.0032 * Math.min(1, swing * 1.6) * open01) * S;
-    const rim = P(trProj(trAlong(-TR_MP)));
-    const dx = P(trProj(trAlong(0)))[0] - rim[0];
-    const dy = P(trProj(trAlong(0)))[1] - rim[1];
-    const l = Math.hypot(dx, dy);
-    const ux = dx / l;
-    const uy = dy / l;
-    const nx = uy;
-    const ny = -ux;
-    for (const sg of [-1, 1]) {
-      // each lip: a soft cushion against the rim, from the aperture out past the rim's edge
-      ctx.beginPath();
-      for (let i = 0; i <= 18; i++) {
-        const f = i / 18;
-        const across = gap / 2 + f * 0.0135 * S;
-        const bulge = (0.0014 + 0.0085 * Math.pow(Math.sin(Math.PI * Math.min(1, 0.06 + 0.98 * f)), 0.7)) * S;
-        const q: [number, number] = [rim[0] - ux * bulge + sg * nx * across, rim[1] - uy * bulge + sg * ny * across];
-        if (i) ctx.lineTo(...q);
-        else ctx.moveTo(...q);
-      }
-      ctx.fillStyle = playing ? rgba(INK.vermilion, 0.1 + 0.1 * open01) : rgba(INK.felt, 0.12);
-      ctx.fill();
-      ctx.strokeStyle = rgba(INK.felt, 0.7);
-      ctx.lineWidth = 1.2;
-      ctx.stroke();
-      // the lip's inner edge, where it buzzes against the other
-      ctx.beginPath();
-      ctx.moveTo(rim[0] - ux * 0.0012 * S + sg * nx * gap / 2, rim[1] - uy * 0.0012 * S + sg * ny * gap / 2);
-      ctx.lineTo(rim[0] - ux * 0.0075 * S + sg * nx * (gap / 2 + 0.0016 * S), rim[1] - uy * 0.0075 * S + sg * ny * (gap / 2 + 0.0016 * S));
-      ctx.strokeStyle = playing ? rgba(INK.vermilion, 0.5 + 0.45 * open01) : rgba(INK.felt, 0.4);
-      ctx.lineWidth = 1.4;
-      ctx.stroke();
-    }
-    if (playing) {
-      // the puff through the aperture into the cup
-      ctx.strokeStyle = rgba(INK.steel, 0.15 + 0.45 * open01);
-      ctx.lineWidth = Math.max(1, gap * 0.7);
-      ctx.beginPath();
-      ctx.moveTo(rim[0] - ux * 0.002 * S, rim[1] - uy * 0.002 * S);
-      ctx.lineTo(rim[0] + ux * 0.007 * S, rim[1] + uy * 0.007 * S);
-      ctx.stroke();
+    if (swing > 0.02 && lvl > 0.02) {
+      // drawn slowed, a little quicker for higher notes (the true buzz is the note itself)
+      const open01 = 0.5 - 0.5 * Math.cos(2 * Math.PI * 4.5 * Math.sqrt((focus?.f1 ?? 392) / 392) * (now / 1000));
+      const rim = P(trProj(trAlong(-TR_MP)));
+      const c = P(trProj(trAlong(0)));
+      const l = Math.hypot(c[0] - rim[0], c[1] - rim[1]);
+      const ux = (c[0] - rim[0]) / l;
+      const uy = (c[1] - rim[1]) / l;
+      breathStream(ctx, (a, w) => [rim[0] - ux * a * S + uy * w * S, rim[1] - uy * a * S - ux * w * S], S, BRASS_BREATH, brassBreath(lvl, Math.min(1, swing * 1.6) * open01), now);
     }
   }
   ctx.restore();

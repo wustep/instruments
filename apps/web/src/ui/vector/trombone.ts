@@ -6,14 +6,15 @@
 // turning a quarter turn, the thumb's hooks bright when pulled; the bell's flare with a few of its sections,
 // its mouth. The seven positions are ticked faintly under the slide. Amber is the bore's standing wave,
 // hatched across the bore along the air's path (dashed through the rotors) and opening out in the bell. At
-// the mouthpiece the knobs' slots mark where each acts: the breath (green) into the lips, the lips (red)
-// buzzing with the engine's lip opening, the turbulence in their slit (pink), the vibrato (white) riding the
-// pitch. The state object is the stage's, so a change of style carries the slide, levers and wave over.
+// the mouthpiece the knobs' slots mark where each acts, drawn as on the reeds (kit.ts breathFlow,
+// lipLine): the breath (green) flowing into the lips, the lips (red) on the rim parted by the engine's lip
+// opening, the turbulence in their slit (pink), the vibrato (white) riding the pitch. The state object is
+// the stage's, so a change of style carries the slide, levers and wave over.
 
 import type { VisualFrame } from '@piano-model/engine';
 import { CRANK, MOUTH_K, crankAngle, leverOf, tromboneLayout, tromboneLive, tromboneRecord, turned, type TbLayout, type TbLive, type TromboneState, type TubePx } from '../trombone-draw.ts';
 import type { P } from '../trombone-plan.ts';
-import { V, beam, dot, handle, heat, mix, ring, seg } from './kit.ts';
+import { V, beam, breathFlow, dot, handle, heat, lipLine, mix, ring, seg } from './kit.ts';
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 /** how many brightnesses a hatched wave is drawn in (one path each) */
@@ -262,9 +263,9 @@ function levers(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive, lw: numb
   });
 }
 
-/** the four slots at the mouthpiece: the breath (green) streaming into the lips, the lips (red) buzzing apart
- *  by the engine's opening, the turbulence in their slit (pink), the vibrato (white) round the breath's
- *  handle riding the pitch */
+/** the four slots at the mouthpiece, drawn as on the reeds: the breath (green) flowing into the lips, the
+ *  lips (red) on the rim parted by the engine's opening, the turbulence in their slit (pink), the vibrato
+ *  (white) round the breath's handle riding the pitch */
 function slots(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive, st: TromboneState, fr: VisualFrame | null, now: number, small: boolean, lw: number): void {
   const { sc, p } = L;
   const rim: P = [L.ox - p.mpVis * sc, L.oy];
@@ -273,24 +274,10 @@ function slots(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive, st: Tromb
   const live = playing ? 1 : 0.55;
   const hr = clamp(0.0034 * sc, 2.6, 6);
   const t = now / 1000;
-  const gapPx = (0.0006 + 0.0032 * o) * sc;
   const reach = p.mpProfile[1][0] * 0.95;
-  // the lips: cushions against the rim, apart by the opening
-  const lips = new Path2D();
-  const edge = new Path2D();
-  for (const sg of [-1, 1]) {
-    for (let i = 0; i <= 18; i++) {
-      const f = i / 18;
-      const across = gapPx / 2 + f * reach * sc;
-      const bulge = (0.0016 + 0.0105 * Math.pow(Math.sin(Math.PI * Math.min(1, 0.06 + 0.98 * f)), 0.7)) * sc;
-      if (i) lips.lineTo(rim[0] - bulge, rim[1] + sg * across);
-      else lips.moveTo(rim[0] - bulge, rim[1] + sg * across);
-    }
-    edge.moveTo(rim[0] - 0.0012 * sc, rim[1] + (sg * gapPx) / 2);
-    edge.lineTo(rim[0] - 0.009 * sc, rim[1] + sg * (gapPx / 2 + 0.0018 * sc));
-  }
-  beam(ctx, lips, V.red, lw, { alpha: 0.6 + 0.4 * live });
-  beam(ctx, edge, V.red, lw + 0.3, { alpha: playing ? 0.6 + 0.4 * Math.min(1, o) : 0.5, hot: playing });
+  const at = (a: number, w: number): [number, number] => [rim[0] - a * sc, rim[1] + w * sc];
+  // the lips: on the rim, parted by the opening
+  lipLine(ctx, at, 0.0006 + 0.0032 * o, reach, lw + 0.3, playing ? 0.6 + 0.4 * Math.min(1, o) : 0.6, playing);
   // the handles above the mouthpiece, under the bell's tail (the thumb's hooks are below it, the bell brace
   // behind it): the lips' over the rim, the breath's back towards the player
   const lx = rim[0] + 0.014 * sc;
@@ -299,18 +286,13 @@ function slots(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive, st: Tromb
   handle(ctx, lx, ly, V.red, hr, live);
   const gx = rim[0] - 0.02 * sc;
   const gy = rim[1] - (reach + 0.007) * sc;
+  // (the breath flows in along the axis, from a little behind the lips, a few px long however small the
+  // stage, as on the reeds; its handle's lead down to it)
+  const from = Math.max(0.014, 0.0016 + (hr + 8) / sc);
+  const f0 = at(from, 0);
+  seg(ctx, gx + hr * 0.7, gy + hr * 0.7, f0[0], f0[1], V.green, 1, { alpha: 0.5 * live });
   if (playing) {
-    ctx.save();
-    ctx.lineDashOffset = -((t * 40) % 9);
-    // (the breath down from its handle into the lips' slit)
-    const air = new Path2D();
-    for (const j of [-1, 0, 1]) {
-      air.moveTo(gx + hr * 0.7 + j * 0.0024 * sc, gy + hr * 0.7);
-      air.lineTo(rim[0] - 0.002 * sc, rim[1] + j * 0.0005 * sc);
-    }
-    beam(ctx, air, V.green, 1, { alpha: Math.min(1, 0.35 + lv.blow / 4), dash: [4, 5] });
-    seg(ctx, rim[0] - 0.002 * sc, rim[1], rim[0] + 0.01 * sc, rim[1], V.green, Math.max(1, gapPx * 0.6), { alpha: 0.25 + 0.6 * Math.min(1, o) });
-    ctx.restore();
+    breathFlow(ctx, at, from, [0.0034, 0.0018, 0.0006], 0.0016, small, Math.min(1, 0.4 + lv.lvl) * (0.7 + 0.3 * Math.min(1, o)), now);
     // noise (pink): turbulence in the lips' slit and just inside the cup
     const frame = Math.floor(t * 20);
     const nd = small ? 4 : 7;

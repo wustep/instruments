@@ -8,11 +8,13 @@
 // turn, and the rotor (its two passages engraved on the cap) turns with it. The air's path through the
 // side's loop and the pressed valves' slides is lit, the others are dark; the bore's standing wave (the
 // engine's, with its sign; drawn slowed) runs along that path from the lips to the bell's rim, where it
-// opens out (the Webster horn's 1/r). The lips buzz against the mouthpiece's rim with the engine's own lip
-// opening (its trace, one cycle played back slowed). The player's right hand is cupped in the bell.
+// opens out (the Webster horn's 1/r). The breath goes into the mouthpiece as it does on every wind (the
+// reeds' faint streams, stage-draw breathStream), pulsing with the engine's own lip opening (its trace, one
+// cycle played back slowed). No hand is drawn in the bell: the engine has no hand (no stopping, no hand
+// position; its fitted colour is fixed), so a hand there would follow nothing that is played.
 import { hornFingering, type HornFingering, type VisualFrame } from '@piano-model/engine';
 import { AXIS, CAP_R, MOUTH_K, MPIECE, MP_DIR, MP_LEN, MP_RIM, RECV, RIM_C, RIM_R, ROT_R, ROT_X, ROT_Y, TR, TUBES, bellR, hornAir, valvesDown, type P, type Run, type Tube } from './horn-plan.ts';
-import { AutoScale, INK, boreAt, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
+import { AutoScale, BRASS_BREATH, INK, boreAt, brassBreath, breathStream, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface HornState {
@@ -97,9 +99,6 @@ export interface HnLayout {
   /** the bell: its flare, its edges, the mouth (the rim's ellipse), the inside band the wave fills, the
    *  axis (px) and each point's distance from the rim (m) */
   bell: { flare: Path2D; edges: Path2D; mouth: Path2D; inner: Path2D; hi: Path2D; spec: Path2D; shade: Path2D; ax: Float32Array; d: Float32Array; r: Float32Array };
-  /** the hand in the bell */
-  hand: Path2D;
-  handNails: Path2D;
   mp: Path2D;
   mpHi: Path2D;
   hook: Path2D;
@@ -191,36 +190,6 @@ export function hornLayout(W: number, H: number, top = 0): HnLayout {
   const spec = band(-0.6, -0.44);
   const shade = band(0.42, 0.98);
   const inner = band(-0.42, 0.42);
-  // ---- the hand in the bell (the right hand, cupped, as horn players hold it): seen through the mouth,
-  // in over the rim's lower end along the bell's wall, the fingers together towards the throat, the thumb
-  // along their side (m: a along the rim towards its upper end, b across the mouth, foreshortened with it)
-  const eu: P = [AXIS[1], -AXIS[0]];
-  const H2 = (a: number, b: number): [number, number] => [X(RIM_C[0] + eu[0] * a + AXIS[0] * b), Y(RIM_C[1] + eu[1] * a + AXIS[1] * b)];
-  const hand = new Path2D();
-  const handNails = new Path2D();
-  {
-    // the fingers (little to index): their sides across the mouth, their tips' reach towards the throat
-    const F: [number, number, number][] = [[-0.024, -0.0125, -0.07], [-0.0125, -0.001, -0.056], [-0.001, 0.0105, -0.05], [0.0105, 0.021, -0.056]];
-    hand.moveTo(...H2(-0.2, -0.026));
-    hand.lineTo(...H2(-0.1, -0.025));
-    for (const [b0, b1, tip] of F) {
-      const w = (b1 - b0) / 2;
-      hand.lineTo(...H2(tip - w, b0 + 0.0008));
-      hand.quadraticCurveTo(...H2(tip + w * 0.35, b0 + 0.001), ...H2(tip + w * 0.35, (b0 + b1) / 2));
-      hand.quadraticCurveTo(...H2(tip + w * 0.35, b1 - 0.001), ...H2(tip - w, b1 - 0.0008));
-      handNails.moveTo(...H2(tip - w - 0.028, b1));
-      handNails.lineTo(...H2(tip - w * 0.6, b1));
-    }
-    // the thumb, tucked along the index finger
-    hand.lineTo(...H2(-0.074, 0.022));
-    hand.quadraticCurveTo(...H2(-0.064, 0.025), ...H2(-0.066, 0.029));
-    hand.quadraticCurveTo(...H2(-0.07, 0.034), ...H2(-0.086, 0.032));
-    hand.lineTo(...H2(-0.12, 0.03));
-    hand.lineTo(...H2(-0.2, 0.029));
-    hand.closePath();
-    handNails.moveTo(...H2(-0.098, 0.023));
-    handNails.quadraticCurveTo(...H2(-0.08, 0.025), ...H2(-0.072, 0.028));
-  }
   // ---- the mouthpiece (its silhouette along the leadpipe's axis, rim to shank)
   const nm: P = [-MP_DIR[1], MP_DIR[0]];
   const MPt = (s: number, r: number): [number, number] => [X(MP_RIM[0] + MP_DIR[0] * s + nm[0] * r), Y(MP_RIM[1] + MP_DIR[1] * s + nm[1] * r)];
@@ -288,7 +257,7 @@ export function hornLayout(W: number, H: number, top = 0): HnLayout {
     braces.moveTo(X(a[0]), Y(a[1]));
     braces.lineTo(X(b[0]), Y(b[1]));
   }
-  const L: HnLayout = { key, W, H, top, sc, ox, oy, tubes, byId, bell: { flare, edges, mouth, inner, hi, spec, shade, ax, d: dd, r: rr }, hand, handNails, mp, mpHi, hook, ferrules, braces };
+  const L: HnLayout = { key, W, H, top, sc, ox, oy, tubes, byId, bell: { flare, edges, mouth, inner, hi, spec, shade, ax, d: dd, r: rr }, mp, mpHi, hook, ferrules, braces };
   if (layouts.size > 8) layouts.clear();
   layouts.set(key, L);
   return L;
@@ -466,11 +435,11 @@ const NICKEL_BODY = '#3c3a36';
 const nickel = (a: number) => rgba('236,230,216', a);
 const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
 
-/** The double horn from its outside: the body wound round the circle into the bell (the right hand cupped
- *  in it), the leadpipe and its tuning slide, the F horn's loop and the B♭ horn's, the valve slides (each
- *  valve's F slide behind its B♭ one), the four rotors with their caps turning, the lever bar, the paddles
- *  going down for the engine's fingering; the air's path lit, the standing wave along it, the lips buzzing
- *  at the mouthpiece. `top`: the file player's px over the box's top. */
+/** The double horn from its outside: the body wound round the circle into the bell, the leadpipe and its
+ *  tuning slide, the F horn's loop and the B♭ horn's, the valve slides (each valve's F slide behind its B♭
+ *  one), the four rotors with their caps turning, the lever bar, the paddles going down for the engine's
+ *  fingering; the air's path lit, the standing wave along it, the breath going into the mouthpiece. `top`:
+ *  the file player's px over the box's top. */
 export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: HornState, top = 0): void {
   const L = hornLayout(W, H, top);
   const { sc } = L;
@@ -500,7 +469,7 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     ctx.stroke(t.edges);
   };
   const glow = (t: TubePx) => glowTube(ctx, L, t, lv);
-  // ---- the bell (the body's last lap leads into it), behind everything but the hand's wrist
+  // ---- the bell (the body's last lap leads into it), behind everything
   {
     const B = L.bell;
     ctx.fillStyle = BRASS_BODY;
@@ -545,7 +514,7 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   ctx.strokeStyle = rgba(INK.amber, 0.45);
   ctx.lineWidth = Math.max(1, 0.0022 * sc);
   ctx.stroke(L.braces);
-  // ---- the bell's mouth: its inside (the far wall, lit at the top), the hand cupped in it, the rim's bead
+  // ---- the bell's mouth: its inside (the far wall, lit at the top), the rim's bead
   {
     const B = L.bell;
     const c = [X(RIM_C[0]), Y(RIM_C[1])];
@@ -567,10 +536,6 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
       ctx.fillStyle = rg;
       ctx.fill(B.mouth);
     }
-    ctx.save();
-    ctx.clip(B.mouth);
-    drawHand(ctx, L);
-    ctx.restore();
     // the rim's rolled bead: its edge, and its bright crown
     ctx.strokeStyle = rgba(INK.amber, 0.9);
     ctx.lineWidth = Math.max(1.4, 0.004 * sc);
@@ -587,7 +552,7 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   ctx.strokeStyle = rgba(INK.amber, 0.6);
   ctx.lineWidth = Math.max(1, 0.0026 * sc);
   ctx.stroke(L.hook);
-  // ---- the mouthpiece (silver), the lips at its rim
+  // ---- the mouthpiece (silver), the breath going into it
   ctx.fillStyle = NICKEL_BODY;
   ctx.fill(L.mp);
   {
@@ -607,7 +572,7 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   ctx.strokeStyle = nickel(0.62);
   ctx.lineWidth = 1.1;
   ctx.stroke(L.mp);
-  drawLips(ctx, L, lv, now);
+  drawBreath(ctx, L, lv, now);
   ctx.restore();
   hornRecord(L, st, lv);
 }
@@ -684,24 +649,6 @@ function bellGlow(ctx: CanvasRenderingContext2D, L: HnLayout, lv: HnLive): void 
   ctx.fill(B.inner);
   ctx.fillStyle = gw;
   ctx.fill(B.inner);
-}
-/** the hand in the bell: a warm, shadowed silhouette (the inside of the bell is dark) */
-function drawHand(ctx: CanvasRenderingContext2D, L: HnLayout): void {
-  const X = (x: number) => L.ox + x * L.sc;
-  const Y = (y: number) => L.oy - y * L.sc;
-  // (lit from the rim, in shade towards the throat)
-  const eu: P = [AXIS[1], -AXIS[0]];
-  const g = ctx.createLinearGradient(X(RIM_C[0] - eu[0] * 0.16), Y(RIM_C[1] - eu[1] * 0.16), X(RIM_C[0] - eu[0] * 0.045), Y(RIM_C[1] - eu[1] * 0.045));
-  g.addColorStop(0, 'rgb(176,124,96)');
-  g.addColorStop(0.55, 'rgb(128,86,64)');
-  g.addColorStop(1, 'rgb(74,48,34)');
-  ctx.fillStyle = g;
-  ctx.fill(L.hand);
-  ctx.strokeStyle = 'rgba(240,200,170,0.5)';
-  ctx.lineWidth = 1;
-  ctx.stroke(L.hand);
-  ctx.strokeStyle = 'rgba(40,22,14,0.6)';
-  ctx.stroke(L.handNails);
 }
 /** a rotor seen end on: its brass casing, the nickel cap with its bevel and centre screw, the rotor's two
  *  passages engraved (turned a quarter turn by `press`; lit where the air goes), the crank and its ball */
@@ -870,51 +817,16 @@ export function paddle(X: (x: number) => number, Y: (y: number) => number, hub: 
   p.closePath();
   return p;
 }
-/** the lips against the mouthpiece's rim: two cushions, apart by the engine's lip opening (drawn slowed,
- *  exaggerated), the puff of air through them into the cup */
-function drawLips(ctx: CanvasRenderingContext2D, L: HnLayout, lv: HnLive, now: number): void {
+/** the breath into the mouthpiece while the note is blown: the reeds' streams (stage-draw breathStream),
+ *  converging on the lips' aperture at the rim's middle, pulsing with the lips' opening (drawn slowed) */
+function drawBreath(ctx: CanvasRenderingContext2D, L: HnLayout, lv: HnLive, now: number): void {
+  if (!(lv.sounding && lv.blow > 0.01)) return;
   const { sc } = L;
-  const X = (x: number) => L.ox + x * sc;
-  const Y = (y: number) => L.oy - y * sc;
-  const rim = [X(MP_RIM[0]), Y(MP_RIM[1])];
-  // (the axis into the cup on the screen, and across it)
+  const rx = L.ox + MP_RIM[0] * sc;
+  const ry = L.oy - MP_RIM[1] * sc;
+  // (the axis into the cup on the screen, (ux, uy), and across it)
   const ux = MP_DIR[0];
   const uy = -MP_DIR[1];
-  const nx = uy;
-  const ny = -ux;
-  const playing = lv.sounding && lv.blow > 0.01;
-  const o = playing ? Math.min(1.3, lv.open / Math.max(0.3, lv.swing + 0.2)) : 0;
-  const gap = (0.0004 + 0.003 * o) * sc;
-  for (const sg of [-1, 1]) {
-    ctx.beginPath();
-    for (let i = 0; i <= 18; i++) {
-      const f = i / 18;
-      const across = gap / 2 + f * 0.0145 * sc;
-      const bulge = (0.0014 + 0.009 * Math.pow(Math.sin(Math.PI * Math.min(1, 0.06 + 0.98 * f)), 0.7)) * sc;
-      const qx = rim[0] - ux * bulge + sg * nx * across;
-      const qy = rim[1] - uy * bulge + sg * ny * across;
-      if (i) ctx.lineTo(qx, qy);
-      else ctx.moveTo(qx, qy);
-    }
-    ctx.fillStyle = playing ? rgba(INK.vermilion, 0.1 + 0.12 * o) : rgba(INK.felt, 0.12);
-    ctx.fill();
-    ctx.strokeStyle = rgba(INK.felt, 0.7);
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(rim[0] - ux * 0.0012 * sc + (sg * nx * gap) / 2, rim[1] - uy * 0.0012 * sc + (sg * ny * gap) / 2);
-    ctx.lineTo(rim[0] - ux * 0.008 * sc + sg * nx * (gap / 2 + 0.0016 * sc), rim[1] - uy * 0.008 * sc + sg * ny * (gap / 2 + 0.0016 * sc));
-    ctx.strokeStyle = playing ? rgba(INK.vermilion, 0.5 + 0.45 * Math.min(1, o)) : rgba(INK.felt, 0.4);
-    ctx.lineWidth = 1.4;
-    ctx.stroke();
-  }
-  if (playing) {
-    ctx.strokeStyle = rgba(INK.steel, 0.15 + 0.4 * Math.min(1, o));
-    ctx.lineWidth = Math.max(1, gap * 0.7);
-    ctx.beginPath();
-    ctx.moveTo(rim[0] - ux * 0.002 * sc, rim[1] - uy * 0.002 * sc);
-    ctx.lineTo(rim[0] + ux * 0.008 * sc, rim[1] + uy * 0.008 * sc);
-    ctx.stroke();
-  }
-  void now;
+  const o = lv.open / Math.max(0.3, lv.swing + 0.2);
+  breathStream(ctx, (a, w) => [rx - ux * a * sc + uy * w * sc, ry - uy * a * sc - ux * w * sc], sc, BRASS_BREATH, brassBreath(lv.lvl, o), now);
 }

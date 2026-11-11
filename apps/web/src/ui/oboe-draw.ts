@@ -21,7 +21,7 @@
 // plays (an octave-keyed note: two).
 import type { VisualFrame } from '@piano-model/engine';
 import { HALF, L1, L2, L3, LB, LBB, LEB, LGS, OCT1, OCT2, R1, R2, R3, RC, RCS, REB, RF, oboeFingersFor } from './oboe-fingering.ts';
-import { AutoScale, INK, boreAt, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
+import { AutoScale, INK, boreAt, breathStream, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface OboeState {
@@ -859,18 +859,7 @@ export function drawOboe(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   // the breath into the reed: a faint stream from the lips, flowing in
   if (lv.blow > 0.02) {
     const a = Math.min(1, 0.3 + lv.blow) * (1 + 2.5 * lv.vib);
-    ctx.save();
-    ctx.setLineDash([0.003 * sc, 0.0025 * sc]);
-    ctx.lineDashOffset = -((now / 1000) * 0.03 * sc);
-    ctx.strokeStyle = rgba(INK.steel, 0.45 * a);
-    ctx.lineWidth = 1;
-    for (const j of [-1, 0, 1]) {
-      ctx.beginPath();
-      ctx.moveTo(X(-0.016), Y(j * 0.0042));
-      ctx.quadraticCurveTo(X(-0.006), Y(j * 0.0022), X(-0.0012), Y(j * 0.0006));
-      ctx.stroke();
-    }
-    ctx.restore();
+    breathStream(ctx, (b, w) => [X(-b), Y(w)], sc, [[0.016, 0.0042], [0.006, 0.0022], [0.0012, 0.0006]], 0.45 * a, now);
   }
   // ---- the wave's line along the bore's axis, over everything (its nodes stand still)
   if (lv.sounding) {

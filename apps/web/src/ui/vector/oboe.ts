@@ -9,7 +9,7 @@
 
 import type { VisualFrame } from '@piano-model/engine';
 import { OB_KEYS, OB_LEN, OB_TOUCHES, RD_TIP_HW, keyV, obLobeBase, obR, obRecord, oboeLayout, oboeLive, reedHW, type OboeState } from '../oboe-draw.ts';
-import { V, beam, dot, handle, heat, label, mix, ring, seg } from './kit.ts';
+import { V, beam, breathFlow, dot, handle, heat, label, mix, ring, seg } from './kit.ts';
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 /** how many brightnesses a hatched wave is drawn in (one path each) */
@@ -153,13 +153,7 @@ export function drawOboeV(ctx: CanvasRenderingContext2D, W: number, H: number, f
   const xb = -Math.max(0.012, (hr + 8) / sc);
   // breath (green): from the lips into the reed, flowing
   if (lv.blow > 0.02) {
-    const flow = new Path2D();
-    for (const j of [-1, 0, 1]) {
-      flow.moveTo(X(xb), Y(j * 0.003));
-      flow.quadraticCurveTo(X(xb * 0.4), Y(j * 0.0016), X(-0.0012), Y(j * 0.0005));
-    }
-    const d = small ? 3 : 5;
-    beam(ctx, flow, V.green, small ? 1 : 1.2, { alpha: Math.min(1, 0.4 + lv.blow) * (1 + 2.5 * lv.vib), dash: [d, d * 0.8] });
+    breathFlow(ctx, (a, w) => [X(-a), Y(w)], -xb, [0.003, 0.0016, 0.0005], 0.0012, small, Math.min(1, 0.4 + lv.blow) * (1 + 2.5 * lv.vib), now);
     // noise (pink): turbulence in the reed's channel, by the opening
     const frame = Math.floor(t * 20);
     const nd = small ? 4 : 7;
