@@ -17,6 +17,9 @@ export type ToProcessor =
   | { type: 'watch'; midi: number }
   | { type: 'designs'; entries: DesignEntry[] }
   | { type: 'panic' }
+  /** the engine is done with (its node disconnected): the processor renders nothing more and lets the
+   *  browser stop calling it */
+  | { type: 'dispose' }
   /** drop every event scheduled for the future (a paused file player) */
   | { type: 'clearScheduled' };
 

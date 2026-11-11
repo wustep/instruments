@@ -401,7 +401,8 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
     connect: (dest) => output.connect(dest),
     disconnect: () => output.disconnect(),
     dispose: () => {
-      send({ type: 'panic' });
+      // (the processor is told: a node only disconnected is rendered for ever, process() keeping it alive)
+      send({ type: 'dispose' });
       node.port.onmessage = null;
       node.disconnect();
       output.disconnect();

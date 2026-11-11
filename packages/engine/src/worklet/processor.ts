@@ -74,6 +74,12 @@ class InstrumentProcessor extends AudioWorkletProcessor {
   private frameOffset = 0;
   /** the instrument could not be built; output silence */
   private failed = false;
+  /** Done with: the main thread has disposed of the engine. Nothing more is rendered and process() says
+   *  so (false), so the browser stops calling it and can collect it. A node that is only disconnected is
+   *  rendered for ever (process() returning true keeps it alive): every instrument taken off an
+   *  Orchestra's stage, and every engine a retry replaced, stayed on the audio thread until the page was
+   *  reloaded. Eight instruments put on and taken off once left the audio clock here at half speed. */
+  private gone = false;
   /** every filter design received from the main thread, reused when the piano is (re)created */
   private designs = new Map<string, DesignEntry>();
   private player = 0;
@@ -135,8 +141,15 @@ class InstrumentProcessor extends AudioWorkletProcessor {
   }
 
   private onMessage(m: ToProcessor): void {
-    if (this.failed) return;
+    if (this.failed || this.gone) return;
     switch (m.type) {
+      case 'dispose':
+        this.gone = true;
+        // (its voices, delay lines and designs are let go with it)
+        this.tails.length = 0;
+        this.designs.clear();
+        this.core = null as unknown as Core;
+        break;
       case 'event': {
         const frame = m.time === undefined ? undefined : Math.round(m.time * sampleRate) - this.frameOffset;
         // (a note to come is for a bow to plan with: the others have no use for it)
@@ -287,6 +300,10 @@ class InstrumentProcessor extends AudioWorkletProcessor {
 
   process(_inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
     const out = outputs[0];
+    if (this.gone) {
+      if (out) for (const c of out) c.fill(0);
+      return false;
+    }
     if (!out || out.length === 0) return true;
     if (this.failed) {
       for (const c of out) c.fill(0);

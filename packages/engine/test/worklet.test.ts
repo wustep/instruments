@@ -126,6 +126,35 @@ describe('AudioWorklet processor (fake global scope)', () => {
   });
 });
 
+// An engine the main thread has done with (an instrument taken off an Orchestra's stage, a retry's old
+// engine) used to be disconnected and no more: its processor went on rendering for ever, since process()
+// returning true keeps a node alive. Told so, it stops: silence, and process() returns false, which lets
+// the browser stop calling it.
+describe('an engine disposed of stops rendering', () => {
+  it('process() returns false and gives silence; nothing sent to it afterwards is acted on', () => {
+    for (const instrument of ['cello', 'piano', 'flute']) {
+      const p = new Ctor({ processorOptions: { instrument } });
+      p.port.deliver({ type: 'event', event: { type: 'noteOn', midi: 60, velocity: 100 } });
+      expect(run(p, 40).peak, instrument).toBeGreaterThan(1e-3);
+      const sent = p.port.sent.length;
+      p.port.deliver({ type: 'dispose' });
+      const L = new Float32Array(128).fill(0.5);
+      const R = new Float32Array(128).fill(0.5);
+      for (let q = 0; q < 3; q++) {
+        expect(p.process([], [[L, R]]), instrument).toBe(false);
+        expect(Math.max(...L, ...R), instrument).toBe(0);
+        g.currentFrame += 128;
+      }
+      // (no report, no error: it is gone)
+      p.port.deliver({ type: 'event', event: { type: 'noteOn', midi: 64, velocity: 100 } });
+      p.port.deliver({ type: 'instrument', instrument: 'piano' });
+      p.port.deliver({ type: 'panic' });
+      expect(p.process([], [[L, R]]), instrument).toBe(false);
+      expect(p.port.sent.length, instrument).toBe(sent);
+    }
+  });
+});
+
 // A change of piano (grand ↔ upright) used to rebuild the one piano in place: everything sounding
 // stopped at once, the room's tail with it, and a piece playing had a hole until its next note. Now
 // another piano takes over and the first rings out (processor.ts `changePiano`).
