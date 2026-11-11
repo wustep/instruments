@@ -1,0 +1,271 @@
+engine <main a561109>/packages/engine/src/core/index.ts
+
+48000 Hz
+I→II slur                    91 of  168 fail | wrong mode   83 | speak ms med   150 p90 262.5 | crack ms med   7.5 p90  12.5 | burst dB med  -10.6 max     -9
+I→II tongue                  59 of  168 fail | wrong mode   54 | speak ms med   100 p90   165 | crack ms med     5 p90  12.5 | burst dB med  -11.4 max   -9.3
+II→III slur                 165 of  192 fail | wrong mode  165 | speak ms med 157.5 p90 417.5 | crack ms med  57.5 p90   140 | burst dB med   -5.1 max    1.5
+II→III tongue               139 of  192 fail | wrong mode  139 | speak ms med   150 p90   300 | crack ms med 127.5 p90   275 | burst dB med   -3.8 max    2.3
+I→III slur                   25 of   48 fail | wrong mode    3 | speak ms med   150 p90   300 | crack ms med     0 p90     0 | burst dB med  -16.5 max  -14.7
+I→III tongue                  8 of   48 fail | wrong mode    8 | speak ms med  52.5 p90 107.5 | crack ms med     0 p90    10 | burst dB med   -3.6 max    2.1
+top slur                     21 of   96 fail | wrong mode   21 | speak ms med    15 p90   180 | crack ms med     0 p90  37.5 | burst dB med   -8.2 max   -3.1
+top tongue                   18 of   96 fail | wrong mode   18 | speak ms med  17.5 p90 137.5 | crack ms med     0 p90 102.5 | burst dB med   -5.5 max   -2.4
+falls slur                   71 of  180 fail | wrong mode   33 | speak ms med 107.5 p90   230 | crack ms med     0 p90   2.5 | burst dB med  -11.8 max   -4.4
+falls tongue                 11 of  180 fail | wrong mode    3 | speak ms med    50 p90  92.5 | crack ms med     0 p90     0 | burst dB med  -13.7 max   -1.4
+  all, 100 ms               209 of  252 fail | wrong mode  199 | speak ms med   100 p90   100 | crack ms med  12.5 p90  87.5 | burst dB med   -6.4 max   -0.3
+  all, 150 ms               187 of  252 fail | wrong mode  168 | speak ms med   150 p90   150 | crack ms med  12.5 p90 137.5 | burst dB med   -6.4 max   -0.3
+  all, 300 ms                95 of  252 fail | wrong mode   89 | speak ms med 192.5 p90   300 | crack ms med    10 p90 142.5 | burst dB med   -6.9 max    1.1
+  all, 600 ms                35 of  252 fail | wrong mode   35 | speak ms med 182.5 p90 427.5 | crack ms med   7.5 p90   180 | burst dB med   -7.1 max    2.3
+  all, velocity 40          182 of  336 fail | wrong mode  166 | speak ms med   150 p90   300 | crack ms med  12.5 p90 137.5 | burst dB med     -7 max   -1.4
+  all, velocity 80          172 of  336 fail | wrong mode  160 | speak ms med 142.5 p90   300 | crack ms med   7.5 p90 132.5 | burst dB med   -6.5 max    1.4
+  all, velocity 118         172 of  336 fail | wrong mode  165 | speak ms med 127.5 p90 282.5 | crack ms med  12.5 p90 127.5 | burst dB med     -7 max    2.3
+  all rises                 526 of 1008 fail | wrong mode  491 | speak ms med   145 p90   300 | crack ms med    10 p90   135 | burst dB med   -6.9 max    2.3
+
+44100 Hz
+I→II slur                    89 of  168 fail | wrong mode   81 | speak ms med   150 p90 266.9 | crack ms med     5 p90    10 | burst dB med    -11 max   -9.9
+I→II tongue                  64 of  168 fail | wrong mode   59 | speak ms med 102.3 p90 164.6 | crack ms med     5 p90    10 | burst dB med  -11.7 max    -10
+II→III slur                 161 of  192 fail | wrong mode  160 | speak ms med 167.1 p90 406.6 | crack ms med    55 p90  82.5 | burst dB med   -5.2 max    1.2
+II→III tongue               147 of  192 fail | wrong mode  147 | speak ms med   150 p90 261.9 | crack ms med   130 p90   165 | burst dB med   -3.5 max    1.3
+I→III slur                   25 of   48 fail | wrong mode    3 | speak ms med 152.2 p90   300 | crack ms med     0 p90     0 | burst dB med  -16.9 max  -14.9
+I→III tongue                  6 of   48 fail | wrong mode    6 | speak ms med  52.4 p90  87.3 | crack ms med     0 p90     5 | burst dB med   -3.1 max    1.9
+top slur                     22 of   96 fail | wrong mode   21 | speak ms med  17.5 p90 184.6 | crack ms med     0 p90  32.5 | burst dB med   -9.2 max   -5.2
+top tongue                   19 of   96 fail | wrong mode   19 | speak ms med  17.5 p90 134.7 | crack ms med     0 p90   105 | burst dB med     -6 max   -3.9
+falls slur                   72 of  180 fail | wrong mode   31 | speak ms med 117.2 p90 251.9 | crack ms med     0 p90     0 | burst dB med    -13 max   -6.2
+falls tongue                 14 of  180 fail | wrong mode    3 | speak ms med  52.4 p90 102.3 | crack ms med     0 p90     0 | burst dB med    -16 max   -2.1
+  all, 100 ms               209 of  252 fail | wrong mode  200 | speak ms med   100 p90   100 | crack ms med    10 p90    85 | burst dB med   -7.2 max   -0.8
+  all, 150 ms               191 of  252 fail | wrong mode  172 | speak ms med   150 p90   150 | crack ms med  12.5 p90   135 | burst dB med   -7.2 max   -0.8
+  all, 300 ms               105 of  252 fail | wrong mode   97 | speak ms med 197.1 p90   300 | crack ms med   7.5 p90   140 | burst dB med   -7.5 max    0.3
+  all, 600 ms                28 of  252 fail | wrong mode   27 | speak ms med 184.6 p90 401.6 | crack ms med     5 p90 152.5 | burst dB med     -8 max    1.9
+  all, velocity 40          188 of  336 fail | wrong mode  168 | speak ms med   150 p90   300 | crack ms med    10 p90   135 | burst dB med   -7.2 max   -1.1
+  all, velocity 80          170 of  336 fail | wrong mode  160 | speak ms med 144.7 p90 289.3 | crack ms med   7.5 p90 132.5 | burst dB med   -7.2 max    0.2
+  all, velocity 118         175 of  336 fail | wrong mode  168 | speak ms med 127.2 p90 284.4 | crack ms med    10 p90 127.5 | burst dB med   -7.8 max    1.9
+  all rises                 533 of 1008 fail | wrong mode  496 | speak ms med 147.2 p90   300 | crack ms med    10 p90 132.5 | burst dB med   -7.5 max    1.9
+
+rise            art     fs     fail  wrong  speak ms (med, max)  crack ms (max)  burst dB (max)
+C♯5→D5          slur    48000   8/12      8    182.5     300          17.5          -9.1
+C♯5→D5          tongue  48000   8/12      8      150   302.5            65          -9.4
+C5→D5           slur    48000   6/12      6    187.5   282.5          17.5          -9.4
+C5→D5           tongue  48000   4/12      3      115     255            10         -10.4
+C♯5→E♭5         slur    48000   8/12      8    177.5     300          17.5            -9
+C♯5→E♭5         tongue  48000   7/12      7      150     240          57.5          -9.3
+B4→D5           slur    48000   9/12      8      200     380            15          -9.3
+B4→D5           tongue  48000   6/12      6      150   272.5          12.5         -10.5
+C5→E5           slur    48000   6/12      6    177.5   257.5          12.5          -9.8
+C5→E5           tongue  48000   4/12      3      100     190            10         -10.5
+C♯5→E5          slur    48000   7/12      6      175   272.5          12.5          -9.5
+C♯5→E5          tongue  48000   6/12      6      150     215          37.5          -9.3
+A4→D5           slur    48000   7/12      6    217.5     300          12.5          -9.6
+A4→D5           tongue  48000   6/12      6    122.5     205          12.5         -10.6
+C5→F5           slur    48000   6/12      6    172.5   242.5            10           -10
+C5→F5           tongue  48000   3/12      3      100     165            10         -10.6
+G4→D5           slur    48000   6/12      6    197.5   287.5            15          -9.7
+G4→D5           tongue  48000   3/12      3    107.5     150          12.5         -10.4
+C5→G5           slur    48000   6/12      5      165     220            10           -10
+C5→G5           tongue  48000   1/12      1     97.5     135           7.5         -10.6
+D4→D5           slur    48000   6/12      6      205   262.5            10         -10.5
+D4→D5           tongue  48000   4/12      3      120   182.5            15         -10.8
+E4→E5           slur    48000   6/12      6    182.5     250            10         -10.4
+E4→E5           tongue  48000   6/12      5    102.5   152.5          12.5           -11
+A4→A5           slur    48000   5/12      3      150     205            10         -10.1
+A4→A5           tongue  48000   1/12      0       80     110           7.5         -10.8
+C5→C6           slur    48000   5/12      3    147.5     185           7.5          -9.9
+C5→C6           tongue  48000   0/12      0       65    87.5             5         -10.6
+C♯6→D6          slur    48000   9/12      9      265     370          67.5          -4.6
+C♯6→D6          tongue  48000   6/12      6      150   197.5         132.5          -2.2
+C6→D6           slur    48000  11/12     11      300   417.5            70          -4.4
+C6→D6           tongue  48000   7/12      7      150     220         147.5          -2.2
+C♯6→E♭6         slur    48000   9/12      9    272.5     375          62.5          -4.7
+C♯6→E♭6         tongue  48000   7/12      7      150   217.5           145          -2.5
+B5→D6           slur    48000  10/12     10      300   407.5          72.5          -4.3
+B5→D6           tongue  48000   7/12      7    167.5   232.5         152.5          -2.2
+C6→E♭6          slur    48000  11/12     11      300   432.5            65          -4.5
+C6→E♭6          tongue  48000   7/12      7      160   217.5         147.5          -2.5
+C♯6→E6          slur    48000   9/12      9      285   417.5          62.5          -4.5
+C♯6→E6          tongue  48000   8/12      8      150   207.5           140          -2.3
+A5→D6           slur    48000  12/12     12      300     600           410          -1.2
+A5→D6           tongue  48000  11/12     11      270     460         352.5          -2.5
+C6→F6           slur    48000  12/12     12      300     600           440           1.4
+C6→F6           tongue  48000  10/12     10    192.5   467.5           380          -3.3
+G5→D6           slur    48000  12/12     12      300     600           435           1.5
+G5→D6           tongue  48000  12/12     12      300     600         587.5          -0.2
+A5→E6           slur    48000  12/12     12      300     600         437.5           1.4
+A5→E6           tongue  48000  12/12     12      300     600         587.5           2.3
+B5→E6           slur    48000  12/12     12      300     530           190          -4.2
+B5→E6           tongue  48000  10/12     10    222.5     415         327.5          -2.5
+C6→G6           slur    48000  12/12     12      300     600         437.5           1.5
+C6→G6           tongue  48000  10/12     10    182.5     380         322.5          -3.8
+G5→G6           slur    48000   9/12      9      180     280          57.5          -4.5
+G5→G6           tongue  48000   8/12      8      150     175         122.5          -3.7
+D5→D6           slur    48000   9/12      9      275   347.5            80          -4.5
+D5→D6           tongue  48000   9/12      9      165   267.5         172.5          -2.9
+E5→E6           slur    48000  10/12     10      255     360         172.5          -4.1
+E5→E6           tongue  48000   9/12      9      150   222.5         147.5          -1.5
+A5→A6           slur    48000   6/12      6    157.5     240          47.5          -4.7
+A5→A6           tongue  48000   6/12      6    122.5     140           105          -3.9
+C5→D6           slur    48000   7/12      1      215     365             0           -15
+C5→D6           tongue  48000   2/12      2       55   122.5            10           0.1
+G4→D6           slur    48000   7/12      1    222.5     325             0         -14.7
+G4→D6           tongue  48000   4/12      4     82.5   142.5          77.5           2.1
+C5→E6           slur    48000   7/12      0    202.5   317.5             0           -15
+C5→E6           tongue  48000   2/12      2     52.5   112.5          22.5           0.2
+C♯5→G6          slur    48000   4/12      1    147.5     215             0         -16.1
+C♯5→G6          tongue  48000   0/12      0       40      65           2.5          -0.5
+D6→E6           slur    48000   0/12      0      7.5      10             0         -10.5
+D6→E6           tongue  48000   0/12      0       10      10             0          -9.2
+E6→G6           slur    48000   0/12      0       10      10             0         -10.4
+E6→G6           tongue  48000   0/12      0     12.5    12.5             0          -7.8
+G6→A6           slur    48000   0/12      0      7.5     7.5             0         -13.1
+G6→A6           tongue  48000   0/12      0       10      10             0         -10.9
+A6→C7           slur    48000   0/12      0       10      10             0         -10.3
+A6→C7           tongue  48000   0/12      0       10    12.5             0          -8.6
+F6→C7           slur    48000   0/12      0       15      15             0          -3.1
+F6→C7           tongue  48000   0/12      0     17.5    17.5             0          -2.4
+C6→A6           slur    48000   9/12      9      205   287.5          47.5            -5
+C6→A6           tongue  48000   6/12      6    142.5   177.5         137.5          -4.4
+C♯6→C7          slur    48000   6/12      6      150     255          37.5          -4.9
+C♯6→C7          tongue  48000   6/12      6      120   162.5           130          -4.2
+C6→C7           slur    48000   6/12      6      150   182.5            40          -4.7
+C6→C7           tongue  48000   6/12      6      105     120            95          -4.5
+D6→C♯6          slur    48000   4/12      1      130     180             5          -9.7
+D6→C♯6          tongue  48000   0/12      0       50      55             0         -12.8
+D6→C6           slur    48000   5/12      2      145   202.5             5         -10.2
+D6→C6           tongue  48000   0/12      0       55      60             0         -13.1
+E6→C♯6          slur    48000   5/12      1      150     235           2.5           -11
+E6→C♯6          tongue  48000   0/12      0     52.5      70             0         -16.9
+G6→C6           slur    48000   6/12      1      175   337.5             0         -13.2
+G6→C6           tongue  48000   0/12      0     77.5   152.5             0         -18.5
+E6→A5           slur    48000   7/12      6    227.5     305           2.5         -11.3
+E6→A5           tongue  48000   2/12      0     87.5     175             0         -17.9
+D5→C♯5          slur    48000   3/12      0      105     150             0          -4.4
+D5→C♯5          tongue  48000   0/12      0       45    62.5             0          -1.5
+D5→C5           slur    48000   4/12      0    107.5     135             0          -4.5
+D5→C5           tongue  48000   0/12      0       50    77.5             0          -1.9
+E5→C♯5          slur    48000   3/12      0    122.5     160             0          -5.5
+E5→C♯5          tongue  48000   0/12      0       15      75             0          -3.2
+G5→G4           slur    48000   8/12      0        0       0             0          -8.1
+G5→G4           tongue  48000   5/12      0        0       5             0          -1.4
+E6→C5           slur    48000   7/12      6     12.5    12.5             0         -12.3
+E6→C5           tongue  48000   3/12      3       15      60             0          -9.3
+A6→G5           slur    48000   4/12      3      145   197.5           2.5         -11.5
+A6→G5           tongue  48000   0/12      0     67.5     100             0         -14.6
+D6→G5           slur    48000   8/12      8      210     340            10         -10.2
+D6→G5           tongue  48000   1/12      0     92.5     200             0         -13.5
+F♯6→B5          slur    48000   7/12      5      205     315             0         -12.3
+F♯6→B5          tongue  48000   0/12      0     82.5     165             0         -20.5
+C7→G6           slur    48000   0/12      0     12.5    12.5             0         -10.9
+C7→G6           tongue  48000   0/12      0     12.5    12.5             0            -7
+A6→E6           slur    48000   0/12      0     12.5    12.5             0          -9.8
+A6→E6           tongue  48000   0/12      0     12.5    12.5             0          -6.1
+C♯5→D5          slur    44100   8/12      7    184.6   399.1          12.5          -9.9
+C♯5→D5          tongue  44100   8/12      8      150     300            55           -10
+C5→D5           slur    44100   6/12      6    184.6   266.9          12.5         -10.2
+C5→D5           tongue  44100   5/12      5    119.7   209.5            10         -10.8
+C♯5→E♭5         slur    44100   7/12      6    182.1   356.7            10           -10
+C♯5→E♭5         tongue  44100   6/12      6      150   261.9            40         -10.1
+B4→D5           slur    44100   9/12      8    199.5     300          12.5           -10
+B4→D5           tongue  44100   6/12      6      150   271.9          12.5         -10.8
+C5→E5           slur    44100   6/12      6    179.6   246.9          12.5         -10.1
+C5→E5           tongue  44100   5/12      4    104.8   164.6            10         -10.6
+C♯5→E5          slur    44100   6/12      6    179.6   316.8          12.5          -9.9
+C♯5→E5          tongue  44100   6/12      6    149.7     217            15         -10.3
+A4→D5           slur    44100   7/12      6    214.5     300            10         -10.3
+A4→D5           tongue  44100   6/12      6    129.7     237            10         -10.8
+C5→F5           slur    44100   6/12      6    177.1   244.4            10         -10.3
+C5→F5           tongue  44100   4/12      3      100     150           7.5         -10.7
+G4→D5           slur    44100   6/12      6    197.1   294.3            10         -10.4
+G4→D5           tongue  44100   4/12      3    109.8   164.6          12.5         -10.6
+C5→G5           slur    44100   6/12      6    169.6   224.5           7.5         -10.4
+C5→G5           tongue  44100   3/12      3      100   142.2           7.5         -10.6
+D4→D5           slur    44100   6/12      6    204.5   266.9           7.5           -11
+D4→D5           tongue  44100   4/12      3    122.2   187.1          12.5         -11.1
+E4→E5           slur    44100   6/12      6    182.1   246.9            10         -10.5
+E4→E5           tongue  44100   6/12      5    102.3   152.2          12.5         -10.9
+A4→A5           slur    44100   5/12      3      150     207            10         -10.3
+A4→A5           tongue  44100   1/12      1     79.8   112.2           7.5         -10.6
+C5→C6           slur    44100   5/12      3      150   197.1           7.5         -10.2
+C5→C6           tongue  44100   0/12      0     62.4    84.8             5         -10.8
+C♯6→D6          slur    44100   9/12      9    289.3   371.7          67.5          -4.8
+C♯6→D6          tongue  44100   9/12      9      150   189.6           135          -2.3
+C6→D6           slur    44100   9/12      9      300   406.6            70          -4.5
+C6→D6           tongue  44100   9/12      9    167.1   209.5         142.5          -2.3
+C♯6→E♭6         slur    44100   9/12      9    296.8     439          67.5          -4.4
+C♯6→E♭6         tongue  44100   9/12      9    149.7   197.1           135          -1.7
+B5→D6           slur    44100  10/12     10      300   471.4            70          -4.4
+B5→D6           tongue  44100   9/12      9    157.1   244.4         162.5          -2.2
+C6→E♭6          slur    44100  10/12     10      300   476.4          67.5          -4.2
+C6→E♭6          tongue  44100   9/12      9    164.6     242         142.5          -1.7
+C♯6→E6          slur    44100   9/12      9      300     454          62.5          -4.3
+C♯6→E6          tongue  44100   9/12      9      150   187.1           135          -1.9
+A5→D6           slur    44100  12/12     12      300     600         392.5          -0.8
+A5→D6           tongue  44100  10/12     10      242   359.2         257.5          -2.4
+C6→F6           slur    44100  10/12      9      300   488.9            60          -4.1
+C6→F6           tongue  44100   8/12      8    179.6   301.8           150          -2.4
+G5→D6           slur    44100  12/12     12      300     600           425           1.2
+G5→D6           tongue  44100  12/12     12      300     600           585          -1.1
+A5→E6           slur    44100  12/12     12      300     600         392.5          -0.7
+A5→E6           tongue  44100  12/12     12      300     600           585           1.3
+B5→E6           slur    44100  12/12     12      300   528.8           135          -3.9
+B5→E6           tongue  44100   9/12      9    172.1   259.4           185          -2.1
+C6→G6           slur    44100  11/12     11      300   486.4         222.5          -4.2
+C6→G6           tongue  44100   9/12      9    184.6     222           165          -3.7
+G5→G6           slur    44100   9/12      9    194.6   294.3          52.5          -4.7
+G5→G6           tongue  44100   8/12      8      150   187.1           135          -3.9
+D5→D6           slur    44100  11/12     11    294.3   416.6          82.5          -4.5
+D5→D6           tongue  44100  10/12     10      202   339.2           240          -2.7
+E5→E6           slur    44100  10/12     10    299.3   374.1           115          -3.6
+E5→E6           tongue  44100   9/12      9    167.1     222         147.5          -1.6
+A5→A6           slur    44100   6/12      6    167.1     227          42.5          -5.5
+A5→A6           tongue  44100   6/12      6    129.7   139.7         107.5          -3.3
+C5→D6           slur    44100   7/12      1      217   399.1             0         -15.3
+C5→D6           tongue  44100   1/12      1     59.9    99.8             0           0.6
+G4→D6           slur    44100   7/12      1    224.5   349.2             0         -15.2
+G4→D6           tongue  44100   4/12      4     74.8   127.2          62.5           1.9
+C5→E6           slur    44100   7/12      0      212   356.7             0         -14.9
+C5→E6           tongue  44100   1/12      1     49.9    84.8           2.5           0.3
+C♯5→G6          slur    44100   4/12      1    152.2   224.5             0         -16.5
+C♯5→G6          tongue  44100   0/12      0     39.9    52.4           2.5          -1.6
+D6→E6           slur    44100   0/12      0       10      10             0         -13.5
+D6→E6           tongue  44100   0/12      0       10      10             0          -9.9
+E6→G6           slur    44100   0/12      0     12.5    12.5             0         -11.6
+E6→G6           tongue  44100   0/12      0     12.5    12.5             0          -8.7
+G6→A6           slur    44100   0/12      0       10      10             0           -16
+G6→A6           tongue  44100   0/12      0       10      10             0         -13.5
+A6→C7           slur    44100   0/12      0     12.5    12.5             0         -12.3
+A6→C7           tongue  44100   0/12      0     12.5    12.5             0         -10.2
+F6→C7           slur    44100   0/12      0     17.5    17.5             0          -5.2
+F6→C7           tongue  44100   0/12      0     17.5    17.5             0            -4
+C6→A6           slur    44100   9/12      9      217     300          67.5          -5.9
+C6→A6           tongue  44100   7/12      7    142.2     222           175          -4.8
+C♯6→C7          slur    44100   7/12      6      150   251.9          32.5          -5.9
+C♯6→C7          tongue  44100   6/12      6    112.2   174.6           140          -4.4
+C6→C7           slur    44100   6/12      6      150   192.1            35          -5.6
+C6→C7           tongue  44100   6/12      6    112.2   127.2          97.5          -3.9
+D6→C♯6          slur    44100   4/12      0    137.2   197.1             5         -10.6
+D6→C♯6          tongue  44100   0/12      0     39.9    54.9             0         -14.5
+D6→C6           slur    44100   4/12      1    149.7   209.5           2.5           -11
+D6→C6           tongue  44100   0/12      0     44.9    62.4             0         -15.6
+E6→C♯6          slur    44100   5/12      1    164.6   266.9             0         -12.1
+E6→C♯6          tongue  44100   0/12      0     52.4    74.8             0         -19.8
+G6→C6           slur    44100   7/12      3    189.6   311.8             0         -14.6
+G6→C6           tongue  44100   3/12      0     94.8   162.1             0           -22
+E6→A5           slur    44100   7/12      6    234.5   329.3             0         -12.6
+E6→A5           tongue  44100   1/12      0      100   179.6             0         -18.8
+D5→C♯5          slur    44100   2/12      0    107.3   182.1             0          -6.2
+D5→C♯5          tongue  44100   0/12      0     47.4    64.9             0          -2.9
+D5→C5           slur    44100   4/12      0    117.2   204.5             0          -6.3
+D5→C5           tongue  44100   0/12      0     52.4    77.3             0          -3.7
+E5→C♯5          slur    44100   3/12      0    117.2   144.7             0          -7.7
+E5→C♯5          tongue  44100   0/12      0     42.4    62.4             0          -6.2
+G5→G4           slur    44100   7/12      0        0       0             0            -9
+G5→G4           tongue  44100   6/12      0        0       5             0          -2.1
+E6→C5           slur    44100   9/12      6     12.5   324.3             0         -15.1
+E6→C5           tongue  44100   3/12      3     44.9   129.7             0           -12
+A6→G5           slur    44100   5/12      4    152.2     222             0         -13.1
+A6→G5           tongue  44100   0/12      0     74.8   112.2             0         -16.9
+D6→G5           slur    44100   9/12      9    266.9   349.2           7.5         -11.1
+D6→G5           tongue  44100   1/12      0      100     202             0         -15.4
+F♯6→B5          slur    44100   6/12      1    229.5   354.2             0         -13.8
+F♯6→B5          tongue  44100   0/12      0     64.9   134.7             0         -16.9
+C7→G6           slur    44100   0/12      0     12.5    12.5             0         -12.3
+C7→G6           tongue  44100   0/12      0       15      15             0          -7.5
+A6→E6           slur    44100   0/12      0     12.5    12.5             0           -11
+A6→E6           tongue  44100   0/12      0       15      15             0          -6.4

@@ -1,0 +1,9 @@
+engine <main a561109>/packages/engine/src/core/index.ts: 4 players, each part's busiest 60 s
+bach flute 1            245 notes | lost 6 9 3 3 | impure 0 0 0 0 | another register 0 0 0 0 | joined notes speak in, p90 ms 60 62.5 60 60
+beethoven5-i flute 1    141 notes | lost 1 1 1 1 | impure 1 1 2 2 | another register 0 0 0 0 | joined notes speak in, p90 ms 52.5 55 55 70
+beethoven5-i flute 2     87 notes | lost 2 0 1 1 | impure 3 1 1 1 | another register 0 0 0 0 | joined notes speak in, p90 ms 25 30 37.5 45
+beethoven5-ii flute 1   103 notes | lost 2 2 4 2 | impure 3 1 4 2 | another register 0 0 1 0 | joined notes speak in, p90 ms 60 55 55 60
+beethoven5-ii flute 2    25 notes | lost 1 1 0 1 | impure 1 0 0 0 | another register 0 0 0 0 | joined notes speak in, p90 ms 57.5 57.5 60 55
+toward-morning flute 1   80 notes | lost 0 0 0 0 | impure 0 0 0 0 | another register 0 0 0 0 | joined notes speak in, p90 ms 15 15 15 15
+demo flute              287 notes | lost 6 8 7 7 | impure 1 2 2 1 | another register 0 0 0 0 | joined notes speak in, p90 ms 62.5 65 62.5 65
+all: 3872 notes played | lost 70 | impure 29 | another register 1
