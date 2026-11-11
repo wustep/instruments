@@ -109,6 +109,8 @@ export class TrumpetCore implements InstrumentCore {
   dry: boolean;
   private queue: { frame: number; ev: PianoEvent | { type: 'control'; cc: number; value: number } }[] = [];
   private bore = new Float64Array(BUF);
+  /** the ring left in the bore, as its length changes at once (setNote) */
+  private boreTmp = new Float64Array(BUF);
   private D = 200;
   private Dtarget = 200;
   // lips: a two-pole resonator (mass–spring) on the pressure difference
@@ -206,12 +208,40 @@ export class TrumpetCore implements InstrumentCore {
     // (and lowers the lips) so each note plays at equal temperament
     const c = Math.pow(2, (TUNING[m] ?? 0) / 1200);
     this.Dtarget = ((partial * this.fs) / et(m)) * c;
-    if (immediate) this.D = this.Dtarget;
+    if (immediate) {
+      // A note from near silence takes its length at once; what is left of the last note's ring in the bore
+      // is stretched to the new length, so that the read goes on from where it was. Set in one sample over that
+      // ring, the read point jumped through it: a one-sample step at every soft note after another, 0.88 of the
+      // steady note's largest step against 0.05 around it (audio audit 2: 4 pp note-ons of a walk over 2×,
+      // −34…−39 dBFS). A note from silence (the bore cleared: level 0) is as it was.
+      if (this.level > 0 && this.D !== this.Dtarget) this.restretch(this.D, this.Dtarget);
+      this.D = this.Dtarget;
+    }
     this.lipFTarget = et(m) / c;
     if (immediate) this.lipF = this.lipFTarget;
     this.note = m;
     const fb = et(PEDAL - lower);
     for (let k = 0; k < 16; k++) this.modeFreqs[k] = (k + 1) * fb;
+  }
+
+  /** The round trip in the bore read from length d0 laid out again over length d1 (no allocation): the next
+   *  sample read at d1 is the one d0 would have given, the rest of the ring stretched with it. */
+  private restretch(d0: number, d1: number): void {
+    const bore = this.bore;
+    const tmp = this.boreTmp;
+    const mask = BUF - 1;
+    const w = this.frame;
+    // the positions the read at d1 will meet before anything new is written: p0 … w − 1
+    const p0 = Math.floor(w - d1);
+    const n = Math.min(BUF - 4, w - p0);
+    for (let k = 0; k < n; k++) {
+      // (read at d1 at time w + s, the old read at time w + s·d0/d1, between samples; none from the future)
+      const x = Math.min(w - 1, w - d0 + (p0 + k - (w - d1)) * (d0 / d1));
+      const i = Math.floor(x);
+      const f = x - i;
+      tmp[k] = bore[i & mask] * (1 - f) + bore[(i + 1) & mask] * f;
+    }
+    for (let k = 0; k < n; k++) bore[(p0 + k) & mask] = tmp[k];
   }
 
   schedule(ev: unknown, frame?: number): void {
