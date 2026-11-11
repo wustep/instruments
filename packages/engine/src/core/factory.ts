@@ -2,6 +2,7 @@
 
 import { BowedCore, type BowedParams } from './bowed.ts';
 import { FluteCore, type FluteParams } from './flute.ts';
+import { oversampled } from './oversample.ts';
 import { OboeCore, type OboeParams } from './oboe.ts';
 import { ClarinetCore, type ClarinetParams } from './clarinet.ts';
 import { BassoonCore, type BassoonParams } from './bassoon.ts';
@@ -52,8 +53,11 @@ function makeCore(opts: InstrumentOptions): InstrumentCore & { process: PianoCor
     case 'cello':
     case 'bass':
       return new BowedCore({ sampleRate: opts.sampleRate, instrument: id, params: opts.params as Partial<BowedParams>, dry: opts.dry, player: opts.player });
-    case 'flute':
-      return new FluteCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<FluteParams>, dry: opts.dry, player: opts.player });
+    case 'flute': {
+      const make = (rate: number) => new FluteCore({ sampleRate: rate, params: opts.params as Partial<FluteParams>, dry: opts.dry, player: opts.player });
+      // (under 32 kHz its top notes are too few samples long to speak: run at twice the rate, oversample.ts)
+      return opts.sampleRate < 32000 ? oversampled(make, opts.sampleRate) : make(opts.sampleRate);
+    }
     case 'oboe':
       return new OboeCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<OboeParams>, dry: opts.dry, player: opts.player });
     case 'clarinet':
