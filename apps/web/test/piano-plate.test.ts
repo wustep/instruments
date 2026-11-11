@@ -7,7 +7,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { DEFAULT_PARAMS, PRESETS, buildKeySpecs } from '../../../packages/engine/src/core/design.ts';
 import type { KeySummary } from '@piano-model/engine';
 import { PLATE_DETAIL_PITCH, grandDepth, grandPlate, inPoly, layout, type Plate } from '../src/ui/grand-plan.ts';
-import { upLayout, upPlate, type Pt } from '../src/ui/piano-draw.ts';
+import { keysAcross, upLayout, upPlate, type Pt } from '../src/ui/piano-draw.ts';
 import { installCanvas } from './recording-ctx.ts';
 
 const keysOf = (preset: string): KeySummary[] => {
@@ -142,4 +142,37 @@ describe('the upright (2D)', () => {
     expect(pl.pins.length + pl.hitch.length).toBe(0);
     expect(pl.rails.length).toBe(2);
   });
+});
+
+// With no keys on the screen (an address opened with keys=0 or ui=0) the strings stand over where all 88
+// would lie across the stage (`keysAcross`): the upright's case, 1.4 key pitches past its outermost keys,
+// is whole between the stage's sides, on a computer and a phone.
+describe('the 2D pianos with no keys on the screen', () => {
+  for (const [W, H] of [[320, 640], [390, 844], [844, 390], [1440, 900], [2560, 1300]]) {
+    it(`a ${W}×${H} stage: the keys lie inside it, the upright’s case whole, the grand’s strings inside its rim`, () => {
+      const k = keysAcross({ left: 0, width: W });
+      expect(k.left).toBeGreaterThan(0);
+      expect(k.left + k.width).toBeLessThan(W);
+      // (the stage's own left edge carries over)
+      expect(keysAcross({ left: 37, width: W }).left).toBeCloseTo(37 + k.left, 9);
+      const pitch = k.width / 88;
+      const up = keysOf('upright');
+      const lay = upLayout(W, H, ptsOf(up, k.left, pitch), 1, Math.max(...up.map((q) => q.lengthM)));
+      expect(lay.rect.x0).toBeGreaterThanOrEqual(4);
+      expect(lay.rect.x1).toBeLessThanOrEqual(W - 4);
+      // and it takes most of the width there is
+      expect(lay.rect.x1 - lay.rect.x0).toBeGreaterThan(0.9 * W);
+      // the grand from above: every string's two ends on the stage and inside the rim's outer face
+      const grand = keysOf('grand');
+      const pts = ptsOf(grand, k.left, pitch);
+      const g = layout(W, H, pts, 1, grandDepth(W, pts));
+      expect(g.box.x0).toBeGreaterThanOrEqual(-1);
+      expect(g.box.x1).toBeLessThanOrEqual(W + 1);
+      for (const s of g.strs) for (const q of [s.a, s.b]) {
+        expect(q[0], `key ${s.p.midi}`).toBeGreaterThanOrEqual(Math.max(0, g.box.x0));
+        expect(q[0], `key ${s.p.midi}`).toBeLessThanOrEqual(Math.min(W, g.box.x1));
+        expect(inPoly(g.outer, q[0], q[1]) || q[1] > H - 8, `key ${s.p.midi}: inside the rim`).toBe(true);
+      }
+    });
+  }
 });

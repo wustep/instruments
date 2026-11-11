@@ -134,6 +134,10 @@ const PLAYBACK_GAIN_DB = 6;
  *  mean error -0.7 dB held out). It was 0.6 while the HF path's allpass chain smeared it. */
 const KNOCK_TICK = 0.3;
 
+/** what a piano that has handed over (`handOver`) still takes: what lets its notes go */
+const RELEASES = new Set<PianoEvent['type']>(['noteOff', 'sustain', 'sostenuto', 'allNotesOff']);
+const letsGo = (ev: PianoEvent): boolean => RELEASES.has(ev.type) || (ev.type === 'noteOn' && ev.velocity <= 0);
+
 function smoothstep(a: number, b: number, x: number): number {
   const t = clamp((x - a) / (b - a), 0, 1);
   return t * t * (3 - 2 * t);
@@ -273,7 +277,8 @@ export class PianoCore {
     return this.cal.tilt;
   }
 
-  /** Change preset. Silences the instrument. */
+  /** Change preset. Silences the instrument. (Live, the worklet host changes piano without a silence:
+   *  another piano takes over, `handOver`.) */
   setPreset(id: string): void {
     const d = PRESETS[id];
     if (!d) return;
@@ -281,6 +286,30 @@ export class PianoCore {
     this.params = { ...this.params, ...d.defaults };
     this.allSoundOff();
     this.rebuild(true);
+  }
+
+  /** This piano's keys play nothing more (it has handed over to another: `handOver`): it keeps the
+   *  notes it has until their keys and the pedals let them go, and rings out. */
+  retired = false;
+
+  /**
+   * A change of piano without a silence. `next`, a piano just built, takes over from the sample now
+   * leaving process(): everything scheduled is its to play, with the pedals as they stand. This piano
+   * retires: it strikes nothing more, and of what was scheduled keeps what lets its notes go (the keys'
+   * releases, the pedals), so each note ends where it was written to and the piano rings out. The host
+   * renders both until this one has died away, giving each later event to both.
+   */
+  handOver(next: PianoCore): void {
+    next.frame = this.outputFrame;
+    next.queue = this.queue.slice();
+    this.queue = this.queue.filter((e) => letsGo(e.ev));
+    next.sustain = this.sustain;
+    next.soft = this.soft;
+    // (the middle pedal is each piano's own: a grand's sostenuto, an upright's muffler)
+    if (this.sostenutoPedal > 0) next.schedule({ type: 'sostenuto', value: this.sostenutoPedal }, next.frame);
+    next.watchMidi = this.watchMidi;
+    next.sympatheticAllowed = this.sympatheticAllowed;
+    this.retired = true;
   }
 
   setParams(p: Partial<PianoParams>): void {
@@ -335,6 +364,7 @@ export class PianoCore {
 
   /** Queue an event at an absolute frame (or immediately if omitted / in the past). */
   schedule(ev: PianoEvent, frame?: number): void {
+    if (this.retired && !letsGo(ev)) return;
     const f = frame === undefined ? this.frame : Math.max(this.frame, Math.floor(frame));
     const q = this.queue;
     let i = q.length;
@@ -355,6 +385,7 @@ export class PianoCore {
         const i = ev.midi - KEY_LO;
         if (i < 0 || i >= NUM_KEYS) return;
         if (ev.velocity <= 0) return this.apply({ type: 'noteOff', midi: ev.midi });
+        if (this.retired) return;
         const v = this.voices[i];
         if (!v.active) {
           if (this.pending[i]) {

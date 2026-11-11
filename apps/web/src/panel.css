@@ -101,6 +101,27 @@
   height: calc(100dvh - var(--top-h) - var(--fall-h) - var(--pos-h) - var(--kbd-h));
   min-height: 300px;
 }
+/* An address opened with keys=0 (main.ts): no fallboard, no position strip, no keys. The stage has
+   their room, down to the window's edge, at every size (the rules below take the keys' heights off). */
+:root[data-nokeys] {
+  --kbd-h: 0px;
+  --fall-h: 0px;
+  --pos-h: 0px;
+}
+:root[data-nokeys][data-route='stage'] main {
+  height: calc(100dvh - var(--top-h));
+}
+/* An address opened with ui=0: the stage and nothing else (the keys are off too: data-nokeys). The bar,
+   the band and the file player are not shown; the stage is the whole window. The other pages keep
+   their bar: it is the way back. */
+:root[data-noui][data-route='stage'] {
+  --top-h: 0px;
+}
+:root[data-noui][data-route='stage'] .top,
+:root[data-noui] .stage-top,
+:root[data-noui] .player {
+  display: none;
+}
 
 /* ------------------------------------------------------------ the picker */
 .picker {

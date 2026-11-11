@@ -16,9 +16,13 @@
 //          space), its General MIDI program, the seats that play it (1.3: seats 1 and 3; -: none,
 //          silent); the name or the program may be left out. A file dropped in later is matched by
 //          name, then program, then place (orchestra/rules.ts); with no lines, by register
-//   keys   the seats the keys play (1.3), or split (absent: the piano, else the leading instrument)
+//   keys   the seats the keys play (1.3), or split (absent: the piano, else the leading instrument); a 0
+//          among them (keys=0, keys=0.1.3, on any address): no keys on the screen, the stage has their room
 //   view   2d, vector or 3d (absent: as this device last had it)
 //   expr   automatic expression, on or off (absent: as this device has it)
+//   ui     0 (on any address): the stage and nothing else, for looking, listening and filming: no bar, no
+//          band, no file player, no keys. What it would have pressed is asked of the page (the address
+//          sets the piece up; window.__player plays it)
 //
 // A piece with an address of its own (orchestra/pieces.ts `path`: /symphony, "Toward Morning") stands
 // for its orchestra and its routing, with the piece loaded: /symphony?view=3d. It is written so for as
@@ -52,11 +56,15 @@ export interface Address {
   piece: string | null;
   look: Look | null;
   expr: boolean | null;
+  /** no keys on the screen (keys=0): the stage takes the room of the fallboard and the keyboard */
+  keysOff: boolean;
+  /** the stage and nothing else (ui=0): no bar, no band, no file player, no keys */
+  uiOff: boolean;
   /** the address's other parameters, as written (?debug) */
   rest: string[];
 }
 
-export const emptyAddress = (): Address => ({ page: 'stage', instrument: null, preset: null, orchestra: null, piece: null, look: null, expr: null, rest: [] });
+export const emptyAddress = (): Address => ({ page: 'stage', instrument: null, preset: null, orchestra: null, piece: null, look: null, expr: null, keysOff: false, uiOff: false, rest: [] });
 
 /** the most of anything an address is read for (a longer one is cut there) */
 const MAX_LINES = 128;
@@ -172,17 +180,25 @@ export function parseAddress(path: string, search: string, hash = ''): Address {
   }
   const q = [...splitQuery(search), ...splitQuery(old?.[2] ?? '')];
   const get = (k: string) => q.find((x) => x[0] === k)?.[1];
-  const mine = new Set(['v', 'seats', 'lines', 'keys', 'view', 'style', 'expr']);
+  const mine = new Set(['v', 'seats', 'lines', 'keys', 'view', 'style', 'expr', 'ui']);
   a.rest = q.filter((x) => !mine.has(x[0])).map((x) => x[2]);
   const view = dec(get('view') ?? '').toLowerCase();
   const style = dec(get('style') ?? '').toLowerCase();
   a.look = (LOOKS as string[]).includes(view) ? (view as Look) : style === 'vector' ? 'vector' : style === 'classic' ? '2d' : null;
   const expr = dec(get('expr') ?? '').toLowerCase();
   a.expr = expr === 'on' || expr === '1' ? true : expr === 'off' || expr === '0' ? false : null;
+  // keys: a 0 among the seats hides the keys on the screen (seats count from 1), on any address
+  const keyParts = dec(get('keys') ?? '')
+    .toLowerCase()
+    .split(/[.,]/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  a.keysOff = keyParts.includes('0');
+  a.uiOff = ['0', 'off'].includes(dec(get('ui') ?? '').trim().toLowerCase());
+  const keys = keyParts.filter((x) => x !== '0').join('.');
   const v = get('v');
   if (a.orchestra && a.piece) {
     // (its seats are the piece's; the keys may still be chosen)
-    const keys = dec(get('keys') ?? '').trim().toLowerCase();
     const ks = keys === 'split' ? 'split' : seatList(keys, a.orchestra.seats.map((_, k) => k));
     a.orchestra.keys = ks.length ? ks : null;
   } else if (a.orchestra && (v === undefined || v === String(FORMAT))) {
@@ -193,7 +209,6 @@ export function parseAddress(path: string, search: string, hash = ''): Address {
       at.push(VOICES.includes(voice) ? seats.push(voice) - 1 : -1);
     }
     const lines = get('lines');
-    const keys = dec(get('keys') ?? '').trim().toLowerCase();
     const ks = keys === 'split' ? 'split' : seatList(keys, at);
     a.orchestra = { seats, lines: seats.length && lines ? parseLines(lines, at) : null, keys: seats.length && ks.length ? ks : null };
   }
@@ -207,6 +222,8 @@ const formatLine = (r: LineRule): string => `${encName(r.name)}${r.program >= 0 
 export function formatAddress(a: Address): string {
   let path = '/';
   const q: string[] = [];
+  /** the keys: 0 (none on the screen: kept on every page, the stage comes back as it was), then an Orchestra's seats */
+  const keys: string[] = a.keysOff ? ['0'] : [];
   if (a.page !== 'stage') path = `/${a.page}`;
   else if (a.orchestra) {
     path = '/orchestra';
@@ -218,14 +235,16 @@ export function formatAddress(a: Address): string {
       q.push(`v=${FORMAT}`, `seats=${s.seats.join(',')}`);
       if (s.lines?.length) q.push(`lines=${s.lines.map(formatLine).join(',')}`);
     }
-    if (s.seats.length && s.keys) q.push(`keys=${s.keys === 'split' ? 'split' : s.keys.map((k) => k + 1).join('.')}`);
+    if (s.seats.length && s.keys) keys.push(s.keys === 'split' ? 'split' : s.keys.map((k) => k + 1).join('.'));
   } else if (a.instrument) path = a.instrument === 'piano' && a.preset === 'upright' ? '/piano/upright' : `/${a.instrument}`;
+  if (keys.length) q.push(`keys=${keys.join('.')}`);
   if (a.page === 'stage') {
     // (an instrument's address shows the look only when it is not the plain stage; the Orchestra's
     // always, as it does the expression: a setup is all there)
     if (a.look && (a.orchestra || a.look !== '2d')) q.push(`view=${a.look}`);
     if (a.orchestra && a.expr !== null) q.push(`expr=${a.expr ? 'on' : 'off'}`);
   }
+  if (a.uiOff) q.push('ui=0');
   q.push(...a.rest);
   return q.length ? `${path}?${q.join('&')}` : path;
 }

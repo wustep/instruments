@@ -19,7 +19,7 @@ import { drawEnsemble, ensembleCells, newPartDraw, syncPianoState, type Cell, ty
 import type { EnsPartIn } from '../ui/gl/scenes3d.ts';
 import type { MidiPlayer } from '../ui/player.ts';
 import { AutoScale, INK as STAGE_INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, type BowedGeom, type BowedState } from '../ui/stage-draw.ts';
-import { drawPiano, newPianoState, stringAt } from '../ui/piano-draw.ts';
+import { drawPiano, keysAcross, newPianoState, stringAt } from '../ui/piano-draw.ts';
 import { drawRoom, newRoomState } from '../ui/room-draw.ts';
 import { createHandBow, type HandBow } from '../ui/hand-bow.ts';
 import { stageKnob } from '../ui/stage-knob.ts';
@@ -1085,7 +1085,9 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       drawEnsemble(ctx, cells, ensemble.parts, draws, (p) => ensemble.keysOf(p), now, vec);
     } else if (family() === 'piano') {
       const sr = canvas.getBoundingClientRect();
-      const kr = kb.strip.getBoundingClientRect();
+      // the strings stand over their keys; with no keys on the screen (keys=0, ui=0) over where all 88
+      // would lie across the stage, the case whole between its sides
+      const kr = look.keysShown ? kb.strip.getBoundingClientRect() : keysAcross({ left: sr.left, width: w });
       pianoState.down = new Set(audio.down.keys());
       pianoState.sustain = audio.lastStats?.sustain ?? audio.sustainValue;
       pianoState.soft = audio.lastStats?.soft ?? audio.softValue;
@@ -1173,7 +1175,10 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     // room's knob is under the pointer, turned or focused
     const g3 = in3d && !ens && s3!.zoomed === null;
     const kr = knobRoom.el;
-    kr.hidden = ens || (in3d && !g3);
+    // (in 3D the room's knob is on the floor or not shown: stage3d `roomKnob` gives its place, also
+    // through the flight back out of a close-up; never the 2D stage's corner)
+    const rk = in3d ? s3!.roomKnob() : null;
+    kr.hidden = ens || (in3d && !rk);
     if (in3d) s3!.roomHot = !kr.hidden && (kr.classList.contains('dragging') || document.activeElement === kr || kr.matches(':hover'));
     // the MIDI file player sits at the top middle, just under this band (a fixed overlay)
     const bandY = Math.round(top.getBoundingClientRect().bottom);
@@ -1189,7 +1194,6 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     // floor, where the pool of light at its largest ends: stage3d `roomKnob`); the lid's on the lid by
     // its hinge (in 3D beside the lid on the treble side, under the rim: stage3d `lidKnob`)
     const kh = mqCoarse?.matches ? 22 : 18;
-    const rk = in3d ? s3!.roomKnob() : null;
     const rx = Math.max(kh + 10, Math.min(w - kh - 10, rk ? rk[0] : w));
     const ry = rk ? Math.min(ih - kh - 6, Math.max(kh + 6, rk[1])) : kh + 10;
     kr.style.transform = `translate(${Math.round(rx - kh)}px, ${Math.round(topH + ry - kh)}px)`;
@@ -1218,10 +1222,17 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   };
 
   let unsubVis: (() => void) | null = null;
+  /** the engine whose frames the stage draws: a retry after a failed start builds another (audio.ts
+   *  `restart`), and the stage follows it (it used to stay on the one that was gone: sound, and a
+   *  picture that never moved again) */
+  let visOf: unknown = null;
   const attach = () => {
-    if (!audio.piano || unsubVis) return;
-    syncKnobs(audio.piano.params as unknown as Record<string, number>);
-    unsubVis = audio.piano.onVisual((v) => {
+    const p = audio.piano;
+    if (!p || p === visOf) return;
+    unsubVis?.();
+    visOf = p;
+    syncKnobs(p.params as unknown as Record<string, number>);
+    unsubVis = p.onVisual((v) => {
       frame = v;
       if (v.strike) strike = v.strike;
     });
@@ -1268,6 +1279,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       cancelAnimationFrame(raf);
       unsubVis?.();
       unsubVis = null;
+      visOf = null;
       unsubs.forEach((u) => u());
       setOpen(false);
       bar.pick.replaceChildren();

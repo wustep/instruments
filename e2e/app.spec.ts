@@ -717,6 +717,31 @@ test('start-up: a stalled or refused designs file falls back; a crashing engine 
   expect(await p3.evaluate(() => (window as any).__piano.ctx === (window as any).__ctx0)).toBe(true);
 });
 
+test('start-up: a retry builds another engine, and the stage draws it (the picture used to stay with the one that was gone)', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/piano?view=2d');
+  await startAudio(page);
+  const strike = async (midi: number) => {
+    await page.evaluate((m) => (window as any).__piano.noteOn(m, 0.7, 'midi'), midi);
+    await page.waitForTimeout(350);
+    await page.evaluate((m) => (window as any).__piano.noteOff(m, 'midi'), midi);
+  };
+  const cap = page.locator('.scope-cap');
+  await strike(60);
+  await expect(cap).toHaveText(/^C4 · /);
+  // what a tap does after a failed start: a new engine on the same context
+  await page.evaluate(() => (window as any).__piano.restart());
+  await startAudio(page);
+  await page.waitForTimeout(300);
+  await strike(67);
+  // the hammer's trace is the new note's: the stage has the new engine's frames
+  await expect(cap).toHaveText(/^G4 · /);
+  // and its knobs still set it
+  await page.evaluate(() => (window as any).__piano.setParams({ lid: 0.45 }));
+  await expect(page.locator('.knob-lid')).toHaveAttribute('aria-valuetext', 'lid · 45 % open');
+  expect(errors).toEqual([]);
+});
+
 test('octave control: buttons and Z/X/−/= shift the keys, within each instrument’s range', async ({ page }) => {
   await page.goto('/');
   await startAudio(page);

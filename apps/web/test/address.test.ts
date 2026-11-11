@@ -198,3 +198,59 @@ describe('a piece’s own address: /symphony', () => {
     expect(ownSetup({ seats: seats as never, lines: lines.slice(0, 12), keys: null }, tm)).toBe(false);
   });
 });
+
+// Two parameters no control sets (look.ts): keys=0, no keys on the screen; ui=0, the stage and nothing
+// else. Each is read on any address and written back on every one, so the page keeps it as it goes.
+describe('keys=0 and ui=0: less of the page round the stage', () => {
+  it('keys=0 on an instrument, the Orchestra, a piece and a page; with the look, in either order', () => {
+    expect(at('/piano').keysOff).toBe(false);
+    for (const url of ['/piano?keys=0', '/violin?view=3d&keys=0', '/symphony?view=3d&keys=0', '/symphony?keys=0&view=3d', '/orchestra?keys=0', '/notes?keys=0', '/?keys=0']) expect(at(url).keysOff, url).toBe(true);
+    expect(formatAddress(at('/piano?keys=0'))).toBe('/piano?keys=0');
+    expect(formatAddress(at('/piano/upright?view=3d&keys=0'))).toBe('/piano/upright?keys=0&view=3d');
+    expect(formatAddress(at('/violin?view=vector&keys=0'))).toBe('/violin?keys=0&view=vector');
+    expect(formatAddress(at('/notes?keys=0'))).toBe('/notes?keys=0');
+    // (a piece's own address stays its own)
+    const sym = at('/symphony?view=3d&keys=0');
+    expect(sym.piece).toBe('toward-morning');
+    expect(sym.orchestra?.keys).toBeNull();
+    expect(formatAddress(sym)).toBe('/symphony?keys=0&view=3d');
+    // the address is not the app's parameter left over: it is read, not kept as written
+    expect(at('/piano?keys=0').rest).toEqual([]);
+  });
+
+  it('the Orchestra’s keys are still chosen beside it: a 0 among the seats (they count from 1)', () => {
+    const a = at(`${QUINTET}&keys=0.1.3`);
+    expect(a.keysOff).toBe(true);
+    expect(a.orchestra?.keys).toEqual([0, 2]);
+    expect(formatAddress(a).endsWith('&keys=0.1.3')).toBe(true);
+    const split = at('/orchestra?v=1&seats=violin,cello&keys=0.split');
+    expect(split.keysOff).toBe(true);
+    expect(split.orchestra?.keys).toBe('split');
+    expect(formatAddress(split)).toBe('/orchestra?v=1&seats=violin,cello&keys=0.split');
+    // without the 0 the keys are on the screen, as ever
+    const shown = at(`${QUINTET}&keys=1.3`);
+    expect(shown.keysOff).toBe(false);
+    expect(shown.orchestra?.keys).toEqual([0, 2]);
+    expect(formatAddress(shown)).not.toContain('keys=0');
+    // a piece's address, its keys chosen
+    const sym = at('/symphony?keys=0.9');
+    expect(sym.keysOff).toBe(true);
+    expect(sym.orchestra?.keys).toEqual([8]);
+    expect(formatAddress(sym)).toBe('/symphony?keys=0.9');
+  });
+
+  it('ui=0 on any address, beside every other parameter; anything else is not it', () => {
+    for (const url of ['/piano?ui=0', '/symphony?view=3d&ui=0', '/orchestra?ui=off', '/notes?ui=0']) expect(at(url).uiOff, url).toBe(true);
+    for (const url of ['/piano', '/piano?ui=1', '/piano?ui=', '/piano?ui=on']) expect(at(url).uiOff, url).toBe(false);
+    expect(formatAddress(at('/symphony?view=3d&ui=0'))).toBe('/symphony?view=3d&ui=0');
+    expect(formatAddress(at('/symphony?ui=0&view=3d&expr=off'))).toBe('/symphony?view=3d&expr=off&ui=0');
+    expect(formatAddress(at('/piano/upright?ui=0&view=3d&debug'))).toBe('/piano/upright?view=3d&ui=0&debug');
+    expect(formatAddress(at('/cello?ui=0&keys=0'))).toBe('/cello?keys=0&ui=0');
+    expect(formatAddress(at('/notes?ui=0'))).toBe('/notes?ui=0');
+    expect(at('/piano?ui=0').rest).toEqual([]);
+    // the setup of an Orchestra is read as ever beside it
+    const q = at(`${QUINTET}&ui=0`);
+    expect(q.orchestra?.seats).toEqual(['violin', 'violin', 'viola', 'cello', 'bass']);
+    expect(formatAddress(q).endsWith('&ui=0')).toBe(true);
+  });
+});

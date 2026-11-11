@@ -17,6 +17,7 @@ import { PIECES } from './orchestra/pieces.ts';
 import { installTips } from './ui/tip.ts';
 import { stageView } from './views/stage.ts';
 import { startNav } from './nav.ts';
+import { look } from './look.ts';
 import type { Page } from './address.ts';
 
 /** The name in the browser tab. Nothing on the page itself names it: the instrument speaks. */
@@ -122,7 +123,11 @@ function render(id: Page): void {
   current?.unmount?.();
   current = r.make();
   main.replaceChildren(current.el);
-  dock.hidden = !current.dock;
+  // (an address opened with keys=0: no fallboard and no keys, the stage has their room; with ui=0 the
+  // stage is all there is, the bar, the band and the file player gone too: panel.css)
+  dock.hidden = !current.dock || !look.keysShown;
+  document.documentElement.toggleAttribute('data-nokeys', !look.keysShown);
+  document.documentElement.toggleAttribute('data-noui', !look.ui);
   document.documentElement.dataset.route = id;
   links.forEach((a) => (a.dataset.route === id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   document.title = r.title ? `${r.title} · ${WORDMARK}` : WORDMARK;
