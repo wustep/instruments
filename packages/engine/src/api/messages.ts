@@ -50,8 +50,9 @@ export interface VisualFrame extends Stats {
   strike: StrikeRecord | null;
   /** bow / jet trace for strings and flute */
   excite: ExciteTrace | null;
-  /** the bow (strings): direction (+1 down, −1 up), contact point along the hair 0 (frog)…1 (tip) */
-  bow?: { dir: number; pos: number; changing: boolean; speed: number } | null;
+  /** the bow (strings): direction (+1 down, −1 up), contact point along the hair 0 (frog)…1 (tip);
+   *  planned: the stroke under way was planned ahead (a file playing told the notes to come) */
+  bow?: { dir: number; pos: number; changing: boolean; speed: number; planned?: boolean } | null;
   modes: Float32Array;
   /** piano: per-key level of the struck strings (A0…C8) */
   levels?: Float32Array;

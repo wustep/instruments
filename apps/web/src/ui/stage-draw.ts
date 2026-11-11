@@ -1867,7 +1867,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     st.drawn = ly.drawn ??= bowedDrawn(g, p, sh, ly.lay);
   }
   const lay = ly.lay;
-  /** the bow, the contact and which way it goes (in the local frame bwPlace sets) */
+  /** the bow and the contact (in the local frame bwPlace sets) */
   const drawBow = () => {
     // the hair gives under the string: δ = F·a·(H − a)/(T·H) for hair tension T ≈ 60 N, drawn 3× larger
     const F = bwForce(fr?.excite?.meta);
@@ -2019,7 +2019,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     ctx.strokeStyle = 'rgba(160,170,180,0.9)';
     ctx.lineWidth = 0.6;
     ctx.stroke();
-    // the contact: rosin-bright where hair meets string, by the power the bow puts in; and which way it goes
+    // the contact: rosin-bright where hair meets string, by the power the bow puts in
     if (playing && bow) {
       const v = Math.abs(bow.speed);
       const pw = Math.min(1, Math.sqrt((v * F) / 0.25));
@@ -2031,20 +2031,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
       gr.addColorStop(1, rgba(INK.vermilion, 0));
       ctx.fillStyle = gr;
       ctx.fillRect(gx - rc, gz - rc, 2 * rc, 2 * rc);
-      if (!bow.changing && v > 0.02) {
-        // down-bow draws the frog away from the strings (towards the player)
-        const d = bow.dir > 0 ? 1 : -1;
-        const zc = gz + d * 26;
-        const xc = Xh(ac, 0);
-        ctx.strokeStyle = rgba(INK.vermilion, Math.min(1, 0.4 + v));
-        ctx.lineWidth = 1.6;
-        ctx.lineJoin = 'round';
-        ctx.beginPath();
-        ctx.moveTo(xc - 4.5, zc - d * 4);
-        ctx.lineTo(xc, zc);
-        ctx.lineTo(xc + 4.5, zc - d * 4);
-        ctx.stroke();
-      }
+      // (no mark for the bow's direction here: the bow itself moves; the vector style keeps its chevron)
     }
     ctx.globalAlpha = 1;
   };

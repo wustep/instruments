@@ -13,7 +13,7 @@
 
 import { audio } from '../audio.ts';
 import { express, PartLevels, type Expressed } from '../expression.ts';
-import { parseMidi, type FileEvent, type MidiSong } from '../midi-file.ts';
+import { notesAhead, parseMidi, type FileEvent, type MidiSong } from '../midi-file.ts';
 import { canReassign, voicesOfLine, VOICE_INFO, VOICES, type Voice } from '../orchestra/assign.ts';
 import { ensemble, stageCap } from '../orchestra/ensemble.ts';
 import { DEMOS, demoSong, PIECES, pieceForLineup, pieceSong, type Demo, type Piece } from '../orchestra/pieces.ts';
@@ -21,7 +21,7 @@ import { tidyName } from '../orchestra/rules.ts';
 import { familyOf, seatNames, sectionName, type Family, type Section } from '../orchestra/sections.ts';
 import { voiceGlyph } from './controls.ts';
 import { h } from './dom.ts';
-import type { InstrumentId } from '@piano-model/engine';
+import { BOW_LOOK, type InstrumentId } from '@piano-model/engine';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const icon = (d: string) => {
@@ -94,6 +94,10 @@ const expressOf = (s: MidiSong): Expressed => {
   return x;
 };
 
+/** how far ahead of its sound a note is told to the bows (s): past what they plan with (BOW_LOOK),
+ *  with room for a late timer */
+const BOW_AHEAD = BOW_LOOK + 1;
+
 /** a line's name as the file writes it, tidied ("violinI:" → "violin I"; LilyPond's "\new" is none) */
 export const lineName = (name: string, inst: string, i: number): string => tidyName(name) || inst.trim() || `line ${i + 1}`;
 
@@ -122,6 +126,11 @@ export class MidiPlayer {
    *  with its flat lines phrased) */
   auto = readAuto();
   private events: FileEvent[] = [];
+  /** the bows are told what is to come (audio.foreseeFileEvent): the first event not yet told, and
+   *  each note's length and dynamics, by its place in `events` (midi-file.ts notesAhead; kept for the list
+   *  they were made of) */
+  private told = 0;
+  private aheadOf: { of: FileEvent[]; len: Float32Array; dyn: Float32Array } | null = null;
   private piecesBtn: HTMLButtonElement;
   private pieces: HTMLElement | null = null;
   private grid: HTMLElement | null = null;
@@ -181,6 +190,8 @@ export class MidiPlayer {
       this.sync();
       // an instrument whose lines changed is at rest: the controllers as they stand, again
       if (this.playing && audio.ctx) for (const e of PartLevels.chase(this.events.slice(0, this.idx), Infinity)) audio.scheduleFileEvent(e, audio.ctx.currentTime);
+      // and the bows that play the lines now are told what is to come
+      this.told = this.idx;
     });
     // an instrument's own piece follows the instrument shown: paused before the engine swaps, the new
     // one's piece played once it is there (paused or stopped, the overlay just comes back to rest)
@@ -472,6 +483,7 @@ export class MidiPlayer {
       else hi = mid;
     }
     this.idx = lo;
+    this.told = lo;
     this.pos0 = this.pos;
     this.t0 = ctx.currentTime + 0.12;
     // the file's controllers as they stand where it starts (a resume, a seek: its volume, expression,
@@ -488,12 +500,25 @@ export class MidiPlayer {
     this.raf = requestAnimationFrame(draw);
   }
 
-  /** Schedule ~0.2 s ahead, sample-accurately, on the AudioContext clock. */
+  /** Schedule ~0.2 s ahead, sample-accurately, on the AudioContext clock. The bowed instruments are
+   *  told each note BOW_AHEAD seconds before it sounds (when it will begin, how hard, how long, the
+   *  dynamics over it), so
+   *  their bows are planned as by a player reading the part; the notes themselves are scheduled as
+   *  ever. */
   private tick(): void {
     const ctx = audio.ctx;
     if (!ctx || !this.song) return;
     const now = ctx.currentTime;
     const ev = this.events;
+    if (this.aheadOf?.of !== ev) this.aheadOf = { of: ev, ...notesAhead(ev) };
+    const { len, dyn } = this.aheadOf;
+    while (this.told < ev.length) {
+      const e = ev[this.told];
+      const at = this.t0 + (e.t - this.pos0);
+      if (at > now + BOW_AHEAD) break;
+      if (e.kind === 'on' && len[this.told] > 0) audio.foreseeFileEvent(e, Math.max(at, now), len[this.told], dyn[this.told]);
+      this.told++;
+    }
     while (this.idx < ev.length) {
       const e = ev[this.idx];
       const at = this.t0 + (e.t - this.pos0);

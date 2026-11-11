@@ -139,6 +139,11 @@ as do the [Orchestra](https://instruments-wustep.vercel.app/orchestra),
     the other way (down-bow, up-bow), and long notes change bow when the hair
     runs out. At the turn the bow slows through zero and the stick–slip
     re-forms in the opposite direction.
+    When a file or a piece plays, the notes to come are known and the bow is
+    planned ahead, as by a player reading the part: long notes drawn slower and
+    nearer the bridge so one bow carries them, the stroke begun where it has
+    room, the bow lifted to its next place in a rest. From the keys each note
+    is met as it comes.
   * **Body.** Fingers shorten the strings, with vibrato. All four strings stand on
     one bridge over a modal body with each instrument's signature air and wood
     resonances, so open strings ring sympathetically.

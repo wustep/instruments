@@ -8,7 +8,7 @@
 // While the ensemble plays, the single instrument's engine is taken out of the graph (it costs as
 // much idle as playing) and put back when the ensemble goes.
 
-import { createInstrument, pianoKeySummary, processorUrl, type KeySummary, type Piano, type VisualFrame } from '@piano-model/engine';
+import { createInstrument, isBowed, pianoKeySummary, processorUrl, type KeySummary, type Piano, type VisualFrame } from '@piano-model/engine';
 import { audio, fetchDesigns, restLevel, sendLevel, type Route } from '../audio.ts';
 import { modLines, PartLevels, volumeRef } from '../expression.ts';
 import type { FileEvent, MidiLine, MidiSong } from '../midi-file.ts';
@@ -616,6 +616,20 @@ class Ensemble implements Route {
         }
         this.later(at, () => ep === p.epoch && this.hear(p, pitch, 0, false));
       }
+    }
+  }
+
+  /** a file's note to come, to each bowed instrument that will play it (as `schedule` will send it:
+   *  the same parts, the same pitch), so its bow is planned ahead (engine bowed.ts foresee) */
+  foresee(e: FileEvent & { kind: 'on' }, at: number, dur: number, dyn: number): void {
+    const rs = e.line === undefined ? undefined : this.plan.lines[e.line];
+    if (!rs) return;
+    for (const r of rs) {
+      const p = this.parts[r.part];
+      const eng = p?.engine;
+      if (!p || !eng || !isBowed(eng.instrument)) continue;
+      if (!playsNote(e, deskOf(this.plan, this.lines, e.line!, r.part))) continue;
+      eng.foresee(placeNote(e.midi, r.shift, p.voice), e.vel, at, dur, dyn);
     }
   }
 
