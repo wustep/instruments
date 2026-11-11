@@ -323,3 +323,43 @@ export function divide(events: FileEvent[]): void {
     sounding.set(e.line, held);
   }
 }
+
+/** What is known of each note before it sounds, by its place in the events (0 where the event is not a
+ *  note's start): its length in seconds, from its start to the next end of that pitch in its line (one
+ *  never ended lasts to the last event); and its line's automatic dynamics over it (the `dyn` events:
+ *  velocity steps, held from one to the next), on average. The file player tells the bows both. */
+export function notesAhead(ev: readonly FileEvent[]): { len: Float32Array; dyn: Float32Array } {
+  const len = new Float32Array(ev.length);
+  const dyn = new Float32Array(ev.length);
+  const open = new Map<string, number[]>();
+  const end = ev.length ? ev[ev.length - 1].t : 0;
+  // each line's dynamics, summed over time up to its last change: ∫ dyn dt, the value since, and when
+  const sum = new Map<number, { area: number; value: number; t: number }>();
+  const area = (line: number, t: number): number => {
+    const s = sum.get(line);
+    return s ? s.area + s.value * (t - s.t) : 0;
+  };
+  const started = new Float64Array(ev.length);
+  ev.forEach((e, i) => {
+    const line = e.line ?? -1;
+    if (e.kind === 'dyn') {
+      sum.set(line, { area: area(line, e.t), value: e.value, t: e.t });
+      return;
+    }
+    if (e.kind !== 'on' && e.kind !== 'off') return;
+    const k = `${line}:${e.midi}`;
+    if (e.kind === 'on') {
+      const q = open.get(k);
+      if (q) q.push(i);
+      else open.set(k, [i]);
+      len[i] = Math.max(0.01, end - e.t);
+      started[i] = area(line, e.t);
+    } else {
+      const j = open.get(k)?.shift();
+      if (j === undefined) return;
+      len[j] = Math.max(0.01, e.t - ev[j].t);
+      if (e.t > ev[j].t) dyn[j] = (area(line, e.t) - started[j]) / (e.t - ev[j].t);
+    }
+  });
+  return { len, dyn };
+}

@@ -2,7 +2,7 @@
 // the audio rendering thread; the main thread only sends control messages.
 
 import { createCore, type AnyParams } from '../core/factory.ts';
-import type { InstrumentCore, InstrumentId } from '../core/instrument.ts';
+import { isBowed, type InstrumentCore, type InstrumentId } from '../core/instrument.ts';
 import type { PianoCore } from '../core/piano-core.ts';
 import type { ToProcessor, FromProcessor } from '../api/messages.ts';
 import type { DesignEntry } from '../core/voice.ts';
@@ -96,7 +96,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
     this.baseMaxVoices = o.maxVoices ?? 64;
     this.coreMaxVoices = this.core.maxVoices;
     this.adaptive = o.adaptive !== false;
-    for (const e of o.events ?? []) this.core.schedule(e.event, e.frame);
+    for (const e of o.events ?? []) if ((e.event as { type?: string }).type !== 'foresee' || isBowed(this.core.id)) this.core.schedule(e.event, e.frame);
     this.visInterval = Math.max(1, Math.round(sampleRate / 128 / 30));
     this.post({ type: 'ready', sampleRate, initMs, instrument: this.core.id, params: this.core.params as Record<string, unknown>, modeFreqs: Array.from(this.core.modeFrequencies), keys: this.core.keySummary() });
   }
@@ -110,7 +110,8 @@ class InstrumentProcessor extends AudioWorkletProcessor {
     switch (m.type) {
       case 'event': {
         const frame = m.time === undefined ? undefined : Math.round(m.time * sampleRate) - this.frameOffset;
-        this.core.schedule(m.event, frame);
+        // (a note to come is for a bow to plan with: the others have no use for it)
+        if (m.event.type !== 'foresee' || isBowed(this.core.id)) this.core.schedule(m.event, frame);
         break;
       }
       case 'params':
@@ -159,6 +160,8 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       case 'clearScheduled': {
         const q = (this.core as unknown as { queue?: unknown[] }).queue;
         if (q) q.length = 0;
+        // and what a bow was told is to come
+        (this.core as unknown as { forget?: () => void }).forget?.();
         break;
       }
     }

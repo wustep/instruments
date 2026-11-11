@@ -442,6 +442,27 @@ export const CC_HAND_BOW_OFF = 130;
 const DYN_MAX = 64;
 const VIB_PER_STEP = 0.0125;
 
+/** The bow planned ahead (BowedCore.foresee): how far the player reads ahead of the bow (s); the
+ *  slowest and the fastest a stroke is drawn, of the speed its dynamic asks for (the contact point
+ *  moves with it, nearer the bridge for a slower bow, so the string's amplitude v/β stays the
+ *  dynamic's: Schelleng 1973, JASA 53, §IV; Askenfelt 1989, JASA 86, measured players at 4 cm/s to
+ *  over 1 m/s and long notes drawn slowly near the bridge); the hair kept clear at each end, of the
+ *  bow's length; the shortest rest in which the bow is lifted and set down elsewhere, and the rest
+ *  after which a phrase begins anew (s); how long before a note the lifted bow moves to it, and the
+ *  time constant of that move (s). */
+export const BOW_LOOK = 4;
+const K_LO = 0.45;
+const K_HI = 1.25;
+const BOW_MARGIN = 0.06;
+const RETAKE_MIN = 0.12;
+const PHRASE_REST = 1;
+const RETAKE_LEAD = 0.45;
+const RETAKE_TAU = 0.07;
+/** a note is the one foreseen if it begins within this of it (s) */
+const FORESEE_TOL = 0.03;
+/** the contact point a planned stroke may be given, of the string's length */
+const BETA_PLAN: [number, number] = [0.04, 0.28];
+
 /** velocity (0..1 of 1..127) at which bowPosition is the actual β: MIDI 80 */
 const X_REF = 79 / 126;
 const MU_S = 0.8;
@@ -507,6 +528,9 @@ class BowedString {
   /** velocity-dependent force and bow-position multipliers of the current note */
   forceDyn = 1;
   betaDyn = 1;
+  /** the planned stroke's speed, of the speed the note's dynamic asks for (1: not planned); the
+   *  contact point moves by the same factor */
+  kBow = 1;
   /** bow-speed attack time constant of the current note, s (design.attackTau) */
   tauA = 0.045;
   /** design.wander: smoothed random walks (rate, depth, speed, force), each ~N(0, 1) */
@@ -655,6 +679,30 @@ export class BowedCore implements InstrumentCore {
    *  zero), and the contact point along the hair (0 frog … 1 tip). While it is held the keys only
    *  stop the strings: the bow sounds them, at the hand's speed. null: the keys bow, as always. */
   private hand: { target: number; v: number; pos: number } | null = null;
+  /** The notes to come (a file or a piece playing: `foresee`), in the order they begin: when each
+   *  begins and ends (frames), its pitch and strength, and whether it has begun. With them the bow is
+   *  planned as by a player who reads the part; without them (the keys, a keyboard plugged in) each
+   *  note is met as it comes (newStroke, and the change when the hair runs out). */
+  private ahead: { on: number; off: number; midi: number; vel: number; dyn: number; hit: boolean }[] = [];
+  /** the stroke as planned: whether the one under way was (a note that was foreseen began it), its
+   *  speed factor and the strength it was planned for, the frame at which the bow is to change inside
+   *  it (−1: no change), whether what is left is planned again once a change is done, how many
+   *  strokes and changes were planned, the frame the stroke ends at, and the bow held back near its
+   *  end (trim, 0.85…1: bowControl) */
+  readonly plan = { on: false, k: 1, vel: 80, changeAt: -1, replan: false, strokes: 0, changes: 0, end: 0, trim: 1 };
+  /** the lifted bow on its way to where the next stroke begins: that note's frame (−1: none), the
+   *  place on the hair (m) */
+  private retake = { on: -1, pos: 0 };
+  /** when the bow last left every string (frame) */
+  private bowOff = -1e12;
+  /** scratch of the planner: a group of notes on one bow (its end, the frame and strength of the note
+   *  after it, −1 if none is known), the starts of the notes inside it, and a stroke as designed */
+  private g0 = { end: 0, next: -1, nextVel: 80, top: 0 };
+  private g1 = { end: 0, next: -1, nextVel: 80, top: 0 };
+  private ons = new Float64Array(48);
+  private nOns = 0;
+  private sp = { dir: 1, start: 0, k: 1, room: 0 };
+  private run = new Float64Array(16);
   /** no note yet: the hand's bow starts on the second-highest string, not the lowest */
   private unplayed = true;
   private vinS = new Float64Array(4);
@@ -924,13 +972,15 @@ export class BowedCore implements InstrumentCore {
   private bowTargets(s: BowedString, velocity: number): void {
     const [vlo, vhi] = this.design.bowSpeed;
     const x = clamp((velocity - 1) / 126, 0, 1);
-    const v = vlo * Math.pow(vhi / vlo, x) * this.expression;
+    // (a planned stroke, kBow: drawn slower nearer the bridge or faster nearer the fingerboard, the
+    // string's amplitude v/β and the force's place under Schelleng's maximum as the dynamic has them)
+    const v = vlo * Math.pow(vhi / vlo, x) * this.expression * s.kBow;
     s.vBowTarget = v;
     const at = this.design.attackTau;
     if (at) s.tauA = at[0] * Math.pow(at[1] / at[0], x);
     // normalised to 1 at velocity 80, so bowPosition is the bow's β at that velocity
     const [bp, bf] = this.design.betaDyn;
-    s.betaDyn = (bp + (bf - bp) * x) / (bp + (bf - bp) * X_REF);
+    s.betaDyn = ((bp + (bf - bp) * x) / (bp + (bf - bp) * X_REF)) * s.kBow;
     s.beta = clamp(this.params.bowPosition * s.betaDyn, 0.03, 0.3);
     // Schelleng's maximum bow force for this speed/position; play a fraction of it
     const fMax = (2 * s.Zb * v) / (s.beta * (MU_S - MU_D));
@@ -966,6 +1016,9 @@ export class BowedCore implements InstrumentCore {
 
   schedule(ev: unknown, frame?: number): void {
     const f = frame === undefined ? this.frame : Math.max(this.frame, Math.floor(frame));
+    const fe = ev as { type?: string; midi: number; velocity: number; dur: number; dyn?: number };
+    // a note to come is not an event: it is known at once, and nothing happens at its frame
+    if (fe.type === 'foresee') return this.foresee(fe.midi, fe.velocity, f, fe.dur, fe.dyn);
     const q = this.queue;
     let i = q.length;
     while (i > 0 && q[i - 1].frame > f) i--;
@@ -982,15 +1035,23 @@ export class BowedCore implements InstrumentCore {
         if (s.bowing && s.held && s.midi !== ev.midi) s.displaced.push({ midi: s.midi, velocity: s.velocity });
         s.velocity = ev.velocity;
         const legato = s.bowing;
+        // was it foreseen (a file playing)? then its stroke is planned; in the hand, never
+        const seen = this.hand || !this.ahead.length ? null : this.match(ev.midi);
         this.setStopped(s, ev.midi, !legato && s.level < 1e-4);
         if (!legato) {
           s.stick = true;
-          // v2: on a slurred crossing the bow arrives already moving
+          // v2: on a slurred crossing the bow arrives already moving (a planned stroke: on every
+          // instrument, the bow rolls onto the new string inside its slur)
           let vNow = 0;
-          if (this.design.slurCrossing) for (const t of this.strings) if (t !== s && t.bowing && t.vBow > vNow) vNow = t.vBow;
+          if (this.design.slurCrossing || seen) for (const t of this.strings) if (t !== s && t.bowing && t.vBow > vNow) vNow = t.vBow;
           s.vBow = vNow;
-          this.newStroke();
+          if (seen) this.strokeStart(seen.vel, this.planVel(seen));
+          else {
+            if (!this.strings.some((q) => q.bowing)) this.plan.on = false;
+            this.newStroke();
+          }
         }
+        s.kBow = seen && this.plan.on ? this.plan.k : 1;
         s.bowing = true;
         s.held = true;
         s.startedAt = this.frame;
@@ -1050,6 +1111,7 @@ export class BowedCore implements InstrumentCore {
         break;
       case 'allNotesOff':
         this.hand = null;
+        this.forget();
         for (const s of this.strings) {
           s.displaced = [];
           this.lift(s);
@@ -1081,6 +1143,316 @@ export class BowedCore implements InstrumentCore {
     const nd = -b.dir;
     const left = (d: number) => (d > 0 ? L - b.pos : b.pos);
     b.dir = left(nd) >= 0.1 * L || left(nd) >= left(b.dir) ? nd : b.dir;
+  }
+
+  // ------------------------------------------------------------ the bow planned ahead
+
+  /** A note to come: it will begin at `frame` and last `dur` seconds, the file's dynamics over it
+   *  `dyn` velocity steps above the note as begun on average (CC_DYNAMICS as it will be sent; absent:
+   *  as they stand when the stroke is planned). The file player says so BOW_LOOK seconds or more
+   *  ahead; the note itself still arrives as a noteOn at its frame. */
+  foresee(midi: number, velocity: number, frame: number, dur: number, dyn?: number): void {
+    if (!(dur > 0) || !(velocity > 0)) return;
+    // (a note no string reaches will not sound: it is no part of the bow's plan)
+    if (!this.strings.some((s) => midi >= s.def.open && midi <= s.def.open + 26)) return;
+    const a = this.ahead;
+    // (a stuck sender: the oldest go)
+    if (a.length >= 512) a.shift();
+    let i = a.length;
+    while (i > 0 && a[i - 1].on > frame) i--;
+    a.splice(i, 0, { on: frame, off: frame + Math.max(1, Math.round(dur * this.fs)), midi, vel: velocity, dyn: dyn === undefined ? NaN : clamp(dyn, -DYN_MAX, DYN_MAX), hit: false });
+  }
+
+  /** What was foreseen is forgotten (the file paused or stopped): the bow meets the notes as they come. */
+  forget(): void {
+    this.ahead.length = 0;
+    this.retake.on = -1;
+    this.plan.changeAt = -1;
+    this.plan.replan = false;
+  }
+
+  /** The foreseen note that begins now on this pitch (the nearest within FORESEE_TOL), marked begun;
+   *  those that are over, or never came, are dropped. */
+  private match(midi: number): { on: number; vel: number; dyn: number } | null {
+    const a = this.ahead;
+    const tol = FORESEE_TOL * this.fs;
+    let w = 0;
+    let best = -1;
+    for (let i = 0; i < a.length; i++) {
+      const e = a[i];
+      if (e.hit ? e.off <= this.frame : e.on < this.frame - tol) continue;
+      if (!e.hit && e.midi === midi && Math.abs(e.on - this.frame) <= tol && (best < 0 || Math.abs(e.on - this.frame) < Math.abs(a[best].on - this.frame))) best = w;
+      a[w++] = e;
+    }
+    a.length = w;
+    if (best < 0) return null;
+    a[best].hit = true;
+    return a[best];
+  }
+
+  /** The notes on one bow from frame `from`: those sounding then and every later one that begins
+   *  before the last of them ends (a slur, a chord, a double stop: notes that overlap). Into g: where
+   *  the group ends, its highest note, and the note after it (−1: none within BOW_LOOK). The starts of
+   *  the notes inside go to `ons` when asked. */
+  private scan(from: number, g: { end: number; next: number; nextVel: number; top: number }, keep: boolean): void {
+    const a = this.ahead;
+    const tol = FORESEE_TOL * this.fs;
+    const far = from + BOW_LOOK * this.fs;
+    g.end = from;
+    g.next = -1;
+    g.top = 0;
+    if (keep) this.nOns = 0;
+    for (let i = 0; i < a.length; i++) {
+      const e = a[i];
+      if (e.off <= from || (!e.hit && e.on < from - tol)) continue;
+      if (e.on > far) break;
+      // (a note that begins as the last ends, to within a rounding of their two times, does not overlap it)
+      if (e.on <= from + tol || e.on < g.end - 0.002 * this.fs) {
+        if (keep && e.on > from + tol && this.nOns < this.ons.length) this.ons[this.nOns++] = e.on;
+        if (e.off > g.end) g.end = e.off;
+        if (e.midi > g.top) g.top = e.midi;
+      } else {
+        g.next = e.on;
+        g.nextVel = this.planVel(e);
+        break;
+      }
+    }
+  }
+
+  /** a foreseen note's strength with the dynamics over it (velocity steps: as foreseen, else as they stand) */
+  private planVel(e: { vel: number; dyn: number }): number {
+    return e.vel + (e.dyn === e.dyn ? e.dyn : this.dyn);
+  }
+
+  /** the bow speed a note of this strength asks for (m/s; bowTargets and dynTargets), the dynamics counted in */
+  private speedOf(velocity: number): number {
+    const [vlo, vhi] = this.design.bowSpeed;
+    return vlo * Math.pow(vhi / vlo, clamp((clamp(velocity, 1, 127) - 1) / 126, 0, 1)) * this.expression;
+  }
+
+  /** the hair a stroke of T seconds takes at that speed (m): the bow comes up to speed with the
+   *  attack's time constant */
+  private hairOf(velocity: number, T: number): number {
+    const at = this.design.attackTau;
+    const tau = at ? at[0] * Math.pow(at[1] / at[0], clamp((velocity - 1) / 126, 0, 1)) : 0.045;
+    return this.speedOf(velocity) * Math.max(0, T - tau * (1 - Math.exp(-T / tau)));
+  }
+
+  /** A stroke designed, for the notes on one bow from frame `on` (into sp: its direction, where on the
+   *  hair it begins, its speed factor, the hair ahead of it): as a player who sees the part
+   *  distributes the bow.
+   *  fresh: the bow is off the string and can be set down anywhere (phrase: after a rest long enough
+   *  that the phrase begins anew, down-bow, or up-bow for an upbeat); else it goes on from where it is,
+   *  the other way.
+   *  The hair it uses is what its length and dynamic ask for, more if the stroke that follows straight
+   *  after needs the room to come back (a short note before a long one is drawn faster), less if less
+   *  is left (a long note is drawn slower); within K_LO…K_HI and the instrument's own bow speeds. One
+   *  that cannot be done in a bow even slowed is done in the fewest bows that can, each using the
+   *  hair fully (strokeChange). */
+  private design1(on: number, velocity: number, pv: number, fresh: boolean, phrase: boolean): void {
+    const b = this.bow;
+    const sp = this.sp;
+    const fs = this.fs;
+    const L = this.design.bowLength;
+    const m = BOW_MARGIN * L;
+    const Lu = L - 2 * m;
+    this.scan(on, this.g0, true);
+    const g = this.g0;
+    const T = (g.end - on) / fs;
+    const x = clamp((velocity - 1) / 126, 0, 1);
+    // (pv: the strength with the dynamics over the note, for the speed; the contact point is the note's own)
+    const v = this.speedOf(pv);
+    const h0 = Math.max(1e-4, this.hairOf(pv, T));
+    const [vlo, vhi] = this.design.bowSpeed;
+    const [bp, bf] = this.design.betaDyn;
+    const beta = this.params.bowPosition * ((bp + (bf - bp) * x) / (bp + (bf - bp) * X_REF));
+    // the model's own limit: the contact is a tap on the delay line β·P/2 samples from the bridge (P
+    // the note's period), a whole sample on the violin and the viola, no nearer than the hair's width
+    // on the cello and the bass; under three samples its place is too coarse to move by a fraction
+    // (measured: scripts/bow-plan-range.ts), so the group's highest note bounds how slow the stroke is
+    const st = this.pickString(g.top);
+    const tap = 0.5 * beta * (this.fs / et(g.top));
+    const kMin = Math.min(1, Math.max(K_LO, vlo / v, BETA_PLAN[0] / beta, Math.max(3, st ? st.Wb + 1 : 0) / tap));
+    const kMax = Math.max(1, Math.min(K_HI, vhi / v, BETA_PLAN[1] / beta));
+    // the stroke after this one, if it follows with no time to lift the bow: the hair it would like
+    let h1 = 0;
+    let T1 = 0;
+    if (g.next >= 0 && g.next - g.end < RETAKE_MIN * fs) {
+      this.scan(g.next, this.g1, false);
+      T1 = (this.g1.end - g.next) / fs;
+      h1 = Math.min(this.hairOf(g.nextVel, T1), Lu);
+    }
+    let dir: number;
+    // beside a stroke of another length the bow is shared out: the shorter one is drawn faster (up to
+    // the hair the longer would like), the longer one slower (down to three quarters), so that a
+    // dotted rhythm does not creep to one end of the bow
+    // (the cello and the bass, whose level holds as the contact moves: scripts/bow-plan-range.ts; the
+    // violin and the viola keep the dynamic's own speed unless the hair forces another)
+    let want = h0;
+    if (this.design.bowWidth) {
+      if (h1 > h0) want = Math.min(h1, kMax * h0);
+      else if (h1 > 0) want = Math.max(Math.min(h0, kMax * h1), 0.75 * h0);
+    }
+    // a whole-sample contact moves by whole samples: the speed factor is one such a move gives
+    // exactly (the one below what is wanted, so the stroke still fits), so v/β is kept
+    const t1 = Math.max(1, Math.round(tap));
+    const whole = (q: number): number => (st && st.Wb ? q : Math.max(Math.ceil(kMin * t1 - 1e-9), Math.floor(q * t1 + 1e-9)) / t1);
+    let k: number;
+    if (fresh) {
+      // the strokes that follow this one with no time to lift the bow (up to seven; RUN): how long
+      // each is and the hair it would like
+      const run = this.run;
+      let n = 0;
+      if (h1 > 0) {
+        run[0] = T1;
+        run[1] = h1;
+        n = 1;
+        while (n < 7) {
+          const nx = this.g1.next;
+          if (nx < 0 || nx - this.g1.end >= RETAKE_MIN * fs) break;
+          const vel = this.g1.nextVel;
+          this.scan(nx, this.g1, false);
+          run[2 * n] = (this.g1.end - nx) / fs;
+          run[2 * n + 1] = Math.min(this.hairOf(vel, run[2 * n]), Lu);
+          n++;
+        }
+      }
+      // a phrase begins down-bow, unless short notes lead straight to a longer one: then that one is
+      // the down-bow (an upbeat is taken up-bow; three quavers before a minim go up, down, up)
+      dir = phrase ? 1 : -b.dir;
+      if (phrase && T < 0.6)
+        for (let j = 0; j < n; j++) if (run[2 * j] > 1.6 * T) {
+          if (!(j & 1)) dir = -1;
+          break;
+        }
+      k = whole(kMin * h0 > Lu ? clamp((Math.ceil((kMin * h0) / Lu) * Lu) / h0, kMin, 1) : clamp(Math.min(want, Lu) / h0, kMin, kMax));
+      const h = Math.min(k * h0, Lu);
+      // where: a loud stroke in the lower half, a soft one further out; a long one from the end
+      const lo = clamp(L * (0.62 - 0.27 * x) - h / 2, m, L - m - h);
+      let start = dir > 0 ? lo : lo + h;
+      // and so that the strokes after it, back and forth from where this one ends, stay on the hair
+      let o = dir * h;
+      let min = Math.min(0, o);
+      let max = Math.max(0, o);
+      let d = -dir;
+      for (let j = 0; j < n; j++) {
+        o += d * run[2 * j + 1];
+        if (Math.max(max, o) - Math.min(min, o) > Lu) {
+          // one that asks for more than is there will be drawn slower: all the room there is, for it
+          if (d > 0) max = min + Lu;
+          else min = max - Lu;
+          break;
+        }
+        min = Math.min(min, o);
+        max = Math.max(max, o);
+        d = -d;
+      }
+      start = clamp(start, m - min, L - m - max);
+      sp.start = start;
+    } else {
+      const room = (d: number) => Math.max(0, d > 0 ? L - m - b.pos : b.pos - m);
+      dir = -b.dir;
+      // hooked: no room that way even for a slowed stroke, and room this way: the same way again
+      if (kMin * h0 > room(dir) && room(b.dir) >= Math.min(kMin * h0, Lu) && this.params.bowChanges) dir = b.dir;
+      const R = room(dir);
+      const B = Lu - R;
+      if (h1 > want + B) want = h1 - B;
+      if (want > R) want = R;
+      k = whole(kMin * h0 > R ? clamp((Math.max(1, Math.ceil((kMin * h0) / Lu)) * Lu) / h0, kMin, 1) : clamp(want / h0, kMin, kMax));
+      sp.start = b.pos;
+    }
+    sp.dir = dir;
+    sp.k = k;
+    sp.room = Math.max(0, dir > 0 ? L - m - sp.start : sp.start - m);
+  }
+
+  /** A stroke of T seconds from frame `from` that needs `need` metres of hair, with `room` ahead:
+   *  the frame at which the bow changes inside it (plan.changeAt), −1 if the hair is enough. More
+   *  than a bow's worth is shared out evenly; the change falls on the start of a note inside the
+   *  group when there is one in the later half of what the hair allows, else inside the note. */
+  private strokeChange(from: number, T: number, need: number, room: number): void {
+    const p = this.plan;
+    const L = this.design.bowLength;
+    const Lu = L * (1 - 2 * BOW_MARGIN);
+    p.changeAt = -1;
+    if (need <= room + 0.004 || T <= 0) return;
+    const n = 1 + Math.ceil((need - room - 0.004) / Lu);
+    const most = (room * T) / need;
+    const seg = Math.min(T / n, most);
+    let at = from + seg * this.fs;
+    for (let i = this.nOns - 1; i >= 0; i--) {
+      const o = this.ons[i];
+      if (o > from + most * this.fs) continue;
+      if (o >= from + 0.5 * seg * this.fs) at = o;
+      break;
+    }
+    // (not in a note's last instants: the next stroke changes the bow anyway)
+    if (at < from + T * this.fs - 0.15 * this.fs) p.changeAt = at;
+  }
+
+  /** A foreseen note begins a stroke (no string is bowed: a note that overlaps one already bowed
+   *  goes on in its stroke, as in newStroke): the stroke as designed. */
+  private strokeStart(velocity: number, pv: number): void {
+    const b = this.bow;
+    const p = this.plan;
+    if (!this.params.bowChanges) {
+      p.on = false;
+      return this.newStroke();
+    }
+    if (this.strings.some((q) => q.bowing)) return;
+    const first = b.lastStroke < -1e11;
+    const rest = this.frame - this.bowOff;
+    this.design1(this.frame, velocity, pv, first || rest >= RETAKE_MIN * this.fs, first || rest >= PHRASE_REST * this.fs);
+    b.lastStroke = this.frame;
+    b.changing = false;
+    b.dir = this.sp.dir;
+    b.pos = this.sp.start;
+    p.on = true;
+    p.k = this.sp.k;
+    p.vel = pv;
+    p.replan = false;
+    p.end = this.g0.end;
+    p.trim = 1;
+    p.strokes++;
+    this.retake.on = -1;
+    const T = (this.g0.end - this.frame) / this.fs;
+    this.strokeChange(this.frame, T, this.sp.k * this.hairOf(pv, T), this.sp.room);
+  }
+
+  /** A change of bow inside a planned stroke is done: what is left of the group is planned from here. */
+  private strokeOn(): void {
+    const b = this.bow;
+    const p = this.plan;
+    p.replan = false;
+    p.trim = 1;
+    this.scan(this.frame, this.g0, true);
+    p.end = this.g0.end;
+    const L = this.design.bowLength;
+    const m = BOW_MARGIN * L;
+    const T = (this.g0.end - this.frame) / this.fs;
+    this.strokeChange(this.frame, T, p.k * this.speedOf(p.vel) * T, Math.max(0, b.dir > 0 ? L - m - b.pos : b.pos - m));
+  }
+
+  /** The bow is off the strings and a foreseen note is near: it moves, lifted, to where that note's
+   *  stroke will begin (a time constant: the same at any block length). */
+  private airborne(dt: number): void {
+    const a = this.ahead;
+    const r = this.retake;
+    let e: (typeof a)[number] | null = null;
+    for (let i = 0; i < a.length; i++) if (!a[i].hit && a[i].on > this.frame) {
+      e = a[i];
+      break;
+    }
+    if (!e || e.on - this.frame > RETAKE_LEAD * this.fs) return;
+    const first = this.bow.lastStroke < -1e11;
+    const rest = e.on - this.bowOff;
+    if (!first && rest < RETAKE_MIN * this.fs) return;
+    if (r.on !== e.on) {
+      this.design1(e.on, e.vel, this.planVel(e), true, first || rest >= PHRASE_REST * this.fs);
+      r.on = e.on;
+      r.pos = this.sp.start;
+    }
+    this.bow.pos += (r.pos - this.bow.pos) * (1 - Math.exp(-dt / RETAKE_TAU));
   }
 
   /** The hand lets go of the bow: held keys bow their strings again, the others are left. */
@@ -1122,6 +1494,7 @@ export class BowedCore implements InstrumentCore {
     }
     const [vlo, vhi] = this.design.bowSpeed;
     const x = clamp(Math.log(v / vlo) / Math.log(vhi / vlo), 0, 1);
+    s.kBow = 1;
     this.bowTargets(s, 1 + 126 * x);
     const r = v / s.vBowTarget;
     s.fMax *= r;
@@ -1148,6 +1521,7 @@ export class BowedCore implements InstrumentCore {
     } else if (P.bowChanges) {
       const T = Math.max(0.02, P.bowChangeTime);
       const L = this.design.bowLength;
+      const pl = this.plan;
       if (!b.changing && vmax > 0) {
         // change when the remaining hair is about what the deceleration needs (+2 cm)
         const left = b.dir > 0 ? L - b.pos : b.pos;
@@ -1157,8 +1531,18 @@ export class BowedCore implements InstrumentCore {
           b.from = b.dir;
           b.changes++;
           b.auto++;
+          if (pl.on) pl.replan = true;
+        } else if (pl.on && pl.changeAt >= 0 && this.frame >= pl.changeAt - 0.5 * T * this.fs) {
+          // or where the plan has it (the turn centred on that moment)
+          b.changing = true;
+          b.t = 0;
+          b.from = b.dir;
+          b.changes++;
+          pl.changes++;
+          pl.replan = true;
         }
-      }
+        if (b.changing) pl.changeAt = -1;
+      } else if (this.ahead.length && !this.strings.some((q) => q.bowing)) this.airborne(dt);
       if (b.changing) {
         b.t += dt;
         const x = Math.min(1, b.t / T);
@@ -1169,7 +1553,17 @@ export class BowedCore implements InstrumentCore {
           b.changing = false;
           b.dir = -b.from;
           sgn = b.dir;
+          if (pl.replan) this.strokeOn();
         }
+      }
+      // a planned stroke that would run out of hair just before its end (the dynamics swelled, the
+      // hand wandered) is held back, by up to 15 %, as a player saves the bow; smoothly (0.1 s)
+      if (pl.on && !b.changing && vmax > 0 && pl.changeAt < 0) {
+        const left = (b.dir > 0 ? L - b.pos : b.pos) - (vmax * T) / Math.PI - 0.025;
+        const need = (vmax * Math.max(0, pl.end - this.frame)) / this.fs;
+        const c = need > left ? clamp(left / need, 0.85, 1) : 1;
+        pl.trim += (c - pl.trim) * (1 - Math.exp(-dt / 0.1));
+        sgn *= pl.trim;
       }
       b.pos = clamp(b.pos + sgn * vmax * dt, 0, L);
     }
@@ -1213,6 +1607,7 @@ export class BowedCore implements InstrumentCore {
     s.vBowTarget = 0;
     s.fBowTarget = 0;
     s.releasedAt = this.frame;
+    if (!this.strings.some((q) => q.bowing)) this.bowOff = this.frame;
   }
 
   noteOn(midi: number, velocity: number): void {
@@ -1250,6 +1645,8 @@ export class BowedCore implements InstrumentCore {
 
   allSoundOff(): void {
     this.hand = null;
+    this.forget();
+    this.plan.on = false;
     this.dyn = this.dynTarget = 0;
     for (const s of this.strings) {
       s.displaced = [];
@@ -1828,7 +2225,7 @@ export class BowedCore implements InstrumentCore {
       },
       strike: null,
       excite,
-      bow: { dir: this.bow.dir, pos: this.bow.pos / this.design.bowLength, changing: this.bow.changing, speed: s.vSigned },
+      bow: { dir: this.bow.dir, pos: this.bow.pos / this.design.bowLength, changing: this.bow.changing, speed: s.vSigned, planned: this.plan.on },
       // all four strings: open note, sounding length (fraction of the open string), level, bowed
       strings: this.strings.map((x) => {
         const stop = x.fOpen / et(Math.max(x.midi < 0 ? x.def.open : x.midi, x.def.open));
