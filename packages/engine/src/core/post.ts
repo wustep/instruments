@@ -584,13 +584,19 @@ export class Limiter {
       if (target < g) g = target;
       else g = target + (g - target) * rel;
       if (g < minG) minG = g;
+      let l: number;
+      let r: number;
       if (k === 1) {
-        L[t] = softClip(L[t] * g);
-        R[t] = softClip(R[t] * g);
+        l = softClip(L[t] * g);
+        r = softClip(R[t] * g);
       } else {
-        L[t] = softClip(k * L[t] * g) / k;
-        R[t] = softClip(k * R[t] * g) / k;
+        l = softClip(k * L[t] * g) / k;
+        r = softClip(k * R[t] * g) / k;
       }
+      // a decay's last 400 dB is silence: the output as float32 never carries subnormals into the nodes after
+      // it (audio audit 2: the piano, flute, oboe, horn, trumpet and timpani tails held up to 160 000 a note)
+      L[t] = l > -1e-20 && l < 1e-20 ? 0 : l;
+      R[t] = r > -1e-20 && r < 1e-20 ? 0 : r;
     }
     this.gain = g;
     this.reduction = minG;
