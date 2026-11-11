@@ -4,7 +4,7 @@
 // that binds and has equal margins on the other; nothing is outside it.
 import { describe, expect, it } from 'vitest';
 import { Batch, lookAt, mul, perspective, rotY, scaleM, translate, type Mesh, type Vec3 } from '../src/ui/gl/gl3d.ts';
-import { fitView, screenBox, type FitRect } from '../src/ui/gl/fit3d.ts';
+import { fitsUnder, fitView, screenBox, type FitRect } from '../src/ui/gl/fit3d.ts';
 
 /** a box as a mesh (its 8 corners: the framing reads positions only) */
 function box(lo: Vec3, hi: Vec3): Mesh {
@@ -93,5 +93,27 @@ describe('3D framing', () => {
     b.fitAlso.push({ mesh: bow, m: translate(1.2, 0.6, 0) });
     expect(fitView(b, v, tanV, 0.9, rect)!.dist).toBeGreaterThan(alone.dist * 1.05);
     expect(fitView(new Batch(), v, tanV, 0.9, rect)).toBeNull();
+  });
+
+  it('under a height of the picture: exactly what the renderer’s camera shows (an orchestra kept out from under the file player’s lines)', () => {
+    const tanV = Math.tan(FOV / 2);
+    const H = 473;
+    // rows of an orchestra: a front one low and near, a back one high and far, seen from above
+    const b = scene([
+      { mesh: box([-2, 0, 0], [2, 0.7, 0.6]), m: null },
+      { mesh: box([-1.6, 0.4, 2.4], [1.6, 1.5, 3]), m: mul(translate(0.2, 0, 0), rotY(0.1)) },
+    ]);
+    for (const v of [
+      { target: [0, 0.6, 1.5] as Vec3, yaw: 0, pitch: 0.66 },
+      { target: [0.3, 0.4, 1.2] as Vec3, yaw: 0.3, pitch: 0.5 },
+    ])
+      for (const dist of [9, 14, 22]) {
+        // the scene's top on the picture (NDC, y up), from the renderer's own matrices
+        const top = 1 - (2 * screenBox(b, vpOf(v.target, v.yaw, v.pitch, dist, W / H), W, H)!.y0) / H;
+        expect(fitsUnder(b, v, dist, tanV, top + 1e-4)).toBe(true);
+        expect(fitsUnder(b, v, dist, tanV, top - 1e-4)).toBe(false);
+      }
+    // (nothing to keep under it)
+    expect(fitsUnder(new Batch(), { target: [0, 0, 0], yaw: 0, pitch: 0.5 }, 5, tanV, 0)).toBe(true);
   });
 });

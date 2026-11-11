@@ -333,7 +333,9 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
   // plate and strings show; the upright from the treble side, a little above the keys, into the action
   // (an upright is wider than it is tall: on a phone held upright it is seen from further round its
   // treble end, where it is as tall as the stage)
-  if (si.family === 'piano') return si.kind === 'grand' ? { target: [-0.12, 0.58, 1.0], dist: 3.8, yaw: 0.74, pitch: 0.33 } : { target: [0, 0.62, 0.25], dist: 2.8, yaw: 0.45, pitch: 0.26, swing: 0.36 };
+  // (the grand whole on every stage, its lid wide open: cropped like a photograph on a wide stage, the
+  // open lid ran out of the top behind the file player)
+  if (si.family === 'piano') return si.kind === 'grand' ? { target: [-0.12, 0.58, 1.0], dist: 3.8, yaw: 0.74, pitch: 0.33, whole: true } : { target: [0, 0.62, 0.25], dist: 2.8, yaw: 0.45, pitch: 0.26, swing: 0.36 };
   if (si.family === 'bowed' && si.bowed) {
     const id = si.bowed.id;
     // the cello: from its bass side, a little below centre, the scroll against the rim light
