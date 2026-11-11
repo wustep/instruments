@@ -614,6 +614,8 @@ export class MidiPlayer {
       return b;
     });
     this.strip.replaceChildren(...this.chips);
+    // (how many: on a phone each takes its share of one row, styles.css)
+    this.strip.style.setProperty('--n', String(this.chips.length));
     if (this.grid) this.buildGrid();
   }
 

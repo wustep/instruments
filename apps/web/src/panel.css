@@ -55,6 +55,17 @@
 .lamp-text {
   min-width: 0;
 }
+/* (the hint is never cut short, main.ts fitLamp: on two lines where one does not fit, and where two
+   do not, the lamp alone) */
+.status[data-fit='two'] .lamp-text {
+  max-height: 24px;
+  line-height: 12px;
+  white-space: normal;
+  text-overflow: clip;
+}
+.status[data-fit='none'] .lamp-text {
+  display: none;
+}
 .top-pick:empty,
 .top-tools:empty {
   display: none;

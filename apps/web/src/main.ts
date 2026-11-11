@@ -164,17 +164,35 @@ const fmtLat = () => {
 // the lamp never sits on "warming up" silently: after 3 s it says what is going on and
 // what to do; a failure shows the actual reason (shortened here, in full on hover)
 const LAMP: Record<string, string> = { idle: 'tap a key', starting: 'warming up', running: '', suspended: 'tap a key' };
+// The lamp's hint is never shown cut short ("tap a …" beside an orchestra's count or a long name on a
+// phone): whole on one line; where the bar has no room for that, on two; where not for that either,
+// the lamp alone (its title has the words). A failure's reason stays one line, shortened: it is long.
+const fitLamp = () => {
+  status.dataset.fit = 'line';
+  if (!Object.values(LAMP).includes(lampText.textContent ?? '') || lampText.scrollWidth <= lampText.clientWidth) return;
+  status.dataset.fit = 'two';
+  // (two lines of 12 px; a letter's own box reaches a pixel or two past its line, a third line 12)
+  if (lampText.scrollWidth > lampText.clientWidth || lampText.scrollHeight > lampText.clientHeight + 6) status.dataset.fit = 'none';
+};
 audio.state.on((s) => {
   const short = (m: string) => (m.length > 64 ? `${m.slice(0, 62)}…` : m);
   lampText.textContent = s === 'error' ? `no sound: ${short(audio.error)} · tap to retry` : s === 'stalled' ? audio.error : (LAMP[s] ?? '');
   srStatus.textContent = s === 'running' ? 'sound on' : s === 'starting' ? 'warming up' : s === 'error' ? `sound failed: ${audio.error}. Tap to retry.` : s === 'stalled' ? audio.error : 'tap a key to start';
   status.title = s === 'running' ? `sound on · ${fmtLat()}${audio.startMs ? ` · started in ${audio.startMs.toFixed(0)} ms` : ''}` : srStatus.textContent;
   document.documentElement.dataset.audio = s;
+  fitLamp();
 });
+// (the room changes with the picker's label, the view's tools and the window; the words' width when
+// their font arrives)
+if (typeof ResizeObserver !== 'undefined') {
+  const ro = new ResizeObserver(fitLamp);
+  for (const el of [header, pickSlot, toolSlot]) ro.observe(el);
+}
+void document.fonts?.ready.then(fitLamp);
 // tapping the lamp itself retries (also when the page has no keyboard)
 status.addEventListener('click', () => audio.unlock('lamp'));
 document.documentElement.dataset.audio = 'idle';
-srStatus.textContent = 'tap a key to start';
+srStatus.textContent = status.title = 'tap a key to start';
 // a small MIDI socket that lights up while a device is connected and flickers with
 // incoming messages; hidden where the browser has no Web MIDI (Safari)
 audio.midiActivity.on(() => {
