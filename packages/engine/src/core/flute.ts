@@ -62,8 +62,21 @@ const MIN_BLOW = 0.12;
  *  held note's level at pp, the lowest notes of each register least; with this, −1…+3 dB, speaking in
  *  30–65 ms. */
 const QUICK_AIM = 2;
+/** A note joined to one of a higher register (the last note overblown at the twelfth, this one at the octave;
+ *  or the octave, then a fundamental): the jet is let fall for a moment, this fraction slower, back with
+ *  FALL_TAU (s). Blown straight on, the tube stayed on the mode it had (a flute's registers overlap: coming
+ *  down, the upper one holds), and so did every note of that register after it until one of the lowest:
+ *  Beethoven's Fifth, I, bars 303 on, 12 of 86 flute notes at a wrong pitch. Measured on eleven falls across
+ *  the breaks at 139 and 278 ms, pp/mf/ff (scripts/winds-midi-bench.ts): the note or the one after it off its
+ *  pitch in 62 of 162 tongued and 106 of 198 slurred; with this, 4 and 26 of 198. A player lets the air
+ *  drop to come down a register (Fletcher 1975, JASA 57: blowing pressure follows the note). Rising across
+ *  a break is left as it was. */
+const FALL = 0.45;
+const FALL_TAU = 0.05;
 /** tongued over the breath (mono.ts): the tongue lets the air go again in this long (s) */
 const LICK_OPEN = 0.003;
+/** …and the jet's push and sharper aim as it does are this much of a first attack's */
+const LICK_BOOST = 0.5;
 export const FLUTE_VOICE = {
   /** small-signal jet gain (loop gain of the jet path at small amplitude) */
   jetGain: 0.115,
@@ -155,6 +168,11 @@ export class FluteCore implements InstrumentCore {
   /** the keys as one player takes them (mono.ts), and the tongue's stroke across a sounding jet */
   private keys: MonoKeys;
   private lick = new Tongue();
+  /** the tongue has held the last note stopped over a rest: the next is let go as a first attack is */
+  private afterStop = false;
+  /** a strength taken up once the tongue is down (0: none): tongued over the breath, the air through the
+   *  stroke's first milliseconds is still the last note's, so nothing steps under a sounding tone */
+  private velNext = 0;
   /** when the tongue last let go (frame): the jet's sharper aim decays from there */
   private tongueAt = 0;
   private velocity = 80;
@@ -231,6 +249,7 @@ export class FluteCore implements InstrumentCore {
     this.tanhOff = Math.tanh(this.off);
     this.jetGainNote = V.jetGain * (1 + (V.jetGainTop - 1) * clamp((m - 88) / 8, 0, 1));
     this.jetK = (2 * this.jetGainNote) / (1 - this.tanhOff * this.tanhOff);
+    this.modeStep = immediate ? 0 : mode - this.mode;
     this.mode = mode;
     this.fTarget = et(m);
     this.boreNominal = (mode * fs) / et(m);
@@ -329,7 +348,8 @@ export class FluteCore implements InstrumentCore {
 
   /** what was foreseen is forgotten (the file paused or stopped) */
   forget(): void {
-    this.keys.forget();
+    // (a rest held for a note that will not come now: the breath is let go)
+    if (this.keys.forget()) this.pTarget = 0;
   }
 
   private apply(ev: PianoEvent | { type: 'control'; cc: number; value: number }): void {
@@ -372,6 +392,13 @@ export class FluteCore implements InstrumentCore {
     const a = this.keys.settle(this.frame, this.pTarget > 0, this.sustain >= 0.5);
     if (!a) return;
     if (a.kind === 'release') return this.release();
+    if (a.kind === 'stop') {
+      // a foreseen note is so near that the breath stays: the tongue stops this one until it begins
+      this.lick.stop(this.fs, a.len * this.fs, LICK_OPEN * this.fs);
+      this.releasePending = false;
+      this.afterStop = true;
+      return;
+    }
     const m = clamp(a.midi, 60, 96);
     // (a stroke made ahead for a note that came otherwise lets go)
     if (this.lick.down && !(a.kind === 'retongue' && a.struck)) this.lick.release(LICK_OPEN * this.fs);
@@ -380,11 +407,16 @@ export class FluteCore implements InstrumentCore {
       this.setNote(m, false);
       return;
     }
+    const was = this.velocity;
     const vel = a.velocity;
     const v = vel / 127;
     this.velocity = vel;
+    this.velNext = 0;
+    if (a.kind === 'retongue' && !(a.struck && this.lick.landed)) {
+      this.velNext = vel;
+      this.velocity = was;
+    }
     this.releasePending = false;
-    const X = (globalThis as { __fl?: Record<string, number> }).__fl ?? {};
     if (a.kind === 'slur') {
       this.setNote(m, false);
       this.pTarget = 1;
@@ -396,7 +428,10 @@ export class FluteCore implements InstrumentCore {
       this.attackBoost = 0;
       this.noteStart = this.frame;
       this.tongueAt = this.frame;
+      this.fallNow = this.modeStep < 0;
     } else if (a.kind === 'tongue') {
+      // (begun while the last note of a higher register still rings: the air let fall, as when joined)
+      this.fallNow = this.modeStep < 0;
       this.setNote(m, this.level < 1e-3);
       this.pTarget = 1;
       this.lick.reset();
@@ -412,7 +447,8 @@ export class FluteCore implements InstrumentCore {
       this.tongueAmp = TONGUE_PUSH * (0.5 + 0.5 * v);
       this.tongueLen = Math.max(4, Math.round((0.5 * this.fs) / et(m)));
       this.tongueN = this.tongueLen;
-      this.attackBoost = ATTACK_BOOST * (0.6 + 0.4 * v) * (1 + ((X.k0 ?? QUICK_AIM) - (X.kv ?? 1) * v) * quick);
+      this.attackBoost = ATTACK_BOOST * (0.6 + 0.4 * v) * (1 + (QUICK_AIM - v) * quick);
+      this.afterStop = false;
       this.vibPhase = this.vib0;
       this.noteStart = this.frame;
       this.tongueAt = this.frame;
@@ -425,13 +461,17 @@ export class FluteCore implements InstrumentCore {
       this.attackTau = Math.min(this.attackTau, quickRise(0.06 - 0.035 * v, a.len));
       const wait = this.lick.retongue(a.struck, this.fs, same, LICK_OPEN * this.fs);
       this.tongueAt = this.frame + wait;
-      // (the jet's push as the tongue lets go, a lighter one than a first attack's)
-      this.chiff = 0.3 + 0.4 * v;
-      this.tongueAmp = TONGUE_PUSH * (X.lickPush ?? 0.5) * (0.5 + 0.5 * v);
+      // (the jet's push as the tongue lets go: a lighter one than a first attack's, unless the tongue has
+      // held the tube silent over a rest: then a short note's)
+      const first = this.afterStop;
+      this.afterStop = false;
+      this.fallNow = this.modeStep < 0;
+      this.chiff = first ? 0.6 + 0.8 * v : 0.3 + 0.4 * v;
+      this.tongueAmp = TONGUE_PUSH * (first ? 1 : LICK_BOOST) * (0.5 + 0.5 * v);
       this.tongueLen = Math.max(4, Math.round((0.5 * this.fs) / et(m)));
       this.tongueN = this.tongueLen;
       this.tongueWait = wait;
-      this.attackBoost = ATTACK_BOOST * (X.lickBoost ?? 0.5) * (0.6 + 0.4 * v);
+      this.attackBoost = ATTACK_BOOST * (0.6 + 0.4 * v) * (first ? 1 + QUICK_AIM - v : LICK_BOOST);
       this.noteStart = this.frame;
       this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
     }
@@ -440,6 +480,10 @@ export class FluteCore implements InstrumentCore {
   /** samples before the jet's push begins (the tongue is still across the air), and the decay of its
    *  sharper aim (s) */
   private tongueWait = 0;
+  /** the note's register against the last note's (its fingering's mode, less the last one's), and whether
+   *  the air is let fall for it (FALL) */
+  private modeStep = 0;
+  private fallNow = false;
   private noteStart = 0;
   /** frame until which a tongued note keeps its breath (MIN_BLOW), and a key let go before it */
   private blowUntil = 0;
@@ -461,7 +505,7 @@ export class FluteCore implements InstrumentCore {
   /** the one note actually sounding (a monophonic instrument: the last held key wins and a
    *  release returns to the previous held one), or none */
   sounding(): number[] {
-    return this.pTarget > 0 ? [this.note] : [];
+    return this.pTarget > 0 && !this.keys.silent ? [this.note] : [];
   }
 
   allSoundOff(): void {
@@ -511,6 +555,12 @@ export class FluteCore implements InstrumentCore {
       }
       // a foreseen note joined to the one sounding: the tongue's stroke is made ahead of it (mono.ts)
       n = this.keys.plan(this.frame, n, this.pTarget > 0 && !this.releasePending);
+      if (this.keys.overdue) {
+        // (the note a rest was held for never came: the breath is let go, behind the tongue if it is down)
+        this.keys.overdue = false;
+        this.pTarget = 0;
+        if (this.lick.down) this.pressure = 0;
+      }
       if (this.keys.strokeNow >= 0) this.lick.ahead(this.fs, this.keys.strokeNow - this.frame, LICK_OPEN * this.fs);
       this.render(n);
       for (let t = 0; t < n; t++) {
@@ -527,6 +577,10 @@ export class FluteCore implements InstrumentCore {
   }
 
   private render(n: number): void {
+    if (this.velNext && this.lick.landed) {
+      this.velocity = this.velNext;
+      this.velNext = 0;
+    }
     const fs = this.fs;
     const dt = n / fs;
     const P = this.params;
@@ -552,7 +606,9 @@ export class FluteCore implements InstrumentCore {
     const Uj = Math.sqrt((2 * Math.max(pBlow, 1)) / RHO);
     this.Uj = Uj;
     const ljEff = this.lj * P.embouchure;
-    this.jetDTarget = clamp((fs * ljEff) / (0.45 * Math.max(Uj, 4)), 2, BUF / 2);
+    // (a note joined to one of a higher register: the air let fall for a moment, see FALL)
+    const fall = this.fallNow ? 1 - FALL * Math.exp(-sinceOn / FALL_TAU) : 1;
+    this.jetDTarget = clamp((fs * ljEff) / (0.45 * Math.max(Uj, 4) * fall), 2, BUF / 2);
     // players "lip" the pitch back as they blow harder; compensate 75 % of the drift
     this.Dtarget = (this.Dnom + 0.75 * (this.boreDelayFor(this.jetDTarget) * this.tuningCorrection(this.note) - this.Dnom)) * this.bendFactor;
     // normalised drive (flow) and turbulence ∝ Uj²

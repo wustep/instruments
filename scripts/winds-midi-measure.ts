@@ -12,6 +12,8 @@
 //   cents   its pitch against equal temperament there
 //   reach   its level (the same median) against the same pitch at the same strength held for 1.2 s alone: how
 //           much of the note there is
+//   mode    the bore mode it sounds on, from which of its harmonics carry it over its 40–90 %: 2 where all
+//           but its even harmonics are 20 dB down (its octave is heard), 3 (the twelfth), 4; 1 is the note
 //   lost    the note stays more than 12 dB under that, or under a third of its level is at its own pitch (it
 //           did not speak, was cut, or sounded another pitch)
 //   jump    the largest one-sample step within −0.2…+0.3 ms of an event over the 99th percentile of the
@@ -42,6 +44,8 @@ export interface NoteMeasure {
   levelDb: number;
   /** its level against the same note held (a 1.2 s note of its pitch and strength, alone), dB */
   reach: number;
+  /** the bore mode it sounds on: 1 its own; 2 its octave (only its even harmonics sound), 3 its twelfth, 4 */
+  mode: number;
   lost: boolean;
 }
 export interface PartMeasure {
@@ -164,6 +168,46 @@ function harmonicsAt(x: Float32Array, fs: number, f0: number, c: number, half: n
   return { level: Math.sqrt(p2), k: bestK, phase: bestPh };
 }
 
+/** Which of a note's harmonics carry it over [a, b): 1 all of them (the note), d = 2, 3, 4 where those that
+ *  are not multiples of d hold under 1 % of the power (it sounds on its d-th mode: the octave, the twelfth,
+ *  two octaves up). Windows of at least eight periods; a span too short to tell is 1. */
+export function modeOf(x: Float32Array, fs: number, f0: number, a: number, b: number): number {
+  const need = Math.round((8 / f0) * fs);
+  if (b - a < need) {
+    const mid = (a + b) >> 1;
+    a = mid - (need >> 1);
+    b = a + need;
+    if (a < 0 || b > x.length) return 1;
+  }
+  const W = b - a;
+  const H: number[] = [];
+  let tot = 0;
+  for (let k = 1; k <= 12; k++) {
+    if (k * f0 > 0.45 * fs) {
+      H.push(0);
+      continue;
+    }
+    const w = (2 * Math.PI * k * f0) / fs;
+    let re = 0;
+    let im = 0;
+    for (let i = 0; i < W; i++) {
+      const hw = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / W);
+      re += x[a + i] * hw * Math.cos(w * i);
+      im += x[a + i] * hw * Math.sin(w * i);
+    }
+    const p = re * re + im * im;
+    H.push(p);
+    tot += p;
+  }
+  if (tot <= 0) return 1;
+  for (const d of [4, 3, 2]) {
+    let off = 0;
+    for (let k = 1; k <= 12; k++) if (k % d) off += H[k - 1];
+    if (off / tot < 0.01) return d;
+  }
+  return 1;
+}
+
 /** the audio audit's click measure over a set of event times */
 export function worstJump(L: Float32Array, fs: number, times: number[]): { worst: number; over2: number } {
   let worst = 0;
@@ -225,7 +269,8 @@ export function measure(x: Float32Array, fs: number, notes: PartNote[], eventTim
     }
     const cents: number[] = [];
     for (let j = 1; j < frames.length; j++) if (frames[j].c >= a + 0.4 * (stop - a) && frames[j].c <= a + 0.9 * (stop - a) && Number.isFinite(centsAt(j))) cents.push(centsAt(j));
-    return { n, a, b, stop, half, Href, Eref, speak, cents: cents.length ? median(cents) : NaN, pure: Eref > 1e-7 ? Math.min(1, Href / Eref) : 0 };
+    const mode = modeOf(x, fs, f0, Math.round(a + 0.4 * (stop - a)), Math.round(a + 0.9 * (stop - a)));
+    return { n, a, b, stop, half, Href, Eref, speak, mode, cents: cents.length ? median(cents) : NaN, pure: Eref > 1e-7 ? Math.min(1, Href / Eref) : 0 };
   });
   const usual = median(raw.map((r) => r.Href).filter((v) => v > 0));
   const out: NoteMeasure[] = raw.map((r, i) => {
@@ -262,6 +307,7 @@ export function measure(x: Float32Array, fs: number, notes: PartNote[], eventTim
       cents: +r.cents.toFixed(1),
       levelDb: +db(r.Href).toFixed(1),
       reach: held ? +(db(r.Href) - held(r.n.midi, r.n.vel)).toFixed(1) : NaN,
+      mode: r.mode,
       lost: (held ? db(r.Href) - held(r.n.midi, r.n.vel) < -12 : r.Href < usual * 0.25) || r.pure < 0.35,
     };
   });
@@ -320,6 +366,7 @@ export function summary(m: PartMeasure): Record<string, number | string> {
     'hole ms (med)': f(median(moved.map((n) => n.holeMs))),
     'repeat hole dB (med)': f(median(same.map((n) => n.holeDb))),
     'repeat hole ms (med)': f(median(same.map((n) => n.holeMs))),
+    'on another mode': N.filter((n) => n.mode !== 1).length,
     'pure (med)': f(median(N.map((n) => n.pure)), 2),
     'impure notes': N.filter((n) => n.pure < 0.7).length,
     '|cents| (med)': f(median(N.map((n) => Math.abs(n.cents)).filter(Number.isFinite))),
@@ -368,7 +415,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     console.log(Object.entries(s).map(([k, v]) => (k === 'part' ? `${v}`.padEnd(26) + ` @${start}s` : `${k} ${v}`)).join(' | '));
     if (NOTES)
       for (const n of m.notes)
-        console.log(`    ${n.t.toFixed(3).padStart(7)} ${`${n.midi}`.padStart(3)} v${`${n.vel}`.padStart(3)} ${(n.dur * 1000).toFixed(0).padStart(5)} ms ${n.join.padEnd(7)}${n.same ? '=' : ' '} speak ${`${n.speak}`.padStart(6)} hole ${`${n.holeDb}`.padStart(5)} dB ${`${n.holeMs}`.padStart(5)} ms pure ${n.pure.toFixed(2)} cents ${`${n.cents}`.padStart(6)} level ${`${n.levelDb}`.padStart(6)} reach ${`${n.reach}`.padStart(6)}${n.lost ? '  LOST' : ''}`);
+        console.log(`    ${n.t.toFixed(3).padStart(7)} ${`${n.midi}`.padStart(3)} v${`${n.vel}`.padStart(3)} ${(n.dur * 1000).toFixed(0).padStart(5)} ms ${n.join.padEnd(7)}${n.same ? '=' : ' '} speak ${`${n.speak}`.padStart(6)} hole ${`${n.holeDb}`.padStart(5)} dB ${`${n.holeMs}`.padStart(5)} ms pure ${n.pure.toFixed(2)} cents ${`${n.cents}`.padStart(6)} level ${`${n.levelDb}`.padStart(6)} reach ${`${n.reach}`.padStart(6)}${n.mode !== 1 ? `  MODE ${n.mode}` : ''}${n.lost ? '  LOST' : ''}`);
   }
   if (JSON_OUT) writeFileSync(JSON_OUT, JSON.stringify(all.map((m) => ({ ...m, summary: summary(m) })), null, 1));
 }

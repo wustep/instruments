@@ -21,7 +21,10 @@
 // length is known when it begins (a short note is tongued to speak within a share of its length, where a
 // note of unknown length, played by hand, gets the long tone's attack the recordings were fitted on), and
 // the tongue's stroke before a note joined to the last is made ahead of it, so the note speaks on time and
-// the one before is that much shorter, as a player's is. Nothing foreseen: nothing here is planned.
+// the one before is that much shorter, as a player's is. And a rest shorter than REST is no breath let go:
+// the tongue stops the note where it ends and stays until the next begins (a staccato: the mouth's pressure
+// stays up between the notes of a tongued passage, Li et al. 2016), so that note speaks at once. Nothing
+// foreseen: nothing here is planned, and a key let go lets the breath go.
 //
 // Sources. Tonguing: Li, Almeida, Smith & Wolfe 2016, "How clarinettists articulate: the effect of
 // blowing pressure and tonguing on initial and final transients", JASA 139, 825–838 (the tongue on the
@@ -39,17 +42,22 @@ export const FORESEE_TOL = 0.012;
 /** how far ahead a tongue's stroke is ever begun (s): the horizon of MonoKeys.coming */
 export const STROKE_AHEAD = 0.08;
 
+/** a rest up to this long (s) before a foreseen note is held by the tongue, the breath kept */
+export const REST = 0.12;
+
 export interface MonoAct {
   /** tongue: from silence, or after the breath was let go. slur: the fingers only. retongue: the breath
-   *  goes on, the tongue interrupts it. release: the breath is let go. */
-  kind: 'tongue' | 'slur' | 'retongue' | 'release';
-  /** the note (as sent: the core keeps it in its range) */
+   *  goes on, the tongue interrupts it. release: the breath is let go. stop: the note ends but the next is
+   *  so near that the breath stays, and the tongue stops the note until it begins (`len` s from now). */
+  kind: 'tongue' | 'slur' | 'retongue' | 'release' | 'stop';
+  /** the note (as sent: the core keeps it in its range); for a stop, the note that is awaited */
   midi: number;
   /** its velocity; 0: as the breath is (the player goes back to a note still held) */
   velocity: number;
   /** begun and ended at one instant: it sounds its shortest (the core's minimum breath), then is let go */
   tap: boolean;
-  /** how long the note will last, s (Infinity: not known, a note played by hand) */
+  /** how long the note will last, s (Infinity: not known, a note played by hand); for a stop, how long
+   *  until the next note */
   len: number;
   /** the tongue's stroke for this note was begun ahead of it (MonoKeys.coming): it only has to let go */
   struck: boolean;
@@ -61,6 +69,8 @@ export interface MonoAct {
 export const LICK_CLOSE = 0.002;
 export const LICK_REPEAT = 0.026;
 export const LICK_MOVE = 0.014;
+/** a stroke waits this much longer than its note is due (s; more than FORESEE_TOL) before it lets go by itself */
+const LATE = 0.02;
 /** a note known to last `len` s speaks within a share of it: a rise's time constant (the breath, 95 % in
  *  three of them) is at most RISE_SHARE of the note, and never under RISE_FLOOR (a normal tongued attack
  *  grows about 1000 dB/s, Li et al. 2016). A note of unknown length keeps the rise it has. */
@@ -103,6 +113,12 @@ export class MonoKeys {
   private strokeFor = -1;
   /** the note `coming` last found strikes the pitch that is playing again */
   comingSame = false;
+  /** the frame of a foreseen note the breath is kept for over a rest (−1: none), and whether the tongue
+   *  holds the note stopped meanwhile */
+  private waitFor = -1;
+  private stopped = false;
+  /** the note a rest was held for never came: the core lets the breath go (and clears this) */
+  overdue = false;
   private act: MonoAct = { kind: 'release', midi: -1, velocity: 0, tap: false, len: Infinity, struck: false };
   private top = new Int16Array(BATCH);
   private topV = new Float64Array(BATCH);
@@ -131,6 +147,13 @@ export class MonoKeys {
     this.poked = false;
     this.curOff = -1;
     this.strokeFor = -1;
+    this.waitFor = -1;
+    this.stopped = false;
+    this.overdue = false;
+  }
+  /** the tongue holds the last note stopped until a foreseen one begins: nothing sounds */
+  get silent(): boolean {
+    return this.stopped;
   }
   /** is any key down? */
   get any(): boolean {
@@ -232,10 +255,31 @@ export class MonoKeys {
       if (f >= 0) a.len = (this.aOff[f] - this.aOn[f]) / this.fs;
       a.struck = this.strokeFor >= 0 && Math.abs(this.strokeFor - frame) <= FORESEE_TOL * this.fs && a.kind === 'retongue';
       this.strokeFor = -1;
+      this.waitFor = -1;
+      this.stopped = false;
       return a;
     }
     if (!this.n) {
       if (!blowing || sustained) return null;
+      // a foreseen note begins within REST: the breath is kept
+      const tol = FORESEE_TOL * this.fs;
+      for (let i = 0; i < this.an; i++) {
+        if (this.aHit[i] || this.aOn[i] < frame - tol) continue;
+        const on = this.aOn[i];
+        if (on - frame > REST * this.fs) break;
+        this.waitFor = on;
+        this.curOff = -1;
+        // (a different note too soon after the last stroke for the tongue: this one sounds on into it)
+        if (this.aMidi[i] !== prev && on - this.lastTongue < FASTEST * this.fs) return null;
+        a.kind = 'stop';
+        a.midi = this.aMidi[i];
+        a.velocity = 0;
+        a.len = Math.max(0, on - frame) / this.fs;
+        a.struck = this.strokeFor >= 0;
+        this.strokeFor = on;
+        this.stopped = true;
+        return a;
+      }
       a.kind = 'release';
       a.midi = prev;
       a.velocity = 0;
@@ -274,11 +318,16 @@ export class MonoKeys {
     this.aHit[i] = 0;
     this.an++;
   }
-  /** what was foreseen is forgotten (the file paused or stopped) */
-  forget(): void {
+  /** What was foreseen is forgotten (the file paused or stopped). True if the breath was being kept over
+   *  a rest for a note that will now not come: the core lets it go. */
+  forget(): boolean {
+    const waiting = this.waitFor >= 0;
     this.an = 0;
     this.curOff = -1;
     this.strokeFor = -1;
+    this.waitFor = -1;
+    this.stopped = false;
+    return waiting;
   }
   private drop(i: number): void {
     for (let k = i + 1; k < this.an; k++) {
@@ -324,11 +373,13 @@ export class MonoKeys {
       const on = this.aOn[i];
       if (on <= frame) continue;
       if (on > far) break;
-      // (the first note to come decides: one that overlaps the note playing is a slur)
-      const joined = Math.abs(this.curOff - on) <= tol || (this.aMidi[i] === this.note && this.curOff > on);
-      if (!joined) return -1;
-      if (this.aMidi[i] !== this.note && on - this.lastTongue < FASTEST * this.fs) return -1;
-      this.comingSame = this.aMidi[i] === this.note;
+      // (the first note to come decides. One that begins while the note playing goes on is a slur, unless
+      // it strikes its pitch again; one after a rest longer than the stroke waits for the note's end, where
+      // the tongue stops it: settle)
+      const same = this.aMidi[i] === this.note;
+      if (this.curOff > on + tol ? !same : on - this.curOff > (same ? LICK_REPEAT : LICK_MOVE) * this.fs) return -1;
+      if (!same && on - this.lastTongue < FASTEST * this.fs) return -1;
+      this.comingSame = same;
       return on;
     }
     return -1;
@@ -343,6 +394,14 @@ export class MonoKeys {
    */
   plan(frame: number, n: number, blowing: boolean): number {
     this.strokeNow = -1;
+    if (this.waitFor >= 0 && frame > this.waitFor + FORESEE_TOL * this.fs) {
+      // (the note a rest was held for never came)
+      this.waitFor = -1;
+      this.stopped = false;
+      this.strokeFor = -1;
+      this.overdue = true;
+      return n;
+    }
     if (this.strokeFor >= 0) {
       // (a stroke made for a note that never came is forgotten)
       if (frame > this.strokeFor + FORESEE_TOL * this.fs) this.strokeFor = -1;
@@ -376,6 +435,10 @@ export class Tongue {
   /** in a stroke (until it has let go again) */
   get busy(): boolean {
     return this.phase !== 0;
+  }
+  /** fully down (or letting go again), or away: not on its way down */
+  get landed(): boolean {
+    return this.phase !== 1;
   }
   /** on the reed: closing or held (it has not begun to let go) */
   get down(): boolean {
@@ -417,9 +480,15 @@ export class Tongue {
     return contact;
   }
   /** the stroke made ahead of a note `lead` samples away: held until the note comes (MonoKeys.plan), and
-   *  10 ms more if it is late; then it lets go by itself */
+   *  a little longer if it is late; then it lets go by itself */
   ahead(fs: number, lead: number, open: number): void {
-    this.stroke(LICK_CLOSE * fs, lead - LICK_CLOSE * fs + 0.01 * fs, open);
+    this.stroke(LICK_CLOSE * fs, lead - LICK_CLOSE * fs + LATE * fs, open);
+  }
+  /** a note stopped until the next begins, `wait` samples away (MonoAct 'stop'): the tongue comes down now,
+   *  unless a stroke made ahead already has, and stays */
+  stop(fs: number, wait: number, open: number): void {
+    if (this.down) return;
+    this.stroke(LICK_CLOSE * fs, wait - LICK_CLOSE * fs + LATE * fs, open);
   }
   next(): number {
     const lo = 1 - this.depth;

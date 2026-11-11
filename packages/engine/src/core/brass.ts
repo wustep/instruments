@@ -161,6 +161,11 @@ export class TrumpetCore implements InstrumentCore {
   /** the keys as one player takes them (mono.ts), and the tongue's stroke on a sounding note */
   private keys: MonoKeys;
   private lick = new Tongue();
+  /** the tongue has held the last note stopped over a rest: the next is let go as a first attack is */
+  private afterStop = false;
+  /** a strength taken up once the tongue is down (0: none): tongued over the breath, the air through the
+   *  stroke's first milliseconds is still the last note's, so nothing steps under a sounding tone */
+  private velNext = 0;
   /** when the tongue last let go (frame), and how much of a first attack's transient that stroke has (the
    *  lips' extra gain, their kick: 1 for a note from silence) */
   private tongueAt = 0;
@@ -271,7 +276,8 @@ export class TrumpetCore implements InstrumentCore {
 
   /** what was foreseen is forgotten (the file paused or stopped) */
   forget(): void {
-    this.keys.forget();
+    // (a rest held for a note that will not come now: the breath is let go)
+    if (this.keys.forget()) this.pTarget = 0;
   }
 
   private apply(ev: PianoEvent | { type: 'control'; cc: number; value: number }): void {
@@ -312,6 +318,13 @@ export class TrumpetCore implements InstrumentCore {
     const a = this.keys.settle(this.frame, this.pTarget > 0, this.sustain >= 0.5);
     if (!a) return;
     if (a.kind === 'release') return this.release();
+    if (a.kind === 'stop') {
+      // a foreseen note is so near that the breath stays: the tongue stops this one until it begins
+      this.lick.stop(this.fs, a.len * this.fs, LICK_OPEN * this.fs);
+      this.releasePending = false;
+      this.afterStop = true;
+      return;
+    }
     const m = clamp(a.midi, 52, 86);
     // (a stroke made ahead for a note that came otherwise lets go)
     if (this.lick.down && !(a.kind === 'retongue' && a.struck)) this.lick.release(LICK_OPEN * this.fs);
@@ -320,8 +333,14 @@ export class TrumpetCore implements InstrumentCore {
       this.setNote(m, false);
       return;
     }
+    const was = this.velocity;
     const vel = a.velocity;
     this.velocity = vel;
+    this.velNext = 0;
+    if (a.kind === 'retongue' && !(a.struck && this.lick.landed)) {
+      this.velNext = vel;
+      this.velocity = was;
+    }
     this.releasePending = false;
     const XA = (globalThis as { __tpt?: Record<string, number> }).__tpt ?? (KNOBS ??= knobs());
     if (a.kind === 'slur') {
@@ -341,6 +360,7 @@ export class TrumpetCore implements InstrumentCore {
       this.noteStart = this.frame;
       this.tongueAt = this.frame;
       this.boostNow = 1;
+      this.afterStop = false;
       this.blowUntil = this.frame + Math.round((XA.minBlow ?? MIN_BLOW) * this.fs);
     } else {
       // tongued over the breath: the valves and the lips move, the tongue stops the air and lets it go again
@@ -349,7 +369,8 @@ export class TrumpetCore implements InstrumentCore {
       this.pTarget = 1;
       this.attackTau = Math.min(this.attackTau, (0.03 - 0.02 * (vel / 127)) * (XA.att ?? 1));
       this.tongueAt = this.frame + this.lick.retongue(a.struck, this.fs, same, LICK_OPEN * this.fs);
-      this.boostNow = LICK_BOOST;
+      this.boostNow = this.afterStop ? 1 : LICK_BOOST;
+      this.afterStop = false;
       this.lickKick = true;
       this.noteStart = this.frame;
       this.blowUntil = this.frame + Math.round((XA.minBlow ?? MIN_BLOW) * this.fs);
@@ -373,7 +394,7 @@ export class TrumpetCore implements InstrumentCore {
   /** the one note actually sounding (a monophonic instrument: the last held key wins and a
    *  release returns to the previous held one), or none */
   sounding(): number[] {
-    return this.pTarget > 0 ? [this.note] : [];
+    return this.pTarget > 0 && !this.keys.silent ? [this.note] : [];
   }
 
   allSoundOff(): void {
@@ -420,6 +441,12 @@ export class TrumpetCore implements InstrumentCore {
       }
       // a foreseen note joined to the one sounding: the tongue's stroke is made ahead of it (mono.ts)
       n = this.keys.plan(this.frame, n, this.pTarget > 0 && !this.releasePending);
+      if (this.keys.overdue) {
+        // (the note a rest was held for never came: the breath is let go, behind the tongue if it is down)
+        this.keys.overdue = false;
+        this.pTarget = 0;
+        if (this.lick.down) this.pressure = 0;
+      }
       if (this.keys.strokeNow >= 0) this.lick.ahead(this.fs, this.keys.strokeNow - this.frame, LICK_OPEN * this.fs);
       this.render(n);
       for (let t = 0; t < n; t++) {
@@ -436,6 +463,10 @@ export class TrumpetCore implements InstrumentCore {
   }
 
   private render(n: number): void {
+    if (this.velNext && this.lick.landed) {
+      this.velocity = this.velNext;
+      this.velNext = 0;
+    }
     const X = (globalThis as { __tpt?: Record<string, number> }).__tpt ?? (KNOBS ??= knobs());
     const fs = this.fs;
     const dt = n / fs;
@@ -517,7 +548,7 @@ export class TrumpetCore implements InstrumentCore {
         if (this.lickKick && wasDown && !lick.down) {
           // let go: the lips are kicked again, less than from rest
           this.lickKick = false;
-          this.y1 += (X.kick ?? TONGUE_KICK) * LICK_BOOST * (0.5 + 0.5 * v01);
+          this.y1 += (X.kick ?? TONGUE_KICK) * this.boostNow * (0.5 + 0.5 * v01);
         }
         licking = lick.busy;
       }

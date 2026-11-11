@@ -8,6 +8,12 @@ export const INSTRUMENT_IDS: InstrumentId[] = ['piano', 'violin', 'viola', 'cell
 /** the bowed strings (bowed.ts), high to low */
 export type BowedId = 'violin' | 'viola' | 'cello' | 'bass';
 export const isBowed = (id: string): id is BowedId => id === 'violin' || id === 'viola' || id === 'cello' || id === 'bass';
+/** the winds and the brass: one player, one note at a time (mono.ts), high to low within each family */
+export type MonoId = 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone';
+export const isMono = (id: string): id is MonoId => id === 'flute' || id === 'oboe' || id === 'clarinet' || id === 'bassoon' || id === 'horn' || id === 'trumpet' || id === 'trombone';
+/** the instruments a file's notes are told to before they sound (PianoEvent 'foresee'): the bowed strings
+ *  plan their bow with them (bowed.ts), the winds and brass their tongue and breath (mono.ts) */
+export const foresees = (id: string): boolean => isBowed(id) || isMono(id);
 
 /** Played (not in the dry calibration renders), this many dB over the level an instrument was fitted at: a
  *  recording session's microphone gain given back. The trombone was matched to the Iowa trombones, whose ff

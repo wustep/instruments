@@ -265,10 +265,15 @@ const HOLD_SHARE = 0.1;
 /** tongued over the breath (mono.ts): the transient of the lips set buzzing again is this much of a first
  *  attack's */
 const LICK_BOOST = 0.5;
-/** what the stopped lips take from the tube while the tongue holds the air (dB/s), on top of its own decay
- *  with the lips shut: a tongued stop decays about as a real bore's resonances do (Li, Almeida, Smith &
- *  Wolfe 2016, JASA 139: 400 dB/s on the clarinet) */
-const STOP_RATE = 0;
+/** a short note's attack (quickLips) */
+const QUICK_KICK = 2;
+const QUICK_LIP = 1;
+const QUICK_LIP_TAU = 0.03;
+/** what the stopped lips take from the tube while the tongue holds the air (dB/s, at each of the tube's
+ *  round trips), on top of its own decay with the lips shut: a tongued stop decays about as a real bore's
+ *  resonances do (Li, Almeida, Smith & Wolfe 2016, JASA 139: 400 dB/s on the clarinet; a horn's long tube
+ *  loses less a second). With none a repeated note fell 2.7 dB between its strokes; with this, 8 */
+const STOP_RATE = 60;
 /** the radiation chain's sections (voiced(): high-pass, formant, low-pass, shelf) */
 const LP_SECTION = 2;
 
@@ -333,12 +338,18 @@ export class HornCore implements InstrumentCore {
   /** the keys as one player takes them (mono.ts), and the tongue's stroke on a sounding note */
   private keys: MonoKeys;
   private lick = new Tongue();
+  /** the tongue has held the last note stopped over a rest: the next is let go as a first attack is */
+  private afterStop = false;
+  /** a strength taken up once the tongue is down (0: none): tongued over the breath, the air through the
+   *  stroke's first milliseconds is still the last note's, so nothing steps under a sounding tone */
+  private velNext = 0;
   /** when the tongue last let go (frame), and how much of a first attack's transient that stroke has (the
    *  lips' wider swing and lower Q, their kick: 1 for a note from silence) */
   private tongueAt = 0;
   private boostNow = 1;
   private qDipNow = 1;
   private kickNow = 1;
+  private lipDipNow = 0;
   /** the lips are kicked as the stroke under way lets go */
   private lickKick = false;
   private velocity = 80;
@@ -470,9 +481,26 @@ export class HornCore implements InstrumentCore {
     return Math.max(1, Math.round((this.V.tongueRel * this.fs) / et(m)));
   }
 
+  /** The lips for an attack on a note known to be short (`quick` 1; 0: the long tone's attack, as fitted).
+   *  The long tone begins loose: the lips' Q lower and their coupling stronger for a moment (qAttack,
+   *  attackBoost), and before the tube's first reflections are back (a round trip of 22 ms) they buzz
+   *  against its wave impedance alone, which stiffens them: the note begins up to 300 cents sharp, on the
+   *  partial above, and comes down over 85–140 ms (scripts/winds-midi-bench.ts: a 139 ms note reached
+   *  −16…0 dB of its held level, off its pitch throughout). A player who knows the note is short sets the
+   *  lips firm (no loosening), kicks them harder (QUICK_KICK more) and a little low (QUICK_LIP semitones,
+   *  for QUICK_LIP_TAU) so that their loaded buzz is the note: −6…+3 dB, within 75 cents from 30 ms, at
+   *  its pitch in 35–110 ms (the lowest notes last: their tube is longest). */
+  private quickLips(quick: number): void {
+    this.boostNow = 1 - quick;
+    this.qDipNow = 1 - quick;
+    this.kickNow = 1 + QUICK_KICK * quick;
+    this.lipDipNow = quick;
+  }
+
   /** what was foreseen is forgotten (the file paused or stopped) */
   forget(): void {
-    this.keys.forget();
+    // (a rest held for a note that will not come now: the breath is let go)
+    if (this.keys.forget()) this.pTarget = 0;
   }
 
   private apply(ev: PianoEvent | { type: 'control'; cc: number; value: number }): void {
@@ -513,9 +541,22 @@ export class HornCore implements InstrumentCore {
     const a = this.keys.settle(this.frame, this.pTarget > 0, this.sustain >= 0.5);
     if (!a) return;
     if (a.kind === 'release') return this.release();
+    if (a.kind === 'stop') {
+      // a foreseen note is so near that the breath stays: the tongue stops this one until it begins
+      this.lick.stop(this.fs, a.len * this.fs, this.tongueOpen(this.note));
+      this.releasePending = false;
+      this.afterStop = true;
+      return;
+    }
     const m = clamp(a.midi, HORN_LO, HORN_HI);
+    const was = this.velocity;
     const vel = a.velocity || this.velocity;
     this.velocity = vel;
+    this.velNext = 0;
+    if (a.kind === 'retongue' && !(a.struck && this.lick.landed)) {
+      this.velNext = vel;
+      this.velocity = was;
+    }
     this.releasePending = false;
     // (a stroke made ahead for a note that came otherwise lets go)
     if (this.lick.down && !(a.kind === 'retongue' && a.struck)) this.lick.release(this.tongueOpen(this.note));
@@ -542,15 +583,8 @@ export class HornCore implements InstrumentCore {
       this.vibPhase = this.vib0;
       this.noteStart = this.frame;
       this.tongueAt = this.frame;
-      {
-        const X = (globalThis as { __x?: Record<string, number> }).__x ?? {};
-        const quick = quickness(a.len);
-        this.boostNow = 1 + (X.b ?? 0) * quick;
-        this.qDipNow = 1 - (X.q ?? 0) * quick;
-        this.kickNow = 1 + (X.k ?? 0) * quick;
-        if (quick && X.hold !== undefined) this.tongueN = Math.round(X.hold * this.fs);
-        if (quick && X.tau !== undefined) this.attackTau = X.tau;
-      }
+      this.quickLips(quickness(a.len));
+      this.afterStop = false;
       this.blowUntil = this.frame + Math.round((MIN_BLOW_PP + (MIN_BLOW - MIN_BLOW_PP) * (vel / 127)) * this.fs);
     } else {
       // tongued over the breath: the lips and the tube move, the tongue stops the air and lets it go again
@@ -559,9 +593,14 @@ export class HornCore implements InstrumentCore {
       this.pTarget = 1;
       this.attackTau = Math.min(this.attackTau, quickRise((this.V.riseLo + (this.V.riseHi - this.V.riseLo) * (vel / 127)) * this.riseNote, a.len));
       this.tongueAt = this.frame + this.lick.retongue(a.struck, this.fs, same, this.tongueOpen(this.note));
-      this.boostNow = LICK_BOOST;
-      this.qDipNow = LICK_BOOST;
-      this.kickNow = 1;
+      if (this.afterStop) this.quickLips(1);
+      else {
+        this.boostNow = LICK_BOOST;
+        this.qDipNow = LICK_BOOST;
+        this.kickNow = LICK_BOOST;
+        this.lipDipNow = 0;
+      }
+      this.afterStop = false;
       this.lickKick = true;
       this.noteStart = this.frame;
       this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
@@ -589,7 +628,7 @@ export class HornCore implements InstrumentCore {
   /** the one note actually sounding (a monophonic instrument: the last held key wins and a release
    *  returns to the previous held one), or none */
   sounding(): number[] {
-    return this.pTarget > 0 ? [this.note] : [];
+    return this.pTarget > 0 && !this.keys.silent ? [this.note] : [];
   }
 
   allSoundOff(): void {
@@ -646,6 +685,12 @@ export class HornCore implements InstrumentCore {
       }
       // a foreseen note joined to the one sounding: the tongue's stroke is made ahead of it (mono.ts)
       n = this.keys.plan(this.frame, n, this.pTarget > 0 && !this.releasePending);
+      if (this.keys.overdue) {
+        // (the note a rest was held for never came: the breath is let go, behind the tongue if it is down)
+        this.keys.overdue = false;
+        this.pTarget = 0;
+        if (this.lick.down) this.pressure = 0;
+      }
       if (this.keys.strokeNow >= 0) this.lick.ahead(this.fs, this.keys.strokeNow - this.frame, this.tongueOpen(this.note));
       this.render(n);
       for (let t = 0; t < n; t++) {
@@ -662,6 +707,10 @@ export class HornCore implements InstrumentCore {
   }
 
   private render(n: number): void {
+    if (this.velNext && this.lick.landed) {
+      this.velocity = this.velNext;
+      this.velNext = 0;
+    }
     const fs = this.fs;
     const dt = n / fs;
     const P = this.params;
@@ -683,7 +732,9 @@ export class HornCore implements InstrumentCore {
     this.gammaNow = gamma;
     // the lips follow the note (the player's tension offset, the vibrato), a little below it; a slur glides
     // (time constants, not per-block fractions: nothing may depend on the block's length)
-    const lipTarget = (this.lipFTarget * Math.pow(2, (P.lip - V.lipBelow) / 12) * vib) / this.bendFactor;
+    // (a short note's attack: the lips set lower while the tube's first reflections are still to come)
+    const lipSet = this.lipDipNow ? Math.pow(2, (-QUICK_LIP * this.lipDipNow * Math.exp(-Math.max(0, this.frame - this.tongueAt) / fs / QUICK_LIP_TAU)) / 12) : 1;
+    const lipTarget = (this.lipFTarget * lipSet * Math.pow(2, (P.lip - V.lipBelow) / 12) * vib) / this.bendFactor;
     this.lipF += (lipTarget - this.lipF) * (1 - Math.exp(-dt / 0.006));
     const th = (2 * Math.PI * Math.min(this.lipF, 0.2 * fs)) / fs;
     const ageT = Math.max(0, this.frame - this.tongueAt) / fs;
@@ -731,7 +782,7 @@ export class HornCore implements InstrumentCore {
     // the stopped lips take from the tube
     const lick = this.lick;
     let licking = lick.busy;
-    const stopLoss = 1 - Math.pow(10, -STOP_RATE / (20 * et(this.note)));
+    const stopLoss = 1 - Math.pow(10, -STOP_RATE / (20 * this.modeFreqs[0]));
     for (let t = 0; t < n; t++) {
       const w = this.frame + t;
       this.D += (DT - this.D) * ease;
@@ -786,7 +837,7 @@ export class HornCore implements InstrumentCore {
         if (this.lickKick && wasDown && !lick.down) {
           // let go: the lips swing again, less than from rest
           this.lickKick = false;
-          const kv = V.kick * (0.5 + 0.5 * v01) * LICK_BOOST;
+          const kv = V.kick * this.kickNow * (0.5 + 0.5 * v01);
           y1 += kv;
           y2 += kv * Math.cos(th);
         }

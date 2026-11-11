@@ -256,6 +256,11 @@ export class ClarinetCore implements InstrumentCore {
   /** the keys as one player takes them (mono.ts), and the tongue's stroke on a sounding note */
   private keys: MonoKeys;
   private lick = new Tongue();
+  /** the tongue has held the last note stopped over a rest: the next is let go as a first attack is */
+  private afterStop = false;
+  /** a strength taken up once the tongue is down (0: none): tongued over the breath, the air through the
+   *  stroke's first milliseconds is still the last note's, so nothing steps under a sounding tone */
+  private velNext = 0;
   /** when the tongue last let go (frame), and how much of the release's wider opening that stroke has
    *  (1: a note from silence) */
   private tongueAt = 0;
@@ -406,7 +411,8 @@ export class ClarinetCore implements InstrumentCore {
 
   /** what was foreseen is forgotten (the file paused or stopped) */
   forget(): void {
-    this.keys.forget();
+    // (a rest held for a note that will not come now: the breath is let go)
+    if (this.keys.forget()) this.pTarget = 0;
   }
 
   private apply(ev: PianoEvent | { type: 'control'; cc: number; value: number }): void {
@@ -446,9 +452,22 @@ export class ClarinetCore implements InstrumentCore {
     const a = this.keys.settle(this.frame, this.pTarget > 0, this.sustain >= 0.5);
     if (!a) return;
     if (a.kind === 'release') return this.release();
+    if (a.kind === 'stop') {
+      // a foreseen note is so near that the breath stays: the tongue stops this one until it begins
+      this.lick.stop(this.fs, a.len * this.fs, this.tongueOpen(this.note));
+      this.releasePending = false;
+      this.afterStop = true;
+      return;
+    }
     const m = clamp(a.midi, CLARINET_LO, CLARINET_HI);
+    const was = this.velocity;
     const vel = a.velocity || this.velocity;
     this.velocity = vel;
+    this.velNext = 0;
+    if (a.kind === 'retongue' && !(a.struck && this.lick.landed)) {
+      this.velNext = vel;
+      this.velocity = was;
+    }
     this.releasePending = false;
     // (a stroke made ahead for a note that came otherwise lets go)
     if (this.lick.down && !(a.kind === 'retongue' && a.struck)) this.lick.release(this.tongueOpen(m));
@@ -473,6 +492,7 @@ export class ClarinetCore implements InstrumentCore {
       this.noteStart = this.frame;
       this.tongueAt = this.frame;
       this.boostNow = 1;
+      this.afterStop = false;
       this.blowUntil = this.frame + Math.round((MIN_BLOW_PP + (MIN_BLOW - MIN_BLOW_PP) * (vel / 127)) * this.fs);
     } else {
       // tongued over the breath: the fingers move, the tongue stops the reed and lets it go again
@@ -481,7 +501,8 @@ export class ClarinetCore implements InstrumentCore {
       this.pTarget = 1;
       this.attackTau = Math.min(this.attackTau, quickRise((this.V.riseLo + (this.V.riseHi - this.V.riseLo) * (vel / 127)) * this.riseNote, a.len));
       this.tongueAt = this.frame + this.lick.retongue(a.struck, this.fs, same, this.tongueOpen(m));
-      this.boostNow = LICK_BOOST;
+      this.boostNow = this.afterStop ? 1 : LICK_BOOST;
+      this.afterStop = false;
       this.noteStart = this.frame;
       this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
     }
@@ -505,7 +526,7 @@ export class ClarinetCore implements InstrumentCore {
   }
 
   sounding(): number[] {
-    return this.pTarget > 0 ? [this.note] : [];
+    return this.pTarget > 0 && !this.keys.silent ? [this.note] : [];
   }
 
   allSoundOff(): void {
@@ -556,6 +577,12 @@ export class ClarinetCore implements InstrumentCore {
       }
       // a foreseen note joined to the one sounding: the tongue's stroke is made ahead of it (mono.ts)
       n = this.keys.plan(this.frame, n, this.pTarget > 0 && !this.releasePending);
+      if (this.keys.overdue) {
+        // (the note a rest was held for never came: the breath is let go, behind the tongue if it is down)
+        this.keys.overdue = false;
+        this.pTarget = 0;
+        if (this.lick.down) this.pressure = 0;
+      }
       if (this.keys.strokeNow >= 0) this.lick.ahead(this.fs, this.keys.strokeNow - this.frame, this.tongueOpen(this.note));
       this.render(n);
       for (let t = 0; t < n; t++) {
@@ -571,6 +598,10 @@ export class ClarinetCore implements InstrumentCore {
   }
 
   private render(n: number): void {
+    if (this.velNext && this.lick.landed) {
+      this.velocity = this.velNext;
+      this.velNext = 0;
+    }
     const fs = this.fs;
     const dt = n / fs;
     const P = this.params;

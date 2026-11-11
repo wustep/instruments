@@ -42,24 +42,26 @@ const load = (file: string): MidiSong => {
   return parseMidi(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer);
 };
 
-/** pair a part's note events */
+/** A part's notes as its engine takes them: a pitch struck again while it is down begins a new note there
+ *  (the engine has one key per pitch: mono.ts), and its end lets it go */
 export function pairNotes(events: TimedEvent[], duration: number): PartNote[] {
-  const open = new Map<number, PartNote[]>();
+  const open = new Map<number, PartNote>();
   const notes: PartNote[] = [];
   for (const e of events) {
     const ev = e.event as { type: string; midi?: number; velocity?: number };
     if (ev.type === 'noteOn') {
+      const was = open.get(ev.midi!);
+      if (was) was.end = e.time;
       const n = { t: e.time, end: duration, midi: ev.midi!, vel: ev.velocity! };
       notes.push(n);
-      const q = open.get(n.midi);
-      if (q) q.push(n);
-      else open.set(n.midi, [n]);
+      open.set(n.midi, n);
     } else if (ev.type === 'noteOff') {
-      const n = open.get(ev.midi!)?.shift();
+      const n = open.get(ev.midi!);
       if (n) n.end = e.time;
+      open.delete(ev.midi!);
     }
   }
-  return notes;
+  return notes.filter((n) => n.end > n.t);
 }
 
 /** what the file player tells an engine of the notes to come (audio.ts foreseeFileEvent): each note's start,
