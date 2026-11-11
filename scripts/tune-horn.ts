@@ -15,11 +15,12 @@ const [LO, HI] = TUBA ? [TUBA_LO, TUBA_HI] : [HORN_LO, HORN_HI];
 const OUT = join(import.meta.dirname, '..', `packages/engine/src/core/${TUBA ? 'tuba' : 'horn'}-tuning.json`);
 const midis = Array.from({ length: HI - LO + 1 }, (_, i) => LO + i);
 const FSS = [22050, 44100, 48000, 96000];
-/** when the pitch is read (s) and over how long: the horn's 0.6 + 0.35; the tuba's longer */
-const [T0, TW] = TUBA ? [1.0, 0.6] : [0.6, 0.35];
 
-export function measureCents(fs: number, m: number, vel = 70): number {
-  const c = new Core({ sampleRate: fs, dry: true, params: { vibrato: 0, noise: 0 } });
+/** the pitch a held note settles at, cents from equal temperament (`inst`: the horn, or the tuba, read later
+ *  and over longer: a C1's period is 31 ms) */
+export function measureCents(fs: number, m: number, vel = 70, inst: 'horn' | 'tuba' = TUBA ? 'tuba' : 'horn'): number {
+  const [T0, TW] = inst === 'tuba' ? [1.0, 0.6] : [0.6, 0.35];
+  const c = new (inst === 'tuba' ? TubaCore : HornCore)({ sampleRate: fs, dry: true, params: { vibrato: 0, noise: 0 } });
   c.schedule({ type: 'noteOn', midi: m, velocity: vel }, 64);
   const n = Math.round(((T0 + TW + 0.15) * fs) / 128) * 128;
   const L = new Float32Array(n);
