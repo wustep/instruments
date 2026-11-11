@@ -391,6 +391,7 @@ export class Renderer3 {
     this.root.add(im);
     this.cold = true;
     this.still = 0;
+    this.fresh = true;
     e = { im, glow, cap, src: m.dyn !== undefined ? src : undefined, ver };
     this.entries.set(m, e);
     return e;
@@ -420,6 +421,43 @@ export class Renderer3 {
    *  whose shaders differ, never loses the comparison with its own surface; a dissolving part's
    *  screen-door as in its colour pass */
   private depthPre = depthFirstMaterial();
+  /** a mesh made (`entry`) since the last frame drew: its materials may need programs */
+  private fresh = false;
+  /** the materials whose programs the driver is still compiling, and since when (ms) */
+  private compiling: { mats: Set<THREE.Material>; t0: number } | null = null;
+  /** the last frame was held back (`hold`): nothing was drawn, the canvas shows the frame before */
+  held = false;
+
+  /** Whether to hold this frame back while a new instrument's programs compile. three.js compiles a
+   *  material's program the first time it draws it, and waits for the driver there: the first frame
+   *  of each instrument in 3D froze the page (≈ 250 ms of a 440 ms task for the grand on a fast
+   *  computer, 870 ms on a phone's CPU). Its programs are sent first (`compile`), and with
+   *  KHR_parallel_shader_compile the driver compiles them off the page's thread while the page goes
+   *  on; the frame is drawn once they are ready, as it would have been, only without the freeze (and
+   *  in any case within 1.5 s). Without the extension a program counts as ready at once: as before. */
+  private hold(): boolean {
+    const r = this.r;
+    if (this.fresh) {
+      this.fresh = false;
+      // (as the scene's pass draws: into the HDR target, the section's plane on or off as it is)
+      r.setRenderTarget(this.rt);
+      const mats = new Set<THREE.Material>();
+      for (const e of this.entries.values()) if (e.im.visible) for (const m of e.im.material as THREE.Material[]) mats.add(m);
+      r.compile(this.scene, this.cam);
+      this.compiling = { mats, t0: performance.now() };
+    }
+    const c = this.compiling;
+    this.held = false;
+    if (!c) return false;
+    for (const m of c.mats) {
+      const p = (r.properties.get(m) as { currentProgram?: { isReady(): boolean } }).currentProgram;
+      if (!p || p.isReady()) c.mats.delete(m);
+    }
+    if (c.mats.size && performance.now() - c.t0 < 1500) return (this.held = true);
+    this.compiling = null;
+    return false;
+  }
+
   /** the materials whose section shaders are compiled or queued (`warmSection`) */
   private warmed = new WeakSet<THREE.Material>();
   /** the materials still to compile, each on a part that draws with it */
@@ -651,6 +689,9 @@ export class Renderer3 {
     this.cam.updateProjectionMatrix();
     this.cam.updateMatrixWorld();
     this.vp.multiplyMatrices(this.cam.projectionMatrix, this.cam.matrixWorldInverse).multiply(new THREE.Matrix4().makeScale(-1, 1, 1));
+    // a new instrument's shaders: compiled in parallel, the frame held (the canvas keeps its last
+    // picture) until they are ready (`held`)
+    if (this.hold()) return;
     // the lids' mirrors: the scene from the camera's mirror image, cut at the mirror's plane
     const mirrored = clip ? 0 : this.drawMirrors(b, w, h);
     this.mirrored = mirrored;
