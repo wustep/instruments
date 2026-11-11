@@ -206,11 +206,12 @@ const STOP_RATE = 0;
  *  it rings through the rest (70 dB/s: 4 dB in 60 ms) */
 const REST_RATE = 200;
 /** Under the tongue's stroke the breath eases to this much of the note's, and comes back as the reed is let go
- *  (a time constant, s). Let go at full pressure, the reed more often spoke on the note's octave (this bore's
- *  octave regime is as stable as its fundamental, and the start decides): Toward Morning's bassoon part (269
- *  notes: staccato eighths, slurs, repeats) played by ten players, each with its own noise, had 9.5 notes a
- *  performance on another register; with this 4.8, where the engine before had 3.4 (C♯3 and D3, which either
- *  engine starts on the octave one time in three). scripts/winds-midi-measure.ts `mode` counts them. */
+ *  (a time constant, s). Let go at full breath, the reed more often spoke on the note's octave (this bore's
+ *  octave regime is as stable as its fundamental, and the start decides): Beethoven's Fifth, I, bassoon I
+ *  (523 notes) played by six players, each with its own noise, had 13.7 notes a performance on another
+ *  register without it, and has 2.3 with it and the bore left whole (STOP_RATE), where the engine before had
+ *  3.2; bassoon II 5.0 (5.7); a part of staccato eighths, slurs and repeats 4.1 of 269 (3.4). C♯3 and D3
+ *  carry most of them in either engine. scripts/winds-midi-measure.ts `mode` counts them. */
 const LICK_BREATH = 0.3;
 const LICK_RISE = 0.04;
 
