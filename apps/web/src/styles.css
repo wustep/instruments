@@ -2029,6 +2029,41 @@ figure[title] {
 .notes .refs-title {
   margin-top: 48px;
 }
+.notes .credit {
+  margin: 36px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+  font: italic 400 14px/1.5 var(--serif);
+  color: var(--ink-2);
+}
+.notes .credit-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0 1px 0 6px;
+  vertical-align: -7px;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  text-decoration: none;
+}
+.notes .credit-icon:last-of-type {
+  margin-right: 7px;
+}
+.notes .credit-icon:hover,
+.notes .credit-icon:focus-visible {
+  color: var(--ink);
+  outline: none;
+  box-shadow: 0 0 0 1px rgba(242, 166, 70, 0.8);
+}
+.notes .credit-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
 @media (max-width: 600px) {
   .notes h2.sec {
     font-size: 25px;

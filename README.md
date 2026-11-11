@@ -7,10 +7,28 @@ browser: a **piano**, a **violin**, a **viola**, a **cello**, a **double bass**,
 felt hammers, bows, air jets, reeds and lips driving strings and tubes, which in turn
 drive a soundboard or body, or of felt mallets on the air-loaded membranes of kettledrums.
 
-**Production URL (planned):** https://piano-model-wustep.vercel.app. `main` is
-linked to a Vercel production deployment, which is checked separately; this
-README does not claim it is live. `vercel.json` makes this a static build
-(`pnpm build` → `apps/web/dist`).
+**Play it:** [https://instruments-wustep.vercel.app](https://instruments-wustep.vercel.app)
+
+Each instrument has its own address
+([piano](https://instruments-wustep.vercel.app/piano),
+[violin](https://instruments-wustep.vercel.app/violin),
+[viola](https://instruments-wustep.vercel.app/viola),
+[cello](https://instruments-wustep.vercel.app/cello),
+[double bass](https://instruments-wustep.vercel.app/bass),
+[flute](https://instruments-wustep.vercel.app/flute),
+[oboe](https://instruments-wustep.vercel.app/oboe),
+[clarinet](https://instruments-wustep.vercel.app/clarinet),
+[bassoon](https://instruments-wustep.vercel.app/bassoon),
+[horn](https://instruments-wustep.vercel.app/horn),
+[trumpet](https://instruments-wustep.vercel.app/trumpet),
+[trombone](https://instruments-wustep.vercel.app/trombone),
+[timpani](https://instruments-wustep.vercel.app/timpani)),
+as do the [Orchestra](https://instruments-wustep.vercel.app/orchestra),
+[Notes](https://instruments-wustep.vercel.app/notes) and
+[Measurements](https://instruments-wustep.vercel.app/measurements).
+`/french-horn`, `/kettledrums`, `/double-bass`, `/grand` and `/upright` open the same instruments.
+
+`main` is the production deployment (`vercel.json`: `pnpm build` → `apps/web/dist`).
 
 ## What you can do
 
@@ -47,7 +65,9 @@ README does not claim it is live. `vercel.json` makes this a static build
   the colour roles are in `apps/web/src/ui/vector/kit.ts`.
 * **Ensemble.** “orchestra” at the end of the picker (four dots on an arc; a square button beside the
   instrument's on a phone) puts several instruments on
-  the stage, each its own engine; tap an instrument to add one. The keys (on the
+  the stage, each its own engine; tap an instrument to add one. Five or more sit as an
+  orchestra (strings in front, first violins to the audience's left, woodwinds, then brass
+  and timpani at the back, on risers); up to four keep a chamber arc. The keys (on the
   screen, the computer's, a plug-in MIDI keyboard with its pedals and wheels) play the
   instruments lit on the fallboard: the piano if there is one, else the highest melodic
   instrument, until you choose; tap to add or take one, so one key can sound on several.
@@ -68,10 +88,11 @@ README does not claim it is live. `vercel.json` makes this a static build
   expression. There is nothing to press: the address is a preset. For example, a string
   quintet that plays a file with Violin I/II, Viola, Cello (or Violoncello) and Contrabass
   tracks:
-  `/orchestra?v=1&seats=violin,violin,viola,cello,bass&lines=Violin+I~40:1,Violin+II~40:2,Viola~41:3,Cello~42:4,Contrabass~43:5`.
+  [https://instruments-wustep.vercel.app/orchestra?v=1&seats=violin,violin,viola,cello,bass&lines=Violin+I~40:1,Violin+II~40:2,Viola~41:3,Cello~42:4,Contrabass~43:5](https://instruments-wustep.vercel.app/orchestra?v=1&seats=violin,violin,viola,cello,bass&lines=Violin+I~40:1,Violin+II~40:2,Viola~41:3,Cello~42:4,Contrabass~43:5).
+  The Daylight quintet itself is not bundled; that address is a preset you can drop the file onto.
   Beethoven's Fifth, seated and routed (its play icon plays the first movement; Mutopia's
   own files dropped on it play the same way, staff by staff):
-  `/orchestra?v=1&seats=flute,flute,oboe,oboe,clarinet,clarinet,bassoon,bassoon,horn,horn,trumpet,trumpet,timpani,violin,violin,viola,cello,bass&lines=one~73:1.2,two~68:3.4,three~71:5.6,four~70:7.8,five~69:9.10,six~69:11.12,seven~47:13,eight~40:14,nine~40:15,ten~41:16,eleven~42:17,twelve~43:18`.
+  [https://instruments-wustep.vercel.app/orchestra?v=1&seats=flute,flute,oboe,oboe,clarinet,clarinet,bassoon,bassoon,horn,horn,trumpet,trumpet,timpani,violin,violin,viola,cello,bass&lines=one~73:1.2,two~68:3.4,three~71:5.6,four~70:7.8,five~69:9.10,six~69:11.12,seven~47:13,eight~40:14,nine~40:15,ten~41:16,eleven~42:17,twelve~43:18](https://instruments-wustep.vercel.app/orchestra?v=1&seats=flute,flute,oboe,oboe,clarinet,clarinet,bassoon,bassoon,horn,horn,trumpet,trumpet,timpani,violin,violin,viola,cello,bass&lines=one~73:1.2,two~68:3.4,three~71:5.6,four~70:7.8,five~69:9.10,six~69:11.12,seven~47:13,eight~40:14,nine~40:15,ten~41:16,eleven~42:17,twelve~43:18).
   Format: `apps/web/src/address.ts`; matching: `apps/web/src/orchestra/rules.ts`.
 * **Look inside.** See what each instrument is doing as it plays:
   * the string displacement or bore pressure, live;
@@ -254,8 +275,8 @@ pnpm install
 pnpm dev                      # http://localhost:5199
 pnpm build && pnpm preview    # static build in apps/web/dist (Vercel: vercel.json)
 
-pnpm test                     # 52 DSP/analysis unit tests (vitest), ~2.2 min
-pnpm e2e                      # builds, then 18 Playwright tests (desktop + phone) in installed Chrome
+pnpm test                     # unit tests (vitest)
+pnpm e2e                      # builds, then Playwright (desktop + phone) in installed Chrome
 pnpm bench                    # CPU per voice / instrument
 
 pnpm refs:fetch               # download Iowa reference notes into .cache/ (gitignored, ~650 MB)
@@ -310,9 +331,9 @@ inst.control(11, 0.8);                       // expression
 
 ## Status
 
-Round 2 (`93b5649` … this commit) is pushed to `main`, which is linked to a
-Vercel production deployment. Whether that deployment is live is checked
-separately and is not claimed here.
+Thirteen instruments are on `main` and live at
+[https://instruments-wustep.vercel.app](https://instruments-wustep.vercel.app)
+(2D in two styles and 3D; the Orchestra with MIDI routing, seating, and URL presets).
 
 ## Credits
 
