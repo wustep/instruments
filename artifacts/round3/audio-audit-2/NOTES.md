@@ -1,8 +1,8 @@
 # Audio audit, round 2: every instrument and the Orchestra again
 
 Brief: `.audit2/BRIEF.md` (Stephen: "please audit all the instruments again. I think there's still more to
-fix."). Branch `improve/audio-audit-2` from `d59362f` (round 1 = #50), rebased on `2d09ac6` (#51 og media, #52
-performance: neither touches the engine or the Orchestra's sound). `before` below is `d59362f`'s engine, `after`
+fix."). Branch `improve/audio-audit-2` from `d59362f` (round 1 = #50), rebased on `8ae1bdf` (#51 and #53 og media, #52
+performance: none touches the engine or the Orchestra's sound). `before` below is `d59362f`'s engine, `after`
 this branch. Everything was measured on both with the same stimuli and scripts; nothing was tuned by ear.
 
 Wind and brass note overlap, legato and repeated-note handling stay with `improve/winds-midi`. That branch and
