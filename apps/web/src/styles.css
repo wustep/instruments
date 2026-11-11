@@ -1235,10 +1235,12 @@ figure[title] {
 .pl-lines[hidden] {
   display: none;
 }
-/* (a phone: a symphony's twelve lines in one row) */
+/* (a phone: a symphony's lines in one row, each chip its share of it (--n of them: player.ts), from
+   28 px down to 22 px: thirteen fit a 390 px screen, fifteen at the narrowest. A second row lay over
+   the orchestra's back row. The strip is 100vw − 40 px inside; a pixel is kept for rounding.) */
 @media (max-width: 480px) {
   .pl-lines .pl-line {
-    width: 28px;
+    width: clamp(22px, calc((100vw - 41px - (var(--n, 12) - 1) * 1px) / var(--n, 12)), 28px);
   }
 }
 .pl-line,

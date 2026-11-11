@@ -6,7 +6,7 @@
 // Where WebGL2 is missing the toggle never appears and the 2D stage carries on (`webgl2.ts`).
 import { Batch, project, type Mat4, type Mesh, type Vec3 } from './gl3d.ts';
 import { buildScene, newScene3State, viewFor, type SceneIn, type View3 } from './scenes3d.ts';
-import { fitView, screenBox } from './fit3d.ts';
+import { fitsUnder, fitView, screenBox } from './fit3d.ts';
 import { lidKnobPoints, lidPoint, lidRay, zoomFrame, type PianoModel } from './piano3d.ts';
 import { Renderer3 } from './three3d.ts';
 import { blocked, invert4, lidFor, rayAt } from './handles3d.ts';
@@ -29,8 +29,10 @@ const FIT = { side: 0.04, bottom: 0.02, top: 0.015 };
 export interface Stage3D {
   el: HTMLCanvasElement;
   /** draw one frame; `inputs` are read fresh each time. `clear`: how far down from the stage's top
-   *  something lies over it (px: the file player), which a narrow stage's framing keeps clear of */
-  frame(now: number, top: number, si: Omit<SceneIn, 'now' | 'dt' | 'lite'>, clear?: number): void;
+   *  something lies over it (px: the file player's row), which a narrow stage's framing keeps clear
+   *  of; `lines`: how far down the player's lines reach under that row (px: an ensemble's file), which
+   *  an orchestra is kept out from under */
+  frame(now: number, top: number, si: Omit<SceneIn, 'now' | 'dt' | 'lite'>, clear?: number, lines?: number): void;
   resetView(): void;
   /** set the camera (shots, tests) */
   setView(v: Partial<View3>): void;
@@ -169,6 +171,9 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
   /** how far into a key's close-up the camera is (0 the whole piano … 1 there), eased with its flight */
   let closeK = 0;
   let fly: { t0: number; dur: number; from: Cam; to: Cam; out: boolean } | null = null;
+  /** the flight under way is the camera settling onto its home view (an ensemble's, re-framed): it
+   *  is still at home */
+  let settling = false;
   let cutAt = 0;
   let kind: 'grand' | 'upright' = 'grand';
   let family = '';
@@ -248,12 +253,40 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
    *  shows the whole instrument, in the middle of the stage that is free: exact, from the scene as
    *  built this frame (fit3d.ts). `w`, `h`: the stage (px); `clear`: how far down from its top
    *  something lies over it. */
-  const homeView = (si: SceneIn, w: number, h: number, clear: number): View3 => {
+  const homeView = (si: SceneIn, w: number, h: number, clear: number, lines: number): View3 => {
     const v = viewFor(si, st);
     v.dist *= FRAME;
     const aspect = w / h;
-    if (si.ensemble?.length || (aspect >= NARROW && w >= SMALL && !v.whole)) return v;
     const tanV = Math.tan(((FOV / 2) * Math.PI) / 180);
+    if (si.ensemble?.length) {
+      // An orchestra is framed under the file player's row of icons by its seats' boxes (scenes3d
+      // `ensembleView`), which reach higher than the instruments in them, so the player's lines, a row
+      // under the icons, usually lie over nothing. Where they would (a second row of lines on a phone,
+      // a bell held high in the back row), the least further clearance that brings every vertex drawn
+      // under them: exact, from the scene as built this frame.
+      if (lines <= clear) return v;
+      const top = 1 - 2 * (lines / h + FIT.top);
+      const under = (q: View3) => fitsUnder(batch, q, q.dist, tanV, top);
+      if (under(v)) return v;
+      const at = (px: number): View3 => {
+        const q = viewFor({ ...si, clearTop: px / h }, st);
+        q.dist *= FRAME;
+        return q;
+      };
+      let lo = clear;
+      let hi = lines;
+      let best = at(lines);
+      for (let k = 0; k < 5; k++) {
+        const mid = (lo + hi) / 2;
+        const q = at(mid);
+        if (under(q)) {
+          hi = mid;
+          best = q;
+        } else lo = mid;
+      }
+      return best;
+    }
+    if (aspect >= NARROW && w >= SMALL && !v.whole) return v;
     const rect = { l: -1 + 2 * FIT.side, r: 1 - 2 * FIT.side, b: -1 + 2 * FIT.bottom, t: 1 - 2 * (clear / h + FIT.top) };
     // (a view that may turn on a narrow stage: the bearing it is nearest from, and of those within a
     // hundredth of the nearest, the one least turned)
@@ -538,7 +571,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       r.dispose();
       el.remove();
     },
-    frame(now, topPx, si0, clearPx = 0) {
+    frame(now, topPx, si0, clearPx = 0, linesPx = 0) {
       const t0 = performance.now();
       const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / 60;
       last = now;
@@ -569,8 +602,9 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       // (a trombone by its size too: the Size knob makes another instrument, framed for itself)
       const key = si.ensemble?.length ? `ens:${W / H < 1.1 ? 'tall' : 'wide'}:${si.ensemble.map((p) => (p.family === 'piano' ? p.kind : p.family === 'bowed' ? (p.bowed?.id ?? 'bowed') : p.family === 'reed' ? (p.reed ?? 'oboe') : p.family === 'brass' ? (p.brass ?? 'trumpet') : p.family)).join(',')}` : si.family === 'piano' ? si.kind : si.family === 'bowed' ? (si.bowed?.id ?? 'bowed') : si.family === 'reed' ? (si.reed ?? 'oboe') : si.family === 'brass' ? (si.brass === 'trombone' ? `trombone:${tromboneSizeIn(si.fr, si.tromboneSize)}` : (si.brass ?? 'trumpet')) : si.family;
       const clear = Math.max(0, Math.min(0.4 * H, clearPx));
+      const lines = Math.max(clear, Math.min(0.4 * H, linesPx));
       si.clearTop = clear / H;
-      const sig = `${key}|${W}|${H}|${Math.round(clear)}`;
+      const sig = `${key}|${W}|${H}|${Math.round(clear)}|${Math.round(lines)}`;
       // a key's close-up outlives a change of piano (grand ↔ upright: the same key, the other
       // action) and of the stage (the phone turned): it is framed again, once the view is
       clearNow = clear;
@@ -586,12 +620,21 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       // A new instrument starts from its home view. The same one on a stage that has changed (the
       // phone turned) is framed again, and follows only if the camera was still at home.
       if (sig !== fitSig) {
-        const home = key !== viewKey || atHome();
+        const home = key !== viewKey || atHome() || settling;
+        // (an ensemble on the same stage, only what lies over its top changed: the file player's lines
+        // came or went, or wrapped. If that moves its frame, the camera settles there instead of jumping.)
+        const from = home && si.ensemble?.length && fitSig.startsWith(`${key}|${W}|${H}|`) ? view : null;
         viewKey = key;
         // (a piano has no model until its keys are known: framed when it has)
         if (si.ensemble?.length || batch.meshes().length) fitSig = sig;
-        view = homeView(si, W, H, clear);
-        if (home) resetView();
+        view = homeView(si, W, H, clear, lines);
+        if (from) {
+          const moved = Math.hypot(view.target[0] - from.target[0], view.target[1] - from.target[1], view.target[2] - from.target[2]) > 1e-6 || Math.abs(view.dist / from.dist - 1) > 1e-6;
+          if (moved) {
+            flyTo({ target: [...view.target] as Vec3, yaw: view.yaw, pitch: view.pitch, dist: view.dist, cut: cutAt }, false, 0.4);
+            settling = true;
+          }
+        } else if (home) resetView();
       }
       if (rezoom !== null) {
         if (si.family !== 'piano' || si.ensemble?.length) rezoom = null;
@@ -620,6 +663,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
           fly = null;
         }
       }
+      if (!fly) settling = false;
       if (!zoom) closeK = 0;
       const kE = 1 - Math.exp(-dt / 0.07);
       yaw += (yawT - yaw) * kE;
