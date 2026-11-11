@@ -3,7 +3,8 @@
 //   BASE=https://instruments-wustep.vercel.app TAG=before OUT=artifacts/new3 node scripts/shots-picker.mjs
 //   BASE=http://localhost:4391 TAG=after OUT=artifacts/new3 node scripts/shots-picker.mjs
 // Writes picker-<tag>.png (the sheet in a 1280 px window), picker-<tag>-phone.png (390×844),
-// picker-<tag>-solo.png (one instrument, the piano's sheet) and picker-<tag>-bar.png (the bar at 1440 px),
+// picker-<tag>-solo.png and -phone-solo.png (one instrument, the piano's sheet) and picker-<tag>-bar.png (the
+// bar at 1440 px),
 // and prints each sheet's box and how its picks lie (rows × columns, gaps).
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -49,5 +50,6 @@ const sheet = async (name, opts, path) => {
 await sheet(`picker-${TAG}`, { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 }, '/orchestra');
 await sheet(`picker-${TAG}-phone`, { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, '/orchestra');
 await sheet(`picker-${TAG}-solo`, { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 }, '/piano');
+await sheet(`picker-${TAG}-phone-solo`, { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, '/piano');
 await sheet(`picker-${TAG}-bar`, { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 }, '/piano');
 await browser.close();

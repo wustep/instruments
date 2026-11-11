@@ -110,6 +110,10 @@ const groupOf = (id: InstrumentId): (typeof GROUPS)[number] => {
 const COMPACT = '(max-width: 1320px), (max-height: 500px) and (orientation: landscape)';
 /** where the stage's own tools (the view, the piano's case) sit in the band under the bar, beside the readout */
 const PHONE = '(max-width: 760px)';
+/** where the bar has no room for the piano's kind beside the view (a phone either way up, a narrow window):
+ *  there it is at the foot of the picker's sheet, under the instruments; everywhere else it is with the
+ *  stage's tools in the bar, as on a wide window */
+const KIND_IN_SHEET = '(max-width: 900px), (max-height: 500px) and (orientation: landscape)';
 
 /** the top bar's two places for the stage's controls (main.ts): the picker's, and the view's tools' */
 export interface BarSlots {
@@ -254,7 +258,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     e.preventDefault();
     setCase(!caseHidden);
   });
-  // the picker: the instruments by family. Where there is no room for all thirteen at a size to read and
+  // the picker: the instruments by family. Where there is no room for all of them at a size to read and
   // touch (COMPACT), one button names what is on the stage and opens them as a sheet
   const fams = GROUPS.map((g) => h('div', { class: 'fam', 'data-fam': g }, instBtns.filter((_, i) => groupOf(INSTRUMENT_IDS[i]) === g)));
   const instruments = h('div', { class: 'instruments', role: 'group', 'aria-label': 'Instrument' }, fams);
@@ -307,12 +311,14 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   const scopeCap = h('div', { class: 'scope-cap' });
   const scope = h('div', { class: 'scope' }, scopeCv, scopeCap);
   const top = h('div', { class: 'stage-top' }, readout, h('div', { class: 'spec-wrap' }, specCv), scope, partsEl);
-  // where each control sits follows the window: the piano's kind with the view's tools, or in the picker's
-  // sheet beside the piano; the tools in the bar, or (a phone) in the band beside the readout
+  // where each control sits follows the window: the piano's kind with the view's tools in the bar, or (no
+  // room there) at the foot of the picker's sheet; the tools in the bar, or (a phone) in the band beside
+  // the readout
   const mqCompact = typeof matchMedia === 'function' ? matchMedia(COMPACT) : null;
   const mqPhone = typeof matchMedia === 'function' ? matchMedia(PHONE) : null;
+  const mqKind = typeof matchMedia === 'function' ? matchMedia(KIND_IN_SHEET) : null;
   const place = () => {
-    if (mqCompact?.matches) pop.append(presets);
+    if (mqKind?.matches) pop.append(presets);
     else tools.prepend(presets);
     if (mqPhone?.matches) top.insertBefore(tools, readout.nextSibling);
     else bar.tools.append(tools);
@@ -1274,7 +1280,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     mount() {
       bar.pick.replaceChildren(picker);
       place();
-      for (const mq of [mqCompact, mqPhone]) {
+      for (const mq of [mqCompact, mqPhone, mqKind]) {
         mq?.addEventListener('change', place);
         unsubs.push(() => mq?.removeEventListener('change', place));
       }
