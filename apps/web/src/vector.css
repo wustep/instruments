@@ -52,12 +52,6 @@
   font-weight: 500;
 }
 
-/* ------------------------------------------------------------ header */
-:root[data-style='vector'] .top {
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-weight: 500;
-}
 :root[data-style='vector'] .lamp,
 :root[data-style='vector'][data-audio='running'] .lamp {
   background: none;
@@ -83,19 +77,10 @@
   pointer-events: none;
   z-index: 1;
 }
-:root[data-style='vector'] .pick {
-  text-transform: uppercase;
-  color: var(--v-blue-dim);
-}
-:root[data-style='vector'] .pick:hover {
-  color: var(--v-blue-mid);
-}
-:root[data-style='vector'] .pick[aria-pressed='true'] {
-  color: var(--v-text);
-}
-:root[data-style='vector'] .pick-name {
-  letter-spacing: 0.1em;
-}
+
+
+
+
 /* the picker's glyphs lose their fills: outlines only */
 :root[data-style='vector'] .glyph .g-body,
 :root[data-style='vector'] .glyph .g-ebony,
@@ -108,58 +93,14 @@
 :root[data-style='vector'] .glyph .g-steel {
   stroke: currentColor;
 }
-:root[data-style='vector'] .pick[aria-pressed='true'] .glyph {
-  stroke: var(--v-blue);
-  filter: drop-shadow(0 0 3px rgba(79, 182, 242, 0.7));
-}
-/* chips: a framed label, lit when on (never a filled block) */
-:root[data-style='vector'] .presets {
-  gap: 4px;
-  padding-left: 0;
-}
-:root[data-style='vector'] .presets button,
-:root[data-style='vector'] .dim-toggle,
-:root[data-style='vector'] .vec-toggle,
-:root[data-style='vector'] .case-toggle,
-:root[data-style='vector'] .ens-toggle {
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--v-blue-mid);
-  background: none;
-  border: 1px solid var(--v-frame);
-  border-radius: 0;
-}
-:root[data-style='vector'] .presets button {
-  padding: 3px 6px 2px;
-}
-:root[data-style='vector'] .presets button[aria-pressed='true'],
-:root[data-style='vector'] .dim-toggle[aria-pressed='true'],
-:root[data-style='vector'] .vec-toggle[aria-pressed='true'],
-:root[data-style='vector'] .case-toggle[aria-pressed='true'],
-:root[data-style='vector'] .ens-toggle[aria-pressed='true'] {
-  color: var(--v-text);
-  background: none;
-  border-color: var(--v-blue);
-  box-shadow: 0 0 6px rgba(79, 182, 242, 0.45), inset 0 0 6px rgba(79, 182, 242, 0.25);
-}
-:root[data-style='vector'] .pick-n {
-  color: var(--v-amber);
-}
-/* the note is the sound: amber */
-:root[data-style='vector'] .r-note {
-  font-style: normal;
-  font-weight: 300;
-  font-size: 40px;
-  letter-spacing: 0.04em;
-  color: var(--v-amber);
-  text-shadow: 0 0 10px rgba(255, 179, 64, 0.45);
-}
-:root[data-style='vector'] .r-hz {
-  color: var(--v-amber);
-  opacity: 0.75;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-}
+
+
+
+
+
+
+
+
 :root[data-style='vector'] .scope-cap {
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -398,28 +339,13 @@
   border-color: var(--v-blue);
 }
 
-/* the toggle itself, in either style: last in the picker's row, framed like the 3D toggle */
-.vec-toggle {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 5px;
-  color: var(--ink-2, #c9bfab);
-  background: transparent;
-  border: 1px solid rgba(236, 226, 206, 0.18);
-  border-radius: 4px;
-  cursor: pointer;
-}
-.vec-toggle:focus-visible {
-  outline: 1px solid rgba(242, 166, 70, 0.8);
-}
+
 
 @media (max-width: 760px) {
   :root[data-style='vector'] .stage::after {
     inset: 0 3px 3px;
   }
-  :root[data-style='vector'] .r-note {
-    font-size: 32px;
-  }
+
   :root[data-style='vector'] .knobs {
     background: #000;
     border-top-color: var(--v-blue-dim);

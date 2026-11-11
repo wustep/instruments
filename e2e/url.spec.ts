@@ -4,6 +4,7 @@
 // programs of Max Richter's "On the Nature of Daylight" and plays it on two violins, a viola, a cello
 // and a double bass, all starting together. The file is constructed (no copyrighted music).
 import { test, expect, type Page } from '@playwright/test';
+import { openPicker } from './picker.ts';
 import { smf } from '../apps/web/test/smf.ts';
 import { QUINTET } from '../apps/web/test/presets.ts';
 
@@ -24,7 +25,7 @@ const ens = (page: Page) =>
     const e = (window as any).__orchestra.ensemble;
     return { active: e.active as boolean, lineup: e.lineup as string[], engines: e.parts.filter((p: any) => p.engine).length as number, seats: e.plan.lines.map((rs: any[]) => rs.map((r) => r.part)) as number[][], keys: e.keys as { parts: number[]; split: boolean; byUser: boolean }, rules: e.rules as unknown };
   });
-const pick = (page: Page, name: string) => page.locator('.instruments').getByRole('button', { name, exact: true });
+const pick = (page: Page, name: string) => page.locator(`.pick[aria-label="${name}"]`);
 
 /** a file with the quintet's track names and programs, every line from the first beat */
 function quintetFile(): number[] {
@@ -56,13 +57,13 @@ test('the address: each tab its own path; back and forward walk the tabs; a link
   const errors = collectErrors(page);
   await page.goto('/');
   await expect.poll(() => path(page)).toBe('/piano');
-  await pick(page, 'Violin').click();
+  await openPicker(page).then(() => pick(page, 'Violin').click());
   await expect.poll(() => path(page)).toBe('/violin');
-  await pick(page, 'Flute').click();
+  await openPicker(page).then(() => pick(page, 'Flute').click());
   await expect.poll(() => path(page)).toBe('/flute');
-  await pick(page, 'Piano').click();
+  await openPicker(page).then(() => pick(page, 'Piano').click());
   await expect.poll(() => path(page)).toBe('/piano');
-  await page.locator('.presets').getByRole('button', { name: 'upright' }).click();
+  await openPicker(page).then(() => page.locator('.presets button', { hasText: 'upright' }).click());
   await expect.poll(() => path(page)).toBe('/piano/upright');
   await page.locator('.ens-toggle').click();
   await expect.poll(() => path(page)).toBe('/orchestra?v=1&seats=violin,violin,viola,cello&view=2d&expr=on');
@@ -78,7 +79,7 @@ test('the address: each tab its own path; back and forward walk the tabs; a link
   await expect.poll(() => path(page)).toBe('/piano/upright');
   await expect.poll(async () => (await ens(page)).active).toBe(false);
   expect(await page.evaluate(() => (window as any).__piano.preset)).toBe('upright');
-  await expect(page.locator('.presets').getByRole('button', { name: 'upright' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.presets button', { hasText: 'upright' })).toHaveAttribute('aria-pressed', 'true');
   await page.goBack();
   await expect.poll(() => page.evaluate(() => (window as any).__piano.preset)).toBe('grand');
   await page.goBack();
@@ -116,8 +117,8 @@ test('the Orchestra’s setup is the address, with nothing to press: lineup with
   await page.goto('/');
   await page.locator('.ens-toggle').click();
   // a quintet with a third violin (two of a kind and three of another)
-  await pick(page, 'Double bass').click();
-  await pick(page, 'Violin').click();
+  await openPicker(page).then(() => pick(page, 'Double bass').click());
+  await openPicker(page).then(() => pick(page, 'Violin').click());
   await expect.poll(async () => (await ens(page)).lineup).toEqual(['violin', 'violin', 'violin', 'viola', 'cello', 'bass']);
   await drop(page, quintetFile());
   await expect(page.locator('.pl-line')).toHaveCount(5, { timeout: 10_000 });

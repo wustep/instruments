@@ -1,4 +1,5 @@
 import './styles.css';
+import './panel.css';
 import './vector.css';
 import { diag, diagEnvironment, diagPanel } from './diag.ts';
 diagEnvironment();
@@ -78,14 +79,17 @@ const links = [
   h('a', { href: '/notes', 'data-route': 'notes' }, 'notes'),
 ];
 const backLink = h('a', { class: 'back', href: '/', 'data-route': 'stage', 'aria-label': 'back to the instruments', 'data-tip': 'back' }, '←');
-const header = h('header', { class: 'top' }, backLink, h('span', { class: 'spacer' }), status, h('nav', { class: 'links', 'aria-label': 'Pages' }, links));
+// (the stage puts its picker and its view's tools in the bar while it shows: views/stage.ts)
+const pickSlot = h('div', { class: 'top-pick' });
+const toolSlot = h('div', { class: 'top-tools' });
+const header = h('header', { class: 'top' }, backLink, pickSlot, h('span', { class: 'spacer' }), toolSlot, status, h('nav', { class: 'links', 'aria-label': 'Pages' }, links));
 const main = h('main', { id: 'main' });
 // drop a .mid file anywhere to hear it (an ensemble's file on an ensemble)
 const player = new MidiPlayer();
 app.append(header, main, player.el, dock);
 
 const routes: Record<Page, { title: string; make: () => View }> = {
-  stage: { title: '', make: () => stageView(keyboard, knobSlot, player) },
+  stage: { title: '', make: () => stageView(keyboard, knobSlot, player, { pick: pickSlot, tools: toolSlot }) },
   measurements: { title: 'Measurements', make: () => measureView() },
   notes: { title: 'Notes', make: () => notesView() },
 };

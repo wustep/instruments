@@ -2704,7 +2704,7 @@ export interface SpectrumInk {
   font: string;
 }
 const SPECTRUM_INK: SpectrumInk = { line: INK.ivory, label: INK.ivory, ideal: INK.steel, partial: INK.vermilion, font: '10px "IBM Plex Mono", monospace' };
-export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, an: AnalyserNode | null, buf: Float32Array, focus: VisualFrame['focus'] | null, family: string, ink: SpectrumInk = SPECTRUM_INK): void {
+export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, an: AnalyserNode | null, buf: Float32Array, focus: VisualFrame['focus'] | null, family: string, ink: SpectrumInk = SPECTRUM_INK, marks: number[] | null = null): void {
   const f0 = 30;
   const f1 = 12000;
   const X = (f: number) => x0 + (w * Math.log(f / f0)) / Math.log(f1 / f0);
@@ -2750,7 +2750,11 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
     }
     ctx.stroke();
   }
-  if (focus) {
+  if (marks && marks.length > 1) {
+    // several notes sounding: a mark at each one's fundamental (one note's partials would speak for one of them)
+    ctx.fillStyle = rgba(ink.partial, 0.9);
+    for (const f of marks) if (f >= f0 && f <= f1) ctx.fillRect(X(f) - 0.75, y0 + 3, 1.5, 6);
+  } else if (focus) {
     // where the partials should be: stiff-string series (vermilion) vs ideal harmonics (steel)
     const fz = focus.f1 / Math.sqrt(1 + focus.B);
     for (let k = 1; k <= 60; k++) {

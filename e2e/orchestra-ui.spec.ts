@@ -4,6 +4,7 @@
 // its lines; the picker adding and taking off without losing the routing; the address following every change,
 // and the piece playing on the lineup as it was organised. The presets still read as they did.
 import { test, expect, type Page } from '@playwright/test';
+import { openPicker } from './picker.ts';
 import { QUINTET, SYMPHONY } from '../apps/web/test/presets.ts';
 
 const ORCHESTRA = ['flute', 'flute', 'oboe', 'oboe', 'clarinet', 'clarinet', 'bassoon', 'bassoon', 'horn', 'horn', 'trumpet', 'trumpet', 'timpani', 'violin', 'violin', 'viola', 'cello', 'bass'];
@@ -137,7 +138,7 @@ test('a large lineup: an instrument tapped on the stage opens its section’s me
   await page.locator('.pl-menu .pl-desk').click();
   await expect.poll(() => path(page), { timeout: 5000 }).toContain('eleven~42:17.18,twelve~43:19');
   await page.keyboard.press('Escape');
-  await page.locator('.pick[aria-label="Trombone"]').click();
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Trombone"]').click());
   const lineup = [...ORCHESTRA.slice(0, 12), 'trombone', ...ORCHESTRA.slice(12, 17), 'cello', 'bass'];
   await expect.poll(async () => (await ens(page)).lineup).toEqual(lineup);
   await expect.poll(() => path(page), { timeout: 5000 }).toContain('seven~47:14,eight~40:15,nine~40:16,ten~41:17,eleven~42:18.19,twelve~43:20');
@@ -171,16 +172,16 @@ test('a large lineup: the picker adds and takes off without losing the routing; 
   const errors = collectErrors(page);
   await page.goto(SYMPHONY);
   // another violin: a second desk for the second violins (the last section of violins)
-  await page.locator('.pick[aria-label="Violin"]').click();
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Violin"]').click());
   await expect.poll(async () => (await ens(page)).lineup.filter((v) => v === 'violin').length).toBe(3);
   await expect.poll(() => path(page), { timeout: 5000 }).toContain('eight~40:14,nine~40:15.16,ten~41:17');
   await expect(page.locator('.pick[aria-label="Violin"]')).toHaveAttribute('data-tip', 'violin ×3 · tap to take them off');
   // past the most: no violins, their staves silent, every other staff where it was
-  await page.locator('.pick[aria-label="Violin"]').click();
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Violin"]').click());
   await expect.poll(async () => (await ens(page)).lineup).toEqual(ORCHESTRA.filter((v) => v !== 'violin'));
   await expect.poll(() => path(page), { timeout: 5000 }).toContain('seven~47:13,eight~40:-,nine~40:-,ten~41:14');
   // a violin again: it takes back both staves the violins left
-  await page.locator('.pick[aria-label="Violin"]').click();
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Violin"]').click());
   await expect.poll(() => path(page), { timeout: 5000 }).toContain('seven~47:13,eight~40:14,nine~40:14,ten~41:15');
   // the keys: a chip per section; the first flute plays by default (the section half lit), a tap brings both
   await page.goto(SYMPHONY);

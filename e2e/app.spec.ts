@@ -1,6 +1,7 @@
 // End-to-end checks in real Chrome: the page, the AudioWorklet, offline rendering
 // through the worklet with spectral checks, the live views, MIDI input, phone layout.
 import { test, expect, type Page } from '@playwright/test';
+import { closePicker, openPicker } from './picker.ts';
 import { analyzePartials } from '../packages/engine/src/analysis/index.ts';
 import { smf } from '../apps/web/test/smf.ts';
 
@@ -135,7 +136,9 @@ test('the stage: live strings, soundboard, hammer scope and spectrum draw', asyn
   );
   expect(painted.length).toBe(phone ? 2 : 3); // instrument, spectrum, excitation scope (not on phones)
   for (const n of painted) expect(n).toBeGreaterThan(500);
-  await expect(page.locator('.r-hz')).toContainText('Hz');
+  // (five notes ringing under the pedal: the readout says all of them, as the chord they make)
+  await expect(page.locator('.r-note')).toHaveText('C');
+  await expect(page.locator('.r-hz')).toHaveText('5 notes · C2–G4');
   if (!phone) await expect(page.locator('.scope-cap')).toContainText('m/s');
   // a physical control (knob) reaches the worklet; on phones the knobs fold out first
   if (phone) await page.getByRole('button', { name: 'Show the knobs' }).click();
@@ -413,7 +416,7 @@ test('3D on a phone held upright: the cello and the upright fill the stage’s h
     });
   const show = async (name: 'grand' | 'upright' | 'cello', yaw: number) => {
     if (name === 'cello') await page.evaluate(() => (window as any).__piano.setInstrument('cello'));
-    else await page.locator('.presets button', { hasText: name }).click();
+    else await openPicker(page).then(() => page.locator('.presets button', { hasText: name }).click());
     // (its own view: the bearing is that instrument's)
     await expect.poll(async () => Math.abs((await seen()).home.yaw - yaw) < 0.2 && (await seen()).box !== null, { timeout: 15_000 }).toBe(true);
     await page.waitForTimeout(250);
@@ -465,8 +468,10 @@ test('the picker: the ring on the selected instrument is whole, on every instrum
     await expect(picks).toHaveCount(13);
     for (let i = 0; i < 7; i++) {
       const pick = picks.nth(i);
-      await pick.click();
+      await openPicker(page).then(() => pick.click());
       await expect(pick).toHaveAttribute('aria-pressed', 'true');
+      // (where the picker is a sheet, choosing shut it: the ring is looked at with it open again)
+      await openPicker(page);
       // the ring is the keyboard-focus ring: it shows once the keyboard has been used (playing does that)
       await page.keyboard.press('Shift');
       await pick.focus();
@@ -493,7 +498,6 @@ test('the picker: the ring on the selected instrument is whole, on every instrum
       expect(r.visible, `${where}: ring shows`).toBe(true);
       expect(r.style, where).toBe('solid');
       expect(r.width, where).toBeGreaterThanOrEqual(1);
-      expect(r.clippers.length, `${where}: the stage clips`).toBeGreaterThan(0);
       expect(r.ring.t, `${where}: top edge`).toBeGreaterThanOrEqual(r.clip.t);
       expect(r.ring.l, `${where}: left edge`).toBeGreaterThanOrEqual(r.clip.l);
       expect(r.ring.r, `${where}: right edge`).toBeLessThanOrEqual(r.clip.r);
@@ -510,7 +514,7 @@ test('all thirteen instruments: selectable in the UI and rendered through the wo
   await page.goto('/');
   await startAudio(page);
   for (const [label, id] of [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Double bass', 'bass'], ['Flute', 'flute'], ['Oboe', 'oboe'], ['Clarinet', 'clarinet'], ['Bassoon', 'bassoon'], ['Horn', 'horn'], ['Trumpet', 'trumpet'], ['Trombone', 'trombone'], ['Timpani', 'timpani'], ['Piano', 'piano']] as const) {
-    await page.locator('.instruments').getByRole('button', { name: label }).click();
+    await openPicker(page).then(() => page.locator(`.pick[aria-label="${label}"]`).click());
     await page.waitForFunction((x) => (window as any).__piano.piano?.instrument === x, id, { timeout: 15_000 });
     await expect(page.locator('.pick[aria-pressed="true"]')).toHaveAttribute('aria-label', label);
     await expect(page.locator('.knobs .knob').first()).toBeVisible({ visible: info.project.name !== 'phone' });
@@ -850,7 +854,7 @@ test('the app plays itself: at rest the overlay is play and open; play plays the
   // (an instrument's own piece is a solo: no routing)
   await expect(page.locator('.pl-route')).toBeHidden();
   // another instrument while it plays: that instrument's own piece, on it
-  await page.locator('.pick[aria-label="Cello"]').click();
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Cello"]').click());
   await expect.poll(() => page.evaluate(() => (window as any).__player.demo?.instrument ?? null), { timeout: 10_000 }).toBe('cello');
   await expect.poll(() => page.evaluate(() => (window as any).__player.playing)).toBe(true);
   await expect.poll(() => page.evaluate(() => (window as any).__piano.piano.instrument)).toBe('cello');
@@ -898,10 +902,10 @@ test('piano presets on the stage: grand and upright only (honky-tonk and prepare
   const presets = page.locator('.presets button');
   await expect(presets).toHaveText(['grand', 'upright']);
   await startAudio(page);
-  await presets.filter({ hasText: 'upright' }).click();
+  await openPicker(page).then(() => presets.filter({ hasText: 'upright' }).click());
   await page.waitForFunction(() => (window as any).__piano.piano?.preset === 'upright', null, { timeout: 10_000 });
   await expect(presets.filter({ hasText: 'upright' })).toHaveAttribute('aria-pressed', 'true');
-  await presets.filter({ hasText: 'grand' }).click();
+  await openPicker(page).then(() => presets.filter({ hasText: 'grand' }).click());
   await page.waitForFunction(() => (window as any).__piano.piano?.preset === 'grand', null, { timeout: 10_000 });
 });
 
@@ -1219,7 +1223,7 @@ test('click a note’s strings: that key’s action opens, plays from its own te
   await expect(panel).toHaveCount(0);
   // the upright has its own action
   await page.evaluate(() => (window as any).__piano.setPreset('upright'));
-  await page.locator('.presets button', { hasText: 'upright' }).click();
+  await openPicker(page).then(() => page.locator('.presets button', { hasText: 'upright' }).click());
   await page.waitForTimeout(300);
   await openAt(48, 0.55);
   await expect(panel).toHaveAttribute('aria-label', /upright action/);
@@ -1378,14 +1382,14 @@ test('a key’s close-up in 3D on a narrow stage: the action whole, key front to
     // and as large as that allows: it binds on one axis
     expect(Math.max((b.x1 - b.x0) / v.w, (b.y1 - b.y0) / (v.h - v.over)), `${name} ${key}: fills`).toBeGreaterThan(0.85);
   };
-  await page.locator('.presets button', { hasText: 'grand' }).click();
+  await openPicker(page).then(() => page.locator('.presets button', { hasText: 'grand' }).click());
   await page.waitForTimeout(600);
   for (const key of [60, 30]) {
     await page.evaluate((k) => (window as any).__stage3d.zoomTo(k), key);
     await whole('grand', key);
   }
   // the other piano under the close-up: the same key, that piano's action, framed again
-  await page.locator('.presets button', { hasText: 'upright' }).click();
+  await openPicker(page).then(() => page.locator('.presets button', { hasText: 'upright' }).click());
   await whole('upright', 30);
   await page.evaluate(() => (window as any).__stage3d.zoomOut());
   await expect.poll(async () => (await seen()).zoomed).toBeNull();
@@ -1421,7 +1425,7 @@ test('3D stage: every instrument draws in WebGL2 from live frames; orbit and zoo
     (window as any).__stage3d.probe = true;
     await (window as any).__piano.setPreset('upright');
   });
-  await page.locator('.presets button', { hasText: 'upright' }).click();
+  await openPicker(page).then(() => page.locator('.presets button', { hasText: 'upright' }).click());
   await page.waitForTimeout(300);
   expect((await stats()).vertices).toBeGreaterThan(200);
   // budget: a frame's scene + draw stays small
@@ -1466,7 +1470,7 @@ test('the action close-up is the pianos’ alone: no string zoom on the bowed st
   const panel = page.locator('.av-panel');
   const press = (x: number, y: number) => (phone ? page.touchscreen.tap(x, y) : page.mouse.click(x, y));
   const choose = async (label: string, id: string) => {
-    await page.locator('.instruments').getByRole('button', { name: label }).click();
+    await openPicker(page).then(() => page.locator(`.pick[aria-label="${label}"]`).click());
     await page.waitForFunction((x) => (window as any).__piano.piano?.instrument === x, id, { timeout: 15_000 });
   };
   // the piano offers it; switching instrument closes it and leaves no zoom cursor behind
@@ -1540,7 +1544,7 @@ test('pianos in 3D: the case hides (button or I), the inside keeps drawing, and 
     await expect.poll(mirror).toBe(true);
   }
   await page.evaluate(() => (window as any).__piano.setPreset('upright'));
-  await page.locator('.presets button', { hasText: 'upright' }).click();
+  await openPicker(page).then(() => page.locator('.presets button', { hasText: 'upright' }).click());
   await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3);
   await page.waitForTimeout(300);
   const verts = () => page.evaluate(() => (window as any).__stage3d.stats.vertices as number);
@@ -1632,7 +1636,7 @@ test('3D draws without one WebGL warning: the grand (its lid a mirror), the upri
   const zoomed = () => page.evaluate(() => (window as any).__stage3d.zoomed);
   for (const preset of ['grand', 'upright']) {
     await page.evaluate((p) => (window as any).__piano.setPreset(p), preset);
-    await page.locator('.presets button', { hasText: preset }).click();
+    await openPicker(page).then(() => page.locator('.presets button', { hasText: preset }).click());
     await ready();
     // the whole piano, strings sounding (their glow is drawn too; on a desktop the grand's open lid
     // mirrors them: a second pass, with its own depth)
@@ -1723,7 +1727,7 @@ test('a key’s close-up in 3D: its own light, the near plane in, zoom about its
   // (a key towards each end: the section is cut from that end)
   for (const [preset, key] of [['grand', 40], ['upright', 84]] as const) {
     await page.evaluate((p) => (window as any).__piano.setPreset(p), preset);
-    await page.locator('.presets button', { hasText: preset }).click();
+    await openPicker(page).then(() => page.locator('.presets button', { hasText: preset }).click());
     await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3);
     // the whole piano: the instrument's own exposure, a near plane sized to it
     expect(await s3<number>('s.r3.exposure'), preset).toBe(1);
@@ -1791,7 +1795,7 @@ test('pianos in 3D: sustain leaves the camera alone, and zooming in stops outsid
   const inner: Record<string, [number[], number[]]> = { grand: [[-0.68, 0.12, 0.12], [0.68, 0.92, 1.95]], upright: [[-0.7, 0.1, 0.06], [0.7, 1.16, 0.55]] };
   for (const preset of ['grand', 'upright']) {
     await page.evaluate((p) => (window as any).__piano.setPreset(p), preset);
-    await page.locator('.presets button', { hasText: preset }).click();
+    await openPicker(page).then(() => page.locator('.presets button', { hasText: preset }).click());
     await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3);
     await page.evaluate(() => (window as any).__stage3d.resetView());
     await page.waitForTimeout(300);
@@ -1849,7 +1853,7 @@ test('the full pedal set: sustain, soft and the middle pedal (a grand’s sosten
   await expect.poll(async () => (await stats()).middle).toBeLessThan(0.1);
   // the upright: the soft pedal is the half-blow rail, the middle pedal its practice muffler
   await page.evaluate(() => (window as any).__piano.setPreset('upright'));
-  await page.locator('.presets button', { hasText: 'upright' }).click();
+  await openPicker(page).then(() => page.locator('.presets button', { hasText: 'upright' }).click());
   await expect(middle.locator('.p-name')).toHaveText('muffler');
   await expect(middle).toHaveAttribute('aria-label', /^Practice muffler/);
   await expect(pedals.nth(1)).toHaveAttribute('aria-label', /hammers rest nearer/);
@@ -2346,10 +2350,10 @@ test('orchestra by hand: the ensemble toggle, instruments counted in; the keys p
   await expect.poll(async () => (await ens(page)).engines, { timeout: 8000 }).toBe(4);
   expect((await ens(page)).lineup).toEqual(['violin', 'violin', 'viola', 'cello']);
   // a tap adds one; past the most an instrument may have, it has none
-  await page.locator('.pick[aria-label="Flute"]').click();
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Flute"]').click());
   await expect.poll(async () => (await ens(page)).lineup).toEqual(['flute', 'violin', 'violin', 'viola', 'cello']);
-  await page.locator('.pick[aria-label="Viola"]').click();
-  await page.locator('.pick[aria-label="Viola"]').click();
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Viola"]').click());
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Viola"]').click());
   await expect.poll(async () => (await ens(page)).lineup).toEqual(['flute', 'violin', 'violin', 'cello']);
   await expect.poll(async () => (await ens(page)).engines, { timeout: 8000 }).toBe(4);
   // the fallboard says what the keys play: no piano, so the highest melodic instrument, the flute
@@ -2437,13 +2441,13 @@ test('orchestra keys: a piano on the stage takes the keys, and keeps them throug
   await expect.poll(async () => (await ens(page)).engines, { timeout: 8000 }).toBe(4);
   expect((await keysState(page)).parts).toEqual([0]);
   // a piano joins the quartet: nothing chosen by hand, so the keys are the piano's, its pedals with them
-  await page.locator('.pick[aria-label="Piano"]').click();
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Piano"]').click());
   await expect.poll(async () => (await ens(page)).lineup).toEqual(['violin', 'violin', 'viola', 'cello', 'grand']);
   expect(await keysState(page)).toEqual({ parts: [4], split: false, chips: [false, false, false, false, true] });
   await expect(page.locator('.pedal').nth(1)).toBeVisible();
   // the second violin chosen as well; the piano becomes an upright in its seat and stays chosen
   await kfChip(page, '.kf-part[data-part="1"]');
-  await page.locator('.presets button', { hasText: 'upright' }).click();
+  await openPicker(page).then(() => page.locator('.presets button', { hasText: 'upright' }).click());
   await expect.poll(async () => (await ens(page)).lineup[4]).toBe('upright');
   expect((await keysState(page)).parts).toEqual([1, 4]);
   await expect(page.locator('.kf-part[data-part="4"]')).toHaveAttribute('data-voice', 'upright');
@@ -2521,14 +2525,14 @@ test('orchestra in 2D: every bow is drawn whole, frog to tip, at either end of i
   await startAudio(page);
   // the lineup the bows were first seen cut in: a flute and the quartet
   await page.locator('.ens-toggle').click();
-  await page.locator('.pick[aria-label="Flute"]').click();
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Flute"]').click());
   await expect.poll(async () => (await ens(page)).frames, { timeout: 8000 }).toBe(5);
   expect((await ens(page)).lineup).toEqual(['flute', 'violin', 'violin', 'viola', 'cello']);
   const stage = (await page.locator('.stage-cv').boundingBox())!;
   const under = (await page.locator('.player').boundingBox())!;
   for (const vector of [false, true]) {
     if (vector) {
-      await page.locator('.vec-toggle').click();
+      await closePicker(page).then(() => page.locator('.vec-toggle').click());
       await expect(page.locator('html')).toHaveAttribute('data-style', 'vector');
     }
     for (const pos of [0, 1, 0.5]) {
@@ -2578,10 +2582,10 @@ test('orchestra in 2D, the Daylight quintet (two violins, viola, two cellos): ev
   await page.goto('/');
   await startAudio(page);
   await page.locator('.ens-toggle').click();
-  await page.locator('.pick[aria-label="Cello"]').click();
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Cello"]').click());
   await expect.poll(async () => (await ens(page)).lineup).toEqual(['violin', 'violin', 'viola', 'cello', 'cello']);
   await expect.poll(async () => (await ens(page)).frames, { timeout: 8000 }).toBe(5);
-  await page.locator('.vec-toggle').click();
+  await closePicker(page).then(() => page.locator('.vec-toggle').click());
   await expect(page.locator('html')).toHaveAttribute('data-style', 'vector');
   const stage = (await page.locator('.stage-cv').boundingBox())!;
   const under = (await page.locator('.player').boundingBox())!;
@@ -2854,8 +2858,8 @@ test('the vector display: off by default; the toggle redraws every family in blu
   // the stage as it was is the default
   await expect(root).not.toHaveAttribute('data-style', /.+/);
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
-  // it closes the picker's row: nothing that was there has moved
-  expect(await page.evaluate(() => document.querySelector('.picker-row')!.lastElementChild!.className)).toBe('vec-toggle');
+  // it is the middle of the view's three, side by side: the drawing, the lines, 3D
+  expect(await page.locator('.view-seg button').evaluateAll((els) => els.map((el) => el.className))).toEqual(['view-2d', 'vec-toggle', 'dim-toggle']);
   const ground = () => page.evaluate(() => getComputedStyle(document.querySelector('.stage')!).backgroundColor + ' / ' + getComputedStyle(document.querySelector('.pick-name')!).fontFamily);
   const classic = await ground();
   await toggle.click();

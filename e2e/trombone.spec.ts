@@ -6,6 +6,7 @@
 // programs real scores use ("Trombone I" on GM 57, "Bass Trombone", "Posaune 2" unprogrammed, with strings)
 // routed to trombones, each seat its size; the Air's four trombones; up to three by the picker.
 import { test, expect, type Page } from '@playwright/test';
+import { closePicker, openPicker } from './picker.ts';
 import { smf } from '../apps/web/test/smf.ts';
 
 const collectErrors = (page: Page) => {
@@ -31,11 +32,13 @@ test('/trombone opens the trombone (a reload too); “trombone” under its glyp
   await page.goto('/trombone');
   await startAudio(page);
   await page.waitForFunction(() => (window as any).__piano.piano?.instrument === 'trombone', null, { timeout: 15_000 });
-  const pick = page.locator('.instruments').getByRole('button', { name: 'Trombone' });
+  const pick = page.locator('.pick[aria-label="Trombone"]');
   await expect(pick).toHaveAttribute('aria-pressed', 'true');
   await expect(pick.locator('.pick-name')).toHaveText('trombone');
-  await expect(pick.locator('.pick-name')).toHaveAttribute('data-short', 'tbn.');
+  // (where the picker is a sheet, its glyph shows with the sheet open)
+  await openPicker(page);
   await expect(pick.locator('svg.glyph')).toBeVisible();
+  await closePicker(page);
   await expect.poll(() => page.evaluate(() => location.pathname)).toBe('/trombone');
   await page.reload();
   await startAudio(page);
@@ -204,37 +207,9 @@ test('orchestra: “Trombone I” (GM 57), “Bass Trombone” and “Posaune 2�
   // by hand: from a string quartet, the picker adds trombones, up to three (each its own engine)
   await page.evaluate(() => (window as any).__orchestra.ensemble.setLineup(['violin', 'violin', 'viola', 'cello']));
   for (let n = 1; n <= 3; n++) {
-    await page.locator('.instruments').getByRole('button', { name: 'Trombone' }).click();
+    await openPicker(page).then(() => page.locator('.pick[aria-label="Trombone"]').click());
     await expect.poll(async () => (await ens(page)).kinds.filter((v) => v === 'trombone').length, { timeout: 8000 }).toBe(n);
   }
-  await expect(page.locator('.instruments').getByRole('button', { name: 'Trombone' }).locator('.pick-n')).toHaveText('×3');
+  await expect(page.locator('.pick[aria-label="Trombone"]').locator('.pick-n')).toHaveText('×3');
   expect(errors).toEqual([]);
-});
-
-test('the trombone on a phone: thirteen picks in the band six took (271 px), “tbn.” under its glyph, the band no taller with a note sounding, names clear of each other, no horizontal scroll', async ({ page }, info) => {
-  test.skip(info.project.name !== 'phone', 'the phone layout');
-  for (const size of [null, { width: 390, height: 844 }]) {
-    if (size) await page.setViewportSize(size);
-    await page.goto('/trombone');
-    await startAudio(page);
-    await page.waitForFunction(() => (window as any).__piano.piano?.instrument === 'trombone', null, { timeout: 15_000 });
-    const band = async () => (await page.locator('.stage-top').boundingBox())!.height;
-    const before = await band();
-    await page.evaluate(() => (window as any).__piano.noteOn(53, 90, 'keys'));
-    await expect(page.locator('.r-note')).not.toBeEmpty();
-    const during = await band();
-    await page.evaluate(() => (window as any).__piano.noteOff(53, 'keys'));
-    expect(during, `${size?.width ?? 'Pixel 7'}`).toBe(before);
-    const boxes = await page.locator('.instruments .pick').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ l: r.left, r: r.right, t: r.top })));
-    expect(boxes.length).toBe(13);
-    expect(boxes[12].r - boxes[0].l, 'the picks’ row').toBeLessThanOrEqual(271.5);
-    expect(await page.locator('.instruments').getByRole('button', { name: 'Trombone' }).locator('.pick-name').evaluate((el) => getComputedStyle(el, '::after').content)).toBe('"tbn."');
-    for (let i = 1; i < boxes.length; i++) {
-      expect(boxes[i].l).toBeGreaterThanOrEqual(boxes[i - 1].r - 0.5);
-      expect(boxes[i].t).toBeCloseTo(boxes[0].t, 0);
-    }
-    const names = await page.locator('.instruments .pick-name').evaluateAll((els) => els.map((el) => { const r = (el as HTMLElement).getBoundingClientRect(); return { l: r.left, r: r.right }; }));
-    for (let i = 1; i < names.length; i++) expect(names[i].l, `name ${i}`).toBeGreaterThanOrEqual(names[i - 1].r - 0.5);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  }
 });

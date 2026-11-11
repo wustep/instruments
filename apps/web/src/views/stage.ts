@@ -3,13 +3,14 @@
 // fallboard; there is almost no text.
 
 import { audio } from '../audio.ts';
-import { DEFAULT_PARAMS, INSTRUMENT_IDS, INSTRUMENT_INFO, PRESETS, PRESET_IDS, bowedGeometry, midiName, pianoKeySummary, tromboneSizeOf, type InstrumentId, type KeySummary, type VisualFrame } from '@piano-model/engine';
+import { DEFAULT_PARAMS, INSTRUMENT_IDS, INSTRUMENT_INFO, PRESETS, PRESET_IDS, bowedGeometry, pianoKeySummary, tromboneSizeOf, type InstrumentId, type KeySummary, type VisualFrame } from '@piano-model/engine';
 import { cssVar, fitCanvas, fmt, h, type View } from '../ui/dom.ts';
 import type { KeyboardHandle } from '../ui/keyboard.ts';
 import { openActionView } from '../ui/action-view.ts';
 import type { Stage3D } from '../ui/gl/stage3d.ts';
 import { webgl2Available } from '../ui/gl/webgl2.ts';
-import { ensembleIcon, glyph, knob, type KnobSpec } from '../ui/controls.ts';
+import { ensembleIcon, glyph, knob, voiceGlyph, type KnobSpec } from '../ui/controls.ts';
+import { etHz, noteName, partNotes, summarize } from '../ui/readout.ts';
 import { ensemble, type PartLive } from '../orchestra/ensemble.ts';
 import { isKeyboard, planOf, VOICE_INFO, type Voice } from '../orchestra/assign.ts';
 import { enterOrchestra, leaveOrchestra } from '../orchestra/setup.ts';
@@ -80,9 +81,6 @@ const TIMPANI_KNOBS: KnobSpec[] = [
   { key: 'damp', label: 'Damping', short: 'damp', sub: 'a released key: the drum rings on (0) … the fingers stop the head at once', min: 0, max: 1, step: 0.01, fmt: (v) => fmt(v, 2) },
   { key: 'roll', label: 'Roll', short: 'roll', sub: 'a held key rolls: single strokes (0) … a fast roll', min: 0, max: 1, step: 0.01, fmt: (v) => (v < 0.02 ? 'off' : fmt(v, 2)) },
 ];
-/** a phone's names under the picks, where the whole name is too long for its pick: the score's abbreviation
- *  (twelve picks share the band six took) */
-const SHORT: Partial<Record<InstrumentId, string>> = { violin: 'vln.', clarinet: 'clar.', bassoon: 'bsn.', trumpet: 'tpt.', trombone: 'tbn.', timpani: 'timp.' };
 const PRESET_SHORT: Record<string, string> = { grand: 'grand', upright: 'upright', 'honky-tonk': 'honky-tonk', prepared: 'prepared' };
 /** presets offered on the stage; 'honky-tonk' and 'prepared' still exist in the engine
  *  (PRESETS) and come back by adding them here */
@@ -92,8 +90,25 @@ const VISIBLE_PRESETS = ['grand', 'upright'];
  *  section's menu adds more desks, as far as the stage has room: assign.ts fitsStage) */
 const MOST: Record<Voice, number> = { flute: 2, oboe: 2, clarinet: 2, bassoon: 2, horn: 4, trumpet: 2, trombone: 3, timpani: 2, violin: 3, viola: 2, cello: 2, bass: 2, grand: 2, upright: 2 };
 const familyOf = (v: Voice) => INSTRUMENT_INFO[VOICE_INFO[v].instrument].family;
+/** the picker's groups, as a score orders them after the keys: the eye finds a family, then the instrument */
+const GROUPS = ['keys', 'strings', 'woodwinds', 'brass', 'percussion'] as const;
+const groupOf = (id: InstrumentId): (typeof GROUPS)[number] => {
+  const f = INSTRUMENT_INFO[id].family;
+  return f === 'piano' ? 'keys' : f === 'bowed' ? 'strings' : f === 'brass' ? 'brass' : f === 'percussion' ? 'percussion' : 'woodwinds';
+};
+/** where the picker folds behind one button (a sheet of every instrument, large enough to read and to
+ *  touch): a phone either way up, a narrow window */
+const COMPACT = '(max-width: 1320px), (max-height: 500px) and (orientation: landscape)';
+/** where the stage's own tools (the view, the piano's case) sit in the band under the bar, beside the readout */
+const PHONE = '(max-width: 760px)';
 
-export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: MidiPlayer): View {
+/** the top bar's two places for the stage's controls (main.ts): the picker's, and the view's tools' */
+export interface BarSlots {
+  pick: HTMLElement;
+  tools: HTMLElement;
+}
+
+export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: MidiPlayer, bar: BarSlots): View {
   let inst: InstrumentId = audio.instrument;
   const family = () => INSTRUMENT_INFO[inst].family;
   /** the action close-up (click or tap a note's strings → that key's action) is the pianos' alone:
@@ -105,7 +120,24 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   // (the double bass's name under its glyph is "bass", one word as the others are; its full name is its
   // accessible name and tooltip)
   const instBtns = INSTRUMENT_IDS.map((id) => {
-    const b = h('button', { class: 'pick', type: 'button', 'aria-label': INSTRUMENT_INFO[id].label, title: INSTRUMENT_INFO[id].blurb, 'aria-pressed': String(inst === id), onclick: () => (ensemble.active ? addToLineup(id) : void audio.setInstrument(id)) }, h('span', { class: 'pick-name', 'data-short': SHORT[id] }, (id === 'bass' ? 'bass' : INSTRUMENT_INFO[id].label).toLowerCase()), h('span', { class: 'pick-n', 'aria-hidden': 'true' }));
+    const b = h(
+      'button',
+      {
+        class: 'pick',
+        type: 'button',
+        'aria-label': INSTRUMENT_INFO[id].label,
+        title: INSTRUMENT_INFO[id].blurb,
+        'aria-pressed': String(inst === id),
+        onclick: () => {
+          if (ensemble.active) return addToLineup(id);
+          // (one instrument: chosen, the sheet is done)
+          setOpen(false);
+          void audio.setInstrument(id);
+        },
+      },
+      h('span', { class: 'pick-name' }, (id === 'bass' ? 'bass' : INSTRUMENT_INFO[id].label).toLowerCase()),
+      h('span', { class: 'pick-n', 'aria-hidden': 'true' }),
+    );
     b.prepend(glyph(id) as unknown as HTMLElement);
     return b;
   });
@@ -114,8 +146,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   // most it may have, or with no room for another, it has none), every other seat's routing kept
   // (orchestra/ensemble.ts addVoice). (The pieces, a few public-domain scores that bring their own
   // lineup, are in the player's overlay, with play and open: ui/player.ts.)
-  const ensBtn = h('button', { class: 'ens-toggle', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Ensemble: several instruments', 'data-tip': 'ensemble · tap instruments to add them' });
-  ensBtn.append(ensembleIcon());
+  const ensBtn = h('button', { class: 'ens-toggle', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Ensemble: several instruments', 'data-tip': 'ensemble · tap instruments to add them' }, h('span', { class: 'pick-name' }, 'orchestra'));
+  ensBtn.prepend(ensembleIcon() as unknown as HTMLElement);
   const pianoVoice = (): Voice => (audio.preset === 'upright' || audio.preset === 'honky-tonk' ? 'upright' : 'grand');
   const voiceOfPick = (id: InstrumentId): Voice => (id === 'piano' ? pianoVoice() : (id as Voice));
   const countOf = (id: InstrumentId, lineup: Voice[]) => lineup.filter((v) => (id === 'piano' ? isKeyboard(v) : v === id)).length;
@@ -153,6 +185,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
             ensemble.lineup.forEach((x, k) => isKeyboard(x) && x !== v && ensemble.partVoice(k, v));
           }
           // (the buttons follow the change: showPreset)
+          if (!ensemble.active) setOpen(false);
           await audio.setPreset(id);
           if (audio.piano) syncKnobs(audio.piano.params as unknown as Record<string, number>);
         },
@@ -173,15 +206,16 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   const has3d = webgl2Available();
   let want3d = has3d && look.want3d;
   const dimBtn = h('button', { class: 'dim-toggle', type: 'button', 'aria-pressed': String(want3d), 'aria-label': '3D view', 'data-tip': '3D · drag to turn, pinch to zoom' }, '3d');
+  // the view is one choice of three, side by side: as drawn, in vector lines, in 3D (the last two each still
+  // turn off where they are pressed again: back to the drawing)
+  const flatBtn = h('button', { class: 'view-2d', type: 'button', 'aria-pressed': 'false', 'aria-label': '2D view', 'data-tip': '2D · the drawing' }, '2d');
   dimBtn.hidden = !has3d;
   // the vector display: the 2D stage's other style (ui/vector/kit.ts). The stage as it was stays the
   // default; the choice is remembered, and ?view=vector (or =2d; the old ?style=vector) in the address
-  // sets it. Its toggle closes the picker's row: every control that was there keeps its place (3d next
-  // to the case toggle it brings, then the ensemble), and how the stage is drawn, the choice made least
-  // often, comes last.
+  // sets it. It is the middle of the view's three (2d · vector · 3d).
   let wantVector = look.wantVector;
-  const vecBtn = h('button', { class: 'vec-toggle', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Vector lines', 'data-tip': 'vector lines' });
-  vecBtn.innerHTML = '<svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="3.4" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M7 .8v2.4M7 10.8v2.4M.8 7h2.4M10.8 7h2.4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>';
+  const vecBtn = h('button', { class: 'vec-toggle', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Vector lines', 'data-tip': 'vector lines' }, 'vector');
+  const viewSeg = h('div', { class: 'view-seg', role: 'group', 'aria-label': 'View' }, flatBtn, vecBtn, dimBtn);
   // pianos in 3D: hide the case (the plate, strings, soundboard, keys and the whole action stay);
   // remembered for the session; the I key ("inside") toggles it too (no note or octave key uses I)
   let caseHidden = false;
@@ -211,17 +245,70 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     e.preventDefault();
     setCase(!caseHidden);
   });
-  const picker = h('div', { class: 'picker' }, h('div', { class: 'instruments', role: 'group', 'aria-label': 'Instrument' }, instBtns), h('div', { class: 'picker-row' }, presets, dimBtn, caseBtn, ensBtn, vecBtn));
+  // the picker: the instruments by family. Where there is no room for all thirteen at a size to read and
+  // touch (COMPACT), one button names what is on the stage and opens them as a sheet
+  const fams = GROUPS.map((g) => h('div', { class: 'fam', 'data-fam': g }, instBtns.filter((_, i) => groupOf(INSTRUMENT_IDS[i]) === g)));
+  const instruments = h('div', { class: 'instruments', role: 'group', 'aria-label': 'Instrument' }, fams);
+  const pop = h('div', { class: 'picker-pop', id: 'picker-pop' }, instruments);
+  const openName = h('span', { class: 'po-name' });
+  const openBtn = h('button', { class: 'pick-open', type: 'button', 'aria-haspopup': 'true', 'aria-expanded': 'false', 'aria-controls': 'picker-pop', 'aria-label': 'Instruments' }, openName, h('span', { class: 'po-chev', 'aria-hidden': 'true' }));
+  const picker = h('div', { class: 'picker' }, openBtn, pop, ensBtn);
+  const setOpen = (on: boolean) => {
+    if (on === picker.hasAttribute('data-open')) return;
+    picker.toggleAttribute('data-open', on);
+    document.documentElement.toggleAttribute('data-picker', on);
+    openBtn.setAttribute('aria-expanded', String(on));
+  };
+  openBtn.addEventListener('click', () => setOpen(!picker.hasAttribute('data-open')));
+  // (shut by a touch anywhere else, and by Esc)
+  const shutOutside = (e: Event) => {
+    if (picker.hasAttribute('data-open') && !picker.contains(e.target as Node)) setOpen(false);
+  };
+  const shutEsc = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape' || !picker.hasAttribute('data-open')) return;
+    setOpen(false);
+    openBtn.focus();
+  };
+  /** the button says what is on the stage: the instrument, or how many play */
+  const showOpen = () => {
+    const on = ensemble.active;
+    const n = ensemble.lineup.length;
+    openBtn.querySelector('svg')?.remove();
+    // (an orchestra's own sign is the button beside this one)
+    if (!on) openBtn.prepend(glyph(inst) as unknown as HTMLElement);
+    openBtn.toggleAttribute('data-count', on);
+    openName.textContent = on ? `${n} ${n === 1 ? 'player' : 'players'}` : (inst === 'bass' ? 'bass' : INSTRUMENT_INFO[inst].label).toLowerCase();
+    openBtn.setAttribute('aria-label', on ? `Instruments: ${n} in the orchestra` : `Instrument: ${INSTRUMENT_INFO[inst].label}`);
+  };
+  // the stage's own tools: which piano, its case, the view
+  const tools = h('div', { class: 'stage-tools' }, caseBtn, viewSeg);
 
   // ---------------------------------------------------------------- readout, spectrum, scope
+  // the readout says what is sounding, all of it (ui/readout.ts): a note and its frequency; a few notes by
+  // name with the chord they make; many, counted; an ensemble's parts. Let go, it keeps what was last
+  // heard, dimmed
   const noteEl = h('div', { class: 'r-note' }, '');
   const hzEl = h('div', { class: 'r-hz' }, '');
-  const readout = h('div', { class: 'readout', 'aria-live': 'polite' }, noteEl, hzEl);
-  const specCv = h('canvas', { class: 'spec', role: 'img', 'aria-label': 'Spectrum of the output, with the predicted partials of the last note' });
+  const readout = h('div', { class: 'readout', 'aria-live': 'polite', 'data-idle': '' }, noteEl, hzEl);
+  /** an ensemble: who is sounding, an instrument at a time (in the scope's place: one hammer's or one bow's
+   *  trace says nothing of eighteen players) */
+  const partsEl = h('div', { class: 'parts', role: 'group', 'aria-label': 'The parts sounding' });
+  const specCv = h('canvas', { class: 'spec', role: 'img', 'aria-label': 'Spectrum of the output, with the predicted partials of the note sounding, or a mark at each note of several' });
   const scopeCv = h('canvas', { class: 'scope-cv', role: 'img', 'aria-label': 'Excitation: hammer force, bow friction or air jet' });
   const scopeCap = h('div', { class: 'scope-cap' });
   const scope = h('div', { class: 'scope' }, scopeCv, scopeCap);
-  const top = h('div', { class: 'stage-top' }, picker, readout, h('div', { class: 'spec-wrap' }, specCv), scope);
+  const top = h('div', { class: 'stage-top' }, readout, h('div', { class: 'spec-wrap' }, specCv), scope, partsEl);
+  // where each control sits follows the window: the piano's kind with the view's tools, or in the picker's
+  // sheet beside the piano; the tools in the bar, or (a phone) in the band beside the readout
+  const mqCompact = typeof matchMedia === 'function' ? matchMedia(COMPACT) : null;
+  const mqPhone = typeof matchMedia === 'function' ? matchMedia(PHONE) : null;
+  const place = () => {
+    if (mqCompact?.matches) pop.append(presets);
+    else tools.prepend(presets);
+    if (mqPhone?.matches) top.insertBefore(tools, readout.nextSibling);
+    else bar.tools.append(tools);
+    if (!mqCompact?.matches) setOpen(false);
+  };
   const canvas = h('canvas', { class: 'stage-cv', role: 'img', 'aria-label': 'The instrument, moving as the simulation computes it' });
   // direct manipulation: drag the room's edge (reverb) and the grand's lid
   // (no visible labels: a short tooltip on hover, focus and drag says what each one is)
@@ -344,6 +431,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   const showStyle = () => {
     const on = vectorOn();
     vecBtn.setAttribute('aria-pressed', String(on));
+    flatBtn.setAttribute('aria-pressed', String(!on && !want3d));
     // (the address follows: nav.ts)
     look.shows(want3d, wantVector);
     if (on) {
@@ -353,8 +441,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     // (the page's ground follows: the body keeps its own copy for the overscroll colour)
     document.body.style.setProperty('--ground', cssVar('--ground'));
   };
-  vecBtn.addEventListener('click', () => {
-    wantVector = !vectorOn();
+  const setVector = (on: boolean) => {
+    wantVector = on;
     try {
       localStorage.setItem('piano-model.style', wantVector ? 'vector' : 'classic');
     } catch {
@@ -364,6 +452,11 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     if (wantVector && want3d) set3d(false);
     showStyle();
     fadeIn();
+  };
+  vecBtn.addEventListener('click', () => setVector(!vectorOn()));
+  flatBtn.addEventListener('click', () => {
+    if (want3d) set3d(false);
+    setVector(false);
   });
   const show3d = () => {
     caseBtn.hidden = !(want3d && family() === 'piano') || ensemble.active;
@@ -681,7 +774,94 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     const r = canvas.getBoundingClientRect();
     return [r.left + c.x + c.w / 2, r.top + top.getBoundingClientRect().height + c.y + c.h / 2];
   };
-  /** the part that began a note last (the readout, the spectrum's partials and the scope follow it) */
+  // ---------------------------------------------------------------- what is sounding
+  /** the ensemble's strip: a cell for each instrument it has (its desks together), in the lineup's order */
+  let partCells: { seats: number[]; el: HTMLElement; notes: HTMLElement; key: string }[] = [];
+  let partsKey = '';
+  const buildParts = () => {
+    const lineup = ensemble.active ? ensemble.lineup : [];
+    if (lineup.join() === partsKey) return;
+    partsKey = lineup.join();
+    const kinds = [...new Set(lineup)];
+    partCells = kinds.map((v) => {
+      const seats = lineup.flatMap((x, k) => (x === v ? [k] : []));
+      const notes = h('span', { class: 'part-notes' });
+      const name = VOICE_INFO[v].label.toLowerCase();
+      const cell = h('div', { class: 'part', 'data-voice': v, 'data-tip': seats.length > 1 ? `${name} ×${seats.length}` : name }, seats.length > 1 ? h('span', { class: 'part-n', 'aria-hidden': 'true' }, `×${seats.length}`) : null, notes);
+      cell.prepend(voiceGlyph(v) as unknown as HTMLElement);
+      return { seats, el: cell, notes, key: '' };
+    });
+    partsEl.replaceChildren(...partCells.map((c) => c.el));
+    partsEl.dataset.n = String(partCells.length);
+  };
+  /** the notes sounding now, lowest first; an ensemble's, with how many of its parts sound */
+  const heard: number[] = [];
+  let heardParts = 0;
+  let heardKey = 'none';
+  /** each sounding note's frequency, where more than one sounds (the spectrum marks them) */
+  let marks: number[] | null = null;
+  const gather = (ens: boolean) => {
+    heard.length = 0;
+    heardParts = 0;
+    if (ens) {
+      for (const p of ensemble.parts) {
+        if (!p.down.size) continue;
+        heardParts++;
+        for (const m of p.down) if (!heard.includes(m)) heard.push(m);
+      }
+    } else {
+      // (the engine's word where it has given it: a one-voice instrument sounds one of the keys held, a
+      // piano's pedal keeps notes whose keys are up)
+      for (const m of audio.down.keys()) if (audio.isSounding(m)) heard.push(m);
+      if (audio.soundingKnown) for (const m of audio.sounding) if (!heard.includes(m)) heard.push(m);
+    }
+    heard.sort((a, b) => a - b);
+  };
+  const hzOf = (ens: boolean) => (m: number) => {
+    const eng = ens ? ensemble.parts.find((p) => p.down.has(m))?.engine : audio.piano;
+    return eng?.keys.find((k) => k.midi === m)?.f1 ?? etHz(m);
+  };
+  /** the head line, its accidentals set as signs (the text face has none: a borrowed one sits wide and upright) */
+  const setHead = (text: string) => noteEl.replaceChildren(...text.split(/([♭♯])/).map((t) => (t === '♭' || t === '♯' ? h('span', { class: 'acc' }, t) : t)));
+  const showHeard = (ens: boolean) => {
+    gather(ens);
+    const key = heard.length ? `${ens ? `${heardParts}:` : ''}${heard.join()}` : '';
+    if (key !== heardKey) {
+      heardKey = key;
+      const r = summarize(heard, { hz: hzOf(ens), parts: ens ? heardParts : 0 });
+      // (nothing sounding: what was last heard stays, dimmed)
+      readout.toggleAttribute('data-idle', !r);
+      if (r) {
+        setHead(r.head);
+        hzEl.textContent = r.sub;
+        readout.dataset.size = String(r.size);
+      }
+      marks = heard.length > 1 ? heard.map(hzOf(ens)) : null;
+    }
+    if (!ens) return;
+    for (const c of partCells) {
+      let k = '';
+      for (const i of c.seats) {
+        const d = ensemble.parts[i]?.down;
+        if (d?.size) k += `${[...d].join()};`;
+      }
+      if (k === c.key) continue;
+      c.key = k;
+      c.el.toggleAttribute('data-on', !!k);
+      // (silent, it keeps its last notes' place: the strip does not shift)
+      if (k) c.notes.textContent = partNotes(c.seats.flatMap((i) => [...(ensemble.parts[i]?.down ?? [])]));
+    }
+  };
+  /** nothing heard yet (a change of instrument, of ensemble) */
+  const clearHeard = () => {
+    noteEl.textContent = '';
+    hzEl.textContent = '';
+    readout.setAttribute('data-idle', '');
+    delete readout.dataset.size;
+    heardKey = 'none';
+    marks = null;
+  };
+  /** the part that began a note last (alone, the spectrum shows its partials) */
   const leadPart = (): PartLive | null => {
     let best: PartLive | null = null;
     for (const p of ensemble.parts) if (!best || p.lastOn > best.lastOn) best = p;
@@ -711,6 +891,11 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     const on = ensemble.active;
     const lineup = ensemble.lineup;
     ensBtn.setAttribute('aria-pressed', String(on));
+    // (many voices change faster than they can be read out: the readout speaks for one instrument only)
+    readout.setAttribute('aria-live', on ? 'off' : 'polite');
+    if (on !== el.hasAttribute('data-ensemble')) clearHeard();
+    buildParts();
+    showOpen();
     el.toggleAttribute('data-ensemble', on);
     document.documentElement.toggleAttribute('data-ensemble', on);
     instBtns.forEach((b, i) => {
@@ -758,8 +943,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     action?.close();
     canvas.style.cursor = '';
     if (s3) s3.el.style.cursor = '';
-    noteEl.textContent = '';
-    hzEl.textContent = '';
+    clearHeard();
+    showOpen();
     buildKnobs();
     if (ensemble.active) applyEnsemble();
   };
@@ -818,7 +1003,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
         }
       }
       ctx.stroke();
-      scopeCap.textContent = `${midiName(s.midi)} · ${fmt(s.vHammer, 2)} m/s · ${fmt(s.peak, 1)} N · ${fmt(s.duration * 1000, 1)} ms`;
+      scopeCap.textContent = `${noteName(s.midi)} · ${fmt(s.vHammer, 2)} m/s · ${fmt(s.peak, 1)} N · ${fmt(s.duration * 1000, 1)} ms`;
       return;
     }
     const e = frame?.excite;
@@ -996,20 +1181,16 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     // spectrum hairline
     const sp = fitCanvas(specCv);
     sp.ctx.clearRect(0, 0, sp.w, sp.h);
-    const lead = ens ? leadPart() : null;
-    if (lead) {
-      const lf = lead.frame;
-      const lfam = familyOf(lead.voice);
-      drawSpectrum(sp.ctx, 0, 6, sp.w, sp.h - 8, audio.analyser, specBuf, lf?.focus ?? null, lfam, vec ? (lfam === 'piano' ? SPECTRUM_INK_V_PIANO : SPECTRUM_INK_V) : undefined);
-      const ld = draws[ensemble.parts.indexOf(lead)];
-      drawScope(lf, lfam, lead.strike, ld?.bowed?.geom ?? null);
+    showHeard(ens);
+    const sink = vec ? (f: string) => (f === 'piano' ? SPECTRUM_INK_V_PIANO : SPECTRUM_INK_V) : () => undefined;
+    if (ens) {
+      // (one part alone: its note's partials; several: a mark at each note)
+      const lead = heard.length === 1 ? leadPart() : null;
+      const lfam = lead ? familyOf(lead.voice) : 'ensemble';
+      drawSpectrum(sp.ctx, 0, 6, sp.w, sp.h - 8, audio.analyser, specBuf, lead?.frame?.focus ?? null, lfam, sink(lfam), marks);
     } else {
-      drawSpectrum(sp.ctx, 0, 6, sp.w, sp.h - 8, audio.analyser, specBuf, focus, family(), vec ? (family() === 'piano' ? SPECTRUM_INK_V_PIANO : SPECTRUM_INK_V) : undefined);
+      drawSpectrum(sp.ctx, 0, 6, sp.w, sp.h - 8, audio.analyser, specBuf, focus, family(), sink(family()), marks);
       drawScope(frame, family(), strike, bowedGeom);
-    }
-    if (focus && !noteEl.textContent && !ens) {
-      noteEl.textContent = midiName(focus.midi);
-      hzEl.textContent = `${fmt(focus.f1, 1)} Hz`;
     }
     raf = requestAnimationFrame(loop);
   };
@@ -1029,26 +1210,24 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     el,
     dock: true,
     mount() {
+      bar.pick.replaceChildren(picker);
+      place();
+      for (const mq of [mqCompact, mqPhone]) {
+        mq?.addEventListener('change', place);
+        unsubs.push(() => mq?.removeEventListener('change', place));
+      }
+      document.addEventListener('pointerdown', shutOutside, true);
+      window.addEventListener('keydown', shutEsc);
+      unsubs.push(() => document.removeEventListener('pointerdown', shutOutside, true), () => window.removeEventListener('keydown', shutEsc));
       attach();
       unsubs.push(audio.state.on(() => attach()));
       unsubs.push(audio.instrumentChanged.on(applyInstrument));
       unsubs.push(ensemble.changed.on(applyEnsemble));
       unsubs.push(
-        ensemble.notes.on((n) => {
-          if (!n.on) return;
-          noteEl.textContent = midiName(n.midi);
-          const k = ensemble.parts[n.part]?.engine?.keys.find((x) => x.midi === n.midi);
-          hzEl.textContent = `${fmt(k?.f1 ?? 440 * 2 ** ((n.midi - 69) / 12), 1)} Hz`;
-        }),
-      );
-      unsubs.push(
         audio.notes.on((n) => {
           if (!n.on) return;
           pianoState.strikes.set(n.midi, performance.now());
           pianoState.vels.set(n.midi, n.velocity);
-          noteEl.textContent = midiName(n.midi);
-          const k = audio.piano?.keys.find((x) => x.midi === n.midi);
-          hzEl.textContent = k ? `${fmt(k.f1, 1)} Hz` : '';
         }),
       );
       unsubs.push(audio.presetChanged.on(showPreset));
@@ -1068,6 +1247,9 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       unsubVis?.();
       unsubVis = null;
       unsubs.forEach((u) => u());
+      setOpen(false);
+      bar.pick.replaceChildren();
+      tools.remove();
       knobSlot.replaceChildren();
     },
   };

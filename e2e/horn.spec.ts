@@ -6,6 +6,7 @@
 // sounds, "Horn in F" typed at its written pitch, "Hn. 3" unprogrammed, with strings) routed to horns, the
 // written part a fifth down, and the third and fourth horns by hand.
 import { test, expect, type Page } from '@playwright/test';
+import { closePicker, openPicker } from './picker.ts';
 import { smf } from '../apps/web/test/smf.ts';
 
 const collectErrors = (page: Page) => {
@@ -32,10 +33,13 @@ test('/horn and /french-horn open the horn (a reload too); “horn” under its 
     await page.goto(path);
     await startAudio(page);
     await page.waitForFunction(() => (window as any).__piano.piano?.instrument === 'horn', null, { timeout: 15_000 });
-    const pick = page.locator('.instruments').getByRole('button', { name: 'Horn' });
+    const pick = page.locator('.pick[aria-label="Horn"]');
     await expect(pick).toHaveAttribute('aria-pressed', 'true');
     await expect(pick.locator('.pick-name')).toHaveText('horn');
+    // (where the picker is a sheet, its glyph shows with the sheet open)
+    await openPicker(page);
     await expect(pick.locator('svg.glyph')).toBeVisible();
+    await closePicker(page);
     // the address the page keeps is the instrument's own
     await expect.poll(() => page.evaluate(() => location.pathname)).toBe('/horn');
   }
@@ -168,9 +172,9 @@ test('orchestra: “Corno I in F” (GM 60), a “Horn in F” typed at its writ
   // by hand: from a string quartet, the picker adds horns, up to four (each its own engine)
   await page.evaluate(() => (window as any).__orchestra.ensemble.setLineup(['violin', 'violin', 'viola', 'cello']));
   for (let n = 1; n <= 4; n++) {
-    await page.locator('.instruments').getByRole('button', { name: 'Horn' }).click();
+    await openPicker(page).then(() => page.locator('.pick[aria-label="Horn"]').click());
     await expect.poll(async () => (await ens(page)).kinds.filter((v) => v === 'horn').length, { timeout: 8000 }).toBe(n);
   }
-  await expect(page.locator('.instruments').getByRole('button', { name: 'Horn' }).locator('.pick-n')).toHaveText('×4');
+  await expect(page.locator('.pick[aria-label="Horn"]').locator('.pick-n')).toHaveText('×4');
   expect(errors).toEqual([]);
 });

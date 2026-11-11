@@ -3,6 +3,7 @@
 // well), and in a string quintet in Orchestra mode (at the group's one px/m, so larger than the cello
 // beside it by its own size, every bow clear of the others, the group in the middle of the stage).
 import { test, expect, type Page } from '@playwright/test';
+import { closePicker, openPicker } from './picker.ts';
 
 const collectErrors = (page: Page) => {
   const errors: string[] = [];
@@ -47,7 +48,7 @@ const inked = (page: Page, b: Box) =>
 
 /** the stage's own style or the vector lines */
 async function setStyle(page: Page, vector: boolean) {
-  if (vector !== (await page.evaluate(() => document.documentElement.dataset.style === 'vector'))) await page.locator('.vec-toggle').click();
+  if (vector !== (await page.evaluate(() => document.documentElement.dataset.style === 'vector'))) await closePicker(page).then(() => page.locator('.vec-toggle').click());
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.style === 'vector')).toBe(vector);
 }
 
@@ -133,12 +134,12 @@ test('orchestra in 2D, a string quintet with the double bass (and with two): the
   await startAudio(page);
   await page.locator('.ens-toggle').click();
   await expect.poll(() => ens(page)).toEqual(['violin', 'violin', 'viola', 'cello']);
-  await page.locator('.pick[aria-label="Double bass"]').click();
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Double bass"]').click());
   await expect.poll(() => ens(page)).toEqual(['violin', 'violin', 'viola', 'cello', 'bass']);
   const stage = (await rectOf(page, '.stage-cv'))!;
   for (const lineup of [['violin', 'violin', 'viola', 'cello', 'bass'], ['violin', 'violin', 'viola', 'cello', 'bass', 'bass']]) {
     if (lineup.length === 6) {
-      await page.locator('.pick[aria-label="Double bass"]').click();
+      await openPicker(page).then(() => page.locator('.pick[aria-label="Double bass"]').click());
       await expect.poll(() => ens(page)).toEqual(lineup);
     }
     await expect.poll(() => page.evaluate(() => (window as any).__orchestra.ensemble.parts.filter((p: any) => p.frame).length), { timeout: 10_000 }).toBe(lineup.length);
