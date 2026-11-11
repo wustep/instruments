@@ -68,8 +68,8 @@ export const tubaTubeLength = (f: TubaFingering): number => TUBA_LENGTH * Math.p
 
 /** The voicing (lipcone.ts LipConeVoice): the lips, the bore's losses and the radiation's colour. Fitted to
  *  the University of Iowa MIS tuba (pp/mf/ff, C1–C4) with scripts/fit-tuba.ts on the fit half of its notes
- *  (even MIDI numbers), judged on the held-out half (scripts/judge.ts); artifacts/new3/tuba/NOTES.md.
- *  (Provisional: the horn's voicing with a tuba's bell cutoff and colour, before the fit.) */
+ *  (even MIDI numbers), judged on the held-out half (scripts/judge.ts): BETTER than the horn's voicing set
+ *  to a tuba's bell by hand, held-out 10.83 → 5.89 (artifacts/round3/tuba/NOTES.md). The fit: 14.9 → 3.27. */
 export const TUBA_VOICE: TubaVoice = {
   lipQ: 54.47,
   lipQTop: 54.91,
@@ -84,13 +84,13 @@ export const TUBA_VOICE: TubaVoice = {
   gammaExp: -0.0176,
   riseLo: 0.005,
   riseHi: 0.04509,
-  riseExp: -0.2719,
+  riseExp: -0.2639,
   tongueHold: 0.01833,
   tongueRel: 1.963,
   kick: 1.65,
   qAttack: 0.3531,
   qTau: 0.189,
-  attackBoost: 1.258,
+  attackBoost: 1.283,
   attackTau: 0.03773,
   apexRel: 3.639,
   steep: 0.009428,
@@ -99,17 +99,17 @@ export const TUBA_VOICE: TubaVoice = {
   wall: 0.948,
   noise: 0.4,
   noiseTop: 0.2443,
-  hp: 300,
-  f1: 602.2,
-  g1: 15.91,
+  hp: 299.7,
+  f1: 601.6,
+  g1: 15.9,
   q1: 0.8037,
   lp: 1796,
-  lpQ: 0.7061,
+  lpQ: 0.7374,
   lpExp: 0.1742,
   lpDyn: 2.469,
-  shelfF: 2694,
+  shelfF: 2707,
   shelfG: 6,
-  tilt: -1.912,
+  tilt: -1.901,
 };
 
 /** the tuba: the shared core (lipcone.ts) at the tuba's compass, fingering and voicing */
@@ -126,8 +126,17 @@ export class TubaCore extends LipConeCore<TubaFingering> {
         rest: 48,
         voice: TUBA_VOICE,
         tuning: () => TubaCore.tuningTable,
+        // Its level is set beside the horn's (its ff notes at −18 dBFS, the horn's at −17.5), not at the Iowa
+        // tuba session's, which was recorded 19 dB under the Iowa horn's (ff −33…−37 dBFS): a tuba at ff is no
+        // quieter than a horn (the brass's sound powers lie within a few dB of each other: Meyer 1990, cited
+        // in instrument.ts PLAYBACK_DB). So the judge's level measure, alone, stays 19 dB off.
         gain: 0.5617,
         seed: 58,
+        // A stopped note on five metres of wide tube rings on longer than a horn's: with the horn's 60 dB/s
+        // a file's detached notes (100 ms, 60 ms rests) ran together (the rest 0 dB under the next note,
+        // packages/engine/test/mono.test.ts); 140 dB/s leaves each its own (5 dB), about what the lips and
+        // the deep cup take from a real tuba's low resonances (Q 20–40: 60–120 dB/s by themselves)
+        stopRate: 140,
         fingering: tubaFingering,
         tubeLength: tubaTubeLength,
         prep: (fg) => `valves ${fg.valves}, partial ${fg.partial}`,

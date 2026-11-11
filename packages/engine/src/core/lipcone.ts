@@ -103,6 +103,9 @@ export interface LipConeSpec<F extends ConeFingering = ConeFingering> {
    *  127 (s; the horn's 0.25 and 0.1 when not given) */
   minBlowPp?: number;
   minBlow?: number;
+  /** what the stopped lips take from the tube while the tongue holds the air (dB/s; the horn's 60 when not
+   *  given: STOP_RATE) */
+  stopRate?: number;
 }
 
 /** The voicing: the lips, the bore's losses and the radiation's colour, each instrument's fitted to its
@@ -728,7 +731,7 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
     // the stopped lips take from the tube
     const lick = this.lick;
     let licking = lick.busy;
-    const stopLoss = 1 - Math.pow(10, -STOP_RATE / (20 * this.modeFreqs[0]));
+    const stopLoss = 1 - Math.pow(10, -(this.spec.stopRate ?? STOP_RATE) / (20 * this.modeFreqs[0]));
     for (let t = 0; t < n; t++) {
       const w = this.frame + t;
       this.D += (DT - this.D) * ease;
