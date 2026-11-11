@@ -223,6 +223,16 @@ function drawAllShapes(ctx: CanvasRenderingContext2D, fr: VisualFrame | null, by
   }
 }
 
+/** Where the 88 keys would lie across a stage with none on the screen (an address opened with keys=0 or
+ *  ui=0: look.ts): the stage's width, in from each side by what a 2D piano's case takes past its
+ *  outermost keys (1.4 key pitches, `upLayout`; the grand's rim is pressed into the same margin) and a
+ *  little air, so the upright's case is whole between the stage's sides and the grand's rim is at
+ *  them, as the page has it. The strings stand over these as they do over the real keys. */
+export function keysAcross(stage: { left: number; width: number }): { left: number; width: number } {
+  const inset = Math.min(stage.width / 4, 12 + (1.4 * stage.width) / 88);
+  return { left: stage.left + inset, width: stage.width - 2 * inset };
+}
+
 // ================================================================ grand (from above)
 export function drawPiano(ctx: CanvasRenderingContext2D, W: number, H: number, g: PianoGeom, fr: VisualFrame | null, st: PianoState, field: ModeField, now: number): void {
   if (g.kind === 'upright') return drawUpright(ctx, W, H, g, fr, st, field, now);

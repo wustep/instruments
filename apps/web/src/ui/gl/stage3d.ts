@@ -44,6 +44,9 @@ export interface Stage3D {
   /** tests and review shots: where an ensemble's seat is on screen (CSS px in the canvas: the middle of its
    *  instrument), null if it is not drawn */
   seatScreen(i: number): [number, number] | null;
+  /** tests, review shots and filming (a camera that goes to a section): an ensemble's seats as placed last
+   *  frame (world, m: the footprint's centre on its riser, its radius, the instrument's top), by seat */
+  seats(): { c: Vec3; r: number; top: number }[];
   /** the bowed strings' hair on screen (CSS px in the canvas: frog end, tip end) and the contact point along it */
   bowLine(): { fx: number; fy: number; tx: number; ty: number; pos: number } | null;
   /** asked first on every pointer down: true takes the pointer away from the orbit (the bow in the hand) */
@@ -102,7 +105,10 @@ export interface Stage3D {
   roomHot: boolean;
   /** Where the room's knob sits on the picture (CSS px in the canvas): on the floor, where the pool of
    *  light at its largest (the largest room) ends on the right of the picture (it does not move as
-   *  the room is turned); null when there is no pool (an ensemble, a close-up) */
+   *  the room is turned). Null when it has no place there: no pool (an ensemble, nothing built yet), a
+   *  key's close-up and the flight into it. Flying back out it is on the floor all the way: its place
+   *  from the moment that comes onto the picture (null until then), so the knob rides in with the floor.
+   *  The stage shows the knob only where this gives it a place. */
   roomKnob(): [number, number] | null;
   /** tests: the grand's prop sticks' swing as posed last frame (the long, the short: 0 folded … 1 up) */
   readonly sticks: number[];
@@ -434,13 +440,17 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     roomKnob() {
       const f = batch.floor;
       const R = f?.pool?.Rmax;
-      if (!f || !R || !lastVP || !seen.single || zoom || fly) return null;
+      // (the stage used to show the knob through the flight back out of a close-up while this gave it
+      // no place: it stood in the 2D stage's corner for those 0.8 s, then jumped to the floor)
+      if (!f || !R || !lastVP || !seen.single || (zoom && !fly?.out)) return null;
       let best: [number, number] | null = null;
       for (let k = 0; k < 72; k++) {
         const a = (k / 72) * Math.PI * 2;
         const q = project(lastVP, [f.c[0] + R * Math.cos(a), f.y, f.c[2] + R * Math.sin(a)], cssW, cssH);
         if (q && (!best || q[0] > best[0])) best = [q[0], q[1]];
       }
+      // (in flight the place moves with the picture: not held at the stage's edge while it is still outside)
+      if (fly && !clear(best, 24)) return null;
       return best;
     },
     set roomHot(v: boolean) {
@@ -528,6 +538,9 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
         }
       });
       return best;
+    },
+    seats() {
+      return st.seats.map((s) => ({ c: [...s.c] as Vec3, r: s.r, top: s.top }));
     },
     seatScreen(i) {
       const s = st.seats[i];

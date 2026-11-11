@@ -1,6 +1,9 @@
 // The stage's look: 2D as drawn, 2D in vector lines (ui/vector), or 3D. The device remembers the last
 // choice made with the toggles; an address's ?view= sets it for the page without changing that
 // (nav.ts). The stage (views/stage.ts) reads it when it is made and says here what it shows.
+// And what is on the screen beside the stage: all of it, unless the address opened with keys=0 (no
+// fallboard and no keys: the stage has their room) or ui=0 (the stage and nothing else: no bar, no
+// band, no file player, no keys). No control for either: a page for looking, listening and filming.
 
 import type { Look } from './address.ts';
 
@@ -17,6 +20,14 @@ class StageLook {
   want3d = read('piano-model.3d') === '1';
   /** the vector lines wanted on the 2D stage (kept while 3D shows) */
   wantVector = read('piano-model.style') === 'vector';
+  /** the fallboard and the keyboard are wanted on the screen (false: the address said keys=0, for this page) */
+  keys = true;
+  /** the bar, the band, the file player and the keys are on the screen (false: the address said ui=0) */
+  ui = true;
+  /** are the keys on the screen? */
+  get keysShown(): boolean {
+    return this.keys && this.ui;
+  }
   private subs = new Set<() => void>();
 
   get value(): Look {

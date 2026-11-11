@@ -219,6 +219,7 @@ export function layout(W: number, H: number, pts: Pt[], dpr: number, zTop: numbe
   const room = Math.max(10, Math.min(kx0, W - kx1, 0.129 * pxm));
   const X = (xm: number) => (xm < -KB ? kx0 - ((-KB - xm) / 0.129) * room : xm > KB ? kx1 + ((xm - KB) / 0.129) * room : kx0 + (xm + KB) * pxm);
   const tanB = Math.tan(lean(BASS_ANGLE));
+  const tanPlan = Math.tan(BASS_ANGLE);
   // ---- each key's strings: the strike point over its key; the bass leaning towards the treble
   const sp = Math.min(2.4, pitch * 0.2);
   const strs: GStr[] = pts.map((p) => {
@@ -226,7 +227,9 @@ export function layout(W: number, H: number, pts: Pt[], dpr: number, zTop: numbe
     const L = Math.max(0.04, p.L);
     const c = p.wound ? Math.cos(BASS_ANGLE) : 1;
     const x = kx0 + (p.i + 0.5) * pitch;
-    const ln = p.wound ? tanB * sv : 0;
+    // (the lean is the stage's, never more than the plan's own across: all 88 keys on a stage taller
+    // than it is wide, a phone with no keys on its screen, would fan the bass out of the case)
+    const ln = p.wound ? Math.min(tanB * sv, tanPlan * pxm) : 0;
     const aZ = GZ.strike - c * beta * L;
     const bZ = aZ + c * L;
     const n = Math.max(1, p.k.nStrings);
