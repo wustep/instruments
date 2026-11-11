@@ -20,7 +20,7 @@ import { startNav } from './nav.ts';
 import type { Page } from './address.ts';
 
 /** The name in the browser tab. Nothing on the page itself names it: the instrument speaks. */
-export const WORDMARK = 'instruments';
+export const WORDMARK = 'Instruments';
 
 const app = document.getElementById('app')!;
 const keys = new ComputerKeys();

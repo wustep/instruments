@@ -2058,6 +2058,22 @@ figure[title] {
 .notes .refs-title {
   margin-top: 48px;
 }
+/* what the work stands on that is not a paper: a line under the sources, in their type, each a link */
+.notes .thanks {
+  max-width: none;
+  margin: 20px 0 0;
+  font: 400 11px/1.7 var(--mono);
+  color: var(--muted);
+}
+.notes .thanks a {
+  color: var(--ink-2);
+  text-decoration-color: var(--rule-2);
+  text-underline-offset: 2px;
+}
+.notes .thanks a:hover {
+  color: var(--ink);
+  text-decoration-color: var(--amber);
+}
 .notes .credit {
   display: flex;
   flex-wrap: wrap;
