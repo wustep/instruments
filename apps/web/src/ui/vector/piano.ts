@@ -2,14 +2,16 @@
 // grand from above, piano-draw.ts's upright from the front: every string at its real length over its
 // own key), drawn as beams. Blue is the instrument: the rim, the strings at rest, the agraffe line,
 // the dampers. Amber is the sound: the board's modes traced across the case, the sounding strings and
-// their live shapes. The knobs' slots: the hammers are green (hammer hardness), the last note's other
+// their live shapes. The iron plate is lines too, all in the instrument's blue: each string's lead to its
+// tuning pin and its tail to its hitch pin (dim), the pins as points, a hitch rail past each bridge, the
+// struts as two dim hairlines. The knobs' slots: the hammers are green (hammer hardness), the last note's other
 // unison strings pink (unison detune), the bridges white (the board they drive).
 //
 // The drawing keeps the stage's state as the other one does (the strings to click, the case's box,
 // where the sound leaves, the lid's free edge): the grips, the close-up and the room read it.
 import type { VisualFrame } from '@piano-model/engine';
-import { GZ, Layer, SYM_VISIBLE, catmull, grandDepth, layout, path, type GStr, type Layout } from '../grand-plan.ts';
-import { levelsOf, stepAction, upLayout, type PianoGeom, type PianoState, type Pt, type UpLayout, type UpString } from '../piano-draw.ts';
+import { GZ, Layer, SYM_VISIBLE, catmull, grandDepth, grandPlate, layout, path, type GStr, type Layout, type Plate } from '../grand-plan.ts';
+import { levelsOf, stepAction, upLayout, upPlate, type PianoGeom, type PianoState, type Pt, type UpLayout, type UpString } from '../piano-draw.ts';
 import { SLOTS, V, beam, handle, ring, seg, type Contours } from './kit.ts';
 
 const HAMMER = SLOTS[0];
@@ -26,6 +28,44 @@ const layerOf = (st: PianoState): Layer => {
 };
 
 type Ends = [number, number, number, number];
+
+/** the plate as lines (grand-plan.ts `Plate`): the strings' leads and tails dim, the pins as points, each
+ *  hitch rail one line, each strut two hairlines closing towards its far end. No fill, no new colour. */
+function plateV(c: CanvasRenderingContext2D, pl: Plate): void {
+  if (pl.detail) {
+    c.beginPath();
+    for (const [a, b] of pl.leads) {
+      c.moveTo(a[0], a[1]);
+      c.lineTo(b[0], b[1]);
+    }
+    for (const [a, b] of pl.tails) {
+      c.moveTo(a[0], a[1]);
+      c.lineTo(b[0], b[1]);
+    }
+    beam(c, null, V.blueDim, 0.6, { alpha: 0.42, butt: true });
+  }
+  for (const r of pl.rails) beam(c, path(r, false), V.blueMid, 1, { alpha: 0.7 });
+  c.beginPath();
+  for (const s of pl.struts)
+    for (const d of [-0.5, 0.5]) {
+      c.moveTo(s.a[0] + d * s.wa, s.a[1]);
+      c.lineTo(s.b[0] + d * s.wb, s.b[1]);
+    }
+  beam(c, null, V.blueDim, 0.8, { alpha: 0.6, butt: true });
+  if (!pl.detail) return;
+  c.save();
+  c.globalCompositeOperation = 'lighter';
+  c.fillStyle = V.blueMid;
+  c.globalAlpha = 0.9;
+  c.beginPath();
+  for (const ps of [pl.pins, pl.hitch])
+    for (const [x, y] of ps) {
+      c.moveTo(x + 1, y);
+      c.arc(x, y, Math.min(1, pl.pinR), 0, Math.PI * 2);
+    }
+  c.fill();
+  c.restore();
+}
 
 /** the strings at rest, by register: the plain steel dim and thin, the wound bass a little brighter */
 function restStrings(c: CanvasRenderingContext2D, parts: { wound: boolean; lines: { x0: number; y0: number; x1: number; y1: number; off: number[] }[] }[]): void {
@@ -202,6 +242,7 @@ function grandV(ctx: CanvasRenderingContext2D, W: number, H: number, pts: Pt[], 
   layer.paint(W, H, dpr, `g|${lay.key}`, (c) => {
     c.save();
     c.clip(lay.inner);
+    plateV(c, grandPlate(lay, H));
     const bass = strs.filter((s) => s.p.wound);
     const treb = strs.filter((s) => !s.p.wound);
     restStrings(
@@ -331,18 +372,16 @@ function uprightV(ctx: CanvasRenderingContext2D, W: number, H: number, pts: Pt[]
   const layer = layerOf(st);
   layer.paint(W, H, dpr, `u|${lay.key}`, (c) => {
     c.save();
-    c.clip(lay.box);
+    c.clip(lay.inner);
+    plateV(c, upPlate(lay));
     const bass = strings.filter((s) => s.p.wound);
     const treb = strings.filter((s) => !s.p.wound);
     restStrings(
       c,
       [treb, bass].map((part) => ({ wound: part === bass, lines: part })),
     );
-    const yCap = strings[0].y0;
-    c.beginPath();
-    c.moveTo(strings[0].x0 - pitch * 0.6, yCap);
-    c.lineTo(strings[strings.length - 1].x0 + pitch * 0.6, yCap);
-    beam(c, null, V.blueMid, 1.2, { alpha: 0.9 });
+    // the pressure bar, slanting up to the bass
+    for (const part of [treb, bass]) if (part.length > 1) beam(c, path(part.map((s): [number, number] => [s.x0, s.y0]), false), V.blueMid, 1.2, { alpha: 0.9 });
     for (const part of [treb, bass]) {
       if (part.length < 2) continue;
       beam(c, path(part.map((s): [number, number] => [s.x1, s.y1]), false), BOARD, 1.3, { alpha: 0.42 });
@@ -353,9 +392,10 @@ function uprightV(ctx: CanvasRenderingContext2D, W: number, H: number, pts: Pt[]
   ctx.globalCompositeOperation = 'lighter';
   ctx.drawImage(layer.canvas, 0, 0, W, H);
   ctx.restore();
+  beam(ctx, lay.inner, V.blueDim, 0.9, { alpha: 0.7 });
   beam(ctx, lay.box, V.blue, 1.4, { alpha: 0.95 });
   ctx.save();
-  ctx.clip(lay.box);
+  ctx.clip(lay.inner);
   // ---- the board's live modes, across the whole case
   field.update(fr?.modes ?? null, now / 1000);
   field.draw(ctx, rect.x0, rect.y0, rect.x1 - rect.x0, rect.y1 - rect.y0, 0.7);
@@ -373,7 +413,7 @@ function uprightV(ctx: CanvasRenderingContext2D, W: number, H: number, pts: Pt[]
   const marks = [];
   for (const s of strings) {
     if (s.hx < -pitch || s.hx > W + pitch) continue;
-    marks.push({ i: s.p.i, damper: s.p.k.hasDamper, dx: s.dx, dy: s.dy + 6, hx: s.hx, hy: s.hy + 5 * (1 - st.hammer[s.p.i]) });
+    marks.push({ i: s.p.i, damper: s.p.k.hasDamper, dx: s.dx, dy: s.dy, hx: s.hx, hy: s.hy + 5 * (1 - st.hammer[s.p.i]) });
   }
   actionV(ctx, marks, pitch, st);
   // ---- the practice muffler: a felt strip let down between the hammers and the strings

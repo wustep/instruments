@@ -524,6 +524,15 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     const at = (b: { x0: number; y0: number; x1: number; y1: number }) => ({ x0: r.left + b.x0, x1: r.left + b.x1, y0: y0 + b.y0, y1: y0 + b.y1 });
     return { body: at(d.body), keys: at(d.keys), reedBox: at(d.reedBox), reed: { x: r.left + d.reed.x, y: y0 + d.reed.y }, vertical: d.vertical, fingers: d.fingers, stage: { x0: r.left, x1: r.right, y0, y1: r.bottom } };
   };
+  // tests: the 2D piano as last drawn (client px): each key's strings in view (pin end x0,y0 to bridge end
+  // x1,y1), the case, and the stage it was drawn in
+  (window as unknown as { __piano2d?: () => unknown }).__piano2d = () => {
+    if (inst !== 'piano' || (want3d && s3) || ensemble.active || !pianoState.hits.length) return null;
+    const r = canvas.getBoundingClientRect();
+    const y0 = r.top + top.getBoundingClientRect().height;
+    const b = pianoState.caseBox;
+    return { upright: pianoState.upright, strings: pianoState.hits.map((q) => ({ midi: q.midi, x0: r.left + q.x0, y0: y0 + q.y0, x1: r.left + q.x1, y1: y0 + q.y1 })), box: { x0: r.left + b.x0, x1: r.left + b.x1, y0: y0 + b.y0, y1: y0 + b.y1 }, stage: { x0: r.left, x1: r.right, y0, y1: r.bottom } };
+  };
   // tests: where the 2D stage last drew the horn (client px: bell rim to levers and mouthpiece to the
   // bell's sweep, the valves and levers, the mouthpiece and lips, the bell's mouth; the levers held: bit 0
   // the thumb's change valve, bits 1–3 valves 1–3), and the stage it was drawn in
