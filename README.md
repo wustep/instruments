@@ -13,6 +13,10 @@ drive a soundboard or body, or of felt mallets on the air-loaded membranes of ke
 
 **Play it:** [https://instruments-wustep.vercel.app](https://instruments-wustep.vercel.app)
 
+**Hear all of them at once:** [instruments-wustep.vercel.app/symphony](https://instruments-wustep.vercel.app/symphony)
+seats thirteen players with *Toward Morning* ready on their stands, a four-minute symphonic movement written
+for these instruments by Fable 5.2. Press play.
+
 Each instrument has its own address
 ([piano](https://instruments-wustep.vercel.app/piano),
 [violin](https://instruments-wustep.vercel.app/violin),
@@ -125,8 +129,11 @@ disagree with: every fitted number is in a `*-tuning.json` or `*-fit.json` next 
   it). The list icon in the player, next to the folder, holds public-domain pieces from the Mutopia
   Project: Haydn's "Emperor" quartet (II), Brandenburg No. 5 (III), Handel's
   Réjouissance, Bach's Air for four trombones, and Beethoven's Fifth Symphony (I and II) on
-  its eighteen instruments, each wind staff divided between its two players. Pieces and
-  assignment: `apps/web/src/orchestra/`.
+  its eighteen instruments, each wind staff divided between its two players. The last in the
+  list is the page's own: *Toward Morning*, a movement in D minor for thirteen players (one each
+  of flute, oboe, clarinet, bassoon, horn, trumpet and trombone, timpani and strings), written for
+  these models by Fable 5.2 and given to the public domain (CC0). Pieces and assignment:
+  `apps/web/src/orchestra/`.
 * **Addresses.** Every tab has its own address (`/violin`, `/piano/upright`, `/orchestra`,
   `/notes`…), so back and forward walk the tabs and a reload stays put. The Orchestra's
   address carries its whole setup, kept up to date as it changes: the instruments in
@@ -137,6 +144,9 @@ disagree with: every fitted number is in a `*-tuning.json` or `*-fit.json` next 
   tracks:
   [https://instruments-wustep.vercel.app/orchestra?v=1&seats=violin,violin,viola,cello,bass&lines=Violin+I~40:1,Violin+II~40:2,Viola~41:3,Cello~42:4,Contrabass~43:5](https://instruments-wustep.vercel.app/orchestra?v=1&seats=violin,violin,viola,cello,bass&lines=Violin+I~40:1,Violin+II~40:2,Viola~41:3,Cello~42:4,Contrabass~43:5).
   The Daylight quintet itself is not bundled; that address is a preset you can drop the file onto.
+  A piece can have an address of its own: [`/symphony`](https://instruments-wustep.vercel.app/symphony)
+  is *Toward Morning* on its thirteen seats, loaded and waiting for play (add `?view=3d` for the 3D
+  stage). It stays `/symphony` until you reorganise the orchestra; then the address spells the setup out.
   Beethoven's Fifth, seated and routed (its play icon plays the first movement; Mutopia's
   own files dropped on it play the same way, staff by staff):
   [https://instruments-wustep.vercel.app/orchestra?v=1&seats=flute,flute,oboe,oboe,clarinet,clarinet,bassoon,bassoon,horn,horn,trumpet,trumpet,timpani,violin,violin,viola,cello,bass&lines=one~73:1.2,two~68:3.4,three~71:5.6,four~70:7.8,five~69:9.10,six~69:11.12,seven~47:13,eight~40:14,nine~40:15,ten~41:16,eleven~42:17,twelve~43:18](https://instruments-wustep.vercel.app/orchestra?v=1&seats=flute,flute,oboe,oboe,clarinet,clarinet,bassoon,bassoon,horn,horn,trumpet,trumpet,timpani,violin,violin,viola,cello,bass&lines=one~73:1.2,two~68:3.4,three~71:5.6,four~70:7.8,five~69:9.10,six~69:11.12,seven~47:13,eight~40:14,nine~40:15,ten~41:16,eleven~42:17,twelve~43:18).
@@ -425,6 +435,8 @@ Claude Fable 5.2, Anthropic's models, working in Claude Code.
 * **Pieces:** the [Mutopia Project](https://www.mutopiaproject.org)'s typesettings of Bach, Handel,
   Haydn, Mozart, Beethoven, Chopin and a ground from Playford's Division Violin, played unchanged; each
   file's typesetter, source and sha256 are in `apps/web/src/orchestra/pieces.ts` and on the Notes page.
+  *Toward Morning* is by Fable 5.2 (2026), composed note by note against what each instrument's model
+  plays well.
 * **3D:** [three.js](https://threejs.org) (MIT).
 * **The vector view** is after [Chimera](https://github.com/jamesondh/chimera-vocal-synth), Jameson
   Hodge's vocal synth: its screens were the inspiration, and none of its code is used. Its type is
@@ -443,6 +455,10 @@ their own terms and are not relicensed:
   domain, except `bach-bwv1046-adagio-oboe.mid` (typeset by Ben Stewart,
   Mutopia-2008/10/29-1577), which is Creative Commons Attribution 3.0. Each
   file's source and credit is in `apps/web/src/orchestra/pieces.ts`.
+* **Toward Morning** (`apps/web/public/pieces/fable-toward-morning.mid`), the one
+  piece that is this project's own, written by Fable 5.2 in 2026, is dedicated to
+  the public domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/):
+  play it, arrange it, record it, without asking.
 * **Reference excerpts** (`apps/web/public/ref/*.mp3`): University of Iowa MIS,
   see `apps/web/public/ref/LICENSE.txt`.
 * **Fonts:** AVHershey Simplex by Stewart C. Russell (CC0 / WTFPL); Newsreader

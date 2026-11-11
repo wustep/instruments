@@ -4,6 +4,10 @@
 // plays what is set here, as a player would set out the parts. Two kinds, one catalogue: the
 // ensemble's pieces (PIECES, the pieces menu), and each instrument's own short piece (DEMOS), which the
 // player's play icon plays when nothing is loaded.
+//
+// One piece is not Mutopia's: "Toward Morning", a symphonic movement written for these instruments
+// by Fable 5.2 (Anthropic's Claude) in 2026 and given to the public domain (CC0 1.0). It has an
+// address of its own, /symphony (address.ts), which opens its orchestra with the piece loaded.
 import type { InstrumentId } from '@piano-model/engine';
 import type { FileEvent, MidiSong } from '../midi-file.ts';
 import { capParts, planOf, shiftKey, type LineInfo, type Plan, type Shifts, type Voice } from './assign.ts';
@@ -15,7 +19,7 @@ export interface Piece {
   title: string;
   /** public/pieces/<file> */
   file: string;
-  /** the Mutopia page (credit and licence) */
+  /** where it is from, with its credit and licence: the Mutopia page; an original's, this repository's */
   source: string;
   credit: string;
   sha256: string;
@@ -25,6 +29,9 @@ export interface Piece {
   parts: { voice: Voice; lines: number[]; shift?: Record<number, number> }[];
   /** tempo, × the file's (a tempo the score marks, where the file has another) */
   rate?: number;
+  /** a short address of its own (/symphony): the page opens on its orchestra, the piece loaded
+   *  (address.ts PIECE_PATHS; vercel.json rewrites it to the page) */
+  path?: string;
 }
 
 /** the symphony's orchestra, in the score's order: two each of flutes, oboes, clarinets, bassoons, horns
@@ -133,6 +140,17 @@ export const PIECES: Piece[] = [
     sha256: '3f360acfb2e3c4608fb396d0b2ca82d06921ea9fc3946ece46294f24461d7bac',
     parts: BEETHOVEN_5.map((p) => (p.voice === 'horn' ? { ...p, shift: { 4: -12 } } : p)),
     rate: 92 / 62,
+  },
+  {
+    id: 'toward-morning',
+    composer: 'Fable 5.2',
+    title: 'Toward Morning',
+    file: 'fable-toward-morning.mid',
+    source: 'https://github.com/wustep/instruments#license',
+    credit: 'Toward Morning, a symphonic movement in D minor that ends in D major (Adagio, Allegro appassionato, a coda marked Maestoso; four minutes and twenty seconds), for one each of flute, oboe, clarinet, bassoon, horn, trumpet and trombone, timpani and strings: thirteen parts, one to a seat, all at concert pitch, with their own dynamics. Written for these instruments by Fable 5.2 (Anthropic’s Claude), 2026, each note chosen for what its instrument’s model plays well. CC0 1.0: given to the public domain.',
+    sha256: 'ab73e45a117f3499e34cd7ca0e50ceb2ee8051e44cb302cc4d9a8ca9c34ae352',
+    parts: (['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'timpani', 'violin', 'violin', 'viola', 'cello', 'bass'] as Voice[]).map((voice, i) => ({ voice, lines: [i] })),
+    path: 'symphony',
   },
 ];
 

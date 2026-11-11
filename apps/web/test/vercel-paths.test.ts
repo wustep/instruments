@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { INSTRUMENT_IDS } from '@piano-model/engine';
-import { INSTRUMENT_PATHS, formatAddress, emptyAddress } from '../src/address.ts';
+import { INSTRUMENT_PATHS, PIECE_PATHS, formatAddress, emptyAddress } from '../src/address.ts';
 
 const vercel = JSON.parse(readFileSync(join(import.meta.dirname, '../../../vercel.json'), 'utf8')) as { rewrites: { source: string; destination: string }[] };
 /** does a rewrite to the page match this path (Vercel's path-to-regexp sources: here plain groups) */
@@ -14,7 +14,9 @@ const served = (path: string) => vercel.rewrites.some((r) => r.destination === '
 
 describe('vercel.json serves every address the app writes', () => {
   it('every instrument and alias, alone and with a sub-path; the Orchestra, measurements and notes', () => {
-    const paths = [...Object.keys(INSTRUMENT_PATHS), 'orchestra', 'ensemble', 'measurements', 'notes'];
+    const paths = [...Object.keys(INSTRUMENT_PATHS), ...Object.keys(PIECE_PATHS), 'orchestra', 'ensemble', 'measurements', 'notes'];
+    // (a piece's own address: Toward Morning's)
+    expect(paths).toContain('symphony');
     for (const id of INSTRUMENT_IDS) expect(paths, id).toContain(id);
     // (the horn: its path and its alias, named so that a rename cannot drop them unseen)
     for (const p of ['horn', 'french-horn']) expect(paths, p).toContain(p);
@@ -32,6 +34,12 @@ describe('vercel.json serves every address the app writes', () => {
       const path = new URL(url, 'https://instruments-wustep.vercel.app').pathname;
       if (path !== '/') expect(served(path), path).toBe(true);
     }
+    // and a piece's, on its own orchestra
+    for (const pc of Object.values(PIECE_PATHS)) {
+      const url = formatAddress({ ...emptyAddress(), piece: pc.id, orchestra: { seats: pc.parts.map((q) => q.voice), lines: null, keys: null } });
+      expect(url).toBe(`/${pc.path}`);
+      expect(served(url), url).toBe(true);
+    }
   });
 });
 
@@ -40,7 +48,7 @@ describe('vercel.json serves every address the app writes', () => {
 // and the page that says so must list the places that do exist.
 describe('an address that is none of the app’s is a 404, with the page that says so', () => {
   const web = join(import.meta.dirname, '..');
-  it('no rewrite answers an unknown path; 404.html is built, and links every instrument, the Orchestra and the two pages', () => {
+  it('no rewrite answers an unknown path; 404.html is built, and links every instrument, the Orchestra, the symphony and the two pages', () => {
     for (const p of ['/sympony', '/pianos', '/x/y', '/favicon.png', '/orchestras']) expect(served(p), p).toBe(false);
     const html = readFileSync(join(web, '404.html'), 'utf8');
     const config = readFileSync(join(web, 'vite.config.ts'), 'utf8');
@@ -48,7 +56,7 @@ describe('an address that is none of the app’s is a 404, with the page that sa
     expect(html).toContain('<title>Not Found · Instruments</title>');
     expect(html).toContain('<meta name="robots" content="noindex" />');
     const links = [...html.matchAll(/<a href="\/([a-z-]+)">([a-z]+)<\/a>/g)].map((m) => m[1]);
-    expect(links).toEqual([...INSTRUMENT_IDS, 'orchestra', 'measurements', 'notes']);
+    expect(links).toEqual([...INSTRUMENT_IDS, 'orchestra', ...Object.keys(PIECE_PATHS), 'measurements', 'notes']);
     for (const l of links) expect(served(`/${l}`), l).toBe(true);
   });
 });
