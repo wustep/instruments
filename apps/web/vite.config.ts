@@ -49,8 +49,28 @@ function pianoDesigns(): Plugin {
   };
 }
 
+// The Notes and the Measurements are their own chunks (main.ts `lazyView`), so the stage's first load
+// does not carry them. Opened first (a link to /notes), the page would ask for its chunk only once the
+// main one had run: here the page starts both at once.
+function preloadPages(): Plugin {
+  return {
+    name: 'preload-pages',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(_html, ctx) {
+        const file = (name: string) => Object.values(ctx.bundle ?? {}).find((c) => c.type === 'chunk' && c.isDynamicEntry && c.facadeModuleId?.endsWith(`/views/${name}.ts`))?.fileName;
+        const pages = { notes: file('notes'), measurements: file('measure') };
+        if (!pages.notes || !pages.measurements) return [];
+        const js = `(function(){var m=location.pathname.match(/^\\/(notes|measurements)\\/?$/);if(!m)return;var l=document.createElement('link');l.rel='modulepreload';l.href=${JSON.stringify(`/${pages.notes}`)};if(m[1]==='measurements')l.href=${JSON.stringify(`/${pages.measurements}`)};document.head.appendChild(l);})();`;
+        return [{ tag: 'script', children: js, injectTo: 'head' }];
+      },
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [pianoDesigns()],
+  plugins: [pianoDesigns(), preloadPages()],
   // Safari 14.1 is the first WebKit with AudioWorklet; the worklet bundle is lowered to what it
   // parses, and `pnpm build` checks that (scripts/check-worklet-syntax.mjs)
   // (the 3D stage — three.js — is its own chunk, loaded only when 3D is switched on)

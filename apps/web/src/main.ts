@@ -16,8 +16,6 @@ import { keysForControl } from './ui/keys-for.ts';
 import { PIECES } from './orchestra/pieces.ts';
 import { installTips } from './ui/tip.ts';
 import { stageView } from './views/stage.ts';
-import { measureView } from './views/measure.ts';
-import { notesView } from './views/notes.ts';
 import { startNav } from './nav.ts';
 import type { Page } from './address.ts';
 
@@ -88,10 +86,34 @@ const main = h('main', { id: 'main' });
 const player = new MidiPlayer();
 app.append(header, main, player.el, dock);
 
+/** A page whose code loads when it is first opened (its own chunk: the stage's first load does not
+ *  carry it). Its box stands in until then; left before it has loaded, it is never made. */
+function lazyView(load: () => Promise<() => View>): View {
+  const el = h('div', { class: 'view' });
+  let v: View | null = null;
+  let on = false;
+  return {
+    el,
+    dock: false,
+    mount() {
+      on = true;
+      void load().then((make) => {
+        if (!on) return;
+        v = make();
+        el.replaceWith(v.el);
+        v.mount?.();
+      });
+    },
+    unmount() {
+      on = false;
+      v?.unmount?.();
+    },
+  };
+}
 const routes: Record<Page, { title: string; make: () => View }> = {
   stage: { title: '', make: () => stageView(keyboard, knobSlot, player, { pick: pickSlot, tools: toolSlot }) },
-  measurements: { title: 'Measurements', make: () => measureView() },
-  notes: { title: 'Notes', make: () => notesView() },
+  measurements: { title: 'Measurements', make: () => lazyView(() => import('./views/measure.ts').then((m) => m.measureView)) },
+  notes: { title: 'Notes', make: () => lazyView(() => import('./views/notes.ts').then((m) => m.notesView)) },
 };
 
 let current: View | null = null;

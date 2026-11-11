@@ -106,3 +106,35 @@ no autoplay flag; median of 3; Apple M5 Pro):
   worklet, which keeps every design it has been sent. The audio thread never
   stalls.
 * **The other instruments** start instantly.
+
+## The page and the stage
+
+Measured on a production build (`pnpm build`, `vite preview`) in Chrome, desktop 1440×900 @2× and a
+phone (Pixel 7 size) with the CPU slowed 4×; WebKit (Playwright) for the close-up. Apple M5 Pro.
+Before: af894f5; after: the perf pass (#52).
+
+| | before | after | script |
+|---|---:|---:|---|
+| 3D key close-up: longest frame of the click and flight, desktop | 217 ms | 16.8 ms | `scripts/perf-zoom.mjs` |
+| the same, phone, CPU ÷4 | 383 ms | 33 ms | |
+| the same, WebKit desktop / phone | 228 / 253 ms | 22 / 24 ms | |
+| shader programs compiled by the close-up | 36 | 0 | `e2e/zoom-perf.spec.ts` |
+| 3D first load, total blocking time, desktop / phone | 305 / 857 ms | 103 / 659 ms | `scripts/perf-load.mjs` |
+| 3D switching through 12 instruments: long tasks, total | 2244 ms | 1541 ms | `scripts/perf-switch.mjs` |
+| 2D piano playing, main thread, phone CPU ÷4 | 367 ms/s | 219 ms/s | `scripts/perf-frames.mjs` |
+| main chunk (gzip) | 241 kB | 211 kB | `scripts/bundle-report.mjs` |
+
+* **No shader compiles where it would freeze the stage.** A material's program is compiled the first
+  time three.js draws it, and three.js waits for the driver right there. A key's close-up switches a
+  clipping plane on for every material (36 new programs for a grand): those are compiled ahead, a
+  few a frame, while the piano shows whole (`Renderer3.warmSection`). A new instrument's programs
+  are sent before its first frame (KHR_parallel_shader_compile) and the frame is held, the canvas
+  keeping its last picture, until they are ready (`Renderer3.hold`, at most 1.5 s).
+* **The 2D mode fields** (a piano's soundboard, a bowed body) sum their modes separably: ≤ 11 passes
+  over the grid a frame instead of one per mode (up to 36).
+* **The bowed bodies' 3D models** find each grid point's nearest edge among runs of edges whose boxes
+  could hold it: the same meshes, bit for bit, built in less than half the time.
+* **The Notes and the Measurements** are their own chunks, preloaded when the page is opened on them.
+* **What is left:** an instrument's first 3D frame still builds its model on the page's thread (the
+  grand ≈ 190 ms, a bowed instrument ≈ 150 ms on this machine); the orchestra's cost is the audio
+  thread's (the page's own thread stays under 10 % busy with every part playing).

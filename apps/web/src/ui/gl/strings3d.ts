@@ -446,20 +446,69 @@ function makePlate(ol: Outline, B: number, n: number, button: number): Plate {
     px[i] = poly[i][0];
     pz[i] = poly[i][1];
   }
+  // (each edge's run and squared length, once; and the edges in runs of 16 along the outline, each run
+  // in its box: a point looks first in the run that held its neighbour's nearest edge, then only in the
+  // runs whose box could hold a nearer one. The same nearest distance as from every edge, without
+  // measuring most of them)
+  const EX = new Float64Array(n);
+  const EZ = new Float64Array(n);
+  const DEN = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    EX[i] = px[j] - px[i];
+    EZ[i] = pz[j] - pz[i];
+    DEN[i] = EX[i] * EX[i] + EZ[i] * EZ[i] || 1;
+  }
+  const RUN = 16;
+  const runs = Math.ceil(n / RUN);
+  const rx0 = new Float64Array(runs).fill(Infinity);
+  const rx1 = new Float64Array(runs).fill(-Infinity);
+  const rz0 = new Float64Array(runs).fill(Infinity);
+  const rz1 = new Float64Array(runs).fill(-Infinity);
+  for (let i = 0; i < n; i++) {
+    const c = Math.floor(i / RUN);
+    const j = (i + 1) % n;
+    rx0[c] = Math.min(rx0[c], px[i], px[j]);
+    rx1[c] = Math.max(rx1[c], px[i], px[j]);
+    rz0[c] = Math.min(rz0[c], pz[i], pz[j]);
+    rz1[c] = Math.max(rz1[c], pz[i], pz[j]);
+  }
+  let best = Infinity;
+  let bestRun = 0;
+  let x = 0;
+  let z = 0;
+  /** the nearest of a run's edges to (x, z), into best */
+  const run = (c: number) => {
+    const end = Math.min(n, (c + 1) * RUN);
+    for (let i = c * RUN; i < end; i++) {
+      const ex = EX[i];
+      const ez = EZ[i];
+      const u = (x - px[i]) * ex + (z - pz[i]) * ez;
+      // (the same t as clamp(u / den, 0, 1))
+      const t = u <= 0 ? 0 : u >= DEN[i] ? 1 : u / DEN[i];
+      const dx = x - px[i] - ex * t;
+      const dz = z - pz[i] - ez * t;
+      const d2 = dx * dx + dz * dz;
+      if (d2 < best) {
+        best = d2;
+        bestRun = c;
+      }
+    }
+  };
   for (let gz = 0; gz <= GZ; gz++)
     for (let gx = 0; gx <= GX; gx++) {
-      const x = x0 + ((x1 - x0) * gx) / GX;
-      const z = z0 + ((z1 - z0) * gz) / GZ;
-      let best = Infinity;
-      for (let i = 0; i < n; i++) {
-        const j = (i + 1) % n;
-        const ex = px[j] - px[i];
-        const ez = pz[j] - pz[i];
-        const t = clamp(((x - px[i]) * ex + (z - pz[i]) * ez) / (ex * ex + ez * ez || 1), 0, 1);
-        const dx = x - px[i] - ex * t;
-        const dz = z - pz[i] - ez * t;
-        const d2 = dx * dx + dz * dz;
-        if (d2 < best) best = d2;
+      x = x0 + ((x1 - x0) * gx) / GX;
+      z = z0 + ((z1 - z0) * gz) / GZ;
+      best = Infinity;
+      const seed = bestRun;
+      run(seed);
+      for (let c = 0; c < runs; c++) {
+        if (c === seed) continue;
+        const dx = Math.max(rx0[c] - x, 0, x - rx1[c]);
+        const dz = Math.max(rz0[c] - z, 0, z - rz1[c]);
+        // (a hair of margin: rounding never leaves out an edge as near as the nearest found)
+        if (dx * dx + dz * dz > best * (1 + 1e-9) + 1e-18) continue;
+        run(c);
       }
       D[gz * (GX + 1) + gx] = Math.sqrt(best);
     }
@@ -467,7 +516,8 @@ function makePlate(ol: Outline, B: number, n: number, button: number): Plate {
   const r = GX + 1;
   const cr = (p0: number, p1: number, p2: number, p3: number, t: number) => 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
   const sampler = (G: Float32Array) => {
-    const g = (ix: number, iz: number) => G[clamp(iz, 0, GZ) * r + clamp(ix, 0, GX)];
+    // (the four columns' offsets and each row's, clamped to the grid; no closures made per call)
+    const row = (o: number, c0: number, c1: number, c2: number, c3: number, tx: number) => cr(G[o + c0], G[o + c1], G[o + c2], G[o + c3], tx);
     return (x: number, z: number) => {
       const fx = clamp(((x - x0) / (x1 - x0)) * GX, 0, GX - 1e-6);
       const fz = clamp(((z - z0) / (z1 - z0)) * GZ, 0, GZ - 1e-6);
@@ -475,8 +525,11 @@ function makePlate(ol: Outline, B: number, n: number, button: number): Plate {
       const iz = Math.floor(fz);
       const tx = fx - ix;
       const tz = fz - iz;
-      const row = (k: number) => cr(g(ix - 1, iz + k), g(ix, iz + k), g(ix + 1, iz + k), g(ix + 2, iz + k), tx);
-      return Math.max(0, cr(row(-1), row(0), row(1), row(2), tz));
+      const c0 = clamp(ix - 1, 0, GX);
+      const c1 = clamp(ix, 0, GX);
+      const c2 = clamp(ix + 1, 0, GX);
+      const c3 = clamp(ix + 2, 0, GX);
+      return Math.max(0, cr(row(clamp(iz - 1, 0, GZ) * r, c0, c1, c2, c3, tx), row(clamp(iz, 0, GZ) * r, c0, c1, c2, c3, tx), row(clamp(iz + 1, 0, GZ) * r, c0, c1, c2, c3, tx), row(clamp(iz + 2, 0, GZ) * r, c0, c1, c2, c3, tx), tz));
     };
   };
   const dist = sampler(D);
