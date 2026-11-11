@@ -13,6 +13,7 @@
 // Turbulence noise scales with jet speed.
 
 import { Pump } from './pump.ts';
+import { MonoKeys, quickness, quickRise, Tongue } from './mono.ts';
 import { CC_DYNAMICS, DYN_TAU, type ExciteTrace, type InstrumentCore } from './instrument.ts';
 import type { KeySummary } from '../api/messages.ts';
 import type { PianoEvent } from './piano-core.ts';
@@ -54,6 +55,15 @@ const ATTACK_BOOST = 4;
  *  peaked 22.5 dB under the held note, 12.5 dB with this (scripts/tap-audit.ts). Held notes are
  *  untouched (bit-identical), so the fit to the Iowa flute stands */
 const MIN_BLOW = 0.12;
+/** A note known to be short (mono.ts): the jet's sharper aim after the tongue (ATTACK_BOOST, fitted on the
+ *  recordings' long tones, whose soft ones take 135–430 ms to rise) is this many times more, less the
+ *  note's strength (a soft note needs it most: its jet is slowest to grow). Measured on notes of 139 ms
+ *  across the compass (scripts/winds-midi-bench.ts): at the long tone's aim they reach −27…+2 dB of the
+ *  held note's level at pp, the lowest notes of each register least; with this, −1…+3 dB, speaking in
+ *  30–65 ms. */
+const QUICK_AIM = 2;
+/** tongued over the breath (mono.ts): the tongue lets the air go again in this long (s) */
+const LICK_OPEN = 0.003;
 export const FLUTE_VOICE = {
   /** small-signal jet gain (loop gain of the jet path at small amplitude) */
   jetGain: 0.115,
@@ -142,7 +152,11 @@ export class FluteCore implements InstrumentCore {
   /** the player's intonation, semitones (util.ts playerCents), under any bend */
   private tune = 0;
   private note = -1;
-  private held: number[] = [];
+  /** the keys as one player takes them (mono.ts), and the tongue's stroke across a sounding jet */
+  private keys: MonoKeys;
+  private lick = new Tongue();
+  /** when the tongue last let go (frame): the jet's sharper aim decays from there */
+  private tongueAt = 0;
   private velocity = 80;
   private noiseBp = new Float64Array(5);
   private noiseSt = new Float64Array(2);
@@ -170,6 +184,7 @@ export class FluteCore implements InstrumentCore {
     this.fs = opts.sampleRate;
     this.dry = !!opts.dry;
     this.params = { breath: 1, embouchure: 1, noise: 1, vibrato: 0.06, room: 0.35, volume: 1, ...opts.params };
+    this.keys = new MonoKeys(this.fs);
     this.rng = mulberry32(playerSeed(31, opts.player));
     const pv = playerVibrato(opts.player);
     this.vib0 = this.vibPhase = pv.phase;
@@ -303,50 +318,33 @@ export class FluteCore implements InstrumentCore {
 
   schedule(ev: unknown, frame?: number): void {
     const f = frame === undefined ? this.frame : Math.max(this.frame, Math.floor(frame));
+    const fe = ev as { type?: string; midi: number; velocity: number; dur: number };
+    // a note to come is not an event: it is known at once, and nothing happens at its frame (mono.ts)
+    if (fe.type === 'foresee') return this.keys.foresee(f, fe.midi, fe.velocity, fe.dur);
     const q = this.queue;
     let i = q.length;
     while (i > 0 && q[i - 1].frame > f) i--;
     q.splice(i, 0, { frame: f, ev: ev as PianoEvent });
   }
 
+  /** what was foreseen is forgotten (the file paused or stopped) */
+  forget(): void {
+    this.keys.forget();
+  }
+
   private apply(ev: PianoEvent | { type: 'control'; cc: number; value: number }): void {
     switch (ev.type) {
-      case 'noteOn': {
-        if (ev.velocity <= 0) return this.apply({ type: 'noteOff', midi: ev.midi });
-        const m = clamp(ev.midi, 60, 96);
-        const legato = this.pTarget > 0 && this.held.length > 0;
-        this.held = this.held.filter((x) => x !== m);
-        this.held.push(m);
-        this.velocity = ev.velocity;
-        this.setNote(m, !legato && this.level < 1e-3);
-        this.pTarget = 1;
-        this.attackTau = legato ? 0.015 : 0.06 - 0.035 * (ev.velocity / 127);
-        this.chiff = legato ? 0.3 : 0.6 + 0.8 * (ev.velocity / 127);
-        // tonguing: when the tongue lets the breath go, the jet's front sweeps across the
-        // edge once, a coherent push that seeds the tube's resonance (without it the
-        // oscillation grew from turbulence alone and spoke ~4x slower than a real flute)
-        this.tongueAmp = TONGUE_PUSH * (legato ? 0.3 : 0.5 + 0.5 * (ev.velocity / 127));
-        this.tongueLen = Math.max(4, Math.round((0.5 * this.fs) / et(m)));
-        this.tongueN = this.tongueLen;
-        this.attackBoost = legato ? 0 : ATTACK_BOOST * (0.6 + 0.4 * (ev.velocity / 127));
-        if (!legato) this.vibPhase = this.vib0;
-        this.noteStart = this.frame;
-        this.releasePending = false;
-        if (!legato) this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
+      // the notes of one instant are taken together (settle)
+      case 'noteOn':
+        if (ev.velocity <= 0) this.keys.off(ev.midi);
+        else this.keys.on(ev.midi, ev.velocity);
         break;
-      }
-      case 'noteOff': {
-        this.held = this.held.filter((x) => x !== ev.midi);
-        if (this.held.length && ev.midi === this.note) {
-          this.setNote(this.held[this.held.length - 1], false);
-        } else if (!this.held.length && this.sustain < 0.5) {
-          this.release();
-        }
+      case 'noteOff':
+        this.keys.off(ev.midi);
         break;
-      }
       case 'sustain':
         this.sustain = clamp(ev.value, 0, 1);
-        if (this.sustain < 0.5 && !this.held.length) this.release();
+        this.keys.poke();
         break;
       case 'control':
         // mod wheel, breath controller and expression all blow: breath pressure (below 0, CC_REST:
@@ -359,7 +357,7 @@ export class FluteCore implements InstrumentCore {
         this.bendFactor = Math.pow(2, -(clamp(ev.value, -12, 12) + this.tune) / 12);
         break;
       case 'allNotesOff':
-        this.held = [];
+        this.keys.clear();
         this.pTarget = 0;
         this.releasePending = false;
         break;
@@ -367,6 +365,81 @@ export class FluteCore implements InstrumentCore {
         break;
     }
   }
+
+  /** The instant's notes, as one player takes them (mono.ts): a note from silence is tongued, a note over
+   *  a held one slurred, a note joined to the last (or its pitch struck again) tongued over the breath. */
+  private settle(): void {
+    const a = this.keys.settle(this.frame, this.pTarget > 0, this.sustain >= 0.5);
+    if (!a) return;
+    if (a.kind === 'release') return this.release();
+    const m = clamp(a.midi, 60, 96);
+    // (a stroke made ahead for a note that came otherwise lets go)
+    if (this.lick.down && !(a.kind === 'retongue' && a.struck)) this.lick.release(LICK_OPEN * this.fs);
+    if (a.kind === 'slur' && !a.velocity) {
+      // back to a note still held: the fingers only
+      this.setNote(m, false);
+      return;
+    }
+    const vel = a.velocity;
+    const v = vel / 127;
+    this.velocity = vel;
+    this.releasePending = false;
+    const X = (globalThis as { __fl?: Record<string, number> }).__fl ?? {};
+    if (a.kind === 'slur') {
+      this.setNote(m, false);
+      this.pTarget = 1;
+      this.attackTau = 0.015;
+      this.chiff = 0.3;
+      this.tongueAmp = TONGUE_PUSH * 0.3;
+      this.tongueLen = Math.max(4, Math.round((0.5 * this.fs) / et(m)));
+      this.tongueN = this.tongueLen;
+      this.attackBoost = 0;
+      this.noteStart = this.frame;
+      this.tongueAt = this.frame;
+    } else if (a.kind === 'tongue') {
+      this.setNote(m, this.level < 1e-3);
+      this.pTarget = 1;
+      this.lick.reset();
+      // a note known to be short is tongued to speak within a share of its length (mono.ts): the breath
+      // is there sooner, the jet pushed harder and aimed sharper for longer. A note of unknown length (a
+      // key in the hand) gets the long tone's attack the recordings were fitted on (quick = 1)
+      const quick = quickness(a.len);
+      this.attackTau = quickRise(0.06 - 0.035 * v, a.len);
+      this.chiff = 0.6 + 0.8 * v;
+      // tonguing: when the tongue lets the breath go, the jet's front sweeps across the
+      // edge once, a coherent push that seeds the tube's resonance (without it the
+      // oscillation grew from turbulence alone and spoke ~4x slower than a real flute)
+      this.tongueAmp = TONGUE_PUSH * (0.5 + 0.5 * v);
+      this.tongueLen = Math.max(4, Math.round((0.5 * this.fs) / et(m)));
+      this.tongueN = this.tongueLen;
+      this.attackBoost = ATTACK_BOOST * (0.6 + 0.4 * v) * (1 + ((X.k0 ?? QUICK_AIM) - (X.kv ?? 1) * v) * quick);
+      this.vibPhase = this.vib0;
+      this.noteStart = this.frame;
+      this.tongueAt = this.frame;
+      this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
+    } else {
+      // tongued over the breath: the fingers move, the tongue cuts the jet and lets it go again
+      const same = m === this.note;
+      this.setNote(m, false);
+      this.pTarget = 1;
+      this.attackTau = Math.min(this.attackTau, quickRise(0.06 - 0.035 * v, a.len));
+      const wait = this.lick.retongue(a.struck, this.fs, same, LICK_OPEN * this.fs);
+      this.tongueAt = this.frame + wait;
+      // (the jet's push as the tongue lets go, a lighter one than a first attack's)
+      this.chiff = 0.3 + 0.4 * v;
+      this.tongueAmp = TONGUE_PUSH * (X.lickPush ?? 0.5) * (0.5 + 0.5 * v);
+      this.tongueLen = Math.max(4, Math.round((0.5 * this.fs) / et(m)));
+      this.tongueN = this.tongueLen;
+      this.tongueWait = wait;
+      this.attackBoost = ATTACK_BOOST * (X.lickBoost ?? 0.5) * (0.6 + 0.4 * v);
+      this.noteStart = this.frame;
+      this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
+    }
+    if (a.tap) this.release();
+  }
+  /** samples before the jet's push begins (the tongue is still across the air), and the decay of its
+   *  sharper aim (s) */
+  private tongueWait = 0;
   private noteStart = 0;
   /** frame until which a tongued note keeps its breath (MIN_BLOW), and a key let go before it */
   private blowUntil = 0;
@@ -397,7 +470,10 @@ export class FluteCore implements InstrumentCore {
     this.jet.fill(0);
     this.pressure = this.pTarget = 0;
     this.releasePending = false;
-    this.held = [];
+    this.keys.clear();
+    this.keys.forget();
+    this.lick.reset();
+    this.tongueWait = 0;
     this.lp = this.dcX = this.dcY = 0;
     this.uPrev = 0;
     this.jkPrev = -1;
@@ -422,6 +498,7 @@ export class FluteCore implements InstrumentCore {
     this.pump.pull(outL, outR, frames, (L, R) => {
       const q = this.queue;
       while (q.length && q[0].frame <= this.frame) this.apply(q.shift()!.ev);
+      this.settle();
       let n = 64;
       if (q.length) n = Math.max(1, Math.min(n, q[0].frame - this.frame));
       if (this.releasePending) {
@@ -429,9 +506,12 @@ export class FluteCore implements InstrumentCore {
         // cut there, as at an event)
         if (this.frame >= this.blowUntil) {
           this.releasePending = false;
-          if (!this.held.length && this.sustain < 0.5) this.pTarget = 0;
+          if (!this.keys.any && this.sustain < 0.5) this.pTarget = 0;
         } else n = Math.min(n, this.blowUntil - this.frame);
       }
+      // a foreseen note joined to the one sounding: the tongue's stroke is made ahead of it (mono.ts)
+      n = this.keys.plan(this.frame, n, this.pTarget > 0 && !this.releasePending);
+      if (this.keys.strokeNow >= 0) this.lick.ahead(this.fs, this.keys.strokeNow - this.frame, LICK_OPEN * this.fs);
       this.render(n);
       for (let t = 0; t < n; t++) {
         L[t] = this.oL[t];
@@ -451,7 +531,7 @@ export class FluteCore implements InstrumentCore {
     const dt = n / fs;
     const P = this.params;
     // breath envelope and vibrato (control rate)
-    const sinceOn = (this.frame - this.noteStart) / fs;
+    const sinceOn = Math.max(0, this.frame - this.tongueAt) / fs;
     const k = 1 - Math.exp(-dt / (this.pTarget > this.pressure ? this.attackTau : 0.035));
     this.pressure += (this.pTarget - this.pressure) * k;
     if (this.pressure < 1e-5 && this.pTarget === 0) this.pressure = 0;
@@ -506,6 +586,9 @@ export class FluteCore implements InstrumentCore {
     const la = this.lossA;
     const lb = this.lossG * (1 + la);
     let peak = 0;
+    // a stroke of the tongue across the sounding jet (mono.ts): the air it lets through
+    const lick = this.lick;
+    let licking = lick.busy;
     for (let t = 0; t < n; t++) {
       const w = this.frame + t;
       this.D += (this.Dtarget - this.D) * 0.004;
@@ -526,11 +609,19 @@ export class FluteCore implements InstrumentCore {
       const nz = bp[0] * white + ns[0];
       ns[0] = bp[1] * white - bp[3] * nz + ns[1];
       ns[1] = bp[2] * white - bp[4] * nz;
-      const noise = nz * (turb + 0.12 * this.chiff * drive);
+      let noise = nz * (turb + 0.12 * this.chiff * drive);
+      // (the tongue across the jet: the air it lets through, 1 when it is away)
+      let og = 1;
+      if (licking) {
+        og = lick.next();
+        noise *= og;
+        licking = lick.busy;
+      }
       // jet: deflected by the acoustic flow at the embouchure (more easily when slow),
       // the deflection convected to the edge; flow into the pipe ∝ jet speed
       let tng = 0;
-      if (this.tongueN > 0) {
+      if (this.tongueWait > 0) this.tongueWait--;
+      else if (this.tongueN > 0) {
         tng = this.tongueAmp * Math.sin((Math.PI * (this.tongueLen - this.tongueN)) / this.tongueLen);
         this.tongueN--;
       }
@@ -543,7 +634,7 @@ export class FluteCore implements InstrumentCore {
       const jDel = this.jet[(w - ji) & mask] * (1 - jf) + this.jet[(w - ji - 1) & mask] * jf;
       // jet splitting at the edge: saturating flow law, offset edge -> even harmonics;
       // small-signal gain JET_GAIN (independent of jet speed above threshold)
-      const uT = u0 + dU * (t + 1);
+      const uT = (u0 + dU * (t + 1)) * og;
       const q = uT * (Math.tanh(((jk0 + dJk * (t + 1)) * jDel) / (uT + 0.06) + off0 + dOff * (t + 1)) - (tOff0 + dTOff * (t + 1)));
       // vortex shedding at the labium: a resistance growing with the acoustic flow, i.e. a
       // reflection that weakens with amplitude (passive: never above R_EMB)
