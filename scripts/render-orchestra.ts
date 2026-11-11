@@ -12,6 +12,8 @@
 // --undivided: a wind staff two players share sent whole to each (as before they divided it: a chord asked
 // of one wind; the comparison)
 // --start <s>: from this time of the piece (at its tempo), to --seconds after it
+// --post-bus: each part's own limiter blind to the bus gain after it (as before audio audit 2; ensemble.ts
+//   tells every part its share, the engine's Limiter.bus: a part's limiter works on the level the bus hears)
 // A built-in piece of more than six instruments is seated whole (as the stage seats it: ensemble.ts).
 // Each part's place in the picture is printed: its level difference between the channels (L − R, dB)
 // and the time lag between them (positive: the right channel later, the part on the left).
@@ -24,7 +26,20 @@ import { parseMidi } from '../apps/web/src/midi-file.ts';
 import { autoPlan, deskOf, placeNote, planOf, playersOf, playsNote, shiftsOf, VOICE_INFO, VOICES, type Plan, type Voice } from '../apps/web/src/orchestra/assign.ts';
 import { PIECES, piecePlan, pieceSong } from '../apps/web/src/orchestra/pieces.ts';
 import { busGain } from '../apps/web/src/orchestra/mix.ts';
+import { PLAYBACK_DB } from '../packages/engine/src/core/instrument.ts';
 import { soundSeats } from '../apps/web/src/orchestra/seats.ts';
+import { Limiter } from '../packages/engine/src/core/post.ts';
+
+// each part's own limiter, metered: its deepest cut and how much of the time it works
+const limStats = new WeakMap<Limiter, { minG: number; on: number; all: number }>();
+const limProcess = Limiter.prototype.process;
+Limiter.prototype.process = function (L: Float64Array, R: Float64Array, len: number) {
+  limProcess.call(this, L, R, len);
+  const st = limStats.get(this) ?? limStats.set(this, { minG: 1, on: 0, all: 0 }).get(this)!;
+  st.all++;
+  if (this.reduction < 0.999) st.on++;
+  st.minG = Math.min(st.minG, this.reduction);
+};
 
 const args = process.argv.slice(2);
 const opt = (k: string, d: string) => {
@@ -47,6 +62,7 @@ const FLAT = args.includes('--flat') ? (args.splice(args.indexOf('--flat'), 1), 
 const JSON_OUT = args.includes('--json') ? (args.splice(args.indexOf('--json'), 1), true) : false;
 const UNDIVIDED = args.includes('--undivided') ? (args.splice(args.indexOf('--undivided'), 1), true) : false;
 const START = Number(opt('--start', '0'));
+const POST_BUS = args.includes('--post-bus') ? (args.splice(args.indexOf('--post-bus'), 1), true) : false;
 const FS = 48000;
 mkdirSync(OUT, { recursive: true });
 
@@ -99,12 +115,14 @@ for (const job of jobs) {
   const n = Math.ceil(dur * FS);
   const L = new Float32Array(n);
   const R = new Float32Array(n);
-  const g = SOLO ? 1 : busGain(plan.parts.filter((p) => p.lines.length).length);
+  const g = SOLO ? 1 : busGain(plan.parts.filter((p) => p.lines.length).map((p) => PLAYBACK_DB[VOICE_INFO[p.voice].instrument] ?? 0));
   console.log(`\n${job.name}: ${plan.parts.map((p, k) => `${p.voice}${players[k] ? `(player ${players[k]})` : ''}[${p.lines.join(',')}]`).join(' ')}  bus ×${g.toFixed(3)}`);
   let cpu = 0;
   const outs: Float32Array[] = [];
   const seats = SOLO || FLAT ? null : soundSeats(plan.parts.map((p) => VOICE_INFO[p.voice]));
-  const rows: { voice: string; lines: number[]; seat: number[] | null; peakDb: number; rmsDb: number; ildDb: number; lagMs: number }[] = [];
+  const rows: { voice: string; lines: number[]; seat: number[] | null; peakDb: number; rmsDb: number; ildDb: number; lagMs: number; limiterDb: number; limiterFrac: number }[] = [];
+  // the bus gain after every part; its limiter told of it (as ensemble.ts does), or not (--post-bus)
+  const post = SOLO ? 1 : g;
   for (const [k, part] of plan.parts.entries()) {
     const info = VOICE_INFO[part.voice];
     const events: TimedEvent[] = [];
@@ -124,7 +142,7 @@ for (const job of jobs) {
     }
     const notes = [...at.values()].reduce((a, b) => a + b, 0);
     const chords = [...at.values()].filter((n) => n > 1).length;
-    const r = renderInstrument({ sampleRate: FS, instrument: info.instrument, preset: info.preset, events, duration: dur, player: players[k], params: seats ? { seat: seats[k] } : undefined, maxVoices: info.instrument === 'piano' ? (plan.parts.filter((q) => q.voice === 'grand' || q.voice === 'upright').length > 1 ? 32 : 48) : undefined });
+    const r = renderInstrument({ sampleRate: FS, instrument: info.instrument, preset: info.preset, events, duration: dur, player: players[k], params: seats ? { seat: seats[k] } : undefined, bus: SOLO || POST_BUS ? undefined : g, maxVoices: info.instrument === 'piano' ? (plan.parts.filter((q) => q.voice === 'grand' || q.voice === 'upright').length > 1 ? 32 : 48) : undefined });
     cpu += r.cpuMs;
     outs.push(r.left);
     let pk = 0;
@@ -132,12 +150,16 @@ for (const job of jobs) {
     for (let i = 0; i < n; i++) {
       pk = Math.max(pk, Math.abs(r.left[i]), Math.abs(r.right[i]));
       s2 += r.left[i] * r.left[i];
-      L[i] += g * r.left[i];
-      R[i] += g * r.right[i];
+      L[i] += post * r.left[i];
+      R[i] += post * r.right[i];
     }
     const im = image(r.left, r.right);
-    rows.push({ voice: part.voice, lines: part.lines, seat: seats ? [...seats[k]] : null, peakDb: +db(pk), rmsDb: +db(Math.sqrt(s2 / n)), ildDb: +im.ild.toFixed(2), lagMs: +im.lag.toFixed(3) });
-    console.log(`  ${part.voice.padEnd(8)} peak ${db(pk)} dBFS  rms ${db(Math.sqrt(s2 / n))} dBFS  L−R ${im.ild.toFixed(1).padStart(5)} dB  lag ${im.lag.toFixed(2).padStart(5)} ms${seats ? `  seat ${seats[k].map((v) => v.toFixed(2)).join(', ')}` : ''}  ${notes} notes${VOICE_INFO[part.voice].poly === 1 ? `, ${chords} chords` : ''}  (${(r.cpuMs / dur / 10).toFixed(1)} % of real time)`);
+    const ls = limStats.get((r.core as unknown as { limiter: Limiter }).limiter) ?? { minG: 1, on: 0, all: 1 };
+    // (a part's own level: as it reaches the bus)
+    pk *= post;
+    s2 *= post * post;
+    rows.push({ voice: part.voice, lines: part.lines, seat: seats ? [...seats[k]] : null, peakDb: +db(pk), rmsDb: +db(Math.sqrt(s2 / n)), ildDb: +im.ild.toFixed(2), lagMs: +im.lag.toFixed(3), limiterDb: +db(ls.minG), limiterFrac: +(ls.on / ls.all).toFixed(4) });
+    console.log(`  ${part.voice.padEnd(8)} peak ${db(pk)} dBFS  rms ${db(Math.sqrt(s2 / n))} dBFS  own limiter ${db(ls.minG)} dB (${((100 * ls.on) / ls.all).toFixed(1)} %)  L−R ${im.ild.toFixed(1).padStart(5)} dB  lag ${im.lag.toFixed(2).padStart(5)} ms${seats ? `  seat ${seats[k].map((v) => v.toFixed(2)).join(', ')}` : ''}  ${notes} notes${VOICE_INFO[part.voice].poly === 1 ? `, ${chords} chords` : ''}  (${(r.cpuMs / dur / 10).toFixed(1)} % of real time)`);
   }
   // two of a voice on one line: how alike they sound (1: one instrument twice; two players less)
   for (let a = 0; a < plan.parts.length; a++)
@@ -162,7 +184,7 @@ for (const job of jobs) {
     s2 += L[i] * L[i];
   }
   console.log(`  mix      peak ${db(pk)} dBFS  rms ${db(Math.sqrt(s2 / n))} dBFS  (all parts ${(cpu / dur / 10).toFixed(1)} % of real time)`);
-  const name = SOLO ? `${job.name}-before-one-${SOLO}` : ONE ? `${job.name}-one-player` : FLAT ? `${job.name}-flat` : UNDIVIDED ? `${job.name}-undivided` : job.name;
+  const name = POST_BUS ? `${job.name}-post-bus` : SOLO ? `${job.name}-before-one-${SOLO}` : ONE ? `${job.name}-one-player` : FLAT ? `${job.name}-flat` : UNDIVIDED ? `${job.name}-undivided` : job.name;
   if (JSON_OUT) writeFileSync(join(OUT, `${name}.json`), JSON.stringify({ piece: job.name, seconds: dur, flat: FLAT, bus: g, parts: rows, mix: { peakDb: +db(pk), rmsDb: +db(Math.sqrt(s2 / n)) } }, null, 1));
   const wav = join(OUT, `${name}.wav`);
   writeFileSync(wav, encodeWav({ sampleRate: FS, channels: [L, R] }));

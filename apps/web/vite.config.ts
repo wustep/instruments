@@ -59,6 +59,7 @@ function preloadPages(): Plugin {
     transformIndexHtml: {
       order: 'post',
       handler(_html, ctx) {
+        if (!ctx.filename.endsWith('index.html')) return [];
         const file = (name: string) => Object.values(ctx.bundle ?? {}).find((c) => c.type === 'chunk' && c.isDynamicEntry && c.facadeModuleId?.endsWith(`/views/${name}.ts`))?.fileName;
         const pages = { notes: file('notes'), measurements: file('measure') };
         if (!pages.notes || !pages.measurements) return [];
@@ -74,7 +75,8 @@ export default defineConfig({
   // Safari 14.1 is the first WebKit with AudioWorklet; the worklet bundle is lowered to what it
   // parses, and `pnpm build` checks that (scripts/check-worklet-syntax.mjs)
   // (the 3D stage — three.js — is its own chunk, loaded only when 3D is switched on)
-  build: { target: ['es2020', 'safari14'], sourcemap: false, chunkSizeWarningLimit: 800 },
+  // (two pages: the app, and 404.html, what the host serves for an address that is none of the app's)
+  build: { target: ['es2020', 'safari14'], sourcemap: false, chunkSizeWarningLimit: 800, rolldownOptions: { input: { index: 'index.html', '404': '404.html' } } },
   worker: { format: 'es' },
   server: { port: 5199, strictPort: false },
   preview: { port: 4199 },

@@ -1,7 +1,7 @@
 // AudioWorklet host for the instrument DSP cores. All synthesis happens here, on
 // the audio rendering thread; the main thread only sends control messages.
 
-import { createCore, type AnyParams } from '../core/factory.ts';
+import { createCore, setBus, type AnyParams } from '../core/factory.ts';
 import { isBowed, type InstrumentCore, type InstrumentId } from '../core/instrument.ts';
 import type { PianoCore } from '../core/piano-core.ts';
 import type { ToProcessor, FromProcessor } from '../api/messages.ts';
@@ -57,6 +57,8 @@ class InstrumentProcessor extends AudioWorkletProcessor {
   /** every filter design received from the main thread, reused when the piano is (re)created */
   private designs = new Map<string, DesignEntry>();
   private player = 0;
+  /** the mix's gain after this instrument (params.bus: an Orchestra part's share of the bus; setBus) */
+  private bus = 1;
 
   private storeDesigns(entries: DesignEntry[] | undefined): void {
     if (!entries) return;
@@ -114,10 +116,14 @@ class InstrumentProcessor extends AudioWorkletProcessor {
         if (m.event.type !== 'foresee' || isBowed(this.core.id)) this.core.schedule(m.event, frame);
         break;
       }
-      case 'params':
-        this.core.setParams(m.params as Record<string, unknown>);
+      case 'params': {
+        // (the bus's share is the limiter's, not a parameter of the instrument)
+        const { bus, ...rest } = m.params as Record<string, unknown>;
+        if (typeof bus === 'number') setBus(this.core, (this.bus = bus));
+        this.core.setParams(rest);
         if (this.core.id === 'piano') this.post({ type: 'keys', keys: this.core.keySummary() });
         break;
+      }
       case 'preset':
         if (this.core.id === 'piano') {
           (this.core as unknown as PianoCore).setPreset(m.preset);
@@ -129,7 +135,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
         const frame = this.core.frame;
         this.storeDesigns(m.designs);
         try {
-          this.core = createCore({ sampleRate, instrument: m.instrument, preset: m.preset, params: m.params, maxVoices: this.baseMaxVoices, designs: m.instrument === 'piano' ? [...this.designs.values()] : undefined, player: this.player }) as Core;
+          this.core = createCore({ sampleRate, instrument: m.instrument, preset: m.preset, params: m.params, maxVoices: this.baseMaxVoices, designs: m.instrument === 'piano' ? [...this.designs.values()] : undefined, player: this.player, bus: this.bus }) as Core;
         } catch (err) {
           this.post({ type: 'error', message: `the ${m.instrument} could not be built at ${sampleRate} Hz: ${String((err as Error)?.message ?? err)}` });
           break;

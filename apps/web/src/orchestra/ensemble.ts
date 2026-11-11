@@ -8,7 +8,7 @@
 // While the ensemble plays, the single instrument's engine is taken out of the graph (it costs as
 // much idle as playing) and put back when the ensemble goes.
 
-import { createInstrument, isBowed, pianoKeySummary, processorUrl, type KeySummary, type Piano, type VisualFrame } from '@piano-model/engine';
+import { createInstrument, isBowed, PLAYBACK_DB, pianoKeySummary, processorUrl, type KeySummary, type Piano, type VisualFrame } from '@piano-model/engine';
 import { audio, fetchDesigns, restLevel, sendLevel, type Route } from '../audio.ts';
 import { modLines, PartLevels, volumeRef } from '../expression.ts';
 import type { FileEvent, MidiLine, MidiSong } from '../midi-file.ts';
@@ -520,6 +520,7 @@ class Ensemble implements Route {
         }
         p.engine = e;
         e.connect(this.bus!);
+        e.setParams({ bus: this.busNow });
         if (info.preset === 'upright') void e.setPreset('upright');
         // its seat (after the preset: a piano's preset sets its params)
         if (p.seat) e.setParams({ seat: p.seat });
@@ -557,12 +558,17 @@ class Ensemble implements Route {
     });
   }
 
-  /** the bus at 1/√n over the parts that can sound: with a file, those given a line (one waiting for
-   *  a line is silent); played by hand, all of them */
+  /** the bus over the parts that can sound (mix.ts): with a file, those given a line (one waiting for a
+   *  line is silent); played by hand, all of them. Each part's own limiter is told the share (the
+   *  engine's Limiter.bus), so that it works on the level the bus hears. */
   private applyGain(): void {
-    const n = this.song ? this.plan.parts.filter((p) => p.lines.length > 0).length : this.parts.length;
-    if (this.bus && audio.ctx) this.bus.gain.setTargetAtTime(busGain(n), audio.ctx.currentTime, 0.02);
+    const sounding = this.song ? this.parts.filter((_, i) => (this.plan.parts[i]?.lines.length ?? 0) > 0) : this.parts;
+    this.busNow = busGain(sounding.map((p) => PLAYBACK_DB[VOICE_INFO[p.voice].instrument] ?? 0));
+    if (this.bus && audio.ctx) this.bus.gain.setTargetAtTime(this.busNow, audio.ctx.currentTime, 0.02);
+    for (const p of this.parts) p.engine?.setParams({ bus: this.busNow });
   }
+  /** the bus's gain as last set (applyGain) */
+  private busNow = 1;
 
   /** a piano part's strings (for drawing before its engine reports) */
   keysOf(p: PartLive): KeySummary[] {

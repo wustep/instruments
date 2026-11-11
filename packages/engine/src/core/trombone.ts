@@ -48,7 +48,7 @@
 
 import { Pump } from './pump.ts';
 import type { KeySummary } from '../api/messages.ts';
-import { CC_DYNAMICS, DYN_TAU, type ExciteTrace, type InstrumentCore } from './instrument.ts';
+import { CC_DYNAMICS, DYN_TAU, PLAYBACK_DB, type ExciteTrace, type InstrumentCore } from './instrument.ts';
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { biquadHighpass, biquadHighShelf, biquadLowpass, biquadPeaking } from './filters.ts';
 import type { PianoEvent } from './piano-core.ts';
@@ -652,8 +652,9 @@ export class TromboneCore implements InstrumentCore {
     this.room.configure(this.params.room, this.params.seat);
     // (in pascals at the bell) matched to the Iowa trombones: the median recorded note's level (tenor pp, mf, ff
     // within 2.5 dB of it, the bass set's within 1.7; their ff, −26.4 and −28.4 dB, sit 9 dB under the Iowa
-    // horn's and trumpet's: the sessions' own gain, kept as the other instruments keep theirs)
-    this.gain = 5.652e-05 * this.params.volume;
+    // horn's and trumpet's: the sessions' own gain). The calibration renders (dry) keep that level; played, the
+    // trombone takes the session's gain back (PLAYBACK_DB, instrument.ts)
+    this.gain = 5.652e-05 * this.params.volume * (this.dry ? 1 : Math.pow(10, (PLAYBACK_DB.trombone ?? 0) / 20));
   }
 
   /** measured tuning (scripts/tune-trombone.ts): cents the bare model plays sharp, by size and sample rate */

@@ -21,7 +21,8 @@
 // recording − model level = an offset per dynamic (the microphone's gain) + the envelope's change
 // weighted by the note's own harmonics' powers, w rows' worth per note. Without it a band may sit on
 // a few notes' fundamentals and make them 15 dB louder than their neighbours (the bass's 71 Hz did).
-//   npx tsx scripts/fit-bodies.ts violin [--iters 7] [--keep-speed] [--keep-hf] [--corner-floor] [--levels w] [--write]
+// --mode i:eta[:rad[:f]]: signature mode i (0: A0) with another damping (radiation, frequency), fitted around
+//   npx tsx scripts/fit-bodies.ts violin [--iters 7] [--keep-speed] [--keep-hf] [--corner-floor] [--levels w] [--mode 0:0.08] [--write]
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { join } from 'node:path';
@@ -41,6 +42,8 @@ interface Over {
   outputGain: number;
   bowSpeed: [number, number];
   hf: [number, number];
+  /** --mode: the signature modes with some changed (their damping, radiation, frequency) */
+  signature?: { f: number; eta: number; m: number; rad: number }[];
 }
 interface Got {
   harmAbs: number[];
@@ -352,9 +355,17 @@ if (!isMainThread && (workerData as { fitBodies?: boolean })?.fitBodies) {
     bowSpeed: [...d.bowSpeed],
     hf: [...d.hf],
   };
+  // --mode i:eta[:rad[:f]] (repeatable): signature mode i with another damping (and radiation, frequency),
+  // the bands refitted around it; the median mf note's loudness is still the design's as it stands
+  for (let a = 0; a < args.length; a++) {
+    if (args[a] !== '--mode') continue;
+    const [i, eta, rad, f] = args[a + 1].split(':').map(Number);
+    over.signature ??= d.signature.map((m) => ({ ...m }));
+    over.signature[i] = { ...over.signature[i], eta, ...(Number.isFinite(rad) ? { rad } : {}), ...(Number.isFinite(f) ? { f } : {}) };
+  }
   let corner: [number, number] | null = d.body ? d.body.corner : null;
   let env = (f: number) => envelopeDb(inst, f);
-  let got = got0;
+  let got = over.signature ? await renderAll(inst, over, refs) : got0;
   let gains = d.body ? d.body.bands.map(([, g]) => g) : BAND_F.map(() => 0);
   // the recordings' level of pp and ff over mf (median note, fit half)
   const lvl = (gs: { rmsDb: number }[], dyn: string) => median(gs.filter((_, i) => refs[i].dyn === dyn).map((g) => g.rmsDb));
@@ -471,6 +482,7 @@ if (!isMainThread && (workerData as { fitBodies?: boolean })?.fitBodies) {
     hf: over.hf.map(r3),
     bowSpeed: over.bowSpeed.map(r3),
     outputGain: r3(over.outputGain),
+    ...(over.signature ? { signature: over.signature } : {}),
   };
   console.log(JSON.stringify(out));
   if (args.includes('--write')) {

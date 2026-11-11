@@ -1,0 +1,52 @@
+{
+ "trombone-level": {
+  "what": "the trumpet’s phrase, then the trombone’s an octave lower, mf then ff",
+  "before": "trombone -24.6 LUFS vs trumpet -12.7",
+  "after": "trombone -15.8 LUFS vs trumpet -12.7"
+ },
+ "brass-chorale": {
+  "what": "trumpet, horn, trombone and timpani on one bus (the Orchestra’s), a chorale forte then fortissimo with a roll",
+  "before": "at the bus, RMS dBFS: trumpet -20.2, horn -20.0, trombone -34.0, timpani -36.7",
+  "after": "at the bus, RMS dBFS: trumpet -25.9, horn -25.7, trombone -30.7, timpani -35.4"
+ },
+ "violin-a0": {
+  "what": "the violin, G3–F4 chromatic, ff, half a second each",
+  "before": "C♯4 6.4 dB over B3/D4, C4 0.8 dB",
+  "after": "C♯4 1.9 dB over B3/D4, C4 3.1 dB"
+ },
+ "viola-a0": {
+  "what": "the viola, F♯3–D4 chromatic, ff",
+  "before": "A♯3 7.0 dB over A3/B3, C♯4 7.0 dB over C4/D4",
+  "after": "A♯3 -2.2 dB over A3/B3, C♯4 -0.9 dB over C4/D4"
+ },
+ "bowed-releases": {
+  "what": "violin D5, violin E4, viola C4: held 1.2 s and let go, each tail 2.3 s",
+  "before": "the tail's largest rise in 50 ms: violin D5 8.0 dB, E4 9.0 dB, viola C4 14.7 dB",
+  "after": "the tail's largest rise in 50 ms: violin D5 1.1 dB, E4 0.6 dB, viola C4 0.6 dB"
+ },
+ "trumpet-pp": {
+  "what": "the trumpet, pp, F♯3 up by whole tones, each note over the last one’s tail",
+  "before": "worst note-on step 2.77× the 99th percentile of the steps around it",
+  "after": "worst note-on step 0.42× the 99th percentile of the steps around it"
+ },
+ "flute-22k-top": {
+  "what": "the flute at 22.05 kHz, C6–C7, mf",
+  "before": "4 of 8 notes sounding another note",
+  "after": "0 of 8 notes sounding another note"
+ },
+ "violin-quarters": {
+  "what": "the violin in a file (bow foreseen): A5 F5 D5 / B♭5 G5 D5 in quarters, 0.33 s, v84–104",
+  "before": "D5s: the octave below (f0/2 and its odd multiples) at most -14.4 dB re the note's harmonics",
+  "after": "D5s: the octave below (f0/2 and its odd multiples) at most -23.4 dB re the note's harmonics"
+ },
+ "bassoon-register": {
+  "what": "the bassoon: B2 twice, D3 twice (each begun 14 ms later the second time), then A3; mf",
+  "before": "B2 odd harmonics -4 dB, B2′ odd harmonics -0 dB, D3 odd harmonics -9 dB, D3′ odd harmonics -4 dB, A3 odd harmonics -5 dB",
+  "after": "B2 odd harmonics -4 dB, B2′ odd harmonics -0 dB, D3 odd harmonics -9 dB, D3′ odd harmonics -4 dB, A3 odd harmonics -5 dB"
+ },
+ "timpani-level": {
+  "what": "a forte: the cello’s D3 held, a timpani roll on G2, the trombone’s D3 held",
+  "before": "LUFS: cello -23.4, timpani roll -25.0, trombone -25.0",
+  "after": "LUFS: cello -23.4, timpani roll -18.0, trombone -16.0"
+ }
+}

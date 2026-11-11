@@ -241,11 +241,19 @@ const VIOLIN: BowedDesign = {
     { name: 'E', open: 76, T: 73 },
   ],
   t60: [9, 0.9],
-  // Jansson; Bissinger: A0 (f-hole Helmholtz), CBR, B1−, B1+, A1
+  // Jansson; Bissinger: A0 (f-hole Helmholtz), CBR, B1−, B1+, A1. A0's damping and weight and B1−'s
+  // damping as fitted with the body (audio audit 2, scripts/fit-bodies.ts --levels 6 --mode 0:0.08:0.3
+  // --mode 2:0.045): the fitted bands carry the body's average response, so a narrow A0 and B1− on top of
+  // them were a second, unfitted peak. No Iowa note sits on A0 (the recordings have no C4 or C♯4), and
+  // the fit half is indifferent to it (recording − model 7.8–8.3 dB from η 0.04 to 0.15, radiation 1
+  // to 0.2); at η 0.04, weight 1, C♯4 played 23 dB over B3 and D4 (C4 15 dB), dry, ff, and the
+  // limiter took 12–14 dB off it. Chosen so that A0's own note stands over its neighbours as far as the
+  // Iowa cello's does over its own (G♯2 +6 to +10 dB): C♯4 +8 dB, C4 +4, A♯4 (B1−) +5. Judge: NO CLEAR
+  // CHANGE (held-out 2.98 → 3.03, harmonics 9.15 → 8.68 dB).
   signature: [
-    { f: 275, eta: 0.04, m: 0.35, rad: 1.0 },
+    { f: 275, eta: 0.08, m: 0.35, rad: 0.3 },
     { f: 405, eta: 0.03, m: 0.6, rad: 0.25 },
-    { f: 465, eta: 0.022, m: 0.28, rad: 0.85 },
+    { f: 465, eta: 0.045, m: 0.28, rad: 0.85 },
     { f: 540, eta: 0.022, m: 0.3, rad: 1.0 },
     { f: 470 * 1.0 + 0, eta: 0.035, m: 1.2, rad: 0.4 },
   ],
@@ -278,9 +286,12 @@ const VIOLA: BowedDesign = {
     { name: 'A', open: 69, T: 60 },
   ],
   t60: [10, 0.9],
-  // a viola's main resonances sit relatively higher than a scaled violin would put them
+  // a viola's main resonances sit relatively higher than a scaled violin would put them. A0 damped and
+  // weighted as the violin's (audio audit 2, refitted: --levels 6 --mode 0:0.08:0.3): its C♯4 and A♯3 had
+  // played 12 dB over their neighbours (+27 dB fitted at 283 Hz on top of A0), now within 2–3 dB. Judge:
+  // NO CLEAR CHANGE (held-out 4.56 → 4.58, harmonics 10.17 → 9.92 dB, attack 0.98 → 0.92 oct)
   signature: [
-    { f: 230, eta: 0.04, m: 0.45, rad: 1.0 },
+    { f: 230, eta: 0.08, m: 0.45, rad: 0.3 },
     { f: 340, eta: 0.03, m: 0.7, rad: 0.25 },
     { f: 390, eta: 0.022, m: 0.35, rad: 0.85 },
     { f: 465, eta: 0.022, m: 0.38, rad: 1.0 },
@@ -466,6 +477,16 @@ const BETA_PLAN: [number, number] = [0.04, 0.28];
 /** velocity (0..1 of 1..127) at which bowPosition is the actual β: MIDI 80 */
 const X_REF = 79 / 126;
 const MU_S = 0.8;
+/** The stopping finger stays on a string the bow has left while the string still rings, and lifts (at the
+ *  earliest 0.3 s after the bow) once its ring is `quiet` of what it was as the bow left; lifting, the fingertip
+ *  damps what is left (half off the string it is a damper at the stopping point): `db` over `s` seconds, then
+ *  the string is open. (Audio audit 2: lifted 0.3 s after the bow, at once, a stopped note's tail, 20–27 dB
+ *  down, came back 7–15 dB louder: violin D5 −27 → −20 dB, viola C4 −27 → −13, re the held note, with
+ *  vibrato. A note in tune with an open string's partial rings that string in sympathy, and the two, coupled
+ *  at the bridge, ring on in a pair whose forces there nearly cancel, as two unison piano strings do in their
+ *  aftersound (Weinreich 1977, JASA 62, 1474); a finger lifted from one of them ends the pair and the other is
+ *  heard whole. Lifted at once, the stopped string also sounded again at the open string's pitch.) */
+const FINGER_LIFT = { s: 0.04, db: 40, quiet: 1e-3 };
 const MU_D = 0.3;
 const V0 = 0.2;
 const MAX_BUF = 1 << 14;
@@ -555,6 +576,11 @@ class BowedString {
   /** the CC_DYNAMICS offset this string's bow targets were last set for */
   dynApplied = 0;
   releasedAt = 0;
+  /** the finger is lifting off this (stopped, idle) string, its ring damped (FINGER_LIFT); since when (frame) */
+  lifting = false;
+  liftAt = 0;
+  /** the string's level as the bow left it */
+  releasedLevel = 0;
   startedAt = 0;
   vibPhase = 0;
   vibRate = 5.5;
@@ -880,6 +906,7 @@ export class BowedCore implements InstrumentCore {
   /** Stop string s at midi note m (open if m equals its open note). */
   private setStopped(s: BowedString, m: number, immediate = false): void {
     s.midi = m;
+    s.lifting = false;
     // design.byEar: a new note, a new finger
     s.ear = 0;
     s.relAt = -1;
@@ -1607,6 +1634,7 @@ export class BowedCore implements InstrumentCore {
     s.vBowTarget = 0;
     s.fBowTarget = 0;
     s.releasedAt = this.frame;
+    s.releasedLevel = s.level;
     if (!this.strings.some((q) => q.bowing)) this.bowOff = this.frame;
   }
 
@@ -1759,9 +1787,16 @@ export class BowedCore implements InstrumentCore {
         s.vibPhase += 2 * Math.PI * s.vibRate * (wd ? 1 + wd.vibRate * s.wv[0] : 1) * dt;
         cents = vibDepth * ramp * Math.sin(s.vibPhase) * (wd ? Math.max(0, 1 + wd.vibDepth * s.wv[1]) : 1);
       }
-      // finger lifts 0.3 s after the bow leaves an idle string
-      if (!s.bowing && s.midi !== s.def.open && (this.frame - s.releasedAt) / fs > 0.3) {
-        this.setStopped(s, s.def.open, false);
+      // the finger lifts from an idle string once its ring has died away, damping what is left (FINGER_LIFT)
+      if (!s.bowing && s.midi !== s.def.open) {
+        if (s.lifting) {
+          if ((this.frame - s.liftAt) / fs > FINGER_LIFT.s) this.setStopped(s, s.def.open, false);
+        } else if ((this.frame - s.releasedAt) / fs > 0.3 && s.level <= Math.max(1e-7, FINGER_LIFT.quiet * s.releasedLevel)) {
+          s.lifting = true;
+          s.liftAt = this.frame;
+          // (per round trip of the loop: FINGER_LIFT.db over FINGER_LIFT.s)
+          s.lossB *= Math.pow(10, (-FINGER_LIFT.db / 20) * (s.D0 / fs / FINGER_LIFT.s));
+        }
       }
       // the live pressure controller follows the bow while it is on the string
       if (s.bowing && s.fBase > 0) s.fBowTarget = Math.min(1.3 * s.fMax, s.fBase * this.pressureCC);

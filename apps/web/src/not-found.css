@@ -1,0 +1,118 @@
+/* The page for an address that is none of the app's (404.html): the stage's ground, the readout's two
+   lines (a word in the serif italic, a line of mono under it), and the places that do exist, by family
+   as the picker has them. Its own small sheet: the app's is not loaded. Colours and type as styles.css. */
+@import '@fontsource-variable/newsreader/opsz-italic.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+
+:root {
+  --ground: #0e0d0b;
+  --ink: #ece2ce;
+  --ink-2: #c9bfab;
+  --muted: #8a8172;
+  --rule: #2a261f;
+  --accent: #ff5e38;
+  --amber: #f2a646;
+  --serif: 'Newsreader Variable', 'Iowan Old Style', Palatino, Georgia, serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+}
+body {
+  min-height: 100dvh;
+  display: flex;
+  /* (the stage's own floor: a warm light from below) */
+  background:
+    radial-gradient(120% 90% at 50% 100%, rgba(58, 42, 28, 0.35), transparent 60%),
+    var(--ground);
+  -webkit-font-smoothing: antialiased;
+}
+.nf {
+  margin: auto;
+  width: min(100%, 720px);
+  padding: 48px clamp(20px, 6vw, 56px) 72px;
+}
+.nf-word {
+  margin: 0;
+  font: italic 400 clamp(72px, 19vw, 132px) / 1 var(--serif);
+  font-variation-settings: 'opsz' 72;
+  letter-spacing: -0.01em;
+}
+.nf-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 0 1px;
+  font: 400 11px/15px var(--mono);
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+/* the pilot lamp, as it is before any sound: vermilion, unlit */
+.nf-lamp {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffb59f, var(--accent) 55%, #5a1a0c);
+  box-shadow: 0 0 8px rgba(255, 94, 56, 0.55);
+}
+#nf-path {
+  overflow-wrap: anywhere;
+}
+.nf-places,
+.nf-pages {
+  display: flex;
+  flex-wrap: wrap;
+  font: 400 11px/1 var(--mono);
+  letter-spacing: 0.02em;
+}
+.nf-places {
+  gap: 10px 0;
+  margin: 44px 0 0 -12px;
+  /* (a family that starts a row has no hairline before it: its own, a pixel left of the row, is cut off) */
+  overflow: hidden;
+}
+/* a family: its instruments together, a hairline before the next */
+.nf-fam {
+  display: flex;
+  margin-left: -1px;
+  padding: 0 6px;
+  border-left: 1px solid var(--rule);
+}
+.nf-pages {
+  margin: 22px 0 0 -12px;
+  padding: 0 5px;
+}
+.nf a {
+  padding: 9px 6px;
+  border-radius: 3px;
+  color: var(--ink-2);
+  text-decoration: none;
+}
+.nf-pages a {
+  color: var(--muted);
+}
+.nf a:hover {
+  color: var(--ink);
+  box-shadow: inset 0 -1.5px 0 var(--amber);
+}
+.nf a:focus-visible {
+  outline: 1.5px solid var(--amber);
+  outline-offset: -1px;
+}
+/* a phone: the families one under the other would be six rows; they wrap as they fit, each whole */
+@media (max-width: 480px) {
+  .nf-places {
+    gap: 6px 0;
+  }
+  .nf a {
+    padding: 11px 6px;
+  }
+}

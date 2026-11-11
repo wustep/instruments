@@ -61,7 +61,7 @@
 
 import { Pump } from './pump.ts';
 import type { KeySummary } from '../api/messages.ts';
-import { CC_DYNAMICS, DYN_TAU, type ExciteTrace, type InstrumentCore } from './instrument.ts';
+import { CC_DYNAMICS, DYN_TAU, PLAYBACK_DB, type ExciteTrace, type InstrumentCore } from './instrument.ts';
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { biquadHighpass, biquadHighShelf, biquadPeaking } from './filters.ts';
 import type { PianoEvent } from './piano-core.ts';
@@ -689,7 +689,8 @@ export class TimpaniCore implements InstrumentCore {
     const V = this.V;
     this.eq.set([biquadHighpass(28, 0.7, fs), biquadPeaking(V.f1, V.q1, V.g1, fs), biquadHighShelf(Math.min(0.4 * fs, V.shelfF), V.shelfG, fs)]);
     this.room.configure(this.params.room, this.params.seat);
-    this.gain = Math.pow(10, V.gainDb / 20) * this.params.volume;
+    // (fitted at the VSCO 2 CE session's level; played, PLAYBACK_DB gives it the timpani's place: instrument.ts)
+    this.gain = Math.pow(10, (V.gainDb + (this.dry ? 0 : (PLAYBACK_DB.timpani ?? 0))) / 20) * this.params.volume;
   }
 
   private freqsOf(d: Drum): void {
