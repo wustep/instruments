@@ -26,7 +26,7 @@ import type { KeySummary } from '../api/messages.ts';
 import { BK_MAX, type DesignEntry, DispersionCache, type StrikeRecord, Voice } from './voice.ts';
 
 export type PianoEvent =
-  | { type: 'noteOn'; midi: number; velocity: number }
+  | { type: 'noteOn'; midi: number; velocity: number; /** the harp: a string of a glissando, not a pitch (harp.ts) */ gliss?: boolean }
   | { type: 'noteOff'; midi: number }
   | { type: 'sustain'; value: number }
   | { type: 'soft'; value: number }

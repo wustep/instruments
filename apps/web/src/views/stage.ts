@@ -605,6 +605,16 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     const at = (b: { x0: number; y0: number; x1: number; y1: number }) => ({ x0: r.left + b.x0, x1: r.left + b.x1, y0: y0 + b.y0, y1: y0 + b.y1 });
     return { body: at(d.body), valves: at(d.valves), mouth: at(d.mouth), bell: at(d.bell), levers: d.levers, side: d.side, stage: { x0: r.left, x1: r.right, y0, y1: r.bottom } };
   };
+  // tests: where the 2D stage last drew the harp (client px: the whole instrument, the strings' band, the
+  // pedals' row; how many strings swing, the widest's index and swing; each pedal's foot; the notches)
+  (window as unknown as { __harp2d?: () => unknown }).__harp2d = () => {
+    const d = inst === 'harp' && !(want3d && s3) && !ensemble.active ? harpState.drawn : null;
+    if (!d) return null;
+    const r = canvas.getBoundingClientRect();
+    const y0 = r.top + top.getBoundingClientRect().height;
+    const at = (b: { x0: number; y0: number; x1: number; y1: number }) => ({ x0: r.left + b.x0, x1: r.left + b.x1, y0: y0 + b.y0, y1: y0 + b.y1 });
+    return { ...d, body: at(d.body), strings: at(d.strings), pedals: at(d.pedals), pedalY: d.pedalY.map((y) => y0 + y), stage: { x0: r.left, x1: r.right, y0, y1: r.bottom } };
+  };
   // tests: where the 2D stage last drew the tuba (client px: the whole instrument, the valves from their
   // casings' feet to the buttons, the mouthpiece, the bell's mouth; the valves held: bit k, valve k + 1; each
   // button's height), and the stage it was drawn in

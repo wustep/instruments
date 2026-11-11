@@ -37,7 +37,7 @@ export const RANGES: Partial<Record<Key, [number, number, boolean?]>> = {
   stiffOct: [1, 5],
   stiffWire: [5e-6, 5e-4, true],
   tilt: [-9, 5],
-  hp: [40, 420, true],
+  hp: [40, 320, true],
   f1: [110, 520, true],
   g1: [-8, 20],
   q1: [0.4, 5],
@@ -50,6 +50,7 @@ export const RANGES: Partial<Record<Key, [number, number, boolean?]>> = {
   knockF: [70, 320, true],
   knockTau: [0.008, 0.15, true],
   symp: [0.002, 0.2, true],
+  octave: [0.005, 0.6, true],
 };
 const KEYS = Object.keys(RANGES) as Key[];
 

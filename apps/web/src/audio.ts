@@ -416,7 +416,9 @@ class AudioApp {
     };
   }
 
-  noteOn(midi: number, velocity: number, source: NoteEvent['source']): void {
+  /** `gliss`: a key reached by a finger drawn across the keys (the harp: a string of a glissando, at the
+   *  pitch its pedal gives; engine core/harp.ts) */
+  noteOn(midi: number, velocity: number, source: NoteEvent['source'], gliss = false): void {
     if (midi < 21 || midi > 108) return;
     let set = this.down.get(midi);
     if (!set) {
@@ -428,7 +430,7 @@ class AudioApp {
     if (this.route) {
       if (!this.ctx) void this.start().catch(() => undefined);
       this.route.noteOn(midi, velocity);
-    } else this.send((p) => p.noteOn(midi, velocity));
+    } else this.send((p) => p.noteOn(midi, velocity, undefined, gliss && p.instrument === 'harp'));
     this.notes.emit({ midi, velocity, on: true, source });
   }
 

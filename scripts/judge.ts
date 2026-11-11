@@ -156,6 +156,18 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     if (args.includes('--json')) console.log(JSON.stringify(v));
     process.exit(0);
   }
+  if (inst[0] === 'harp') {
+    // the harp: plucked strings against VSCO 2 CE (scripts/calibrate-harp.ts)
+    const t = await import('./calibrate-harp.ts');
+    await t.useEngine(opt('--before') ? resolve(opt('--before')!) : undefined);
+    const before = t.harpErrors(await t.compareAll());
+    await t.useEngine(opt('--after') ? resolve(opt('--after')!) : undefined);
+    const after = t.harpErrors(await t.compareAll());
+    const v = judge(before.errs, after.errs, before.measures);
+    printVerdict(v, `harp: ${opt('--before') ? 'before' : 'this'} → ${opt('--after') ?? 'this checkout'}`);
+    if (args.includes('--json')) console.log(JSON.stringify(v));
+    process.exit(0);
+  }
   const { compareAll, useEngine, harmErr } = await import('./calibrate-ensemble.ts');
   const run = async (engine?: string) => {
     await useEngine(engine ? resolve(engine) : undefined);

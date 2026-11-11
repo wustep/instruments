@@ -200,7 +200,7 @@ export interface HarpVoice {
   stiffWire: number;
   /** the level across the compass, dB an octave (the treble's short strings move the board less) */
   tilt: number;
-  /** the soundboard and the soundbox: a high-pass (Hz: the board radiates little below it), two resonances
+  /** the soundboard and the soundbox: a high-pass (Hz, 24 dB an octave: the board radiates little below it), two resonances
    *  (Hz, dB, Q) and a shelf above shelfF (dB) */
   hp: number;
   f1: number;
@@ -218,13 +218,23 @@ export interface HarpVoice {
   knockTau: number;
   /** the other strings answering: the share of a partial's motion a string's partial on the same pitch takes */
   symp: number;
+  /** the octave the string's own tension adds: it swings twice a cycle, whatever the pluck's place, and pulls
+   *  the board along the string at twice the fundamental (the second partial's level re the first at
+   *  mezzo-forte, growing with the pluck: Legge & Fletcher 1984, "Nonlinear generation of missing modes on a
+   *  vibrating string", JASA 76, 5). Without it a string plucked at its middle has no even partials at all;
+   *  the recordings' second lies 16–20 dB under the first while their fourth and sixth are 30–45 dB under */
+  octave: number;
   /** the velocity's curve: the pluck's force ∝ (velocity/127)^velPow */
   velPow: number;
   /** the level (dB) */
   gainDb: number;
 }
 
-/** the voicing (provisional: set by hand from the recordings' measures; scripts/fit-harp.ts refines it) */
+/** The fitted voicing (scripts/fit-harp.ts: 1400 steps of the search, then its coordinate polish; the fit half
+ *  1.60 → 0.98, each measure about as far from the recording as its neighbouring strings are from each other).
+ *  The level is not the library's (its samples are normalised, each to its own): it is set so that a
+ *  mezzo-forte middle C sounds 4 dB under the piano's (−40 dBFS RMS over its first half second; the piano's
+ *  −36.5), 6 dB under the level that would match the recordings. */
 export const HARP_VOICE: HarpVoice = {
   beta: 0.4895,
   betaTop: 0.4423,
@@ -261,8 +271,9 @@ export const HARP_VOICE: HarpVoice = {
   knockF: 173.7,
   knockTau: 0.03032,
   symp: 0.008358,
+  octave: 0.12,
   velPow: 2,
-  gainDb: -40.64,
+  gainDb: -26,
 };
 
 /** the most partials a string is given: the wire strings of the bass (a C1's 64th is at 2.1 kHz), the rest */
@@ -387,7 +398,8 @@ export class HarpCore implements InstrumentCore {
   private voiced(): void {
     const fs = this.fs;
     const V = this.V;
-    this.eq.set([biquadHighpass(V.hp, 0.7, fs), biquadPeaking(V.f1, V.q1, V.g1, fs), biquadPeaking(V.f2, V.q2, V.g2, fs), biquadHighShelf(Math.min(0.4 * fs, V.shelfF), V.shelfG, fs)]);
+    // (the board's low cut twice over: 24 dB an octave, a C1's fundamental 40 dB and more under its third)
+    this.eq.set([biquadHighpass(V.hp, 0.7, fs), biquadHighpass(V.hp, 0.7, fs), biquadPeaking(V.f1, V.q1, V.g1, fs), biquadPeaking(V.f2, V.q2, V.g2, fs), biquadHighShelf(Math.min(0.4 * fs, V.shelfF), V.shelfG, fs)]);
     this.room.configure(this.params.room, this.params.seat);
     for (let k = 0; k < KNOCK_RATIOS.length; k++) {
       const w = (2 * Math.PI * Math.min(0.4 * fs, V.knockF * KNOCK_RATIOS[k])) / fs;
@@ -575,7 +587,9 @@ export class HarpCore implements InstrumentCore {
     for (let k = 0; k < n; k++) {
       const h = k + 1;
       const f = h * f0 * Math.sqrt(1 + B * h * h);
-      const a = (A * Math.sin(h * Math.PI * beta)) / Math.pow(h, V.slope) / Math.sqrt(1 + Math.pow(f / fc, 2 * V.order));
+      let a = (A * Math.sin(h * Math.PI * beta)) / Math.pow(h, V.slope) / Math.sqrt(1 + Math.pow(f / fc, 2 * V.order));
+      // (the tension's octave, on the second partial)
+      if (k === 1) a += (V.octave * A * v) / 0.55;
       const w = (2 * Math.PI * f) / fs;
       const r = Math.sqrt(this.c2[o + k]) || 1;
       // (the board answers the string's pull with its velocity: each partial of what is heard starts from
@@ -647,7 +661,7 @@ export class HarpCore implements InstrumentCore {
       case 'noteOn': {
         if (ev.velocity <= 0) return this.release(ev.midi);
         const m = Math.round(ev.midi);
-        const gliss = (ev as { gliss?: boolean }).gliss === true;
+        const gliss = ev.gliss === true;
         // a glissando's notes are strings (a white key's, at the pitch its pedal gives; a black key is no
         // string); any other note is a pitch, and finds its string
         // (a pitch outside the compass is played in its nearest octave inside it)

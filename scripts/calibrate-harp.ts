@@ -9,6 +9,7 @@ import { pathToFileURL } from 'node:url';
 import { analyzeRing, THIRD_OCT, type RingAnalysis } from '../packages/engine/src/analysis/index.ts';
 import { renderInstrument } from '../packages/engine/src/core/index.ts';
 import type { Measure, NoteErr } from './judge.ts';
+// (`import type` above: the judge imports this file)
 import { harpRefs, harpRing, type HarpRef } from './harp-refs.ts';
 
 /** the library's dynamic marks as velocities */
