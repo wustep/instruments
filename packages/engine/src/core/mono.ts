@@ -22,18 +22,19 @@
 // note of unknown length, played by hand, gets the long tone's attack the recordings were fitted on), and
 // the tongue's stroke before a note joined to the last is made ahead of it, so the note speaks on time and
 // the one before is that much shorter, as a player's is. And a rest shorter than REST is no breath let go:
-// the tongue stops the note where it ends and stays until the next begins (a staccato: the mouth's pressure
-// stays up between the notes of a tongued passage, Li et al. 2016), so that note speaks at once. Nothing
-// foreseen: nothing here is planned, and a key let go lets the breath go.
+// the tongue stops the note where it ends and stays until the next begins (a staccato: such notes are
+// ended by the tongue, not by letting the pressure fall, Li et al. 2016), so that note speaks at once.
+// Nothing foreseen: nothing here is planned, and a key let go lets the breath go.
 //
-// Sources. Tonguing: Li, Almeida, Smith & Wolfe 2016, "How clarinettists articulate: the effect of
-// blowing pressure and tonguing on initial and final transients", JASA 139, 825–838 (the tongue on the
-// reed stops the note at the bore's own decay, about 400 dB/s; a normal attack grows about 1000 dB/s, an
-// accent 1300; the mouth's pressure stays up through a tongued passage). Contact times in portato and
-// staccato: Hofmann & Goebl 2014, "Production and perception of legato, portato, and staccato
-// articulation in saxophone playing", Front. Psychol. 5:690 (tongue–reed contact about 20–40 ms at
-// sixteenths, longer in staccato). The fastest single tonguing, about 10 notes a second: Hofmann & Goebl
-// 2016, "Finger forces in clarinet playing", and the players' usual limit (the trumpet's MIN_BLOW).
+// Sources. Li, Almeida, Smith & Wolfe 2016, "How clarinettists articulate: the effect of blowing pressure
+// and tonguing on initial and final transients", JASA 139, 825–838: a note stopped by the tongue on the
+// reed decays at about the rate of the bore's own resonances, some 400 dB/s; a normal attack's fundamental
+// grows about 1000 dB/s, an accent's 1300. Tongue–reed contact in legato, portato and staccato playing was
+// measured by Hofmann & Goebl 2014, "Production and perception of legato, portato, and staccato
+// articulation in saxophone playing", Front. Psychol. 5:690. The contact times here are this model's own:
+// set so that a repeated note falls 6–10 dB between its strokes in the middle of each instrument and a
+// note joined to another 2–6 dB (scripts/winds-midi-bench.ts measures them). FASTEST is the usual limit of
+// single tonguing, about ten notes a second (the trumpet's MIN_BLOW, brass.ts, says the same).
 
 /** the fastest the tongue repeats (s): a different note sooner than this after the last stroke is slurred */
 export const FASTEST = 0.085;
@@ -65,7 +66,7 @@ export interface MonoAct {
 
 /** the tongue's stroke on a sounding note (s): it closes in CLOSE; from its first touch until it lets go is
  *  REPEAT where the note is struck again (the stop is all that says so), MOVE where the fingers move too
- *  (a lighter stroke: the legato tongue). Hofmann & Goebl 2014: 20–40 ms in portato. */
+ *  (a lighter stroke: the legato tongue) */
 export const LICK_CLOSE = 0.002;
 export const LICK_REPEAT = 0.026;
 export const LICK_MOVE = 0.014;

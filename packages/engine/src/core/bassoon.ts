@@ -191,9 +191,11 @@ const MIN_BLOW_PP = 0.3;
 const HOLD_SHARE = 0.1;
 /** tongued over the breath (mono.ts): the release's wider opening is this much of a first attack's */
 const LICK_BOOST = 0.5;
-/** what the tongue on the reed takes from the bore while it lies there (dB/s), on top of the bore's own
- *  decay with the reed shut: together about the rate a real bore's resonances decay when the tongue stops
- *  a note, 400 dB/s (Li, Almeida, Smith & Wolfe 2016, JASA 139, the clarinet) */
+/** what the tongue on the blades takes from the bore while it lies there (dB/s), on top of the bore's own
+ *  decay with the reed shut (as the oboe's, oboe.ts STOP_RATE: a stopped note decays about as a real bore's
+ *  resonances do, Li, Almeida, Smith & Wolfe 2016, JASA 139). With 100 a repeated note falls 5.6 dB between
+ *  its strokes (1.2 dB with none); with 200, 10 dB, but 5 of 480 joined notes then spoke on their octave
+ *  against 1 (scripts/winds-midi-bench.ts) */
 const STOP_RATE = 100;
 
 const et = (m: number) => 440 * Math.pow(2, (m - 69) / 12);

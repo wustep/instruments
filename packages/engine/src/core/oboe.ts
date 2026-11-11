@@ -180,9 +180,12 @@ const QUICK_SHARE = 1 / 6;
 const HOLD_SHARE = 0.1;
 /** tongued over the breath (mono.ts): the release's wider opening is this much of a first attack's */
 const LICK_BOOST = 0.5;
-/** the tongue on the blades stops the note at about the rate a real bore's resonances decay, 400 dB/s (Li,
- *  Almeida, Smith & Wolfe 2016, JASA 139, the clarinet; a cone's are as wide). This bore, fitted on held
- *  notes, rings on at about 70 dB/s with the reed shut, so the tongue takes the rest (dB/s) where it lies */
+/** What the tongue on the blades takes from the bore while it lies there (dB/s). A note stopped by the tongue
+ *  decays at about the rate of a real bore's resonances, 400 dB/s (Li, Almeida, Smith & Wolfe 2016, JASA
+ *  139, the clarinet); this bore, fitted on held notes, rings on at about 70 dB/s with the reed shut (a
+ *  repeated note fell 1.6 dB under a 30 ms tongue). With 100 more it falls 5.6 dB between its strokes. More
+ *  (200: 10 dB) left the reed more often on the note's octave as it was let go (scripts/winds-midi-bench.ts,
+ *  joined notes across the compass: 9 of 396 against 7; the bassoon's 5 of 480 against 1) */
 const STOP_RATE = 100;
 
 const et = (m: number) => 440 * Math.pow(2, (m - 69) / 12);

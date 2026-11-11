@@ -188,9 +188,9 @@ const MIN_BLOW_PP = 0.45;
 const HOLD_SHARE = 0.1;
 /** tongued over the breath (mono.ts): the release's wider opening is this much of a first attack's */
 const LICK_BOOST = 0.5;
-/** what the tongue on the reed takes from the bore while it lies there (dB/s), on top of the bore's own
- *  decay with the reed shut: together about the rate a real bore's resonances decay when the tongue stops
- *  a note, 400 dB/s (Li, Almeida, Smith & Wolfe 2016, JASA 139, the clarinet) */
+/** what the tongue on the reed takes from the bore while it lies there (dB/s): nothing. This bore's own
+ *  decay with the reed shut is already a real one's (about 540 dB/s in the middle; Li, Almeida, Smith &
+ *  Wolfe 2016, JASA 139, measured some 400 on the clarinet): a repeated note falls 14 dB between its strokes */
 const STOP_RATE = 0;
 
 const et = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
