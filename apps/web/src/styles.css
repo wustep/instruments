@@ -2186,7 +2186,7 @@ figure[title] {
 }
 
 /* ------------------------------------------------------------ an ensemble: what the keys play */
-/* in the knobs' place on the fallboard: the keys' sign, the instruments (lit: the keys play it), then
+/* in the knobs' place on the fallboard: the instruments (lit: the keys play it), then
    split; a phone keeps the row behind one button showing what the keys play */
 .kf,
 .kf-toggle {
@@ -2200,12 +2200,6 @@ figure[title] {
 }
 .kf-sign {
   flex: none;
-  color: var(--muted);
-}
-.kf-key {
-  display: grid;
-  place-items: center;
-  margin-right: 6px;
   color: var(--muted);
 }
 .kf-part,

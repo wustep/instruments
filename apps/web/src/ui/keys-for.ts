@@ -1,5 +1,5 @@
-// What the keys play in an ensemble: on the fallboard, where a single instrument has its knobs, a
-// small keyboard sign and the ensemble's instruments, each a glyph, lit when the keys play it (a tap
+// What the keys play in an ensemble: on the fallboard, where a single instrument has its knobs, the
+// ensemble's instruments, each a glyph, lit when the keys play it (a tap
 // adds or takes one; the last one stays), then "split" (a chord dealt out by register, one note to
 // each instrument). On a phone the row waits behind one button showing what the keys play, as the
 // knobs wait behind ◐. No words on the stage: each control has a tooltip and an accessible name.
@@ -59,7 +59,7 @@ export function keysForControl(): { el: HTMLElement; toggle: HTMLButtonElement }
       const v = sec.voice;
       const label = sectionName(sec, names);
       const n = sec.seats.filter((x) => on.has(x)).length;
-      const b = h('button', { class: 'kf-part', type: 'button', 'data-kf': `p${k}`, 'data-part': String(k), 'data-seats': sec.seats.join(' '), 'data-voice': v, 'aria-pressed': n === 0 ? 'false' : n === sec.seats.length ? 'true' : 'mixed', 'aria-label': label, 'data-tip': label });
+      const b = h('button', { class: 'kf-part', type: 'button', 'data-kf': `p${k}`, 'data-part': String(k), 'data-seats': sec.seats.join(' '), 'data-voice': v, 'aria-pressed': n === 0 ? 'false' : n === sec.seats.length ? 'true' : 'mixed', 'aria-label': label, 'data-tip': `keys · ${label}` });
       b.append(voiceGlyph(v));
       const badge = sec.seats.length > 1 ? `×${sec.seats.length}` : names[k] !== VOICE_INFO[v].label ? names[k].split(' ').pop()! : '';
       if (badge) b.append(h('span', { class: 'kf-n', 'aria-hidden': 'true' }, badge));
@@ -69,7 +69,7 @@ export function keysForControl(): { el: HTMLElement; toggle: HTMLButtonElement }
     const sp = h('button', { class: 'kf-split', type: 'button', 'data-kf': 'split', 'aria-pressed': String(split), 'aria-label': 'Split: a chord is dealt out by register, one note to each instrument', 'data-tip': 'split · one note each, by register' });
     sp.append(splitSign());
     sp.addEventListener('click', () => ensemble.splitKeys(!ensemble.keys.split));
-    row.replaceChildren(h('span', { class: 'kf-key', 'data-tip': 'the keys play' }, keysSign()), ...chips, sp);
+    row.replaceChildren(...chips, sp);
     // the phone's button: the keys sign and what they play (the first instrument; "+2" for two more)
     const parts = [...on];
     const what = split ? 'split' : parts.map((k) => names[k]).join(', ');
