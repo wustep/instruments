@@ -308,6 +308,8 @@ const et = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 const MIN_BLOW_PP = 0.25;
 const MIN_BLOW = 0.1;
 const LP_SECTION = 2;
+/** the brightness corner's glide to a new note or dynamic (s): within the attack, slower than a click */
+const LP_GLIDE = 0.01;
 /** the tongue's release: the breath reaches its onset fraction this fast (s, a time constant) */
 const ONSET_TAU = 0.012;
 /** the slide's top speed (m/s) and its smoothing (s) */
@@ -421,6 +423,9 @@ export class TromboneCore implements InstrumentCore {
   private eq = new BiquadChain();
   private lpNote = 900;
   private lpSet = -1;
+  /** the corner as it glides to the note's and the dynamic's (Hz; −1: none yet, a note from silence
+   *  takes its own at once) */
+  private lpNow = -1;
   private tiltNote = 1;
   private tiltOut = 1;
   private noiseNote = 0.03;
@@ -709,6 +714,7 @@ export class TromboneCore implements InstrumentCore {
     this.lpNote = V.lp * Math.pow(f / 220, V.lpExp);
     this.lpSet = -1;
     this.tiltNote = Math.pow(f / ped, V.tilt / 6.0206);
+    if (immediate) this.lpNow = -1;
     if (immediate) this.tiltOut = this.tiltNote;
     const fb = f / fg.partial;
     for (let k = 0; k < 16; k++) this.modeFreqs[k] = (k + 1) * fb;
@@ -857,6 +863,7 @@ export class TromboneCore implements InstrumentCore {
   }
 
   private clear(): void {
+    this.lpNow = -1;
     this.outB.fill(0);
     this.stB.fill(0);
     this.sx1 = this.sx2 = this.sy1 = this.sy2 = 0;
@@ -951,9 +958,13 @@ export class TromboneCore implements InstrumentCore {
     const wq = V.width * Math.SQRT2 / Math.sqrt(RHO);
     const nz = this.noiseNote * P.noise;
     const lpF = Math.min(0.45 * fs, this.lpNote * Math.pow(2, V.lpDyn * (vc - 1)));
-    if (Math.abs(lpF - this.lpSet) > 0.5) {
-      lowpassInto(this.eq.c, 5 * LP_SECTION, lpF, V.lpQ, fs);
-      this.lpSet = lpF;
+    // the corner glides there (a time constant, in octaves): switched in one step, the section's
+    // coefficients changed under a sounding tone and the output jumped (audio audit, Nov 2026: a
+    // re-tongued note at another dynamic, or a leap, while the last still sounded)
+    this.lpNow = this.lpNow < 0 ? lpF : this.lpNow * Math.pow(lpF / this.lpNow, 1 - Math.exp(-dt / LP_GLIDE));
+    if (Math.abs(this.lpNow - this.lpSet) > 0.5) {
+      lowpassInto(this.eq.c, 5 * LP_SECTION, this.lpNow, V.lpQ, fs);
+      this.lpSet = this.lpNow;
     }
     this.tiltOut += (this.tiltNote - this.tiltOut) * (1 - Math.exp(-dt / 0.03));
     // the mouthpiece's constants

@@ -238,6 +238,12 @@ export class FluteCore implements InstrumentCore {
   private jetK = 1;
   private jetGainNote = 0.2;
   private qPrev = 0;
+  /** the jet's drive, gain and offset (and the offset's tanh) as the last block ended: each block
+   *  ramps from these to its own, so no step reaches the flow q, whose derivative is radiated */
+  private uPrev = 0;
+  private jkPrev = -1;
+  private offPrev = 0;
+  private tOffPrev = 0;
   private jetLpA = 0.9;
   private jetLpY = 0;
   private boreNominal = 100;
@@ -393,6 +399,8 @@ export class FluteCore implements InstrumentCore {
     this.releasePending = false;
     this.held = [];
     this.lp = this.dcX = this.dcY = 0;
+    this.uPrev = 0;
+    this.jkPrev = -1;
     this.room.reset();
     this.eq.reset();
     this.limiter.reset();
@@ -479,6 +487,17 @@ export class FluteCore implements InstrumentCore {
     const dqScale = fs / (2 * Math.PI * 1000);
     this.chiff *= Math.exp(-dt / 0.035);
     const u = Math.max(0, drive);
+    // the block's values are where these arrive at its end: a sample-by-sample ramp from the last
+    // block's. A step here (a new note's offset, the breath's envelope, a controller) went straight
+    // into q and, through the radiated dq/dt, out as a one-sample click (audio audit, Nov 2026: up
+    // to 14.6× the tone's own steepest step at a note-on, 5.4× at a mod-wheel step)
+    if (this.jkPrev < 0) {
+      this.jkPrev = jk;
+      this.offPrev = off;
+      this.tOffPrev = tOff;
+    }
+    const u0 = this.uPrev, jk0 = this.jkPrev, off0 = this.offPrev, tOff0 = this.tOffPrev;
+    const dU = (u - u0) / n, dJk = (jk - jk0) / n, dOff = (off - off0) / n, dTOff = (tOff - tOff0) / n;
     const bp = this.noiseBp;
     const ns = this.noiseSt;
     const oL = this.oL;
@@ -524,7 +543,8 @@ export class FluteCore implements InstrumentCore {
       const jDel = this.jet[(w - ji) & mask] * (1 - jf) + this.jet[(w - ji - 1) & mask] * jf;
       // jet splitting at the edge: saturating flow law, offset edge -> even harmonics;
       // small-signal gain JET_GAIN (independent of jet speed above threshold)
-      const q = u * (Math.tanh((jk * jDel) / (u + 0.06) + off) - tOff);
+      const uT = u0 + dU * (t + 1);
+      const q = uT * (Math.tanh(((jk0 + dJk * (t + 1)) * jDel) / (uT + 0.06) + off0 + dOff * (t + 1)) - (tOff0 + dTOff * (t + 1)));
       // vortex shedding at the labium: a resistance growing with the acoustic flow, i.e. a
       // reflection that weakens with amplitude (passive: never above R_EMB)
       const into = q - (R_EMB / (1 + vortex * Math.abs(y))) * y;
@@ -547,6 +567,10 @@ export class FluteCore implements InstrumentCore {
       const a = Math.abs(r);
       if (a > peak) peak = a;
     }
+    this.uPrev = u;
+    this.jkPrev = jk;
+    this.offPrev = off;
+    this.tOffPrev = tOff;
     this.level = Math.max(peak, this.level * 0.9);
     const g = this.gain;
     for (let t = 0; t < n; t++) {
