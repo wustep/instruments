@@ -4,6 +4,7 @@
 // "On the Nature of Daylight" string quintet, Violin I, Violin II, Viola, Violoncello and Contrabass on
 // GM 40/40/41/42/43, the bass line below the cello's C as that quintet's is.
 import { test, expect, type Page } from '@playwright/test';
+import { closePicker, openPicker } from './picker.ts';
 import { smf } from '../apps/web/test/smf.ts';
 
 const collectErrors = (page: Page) => {
@@ -28,10 +29,13 @@ test('the double bass: “bass” under its glyph, its full name to a screen rea
   const errors = collectErrors(page);
   await page.goto('/');
   await startAudio(page);
-  const pick = page.locator('.instruments').getByRole('button', { name: 'Double bass' });
+  const pick = page.locator('.pick[aria-label="Double bass"]');
   await expect(pick.locator('.pick-name')).toHaveText('bass');
+  // (where the picker is a sheet, its glyph shows with the sheet open)
+  await openPicker(page);
   await expect(pick.locator('svg.glyph')).toBeVisible();
-  await pick.click();
+  await closePicker(page);
+  await openPicker(page).then(() => pick.click());
   await page.waitForFunction(() => (window as any).__piano.piano?.instrument === 'bass', null, { timeout: 15_000 });
   await expect(pick).toHaveAttribute('aria-pressed', 'true');
   // its compass: E1 (28) to G4 (67), the keys outside it set aside
@@ -82,7 +86,7 @@ test('the double bass plays its own piece from the overlay (Bach’s Menuet II, 
   const errors = collectErrors(page);
   await page.goto('/');
   await startAudio(page);
-  await page.locator('.instruments').getByRole('button', { name: 'Double bass' }).click();
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Double bass"]').click());
   await page.waitForFunction(() => (window as any).__piano.piano?.instrument === 'bass', null, { timeout: 15_000 });
   await expect(page.locator('.pl-play')).toHaveAttribute('data-tip', /^play · Bach, Cello Suite No\. 1, Menuet II/);
   await page.locator('.pl-play').click();
@@ -143,7 +147,7 @@ test('orchestra: a quintet file (Violin I/II, Viola, Violoncello, Contrabass; GM
   await expect(menu).toBeHidden();
   await page.locator('.player').getByRole('button', { name: 'Stop' }).click();
   // by hand: the ensemble's picker adds a second bass (each its own engine)
-  await page.locator('.instruments').getByRole('button', { name: 'Double bass' }).click();
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Double bass"]').click());
   await expect.poll(async () => (await ens(page)).lineup.filter((v) => v === 'bass').length, { timeout: 8000 }).toBe(2);
   await expect.poll(async () => (await ens(page)).kinds.filter((v) => v === 'bass').length, { timeout: 8000 }).toBe(2);
   expect(errors).toEqual([]);

@@ -4,6 +4,7 @@
 // tracks carry the names and programs real scores use (Oboe I on GM 68, "Hautbois" unprogrammed, a
 // "Corno inglese" on GM 69, with strings) routed to oboes, and a second oboe by hand.
 import { test, expect, type Page } from '@playwright/test';
+import { closePicker, openPicker } from './picker.ts';
 import { smf } from '../apps/web/test/smf.ts';
 
 const collectErrors = (page: Page) => {
@@ -28,10 +29,13 @@ test('the oboe: “oboe” under its glyph; the keys B♭3–A6; at concert pitc
   const errors = collectErrors(page);
   await page.goto('/');
   await startAudio(page);
-  const pick = page.locator('.instruments').getByRole('button', { name: 'Oboe' });
+  const pick = page.locator('.pick[aria-label="Oboe"]');
   await expect(pick.locator('.pick-name')).toHaveText('oboe');
+  // (where the picker is a sheet, its glyph shows with the sheet open)
+  await openPicker(page);
   await expect(pick.locator('svg.glyph')).toBeVisible();
-  await pick.click();
+  await closePicker(page);
+  await openPicker(page).then(() => pick.click());
   await page.waitForFunction(() => (window as any).__piano.piano?.instrument === 'oboe', null, { timeout: 15_000 });
   await expect(pick).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.keyboard .key[data-midi="58"]')).not.toHaveClass(/\bout\b/);
@@ -90,7 +94,7 @@ test('the oboe plays its own piece from the overlay (the oboe’s line of Brande
   const errors = collectErrors(page);
   await page.goto('/');
   await startAudio(page);
-  await page.locator('.instruments').getByRole('button', { name: 'Oboe' }).click();
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Oboe"]').click());
   await page.waitForFunction(() => (window as any).__piano.piano?.instrument === 'oboe', null, { timeout: 15_000 });
   await expect(page.locator('.pl-play')).toHaveAttribute('data-tip', /^play · Bach, Brandenburg Concerto No\. 1, Adagio/);
   await page.locator('.pl-play').click();
@@ -151,37 +155,9 @@ test('orchestra: Oboe I (GM 68), “Hautbois” (no program) and a Corno inglese
   await page.locator('.player').getByRole('button', { name: 'Stop' }).click();
   // by hand: from a string quartet, the picker adds an oboe and then a second (each its own engine)
   await page.evaluate(() => (window as any).__orchestra.ensemble.setLineup(['violin', 'violin', 'viola', 'cello']));
-  await page.locator('.instruments').getByRole('button', { name: 'Oboe' }).click();
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Oboe"]').click());
   await expect.poll(async () => (await ens(page)).lineup.filter((v) => v === 'oboe').length, { timeout: 8000 }).toBe(1);
-  await page.locator('.instruments').getByRole('button', { name: 'Oboe' }).click();
+  await openPicker(page).then(() => page.locator('.pick[aria-label="Oboe"]').click());
   await expect.poll(async () => (await ens(page)).kinds.filter((v) => v === 'oboe').length, { timeout: 8000 }).toBe(2);
   expect(errors).toEqual([]);
-});
-
-test('ten instruments on a phone: the picker keeps to its band (no taller with a note sounding), every pick whole and clear of its neighbours, no horizontal scroll', async ({ page }, info) => {
-  test.skip(info.project.name !== 'phone', 'the phone layout');
-  for (const size of [null, { width: 390, height: 844 }]) {
-    if (size) await page.setViewportSize(size);
-    await page.goto('/');
-    await startAudio(page);
-    await page.locator('.instruments').getByRole('button', { name: 'Oboe' }).click();
-    await page.waitForFunction(() => (window as any).__piano.piano?.instrument === 'oboe', null, { timeout: 15_000 });
-    const band = async () => (await page.locator('.stage-top').boundingBox())!.height;
-    const before = await band();
-    await page.evaluate(() => (window as any).__piano.noteOn(81, 90, 'keys'));
-    await expect(page.locator('.r-note')).not.toBeEmpty();
-    const during = await band();
-    await page.evaluate(() => (window as any).__piano.noteOff(81, 'keys'));
-    expect(during, `${size?.width ?? 'Pixel 7'}`).toBe(before);
-    const boxes = await page.locator('.instruments .pick').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ l: r.left, r: r.right, t: r.top })));
-    expect(boxes.length).toBe(13);
-    for (let i = 1; i < boxes.length; i++) {
-      expect(boxes[i].l).toBeGreaterThanOrEqual(boxes[i - 1].r - 0.5);
-      expect(boxes[i].t).toBeCloseTo(boxes[0].t, 0);
-    }
-    // the names fit their buttons' row: none runs into its neighbour's
-    const names = await page.locator('.instruments .pick-name').evaluateAll((els) => els.map((el) => { const r = (el as HTMLElement).getBoundingClientRect(); return { l: r.left, r: r.right, w: (el as HTMLElement).scrollWidth }; }));
-    for (let i = 1; i < names.length; i++) expect(names[i].l, `name ${i}`).toBeGreaterThanOrEqual(names[i - 1].r - 0.5);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  }
 });

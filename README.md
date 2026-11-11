@@ -31,15 +31,22 @@ README does not claim it is live. `vercel.json` makes this a static build
     and vibrato, or breath), a little unevenness per part. The hairpin in the player turns
     that off. `apps/web/src/expression.ts`.
   * On the computer keyboard, hold `Space` for sustain and `Shift` for una corda.
-* **Instruments.** Choose one with the selector on the Play page. The piano has
+* **The top panel.** The bar is what is on the stage and how it is seen: the instruments by family (one
+  button and a sheet of all thirteen on a phone or a narrow window), the orchestra, the piano's kind, the
+  view, the two pages. The band under it is what is sounding: the readout names every note (one note with
+  its frequency; a few notes with the chord they make; many, counted with their span; an ensemble, how
+  many of its parts), then the spectrum and one instrument's excitation or an ensemble's parts, each lit
+  with its own notes. `apps/web/src/ui/readout.ts`, `apps/web/src/panel.css`.
+* **Instruments.** Choose one with the picker in the bar. The piano has
   four presets: concert grand, upright, honky-tonk and prepared.
-* **Vector lines.** The crosshair button that closes the picker's row redraws the 2D stage as a vector
+* **Vector lines.** “vector” in the bar's view switch (2d · vector · 3d) redraws the 2D stage as a vector
   display: thin glowing lines on black, the instrument in blue, the sound in amber, and
   each knob in a colour of its own that also marks what it moves on the drawing. The
   stage as it was stays the default; the choice is remembered, and `?view=vector` in
   the address sets it (`?style=vector` still does). After Jameson Hodge's Chimera vocal synth; the drawing kit and
   the colour roles are in `apps/web/src/ui/vector/kit.ts`.
-* **Ensemble.** The ensemble button (four dots on an arc) puts several instruments on
+* **Ensemble.** “orchestra” at the end of the picker (four dots on an arc; a square button beside the
+  instrument's on a phone) puts several instruments on
   the stage, each its own engine; tap an instrument to add one. The keys (on the
   screen, the computer's, a plug-in MIDI keyboard with its pedals and wheels) play the
   instruments lit on the fallboard: the piano if there is one, else the highest melodic

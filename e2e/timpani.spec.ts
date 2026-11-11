@@ -5,6 +5,7 @@
 // Orchestra mode: a constructed file whose tracks carry the names and programs real scores use ("Timpani" on
 // GM 47, "Pauken" unprogrammed, with strings) routed to two sets of timpani, and a second set by hand.
 import { test, expect, type Page } from '@playwright/test';
+import { closePicker, openPicker } from './picker.ts';
 import { smf } from '../apps/web/test/smf.ts';
 
 const collectErrors = (page: Page) => {
@@ -31,11 +32,13 @@ test('/timpani and /kettledrums open the timpani (a reload too); “timpani” u
     await page.goto(path);
     await startAudio(page);
     await page.waitForFunction(() => (window as any).__piano.piano?.instrument === 'timpani', null, { timeout: 15_000 });
-    const pick = page.locator('.instruments').getByRole('button', { name: 'Timpani' });
+    const pick = page.locator('.pick[aria-label="Timpani"]');
     await expect(pick).toHaveAttribute('aria-pressed', 'true');
     await expect(pick.locator('.pick-name')).toHaveText('timpani');
-    await expect(pick.locator('.pick-name')).toHaveAttribute('data-short', 'timp.');
+    // (where the picker is a sheet, its glyph shows with the sheet open)
+    await openPicker(page);
     await expect(pick.locator('svg.glyph')).toBeVisible();
+    await closePicker(page);
     await expect.poll(() => page.evaluate(() => location.pathname)).toBe('/timpani');
   }
   await page.reload();
@@ -171,38 +174,9 @@ test('orchestra: “Timpani” (GM 47) and “Pauken” (no program) go to two s
   // by hand: a string quartet, then the picker adds timpani, up to two (each its own engine)
   await page.evaluate(() => (window as any).__orchestra.ensemble.setLineup(['violin', 'violin', 'viola', 'cello']));
   for (let n = 1; n <= 2; n++) {
-    await page.locator('.instruments').getByRole('button', { name: 'Timpani' }).click();
+    await openPicker(page).then(() => page.locator('.pick[aria-label="Timpani"]').click());
     await expect.poll(async () => (await ens(page)).kinds.filter((v) => v === 'timpani').length, { timeout: 8000 }).toBe(n);
   }
-  await expect(page.locator('.instruments').getByRole('button', { name: 'Timpani' }).locator('.pick-n')).toHaveText('×2');
+  await expect(page.locator('.pick[aria-label="Timpani"]').locator('.pick-n')).toHaveText('×2');
   expect(errors).toEqual([]);
-});
-
-test('the timpani on a phone: thirteen picks (since the trombone) in the band six took (271 px), “timp.” under their glyph, the band no taller with a note sounding, names clear of each other, no horizontal scroll', async ({ page }, info) => {
-  test.skip(info.project.name !== 'phone', 'the phone layout');
-  for (const size of [null, { width: 390, height: 844 }]) {
-    if (size) await page.setViewportSize(size);
-    await page.goto('/');
-    await startAudio(page);
-    await page.locator('.instruments').getByRole('button', { name: 'Timpani' }).click();
-    await page.waitForFunction(() => (window as any).__piano.piano?.instrument === 'timpani', null, { timeout: 15_000 });
-    const band = async () => (await page.locator('.stage-top').boundingBox())!.height;
-    const before = await band();
-    await page.evaluate(() => (window as any).__piano.noteOn(48, 90, 'keys'));
-    await expect(page.locator('.r-note')).not.toBeEmpty();
-    const during = await band();
-    await page.evaluate(() => (window as any).__piano.noteOff(48, 'keys'));
-    expect(during, `${size?.width ?? 'Pixel 7'}`).toBe(before);
-    const boxes = await page.locator('.instruments .pick').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ l: r.left, r: r.right, t: r.top })));
-    expect(boxes.length).toBe(13);
-    expect(boxes[12].r - boxes[0].l, 'the picks’ row').toBeLessThanOrEqual(271.5);
-    expect(await page.locator('.instruments').getByRole('button', { name: 'Timpani' }).locator('.pick-name').evaluate((el) => getComputedStyle(el, '::after').content)).toBe('"timp."');
-    for (let i = 1; i < boxes.length; i++) {
-      expect(boxes[i].l).toBeGreaterThanOrEqual(boxes[i - 1].r - 0.5);
-      expect(boxes[i].t).toBeCloseTo(boxes[0].t, 0);
-    }
-    const names = await page.locator('.instruments .pick-name').evaluateAll((els) => els.map((el) => { const r = (el as HTMLElement).getBoundingClientRect(); return { l: r.left, r: r.right }; }));
-    for (let i = 1; i < names.length; i++) expect(names[i].l, `name ${i}`).toBeGreaterThanOrEqual(names[i - 1].r - 0.5);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  }
 });
