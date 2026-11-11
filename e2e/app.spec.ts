@@ -936,50 +936,60 @@ test('piano stage: several held notes all vibrate at once (one shape per soundin
   expect(n).toBe(5);
 });
 
-test('room and lid are dragged on the stage (and work from the keyboard)', async ({ page }, info) => {
-  test.skip(info.project.name === 'phone', 'dragging is checked on desktop');
+test('room and lid are turned on their knobs on the stage: continuous, left where they are let go (and work from the keyboard)', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'turning is checked on desktop');
   await page.goto('/');
   await startAudio(page);
   await page.waitForTimeout(300);
   const p = (k: string) => page.evaluate((key) => (window as any).__piano.piano.params[key], k);
+  /** take a knob by its middle and turn it: up (dy < 0) is more */
+  const turn = async (sel: string, dy: number) => {
+    const b = (await page.locator(sel).boundingBox())!;
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2 + dy, { steps: 6 });
+    await page.mouse.up();
+  };
   const room0 = await p('room');
-  const grip = page.locator('.grip-room');
-  const b = (await grip.boundingBox())!;
-  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(b.x + 120, b.y + b.height / 2, { steps: 6 });
-  await page.mouse.up();
-  expect(await p('room')).toBeGreaterThan(room0 + 0.05);
-  // the lid: dragging its free edge towards the curved side closes it
-  const lid = page.locator('.grip-lid');
-  const lb = (await lid.boundingBox())!;
-  await page.mouse.move(lb.x + lb.width / 2, lb.y + lb.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(lb.x + 500, lb.y + lb.height / 2, { steps: 8 });
-  await page.mouse.up();
-  expect(await p('lid')).toBeLessThan(0.8);
+  await turn('.knob-room', -40);
+  const room1 = await p('room');
+  expect(room1).toBeGreaterThan(room0 + 0.05);
+  await page.waitForTimeout(300);
+  expect(await p('room')).toBe(room1);
+  // the lid: turned down, it closes, to any opening (the 2D lid has no sticks to rest on), and stays
+  await turn('.knob-lid', 50);
+  const lid1 = await p('lid');
+  expect(lid1).toBeLessThan(0.8);
+  expect(lid1).toBeGreaterThan(0.55);
+  await page.waitForTimeout(300);
+  expect(await p('lid')).toBe(lid1);
+  const lid = page.locator('.knob-lid');
   await lid.focus();
   const before = await p('lid');
   await page.keyboard.press('ArrowUp');
-  expect(await p('lid')).toBeGreaterThan(before);
+  expect(await p('lid')).toBeCloseTo(before + 0.05, 5);
 });
 
-test('3D: the grand’s lid and the room are set by their grips, as in 2D: any opening, any room, nothing snaps; the stick under the lid holds it, the camera stays; the keyboard too', async ({ page, context }, info) => {
+test('3D: the grand’s lid rests shut, on its short stick or on its long one: its knob clicks between them, the lid taken by hand follows and comes onto the nearest when let go; the room’s knob is continuous; the camera stays; the keyboard too', async ({ page, context }, info) => {
   const phone = info.project.name === 'phone';
   await page.goto('/');
   await startAudio(page);
+  // the 2D lid at any opening (0.3); in 3D it comes onto its nearest rest, the short stick
+  await page.evaluate(() => (window as any).__piano.setParams({ lid: 0.3 }));
   await page.locator('.dim-toggle').click();
   await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 5);
   await page.waitForTimeout(400);
   const p = (k: string) => page.evaluate((key) => (window as any).__piano.piano.params[key] as number, k);
   const sticks = () => page.evaluate(() => (window as any).__stage3d.sticks as number[]);
   const eye = () => page.evaluate(() => (window as any).__stage3d.eye as number[]);
-  const lidGrip = page.locator('.grip-lid');
-  const roomGrip = page.locator('.grip-room');
-  // both grips show on the 3D stage (no longer hidden there), with their read-outs
-  await expect(lidGrip).toBeVisible();
-  await expect(roomGrip).toBeVisible();
-  await expect(lidGrip).toHaveAttribute('aria-valuetext', 'lid · 100 % open');
+  await expect.poll(() => p('lid')).toBe(0.45);
+  await expect.poll(sticks).toEqual([0, 1]);
+  const lidKnob = page.locator('.knob-lid');
+  const roomKnob = page.locator('.knob-room');
+  // both knobs show on the 3D stage, with their read-outs
+  await expect(lidKnob).toBeVisible();
+  await expect(roomKnob).toBeVisible();
+  await expect(lidKnob).toHaveAttribute('aria-valuetext', 'lid · 45 % open');
   // a finger (touch, through the DevTools protocol) on the phone, the mouse on the desktop
   const cdp = phone ? await context.newCDPSession(page) : null;
   const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', x = 0, y = 0) => cdp!.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
@@ -991,68 +1001,106 @@ test('3D: the grand’s lid and the room are set by their grips, as in 2D: any o
     await page.waitForTimeout(phone ? 20 : 0);
   };
   const release = () => (cdp ? touch('touchEnd') : page.mouse.up());
-  /** take a grip by its middle and move it along `dir` (px per step) until `until` holds of its parameter */
-  const pull = async (grip: typeof lidGrip, key: string, until: (v: number) => boolean, dir: [number, number]) => {
-    const b = (await grip.boundingBox())!;
-    const x = b.x + b.width / 2;
-    const y = b.y + b.height / 2;
+  /** press at (x, y) and move along `dir` (px per step) until `until` holds of the parameter; every
+   *  value it passes is kept */
+  const pullAt = async (x: number, y: number, key: string, until: (v: number) => boolean, dir: [number, number], seen?: Set<number>) => {
     await press(x, y);
     let v = await p(key);
-    for (let k = 1; k < 150 && !until(v); k++) {
+    for (let k = 1; k < 200 && !until(v); k++) {
       await move(x + k * dir[0], y + k * dir[1]);
       v = await p(key);
+      seen?.add(v);
     }
     return v;
   };
-  const eye0 = await eye();
-  expect(await p('lid')).toBe(1);
+  const mid = async (l: typeof lidKnob) => {
+    const b = (await l.boundingBox())!;
+    return [b.x + b.width / 2, b.y + b.height / 2] as const;
+  };
+  // the lid's knob turned up: it clicks onto the long stick, nothing between
+  let seen = new Set<number>();
+  let [kx, ky] = await mid(lidKnob);
+  expect(await pullAt(kx, ky, 'lid', (v) => v === 1, [0, -2], seen)).toBe(1);
+  await release();
+  expect([...seen].every((v) => v === 0.45 || v === 1)).toBe(true);
   await expect.poll(sticks).toEqual([1, 0]);
-  // the lid's grip brought down to between the old rests (the long stick, 1, and the short one, 0.45):
-  // the lid follows it, the sound with it, and stays where it is let go
-  const held = await pull(lidGrip, 'lid', (v) => v < 0.8, [0, 2]);
-  expect(held).toBeLessThan(0.8);
-  expect(held).toBeGreaterThan(0.55);
+  await expect(lidKnob).toHaveAttribute('aria-valuetext', 'lid · 100 % open');
+  const eye0 = await eye();
+  // turned down: the short stick, then shut; never between
+  seen = new Set<number>();
+  [kx, ky] = await mid(lidKnob);
+  expect(await pullAt(kx, ky, 'lid', (v) => v === 0, [0, 2], seen)).toBe(0);
   await release();
-  await page.waitForTimeout(800);
-  expect(await p('lid')).toBe(held);
-  // the long stick holds it (pressed down by the lid), the short one stays folded
+  expect([...seen].every((v) => v === 0 || v === 0.45 || v === 1)).toBe(true);
+  expect(seen.has(0.45)).toBe(true);
+  await page.waitForTimeout(600);
+  expect(await p('lid')).toBe(0);
+  await expect.poll(sticks).toEqual([0, 0]);
+  // the keyboard: the arrows step from rest to rest (shut, the short stick, the long stick)
+  await lidKnob.focus();
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(() => p('lid')).toBe(0.45);
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(() => p('lid')).toBe(1);
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(() => p('lid')).toBe(0.45);
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(() => p('lid')).toBe(1);
+  await lidKnob.blur();
+  await page.waitForTimeout(700);
+  // the lid itself, taken by hand near its free edge and brought down: it follows the hand, any
+  // opening, the long stick pressed down under it
+  const cv = (await page.locator('.stage-3d').boundingBox())!;
+  const handle = async () => {
+    const h = (await page.evaluate(() => (window as any).__stage3d.lidHandle())) as [number, number];
+    expect(h).not.toBeNull();
+    return [cv.x + h[0], cv.y + h[1]] as const;
+  };
+  let [hx, hy] = await handle();
+  const held = await pullAt(hx, hy, 'lid', (v) => v < 0.7, [0, 2]);
+  expect(held).toBeLessThan(0.7);
+  expect(held).toBeGreaterThan(0.5);
+  await page.waitForTimeout(300);
   expect(await sticks()).toEqual([1, 0]);
-  await expect(lidGrip).toHaveAttribute('aria-valuetext', `lid · ${Math.round(held * 100)} % open`);
-  // lower, under the short stick's rest: the short stick swings up under it; let go, it stays there too
-  const low = await pull(lidGrip, 'lid', (v) => v < 0.3, [0, 2]);
-  expect(low).toBeLessThan(0.3);
-  expect(low).toBeGreaterThan(0.05);
+  expect(await p('lid')).toBe(held);
+  // let go, it comes down onto its nearest rest: the short stick
   await release();
-  await page.waitForTimeout(800);
-  expect(await p('lid')).toBe(low);
+  await expect.poll(() => p('lid')).toBe(0.45);
   await expect.poll(sticks).toEqual([0, 1]);
+  await expect(lidKnob).toHaveAttribute('aria-valuetext', 'lid · 45 % open');
+  // lifted by hand from there past the halfway to the long stick: let go, it is put onto it
+  await page.waitForTimeout(500);
+  [hx, hy] = await handle();
+  const lifted = await pullAt(hx, hy, 'lid', (v) => v > 0.8, [0, -2]);
+  expect(lifted).toBeGreaterThan(0.8);
+  expect(lifted).toBeLessThan(1);
+  await release();
+  await expect.poll(() => p('lid')).toBe(1);
+  await expect.poll(sticks).toEqual([1, 0]);
   // the camera never moved (the lid's sweep is in the framing whatever its opening)
   expect(await eye()).toEqual(eye0);
-  // the keyboard: the arrows move the lid by 0.05, not from rest to rest
-  await lidGrip.focus();
-  await page.keyboard.press('ArrowUp');
-  await expect.poll(() => p('lid')).toBeCloseTo(low + 0.05, 5);
-  await page.keyboard.press('ArrowUp');
-  await expect.poll(() => p('lid')).toBeCloseTo(low + 0.1, 5);
-  await page.keyboard.press('ArrowDown');
-  await expect.poll(() => p('lid')).toBeCloseTo(low + 0.05, 5);
-  await lidGrip.blur();
-  // the room's grip, as in 2D: pulled right, a larger room and a longer reverb; it stays there
+  // the room's knob: turned up, a larger room and a longer reverb, wherever it is let go
   const room0 = await p('room');
-  const wider = await pull(roomGrip, 'room', (v) => v > room0 + 0.2, [2, 0]);
+  const [rx, ry] = await mid(roomKnob);
+  const wider = await pullAt(rx, ry, 'room', (v) => v > room0 + 0.2, [0, -2]);
   await release();
   expect(wider).toBeGreaterThan(room0 + 0.2);
   await page.waitForTimeout(300);
   expect(await p('room')).toBe(wider);
-  await expect(roomGrip).toHaveAttribute('aria-valuetext', `reverb · ${(0.7 + 1.7 * wider).toFixed(1)} s`);
-  // and pushed back in, to any room between
-  const back = await pull(roomGrip, 'room', (v) => v < wider - 0.1, [-2, 0]);
+  await expect(roomKnob).toHaveAttribute('aria-valuetext', `reverb · ${(0.7 + 1.7 * wider).toFixed(1)} s`);
+  // and back down, to any room between; its arrows by 0.05
+  const [rx2, ry2] = await mid(roomKnob);
+  const back = await pullAt(rx2, ry2, 'room', (v) => v < wider - 0.1, [0, 2]);
   await release();
   expect(back).toBeLessThan(wider - 0.1);
+  await roomKnob.focus();
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(() => p('room')).toBeCloseTo(back + 0.05, 5);
+  await roomKnob.blur();
   expect(await eye()).toEqual(eye0);
   if (phone) return;
-  // a pointer over a grip says what it is, as in 2D
-  await lidGrip.hover();
+  // a pointer over a knob says what it is, as in 2D
+  await lidKnob.hover();
   await expect(page.locator('.tip')).toHaveText(/^lid · \d+ % open$/);
 });
 
@@ -1139,14 +1187,14 @@ test('icon-only stage controls say what they are: a short tooltip and an accessi
   const tip = page.locator('.tip');
   // no tooltip and no new words until asked
   await expect(tip).toBeHidden();
-  const room = page.locator('.grip-room');
-  const lid = page.locator('.grip-lid');
+  const room = page.locator('.knob-room');
+  const lid = page.locator('.knob-lid');
   await expect(room).toHaveAttribute('aria-label', /Reverb/);
   await expect(lid).toHaveAttribute('aria-label', /lid/i);
   await expect(room).toHaveAttribute('aria-valuetext', /^reverb · \d\.\d s$/);
   await expect(lid).toHaveAttribute('aria-valuetext', /^lid · (closed|\d+ % open)$/);
   if (info.project.name === 'phone') {
-    // touch has no hover: the tooltip shows while a grip is held
+    // touch has no hover: the tooltip shows while a knob is held
     const b = (await room.boundingBox())!;
     await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
     await expect(tip).toHaveText(/^reverb · \d\.\d s$/);

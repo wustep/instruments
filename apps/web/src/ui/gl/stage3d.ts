@@ -7,9 +7,9 @@
 import { Batch, project, type Mat4, type Mesh, type Vec3 } from './gl3d.ts';
 import { buildScene, newScene3State, viewFor, type SceneIn, type View3 } from './scenes3d.ts';
 import { fitView, screenBox } from './fit3d.ts';
-import { lidGripPoints, lidPoint, zoomFrame, type PianoModel } from './piano3d.ts';
+import { lidKnobPoints, lidPoint, lidRay, zoomFrame, type PianoModel } from './piano3d.ts';
 import { Renderer3 } from './three3d.ts';
-import { lidFor } from './handles3d.ts';
+import { blocked, invert4, lidFor, rayAt } from './handles3d.ts';
 import { tromboneSizeIn } from './trombone3d.ts';
 
 /** the lens: a 24° vertical field (about a 55 mm lens on full frame at the stage's aspect), not the
@@ -75,21 +75,33 @@ export interface Stage3D {
   probe: boolean;
   /** the renderer (debugging) */
   r3: Renderer3;
-  /** The grand's lid grip in 3D (the stage view's `.grip-lid`, as on the 2D stage): where it goes on
-   *  the picture (CSS px in the canvas): a point on the lid's free edge that shows, clear of what lies
-   *  over the stage's top; null when this stage has no lid to set (not a grand, its case hidden, a
-   *  key's close-up, an ensemble) */
-  lidGrip(): [number, number] | null;
-  /** the lid grip taken (true: the point it holds on the lid stays the same until it is let go) or let go */
-  holdLid(on: boolean): void;
-  /** the lid's opening (0 … 1) that puts the grip's point on the lid nearest (x, y) on the picture:
-   *  the lid follows its grip and stays wherever it is let go (no rest it is put onto) */
-  lidTo(x: number, y: number): number | null;
-  /** the room's light pool brightens at its rim (its grip under the pointer, held or focused) */
+  /** The grand's lid, taken in the hand on the picture (CSS px in the canvas): whether the lid is
+   *  under (x, y) and shows there (nothing stands in front of it). False when this stage has no lid to
+   *  take (not a grand, its case hidden, a key's close-up, an ensemble). */
+  lidAt(x: number, y: number): boolean;
+  /** take the lid at (x, y), if it is there: the point taken stays under the pointer (`dragLid`) until
+   *  it is let go (`dropLid`) */
+  takeLid(x: number, y: number): boolean;
+  /** the opening (0 … 1) that keeps the point of the lid taken under (x, y): the lid follows the hand
+   *  continuously (the view puts it onto its nearest rest when it is let go); null when it is not held */
+  dragLid(x: number, y: number): number | null;
+  dropLid(): void;
+  /** the lid is in the hand */
+  readonly lidHeld: boolean;
+  /** Where the lid's knob sits on the picture (CSS px in the canvas): beside the lid's front corner
+   *  on the treble side, level with the rim (piano3d `lidKnobPoints`: it does not move with the lid, so
+   *  it stays under the finger turning it), clear of what lies over the stage's top; null when there is
+   *  no lid to set. */
+  lidKnob(): [number, number] | null;
+  /** tests and review shots: a point on the picture where the lid can be taken (near its free edge,
+   *  showing, clear of what lies over the canvas) */
+  lidHandle(): [number, number] | null;
+  /** the room's light pool brightens at its rim (its knob under the pointer, turned or focused) */
   roomHot: boolean;
-  /** where the pool's centre (the floor under the instrument) is on the picture (CSS px in the
-   *  canvas): the room's grip sits level with it; null when there is no pool (an ensemble, a close-up) */
-  poolCentre(): [number, number] | null;
+  /** Where the room's knob sits on the picture (CSS px in the canvas): on the floor, where the pool of
+   *  light at its largest (the largest room) ends on the right of the picture (it does not move as
+   *  the room is turned); null when there is no pool (an ensemble, a close-up) */
+  roomKnob(): [number, number] | null;
   /** tests: the grand's prop sticks' swing as posed last frame (the long, the short: 0 folded … 1 up) */
   readonly sticks: number[];
 }
@@ -287,62 +299,116 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     flyTo({ target: [...view.target] as Vec3, yaw: view.yaw, pitch: view.pitch, dist: view.dist, cut: zoom.side * 0.85 }, true, 0.8);
   }
 
-  // ---- the lid grip (the stage view places it and wires it to the engine's lid; handles3d.ts)
-  /** what the last frame drew, as the lid grip needs it */
+  // ---- the lid: taken in the hand on the picture, and where its knob sits (handles3d.ts; the stage
+  // view wires them to the engine's lid and puts the lid onto its rests)
+  /** what the last frame drew, as the lid needs it */
   const seen = { lid: 1, single: false, grand: false, caseShown: true };
   const lidModel = () => (seen.single && seen.grand && seen.caseShown && !zoom && !fly && st.grand?.lid ? st.grand : null);
-  const gripPts = new WeakMap<PianoModel, Vec3[]>();
-  /** while the grip is held: the point on the lid it holds, and the opening last set */
-  let held: { at: Vec3; v: number } | null = null;
-  /** the point on the lid the grip holds: the first of the free edge's points (lidGripPoints) that
-   *  shows on the picture at this opening, inside the canvas and below what lies over its top */
-  const gripPoint = (pm: PianoModel): Vec3 | null => {
-    if (held) return held.at;
+  let invVP: Float64Array | null = null;
+  let invFor: Mat4 | null = null;
+  const ray = (x: number, y: number) => {
     if (!lastVP) return null;
-    let pts = gripPts.get(pm);
-    if (!pts) gripPts.set(pm, (pts = lidGripPoints(pm)));
-    const top = Math.max(16, clearNow + 18);
-    for (const p of pts) {
-      const q = project(lastVP, lidPoint(pm, p, seen.lid), cssW, cssH);
-      if (q && q[0] >= 16 && q[0] <= cssW - 16 && q[1] >= top && q[1] <= cssH - 16) return p;
+    if (invFor !== lastVP) {
+      invVP = invert4(lastVP);
+      invFor = lastVP;
     }
-    return null;
+    return invVP ? rayAt(invVP, x, y, cssW, cssH) : null;
   };
+  /** the lid and its sticks are what is pointed at: they hide nothing from themselves */
+  const lidParts = (pm: PianoModel): Set<Mesh> => {
+    const out = new Set<Mesh>();
+    if (pm.lid) out.add(pm.lid);
+    for (const p of pm.props) out.add(p.mesh);
+    return out;
+  };
+  /** the lid under (x, y), showing: the point there, in the lid's own frame */
+  const lidUnder = (x: number, y: number): Vec3 | null => {
+    const pm = lidModel();
+    const r = pm && ray(x, y);
+    if (!pm || !r) return null;
+    const hit = lidRay(pm, seen.lid, r.o, r.d);
+    if (!hit || blocked(batch, r, hit.t, lidParts(pm))) return null;
+    return hit.local;
+  };
+  /** while the lid is in the hand: the point taken (the lid's own frame) and the opening last set */
+  let held: { at: Vec3; v: number } | null = null;
+  const knobPts = new WeakMap<PianoModel, Vec3[]>();
+  /** a point on the picture a control can sit on: inside the canvas and below what lies over its top */
+  const clear = (q: [number, number] | null, m: number): q is [number, number] => !!q && q[0] >= m && q[0] <= cssW - m && q[1] >= Math.max(m, clearNow + m) && q[1] <= cssH - m;
   let roomHot = false;
   let hot = 0;
 
   const api: Stage3D = {
     el,
-    lidGrip() {
-      const pm = lidModel();
-      const p = pm && gripPoint(pm);
-      if (!pm || !p || !lastVP) return null;
-      const q = project(lastVP, lidPoint(pm, p, seen.lid), cssW, cssH);
-      return q ? [q[0], q[1]] : null;
+    lidAt(x, y) {
+      return !!lidUnder(x, y);
     },
-    holdLid(on) {
-      const pm = lidModel();
-      held = null;
-      const p = on && pm ? gripPoint(pm) : null;
-      if (p) held = { at: p, v: seen.lid };
+    takeLid(x, y) {
+      const at = lidUnder(x, y);
+      held = at ? { at, v: seen.lid } : null;
+      return !!held;
     },
-    lidTo(x, y) {
+    dragLid(x, y) {
       const pm = st.grand;
+      if (!held || !pm || !lastVP) return null;
+      const at = held.at;
+      held.v = lidFor((u) => lidPoint(pm, at, u), lastVP, cssW, cssH, x, y, held.v);
+      return held.v;
+    },
+    dropLid() {
+      held = null;
+    },
+    get lidHeld() {
+      return !!held;
+    },
+    lidKnob() {
+      const pm = lidModel();
       if (!pm || !lastVP) return null;
-      const at = held?.at ?? (lidModel() ? gripPoint(pm) : null);
-      if (!at) return null;
-      const v = lidFor((u) => lidPoint(pm, at, u), lastVP, cssW, cssH, x, y, held?.v ?? seen.lid);
-      if (held) held.v = v;
-      return v;
+      let pts = knobPts.get(pm);
+      if (!pts) knobPts.set(pm, (pts = lidKnobPoints(pm)));
+      for (const p of pts) {
+        const q = project(lastVP, p, cssW, cssH);
+        if (clear(q, 26)) return [q[0], q[1]];
+      }
+      return null;
+    },
+    lidHandle() {
+      const pm = lidModel();
+      const sl = pm?.lidSlab;
+      if (!pm || !sl || !lastVP) return null;
+      // (the point of the lid nearest its free edge that shows on the picture, clear of what lies over
+      // it: a grid over the lid every 10 cm, on whichever face the camera sees)
+      const box = el.getBoundingClientRect();
+      const xs = sl.poly.map((q) => q[0]);
+      const zs = sl.poly.map((q) => q[1]);
+      let best: { q: [number, number]; x: number } | null = null;
+      for (let x = Math.max(...xs) - 0.06; x > Math.min(...xs); x -= 0.1)
+        for (let z = Math.min(...zs) + 0.05; z < Math.max(...zs); z += 0.1) {
+          if (best && x < best.x - 1e-6) continue;
+          for (const y of [sl.y1, sl.y0]) {
+            const q = project(lastVP, lidPoint(pm, [x, y, z], seen.lid), cssW, cssH);
+            if (!clear(q, 16) || document.elementFromPoint(box.left + q[0], box.top + q[1]) !== el) continue;
+            const hit = lidUnder(q[0], q[1]);
+            if (!hit || Math.hypot(hit[0] - x, hit[2] - z) > 0.03) continue;
+            if (!best || x > best.x + 1e-6 || q[1] > best.q[1]) best = { q, x };
+          }
+        }
+      return best?.q ?? null;
     },
     get roomHot() {
       return roomHot;
     },
-    poolCentre() {
+    roomKnob() {
       const f = batch.floor;
-      if (!f?.pool || !lastVP || !seen.single || zoom || fly) return null;
-      const q = project(lastVP, [f.c[0], f.y, f.c[2]], cssW, cssH);
-      return q ? [q[0], q[1]] : null;
+      const R = f?.pool?.Rmax;
+      if (!f || !R || !lastVP || !seen.single || zoom || fly) return null;
+      let best: [number, number] | null = null;
+      for (let k = 0; k < 72; k++) {
+        const a = (k / 72) * Math.PI * 2;
+        const q = project(lastVP, [f.c[0] + R * Math.cos(a), f.y, f.c[2] + R * Math.sin(a)], cssW, cssH);
+        if (q && (!best || q[0] > best[0])) best = [q[0], q[1]];
+      }
+      return best;
     },
     set roomHot(v: boolean) {
       roomHot = v;
@@ -603,8 +669,8 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       const g = getComputedStyle(document.body).getPropertyValue('--ground').trim() || '#0e0d0b';
       const hex = /^#([0-9a-f]{6})$/i.exec(g)?.[1] ?? '0e0d0b';
       const ground: [number, number, number] = [parseInt(hex.slice(0, 2), 16) / 255, parseInt(hex.slice(2, 4), 16) / 255, parseInt(hex.slice(4, 6), 16) / 255];
-      // the lid grip: what this frame shows; the pool's rim brightens while the room's grip is under
-      // the pointer, held or focused (τ 0.1 s)
+      // the lid: what this frame shows; the pool's rim brightens while the room's knob is under the
+      // pointer, turned or focused (τ 0.1 s)
       seen.lid = si.lid;
       seen.single = !si.ensemble?.length;
       seen.grand = si.family === 'piano' && si.kind === 'grand';

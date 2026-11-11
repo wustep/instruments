@@ -2338,7 +2338,7 @@ export function fluteLayout(Lw: number, Cw: number, vertical: boolean): FluteLay
   if (flLayout && flLayout.key === key) return flLayout;
   const sc = (vertical ? 0.86 : 0.9) * Lw / FL_LEN;
   const x0 = (Lw - FL_LEN * sc) / 2;
-  // (above the middle on a wide stage: the room's grip sits at its right edge, half way down)
+  // (above the middle on a wide stage: where the room's grip sat, at its right edge half way down)
   const c = Cw * (vertical ? 0.5 : 0.4);
   const X = (x: number) => x0 + x * sc;
   const Y = (v: number) => c + v * sc;
