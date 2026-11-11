@@ -84,7 +84,7 @@ export interface TubaModel {
 export const TUBA_VIEW = { yaw: -0.42, pitch: 0.2, swing: 0.3 };
 /** its seat in the Orchestra (scenes3d ensembleSeats): the height its bottom bow rests at on the seated
  *  player's lap, the seat's own turn, the height the framing allows for and the footprint's radius */
-export const TUBA_SEAT = { y: 0.46, turn: 0, top: 1.5, r: 0.5 };
+export const TUBA_SEAT = { y: 0.34, turn: 0, top: 1.4, r: 0.5 };
 /** held as a seated player holds it: upright on the lap, leaning a little back and to the player's left, the
  *  valves under the right hand */
 export const TUBA_HELD: Mat4 = chain(rotY(0.25), rotX(-0.14));

@@ -177,7 +177,7 @@ export function voiceFromName(s: string): Voice | null {
   // the euphonium and the tenor tuba (a tuba's part when it lies in a tuba's range). The Wagner tuba is a
   // horn player's (the horn's rule has no "tuba": named here)
   if (/wagner ?-?tub/.test(t)) return 'horn';
-  if (/\btub(a|as|en)\b|[a-z]tuba\b|\btbas?\.?(?![a-z])|\btb\.(?![a-z])|sousaphon|helicon|bombardon|op?h?icleide|cimbasso|euphoni|eufoni/.test(t)) return 'tuba';
+  if (/\btub(a|as|en)\b|[a-z]tuba\b|\btbas?\.?(?![a-z])|\btb\.(?![a-z])|sousaphon|helicon|bombardon|o(ph|f)icleide|cimbasso|euphoni|eufoni/.test(t)) return 'tuba';
   if (/cello|violoncell|violincell|\bvc\.?\b|\bvlc\b|continuo/.test(t)) return 'cello';
   if (
     /contra-? ?b?bass|contrebasse|kontrabass|contrabajo|double ?bass|upright ?bass|string ?bass|acoustic ?bass|violone|\bcb\.?(?![a-z])|\bcbs\b|\bkb\.?(?![a-z])|\bd\. ?b\.|\bbass(o|e|i|es)?\b/.test(t) &&
