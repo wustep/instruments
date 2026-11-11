@@ -37,6 +37,9 @@ export class ModeField {
   private SU: Float32Array[] = [];
   private SV: Float32Array[] = [];
   private pairs: [number, number][] = [];
+  /** the modes' sum along the plate for each shape across it (n), this frame */
+  private R: Float64Array[] = [];
+  private used = new Uint8Array(11);
   private level = 0;
   private peak = 1e-30;
   constructor(
@@ -70,6 +73,7 @@ export class ModeField {
       for (let j = 0; j < gh; j++) sv[j] = Math.sin((n * Math.PI * (j + 0.5)) / gh);
       this.SV.push(sv);
     }
+    for (let n = 0; n <= 10; n++) this.R.push(new Float64Array(gw));
   }
   /** returns 0..1, how strongly the plate is moving overall */
   update(amps: Float32Array | null, t: number): number {
@@ -91,15 +95,30 @@ export class ModeField {
     const use = idx.slice(0, 36);
     const top = use.length ? amps[use[0]] : 1;
     const { gw, gh } = this;
+    // (separable: the modes sharing a shape across (n) are summed along the other way first, then each
+    // such row spread down the plate once: ≤ 11 passes over the grid instead of one a mode)
+    const R = this.R;
+    const used = this.used;
+    used.fill(0);
     for (const k of use) {
       const [m, n] = this.pairs[k];
       const w = (amps[k] / top) * Math.cos(t * (0.7 + (k % 7) * 0.23) + k * 1.7);
       const su = this.SU[m];
+      const r = R[n];
+      if (!used[n]) {
+        used[n] = 1;
+        r.fill(0);
+      }
+      for (let i = 0; i < gw; i++) r[i] += w * su[i];
+    }
+    for (let n = 0; n < R.length; n++) {
+      if (!used[n]) continue;
       const sv = this.SV[n];
+      const r = R[n];
       for (let j = 0; j < gh; j++) {
-        const a = w * sv[j];
+        const a = sv[j];
         const row = j * gw;
-        for (let i = 0; i < gw; i++) f[row + i] += a * su[i];
+        for (let i = 0; i < gw; i++) f[row + i] += a * r[i];
       }
     }
     let mx = 1e-9;
@@ -108,7 +127,9 @@ export class ModeField {
     const lv = this.level;
     for (let i = 0; i < f.length; i++) {
       const x = Math.abs(f[i]) / mx;
-      const sand = Math.exp(-(x * x) / 0.0018); // nodal lines
+      // nodal lines (off them, e^-z is below 1e-17 of a step: not computed)
+      const z = (x * x) / 0.0018;
+      const sand = z < 40 ? Math.exp(-z) : 0;
       const glow = Math.pow(x, 1.6);
       const o = i * 4;
       d[o] = 242 * glow + 236 * sand;
