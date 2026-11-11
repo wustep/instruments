@@ -6,7 +6,8 @@
 // row was pushed right, the stage's left third empty.)
 import { describe, expect, it } from 'vitest';
 import { bowedGeometry, type VisualFrame } from '@piano-model/engine';
-import { isKeyboard, type Voice } from '../src/orchestra/assign.ts';
+import { isKeyboard, VOICE_INFO, type Voice } from '../src/orchestra/assign.ts';
+import { isOrchestral, seatKinds } from '../src/orchestra/seats.ts';
 import type { PartLive } from '../src/orchestra/ensemble.ts';
 import { drawEnsemble, ensembleCells, newPartDraw, type Cell } from '../src/ui/ensemble-draw.ts';
 import { BOWED_PLAN, FL_LEN, bowReach, bowedShapes, bowedSpan, type BowedGeom } from '../src/ui/stage-draw.ts';
@@ -19,6 +20,10 @@ const DAYLIGHT: Voice[] = ['violin', 'violin', 'viola', 'cello', 'cello'];
 /** a string quintet with the double bass (Daylight's lineup, its second cello a bass), and with two */
 const QUINTET: Voice[] = ['violin', 'violin', 'viola', 'cello', 'bass'];
 const TWO_BASSES: Voice[] = ['violin', 'violin', 'viola', 'cello', 'bass', 'bass'];
+/** Beethoven's Fifth as its preset seats it, with three trombones, and a small mixed orchestra */
+const B5: Voice[] = ['flute', 'flute', 'oboe', 'oboe', 'clarinet', 'clarinet', 'bassoon', 'bassoon', 'horn', 'horn', 'trumpet', 'trumpet', 'timpani', 'violin', 'violin', 'viola', 'cello', 'bass'];
+const B5_TB: Voice[] = [...B5.slice(0, 12), 'trombone', 'trombone', 'trombone', ...B5.slice(12)];
+const MIXED: Voice[] = ['violin', 'flute', 'clarinet', 'horn', 'cello', 'trumpet', 'timpani'];
 const LINEUPS: Voice[][] = [
   DAYLIGHT,
   QUINTET,
@@ -38,6 +43,10 @@ const LINEUPS: Voice[][] = [
   ['violin', 'grand'],
   ['trumpet', 'cello', 'upright'],
   ['viola', 'viola', 'cello', 'cello', 'grand', 'upright'],
+  B5,
+  B5_TB,
+  MIXED,
+  [...B5, 'grand'],
 ];
 type Id = BowedGeom['id'];
 const isBowed = (v: Voice): v is Id => v === 'violin' || v === 'viola' || v === 'cello' || v === 'bass';
@@ -68,6 +77,7 @@ describe('the ensemble’s cells', () => {
       it(`${W}×${H} ${lineup.join(' ')}: one scale, every bow clear of the others and on the stage, the group centred`, () => {
         const cells = ensembleCells(lineup, W, H);
         expect(cells).toHaveLength(lineup.length);
+        const orch = isOrchestral(seatKinds(lineup.filter((v) => !isKeyboard(v)).map((v) => VOICE_INFO[v])));
         // the band above the pianos (the strings' bows lie in it)
         const band = Math.min(H, ...cells.filter((_, i) => isKeyboard(lineup[i])).map((c) => c.y));
         const mel = lineup.map((v, i) => i).filter((i) => !isKeyboard(lineup[i]));
@@ -78,7 +88,11 @@ describe('the ensemble’s cells', () => {
           expect(c.y, who).toBeGreaterThanOrEqual(0);
           expect(c.x + c.w, who).toBeLessThanOrEqual(W + 1);
           expect(c.y + c.h, who).toBeLessThanOrEqual(H + 1);
-          expect(Math.min(c.w, c.h), who).toBeGreaterThanOrEqual(isKeyboard(lineup[i]) ? 24 : 12);
+          // (an orchestra's winds and brass at its one scale on a phone: an oboe is 16 cm across and 73 cm long,
+          // a trumpet seen from its side 26 cm tall)
+          const thin = ['flute', 'oboe', 'clarinet', 'bassoon', 'trumpet', 'trombone'].includes(lineup[i]) && lineup.filter((v) => !isKeyboard(v)).length >= 5;
+          expect(Math.min(c.w, c.h), who).toBeGreaterThanOrEqual(isKeyboard(lineup[i]) ? 24 : thin ? 6 : 12);
+          expect(Math.max(c.w, c.h), who).toBeGreaterThanOrEqual(24);
           for (let j = 0; j < i; j++) expect(overlaps({ x0: c.x + 1, x1: c.x + c.w - 1, y0: c.y + 1, y1: c.y + c.h - 1 }, cells[j]), `${who} over ${lineup[j]} ${j}`).toBe(false);
         });
         // one scale for the whole group, the strings standing or lying alike
@@ -126,11 +140,47 @@ describe('the ensemble’s cells', () => {
         const R = W - Math.max(...all.map((b) => b.x1));
         const T = Math.min(...all.map((b) => b.y0));
         const B = band - Math.max(...all.map((b) => b.y1));
-        expect(Math.abs(L - R), `left ${L.toFixed(1)} px, right ${R.toFixed(1)} px`).toBeLessThanOrEqual(3);
+        // (an orchestra's middle, its strings' row, in the stage's middle, unless the timpani past the brass
+        // row's left end would run off the stage: then a side of the group at the stage's margin)
+        const m0 = Math.max(6, Math.round(0.02 * Math.min(W, band)));
+        if (orch) {
+          const mids = mel.filter((i) => isBowed(lineup[i])).map((i) => cells[i].y + cells[i].h / 2);
+          const front = mel.filter((i) => isBowed(lineup[i]) && cells[i].y + cells[i].h / 2 >= Math.max(...mids) - 1.5);
+          if (front.length) {
+            const fb = [...front.map((i) => box(cells[i])), ...front.map((i) => bowSpan(lineup[i] as Id, cells[i]))];
+            const fmid = (Math.min(...fb.map((b) => b.x0)) + Math.max(...fb.map((b) => b.x1))) / 2;
+            // (or, on a stage too short for its rows, the one line centred as before)
+            expect(Math.abs(fmid - W / 2) <= 3 || Math.min(L, R) <= m0 + 3 || Math.abs(L - R) <= 3, `the strings' middle ${fmid.toFixed(1)} px, the stage's ${W / 2}`).toBe(true);
+          }
+        } else expect(Math.abs(L - R), `left ${L.toFixed(1)} px, right ${R.toFixed(1)} px`).toBeLessThanOrEqual(3);
         expect(Math.abs(T - B), `top ${T.toFixed(1)} px, bottom ${B.toFixed(1)} px`).toBeLessThanOrEqual(3);
         // and as large as the band allows: it reaches the margin on one side or the other
         expect(Math.min(L + R - 2 * Math.max(6, Math.round(0.02 * Math.min(W, band))), T + B - 2 * Math.max(6, Math.round(0.02 * Math.min(W, band)))), 'the group fills the band one way').toBeLessThanOrEqual(4);
       });
+
+  it('an orchestra in its rows: the strings at the front (the bottom), the woodwinds above them, the brass and the timpani at the back (the top)', () => {
+    const mid = (c: Cell) => c.y + c.h / 2;
+    for (const [W, H] of STAGES.filter(([, h]) => h > 300))
+      for (const L of [B5, B5_TB, MIXED]) {
+        const cells = ensembleCells(L, W, H);
+        const of = (...v: Voice[]) => L.flatMap((x, i) => (v.includes(x) ? [cells[i]] : []));
+        const strings = of('violin', 'viola', 'cello', 'bass');
+        const winds = of('flute', 'oboe', 'clarinet', 'bassoon');
+        const brass = of('horn', 'trumpet', 'trombone');
+        const who = `${W}×${H} ${L.length} seats`;
+        // the strings' row below every woodwind, the woodwinds' below every brass instrument
+        expect(Math.min(...strings.map(mid)), who).toBeGreaterThan(Math.max(...winds.map(mid)));
+        expect(Math.min(...winds.map(mid)), who).toBeGreaterThan(Math.max(...brass.map(mid)));
+        // first violins at the left, then the seconds, the violas, the cellos; flutes left of oboes, horns of trumpets
+        const xs = L.map((v, i) => (v === 'violin' || v === 'viola' || v === 'cello' ? cells[i].x : NaN)).filter((x) => !Number.isNaN(x));
+        if (strings.length >= 4 && new Set(of('violin', 'viola', 'cello').map((c) => c.y)).size === 1) expect(xs, who).toEqual([...xs].sort((a, b) => a - b));
+        expect(Math.max(...of('horn').map((c) => c.x)), who).toBeLessThan(Math.min(...of('trumpet').map((c) => c.x)));
+        // the timpani at the back: above the strings, at the left of the brass (or above them)
+        const [t] = of('timpani');
+        expect(mid(t), who).toBeLessThan(Math.min(...strings.map(mid)));
+        expect(t.x < Math.min(...brass.map((c) => c.x)) || mid(t) < Math.min(...brass.map(mid)), who).toBe(true);
+      }
+  });
 
   it('without bowed strings nothing closes up: equal cells over the whole band', () => {
     for (const [W, H] of STAGES)

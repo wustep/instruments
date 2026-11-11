@@ -210,12 +210,13 @@ describe('the bassoon in 3D', () => {
     expect(b.inst.get(bm.bell)!.a[19]).toBeGreaterThan(0.02);
   });
 
-  it('takes its own seat in the Orchestra, held diagonally (the others’ seats as they were), framed whole there', () => {
+  it('takes its own seat among a few players, held diagonally (the others’ seats as they were), framed whole there', () => {
     const parts = (ps: [('wind' | 'reed' | 'brass' | 'bowed'), ('oboe' | 'clarinet' | 'bassoon')?][]) => ps.map(([family, reed]) => ({ family, reed, kind: 'grand' as const, bowed: null }));
-    const withIt = ensembleSeats(parts([['wind'], ['reed', 'oboe'], ['reed', 'clarinet'], ['reed', 'bassoon'], ['brass']]));
-    const without = ensembleSeats(parts([['wind'], ['reed', 'oboe'], ['reed', 'clarinet'], ['wind'], ['brass']]));
-    for (const i of [0, 1, 2, 4]) expect(Array.from(withIt[i].T)).toEqual(Array.from(without[i].T));
-    const seat = withIt[3];
+    // (four players sit on one arc in the lineup's order; five or more as an orchestra: seats.test.ts)
+    const withIt = ensembleSeats(parts([['reed', 'oboe'], ['reed', 'clarinet'], ['reed', 'bassoon'], ['brass']]));
+    const without = ensembleSeats(parts([['reed', 'oboe'], ['reed', 'clarinet'], ['wind'], ['brass']]));
+    for (const i of [0, 1, 3]) expect(Array.from(withIt[i].T)).toEqual(Array.from(without[i].T));
+    const seat = withIt[2];
     expect(seat.top).toBe(BASSOON_SEAT.top);
     let hi = -Infinity;
     let lo = Infinity;
