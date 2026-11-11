@@ -337,7 +337,7 @@ pnpm dev                      # http://localhost:5199
 pnpm build && pnpm preview    # static build in apps/web/dist (Vercel: vercel.json)
 
 pnpm test                     # unit tests (vitest)
-pnpm e2e                      # builds, then Playwright (desktop + phone) in installed Chrome
+pnpm e2e                      # builds, then Playwright: desktop + phone in installed Chrome, a smoke test in WebKit (npx playwright install webkit)
 pnpm bench                    # CPU per voice / instrument
 
 pnpm refs:fetch               # download Iowa reference notes into .cache/ (gitignored, ~650 MB)
