@@ -141,8 +141,9 @@ The cause addressed directly, each one step alone:
 
 ## What a fix is
 
-The low registers have to play one closure a period, as the recorded instruments' weak-but-present odd harmonics
-say they do. That is a new voicing, not a patch: the apex as an inertance with the reed's volume (no quarter-wave
+The low registers have to play one closure a period: the Helmholtz motion the cited theory gives a conical reed
+instrument. (That real double reeds do so is the theory's word here, not a measurement: the recordings are of the
+radiated sound and cannot show the reed.) That is a new voicing, not a patch: the apex as an inertance with the reed's volume (no quarter-wave
 of its own to chatter on at the attack; `oboe.ts` records that this alone put the low register on its octave), at
 its real length (β twice as large asks a pulse half as deep and twice as long: the bassoon's formant near 500 Hz
 would then be the pulse's own spectrum, where the fitted voicing has an 18 dB peak in the radiation), losses
