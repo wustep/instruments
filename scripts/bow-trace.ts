@@ -3,7 +3,8 @@
 // direction and its changes sampled every 10 ms, with the notes under them.
 //   npx tsx scripts/bow-trace.ts --file <mid> --line <n|all> --instrument violin --from 0 --to 30 \
 //     [--plan] --out <trace.json>
-//   npx tsx scripts/bow-trace.ts --plot <before.json> <after.json> --out <picture.svg> [--title "…"]
+//   npx tsx scripts/bow-trace.ts --plot <before.json> <after.json> --out <picture.svg> [--title "…"] [--flat]
+// (--flat: the notes as lengths only, on one level: for a score that is not ours to print)
 // --plan tells the engine the notes to come as the file player does (the lookahead of bowed.ts: each
 // note's start, strength and length, LOOK seconds before it sounds); without it the engine hears each
 // note only as it begins, as from the keys. The numbers printed: strokes, changes of bow inside a note
@@ -37,7 +38,7 @@ if (has('plot')) {
   const i = process.argv.indexOf('--plot');
   const a = JSON.parse(readFileSync(process.argv[i + 1], 'utf8')) as Trace;
   const b = JSON.parse(readFileSync(process.argv[i + 2], 'utf8')) as Trace;
-  writeFileSync(arg('out'), plot([a, b], ['before', 'after'], arg('title', a.title)));
+  writeFileSync(arg('out'), plot([a, b], ['before', 'after'], arg('title', a.title), has('flat')));
   process.exit(0);
 }
 
@@ -128,7 +129,7 @@ console.log(tr.title, plan ? '(lookahead)' : '(as from the keys)', JSON.stringif
 
 /** before over after: the notes as bars (by pitch), the bow's place on the hair over them (0 the frog,
  *  1 the tip), down-bows and up-bows in two inks, a dot at each change inside a note */
-function plot(trs: Trace[], names: string[], title: string): string {
+function plot(trs: Trace[], names: string[], title: string, flat = false): string {
   const W = 1600;
   const H = 300;
   const M = { l: 70, r: 20, t: 46, b: 30 };
@@ -148,7 +149,7 @@ function plot(trs: Trace[], names: string[], title: string): string {
     for (const q of t.notes) {
       const x = X(q.t / t.dt);
       const w = Math.max(1, X((q.t + q.dur) / t.dt) - x - 1);
-      const y = y0 + h - 6 - ((h - 12) * (q.midi - lo)) / Math.max(1, hi - lo);
+      const y = flat ? y0 + h - 8 : y0 + h - 6 - ((h - 12) * (q.midi - lo)) / Math.max(1, hi - lo);
       out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="5" fill="#6b5f50" opacity="0.75"/>`;
       out += `<line x1="${x.toFixed(1)}" y1="${y0}" x2="${x.toFixed(1)}" y2="${y0 + h}" stroke="#3a332c" stroke-width="0.6"/>`;
     }

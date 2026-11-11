@@ -1,9 +1,9 @@
 // The bow, photographed: a bowed instrument alone (a held note, then its own piece playing) and the
 // Orchestra (the string quintet with a dropped file, Beethoven's Fifth), in each look (2D classic, 2D
 // vector, 3D), on a computer (1440×900 at 2×) and a phone (390×844 at 2×). Shot on two builds (before:
-// main as it was; after: this one). Beside each whole picture of a single instrument in 2D, a close
-// picture of the bow's contact (`…-contact-…`): the classic style's direction chevron, there before and
-// gone after; the vector style's, there in both.
+// main as it was; after: this one). scripts/pairs-bowing.py pairs them, and cuts the bow's contact out of
+// the held note's pictures: the drawn style's direction chevron, there before and gone after; the vector
+// style's, there in both.
 //   BASE=http://localhost:4391 TAG=after OUT=artifacts/realistic-3d/final-symphony/bowing/shots \
 //     [FILE=.autopilot/fixtures/daylight.mid] [ONLY=desktop|phone] [LOOKS=2d,vector,3d] [SETS=held,piece,quintet,symphony] \
 //     [CLIP=1] node scripts/shots-bowing.mjs
@@ -75,18 +75,6 @@ const bows = async (page) => {
     return [r(window.__bow ?? null)];
   });
 };
-/** a close picture of the contact on a single 2D stage: the middle of the bow as drawn (stage-draw's
- *  bowLine is not on the page, so: the stage canvas's centre band, where the bow crosses the strings) */
-async function contact(page, name) {
-  const box = await page.evaluate(() => {
-    const c = [...document.querySelectorAll('canvas')].filter((x) => x.offsetWidth > 200).sort((a, b) => b.offsetWidth * b.offsetHeight - a.offsetWidth * a.offsetHeight)[0];
-    const r = c.getBoundingClientRect();
-    return { x: r.x, y: r.y, w: r.width, h: r.height };
-  });
-  await tidy(page);
-  await page.screenshot({ path: `${OUT}/${name}-${TAG}.png`, clip: { x: box.x, y: box.y, width: box.w, height: box.h } });
-}
-
 for (const dev of Object.keys(DEVS)) {
   if (ONLY && ONLY !== dev) continue;
   for (const look of LOOKS) {
@@ -103,7 +91,6 @@ for (const dev of Object.keys(DEVS)) {
         await page.waitForTimeout(1300);
         const key = `held-${inst}-${look}-${dev}`;
         await shot(page, key);
-        if (look !== '3d') await contact(page, `${key}-stage`);
         report[key] = { bow: await bows(page), errors: errs.slice(0, 3) };
         await close();
         console.error(key);
