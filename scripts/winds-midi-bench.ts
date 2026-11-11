@@ -1,14 +1,16 @@
 // The ways a file's notes meet, each asked of every wind and brass instrument alone, and what comes out
 // (scripts/winds-midi-measure.ts measures; dry, 48 kHz):
 //   npx tsx scripts/winds-midi-bench.ts [--engine <old>/packages/engine/src/core/index.ts] [--only flute,oboe]
-//       [--case repeat] [--notes] [--hand] [--wav <dir>] [--json out.json] [--vel 80] [--fs 48000]
+//       [--case repeat] [--notes] [--hand] [--bare] [--wav <dir>] [--json out.json] [--vel 80] [--fs 48000]
 //   repeat      one pitch six times, each note ending where the next begins (139 ms: Beethoven 5's eighths)
 //   repeat-slow the same at 278 ms
 //   abut        a scale, each note ending where the next begins (139 ms)
 //   slur        the scale with each note held 30 ms into the next (a keyboard's legato)
 //   detached    the scale with half of each note a rest
 //   restrike    one pitch struck again while it is still held, the first key let go after (a file's overlap of
-//               a pitch with itself): the second note must sound to its own end
+//               a pitch with itself): the second note must sound to its own end. The file player pairs a
+//               file's notes (apps/web/src/file-keys.ts) and so does this; --bare sends the events as written,
+//               as the single instrument's player did before
 //   swapped     a repeat written with each note-on before the last note's off at the same instant
 //   chord       three notes begun together, let go together (top note last in the file)
 //   short       three 90 ms notes after rests
@@ -18,6 +20,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { encodeWav } from '../packages/engine/src/analysis/wav.ts';
 import { INSTRUMENT_INFO, type InstrumentId } from '../packages/engine/src/core/instrument.ts';
+import { FileKeys } from '../apps/web/src/file-keys.ts';
 import type { TimedEvent } from '../packages/engine/src/core/render.ts';
 import { foreseen, pairNotes, WINDS } from './winds-midi-lib.ts';
 import { heldLevels, measure, type NoteMeasure } from './winds-midi-measure.ts';
@@ -131,6 +134,17 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const NOTES = args.includes('--notes');
   // --hand: nothing foreseen (the notes as a keyboard would send them); else as a file player sends them
   const HAND = args.includes('--hand');
+  const BARE = args.includes('--bare');
+  /** a file's events as the player sends them: a pitch held twice is let go at its last end */
+  const paired = (events: TimedEvent[]): TimedEvent[] => {
+    const keys = new FileKeys();
+    return events.filter((e) => {
+      const ev = e.event as { type: string; midi?: number };
+      if (ev.type === 'noteOn') keys.on(ev.midi!);
+      else if (ev.type === 'noteOff') return keys.off(ev.midi!);
+      return true;
+    });
+  };
   const render: Render = (await import(pathToFileURL(ENGINE).href)).renderInstrument;
   if (WAV) mkdirSync(WAV, { recursive: true });
   const rows: Record<string, unknown>[] = [];
@@ -142,7 +156,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     for (const c of benchCases(id, VEL)) {
       if (CASE && !c.name.startsWith(CASE)) continue;
       const notes = c.notes ?? pairNotes(c.events, c.dur);
-      const r = render({ sampleRate: FS, instrument: id, events: HAND ? c.events : [...foreseen(notes), ...c.events], duration: c.dur, dry: true });
+      const sent = BARE ? c.events : paired(c.events);
+      const r = render({ sampleRate: FS, instrument: id, events: HAND ? sent : [...foreseen(notes), ...sent], duration: c.dur, dry: true });
       const m = measure(r.left, FS, notes, c.events.map((e) => e.time), held);
       if (WAV) writeFileSync(join(WAV, `${id}-${c.name}.wav`), encodeWav({ sampleRate: FS, channels: [r.left, r.right] }));
       const N: NoteMeasure[] = m.notes;

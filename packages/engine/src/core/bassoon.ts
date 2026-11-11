@@ -187,16 +187,32 @@ export const BASSOON_VOICE: BassoonVoice = {
  *  swells, riseLo: the recordings' soft notes do), from MIN_BLOW_PP at velocity 1 to MIN_BLOW at 127 */
 const MIN_BLOW = 0.1;
 const MIN_BLOW_PP = 0.3;
+/** a note known to be short (mono.ts): the breath's rise is at most this share of it (a time constant). The
+ *  bassoon's long-tone rise is already quick (35–53 ms): the others' 1/12 only put more of its notes on their
+ *  octave (Beethoven's Fifth, I, bassoon I, 523 notes, six players each with its own noise: 6.2 notes a
+ *  performance on another register against 3.7 with this and 3.2 before) */
+const QUICK_SHARE = 1 / 4;
 /** a note known to be short: the tongue holds the reed shut for at most this share of it */
 const HOLD_SHARE = 0.1;
 /** tongued over the breath (mono.ts): the release's wider opening is this much of a first attack's */
 const LICK_BOOST = 0.5;
-/** what the tongue on the blades takes from the bore while it lies there (dB/s), on top of the bore's own
- *  decay with the reed shut (as the oboe's, oboe.ts STOP_RATE: a stopped note decays about as a real bore's
- *  resonances do, Li, Almeida, Smith & Wolfe 2016, JASA 139). With 100 a repeated note falls 5.6 dB between
- *  its strokes (1.2 dB with none); with 200, 10 dB, but 5 of 480 joined notes then spoke on their octave
- *  against 1 (scripts/winds-midi-bench.ts) */
-const STOP_RATE = 100;
+/** what the tongue on the blades takes from the bore while it lies there (dB/s): nothing here, unlike the
+ *  oboe (oboe.ts STOP_RATE). The more a stroke empties this bore, the more often the reed, let go, speaks on
+ *  the note's octave (Beethoven's Fifth, I, bassoon II, 379 notes, six players: 9.5 notes a performance on
+ *  another register with 100 dB/s, 8.0 with 50, 5.0 with none, where the engine before had 5.7). A repeated
+ *  note still falls 4 dB between its strokes: the breath eases under the tongue (LICK_BREATH) */
+const STOP_RATE = 0;
+/** …but over a rest the tongue holds (mono.ts REST) the bore is emptied at this rate (dB/s): left to itself
+ *  it rings through the rest (70 dB/s: 4 dB in 60 ms) */
+const REST_RATE = 200;
+/** Under the tongue's stroke the breath eases to this much of the note's, and comes back as the reed is let go
+ *  (a time constant, s). Let go at full pressure, the reed more often spoke on the note's octave (this bore's
+ *  octave regime is as stable as its fundamental, and the start decides): Toward Morning's bassoon part (269
+ *  notes: staccato eighths, slurs, repeats) played by ten players, each with its own noise, had 9.5 notes a
+ *  performance on another register; with this 4.8, where the engine before had 3.4 (C♯3 and D3, which either
+ *  engine starts on the octave one time in three). scripts/winds-midi-measure.ts `mode` counts them. */
+const LICK_BREATH = 0.3;
+const LICK_RISE = 0.04;
 
 const et = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -496,7 +512,7 @@ export class BassoonCore implements InstrumentCore {
       this.pTarget = 1;
       // a note known to be short speaks within a share of its length (mono.ts); one of unknown length (a
       // key in the hand) gets the long tone's rise the recordings were fitted on
-      this.attackTau = quickRise(this.V.riseLo + (this.V.riseHi - this.V.riseLo) * (vel / 127), a.len);
+      this.attackTau = quickRise(this.V.riseLo + (this.V.riseHi - this.V.riseLo) * (vel / 127), a.len, QUICK_SHARE);
       // tongued: the tongue holds the reed shut while the breath builds, then lets go
       this.tongueN = Math.round(quickRise(this.V.tongueHold, a.len, HOLD_SHARE) * this.fs);
       this.tongueLen = this.tongueOpen(m);
@@ -512,7 +528,7 @@ export class BassoonCore implements InstrumentCore {
       const same = m === this.note;
       this.setNote(m, false);
       this.pTarget = 1;
-      this.attackTau = Math.min(this.attackTau, quickRise(this.V.riseLo + (this.V.riseHi - this.V.riseLo) * (vel / 127), a.len));
+      this.attackTau = Math.min(this.attackTau, quickRise(this.V.riseLo + (this.V.riseHi - this.V.riseLo) * (vel / 127), a.len, QUICK_SHARE));
       this.tongueAt = this.frame + this.lick.retongue(a.struck, this.fs, same, this.tongueOpen(m));
       this.boostNow = this.afterStop ? 1 : LICK_BOOST;
       this.afterStop = false;
@@ -628,6 +644,11 @@ export class BassoonCore implements InstrumentCore {
       this.velocity = this.velNext;
       this.velNext = 0;
     }
+    // under the tongue the breath eases (LICK_BREATH), to come back as the reed is let go
+    if (this.lick.down && this.lick.landed && this.pTarget > 0) {
+      this.pressure = Math.min(this.pressure, LICK_BREATH);
+      this.attackTau = Math.max(this.attackTau, LICK_RISE);
+    }
     const fs = this.fs;
     const dt = n / fs;
     const P = this.params;
@@ -691,7 +712,8 @@ export class BassoonCore implements InstrumentCore {
     // a stroke of the tongue on the sounding reed (mono.ts): the flow through it, and what it absorbs
     const lick = this.lick;
     let licking = lick.busy;
-    const stopLoss = 1 - Math.pow(10, -STOP_RATE / (20 * et(this.note)));
+    // (a rest held by the tongue is a rest: the bore is emptied; a stroke between two notes leaves it)
+    const stopLoss = 1 - Math.pow(10, -(this.keys.silent ? REST_RATE : STOP_RATE) / (20 * et(this.note)));
     for (let t = 0; t < n; t++) {
       const w = this.frame + t;
       this.D1 += (DT - this.D1) * ease;
