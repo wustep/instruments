@@ -1,8 +1,9 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 
-const outDir = resolve('artifacts/realistic-3d/final-symphony/readme-notes');
+const outDir = resolve(process.env.OUT || 'artifacts/realistic-3d/final-symphony/notes-credit');
+const tag = process.env.TAG || 'after';
 mkdirSync(outDir, { recursive: true });
 const base = process.env.SHOT_URL || 'http://127.0.0.1:4489';
 
@@ -13,19 +14,19 @@ async function shot(name, viewport) {
   await page.goto(base + '/notes', { waitUntil: 'networkidle' });
   const credit = page.locator('.notes .credit');
   await credit.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(250);
   const box = await credit.boundingBox();
   if (!box) throw new Error('no credit box for ' + name);
   const padX = 48;
   const padTop = 90;
-  const padBot = 36;
+  const padBot = 48;
   const clip = {
     x: Math.max(0, box.x - padX),
     y: Math.max(0, box.y - padTop),
-    width: Math.min(viewport.width, box.width + padX * 2),
+    width: Math.min(viewport.width - Math.max(0, box.x - padX), Math.max(box.width + padX * 2, 720)),
     height: box.height + padTop + padBot,
   };
-  const path = `${outDir}/${name}.jpg`;
+  const path = `${outDir}/${name}-${tag}.jpg`;
   await page.screenshot({ path, type: 'jpeg', quality: 92, clip });
   await page.close();
   console.log('wrote', path, clip);

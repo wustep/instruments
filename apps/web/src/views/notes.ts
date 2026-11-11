@@ -421,18 +421,13 @@ export function notesView(): View {
     h(
       'p',
       { class: 'credit' },
-      'Built by Stephen Wu ',
-      creditIcon(
-        'https://wustep.me',
-        'Stephen Wu’s site',
-        '<g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M3.5 11.5 12 4l8.5 7.5"/><path d="M6 10.5V19.5h12V10.5"/></g>',
+      h('span', { class: 'credit-line' }, 'Built by Stephen Wu with Opus 5.5 and Fable 5.2.'),
+      h(
+        'span',
+        { class: 'credit-icons' },
+        creditIcon('https://wustep.me', 'Stephen Wu’s site', '<g fill="none" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3.15 9h17.7M3.15 15h17.7"/></g>'),
+        creditIcon('https://x.com/wustep', 'Stephen Wu on X', '<path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.749l7.73-8.835L1.5 2.25h7.914l4.258 5.464 5.572-5.464z"/>'),
       ),
-      creditIcon(
-        'https://x.com/wustep',
-        'Stephen Wu on X',
-        '<path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.749l7.73-8.835L1.5 2.25h7.914l4.258 5.464 5.572-5.464z"/>',
-      ),
-      ' with Opus 5.5 and Fable 5.2.',
     ),
   );
   return { el, dock: false };
