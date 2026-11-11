@@ -348,3 +348,17 @@ Thirteen instruments are on `main` and live at
   measurements page are used under the MIS terms ("used for any projects,
   without restrictions").
 * **Fonts:** Newsreader, IBM Plex Sans, IBM Plex Mono (SIL OFL), self-hosted.
+
+## License
+
+The code is under the [MIT License](LICENSE). Bundled third-party files keep
+their own terms and are not relicensed:
+
+* **Pieces** (`apps/web/public/pieces/*.mid`): Mutopia Project files, public
+  domain, except `bach-bwv1046-adagio-oboe.mid` (typeset by Ben Stewart,
+  Mutopia-2008/10/29-1577), which is Creative Commons Attribution 3.0. Each
+  file's source and credit is in `apps/web/src/orchestra/pieces.ts`.
+* **Reference excerpts** (`apps/web/public/ref/*.mp3`): University of Iowa MIS,
+  see `apps/web/public/ref/LICENSE.txt`.
+* **Fonts:** AVHershey Simplex by Stewart C. Russell (CC0 / WTFPL); Newsreader
+  and IBM Plex (SIL OFL).
