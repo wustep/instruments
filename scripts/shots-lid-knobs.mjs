@@ -4,7 +4,7 @@
 // Writes <OUT>/<desktop|phone>-<look>-<shot>-<TAG>.png (the whole stage view, controls and all):
 //  - 2d / vector: lid-100, lid-70, lid-35, lid-0 (2D is continuous: any opening), room-0, room-100;
 //  - 3d: lid-100 (long stick), lid-45 (short stick), lid-0 (shut), room-0, room-100, and on a build
-//    with the lid taken on the canvas, drag-held (the lid lifted by hand, between the rests) and
+//    with the lid taken on the canvas, drag-held (the lid brought down by hand, between the rests, under 0.65) and
 //    drag-let-go (0.9 s after: on its nearest rest).
 // Prints each shot's lid, room and (3D) sticks.
 import { chromium } from '@playwright/test';
@@ -70,7 +70,7 @@ for (const dev of Object.keys(DEV)) {
           await page.mouse.down();
         }
         let v = await p('lid');
-        for (let k = 1; k < 200 && v >= 0.75; k++) {
+        for (let k = 1; k < 200 && v >= 0.65; k++) {
           if (cdp) await touch('touchMove', at[0], at[1] + 2 * k);
           else await page.mouse.move(at[0], at[1] + 2 * k);
           await page.waitForTimeout(cdp ? 20 : 5);
