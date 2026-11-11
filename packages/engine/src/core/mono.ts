@@ -43,6 +43,10 @@ export const FORESEE_TOL = 0.012;
 /** how far ahead a tongue's stroke is ever begun (s): the horizon of MonoKeys.coming */
 export const STROKE_AHEAD = 0.08;
 
+/** `upcoming`: a note foreseen to begin this long (s) or more before the last one's end will be slurred to
+ *  (clear of a sample's rounding where one ends as the next begins) */
+export const UP_SLUR = 0.001;
+
 /** a rest up to this long (s) before a foreseen note is held by the tongue, the breath kept */
 export const REST = 0.12;
 
@@ -383,6 +387,32 @@ export class MonoKeys {
       if (!same && on - this.lastTongue < FASTEST * this.fs) return -1;
       this.comingSame = same;
       this.comingMidi = this.aMidi[i];
+      return on;
+    }
+    return -1;
+  }
+  /** the pitch of the note `upcoming` last found, and whether it will be slurred to (it begins while the
+   *  note playing is foreseen to go on, by UP_SLUR or more, on another pitch) */
+  upMidi = -1;
+  upSlur = false;
+  /**
+   * The next note foreseen and not yet begun, if it begins within `within` s after `frame`: its frame (−1:
+   * none) and, in `upMidi`, its pitch (of notes begun together the highest, the one played). However it will
+   * be joined (tongued, slurred: `upSlur`, after a rest): for a core that readies more than its tongue for a
+   * note to come (the trombone's slide). Asked only by such a core; it changes nothing of what `settle`,
+   * `coming` and `plan` do.
+   */
+  upcoming(frame: number, within: number): number {
+    const far = frame + within * this.fs;
+    for (let i = 0; i < this.an; i++) {
+      if (this.aHit[i]) continue;
+      const on = this.aOn[i];
+      if (on <= frame) continue;
+      if (on > far) break;
+      let m = this.aMidi[i];
+      for (let j = i + 1; j < this.an && this.aOn[j] === on; j++) if (!this.aHit[j] && this.aMidi[j] > m) m = this.aMidi[j];
+      this.upMidi = m;
+      this.upSlur = m !== this.note && this.curOff > on + UP_SLUR * this.fs;
       return on;
     }
     return -1;
