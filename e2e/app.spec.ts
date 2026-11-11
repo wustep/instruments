@@ -45,7 +45,7 @@ test('page loads with the keyboard and no errors', async ({ page }) => {
   await page.goto('/');
   // no wordmark on the page; the name lives in the tab title
   await expect(page.locator('.inlay')).toHaveCount(0);
-  await expect(page).toHaveTitle('instruments');
+  await expect(page).toHaveTitle('Instruments');
   await expect(page.locator('.instruments .pick')).toHaveCount(13);
   await expect(page.locator('.keyboard .key')).toHaveCount(88);
   await page.waitForTimeout(500);

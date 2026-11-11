@@ -415,8 +415,25 @@ export function notesView(): View {
         'J. B. Allen & D. A. Berkley, “Image method for efficiently simulating small-room acoustics,” JASA 65(4), 1979',
         'J.-M. Jot & A. Chaigne, “Digital delay networks for designing artificial reverberators,” AES 90th Convention, 1991',
         'University of Iowa Musical Instrument Samples (analysis only; never played as the instrument)',
-        'The stage’s vector lines follow the screens of J. Hodge’s Chimera vocal synth (github.com/jamesondh/chimera-vocal-synth); their type is AVHershey Simplex by S. C. Russell (CC0), from A. V. Hershey’s vector fonts, US Naval Weapons Laboratory, 1967',
+        'The vector lines’ type is AVHershey Simplex by S. C. Russell (CC0), from A. V. Hershey’s vector fonts, US Naval Weapons Laboratory, 1967',
       ].map((r) => h('li', {}, r)),
+    ),
+    // what the work stands on that is not a paper: named here, each a link (the pieces and the
+    // recordings are credited where they are used, above)
+    h(
+      'p',
+      { class: 'thanks' },
+      'The vector view is after ',
+      h('a', { href: 'https://github.com/jamesondh/chimera-vocal-synth', target: '_blank', rel: 'noopener' }, 'Chimera'),
+      ', Jameson Hodge’s vocal synth: its screens were the inspiration, and none of its code is used. The pieces are the ',
+      h('a', { href: 'https://www.mutopiaproject.org', target: '_blank', rel: 'noopener' }, 'Mutopia Project'),
+      '’s; the recordings the models are measured against are the ',
+      h('a', { href: 'https://theremin.music.uiowa.edu/MIS.html', target: '_blank', rel: 'noopener' }, 'University of Iowa Musical Instrument Samples'),
+      ' and, for the timpani, Versilian Studios’ ',
+      h('a', { href: 'https://github.com/sgossner/VSCO-2-CE', target: '_blank', rel: 'noopener' }, 'VSCO 2 Community Edition'),
+      '; the 3D stage is drawn with ',
+      h('a', { href: 'https://threejs.org', target: '_blank', rel: 'noopener' }, 'three.js'),
+      '.',
     ),
     h(
       'p',

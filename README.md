@@ -1,4 +1,8 @@
-# instruments
+<p align="center">
+  <a href="https://instruments-wustep.vercel.app/orchestra"><img src="apps/web/public/og/instruments.jpg" alt="An orchestra in 3D on dark risers: timpani, horns, trumpets, bassoons, oboes, clarinets, flutes, violins, viola, cello and double bass, under the title Instruments: computed from physics, not samples." width="100%" /></a>
+</p>
+
+# Instruments
 
 Thirteen acoustic instruments, physically modelled and computed in real time in the
 browser: a **piano**, a **violin**, a **viola**, a **cello**, a **double bass**, a
@@ -29,6 +33,49 @@ as do the [Orchestra](https://instruments-wustep.vercel.app/orchestra),
 `/french-horn`, `/kettledrums`, `/double-bass`, `/grand` and `/upright` open the same instruments.
 
 `main` is the production deployment (`vercel.json`: `pnpm build` → `apps/web/dist`).
+
+## Remix it
+
+The code is MIT: fork it, take an instrument, build another. Everything is TypeScript in a pnpm
+workspace, and nothing needs a server or a key.
+
+**A slim clone.** The repository carries the before/after audio, spectrograms and screenshots of every
+change under `artifacts/` (about 2,200 files, 415 MB): a record, which the app, the tests and the build
+never read. A partial, sparse clone leaves them on the server: about 4 MB to download and 11 MB on disk
+with the working tree, instead of about 400 MB.
+
+```sh
+git clone --filter=blob:none --sparse https://github.com/wustep/instruments.git
+cd instruments
+git sparse-checkout set --no-cone '/*' '!/artifacts/'
+pnpm install
+pnpm dev                      # http://localhost:5199
+```
+
+Install, typecheck, build and the unit tests all pass on it. `git sparse-checkout disable` fetches the
+artifacts if you want them after all.
+
+**Where things are.**
+
+* `packages/engine`: the models. `src/core` is the DSP, one module per instrument family with its
+  fitted voicing beside it, and no Web Audio in it, so the same code runs in the AudioWorklet and in
+  Node (tests, calibration, offline renders). [Using the engine elsewhere](#using-the-engine-elsewhere)
+  is a short example.
+* `apps/web`: the page. `src/ui` draws each instrument in 2D twice (filled, and vector lines) and
+  `src/ui/gl` in 3D; `src/orchestra` seats an ensemble and routes a MIDI file's parts to it.
+* `scripts`: calibration against the recordings, the judge that decides whether a change is kept,
+  renders, screenshots. `e2e`: Playwright. `docs`: research notes with citations, calibration
+  rounds, performance.
+* [`AGENTS.md`](AGENTS.md) is the map and the house rules, written for people and coding agents
+  alike: the architecture, the commands, the gate before a merge, the checklist for a new
+  instrument, and each rule with the test that enforces it.
+
+**Places to start.** A fourteenth instrument (the checklist in `AGENTS.md`; the oboe, clarinet and
+bassoon were each one pull request of the same shape). Your own piece: drop a MIDI file on the
+Orchestra, and its address becomes a preset you can share. Another look for the stage:
+`apps/web/src/ui/vector` is a second drawing of every instrument on the same data. A voicing you
+disagree with: every fitted number is in a `*-tuning.json` or `*-fit.json` next to its model, and
+`scripts/judge.ts` will tell you if yours is closer to the recordings.
 
 ## What you can do
 
@@ -61,7 +108,7 @@ as do the [Orchestra](https://instruments-wustep.vercel.app/orchestra),
   display: thin glowing lines on black, the instrument in blue, the sound in amber, and
   each knob in a colour of its own that also marks what it moves on the drawing. The
   stage as it was stays the default; the choice is remembered, and `?view=vector` in
-  the address sets it (`?style=vector` still does). After Jameson Hodge's Chimera vocal synth; the drawing kit and
+  the address sets it (`?style=vector` still does). After Jameson Hodge's Chimera vocal synth (see [Credits](#credits)); the drawing kit and
   the colour roles are in `apps/web/src/ui/vector/kit.ts`.
 * **Ensemble.** “orchestra” at the end of the picker (four dots on an arc; a square button beside the
   instrument's on a phone) puts several instruments on
@@ -131,7 +178,7 @@ as do the [Orchestra](https://instruments-wustep.vercel.app/orchestra),
   * **Dampers, pedals, noises.** Dampers press on gradually, so half-pedalling
     works. The top keys have no dampers, as on a real grand. Key thump and damper
     noise are small physical force pulses.
-* **Violin, viola, cello.**
+* **Violin, viola, cello, double bass.**
   * **Bowing.** The bow grips each string by friction (a stick–slip law) until it
     slips. Once per period it catches again, and the classic Helmholtz motion
     emerges without being programmed.
@@ -146,7 +193,9 @@ as do the [Orchestra](https://instruments-wustep.vercel.app/orchestra),
     is met as it comes.
   * **Body.** Fingers shorten the strings, with vibrato. All four strings stand on
     one bridge over a modal body with each instrument's signature air and wood
-    resonances, so open strings ring sympathetically.
+    resonances, so open strings ring sympathetically. The double bass is the same
+    physics at its own measures: a 3/4 bass tuned in fourths (E1–G4), its air
+    mode near 60 Hz among its own fundamentals.
 * **Flute.**
   * **Jet and tube.** A jet of breath is deflected by the sound in the tube. The
     time a ripple takes to travel along the jet decides which resonance it feeds.
@@ -185,6 +234,31 @@ as do the [Orchestra](https://instruments-wustep.vercel.app/orchestra),
   * **Compass.** B♭1–E5, in C (written as it sounds, bass and tenor clef); the keys
     in 2D and 3D follow the Heckel system's standard fingerings (the Woodwind
     Fingering Guide's chart).
+* **Trumpet, horn, trombone.**
+  * **Lips.** The player's lips are a small mass on a spring that the breath blows
+    open and the mouthpiece's pressure pulls shut. They lock to a resonance of the
+    bore just above their own; the valves or the slide set the tube's length and
+    the lips' tension picks the partial, as on the real instruments.
+  * **Trumpet.** A B♭ trumpet with its three valves' real fingerings; the bell
+    reflects the lows back into the bore and lets the highs out.
+  * **Horn.** The double horn in F and B♭ (3.7 m and 2.8 m of mostly conical tube,
+    the thumb valve choosing), played high in its series, where neighbouring
+    partials are a tone apart. B♭1–F5 at concert pitch.
+  * **Trombone.** Built from its measures: the mouthpiece's cup and throat, two
+    thirds of the tube a 13.9 mm cylinder that the slide lengthens, a Bessel-horn
+    bell. Loud, the wave steepens along the cylinder towards a shock, computed in
+    pascals: the brassy fortissimo. One model at three sizes (alto, tenor with
+    its F valve, bass with F and G♭).
+* **Timpani.**
+  * **Heads.** Four pedal drums (32″ to 23″, C2–A3), each a Mylar membrane as 96
+    of its modes. The air on both sides loads the low modes most, which pulls the
+    modes with nodal diameters into the near-harmonic series a kettledrum's pitch
+    is; the kettle's air stiffens the modes that pump it. Each mode loses what it
+    radiates: the first thumps and dies, the principal tone rings for seconds.
+  * **Mallet.** A mass on felt that stiffens as it is squeezed: a soft stroke is
+    a long push that sounds the principal tone and little else, a loud one is
+    short and hard, brings out the modes above and stretches the head, so the
+    note starts a little sharp.
 * **Where it runs.** Everything runs in an AudioWorklet written in TypeScript; no
   WASM was needed, as measured below. The DSP core has no Web Audio dependency,
   so the same code runs in Node for tests, calibration and offline rendering.
@@ -205,6 +279,11 @@ CPU and latency: [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
 | **Flute** | jet-drive feedback with jet delay from blowing pressure, overblowing, Strouhal-limited jet, offset jet (even harmonics), vortex-shedding amplitude limit, monopole radiation, turbulence noise, open–open bore; voicing **fitted to Iowa MIS recordings** | no tone holes or bore taper; low-register H2 at mf/ff still ~10 dB short of a real flute; per-note tuning uses a measured voicing table |
 | **Oboe** | double reed blown closed (quasi-static Bernoulli flow, closing at pM), conical bore as two waveguides meeting at the reed (cylindrical saxophone), dynamics through the reed's opening (lips), tonguing, turbulence noise; voicing and radiation **fitted to Iowa MIS recordings** | no tone holes, octave vents or reed resonance; each note is played on the tube whose fundamental it is; low notes at ff speak slowly (the fundamental takes over from the 4th–6th harmonics in about 0.3 s); per-note tuning uses a measured voicing table |
 | **Bassoon** | the oboe's double reed and two-tube conical bore with a long missing apex (0.14 m), walls losing more a few octaves above the note, dynamics through the reed's opening, tonguing, turbulence noise; voicing and radiation (its fixed formant near 480 Hz) **fitted to Iowa MIS recordings** | no tone holes, half-hole, flick or whisper key (each note on the tube whose fundamental it is); C♯3–D♯3 at mf/ff radiate their odd harmonics weakly (heard leaning to the octave); per-note tuning uses a measured voicing table |
+| **Clarinet** | single reed against the lay (quasi-static flow, solved with the bore each sample) on a cylinder closed at the reed: odd harmonics low, the twelfth above; the open-hole lattice's cutoff near 1.5 kHz, wall loss, tonguing, turbulence noise; voicing and radiation **fitted to Iowa MIS recordings** | no tone holes, register key or altissimo vents (each note on the tube whose fundamental it is); the reed's own resonance is left out; per-note tuning uses a measured voicing table |
+| **Trumpet** | lips as a mass–spring valve, flow growing with the square of the opening (louder is brighter), a bore whose length the three valves set, the partial chosen by lip tension, a bell that radiates ∝ f² below its cutoff, turbulence at the lips; **fitted to the Iowa trumpet** | the bore is one delay loop, not the trumpet's measured profile; no mouthpiece cup, no mutes; per-note tuning uses a measured table |
+| **Horn** | outward-striking lip valve (Bernoulli flow, solved in closed form each sample) on a conical bore as two waveguides, F and B♭ sides with the players' fingering, the wave's steepening when loud; colour (the hand in the bell, the bell turned away) **fitted to the Iowa horn** | the hand is a fitted colour, not a moving obstacle: no stopped or muted notes; the reference set has gaps (no pp C2–B3, no mf C3–B3) |
+| **Trombone** | the same lips in SI units, a cup-and-throat mouthpiece, a lossy cylinder the slide lengthens, a Bessel-horn bell of scattering sections, nonlinear steepening from the air's own constants, slide glissando and legato tongue; three sizes; **fitted to the Iowa tenor and bass trombones** | no mutes; the slide is placed by ear (so the chosen resonance is the note), not by a ruler; the alto has no recording of its own |
+| **Timpani** | air-loaded membrane modes (96 per drum), the kettle's air as a spring on the symmetric modes, each mode's radiation loss from its own far field, tension rising with the stroke, a felt mallet with hysteresis that bottoms out, rolls, pedals; voicing **fitted to the VSCO 2 CE timpani** | the kettle's own air resonances (above about 300 Hz) are left out; modes above the 96 are a band of noise; the added mass's scale and the floor of the losses are fitted |
 | **Listener** | close "microphones" from mode shapes | lid shelf, small FDN room, safety limiter (audio effects, not physics) |
 
 ## Realism, candidly
@@ -241,37 +320,14 @@ CPU and latency: [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
 
   The low register at mf/ff is still about 10 dB short of a real flute's
   second harmonic, and notes speak a little slowly.
-
-## Demos and screenshots (for handoff)
-
-All rendered by the models.
-
-**Round 2.** Captions, before/after pairs and measurements are in
-[`artifacts/round2/README.md`](artifacts/round2/README.md).
-* **Audio:** `artifacts/round2/audio/*.mp3` — piano tenor and treble notes,
-  piano chorale, violin long tones with bow changes, violin détaché, viola,
-  cello, flute low register and dynamics, and an ensemble chorale.
-* **Before/after:** `artifacts/round2/before/*.mp3` are the same scores
-  rendered by the round-1 engine.
-* **Screenshots:** `artifacts/round2/shots/*.png`.
-
-**Round 1.** See [`artifacts/README.md`](artifacts/README.md).
-
-* Audio, WAV (48 kHz/16-bit) plus MP3: `artifacts/audio/`
-  * piano: `piano-c-major-chord-pp.wav`, `piano-c-major-chord-ff.wav`,
-    `piano-a0-ff.wav`, `piano-sustain-pedal-passage.wav`,
-    `piano-half-pedal-una-corda.wav`, `piano-prepared.wav`
-  * strings: `violin-g-major-scale.wav`, `violin-long-e5-swell.wav`,
-    `violin-double-and-triple-stops.wav`, `viola-scale-and-chord.wav`,
-    `cello-c-major-arpeggio.wav`, `cello-g2-and-fifth.wav`
-  * flute: `flute-legato-melody.wav`, `flute-three-registers.wav`,
-    `flute-overblowing.wav`
-  * all five together: `ensemble-all-five.wav`
-* Screenshots: `artifacts/shots/`
-  * `play-piano.png`, `play-violin.png`
-  * `inside-piano.png`, `inside-violin.png`, `inside-cello.png`, `inside-flute.png`
-  * `measurements.png`, `measurements-full.png`
-  * `phone-play.png`, `phone-inside-violin.png`
+* **The rest of the orchestra.** Each was fitted to its Iowa recordings with a
+  judge on held-out notes (a change is kept only if the notes it was not fitted
+  to say BETTER). Third-octave spectral error now: double bass 4.9 dB, oboe 10.5,
+  clarinet 4.0, bassoon 8.7, horn 14.4, trumpet 3.3, trombones 5.5; pitch within
+  0.2–3 ¢ RMS. The timpani, against the VSCO 2 CE drums in a room: partials within
+  31 ¢, their levels within 8 dB, the principal tone's decay matched. The whole
+  table is on the [Notes](https://instruments-wustep.vercel.app/notes) page, and the
+  histories are in `docs/ensemble-rounds.json` and `artifacts/round3/`.
 
 ## Run, test, render
 
@@ -296,10 +352,13 @@ npx tsx scripts/fit-horn.ts       # the horn's, the same way (tune-horn.ts, horn
 npx tsx scripts/fit-trombone.ts   # the trombone's: the Iowa tenor and bass trombones, three sizes (tune-trombone.ts, trombone-regimes.ts, trombone-grid.ts, render-trombone.ts)
 npx tsx scripts/timpani-refs.ts   # the VSCO 2 CE timpani (CC0; .cache/vsco-timpani), analysed as struck strokes
 npx tsx scripts/fit-timpani.ts    # the timpani's voicing on drums 1, 3, 5 (polish-timpani.ts, tune-timpani.ts, calibrate-timpani.ts --write, render-timpani.ts)
-npx tsx scripts/render-demos.ts   # re-render artifacts/audio (round 1)
-npx tsx scripts/render-round2.ts  # round-2 MP3 demos into artifacts/round2/audio
-node scripts/screenshots.mjs      # re-capture artifacts/shots (ROUND=2 → artifacts/round2/shots; needs `pnpm preview --port 4199`)
+npx tsx scripts/judge.ts --instrument <id> --before <an older checkout's engine>   # BETTER / WORSE / NO CLEAR CHANGE on held-out notes
+node scripts/icons.mjs            # favicon.ico and apple-touch-icon.png from apps/web/public/favicon.svg
 ```
+
+Every audible change to an engine ships its before/after MP3s, spectrograms and numbers under
+`artifacts/round3/<topic>/` (see `AGENTS.md`); `artifacts/README.md` and `artifacts/round2/README.md`
+describe the first two rounds.
 
 ## Using the engine elsewhere
 
@@ -322,32 +381,58 @@ inst.control(11, 0.8);                       // expression
 
 ## Limits
 
-* **Reference data.** Calibration used every 4th key of one piano recorded at
-  three dynamics. Single-note decay comparisons are dominated by the recorded
-  instrument's own idiosyncrasies, so register medians are reported.
-* **Other instruments.** The strings and flute are compared with one player per
-  instrument (Iowa MIS, first-position notes only, pp/mf/ff), and only their
-  radiation, dynamics and flute voicing are fitted. Bodies and the flute bore
-  are not measured.
-* **Bow contact point.** The bow touches the string at a whole-sample tap, so
-  small changes of bow position can move a note's level by a dB or two.
-* **Phones.** On phones, the worklet sheds sympathetic strings and polyphony
-  under load.
-
-## Status
-
-Thirteen instruments are on `main` and live at
-[https://instruments-wustep.vercel.app](https://instruments-wustep.vercel.app)
-(2D in two styles and 3D; the Orchestra with MIDI routing, seating, and URL presets).
+* **One of each.** Every instrument is compared with one recorded instrument and
+  one player: a Steinway B (every 4th key, three dynamics), and the Iowa strings,
+  woodwinds and brass at pp, mf and ff in an anechoic room (the strings in first
+  position only). What is fitted is radiation, dynamics and voicing; bodies,
+  bores and bells are taken from the literature, not measured. Single-note decay
+  comparisons are dominated by the recorded piano's own idiosyncrasies, so
+  register medians are reported.
+* **Bowed strings.** Above about 4 kHz the modelled bodies still radiate far less
+  than the real instruments. The bow touches the string at a whole-sample tap, so
+  a small change of bow position can move a note's level by a dB or two.
+* **Woodwinds.** None has tone holes: each note is played on the tube whose
+  fundamental it is, tuned by a measured table, so there are no cross-fingerings,
+  register keys or multiphonics. The flute's low register is short of second
+  harmonic and it speaks a little slowly; the oboe's low notes at ff speak slowly;
+  the bassoon's C♯3–D♯3 lean to the octave.
+* **Brass.** No mutes and no stopped horn. The trumpet's bore is a single loop
+  rather than its measured profile. The Iowa horn set has gaps the fit could not
+  see into, and the alto trombone has no recording of its own.
+* **Timpani.** Iowa has no timpani: the reference is one set of five drums
+  recorded in a room (VSCO 2 CE, 24 strokes), not an anechoic one.
+* **Orchestra.** A seat is one player on one engine, so a section is as many
+  instruments as it has seats (twenty-four at most, fewer where the audio thread
+  could not keep up), not the blend of a real section's many. Levels between
+  instruments follow their recordings, not a conductor.
+* **Phones and browsers.** On phones the worklet sheds sympathetic strings and
+  polyphony under load, and the 3D stage draws a lighter scene. Sound needs an
+  AudioWorklet (Safari 14.1 or later); 3D needs WebGL2.
 
 ## Credits
 
-* **Reference recordings:** University of Iowa Musical Instrument Samples
-  (Steinway B, 2001; violin; viola, 1996; cello, 2001; flute, 2000), used for
-  analysis only. The six short labelled excerpts on the
-  measurements page are used under the MIS terms ("used for any projects,
-  without restrictions").
-* **Fonts:** Newsreader, IBM Plex Sans, IBM Plex Mono (SIL OFL), self-hosted.
+Built by [Stephen Wu](https://wustep.me) ([@wustep](https://x.com/wustep)) with Claude Opus 5.5 and
+Claude Fable 5.2, Anthropic's models, working in Claude Code.
+
+* **Reference recordings:** the [University of Iowa Musical Instrument
+  Samples](https://theremin.music.uiowa.edu/MIS.html): a Steinway model B (2001), violin, viola (1996),
+  cello (2001), double bass, flute (2000), oboe, B♭ clarinet, bassoon, horn (1997), trumpet, and tenor
+  and bass trombones (1997). They are used for analysis only, never played as an instrument and never
+  committed. The six short labelled excerpts on the Measurements page are used under the MIS terms
+  ("used for any projects, without restrictions").
+* **Timpani recordings:** the [VSCO 2 Community Edition](https://github.com/sgossner/VSCO-2-CE) by
+  Versilian Studios (Sam Gossner and Simon Dalzell), CC0. Analysis only, as above.
+* **Pieces:** the [Mutopia Project](https://www.mutopiaproject.org)'s typesettings of Bach, Handel,
+  Haydn, Mozart, Beethoven, Chopin and a ground from Playford's Division Violin, played unchanged; each
+  file's typesetter, source and sha256 are in `apps/web/src/orchestra/pieces.ts` and on the Notes page.
+* **3D:** [three.js](https://threejs.org) (MIT).
+* **The vector view** is after [Chimera](https://github.com/jamesondh/chimera-vocal-synth), Jameson
+  Hodge's vocal synth: its screens were the inspiration, and none of its code is used. Its type is
+  AVHershey Simplex by Stewart C. Russell, from A. V. Hershey's vector fonts (US Naval Weapons
+  Laboratory, 1967).
+* **Fonts:** Newsreader, IBM Plex Sans and IBM Plex Mono (SIL OFL), self-hosted.
+* **The physics** is other people's, cited where it is used: `docs/RESEARCH.md`, the comments in
+  `packages/engine/src/core`, and the Sources at the foot of the Notes page.
 
 ## License
 
