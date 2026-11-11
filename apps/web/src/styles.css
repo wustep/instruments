@@ -848,6 +848,41 @@ figure {
 figure.wide {
   grid-column: 1 / -1;
 }
+/* three small charts side by side (a note at pp, mf, ff) */
+.trio {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 14px;
+}
+/* A phone: one chart to a row, the heading over its numbers. Two to a row were 161 px each, their axes'
+   figures 3 px high; three to a row, 111 px. A chart made to be wide keeps a width its figures can be
+   read at and is moved sideways in its own box (the page itself does not scroll sideways). */
+@media (max-width: 760px) {
+  .measure-head {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+  .figs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .trio {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  figure.wide > .chart,
+  figure.wide > div > .chart {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+  figure.wide > .chart > svg,
+  figure.wide > div > .chart > svg {
+    min-width: 700px;
+  }
+  figure.wide .trio .chart > svg,
+  figure.wide .ens-grid .chart > svg {
+    min-width: 0;
+  }
+}
 figure h3 {
   margin-bottom: 4px;
 }
@@ -1241,6 +1276,13 @@ figure[title] {
 @media (max-width: 480px) {
   .pl-lines .pl-line {
     width: clamp(22px, calc((100vw - 41px - (var(--n, 12) - 1) * 1px) / var(--n, 12)), 28px);
+  }
+}
+/* (the vector style's player has a border: its strip is 2 px narrower, and thirteen chips at the 2D
+   style's width put the last on a second row) */
+@media (max-width: 480px) {
+  :root[data-style='vector'] .pl-lines .pl-line {
+    width: clamp(20px, calc((100vw - 43px - (var(--n, 12) - 1) * 1px) / var(--n, 12)), 28px);
   }
 }
 .pl-line,
@@ -1845,6 +1887,9 @@ figure[title] {
   border-radius: 6px;
   background: rgba(14, 13, 11, 0.94);
   backdrop-filter: blur(6px);
+  /* (its height is kept to the window's: player.ts; a short window scrolls it) */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .sm-item {
   display: grid;
@@ -1888,14 +1933,15 @@ figure[title] {
   height: 20px;
   stroke: var(--ink-2);
 }
-/* a large orchestra: each kind once, its count over its shoulder */
+/* a large orchestra: each kind once, its count over its shoulder (thirteen kinds, "Toward Morning"'s,
+   are 13 × 15 + 12 px: inside the item's 210 px; at 17 px the row came through the menu's border) */
 .sm-many .sm-v {
   position: relative;
   display: inline-flex;
   margin-right: 1px;
 }
 .sm-many .glyph {
-  width: 17px;
+  width: 15px;
   height: 17px;
 }
 .sm-n {
@@ -1912,6 +1958,8 @@ figure[title] {
   font: 400 10px/1.3 var(--mono);
   color: var(--muted);
   text-decoration: none;
+  /* (one line: it broke before its last word) */
+  white-space: nowrap;
 }
 .sm-credit:hover {
   color: var(--ink-2);

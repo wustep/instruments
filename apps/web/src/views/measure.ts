@@ -198,7 +198,7 @@ function build(d: Data): HTMLElement[] {
   // ---- spectra vs dynamics, small multiples
   {
     const notes = [37, 61, 85].filter((m) => d.keys.some((k) => k.midi === m));
-    const grid = h('div', { style: 'display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 14px' });
+    const grid = h('div', { class: 'trio' });
     for (const m of notes) {
       const k = d.keys.find((x) => x.midi === m)!;
       for (const dyn of ['pp', 'mf', 'ff'] as Dyn[]) {
@@ -227,7 +227,7 @@ function build(d: Data): HTMLElement[] {
       const model: Series = { name: 'model', color: 'model', kind: 'line+dots', points: d.keys.map((k) => ({ x: k.midi, y: (k.model[dyn]?.rmsDb ?? NaN) + d.gainOffsetDb })), fmt: (v) => `${fmt(v, 1)} dB` };
       return chart({ title: dyn, x: keyAxis(), y: { label: 'dB', min: -75, max: -10, ticks: [-70, -55, -40, -25, -10], fmt: (v) => String(v) }, series: [ref, model], xName: midiName, width: 360, height: 210 });
     };
-    const grid = h('div', { style: 'display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 14px' }, mk('pp'), mk('mf'), mk('ff'));
+    const grid = h('div', { class: 'trio' }, mk('pp'), mk('mf'), mk('ff'));
     figs.append(
       fig(
         'Loudness',

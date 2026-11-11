@@ -39,9 +39,10 @@ const hash = (n: number) => {
  *  sounding length (each lobe brightening on the side its pressure swings to, drawn slowed) and a line
  *  along the axis; at the embouchure the breath's jet (green) from the lips to the edge, the lip-to-edge
  *  distance (red), the jet's turbulence (pink) and the breath's vibrato (white). */
-export function drawFluteV(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: FluteState): void {
+export function drawFluteV(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: FluteState, top = 0): void {
   const vertical = H > W * 1.05;
-  const Lw = vertical ? H : W;
+  const under = vertical ? top : 0;
+  const Lw = vertical ? Math.max(1, H - under) : W;
   const Cw = vertical ? W : H;
   const L = fluteLayout(Lw, Cw, vertical);
   const { sc, c } = L;
@@ -70,6 +71,7 @@ export function drawFluteV(ctx: CanvasRenderingContext2D, W: number, H: number, 
   if (vertical) {
     ctx.translate(W, 0);
     ctx.rotate(Math.PI / 2);
+    ctx.translate(under, 0);
   }
   // ---- the standing wave, under the instrument's lines: hatched lobes either side of the tube
   const w = (st.wave ??= newBoreWave());

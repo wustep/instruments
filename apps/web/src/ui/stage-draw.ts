@@ -667,12 +667,15 @@ export function bowedLayout(g: BowedGeom, p: BowedPlan, sh: BowedShapes, W: numb
   const { x0, x1 } = bowedSpan(g, p);
   const len = x1 - x0;
   if (g.id === 'bass' && scale === undefined) return bassLayout(g, p, sh, W, H, top, vertical, x0, len);
-  const Lw = vertical ? H : W;
+  // (standing on a phone, in the box under the file player: its scroll was under the player's buttons;
+  // lying on a wide stage the player is over nothing of it, and it keeps the stage's whole height)
+  const under = vertical && scale === undefined ? top : 0;
+  const Lw = vertical ? Math.max(1, H - under) : W;
   const Cw = vertical ? W : H;
   const fill = vertical ? (g.id === 'violin' ? 0.86 : g.id === 'viola' ? 0.88 : 0.94) : g.id === 'violin' ? 0.72 : g.id === 'viola' ? 0.76 : 0.9;
   const sc = scale ?? Math.min((fill * Lw) / len, (0.84 * Cw) / (2 * sh.hwMax));
   const along = (Lw - len * sc) / 2 - x0 * sc;
-  return vertical ? { vertical, sc, ox: W / 2, oy: along } : { vertical, sc, ox: along, oy: H / 2 };
+  return vertical ? { vertical, sc, ox: W / 2, oy: under + along } : { vertical, sc, ox: along, oy: H / 2 };
 }
 /** px a single bass's bow keeps from the edge of the stage at the far ends of its travel */
 const BASS_BOW_EDGE = 6;
@@ -2429,9 +2432,11 @@ export function fluteLayout(Lw: number, Cw: number, vertical: boolean): FluteLay
  *  tube over its effective length: the pressure nodes just past the first open hole and ~50 mm
  *  above the embouchure (the end corrections), the lobes swinging between compression and
  *  rarefaction (drawn slowed). */
-export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: FluteState): void {
+export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: FluteState, top = 0): void {
   const vertical = H > W * 1.05;
-  const Lw = vertical ? H : W;
+  // (standing on a phone: in the box under the file player, as the reeds are)
+  const under = vertical ? top : 0;
+  const Lw = vertical ? Math.max(1, H - under) : W;
   const Cw = vertical ? W : H;
   const L = fluteLayout(Lw, Cw, vertical);
   const { sc, c } = L;
@@ -2460,6 +2465,7 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
   if (vertical) {
     ctx.translate(W, 0);
     ctx.rotate(Math.PI / 2);
+    ctx.translate(under, 0);
   }
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
