@@ -36,8 +36,9 @@
 // pearl under polished bezels (trumpet-side.jpg, trumpet-valves.jpg).
 // Live: the pistons press for the engine's fingering ("valves 1+3 · partial 4"; 15.5 mm of travel,
 // a spring return with a tiny bounce off the felt). The pressed valves' slides join the glowing air
-// path, the lips buzz at the rim, the bore's standing wave glows faintly along the brass, and the rim
-// shimmers with the level.
+// path, the breath goes into the mouthpiece (faint steel streams, as the flute's jet and the 2D stage's
+// winds are drawn; breathIn) pulsing with the lips' buzz, the bore's standing wave glows faintly along the
+// brass, and the rim shimmers with the level.
 // Approximations: the flute's linkages are shown, not simulated (each key springs to the state the
 // mechanism gives it; a link's lost motion is not modelled), the thumb levers pivot on a steel along
 // the tube rather than on Briccialdi's cross axle, and the trill keys never open (the fingering chart
@@ -969,6 +970,33 @@ export function poseFlute(b: Batch, fm: FluteModel, fr: VisualFrame | null, pose
   }
 }
 
+/** The breath going into a brass mouthpiece, as the flute's jet above is drawn and as the 2D stage draws
+ *  every wind's (stage-draw breathStream: the same streams, in metres): three faint steel streams from the
+ *  player's lips converging on the aperture at the rim's middle, in dashes flowing in. `tip`: the rim's
+ *  middle; `out`: the axis out of the cup towards the player; `across`: a direction across it (unit, the
+ *  model's frame, posed by `T`); `s`: how strong (0 … 1: the level, pulsing with the lips' opening). */
+export function breathIn(b: Batch, T: Mat4, tip: Vec3, out: Vec3, across: Vec3, s: number, now: number): void {
+  if (!(s > 0.005)) return;
+  const col = C.steel(0.12 + 0.3 * Math.min(1, s));
+  // (stage-draw BRASS_BREATH: each stream's start, bend and end, [back from the tip, out from the axis])
+  const P = [[0.017, 0.0046], [0.007, 0.0026], [0.0012, 0.0006]];
+  const at = (j: number, u: number): Vec3 => {
+    const a = (1 - u) * (1 - u) * P[0][0] + 2 * u * (1 - u) * P[1][0] + u * u * P[2][0];
+    const w = j * ((1 - u) * (1 - u) * P[0][1] + 2 * u * (1 - u) * P[1][1] + u * u * P[2][1]);
+    return xform(T, [tip[0] + out[0] * a + across[0] * w, tip[1] + out[1] * a + across[1] * w, tip[2] + out[2] * a + across[2] * w]);
+  };
+  // dashes 3 mm long every 5.5 mm (three to a stream), flowing in at 30 mm/s
+  const N = 3;
+  const ph = ((now / 1000) * (0.03 / 0.0055)) % 1;
+  for (const j of [-1, 0, 1])
+    for (let k = -1; k < N; k++) {
+      const u0 = Math.max(0, (k + ph) / N);
+      const u1 = Math.min(1, (k + ph + 0.55) / N);
+      if (u1 - u0 < 0.02) continue;
+      b.line([at(j, u0), at(j, (u0 + u1) / 2), at(j, u1)], col, 1.1);
+    }
+}
+
 
 // ================================================================ trumpet
 const RT = 0.00635; // tubing: 11.66 mm (0.459″) bore, 12.7 mm outside
@@ -1355,16 +1383,12 @@ export function poseTrumpet(b: Batch, tm: TrumpetModel, fr: VisualFrame | null, 
   });
   // the rim: a faint shimmer with the level
   b.mesh(tm.rimBead, T, lvl > 0.02 ? [1, 0.7, 0.4, 0.1 * lvl * (0.75 + 0.25 * Math.sin(now * 0.021))] : null);
-  // the lips at the rim: they buzz at the note (drawn slowed), opening with the level
-  const f = fr?.focus?.f1 ?? 0;
-  const gap = lvl > 0.02 ? 0.0012 + 0.0018 * lvl * (0.5 + 0.5 * Math.sin(now * 0.001 * Math.min(f, 18) * 6.283)) : 0.0005;
-  const up = norm(cross([0, 0, 1], tm.axis));
-  for (const sgn of [-1, 1]) {
-    const lip: Vec3[] = [];
-    for (let k = 0; k <= 10; k++) {
-      const z = -0.011 + (k / 10) * 0.022;
-      lip.push(xform(T, add(tm.lips, add(scale(up, sgn * (gap + 0.0032 * (1 - (z / 0.011) ** 2))), [0, 0, z]))));
-    }
-    b.line(lip, lvl > 0.02 ? C.verm(0.85) : C.amber(0.35), 2.6);
+  // the breath into the mouthpiece while it sounds (breathIn), pulsing with the lips' buzz (drawn slowed, as
+  // on the 2D stage: a few times a second, a little quicker for higher notes)
+  if (lvl > 0.02) {
+    const f = fr?.focus?.f1 ?? 392;
+    const buzz = 0.5 - 0.5 * Math.cos(2 * Math.PI * 4.5 * Math.sqrt(Math.max(0.1, f / 392)) * (now / 1000));
+    const ax = norm(tm.axis);
+    breathIn(b, T, tm.lips, scale(ax, -1), norm(cross([0, 0, 1], ax)), Math.min(1, 0.35 + lvl) * (0.6 + 0.4 * buzz), now);
   }
 }

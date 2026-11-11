@@ -11,12 +11,13 @@
 // after the note stops; its link turns the rotor's crank a quarter turn and the rotor (its passages engraved
 // on the cap) with it. The air's path (the slide, the valve loops the fingering takes, the tuning slide, the
 // bell) is lit, the loops it skips dark; the bore's standing wave (the engine's, with its sign; drawn slowed)
-// runs along it from the lips to the bell's rim, where it opens out (the Webster horn's 1/r). The lips buzz
-// against the mouthpiece's rim with the engine's own lip opening (its trace, one cycle played back slowed).
+// runs along it from the lips to the bell's rim, where it opens out (the Webster horn's 1/r). The breath goes
+// into the mouthpiece as it does on every wind (the reeds' faint streams, stage-draw breathStream), pulsing
+// with the engine's own lip opening (its trace, one cycle played back slowed).
 // All three sizes are drawn at one px per metre, so the alto stands smaller than the tenor and the bass.
 import type { TromboneVisual, VisualFrame } from '@piano-model/engine';
 import { SIZES, bellRuns, extent, plan, positionOut, slideRuns, type Down, type P, type Plan, type Run, type Size, type Tube } from './trombone-plan.ts';
-import { AutoScale, INK, boreAt, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
+import { AutoScale, BRASS_BREATH, INK, boreAt, brassBreath, breathStream, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface TromboneState {
@@ -547,7 +548,7 @@ const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
 
 /** The slide trombone from the player's right: the bell section (the tuning slide, the valve loops, the
  *  bell), the rotors and the thumb's levers, the inner slide and the outer slide standing out by the engine's
- *  slide, the mouthpiece with the lips buzzing at it; the air's path lit and the standing wave along it.
+ *  slide, the mouthpiece with the breath going into it; the air's path lit and the standing wave along it.
  *  `top`: the file player's px over the box's top. */
 export function drawTrombone(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: TromboneState, top = 0): void {
   const now = performance.now();
@@ -725,7 +726,7 @@ export function drawTrombone(ctx: CanvasRenderingContext2D, W: number, H: number
   ctx.restore();
   // the wave along the slide (on the tubes as they stand)
   if (lv.sounding) for (const id of ['up', 'crook', 'down']) glowRun(ctx, L, lv, id, id === 'up' ? p.rIn : p.rOut);
-  // ---- the mouthpiece (silver plate), the lips at its rim
+  // ---- the mouthpiece (silver plate), the breath going into it
   ctx.fillStyle = NICKEL_BODY;
   ctx.fill(L.mp);
   {
@@ -745,7 +746,7 @@ export function drawTrombone(ctx: CanvasRenderingContext2D, W: number, H: number
   ctx.strokeStyle = nickel(0.66);
   ctx.lineWidth = 1.1;
   ctx.stroke(L.mp);
-  drawLips(ctx, L, lv);
+  drawBreath(ctx, L, lv, now);
   ctx.restore();
   tromboneRecord(L, st, lv);
 }
@@ -969,43 +970,13 @@ function drawLevers(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive): voi
     ctx.stroke();
   });
 }
-/** the lips against the mouthpiece's rim: two cushions, apart by the engine's lip opening (drawn slowed,
- *  exaggerated), the puff of air through them into the cup */
-function drawLips(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive): void {
+/** the breath into the mouthpiece while the note is blown: the reeds' streams (stage-draw breathStream),
+ *  converging on the lips' aperture at the rim's middle, pulsing with the lips' opening (drawn slowed) */
+function drawBreath(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive, now: number): void {
+  if (!(lv.sounding && lv.blow > 0.05)) return;
   const { sc, p } = L;
   const rx = L.ox - p.mpVis * sc;
   const ry = L.oy;
-  const playing = lv.sounding && lv.blow > 0.05;
-  const o = playing ? Math.min(1.3, lv.open / Math.max(0.3, lv.swing + 0.2)) : 0;
-  const gap = (0.0004 + 0.003 * o) * sc;
-  const reach = p.mpProfile[1][0] * 0.95;
-  for (const sg of [-1, 1]) {
-    ctx.beginPath();
-    for (let i = 0; i <= 18; i++) {
-      const f = i / 18;
-      const across = gap / 2 + f * reach * sc;
-      const bulge = (0.0016 + 0.0105 * Math.pow(Math.sin(Math.PI * Math.min(1, 0.06 + 0.98 * f)), 0.7)) * sc;
-      if (i) ctx.lineTo(rx - bulge, ry + sg * across);
-      else ctx.moveTo(rx - bulge, ry + sg * across);
-    }
-    ctx.fillStyle = playing ? rgba(INK.vermilion, 0.1 + 0.12 * o) : rgba(INK.felt, 0.12);
-    ctx.fill();
-    ctx.strokeStyle = rgba(INK.felt, 0.7);
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(rx - 0.0012 * sc, ry + (sg * gap) / 2);
-    ctx.lineTo(rx - 0.009 * sc, ry + sg * (gap / 2 + 0.0018 * sc));
-    ctx.strokeStyle = playing ? rgba(INK.vermilion, 0.5 + 0.45 * Math.min(1, o)) : rgba(INK.felt, 0.4);
-    ctx.lineWidth = 1.4;
-    ctx.stroke();
-  }
-  if (playing) {
-    ctx.strokeStyle = rgba(INK.steel, 0.15 + 0.4 * Math.min(1, o));
-    ctx.lineWidth = Math.max(1, gap * 0.7);
-    ctx.beginPath();
-    ctx.moveTo(rx - 0.002 * sc, ry);
-    ctx.lineTo(rx + 0.009 * sc, ry);
-    ctx.stroke();
-  }
+  const o = lv.open / Math.max(0.3, lv.swing + 0.2);
+  breathStream(ctx, (a, w) => [rx - a * sc, ry + w * sc], sc, BRASS_BREATH, brassBreath(lv.lvl, o), now);
 }

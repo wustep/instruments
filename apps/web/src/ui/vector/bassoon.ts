@@ -10,7 +10,7 @@
 
 import type { VisualFrame } from '@piano-model/engine';
 import { BS_BORE, BS_KEYS, X_ASC, BS_TOUCHES, LEGS, boreD, boreHU, borePx, bsFrame, bsRecord, bassoonLayout, bassoonLive, reedEyePath, type BassoonState } from '../bassoon-draw.ts';
-import { V, beam, dot, handle, heat, label, mix, ring, seg } from './kit.ts';
+import { V, beam, breathFlow, dot, handle, heat, label, mix, ring, seg } from './kit.ts';
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 /** how many brightnesses a hatched wave is drawn in (one path each) */
@@ -175,15 +175,7 @@ export function drawBassoonV(ctx: CanvasRenderingContext2D, W: number, H: number
   const xb = Math.max(0.002, aH - (hr + 2) / sc);
   // breath (green): from the lips into the tip, flowing
   if (lv.blow > 0.02) {
-    const flow = new Path2D();
-    for (const j of [-1, 0, 1]) {
-      flow.moveTo(...out(xb, j * 0.0042));
-      const m = out(xb * 0.4, j * 0.0024);
-      const e = out(0.0016, j * 0.0008);
-      flow.quadraticCurveTo(m[0], m[1], e[0], e[1]);
-    }
-    const d = small ? 3 : 5;
-    beam(ctx, flow, V.green, small ? 1 : 1.2, { alpha: Math.min(1, 0.4 + lv.blow) * (1 + 2.5 * lv.vib), dash: [d, d * 0.8] });
+    breathFlow(ctx, out, xb, [0.0042, 0.0024, 0.0008], 0.0016, small, Math.min(1, 0.4 + lv.blow) * (1 + 2.5 * lv.vib), now);
     // noise (pink): turbulence in the reed's channel, just inside the tip
     const frame = Math.floor(t * 20);
     const nd = small ? 4 : 7;

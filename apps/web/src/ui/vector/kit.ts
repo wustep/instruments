@@ -134,6 +134,37 @@ export function dot(ctx: CanvasRenderingContext2D, x: number, y: number, r: numb
   ctx.fill();
   ctx.restore();
 }
+/** a point `a` m back from a tip (towards the player) and `w` m across its axis, on the screen */
+export type TipAt = (a: number, w: number) => readonly [number, number];
+/** The breath (the green slot) on every wind: three dashed streams from the breath's handle converging on
+ *  the tip (a reed's, a brass mouthpiece's rim), flowing in. `from`: how far back they start (m); `spread`:
+ *  their half-spread there, at their bend (0.4 of the way in) and where they end, `end` m back. */
+export function breathFlow(ctx: CanvasRenderingContext2D, at: TipAt, from: number, spread: readonly [number, number, number], end: number, small: boolean, alpha: number, now: number): void {
+  const flow = new Path2D();
+  for (const j of [-1, 0, 1]) {
+    const s = at(from, j * spread[0]);
+    const m = at(from * 0.4, j * spread[1]);
+    const e = at(end, j * spread[2]);
+    flow.moveTo(s[0], s[1]);
+    flow.quadraticCurveTo(m[0], m[1], e[0], e[1]);
+  }
+  const d = small ? 3 : 5;
+  ctx.save();
+  ctx.lineDashOffset = -(((now / 1000) * 30) % (d * 1.8));
+  beam(ctx, flow, V.green, small ? 1 : 1.2, { alpha, dash: [d, d * 0.8] });
+  ctx.restore();
+}
+/** The lips on a brass mouthpiece (the red slot), as the reeds' pinch is drawn: pressed on the rim either
+ *  side of their aperture, a line across it parted by the opening `gap` (m; they buzz), `reach` m out on
+ *  each side. */
+export function lipLine(ctx: CanvasRenderingContext2D, at: TipAt, gap: number, reach: number, lw: number, alpha: number, hot: boolean): void {
+  const p = new Path2D();
+  for (const sg of [-1, 1]) {
+    p.moveTo(...at(0.0008, sg * gap * 0.5));
+    p.lineTo(...at(0.0008, sg * (gap * 0.5 + reach)));
+  }
+  beam(ctx, p, V.red, lw, { alpha, hot });
+}
 /** a control's handle: a ring with crosshair ticks, where a slot's control acts on the drawing */
 export function handle(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, r = 7, alpha = 1): void {
   const t = 4;

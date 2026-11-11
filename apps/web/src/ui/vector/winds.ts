@@ -13,7 +13,7 @@ import {
   TR_MAIN, TR_MP, TR_MPIECE, TR_RC, TR_RIM, TR_RT, TR_SLIDES, TR_SLIDE_TRAVEL, TR_STEM, TR_STROKE, TR_TAIL, TR_VX, TR_XB, TR_ZB, TR_ZL, VALVE_DOWN, boreAt, flHead, fluteLayout, newBoreWave, slowPhase,
   spring01, trAir, trAlong, trBellR, trLeadY, trProj, trackBoreWave, trumpetLayout, v3add, v3lerp, v3len, type FluteState, type TrumpetState, type V3,
 } from '../stage-draw.ts';
-import { V, beam, dot, handle, heat, label, mix, ring, seg } from './kit.ts';
+import { V, beam, breathFlow, dot, handle, heat, label, lipLine, mix, ring, seg } from './kit.ts';
 
 type P2 = [number, number];
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -607,53 +607,27 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
     const t = now / 1000;
     // (the buzz drawn slowed, a little quicker for higher notes: the true buzz is the note itself)
     const open01 = playing ? 0.5 - 0.5 * Math.cos(2 * Math.PI * 4.5 * Math.sqrt((focus?.f1 ?? 392) / 392) * t) : 0;
-    const gapPx = (0.0006 + 0.0034 * Math.min(1, swing * 1.6) * open01) * S;
     const nx = uy;
     const ny = -ux;
+    const at = (a: number, w: number): [number, number] => [rimPt[0] - ux * a * S + nx * w * S, rimPt[1] - uy * a * S + ny * w * S];
     const live = playing ? 1 : 0.55;
     const hr = clamp(0.0036 * S, 2.6, 6);
-    const lips = new Path2D();
-    const edge = new Path2D();
-    for (const sg of [-1, 1]) {
-      // each lip: a cushion against the rim, from the aperture out past the rim's edge
-      for (let i = 0; i <= 18; i++) {
-        const f = i / 18;
-        const across = gapPx / 2 + f * 0.0135 * S;
-        const bulge = (0.0014 + 0.0085 * Math.pow(Math.sin(Math.PI * Math.min(1, 0.06 + 0.98 * f)), 0.7)) * S;
-        const qx = rimPt[0] - ux * bulge + sg * nx * across;
-        const qy = rimPt[1] - uy * bulge + sg * ny * across;
-        if (i) lips.lineTo(qx, qy);
-        else lips.moveTo(qx, qy);
-      }
-      edge.moveTo(rimPt[0] - ux * 0.0012 * S + (sg * nx * gapPx) / 2, rimPt[1] - uy * 0.0012 * S + (sg * ny * gapPx) / 2);
-      edge.lineTo(rimPt[0] - ux * 0.0075 * S + sg * nx * (gapPx / 2 + 0.0016 * S), rimPt[1] - uy * 0.0075 * S + sg * ny * (gapPx / 2 + 0.0016 * S));
-    }
-    beam(ctx, lips, V.red, lw, { alpha: 0.6 + 0.4 * live });
-    beam(ctx, edge, V.red, lw + 0.3, { alpha: playing ? 0.6 + 0.4 * open01 : 0.5, hot: playing });
+    // the lips: on the rim, parted by the opening (drawn as the reeds' pinch: kit.ts lipLine)
+    lipLine(ctx, at, 0.0006 + 0.0034 * Math.min(1, swing * 1.6) * open01, 0.0125, lw + 0.3, playing ? 0.6 + 0.4 * open01 : 0.6, playing);
     // the lips' handle, above the rim
     const rx = rimPt[0] - ux * 0.004 * S + nx * 0.027 * S;
     const ry = rimPt[1] - uy * 0.004 * S + ny * 0.027 * S;
     seg(ctx, rimPt[0] - ux * 0.004 * S + nx * 0.016 * S, rimPt[1] - uy * 0.004 * S + ny * 0.016 * S, rx - nx * hr, ry - ny * hr, V.red, 1, { alpha: 0.5 * live });
     handle(ctx, rx, ry, V.red, hr, live);
-    // the breath: its handle before the lips, the air streaming from it into the aperture
+    // the breath: its handle before the lips, the air flowing from it into the aperture (as on the reeds:
+    // kit.ts breathFlow)
     const blow = fr?.breath?.pressure ?? (playing ? Math.min(1, 0.4 + lvl) : 0);
     // (nearer on a small stage, whose margin is a few pixels)
-    const gd = (small ? 0.015 : 0.021) * S;
-    const gx = rimPt[0] - ux * gd;
-    const gy = rimPt[1] - uy * gd;
-    if (playing) {
-      ctx.save();
-      ctx.lineDashOffset = -((t * 40) % 9);
-      const air = new Path2D();
-      for (const j of [-1, 0, 1]) {
-        air.moveTo(gx + ux * (hr + 2) + nx * j * 0.0022 * S, gy + uy * (hr + 2) + ny * j * 0.0022 * S);
-        air.lineTo(rimPt[0] - ux * 0.002 * S + nx * j * 0.0005 * S, rimPt[1] - uy * 0.002 * S + ny * j * 0.0005 * S);
-      }
-      beam(ctx, air, V.green, 1, { alpha: Math.min(1, 0.35 + blow), dash: [4, 5] });
-      // …and through the aperture into the cup, as the lips let it
-      seg(ctx, rimPt[0] - ux * 0.002 * S, rimPt[1] - uy * 0.002 * S, rimPt[0] + ux * 0.008 * S, rimPt[1] + uy * 0.008 * S, V.green, Math.max(1, gapPx * 0.6), { alpha: 0.25 + 0.6 * open01 });
-      ctx.restore();
-    }
+    const gd = small ? 0.015 : 0.021;
+    const gx = rimPt[0] - ux * gd * S;
+    const gy = rimPt[1] - uy * gd * S;
+    // (from the handle's ring, and a few px long however small the stage)
+    if (playing) breathFlow(ctx, at, Math.max(gd - (hr + 2) / S, 0.0016 + 6 / S), [0.0034, 0.0018, 0.0006], 0.0016, small, Math.min(1, 0.35 + blow) * (0.7 + 0.3 * open01), now);
     handle(ctx, gx, gy, V.green, hr, live);
     // the vibrato: below the rim, riding the pitch about its own mean
     const pt = pitchTrack.get(st) ?? { mean: 0, dev: 0 };

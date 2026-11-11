@@ -3,16 +3,17 @@
 // snapshots), as lines. Blue is the brass and its mechanism: every tube its two walls (a nearer tube hides
 // what lies behind it), bright along the air's path for the fingering held and dim off it; the rotors'
 // caps with their two passages turning a quarter turn, the paddles bright under the fingers; the bell's
-// flare with a few of its sections, its mouth, the hand cupped in it. Amber is the bore's standing wave,
-// hatched across the bore along the air's path (dashed through the valves) and opening out in the bell.
-// At the mouthpiece the knobs' slots mark where each acts: the breath (green) into the lips, the lips
-// (red) buzzing with the engine's lip opening, the turbulence in their slit (pink), the vibrato (white)
-// riding the pitch. The state object is the stage's, so a change of style carries the levers and wave over.
+// flare with a few of its sections, its mouth (no hand in it: the engine has none). Amber is the bore's
+// standing wave, hatched across the bore along the air's path (dashed through the valves) and opening out
+// in the bell. At the mouthpiece the knobs' slots mark where each acts, drawn as on the reeds (kit.ts
+// breathFlow, lipLine): the breath (green) flowing into the lips, the lips (red) on the rim parted by the
+// engine's lip opening, the turbulence in their slit (pink), the vibrato (white) riding the pitch. The
+// state object is the stage's, so a change of style carries the levers and wave over.
 
 import type { VisualFrame } from '@piano-model/engine';
 import { BAR_X, CRANK, HOOK, LEVERS, crankAngle, hornLayout, hornLive, hornRecord, paddle, type HnLayout, type HnLive, type HornState } from '../horn-draw.ts';
 import { AXIS, CAP_R, MOUTH_K, MP_DIR, MP_RIM, RIM_C, ROT_R, ROT_X, ROT_Y, bellR, type P } from '../horn-plan.ts';
-import { V, beam, dot, handle, heat, mix, ring, seg } from './kit.ts';
+import { V, beam, breathFlow, dot, handle, heat, lipLine, mix, ring, seg } from './kit.ts';
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 /** how many brightnesses a hatched wave is drawn in (one path each) */
@@ -27,7 +28,7 @@ const hash = (n: number) => {
 const pitchTrack = new WeakMap<HornState, { mean: number; dev: number; t: number }>();
 
 /** The double horn from its outside, as lines: the tubes' walls (the air's path bright), the bell's flare
- *  and mouth with the hand in it, the rotors (their passages turning), the lever bar and paddles; the
+ *  and mouth, the rotors (their passages turning), the lever bar and paddles; the
  *  standing wave hatched across the bore along the air's path; the four slots at the mouthpiece. `top`: the
  *  file player's px over the box's top. */
 export function drawHornV(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: HornState, top = 0): void {
@@ -74,13 +75,8 @@ export function drawHornV(ctx: CanvasRenderingContext2D, W: number, H: number, f
     }
   beam(ctx, L.ferrules, V.blueMid, 1, { alpha: 0.7 });
   beam(ctx, L.braces, V.blueDim, 1);
-  // the mouth over everything behind it: its inside masked, the hand cupped in it, the rim
+  // the mouth over everything behind it: its inside masked, the rim
   mask(B.mouth);
-  ctx.save();
-  ctx.clip(B.mouth);
-  beam(ctx, L.hand, V.blueMid, 1, { alpha: 0.85 });
-  beam(ctx, L.handNails, V.blueDim, 1, { alpha: 0.9 });
-  ctx.restore();
   beam(ctx, B.mouth, V.blue, lw + 0.3, { hot: !small });
   // the passages through the valves (dashed: the rotors cover them)
   if (hatch) for (const [, h] of hatch) if (h.hidden) beam(ctx, h.line, V.amber, 1, { alpha: 0.5 * fade, dash: [2, 3] });
@@ -238,9 +234,9 @@ function strokeHatch(ctx: CanvasRenderingContext2D, h: Hatch, fade: number, smal
   beam(ctx, h.line, V.amber, small ? 1.1 : 1.4, { alpha: (0.45 + 0.4 * lvl) * fade, hot: lvl > 0.5 });
 }
 
-/** the four slots at the mouthpiece: the breath (green) streaming into the lips, the lips (red) buzzing
- *  apart by the engine's opening, the turbulence in their slit (pink), the vibrato (white) round the
- *  breath's handle riding the pitch */
+/** the four slots at the mouthpiece, drawn as on the reeds: the breath (green) flowing into the lips, the
+ *  lips (red) on the rim parted by the engine's opening, the turbulence in their slit (pink), the vibrato
+ *  (white) round the breath's handle riding the pitch */
 function slots(ctx: CanvasRenderingContext2D, L: HnLayout, lv: HnLive, st: HornState, fr: VisualFrame | null, now: number, small: boolean, lw: number): void {
   const { sc } = L;
   const rim: P = [L.ox + MP_RIM[0] * sc, L.oy - MP_RIM[1] * sc];
@@ -249,51 +245,27 @@ function slots(ctx: CanvasRenderingContext2D, L: HnLayout, lv: HnLive, st: HornS
   const uy = -MP_DIR[1];
   const nx = uy;
   const ny = -ux;
+  const at = (a: number, w: number): [number, number] => [rim[0] - ux * a * sc + nx * w * sc, rim[1] - uy * a * sc + ny * w * sc];
   const playing = lv.sounding && lv.blow > 0.01;
   const o = playing ? Math.min(1.3, lv.open / Math.max(0.3, lv.swing + 0.2)) : 0;
   const live = playing ? 1 : 0.55;
   const hr = clamp(0.0034 * sc, 2.6, 6);
   const t = now / 1000;
-  const gapPx = (0.0006 + 0.0032 * o) * sc;
-  // the lips: cushions against the rim, apart by the opening
-  const lips = new Path2D();
-  const edge = new Path2D();
-  for (const sg of [-1, 1]) {
-    for (let i = 0; i <= 18; i++) {
-      const f = i / 18;
-      const across = gapPx / 2 + f * 0.0145 * sc;
-      const bulge = (0.0014 + 0.009 * Math.pow(Math.sin(Math.PI * Math.min(1, 0.06 + 0.98 * f)), 0.7)) * sc;
-      const qx = rim[0] - ux * bulge + sg * nx * across;
-      const qy = rim[1] - uy * bulge + sg * ny * across;
-      if (i) lips.lineTo(qx, qy);
-      else lips.moveTo(qx, qy);
-    }
-    edge.moveTo(rim[0] - ux * 0.0012 * sc + (sg * nx * gapPx) / 2, rim[1] - uy * 0.0012 * sc + (sg * ny * gapPx) / 2);
-    edge.lineTo(rim[0] - ux * 0.008 * sc + sg * nx * (gapPx / 2 + 0.0016 * sc), rim[1] - uy * 0.008 * sc + sg * ny * (gapPx / 2 + 0.0016 * sc));
-  }
-  beam(ctx, lips, V.red, lw, { alpha: 0.6 + 0.4 * live });
-  beam(ctx, edge, V.red, lw + 0.3, { alpha: playing ? 0.6 + 0.4 * Math.min(1, o) : 0.5, hot: playing });
+  // the lips: on the rim, parted by the opening
+  lipLine(ctx, at, 0.0006 + 0.0032 * o, 0.0125, lw + 0.3, playing ? 0.6 + 0.4 * Math.min(1, o) : 0.6, playing);
   // the lips' handle beside the rim (towards the bell's side, where the stage has room)
   const lx = rim[0] - ux * 0.006 * sc - nx * 0.026 * sc;
   const ly = rim[1] - uy * 0.006 * sc - ny * 0.026 * sc;
   seg(ctx, rim[0] - ux * 0.006 * sc - nx * 0.016 * sc, rim[1] - uy * 0.006 * sc - ny * 0.016 * sc, lx + nx * hr, ly + ny * hr, V.red, 1, { alpha: 0.5 * live });
   handle(ctx, lx, ly, V.red, hr, live);
-  // the breath: its handle out past the lips along the axis (kept inside the box), the air into the slit
+  // the breath: its handle out past the lips along the axis (kept inside the box), the air flowing from it
   const room = (rim[1] - (L.top + hr + 6)) / Math.max(0.2, -uy) / sc;
   const gd = clamp(Math.max(small ? 0.016 : 0.022, (hr + 10) / sc), 0.006, Math.max(0.006, room));
   const gx = rim[0] - ux * gd * sc;
   const gy = rim[1] - uy * gd * sc;
   if (playing) {
-    ctx.save();
-    ctx.lineDashOffset = -((t * 40) % 9);
-    const air = new Path2D();
-    for (const j of [-1, 0, 1]) {
-      air.moveTo(gx + ux * (hr + 2) + nx * j * 0.0024 * sc, gy + uy * (hr + 2) + ny * j * 0.0024 * sc);
-      air.lineTo(rim[0] - ux * 0.002 * sc + nx * j * 0.0005 * sc, rim[1] - uy * 0.002 * sc + ny * j * 0.0005 * sc);
-    }
-    beam(ctx, air, V.green, 1, { alpha: Math.min(1, 0.35 + lv.blow), dash: [4, 5] });
-    seg(ctx, rim[0] - ux * 0.002 * sc, rim[1] - uy * 0.002 * sc, rim[0] + ux * 0.009 * sc, rim[1] + uy * 0.009 * sc, V.green, Math.max(1, gapPx * 0.6), { alpha: 0.25 + 0.6 * Math.min(1, o) });
-    ctx.restore();
+    // (from the handle's ring, and a few px long however small the stage)
+    breathFlow(ctx, at, Math.max(gd - (hr + 2) / sc, 0.0016 + 6 / sc), [0.0034, 0.0018, 0.0006], 0.0016, small, Math.min(1, 0.4 + lv.lvl) * (0.7 + 0.3 * Math.min(1, o)), now);
     // noise (pink): turbulence in the lips' slit and just inside the cup
     const frame = Math.floor(t * 20);
     const nd = small ? 4 : 7;

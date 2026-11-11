@@ -33,7 +33,7 @@
 // each later half-wave as its lobe, the sign alternating.
 import type { VisualFrame } from '@piano-model/engine';
 import { L1, L2, L3, LA, LCS, LE, LFS, LGS, R1, R2, R3, RAB, RB, RE, REG, RF, SEB, T, clarinetFingersFor, clarinetRegister } from './clarinet-fingering.ts';
-import { AutoScale, INK, boreAt, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
+import { AutoScale, INK, boreAt, breathStream, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface ClarinetState {
@@ -954,18 +954,7 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
   // the breath into the mouthpiece: a faint stream from the lips, flowing in
   if (lv.blow > 0.02) {
     const a = Math.min(1, 0.3 + lv.blow) * (1 + 2.5 * lv.vib);
-    ctx.save();
-    ctx.setLineDash([0.003 * sc, 0.0025 * sc]);
-    ctx.lineDashOffset = -((now / 1000) * 0.03 * sc);
-    ctx.strokeStyle = rgba(INK.steel, 0.45 * a);
-    ctx.lineWidth = 1;
-    for (const j of [-1, 0, 1]) {
-      ctx.beginPath();
-      ctx.moveTo(X(-0.017), Y(j * 0.0046));
-      ctx.quadraticCurveTo(X(-0.007), Y(j * 0.0026), X(-0.0016), Y(j * 0.0008));
-      ctx.stroke();
-    }
-    ctx.restore();
+    breathStream(ctx, (b, w) => [X(-b), Y(w)], sc, [[0.017, 0.0046], [0.007, 0.0026], [0.0016, 0.0008]], 0.45 * a, now);
   }
   // ---- the wave's line along the bore's axis, over everything (its nodes stand still)
   if (lv.sounding) {

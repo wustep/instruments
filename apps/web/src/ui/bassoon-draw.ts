@@ -44,7 +44,7 @@
 import type { VisualFrame } from '@piano-model/engine';
 import { FA, FB, FD, HALF, L1, L2, L3, LB, LBB, LC, LCS, LD, LEB, PF, PFS, PGS, R1, R2, R3, RBB, RE, RFS, RGS, SBB, SE, SEB, TCS, W as WK, bassoonFingersFor, bassoonOctave } from './bassoon-fingering.ts';
 import { spatula, type ClTouch } from './clarinet-draw.ts';
-import { AutoScale, INK, boreAt, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
+import { AutoScale, INK, boreAt, breathStream, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface BassoonState {
@@ -1218,20 +1218,9 @@ export function drawBassoon(ctx: CanvasRenderingContext2D, W: number, H: number,
   // the breath into the reed: a faint stream from the lips, flowing in
   if (lv.blow > 0.02) {
     const a = Math.min(1, 0.3 + lv.blow) * (1 + 2.5 * lv.vib);
-    ctx.save();
-    ctx.setLineDash([0.003 * sc, 0.0025 * sc]);
-    ctx.lineDashOffset = -((now / 1000) * 0.03 * sc);
-    ctx.strokeStyle = rgba(INK.steel, 0.45 * a);
-    ctx.lineWidth = 1;
-    const nx = -L.tdy;
-    const ny = L.tdx;
-    for (const j of [-1, 0, 1]) {
-      ctx.beginPath();
-      ctx.moveTo(L.tipX + L.tdx * 0.017 * sc + nx * j * 0.0052 * sc, L.tipY + L.tdy * 0.017 * sc + ny * j * 0.0052 * sc);
-      ctx.quadraticCurveTo(L.tipX + L.tdx * 0.007 * sc + nx * j * 0.003 * sc, L.tipY + L.tdy * 0.007 * sc + ny * j * 0.003 * sc, L.tipX + L.tdx * 0.0016 * sc + nx * j * 0.001 * sc, L.tipY + L.tdy * 0.0016 * sc + ny * j * 0.001 * sc);
-      ctx.stroke();
-    }
-    ctx.restore();
+    // (the reed's axis out of the tip, towards the player: (tdx, tdy))
+    const at = (b: number, w: number): [number, number] => [L.tipX + L.tdx * b * sc - L.tdy * w * sc, L.tipY + L.tdy * b * sc + L.tdx * w * sc];
+    breathStream(ctx, at, sc, [[0.017, 0.0052], [0.007, 0.003], [0.0016, 0.001]], 0.45 * a, now);
   }
   // ---- the wave's line along the bore's axis, over everything (its nodes stand still)
   if (lv.sounding) {

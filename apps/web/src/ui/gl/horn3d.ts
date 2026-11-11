@@ -28,18 +28,18 @@
 // side from C♯4) presses the levers on springs (a tiny bounce off their stops), the linkages turning the
 // rotors a quarter turn; they spring back a moment after the note stops. While it sounds the bore glows
 // faintly along the air's own path (the side and the valves pressed choose it: through the pressed
-// valves' slides, not the others), with the standing wave the engine computes (lips → bell); the lips
-// buzz at the mouthpiece's rim with their opening (`fr.lips`); the bell's mouth shimmers with the level.
+// valves' slides, not the others), with the standing wave the engine computes (lips → bell); the breath
+// goes into the mouthpiece as on every wind (winds3d breathIn: faint steel streams), pulsing with the lips'
+// opening (`fr.lips`); the bell's mouth shimmers with the level.
 // Approximations: the plumbing inside the valve cluster (the rotors' passages, the knuckles) is not traced
 // tube by tube, and the slides' lengths are the photographs' shapes (each within a fifth of the valve's
-// own lengthening; the open F path is 3.74 m); the player's right hand in the bell is left out (a hand
-// that reads as a hand needs a rigged, skinned model the stage does not have).
+// own lengthening; the open F path is 3.74 m). No hand in the bell, here or in 2D: the engine has none (no
+// stopping, no hand position: its fitted colour is fixed), so a hand would follow nothing that is played.
 import { hornFingering, type HornFingering, type VisualFrame } from '@piano-model/engine';
-import { INK } from '../stage-draw.ts';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cross, dot, ink, mulInto, norm, rotX, rotY, rotZ, scale, scaleM, sub, translate, xform } from './gl3d.ts';
+import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cross, dot, mulInto, norm, rotX, rotY, rotZ, scale, scaleM, sub, translate, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, ellipsoid, grid, variant, type Mat } from './mesh.ts';
 import { aboutAxis, fillet, frameY, revolve, springTo } from './oboe3d.ts';
-import type { WindPose } from './winds3d.ts';
+import { breathIn, type WindPose } from './winds3d.ts';
 
 type P2 = [number, number];
 const TAU = Math.PI * 2;
@@ -1142,8 +1142,6 @@ export function rotorTurn(hm: HornModel, i: number, p: number): number {
   return lerp(t[k], t[k + 1], x - k);
 }
 
-const C = { verm: (a: number) => ink(INK.vermilion, a), amber: (a: number) => ink(INK.amber, a) };
-
 /** the single stage's pose state, last posed (tests) */
 let stageState: HornPoseState | null = null;
 export function poseHorn(b: Batch, hm: HornModel, fr: VisualFrame | null, pose: WindPose, dt: number, now: number, rms: number, T: Mat4 = hm.T): void {
@@ -1218,24 +1216,15 @@ export function poseHorn(b: Batch, hm: HornModel, fr: VisualFrame | null, pose: 
   }
   // the bell's mouth: a faint shimmer with the level
   b.mesh(hm.rim, T, lvl > 0.02 ? setGlow(0.09 * lvl * (0.75 + 0.25 * Math.sin(now * 0.021))) : null);
-  // the lips at the rim: they buzz at the note (drawn slowed), opening with the engine's lips
+  // the breath into the mouthpiece while the note is blown (winds3d breathIn), pulsing with the engine's
+  // lips: their opening eased, the buzz drawn slowed (a few times a second, as on the 2D stage)
   const open = lips ? Math.min(1.6, lips.open) : 0;
   st.lipGap += (open - st.lipGap) * (1 - Math.exp(-dt / 0.04));
   if (blow > 0.02) {
-    const f1 = focus?.f1 ?? 0;
-    const gap = 0.0006 + 0.0011 * st.lipGap * (0.55 + 0.45 * Math.sin(now * 0.001 * Math.min(f1, 14) * TAU));
+    const f1 = focus?.f1 ?? 392;
+    const buzz = 0.5 - 0.5 * Math.cos(TAU * 4.5 * Math.sqrt(Math.max(0.1, f1 / 392)) * (now / 1000));
     const ax = norm(hm.lipAxis);
-    const side = norm(cross(ax, [0, 0, 1]));
-    const up2 = norm(cross(side, ax));
-    for (const sg of [-1, 1]) {
-      const pts: Vec3[] = [];
-      for (let k = 0; k <= 10; k++) {
-        const w = -0.009 + (k / 10) * 0.018;
-        const q = add(hm.lips, add(scale(up2, sg * (gap + 0.0024 * (1 - (w / 0.009) ** 2))), scale(side, w)));
-        pts.push(xform(T, q));
-      }
-      b.line(pts, C.verm(0.75), 2.2);
-    }
+    breathIn(b, T, hm.lips, ax, norm(cross(ax, [0, 0, 1])), Math.min(1, 0.35 + lvl) * (0.6 + 0.4 * Math.min(1, st.lipGap) * buzz), now);
   }
 }
 

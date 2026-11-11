@@ -32,17 +32,17 @@
 //
 // Live: the outer slide stands out by the engine's `trombone.slide` (moving at the engine's own speed between
 // its frames), the levers of the valves the engine's chart takes go down on their springs (a small bounce
-// off their stops) and their links turn the rotors a quarter turn, back a moment after the note; the lips
-// buzz at the mouthpiece's rim with their opening (`fr.lips`); the bell's rim shimmers with the level.
+// off their stops) and their links turn the rotors a quarter turn, back a moment after the note; the breath
+// goes into the mouthpiece as on every wind (winds3d breathIn: faint steel streams), pulsing with the lips'
+// opening (`fr.lips`); the bell's rim shimmers with the level.
 // Approximations: the rotors' passages and the knuckles inside the valve are not traced tube by tube; the
 // bell section's turn in the hand is one angle (players set their own); the player's hands are left out.
 import { TROMBONE_SIZES, tromboneFingering, tromboneSlideOut, tromboneTubeLength, type TromboneBore, type TromboneSize, type VisualFrame } from '@piano-model/engine';
-import { INK } from '../stage-draw.ts';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cross, dot, ink, mulInto, norm, rotX, scale, sub, translate, xform } from './gl3d.ts';
+import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cross, dot, mulInto, norm, rotX, scale, sub, translate, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, ellipsoid, grid, type Mat } from './mesh.ts';
 import { aboutAxis, fillet, springTo } from './oboe3d.ts';
 import { F3, FLIP, arcLen, bend, bezier, boxOf, brace, ferrule, latheOn, make, refine, tubeAlong, tubeAlongBar } from './horn3d.ts';
-import type { WindPose } from './winds3d.ts';
+import { breathIn, type WindPose } from './winds3d.ts';
 
 type P2 = [number, number];
 const TAU = Math.PI * 2;
@@ -990,7 +990,6 @@ export function tromboneRotorTurn(tm: TromboneModel, i: number, p: number): numb
  *  frame's target at it between frames (they come at ≈30 Hz, the stage draws at 60) */
 const SLIDE_SPEED = 4;
 
-const C = { verm: (a: number) => ink(INK.vermilion, a) };
 /** the single stage's pose state and model, last posed (tests, the review's hooks) */
 let stageState: TromPoseState | null = null;
 let stageModel: TromboneModel | null = null;
@@ -1097,24 +1096,17 @@ export function poseTrombone(b: Batch, tm: TromboneModel, fr: VisualFrame | null
     g = st.glow;
   }
   b.mesh(tm.rim, TB, g);
-  // ---- the lips at the rim: they buzz at the note (drawn slowed), opening with the engine's lips
+  // ---- the breath into the mouthpiece while the note is blown (winds3d breathIn), pulsing with the engine's
+  // lips: their opening eased, the buzz drawn slowed (a few times a second, as on the 2D stage)
   const open = lips ? Math.min(1.6, lips.open) : 0;
   st.lipGap += (open - st.lipGap) * (1 - Math.exp(-dt / 0.04));
   if (blow > 0.02) {
-    const f1 = fr?.focus?.f1 ?? 0;
-    const gap = 0.0006 + 0.0011 * st.lipGap * (0.55 + 0.45 * Math.sin(now * 0.001 * Math.min(f1, 14) * TAU));
+    const f1 = fr?.focus?.f1 ?? 175;
+    const buzz = 0.5 - 0.5 * Math.cos(TAU * 4.5 * Math.sqrt(Math.max(0.1, f1 / 392)) * (now / 1000));
     const ax = norm(tm.lipAxis);
+    // (spread across the slit, up and down: the slide's side of the stage is seen from its side)
     const side = norm(cross(ax, [0, 1, 0]));
-    const up2 = norm(cross(side, ax));
-    for (const sg of [-1, 1]) {
-      const pts: Vec3[] = [];
-      for (let k = 0; k <= 10; k++) {
-        const w = -0.0095 + (k / 10) * 0.019;
-        const q = add(tm.lips, add(scale(up2, sg * (gap + 0.0025 * (1 - (w / 0.0095) ** 2))), scale(side, w)));
-        pts.push(xform(T, q));
-      }
-      b.line(pts, C.verm(0.75), 2.2);
-    }
+    breathIn(b, T, tm.lips, ax, norm(cross(side, ax)), Math.min(1, 0.35 + lvl) * (0.6 + 0.4 * Math.min(1, st.lipGap) * buzz), now);
   }
 }
 
