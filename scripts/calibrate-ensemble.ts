@@ -222,7 +222,7 @@ async function main(): Promise<void> {
       OUT,
       JSON.stringify({
         generated: new Date().toISOString(),
-        reference: 'University of Iowa MIS (anechoic, KM 84 at ~5 ft): violin, viola (1996), cello (Stradivarius 1736, 2001), double bass, flute non-vibrato (2000), oboe, B♭ clarinet, bassoon, horn (1997); pp/mf/ff',
+        reference: 'University of Iowa MIS (anechoic, KM 84 at ~5 ft): violin, viola (1996), cello (Stradivarius 1736, 2001), double bass, flute non-vibrato (2000), oboe, B♭ clarinet, bassoon, horn (1997), tenor and bass trombones (1997), tuba (1997); pp/mf/ff',
         velocities: DYN_VEL,
         thirdOct: THIRD_OCT,
         summary,

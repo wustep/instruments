@@ -317,8 +317,8 @@ interface Ens {
 }
 
 function ensembleSection(e: Ens): HTMLElement {
-  const insts = ['violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trombone'].filter((i) => e.summary[i]);
-  const label: Record<string, string> = { violin: 'Violin', viola: 'Viola', cello: 'Cello', bass: 'Double bass', flute: 'Flute', oboe: 'Oboe', clarinet: 'Clarinet', bassoon: 'Bassoon', horn: 'Horn', trombone: 'Trombone' };
+  const insts = ['violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trombone', 'tuba'].filter((i) => e.summary[i]);
+  const label: Record<string, string> = { violin: 'Violin', viola: 'Viola', cello: 'Cello', bass: 'Double bass', flute: 'Flute', oboe: 'Oboe', clarinet: 'Clarinet', bassoon: 'Bassoon', horn: 'Horn', trombone: 'Trombone', tuba: 'Tuba' };
   // the baseline measured the same way (vibrato matched to each recorded note)
   const first = (e.rounds.find((r) => /re-measured with matched vibrato/.test(r.label)) ?? e.rounds[0])?.summary ?? {};
   const lx = (f: number) => Math.log2(f / 1000);
@@ -393,7 +393,7 @@ function ensembleSection(e: Ens): HTMLElement {
         'Harmonic profiles',
         'steady-state harmonic levels relative to the strongest, power average over the register’s notes at mf',
         [leg(), grid],
-        'Violin-family registers are thirds of the notes analysed on each instrument (first position on each string, as the model plays them); flute, oboe, clarinet, bassoon, horn and trombone registers are thirds of their compass (the trombone’s: the Iowa tenor and bass trombones together). The flute’s low register shows its strong even harmonics; the oboe’s strongest harmonic sits near 1–1.5 kHz whatever the note (its formant); the clarinet’s low register has its odd harmonics only, up to about 1.5 kHz; the bassoon’s low notes have a weak fundamental under harmonics gathered near 500 Hz (its formant); the horn’s gather near 450–600 Hz too (the hand in its bell), its top notes nearly pure, and brassy at ff. The trombone’s (the Iowa tenor and bass trombones) keep their low notes’ fundamental weak under a flat run of harmonics, the top notes nearly pure at pp, and flatten to the tenth harmonic at ff (its bell beams the highs forward, and the wave steepens down the slide).',
+        'Violin-family registers are thirds of the notes analysed on each instrument (first position on each string, as the model plays them); flute, oboe, clarinet, bassoon, horn, trombone and tuba registers are thirds of their compass (the trombone’s: the Iowa tenor and bass trombones together). The flute’s low register shows its strong even harmonics; the oboe’s strongest harmonic sits near 1–1.5 kHz whatever the note (its formant); the clarinet’s low register has its odd harmonics only, up to about 1.5 kHz; the bassoon’s low notes have a weak fundamental under harmonics gathered near 500 Hz (its formant); the horn’s gather near 450–600 Hz too (the hand in its bell), its top notes nearly pure, and brassy at ff. The trombone’s (the Iowa tenor and bass trombones) keep their low notes’ fundamental weak under a flat run of harmonics, the top notes nearly pure at pp, and flatten to the tenth harmonic at ff (its bell beams the highs forward, and the wave steepens down the slide). The tuba’s lowest notes have almost no fundamental (30–40 dB under harmonics gathered near 250–450 Hz: a C1 is heard by its sixth to ninth), its middle and top the first two harmonics.',
         true,
       ),
     );

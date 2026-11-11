@@ -123,7 +123,7 @@ export function notesView(): View {
       id: 'overview',
       title: 'What this is',
       body: [
-        p('Thirteen acoustic instruments — piano (grand and upright), violin, viola, cello, double bass, flute, oboe, clarinet, bassoon, horn, trumpet, trombone and timpani — computed as physics, sample by sample, in your browser. No recorded sound is ever played as the instrument. Each is a small set of coupled physical parts: something that carries waves (a string, an air column, a stretched membrane), something that drives it (a felt hammer, a bow, a jet of breath, a double or a single reed, buzzing lips, a felt mallet) and something that radiates (a soundboard, a wooden body, an open end, a bell, the head itself), heard in a modelled room.'),
+        p('Fourteen acoustic instruments — piano (grand and upright), violin, viola, cello, double bass, flute, oboe, clarinet, bassoon, horn, trumpet, trombone, tuba and timpani — computed as physics, sample by sample, in your browser. No recorded sound is ever played as the instrument. Each is a small set of coupled physical parts: something that carries waves (a string, an air column, a stretched membrane), something that drives it (a felt hammer, a bow, a jet of breath, a double or a single reed, buzzing lips, a felt mallet) and something that radiates (a soundboard, a wooden body, an open end, a bell, the head itself), heard in a modelled room.'),
         p('Everything runs in an AudioWorklet written in TypeScript. The same DSP core runs in Node for the tests, calibration and offline renders, so every number on this page comes from the code you are hearing. What moves on the stage — strings, hammers, bows, holes, valves, wavefronts — is drawn from the same simulation, live.'),
       ],
     },
@@ -246,6 +246,15 @@ export function notesView(): View {
       ],
     },
     {
+      id: 'tuba',
+      title: 'Tuba',
+      body: [
+        p('The tuba is the bass of the brass, and the most conical of them: nearly all of a contrabass tuba in C’s 4.88 m widens, from a deep funnel mouthpiece to a bell 48 cm across. So it is the horn’s model, and here the horn’s own engine: the same lips blown open against the mouthpiece’s pressure, the same cone as two waveguides meeting at the lips, the same tongue and the same player’s handling of a file’s notes; only the compass, the valves and the fitted voicing are the tuba’s. Its first resonance is a note (the pedal C1), which a trumpet’s is not.'),
+        p('Four valves lengthen the tube: a semitone, a tone, a tone and a half, and a fourth valve that lowers it a fourth, used in place of the first and third together. One search gives the trumpet, the horn and the tuba their fingerings: the least lowering on the lowest partial that reaches the note. A real tuba’s low valve notes are sharp, each loop being cut for the open tube (the Iowa player’s D♭1 to E♭1 are up to 76 ¢ off); the model’s tube is simply the right length. On the stage the loops are drawn at their real lengths, so with all four valves down the drawn air path is a tenth short of the note’s, as the instrument’s is.'),
+        p('Its wide bell lets go of the highs early, and what it radiates of its lowest notes is mostly their upper harmonics: in the Iowa recordings a C1’s fundamental lies 30–40 dB under its sixth to ninth harmonics, near 250–450 Hz, and the model’s the same. The voicing was fitted to those recordings on half their notes and judged on the other half: better than the horn’s voicing set to a tuba’s bell by hand (held-out score 10.8 → 5.9), every note of the compass on its own partial at four sample rates. Its level is set beside the horn’s: the tuba session was recorded 19 dB under the horn’s.'),
+      ],
+    },
+    {
       id: 'timpani',
       title: 'Timpani',
       body: [
@@ -296,7 +305,7 @@ export function notesView(): View {
       id: 'calibration',
       title: 'Calibration: measured against real instruments',
       body: [
-        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, double bass, flute, oboe, B♭ clarinet, bassoon, horn, trumpet, and tenor and bass trombones — and, for the timpani (Iowa has none), the VSCO 2 Community Edition’s (Versilian Studios, CC0), used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
+        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, double bass, flute, oboe, B♭ clarinet, bassoon, horn, trumpet, tenor and bass trombones and tuba — and, for the timpani (Iowa has none), the VSCO 2 Community Edition’s (Versilian Studios, CC0), used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
         h3('Like with like, and a judge'),
         ul(
           'Each model note is rendered exactly as long as the part of the recording that is analysed, with vibrato only where the player used it; a note’s pitch with vibrato is the centre of its fine pitch track.',
@@ -328,6 +337,7 @@ export function notesView(): View {
             ['bassoon', '8.6', '8.7', '1.05', '+1.6', '0.87', '0.3'],
             ['horn', '3.9', '14.4', '1.00', '+0.7', '1.14', '0.2'],
             ['trombone (tenor and bass)', '6.7', '5.5', '1.05', '+0.3', '0.79', '0.5'],
+            ['tuba', '5.7', '14.4', '0.97', '+0.6', '1.25', '0.2'],
             ['trumpet', '4.2', '3.3', '0.93', '+1.0', '0.64', '2.7'],
           ],
         ),

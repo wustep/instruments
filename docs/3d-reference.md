@@ -386,6 +386,32 @@ out, not measured**.
 | Water key, braces, slide lock, cork barrels, counterweight | where the photographs show them (`tbn-conn70h-…`, `tbn-courtois-…`, `tbn-bach42g-…`) | laid out, not measured | photographs |
 | Hold (the Orchestra) | the slide forward and down, the bell left of the face, the tuning slide over the left shoulder (`tbn-section-seated-usnavy-threequarter.jpg`, `tbn-player-standing-side-ksg9973.jpg`) | the lips at 1.16 m; the slide 21° down and 9° to the player's right; the whole rolled 26° | photographs |
 
+## Tuba (contrabass tuba in C, four front-action pistons)
+
+One plan for the 2D stage and the 3D model (`apps/web/src/ui/tuba-plan.ts`; `tuba-draw.ts`, `vector/tuba.ts`,
+`gl/tuba3d.ts`), in metres, drawn from the makers' published figures rather than traced from a photograph:
+
+| measure | here | sources |
+|---|---|---|
+| height to the rim | 0.97 m | Conn 52J/54J 0.93–0.97 m, Yamaha YCB-822 0.98 m, Miraphone 1291 0.95 m |
+| bell | 0.48 m (19 in), a rolled bead | Conn 52J 19 in; YCB-822 and 54J 20 in (508 mm) |
+| bore through the valves | 19 mm (0.748 in) | YCB-822 0.748–0.787 in; Conn 52J/54J 0.689 in; Miraphone 1291 0.748 in |
+| open tube | 4.88 m (16 ft) | the CC tuba (Fletcher & Rossing 1998 §14.9); `TUBA_LENGTH` in the engine |
+| valve loops | 0.290, 0.598, 0.923, 1.634 m | the open tube × (2^(k/12) − 1) for 1, 2, 3 and 5 semitones |
+| casings | 33 mm across, 140 mm tall, 45 mm apart; 21 mm of travel | piston tubas' usual (a 0.75 in bore piston) |
+| mouthpiece | 90 mm, rim 49 mm outside, a deep funnel | Conn Helleberg 120S |
+
+The body is a flattened spiral, each lap wider than the last (11 mm at the main tuning slide to 110 mm at the
+stack's foot); the bell a Bessel horn (r ∝ (d + 0.125 m)^−0.75) from the foot to the rim; the valve block stands
+78 mm in front of the body's plane with its loops; the leadpipe goes round the front of the bell from the
+mouthpiece beside it. The main slide's depth and each loop's reach are solved so that the open path is the
+engine's 4.88 m and each valve alone adds its loop exactly (`apps/web/test/tuba2d.test.ts`); valves together
+fall short of the note's tube, up to 10 % with all four, as a real tuba's do. In space the leadpipe is 0.2 m
+longer than the plan's flat one (round the bell); the wave is laid along the plan's lengths
+(`apps/web/test/tuba3d.test.ts`). No photograph was traced and none is kept; the layout is a schematic of
+the front-action pattern (the laps nested in one plane, the fourth loop outside the body), not a copy of one
+maker's wrap.
+
 ## Reference photos
 
 The photos are in `.cache/refs-3d/`, which is not committed. Full attributions are in `.cache/refs-3d/SOURCES.md`.
