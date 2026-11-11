@@ -69,6 +69,22 @@ describe('no click where a note begins or a controller moves', () => {
       const x = renderInstrument({ sampleRate: fs, instrument: 'bassoon', events: events as never, duration: end + 0.4, dry: true });
       expect(worstJump(x.left, fs, events)).toBeLessThan(1.8);
     });
+    it(`timpani: drums retuned while they ring (${fs} Hz)`, () => {
+      // a ringing head was cleared in one sample when its drum took another note: 9.2× and 10.0×
+      const events: Ev[] = [];
+      let t = 0.1;
+      for (const m of [45, 47, 49, 51, 52, 54, 52, 51, 49, 47]) {
+        events.push(on(t, m, 110));
+        t += 0.15;
+      }
+      t += 0.5;
+      for (const m of [38, 40, 42, 44, 46]) {
+        events.push(on(t, m, 28));
+        t += 0.6;
+      }
+      const x = renderInstrument({ sampleRate: fs, instrument: 'timpani', events: events as never, duration: t + 0.5, dry: true });
+      expect(worstJump(x.left, fs, events)).toBeLessThan(1.8);
+    });
   }
 });
 
