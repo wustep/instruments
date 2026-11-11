@@ -23,12 +23,16 @@ const H = 630;
 const NAME = 'instruments-grand.jpg';
 const MAX_KB = 300;
 const TITLE = 'Instruments';
-/** the grand from its front quarter, a little from above (radians). At yaw 0.84 with the piano off
- *  the middle its pedal lyre flares white; 0.95 is clean. */
-const LOOK = { yaw: 0.95, pitch: 0.3 };
-/** where the whole piano (lid and casters included) sits on the card, CSS px: its box's middle and
- *  its height. The left half is left to the title. */
-const PLACE = { cx: 842, cy: 318, h: 548 };
+/** the camera (yaw and pitch in radians, dist in the views' own units, as setView takes it): the
+ *  grand from its front quarter, a little from above. At yaw 0.84 with the piano off the middle its
+ *  pedal lyre flares white; 0.95 is clean. The target and the distance were found by moving them
+ *  until the piano's box sat where BOX says. They are fixed here, not the stage's own view moved,
+ *  so the picture does not change when the stage's home view does. */
+const VIEW = { target: [-0.842659, 0.719902, -0.031585], yaw: 0.95, pitch: 0.3, dist: 4.44914 };
+/** where that puts the whole piano (lid and casters included) on the card, CSS px: its middle at
+ *  (842, 318), 548 px high, the left half left to the title. Checked before the still is taken: a
+ *  change to the model or the lens that moves the piano is said, not photographed. */
+const BOX = { x0: 616, x1: 1068, y0: 44, y1: 592 };
 /** the title's line box (100 px, line-height 1) from the card's top left. Alone on the card, the
  *  word is centred by its ink, not its box: the ink's centre of weight, measured 45.4 px under the
  *  box's top, lies on the card's middle line (315). The capital then stands from y 272, the small
@@ -106,53 +110,14 @@ async function frames(page, n = 3) {
   await page.waitForFunction(([f0, n]) => window.__stage3d.stats.frames >= f0 + n || window.__stage3d.stats.frames < f0, [f0, n]);
 }
 
-/** put the camera at `v` (dist in the views' own units) and read the instrument's box on screen */
-async function boxAt(page, v) {
-  await page.evaluate((v) => window.__stage3d.setView(v), v);
-  await frames(page, 3);
-  return page.evaluate(() => window.__stage3d.box());
-}
-
-/** Move the camera's target and distance (its yaw and pitch kept) until the instrument's box on
- *  screen is where `want` says: { cx, cy } its middle and h its height, CSS px. */
-async function fitView(page, view, want) {
-  const v = { ...view, target: [...view.target] };
-  const mid = (b) => [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2];
-  let b = await boxAt(page, v);
-  for (let it = 0; it < 8; it++) {
-    v.dist *= (b.y1 - b.y0) / want.h;
-    b = await boxAt(page, v);
-    const c = mid(b);
-    // how the box's middle moves with each axis of the target, then the least move that puts it right
-    const J = [];
-    const e = 0.04;
-    for (let k = 0; k < 3; k++) {
-      const t = [...v.target];
-      t[k] += e;
-      const m = mid(await boxAt(page, { ...v, target: t }));
-      J.push([(m[0] - c[0]) / e, (m[1] - c[1]) / e]);
-    }
-    const d = [want.cx - c[0], want.cy - c[1]];
-    const a = J.reduce((s, r) => s + r[0] * r[0], 0);
-    const bq = J.reduce((s, r) => s + r[0] * r[1], 0);
-    const cq = J.reduce((s, r) => s + r[1] * r[1], 0);
-    const det = a * cq - bq * bq;
-    const l0 = (cq * d[0] - bq * d[1]) / det;
-    const l1 = (-bq * d[0] + a * d[1]) / det;
-    for (let k = 0; k < 3; k++) v.target[k] += J[k][0] * l0 + J[k][1] * l1;
-    b = await boxAt(page, v);
-    const m = mid(b);
-    if (Math.hypot(m[0] - want.cx, m[1] - want.cy) < 1.5 && Math.abs(b.y1 - b.y0 - want.h) < 2) return { view: v, box: b };
-  }
-  throw new Error(`the piano is not where the card wants it: ${JSON.stringify(b)}`);
-}
-
 // ---------------------------------------------------------------- the image
 async function image(browser) {
   const { ctx, page } = await openStage(browser, W, H);
-  const home = await page.evaluate(() => window.__stage3d.home);
-  const { view, box } = await fitView(page, { target: home.target, dist: 3.8, ...LOOK }, PLACE);
+  await page.evaluate((v) => window.__stage3d.setView(v), VIEW);
   await frames(page, 4);
+  const box = await page.evaluate(() => window.__stage3d.box());
+  const off = box ? Math.max(...Object.keys(BOX).map((k) => Math.abs(box[k] - BOX[k]))) : Infinity;
+  if (off > 2) throw new Error(`the piano is not where the card has it: ${JSON.stringify(box)}, not ${JSON.stringify(BOX)}`);
   // (a slow machine makes the stage draw less: a still of that is not the picture)
   const drawn = await page.evaluate(() => {
     const { lite, shadows, ao } = window.__stage3d.stats;
@@ -161,7 +126,7 @@ async function image(browser) {
   if (drawn.lite || !drawn.shadows || !drawn.ao) throw new Error(`the stage is not drawing in full: ${JSON.stringify(drawn)}`);
   const still = join(RAW, 'grand.png');
   await page.locator('.stage-3d').screenshot({ path: still });
-  console.log(`view: ${JSON.stringify(view)}\nbox: ${JSON.stringify(box)}`);
+  console.log(`box: ${JSON.stringify(box)}`);
   await ctx.close();
   const card = join(RAW, 'card@2x.png');
   await renderHtml(browser, cardHtml(still), W, H, card);
