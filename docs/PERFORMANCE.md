@@ -111,7 +111,7 @@ no autoplay flag; median of 3; Apple M5 Pro):
 
 Measured on a production build (`pnpm build`, `vite preview`) in Chrome, desktop 1440×900 @2× and a
 phone (Pixel 7 size) with the CPU slowed 4×; WebKit (Playwright) for the close-up. Apple M5 Pro.
-Before: af894f5; after: the perf pass (#51).
+Before: af894f5; after: the perf pass (#52).
 
 | | before | after | script |
 |---|---:|---:|---|
