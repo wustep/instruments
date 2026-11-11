@@ -1,0 +1,26 @@
+[
+ {
+  "name": "violin-c5-d5",
+  "what": "the violin in a file: G5 then C5, C5 alone, A5 then D5, D5 alone (quarters of 0.33 s, v104–108)",
+  "before": "-19.5 LUFS, peak -10.4 dBFS; C5 after the fifth above: the octave below’s harmonics -7.7 dB re the note’s; C5 alone: the octave below’s harmonics -22.7 dB re the note’s; D5 after the fifth above: the octave below’s harmonics -9.7 dB re the note’s; D5 alone: the octave below’s harmonics -27.7 dB re the note’s",
+  "after": "identical"
+ },
+ {
+  "name": "violin-haydn",
+  "what": "Haydn, Op. 76 No. 3 II, first violin, 164–176 s as the browser plays it",
+  "before": "-21.4 LUFS, peak -8.6 dBFS",
+  "after": "identical"
+ },
+ {
+  "name": "viola-scale",
+  "what": "the viola in a file: F♯4 to D5 by semitones, 0.6 s each, mf (v70) then ff (v112)",
+  "before": "-18.8 LUFS, peak -5.9 dBFS; v70: F♯4 -27.5 G4 -29.1 A♭4 -31.1 A4 -36.7 B♭4 -28.1 B4 -34.1 C5 -30.7 C♯5 -34.9 D5 -29.4 dB; A♯4 over A4 and B4 7.3 dB, G4 over F♯4 and A♭4 0.2 dB; v112: F♯4 -21.9 G4 -27.9 A♭4 -20.9 A4 -25.0 B♭4 -21.3 B4 -22.7 C5 -22.9 C♯5 -18.3 D5 -21.5 dB; A♯4 over A4 and B4 2.6 dB, G4 over F♯4 and A♭4 -6.5 dB",
+  "after": "-18.1 LUFS, peak -6.2 dBFS; v70: F♯4 -28.0 G4 -22.7 A♭4 -27.2 A4 -38.1 B♭4 -30.5 B4 -36.2 C5 -26.7 C♯5 -32.4 D5 -27.9 dB; A♯4 over A4 and B4 6.7 dB, G4 over F♯4 and A♭4 4.9 dB; v112: F♯4 -21.0 G4 -17.6 A♭4 -22.8 A4 -25.5 B♭4 -22.3 B4 -21.8 C5 -23.2 C♯5 -25.3 D5 -20.0 dB; A♯4 over A4 and B4 1.4 dB, G4 over F♯4 and A♭4 4.4 dB"
+ },
+ {
+  "name": "viola-haydn",
+  "what": "Haydn, Op. 76 No. 3 II, viola, 60–72 s as the browser plays it",
+  "before": "-23.3 LUFS, peak -13.1 dBFS",
+  "after": "-20.4 LUFS, peak -10.8 dBFS"
+ }
+]
