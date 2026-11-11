@@ -585,6 +585,17 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     const at = (b: { x0: number; y0: number; x1: number; y1: number }) => ({ x0: r.left + b.x0, x1: r.left + b.x1, y0: y0 + b.y0, y1: y0 + b.y1 });
     return { body: at(d.body), valves: at(d.valves), mouth: at(d.mouth), bell: at(d.bell), levers: d.levers, side: d.side, stage: { x0: r.left, x1: r.right, y0, y1: r.bottom } };
   };
+  // tests: where the 2D stage last drew the tuba (client px: the whole instrument, the valves from their
+  // casings' feet to the buttons, the mouthpiece, the bell's mouth; the valves held: bit k, valve k + 1; each
+  // button's height), and the stage it was drawn in
+  (window as unknown as { __tuba2d?: () => unknown }).__tuba2d = () => {
+    const d = inst === 'tuba' && !(want3d && s3) && !ensemble.active ? tubaState.drawn : null;
+    if (!d) return null;
+    const r = canvas.getBoundingClientRect();
+    const y0 = r.top + top.getBoundingClientRect().height;
+    const at = (b: { x0: number; y0: number; x1: number; y1: number }) => ({ x0: r.left + b.x0, x1: r.left + b.x1, y0: y0 + b.y0, y1: y0 + b.y1 });
+    return { body: at(d.body), valves: at(d.valves), mouth: at(d.mouth), bell: at(d.bell), levers: d.levers, buttons: d.buttons.map((y) => y0 + y), stage: { x0: r.left, x1: r.right, y0, y1: r.bottom } };
+  };
   // tests: where the 2D stage last drew the trombone (client px: the box its slide moves in, the instrument
   // with its slide as it stands, the outer slide, the mouthpiece and lips, the bell's mouth, the valves and
   // levers; the levers held: bit 0 the F valve, bit 1 the G♭ valve; the slide drawn and the engine's, m;
