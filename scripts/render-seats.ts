@@ -10,6 +10,7 @@ import { renderInstrument, type TimedEvent } from '../packages/engine/src/core/r
 import { encodeWav } from '../packages/engine/src/analysis/wav.ts';
 import { VOICE_INFO, VOICES, type Voice } from '../apps/web/src/orchestra/assign.ts';
 import { busGain } from '../apps/web/src/orchestra/mix.ts';
+import { PLAYBACK_DB } from '../packages/engine/src/core/instrument.ts';
 import { soundSeats } from '../apps/web/src/orchestra/seats.ts';
 
 const args = process.argv.slice(2);
@@ -26,7 +27,7 @@ const dur = lineup.length * TURN + 3.2;
 const n = Math.ceil(dur * FS);
 const L = new Float32Array(n);
 const R = new Float32Array(n);
-const g = busGain(lineup.length);
+const g = busGain(lineup.map((v) => PLAYBACK_DB[VOICE_INFO[v].instrument] ?? 0));
 lineup.forEach((v, k) => {
   const info = VOICE_INFO[v];
   // a phrase near the middle of its range: root, third, fifth (a piano plays them as a chord)
