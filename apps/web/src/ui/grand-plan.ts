@@ -696,7 +696,7 @@ export function drawGrandPlan(ctx: CanvasRenderingContext2D, W: number, H: numbe
   lay.outer.forEach(([x, y], k) => (k ? ctx.lineTo(xL + (x - xL) * cphi, y) : ctx.moveTo(xL + (x - xL) * cphi, y)));
   ctx.stroke();
   const edgeX = xL + (xR - xL) * cphi;
-  // (the free edge: quiet, since it crosses the strings; its grip marks it)
+  // (the free edge: quiet, since it crosses the strings)
   ctx.strokeStyle = rgba(INK.ivory, 0.1 + 0.1 * lidOpen);
   ctx.lineWidth = 1;
   ctx.beginPath();

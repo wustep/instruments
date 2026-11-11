@@ -105,19 +105,28 @@
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
-:root[data-style='vector'] .grip {
-  border-radius: 0;
-  background: none;
-  border-color: var(--v-blue-mid);
+:root[data-style='vector'] .sk-bg {
+  fill: rgba(0, 0, 0, 0.7);
+  stroke: var(--v-blue-dim);
 }
-:root[data-style='vector'] .grip::after {
-  border-color: var(--v-blue-mid);
+:root[data-style='vector'] .stage-knob .k-ticks line {
+  stroke: var(--v-blue-dim);
 }
-:root[data-style='vector'] .grip:hover,
-:root[data-style='vector'] .grip.dragging,
-:root[data-style='vector'] .grip:focus-visible {
-  background: rgba(79, 182, 242, 0.12);
-  border-color: var(--v-text);
+:root[data-style='vector'] .stage-knob .k-ticks .sk-notch {
+  stroke: var(--v-blue-mid);
+}
+:root[data-style='vector'] .stage-knob .k-cap {
+  fill: none;
+  stroke: var(--v-blue-dim);
+}
+:root[data-style='vector'] .stage-knob:hover .sk-bg,
+:root[data-style='vector'] .stage-knob.dragging .sk-bg,
+:root[data-style='vector'] .stage-knob:focus-visible .sk-bg,
+:root[data-style='vector'] .stage-knob:hover .k-cap,
+:root[data-style='vector'] .stage-knob.dragging .k-cap,
+:root[data-style='vector'] .stage-knob:focus-visible .k-cap {
+  fill: rgba(0, 0, 0, 0.7);
+  stroke: var(--v-blue);
 }
 :root[data-style='vector'] .tip {
   font: 500 11px/1.3 var(--hershey);

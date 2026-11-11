@@ -366,7 +366,7 @@ export function oboeLayout(W: number, H: number, top = 0): ObLayout {
   const sc = len / OB_LEN;
   const x0 = (vertical ? top : 0) + (standing ? STAND_ABOVE + (Lw - STAND_ABOVE - STAND_BELOW - len) / 2 : (Lw - len) / 2);
   const Hm = Math.min(Cw * 0.14, 0.05 * sc);
-  // lying on a stage: above the middle (the room's grip sits at its right edge, half way down), clear of
+  // lying on a stage: above the middle (where the room's grip sat, at its right edge half way down), clear of
   // the player; in a cell, or standing, in the middle
   const stage = !vertical && H > 0.3 * W;
   const c = vertical ? Cw / 2 : stage ? Math.max(top + OB_REACH * sc + Hm * 0.6, H * 0.4) : top + (H - top) / 2;

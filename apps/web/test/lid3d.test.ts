@@ -1,17 +1,19 @@
 // The grand's lid in 3D and the room's light pool: the two prop sticks (fixed lengths on fixed
-// pivots, each in its own cup at its rest, never through the lid), the stick that holds the lid at
-// any opening (pressed down below its rest, its tip on the lid's underside: nothing snaps the lid to
-// a rest), the lid grip (its points on the free edge, the opening that puts one under the pointer),
-// the pool's radius for the room, and the framing, which never depends on the lid.
+// pivots, each in its own cup at its rest, never through the lid), the lid's three rests (shut, the
+// short stick, the long stick: its knob's notches), the stick that holds it at any opening while it is
+// in the hand (pressed down below its rest, its tip on the lid's underside), where it comes to when it
+// is let go and how it swings there, the lid taken on the picture (the ray that meets it, the opening
+// that keeps the point taken under the pointer), where its knob sits (beside the lid, not moving with
+// it), the pool's radius for the room, and the framing, which never depends on the lid.
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PARAMS, PRESETS, buildKeySpecs } from '../../../packages/engine/src/core/design.ts';
 import type { KeySummary } from '@piano-model/engine';
 import { Batch, lookAt, mul, perspective, project, scaleM, type Vec3 } from '../src/ui/gl/gl3d.ts';
-import { LID_OPEN, buildGrandModel, lidGripPoints, lidMatrix, lidPoint, newPianoPose, posePiano, stickDir, stickSwing } from '../src/ui/gl/piano3d.ts';
-import { lidFor } from '../src/ui/gl/handles3d.ts';
+import { LID_OPEN, buildGrandModel, lidHandPoints, lidKnobPoints, lidMatrix, lidPoint, lidRay, newPianoPose, posePiano, stickDir, stickSwing } from '../src/ui/gl/piano3d.ts';
+import { invert4, lidFor, rayAt } from '../src/ui/gl/handles3d.ts';
 import { fitView } from '../src/ui/gl/fit3d.ts';
 import { poolRadius } from '../src/ui/gl/scenes3d.ts';
-import { LID_HALF, lidStick } from '../src/ui/lid.ts';
+import { LID_HALF, LID_RESTS, lidNotch, lidNotchStep, lidSettle, lidStick, onNotch } from '../src/ui/lid.ts';
 import { newPianoState } from '../src/ui/piano-draw.ts';
 
 const keysOf = (preset: string): KeySummary[] => {
@@ -109,7 +111,7 @@ describe('the grand’s lid and the room in 3D', () => {
     }
   });
 
-  it('the lid stands at any opening: the shortest stick that reaches it holds it, pressed down below its rest, its tip on the underside inside the lid', () => {
+  it('in the hand the lid stands at any opening: the shortest stick that reaches it holds it, pressed down below its rest, its tip on the underside inside the lid', () => {
     expect([0, 0.004, 0.01, 0.2, 0.44, LID_HALF, 0.46, 0.6, 0.73, 0.99, 1].map(lidStick)).toEqual([0, 0, LID_HALF, LID_HALF, LID_HALF, LID_HALF, 1, 1, 1, 1, 1]);
     for (let v = 0.01; v <= 1.0001; v += 0.01) {
       const ang = v * LID_OPEN;
@@ -126,7 +128,60 @@ describe('the grand’s lid and the room in 3D', () => {
     }
   });
 
-  it('posed at any opening (between the old rests too): the stick that holds the lid stands, the other lies folded, and they swing over in a fraction of a second', () => {
+  it('the lid rests shut, on the short stick or on the long one: let go anywhere, it comes onto the nearest (halfway, the higher); the keys step from rest to rest', () => {
+    expect(LID_RESTS).toEqual([0, LID_HALF, 1]);
+    // each rest is a stick's own (or none): the stick that holds the lid there stands in its cup
+    expect(LID_RESTS.map(lidStick)).toEqual([0, LID_HALF, 1]);
+    expect(grand.props.map((p) => p.rest).sort()).toEqual([LID_HALF, 1]);
+    expect([0, 0.1, 0.22, 0.23, 0.3, LID_HALF, 0.6, 0.72, 0.73, 0.9, 1].map(lidNotch)).toEqual([0, 0, 0, LID_HALF, LID_HALF, LID_HALF, LID_HALF, LID_HALF, 1, 1, 1]);
+    // halfway between two rests: the higher (the stick is reached before the lid drops past it)
+    expect(lidNotch(LID_HALF / 2)).toBe(LID_HALF);
+    expect(lidNotch((1 + LID_HALF) / 2)).toBe(1);
+    // every opening comes onto a rest, the nearest
+    for (let v = 0; v <= 1.0001; v += 0.01) {
+      const r = lidNotch(v);
+      expect(onNotch(r)).toBe(true);
+      for (const o of LID_RESTS) expect(Math.abs(r - v)).toBeLessThanOrEqual(Math.abs(o - v) + 1e-9);
+    }
+    expect([0, 0.3, LID_HALF, 0.7, 1].map(onNotch)).toEqual([true, false, true, false, true]);
+    // the keys: up and down a rest at a time, from a rest or from between two, stopping at the ends
+    expect([0, 0.3, LID_HALF, 0.7, 1].map((v) => lidNotchStep(v, 1))).toEqual([LID_HALF, LID_HALF, 1, 1, 1]);
+    expect([0, 0.3, LID_HALF, 0.7, 1].map((v) => lidNotchStep(v, -1))).toEqual([0, 0, 0, LID_HALF, LID_HALF]);
+  });
+
+  it('let go, the lid swings onto its rest: down it falls (faster and faster), up the hand eases it in; it lands, at most half a second on', () => {
+    for (const [v0, rest] of [[0.7, LID_HALF], [0.2, 0], [1, 0], [0.8, 1], [0.3, LID_HALF], [0, 1]] as const) {
+      let last = v0;
+      let landed = Infinity;
+      const steps: number[] = [];
+      for (let t = 0; t <= 0.6; t += 1 / 120) {
+        const f = lidSettle(v0, rest, t);
+        // always between where it was let go and its rest, always on its way there
+        expect(Math.min(v0, rest) - 1e-9).toBeLessThanOrEqual(f.v);
+        expect(f.v).toBeLessThanOrEqual(Math.max(v0, rest) + 1e-9);
+        expect(Math.sign(rest - v0) * (f.v - last)).toBeGreaterThanOrEqual(-1e-12);
+        steps.push(Math.abs(f.v - last));
+        last = f.v;
+        if (f.done && landed === Infinity) {
+          landed = t;
+          expect(f.v).toBe(rest);
+        }
+      }
+      expect(landed).toBeLessThanOrEqual(0.46);
+      const n = Math.max(2, Math.floor((landed * 120) / 2));
+      // falling: its steps grow; lifted: they shrink
+      if (rest < v0) expect(steps[n]).toBeGreaterThan(steps[2]);
+      else expect(steps[n]).toBeLessThan(steps[2]);
+    }
+    // shut from the long stick: about 0.45 s; a short swing is quicker
+    expect(lidSettle(1, 0, 0.44).done).toBe(false);
+    expect(lidSettle(1, 0, 0.45).done).toBe(true);
+    expect(lidSettle(0.55, LID_HALF, 0.25).done).toBe(true);
+    // already there: landed
+    expect(lidSettle(LID_HALF, LID_HALF, 0)).toEqual({ v: LID_HALF, done: true });
+  });
+
+  it('posed at any opening (between the rests too, in the hand): the stick that holds the lid stands, the other lies folded, and they swing over in a fraction of a second', () => {
     const ps = newPianoState();
     const pose = newPianoPose();
     const swing = (lid: number, dt: number) => {
@@ -164,8 +219,8 @@ describe('the grand’s lid and the room in 3D', () => {
     expect(near(d[0], grand.props[0].flat) && near(d[1], grand.props[1].flat)).toBe(true);
   });
 
-  it('the lid grip: its points lie on the lid’s free edge, front first; dragged, the opening that puts its point under the pointer is found back at any opening', () => {
-    const pts = lidGripPoints(grand);
+  it('the lid taken in the hand on the picture: the ray through the pointer meets it where it is drawn; dragged, the opening that keeps the point taken under the pointer is found back at any opening', () => {
+    const pts = lidHandPoints(grand);
     const sl = grand.lidSlab!;
     const xMax = Math.max(...sl.poly.map((q) => q[0]));
     const xMin = Math.min(...sl.poly.map((q) => q[0]));
@@ -207,7 +262,38 @@ describe('the grand’s lid and the room in 3D', () => {
     const eye: Vec3 = [target[0] + D * Math.cos(pitch) * Math.sin(yaw), target[1] + D * Math.sin(pitch), target[2] - D * Math.cos(pitch) * Math.cos(yaw)];
     const V = lookAt([-eye[0], eye[1], eye[2]], [-target[0], target[1], target[2]], [0, 1, 0]);
     const vp = mul(mul(perspective((24 * Math.PI) / 180, W / H, 0.05, 60), V), scaleM(-1, 1, 1));
-    // every opening, the old rests' in-betweens included: the grip's point drawn there, the pointer on
+    // the ray from the camera through a point of the lid drawn on the picture meets the lid there (the
+    // point taken, in the lid's own frame), at the rests and between them
+    // (points over the lid every 20 cm, and the hand's along its free edge: those at half stick, the lid
+    // seen nearly edge on from this view, are taken through its side)
+    const inv = invert4(vp)!;
+    const grid: Vec3[] = [];
+    for (let x = xMin + 0.1; x < xMax; x += 0.2)
+      for (let z = -1; z < 3; z += 0.2) if (inLid(x, z) && fromEdge(x, z) > 0.08) grid.push([x, (sl.y0 + sl.y1) / 2, z]);
+    expect(grid.length).toBeGreaterThan(20);
+    grid.push(...pts.slice(0, 8));
+    for (const v of [1, 0.73, LID_HALF, 0.3, 0]) {
+      for (const p of grid) {
+        const q = project(vp, lidPoint(grand, p, v), W, H)!;
+        const r = rayAt(inv, q[0], q[1], W, H);
+        const hit = lidRay(grand, v, r.o, r.d)!;
+        expect(hit).not.toBeNull();
+        // (on whichever face or side it meets first: seen at a slant, or edge on, that can be some way
+        // from the slab's middle; what matters is that the point taken is drawn under the pointer, so
+        // the drag keeps it there)
+        expect(hit.local[1]).toBeGreaterThanOrEqual(sl.y0 - 1e-9);
+        expect(hit.local[1]).toBeLessThanOrEqual(sl.y1 + 1e-9);
+        expect(fromEdge(hit.local[0], hit.local[2]) < 1e-6 || inLid(hit.local[0], hit.local[2])).toBe(true);
+        const back = project(vp, lidPoint(grand, hit.local, v), W, H)!;
+        expect(Math.hypot(back[0] - q[0], back[1] - q[1])).toBeLessThan(0.5);
+        expect(lidPoint(grand, hit.local, v)[1]).toBeGreaterThan(0.9);
+      }
+    }
+    // off the lid (the floor in front of the piano), the ray misses it
+    const miss = project(vp, [0.2, 0, -0.9], W, H)!;
+    const rm = rayAt(inv, miss[0], miss[1], W, H);
+    expect(lidRay(grand, 1, rm.o, rm.d)).toBeNull();
+    // every opening, the rests' in-betweens included: a point of the lid drawn there, the pointer on
     // it, and the drag starting from far away finds that opening back
     for (const v of [1, 0.92, 0.73, 0.6, LID_HALF, 0.31, 0.12, 0.03]) {
       for (const p of pts.slice(0, 3)) {
@@ -224,6 +310,26 @@ describe('the grand’s lid and the room in 3D', () => {
     expect(lidFor((u) => lidPoint(grand, pts[0], u), vp, W, H, o[0], o[1], 0.5)).toBe(1);
     const c = away(shut, top, 0.3);
     expect(lidFor((u) => lidPoint(grand, pts[0], u), vp, W, H, c[0], c[1], 0.5)).toBe(0);
+  });
+
+  it('the lid’s knob sits beside the lid, not on it: just outside its free edge on the case’s side, under the rim, front first; the lid moving never moves it', () => {
+    const ks = lidKnobPoints(grand);
+    const hs = lidHandPoints(grand);
+    const sl = grand.lidSlab!;
+    expect(ks.length).toBe(hs.length);
+    ks.forEach((k, i) => {
+      // outside the outline, 10 cm past the edge (14 cm out from the hand's point, 4 cm in)
+      expect(inLid(k[0], k[2])).toBe(false);
+      expect(Math.hypot(k[0] - hs[i][0], k[2] - hs[i][2])).toBeCloseTo(0.14, 6);
+      // on the case's side, 6 cm under the rim the shut lid lies on, over the strings' height
+      expect(k[1]).toBeCloseTo(sl.y0 - 0.06, 9);
+      expect(k[1]).toBeGreaterThan(0.85);
+    });
+    // the first by the treble side's front, where a hand lifts the lid; they are points of the piano,
+    // not of the lid, so a knob placed on one stays put as the lid turns under the hand
+    const xMax = Math.max(...sl.poly.map((q) => q[0]));
+    expect(ks[0][0]).toBeCloseTo(xMax + 0.1, 3);
+    expect(ks[0][2] - Math.min(...sl.poly.map((q) => q[1]))).toBeLessThan(0.15);
   });
 
   it('the room’s light pool grows with the room, every step of it', () => {

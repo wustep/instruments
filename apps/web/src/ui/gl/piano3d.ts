@@ -1712,10 +1712,11 @@ function ribbonX(mb: MeshBuilder, path: P2[], x: number, w: number, m: Mat): voi
 // each folds down into a felt cradle along the rim (the long one towards the tail, the short one
 // towards the keys) and swings up into its own cup.
 // A stick is a fixed length on a fixed pivot, so in its cup it holds the lid at one opening only; a
-// lid lower than that presses it down, its tip on the lid's underside (`stickSwing`). The lid stands
-// at whatever opening the stage's lid grip sets, on the shortest stick that reaches it (`lidStick`):
-// nothing snaps it to a rest. The lid's opening is the engine's lid parameter (post.ts: what the lid
-// does to the sound), 0 shut … 1 on the long stick.
+// lid lower than that presses it down, its tip on the lid's underside (`stickSwing`). So the lid rests
+// shut, on the short stick or on the long one (ui/lid.ts `LID_RESTS`: the lid knob's three notches);
+// taken in the hand (the stage's drag) it is at any opening, standing on the shortest stick that
+// reaches it (`lidStick`), and let go it comes onto the nearest rest. The lid's opening is the
+// engine's lid parameter (post.ts: what the lid does to the sound), 0 shut … 1 on the long stick.
 /** the lid's opening on its long stick (rad): the engine's lid = 1. About 40°, as a concert grand's
  *  full stick */
 export const LID_OPEN = 0.7;
@@ -1868,16 +1869,14 @@ export function stickMatrix(p: PropStick, k: number, o: Mat4 = new Float32Array(
   o.set([X[0], X[1], X[2], 0, Y[0], Y[1], Y[2], 0, Z[0], Z[1], Z[2], 0, p.foot[0], p.foot[1], p.foot[2], 1]);
   return o;
 }
-/** Where the stage's lid grip takes the lid (its own frame): points along its free edge, 4 cm in, at
- *  the edge's middle thickness, every 12 cm from the treble side's straight run (where a hand lifts a
- *  grand's lid; the 2D grip sits there too) round the bentside and the tail to the spine. The stage
- *  puts the grip on the first of them that shows on the picture. */
-export function lidGripPoints(pm: PianoModel): Vec3[] {
+/** Points round the lid's free edge (its own frame; shut, the piano's): every 12 cm from the treble
+ *  side's straight run, near the front (where a hand lifts a grand's lid), up the bentside and round
+ *  the tail to the spine; `inset` m in from the edge (< 0: outside it), at height `y`. */
+function lidEdgePoints(pm: PianoModel, inset: number, y: number): Vec3[] {
   const sl = pm.lidSlab;
   if (!sl) return [];
   const poly = sl.poly;
   const spine = Math.min(...poly.map((q) => q[0]));
-  const y = (sl.y0 + sl.y1) / 2;
   const out: Vec3[] = [];
   // (the outline runs from the front of the treble side, up the bentside, round the tail, to the spine)
   let next = 0.13;
@@ -1890,12 +1889,80 @@ export function lidGripPoints(pm: PianoModel): Vec3[] {
     while (l > 0 && next <= s + l) {
       const t = (next - s) / l;
       // (inwards: the outline turned a quarter towards the lid)
-      out.push([x0 + t * (x1 - x0) - (0.04 * (z1 - z0)) / l, y, z0 + t * (z1 - z0) + (0.04 * (x1 - x0)) / l]);
+      out.push([x0 + t * (x1 - x0) - (inset * (z1 - z0)) / l, y, z0 + t * (z1 - z0) + (inset * (x1 - x0)) / l]);
       next += 0.12;
     }
     s += l;
   }
   return out;
+}
+/** Where a hand takes the lid (its own frame): along its free edge, 4 cm in, at the edge's middle
+ *  thickness (the tests drag the lid from there: handles3d `lidFor`). */
+export function lidHandPoints(pm: PianoModel): Vec3[] {
+  const sl = pm.lidSlab;
+  return sl ? lidEdgePoints(pm, 0.04, (sl.y0 + sl.y1) / 2) : [];
+}
+/** Where the stage's lid knob can sit (the piano's frame; they do not move with the lid): just
+ *  outside the lid's free edge, 10 cm out, on the case's side 6 cm under the rim the shut lid lies on. The stage puts the
+ *  knob on the first of them that shows on the picture: beside the lid's front corner, by the treble
+ *  side, where a hand lifts it. */
+export function lidKnobPoints(pm: PianoModel): Vec3[] {
+  const sl = pm.lidSlab;
+  return sl ? lidEdgePoints(pm, -0.1, sl.y0 - 0.06) : [];
+}
+/** Where a ray (the piano's frame: origin `o`, direction `d`) first meets the lid at opening `lid`
+ *  (the engine's): its distance along the ray and the point in the lid's own frame; null if it misses.
+ *  The lid is a slab, its plan outline between its two faces: the ray meets a face, or its side (seen
+ *  edge on, at half stick from the stage's own view, the side is most of what shows of it). */
+export function lidRay(pm: PianoModel, lid: number, o: Vec3, d: Vec3): { t: number; local: Vec3 } | null {
+  const sl = pm.lidSlab;
+  if (!sl) return null;
+  const h = pm.lidHinge;
+  const c = Math.cos(lid * LID_OPEN);
+  const s = Math.sin(lid * LID_OPEN);
+  // into the lid's own frame: the inverse rotation about the hinge
+  const ox = o[0] - h[0];
+  const oy = o[1] - h[1];
+  const ol: Vec3 = [h[0] + c * ox + s * oy, h[1] - s * ox + c * oy, o[2]];
+  const dl: Vec3 = [c * d[0] + s * d[1], -s * d[0] + c * d[1], d[2]];
+  // the stretch of the ray between the two faces' planes, in front of the camera
+  let t0 = 0;
+  let t1 = Infinity;
+  if (Math.abs(dl[1]) < 1e-12) {
+    if (ol[1] < sl.y0 || ol[1] > sl.y1) return null;
+  } else {
+    const a = (sl.y0 - ol[1]) / dl[1];
+    const b = (sl.y1 - ol[1]) / dl[1];
+    t0 = Math.max(0, Math.min(a, b));
+    t1 = Math.max(a, b);
+    if (t1 <= t0) return null;
+  }
+  const at = (t: number): Vec3 => [ol[0] + t * dl[0], Math.min(sl.y1, Math.max(sl.y0, ol[1] + t * dl[1])), ol[2] + t * dl[2]];
+  // in through a face: where the stretch starts, inside the outline
+  const P = at(t0);
+  if (t0 > 0 && inPoly([P[0], P[2]], sl.poly)) return { t: t0, local: P };
+  // else in through the side: the stretch's first crossing of the outline (its plan a segment, or
+  // a long one when the ray runs along the faces)
+  const T1 = Number.isFinite(t1) ? t1 : t0 + 100;
+  const ax = ol[0] + t0 * dl[0];
+  const az = ol[2] + t0 * dl[2];
+  const ex = (T1 - t0) * dl[0];
+  const ez = (T1 - t0) * dl[2];
+  let best = Infinity;
+  const poly = sl.poly;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [px, pz] = poly[j];
+    const qx = poly[i][0] - px;
+    const qz = poly[i][1] - pz;
+    const den = ex * qz - ez * qx;
+    if (Math.abs(den) < 1e-15) continue;
+    const u = ((px - ax) * qz - (pz - az) * qx) / den;
+    const w = ((px - ax) * ez - (pz - az) * ex) / den;
+    if (u >= 0 && u <= 1 && w >= 0 && w <= 1 && u < best) best = u;
+  }
+  if (!Number.isFinite(best)) return null;
+  const t = t0 + best * (T1 - t0);
+  return t > 0 ? { t, local: at(t) } : null;
 }
 /** a point of the lid (its own frame) where the lid at opening `lid` puts it (the piano's frame) */
 export const lidPoint = (pm: PianoModel, local: Vec3, lid: number): Vec3 => xform(lidMatrix(pm.lidHinge, lid * LID_OPEN), local);

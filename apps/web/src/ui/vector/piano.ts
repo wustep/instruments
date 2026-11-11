@@ -8,7 +8,7 @@
 // unison strings pink (unison detune), the bridges white (the board they drive).
 //
 // The drawing keeps the stage's state as the other one does (the strings to click, the case's box,
-// where the sound leaves, the lid's free edge): the grips, the close-up and the room read it.
+// where the sound leaves, the lid's free edge): the lid's knob, the close-up and the room read it.
 import type { VisualFrame } from '@piano-model/engine';
 import { GZ, Layer, SYM_VISIBLE, catmull, grandDepth, grandPlate, layout, path, type GStr, type Layout, type Plate } from '../grand-plan.ts';
 import { levelsOf, stepAction, upLayout, upPlate, type PianoGeom, type PianoState, type Pt, type UpLayout, type UpString } from '../piano-draw.ts';

@@ -1,6 +1,6 @@
 // One small tooltip for icon-only controls: any element with data-tip. It shows on hover (after
-// a moment), at once on keyboard focus, and while a slider grip is dragged (so it also works on
-// touch, where there is no hover). It follows live changes to data-tip (a grip's value).
+// a moment), at once on keyboard focus, and while a slider (the stage's knobs) is turned (so it also
+// works on touch, where there is no hover). It follows live changes to data-tip (a knob's value).
 export function installTips(): void {
   const tip = document.createElement('div');
   tip.className = 'tip';
@@ -71,12 +71,12 @@ export function installTips(): void {
     const el = tipped(e.target);
     if (isSlider(el)) show(el!, true);
     else if (cur) hide();
-  }, true); // capture: the grips stop their own pointer events from bubbling
+  }, true); // capture: the knobs stop their own pointer events from bubbling
   document.addEventListener('pointerup', () => {
     const el = cur;
     if (isSlider(el)) window.setTimeout(() => cur === el && !el!.matches(':hover') && hide(), 900);
   }, true);
-  // the hovered grip's value changes as it is dragged, and the grip itself moves
+  // the hovered knob's value changes as it is turned, and the knob itself moves (with the 3D camera)
   new MutationObserver(() => {
     if (cur && !tip.hidden) place(cur);
   }).observe(document.body, { attributes: true, attributeFilter: ['data-tip', 'style'], subtree: true });
