@@ -243,7 +243,7 @@ disagree with: every fitted number is in a `*-tuning.json` or `*-fit.json` next 
     reflects the lows back into the bore and lets the highs out.
   * **Horn.** The double horn in F and B♭ (3.7 m and 2.8 m of mostly conical tube,
     the thumb valve choosing), played high in its series, where neighbouring
-    partials are a tone apart. B♭1–F5 at concert pitch.
+    partials are a tone or less apart. B♭1–F5 at concert pitch.
   * **Trombone.** Built from its measures: the mouthpiece's cup and throat, two
     thirds of the tube a 13.9 mm cylinder that the slide lengthens, a Bessel-horn
     bell. Loud, the wave steepens along the cylinder towards a shock, computed in
