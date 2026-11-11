@@ -6,7 +6,7 @@
 
 import type { KeySummary, VisualFrame } from '@piano-model/engine';
 import { AutoScale, INK, ModeField, rgba } from './stage-draw.ts';
-import { Layer, SYM_VISIBLE, damperMark, drawGrandPlan, hammerMark, lightString } from './grand-plan.ts';
+import { Layer, SPRUCE, SYM_VISIBLE, damperMark, drawGrandPlan, hammerMark, lightString, paintEnds, paintPlate, path, plateOf, type Plate } from './grand-plan.ts';
 
 export interface PianoGeom {
   keys: KeySummary[];
@@ -252,12 +252,13 @@ export function drawPiano(ctx: CanvasRenderingContext2D, W: number, H: number, g
 }
 
 // ================================================================ upright (front view)
-// The upright from the front, as a diagram: a quiet outline of the case, the strings hanging from
-// the pressure bar at the top (their real lengths; the wound bass crossing the tenor to its own
-// bridge), the two bridges along their lower ends, and the board's modes across the whole case.
-// Hammers strike near the top of each string, the dampers sit just under them. x follows the
-// on-screen keyboard (the action's even pitch, 88 steps across the 52 white keys); the height is
-// fitted to the longest string in view, so a phone showing two octaves shows them large.
+// The upright from the front: the case, and in it the plate's frame over the spruce board. The hammers
+// stand in one level row, as an upright's do, each at its string's strike point; so the strings' tops
+// step up towards the bass under the slanting pressure bar, with the tuning pins in the block above it
+// (their real lengths; the wound bass crossing the tenor to its own bridge). The dampers are a row of
+// heads just under the hammers. x follows the on-screen keyboard (the action's even pitch, 88 steps
+// across the 52 white keys); the height is fitted to the longest string in view, so a phone showing two
+// octaves shows them large.
 /** strike point as a fraction of the speaking length (the engine's scale) */
 const strikeBeta = (m: number) => (m <= 60 ? 0.12 : 0.12 - ((m - 60) / 48) * 0.055);
 export interface UpString {
@@ -267,7 +268,7 @@ export interface UpString {
   x1: number;
   y1: number;
   off: number[];
-  /** the strike point and the damper, on the string */
+  /** the strike point (every string's at one height) and the damper's middle, on the string */
   hx: number;
   hy: number;
   dx: number;
@@ -279,6 +280,11 @@ export interface UpLayout {
   pitch: number;
   box: Path2D;
   rect: { x0: number; x1: number; y0: number; y1: number };
+  /** the case's inside (its walls a little in from the box): the opening the plate and board show in */
+  inner: Path2D;
+  in: { x0: number; x1: number; y0: number; y1: number };
+  /** a damper head's length along its string (px) */
+  dLen: number;
 }
 let upCache: UpLayout | null = null;
 const upBase = new Layer();
@@ -292,39 +298,88 @@ export function upLayout(W: number, H: number, pts: Pt[], dpr: number, maxL: num
   const pitch = (kx1 - kx0) / 88;
   const margin = Math.max(8, Math.min(kx0 - 4, pitch * 1.4));
   const rect = { x0: kx0 - margin, x1: kx1 + margin, y0: 6, y1: H - 6 };
-  const yCap = rect.y0 + 16;
-  const sc = (rect.y1 - 18 - yCap) / maxL;
+  // room over the longest string's top for its pins, and under its bridge for the hitch rail
+  const head = Math.max(12, Math.min(34, 0.07 * (rect.y1 - rect.y0), 2.2 * pitch));
+  const foot = Math.max(12, Math.min(30, 0.07 * (rect.y1 - rect.y0), 2 * pitch));
+  const top = rect.y0 + head;
+  const sc = (rect.y1 - foot - top) / maxL;
   const sp = Math.min(2.4, pitch * 0.2);
   const nb = pts.reduce((a, p) => a + (p.wound ? 1 : 0), 0);
+  // the strike line: level, where the longest string in view (hung from the top) is struck
+  const yS = top + 0.12 * maxL * sc;
+  const dLen = Math.max(4, Math.min(8, pitch * 0.5));
   const strings: UpString[] = pts.map((p, k) => {
     const x0 = kx0 + (p.i + 0.5) * pitch;
     const len = Math.max(0.04, p.L) * sc;
     // cross-stringing: the bass runs down and across the tenor, the lowest strings leaning most
     const sx = p.wound ? (0.18 + 0.22 * (1 - k / Math.max(1, nb))) * len : 0;
-    const x1 = x0 + sx;
-    const y1 = yCap + Math.sqrt(Math.max(0, len * len - sx * sx));
-    const n = Math.max(1, p.k.nStrings);
+    const ly = Math.sqrt(Math.max(0, len * len - sx * sx));
     const f = strikeBeta(p.midi);
-    const fd = f + Math.min(0.06, 12 / len);
-    return { p, x0, y0: yCap, x1, y1, off: Array.from({ length: n }, (_, j) => (j - (n - 1) / 2) * sp), hx: x0 + sx * f, hy: yCap + (y1 - yCap) * f, dx: x0 + sx * fd, dy: yCap + (y1 - yCap) * fd };
+    const y0 = yS - f * ly;
+    const n = Math.max(1, p.k.nStrings);
+    // the damper's head: just under the hammers' row
+    const fd = Math.min(0.92, f + (10 + dLen / 2) / Math.max(1, ly));
+    return { p, x0, y0, x1: x0 + sx, y1: y0 + ly, off: Array.from({ length: n }, (_, j) => (j - (n - 1) / 2) * sp), hx: x0 + sx * f, hy: yS, dx: x0 + sx * fd, dy: y0 + ly * fd };
   });
   const box = new Path2D();
   box.roundRect(rect.x0, rect.y0, rect.x1 - rect.x0, rect.y1 - rect.y0, 8);
-  upCache = { key, strings, pitch, box, rect };
+  const wall = Math.max(3, Math.min(9, margin * 0.4));
+  const lip = Math.max(3, Math.min(5, margin * 0.4));
+  const inn = { x0: rect.x0 + wall, x1: rect.x1 - wall, y0: rect.y0 + lip, y1: rect.y1 - lip };
+  const inner = new Path2D();
+  inner.roundRect(inn.x0, inn.y0, inn.x1 - inn.x0, inn.y1 - inn.y0, 3);
+  upCache = { key, strings, pitch, box, rect, inner, in: inn, dLen };
   return upCache;
 }
 
-/** the still picture: the case, bridges, pressure bar and the strings at rest */
+const upPlates = new WeakMap<UpLayout, Plate>();
+/** the upright's plate: the pin block over the pressure bar, the hitch rails under the bridges, the band
+ *  inside the case, the struts (cached with the layout) */
+export function upPlate(lay: UpLayout): Plate {
+  let pl = upPlates.get(lay);
+  if (pl) return pl;
+  const { pitch } = lay;
+  const r = lay.in;
+  const band = Math.max(3, Math.min(7, pitch * 0.45));
+  const k = Math.min(1, pitch / 14);
+  pl = plateOf(
+    lay.strings.map((s) => ({ a: [s.x0, s.y0], b: [s.x1, s.y1], off: s.off, i: s.p.i, midi: s.p.midi, wound: s.p.wound })),
+    {
+      pitch,
+      inside: (x, y) => x > r.x0 + 2 && x < r.x1 - 2 && y > r.y0 + 2 && y < r.y1 - 2,
+      tail: (wound, j, n) => (wound ? 13 : 12 + 8 * (1 - j / n)) * k,
+      toward: -1,
+      limit: lay.rect.y0 - 6,
+      band,
+      strutEnd: () => r.y1 - band,
+    },
+  );
+  upPlates.set(lay, pl);
+  return pl;
+}
+
+/** the still picture: the case, the plate over the board, bridges, pressure bar and the strings at rest */
 function paintUpBase(lay: UpLayout, W: number, H: number, dpr: number): void {
-  const { strings, box, pitch } = lay;
-  const yCap = strings[0].y0;
+  const { strings, box, inner, pitch } = lay;
   const bass = strings.filter((s) => s.p.wound);
   const treb = strings.filter((s) => !s.p.wound);
   upBase.paint(W, H, dpr, lay.key, (c) => {
-    c.fillStyle = rgba(INK.wood, 0.42);
+    const pl = upPlate(lay);
+    // the case's walls (ebony, as the grand's rim), the spruce board in the opening
+    c.fillStyle = rgba(INK.ebony, 1);
     c.fill(box);
+    c.fillStyle = rgba(SPRUCE, 0.4);
+    c.fill(inner);
     c.save();
-    c.clip(box);
+    c.clip(inner);
+    paintPlate(c, pl, inner, lay.rect);
+    // the hammer rail: the line the hammers rest along
+    c.strokeStyle = rgba(INK.felt, 0.14);
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(strings[0].hx - pitch, strings[0].hy + 5);
+    c.lineTo(strings[strings.length - 1].hx + pitch, strings[0].hy + 5);
+    c.stroke();
     // the bridges: the treble bridge along the strings' lower ends, the bass bridge on its own
     c.lineJoin = 'round';
     c.strokeStyle = rgba(INK.felt, 0.5);
@@ -335,14 +390,12 @@ function paintUpBase(lay: UpLayout, W: number, H: number, dpr: number): void {
       part.forEach((s, k) => (k ? c.lineTo(s.x1, s.y1) : c.moveTo(s.x1, s.y1)));
       c.stroke();
     }
-    // the pressure bar: where every speaking length begins
+    // the pressure bar: where every speaking length begins, slanting up to the bass
     c.strokeStyle = rgba(INK.ivory, 0.3);
     c.lineWidth = 1.5;
-    c.beginPath();
-    c.moveTo(strings[0].x0 - pitch * 0.6, yCap);
-    c.lineTo(strings[strings.length - 1].x0 + pitch * 0.6, yCap);
-    c.stroke();
+    for (const part of [treb, bass]) if (part.length > 1) c.stroke(path(part.map((s): [number, number] => [s.x0, s.y0]), false));
     // the strings at rest: steel tenor and treble, then the copper-wound bass across them
+    c.lineCap = 'butt';
     for (const part of [treb, bass]) {
       const wound = part === bass;
       c.strokeStyle = rgba(wound ? INK.copper : INK.ivory, wound ? 0.5 : 0.24);
@@ -355,7 +408,11 @@ function paintUpBase(lay: UpLayout, W: number, H: number, dpr: number): void {
         }
       c.stroke();
     }
+    paintEnds(c, pl);
     c.restore();
+    c.strokeStyle = rgba(INK.ivory, 0.1);
+    c.lineWidth = 1;
+    c.stroke(inner);
     c.strokeStyle = rgba(INK.ivory, 0.34);
     c.lineWidth = 1.4;
     c.stroke(box);
@@ -387,7 +444,7 @@ function drawUpright(ctx: CanvasRenderingContext2D, W: number, H: number, g: Pia
   const { rect, pitch } = lay;
   ctx.drawImage(upBase.canvas, 0, 0, W, H);
   ctx.save();
-  ctx.clip(lay.box);
+  ctx.clip(lay.inner);
   // ---- the board's live modes, across the whole case
   if (field.update(fr?.modes ?? null, now / 1000) > 0.01) {
     ctx.globalCompositeOperation = 'lighter';
@@ -411,7 +468,7 @@ function drawUpright(ctx: CanvasRenderingContext2D, W: number, H: number, g: Pia
   for (const s of lay.strings) {
     if (s.hx < -pitch || s.hx > W + pitch) continue;
     const h = st.hammer[s.p.i];
-    if (s.p.k.hasDamper) damperMark(ctx, s.dx, s.dy + 6, pitch * 0.6, st.damper[s.p.i]);
+    if (s.p.k.hasDamper) damperMark(ctx, s.dx, s.dy, pitch * 0.6, st.damper[s.p.i], lay.dLen, -Math.atan2(s.x1 - s.x0, s.y1 - s.y0));
     hammerMark(ctx, s.hx, s.hy + 5 * (1 - h), pitch * 0.5, h, st.soft);
   }
   // ---- the practice muffler: a felt strip let down between the hammers and the strings
