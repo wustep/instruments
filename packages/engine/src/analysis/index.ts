@@ -4,3 +4,4 @@ export * from './wav.ts';
 export * from './note.ts';
 export * from './sustained.ts';
 export * from './struck.ts';
+export * from './ring.ts';

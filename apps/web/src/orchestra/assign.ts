@@ -17,13 +17,13 @@
 // piano; a line that goes below the cello's C is a bass line (the double bass is a candidate for it). With a lineup chosen by hand, the lines are matched to it by register instead: the highest
 // line to the highest instrument, and so on down.
 
-export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani';
-export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani'];
+export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'harp' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani';
+export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'bass', 'harp', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani'];
 
 export interface VoiceInfo {
   label: string;
   /** the engine's instrument and (pianos) preset */
-  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani';
+  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'harp' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani';
   preset?: 'grand' | 'upright';
   /** playable range (MIDI notes) and where the instrument sings best */
   lo: number;
@@ -50,6 +50,7 @@ export const VOICE_INFO: Record<Voice, VoiceInfo> = {
   viola: { label: 'viola', instrument: 'viola', lo: 48, hi: 88, centre: 63, poly: 4 },
   cello: { label: 'cello', instrument: 'cello', lo: 36, hi: 81, centre: 52, poly: 4 },
   bass: { label: 'double bass', instrument: 'bass', lo: 28, hi: 67, centre: 40, poly: 4 },
+  harp: { label: 'harp', instrument: 'harp', lo: 24, hi: 103, centre: 64, poly: 47 },
   flute: { label: 'flute', instrument: 'flute', lo: 60, hi: 96, centre: 79, poly: 1 },
   oboe: { label: 'oboe', instrument: 'oboe', lo: 58, hi: 93, centre: 74, poly: 1 },
   clarinet: { label: 'clarinet', instrument: 'clarinet', lo: 50, hi: 94, centre: 70, poly: 1 },
@@ -66,7 +67,7 @@ export const isKeyboard = (v: Voice): boolean => v === 'grand' || v === 'upright
  *  Mac, offline: scripts/stage-cost.ts, the busier of its own piece and idle, rounded up; a piano with 32
  *  voices, as two on the stage have): what decides how many instruments a piece or an address may seat
  *  (fitLineup) */
-export const VOICE_COST: Record<Voice, number> = { grand: 16, upright: 17, violin: 2, viola: 2, cello: 2.6, bass: 2.9, flute: 1.3, oboe: 1.3, clarinet: 1.3, bassoon: 1.3, horn: 1.2, trumpet: 1.2, trombone: 1.8, tuba: 1.2, timpani: 2 };
+export const VOICE_COST: Record<Voice, number> = { grand: 16, upright: 17, violin: 2, viola: 2, cello: 2.6, bass: 2.9, harp: 2.9, flute: 1.3, oboe: 1.3, clarinet: 1.3, bassoon: 1.3, horn: 1.2, trumpet: 1.2, trombone: 1.8, tuba: 1.2, timpani: 2 };
 /** a lineup's cost (VOICE_COST summed) */
 export const lineupCost = (lineup: Voice[]): number => lineup.reduce((s, v) => s + (VOICE_COST[v] ?? 0), 0);
 /** the heaviest lineup of `n` instruments the stage has seated by count: two pianos (the most it takes)
@@ -100,7 +101,7 @@ export const mayBecome = (from: Voice[], to: Voice[], cap: number): boolean => (
 
 /** the score's order (woodwinds, brass, timpani, strings, then the keyboards): a new instrument's place in
  *  a lineup, and the order of a lineup picked by hand (the seats from the audience's left) */
-export const SCORE_ORDER: Voice[] = ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
+export const SCORE_ORDER: Voice[] = ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'harp', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
 
 /** what assignment needs to know of a line (midi-file.ts MidiLine) */
 export interface LineInfo {

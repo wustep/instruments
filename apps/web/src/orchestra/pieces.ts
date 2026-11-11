@@ -278,6 +278,17 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     shift: -10,
     rate: 0.9,
   },
+  harp: {
+    instrument: 'harp',
+    composer: 'Bach',
+    title: 'Cello Suite No. 1, Prélude (on the harp)',
+    file: 'bach-bwv1007-prelude.mid',
+    source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=517',
+    credit: 'Cello Suite No. 1 in G, BWV 1007, Prélude, as harpists play it: an octave above the cello, every string left to ring (its broken chords are the harp’s own figure, and the pedals move for its accidentals as they come). Typeset by Andreas Scherer from the Schirmer edition (1916); Mutopia-2018/01/19-517; public domain.',
+    sha256: 'c55a2eae5e8d2e7a9570fe7ec8325c8825656893249878b946e6a2ead288a272',
+    shift: 12,
+    vel: 0.8,
+  },
   flute: {
     instrument: 'flute',
     composer: 'Bach',

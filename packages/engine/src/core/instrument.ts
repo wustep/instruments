@@ -3,8 +3,8 @@
 
 import type { KeySummary } from '../api/messages.ts';
 
-export type InstrumentId = 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani';
-export const INSTRUMENT_IDS: InstrumentId[] = ['piano', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani'];
+export type InstrumentId = 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'harp' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani';
+export const INSTRUMENT_IDS: InstrumentId[] = ['piano', 'violin', 'viola', 'cello', 'bass', 'harp', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani'];
 /** the bowed strings (bowed.ts), high to low */
 export type BowedId = 'violin' | 'viola' | 'cello' | 'bass';
 export const isBowed = (id: string): id is BowedId => id === 'violin' || id === 'viola' || id === 'cello' || id === 'bass';
@@ -12,8 +12,9 @@ export const isBowed = (id: string): id is BowedId => id === 'violin' || id === 
 export type MonoId = 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba';
 export const isMono = (id: string): id is MonoId => id === 'flute' || id === 'oboe' || id === 'clarinet' || id === 'bassoon' || id === 'horn' || id === 'trumpet' || id === 'trombone' || id === 'tuba';
 /** the instruments a file's notes are told to before they sound (PianoEvent 'foresee'): the bowed strings
- *  plan their bow with them (bowed.ts), the winds and brass their tongue and breath (mono.ts) */
-export const foresees = (id: string): boolean => isBowed(id) || isMono(id);
+ *  plan their bow with them (bowed.ts), the winds and brass their tongue and breath (mono.ts), the harp its
+ *  pedals (harp.ts) */
+export const foresees = (id: string): boolean => isBowed(id) || isMono(id) || id === 'harp';
 
 /** Played (not in the dry calibration renders), this many dB over the level an instrument was fitted at: a
  *  recording session's microphone gain given back. The trombone was matched to the Iowa trombones, whose ff
@@ -30,20 +31,22 @@ export const foresees = (id: string): boolean => isBowed(id) || isMono(id);
  *  (apps/web/src/orchestra/mix.ts), so a lineup of trombones alone sounds as it did. */
 export const PLAYBACK_DB: Partial<Record<InstrumentId, number>> = { trombone: 9, timpani: 7 };
 
-/** the instrument families: the piano, the bowed strings, the flute (an air jet), the reeds (the oboe: a
+/** the instrument families: the piano, the bowed strings, the plucked (the harp: strings plucked with the
+ *  fingers and left to ring, seven pedals setting their scale), the flute (an air jet), the reeds (the oboe: a
  *  double reed on a conical bore; the clarinet: a single reed on a cylinder; the bassoon: the oboe's double
  *  reed on a cone two and a half metres long) and the brass (the trumpet; the horn: the trumpet's buzzing lips
  *  on a tube two and a half times as long, wound in a circle, played high in its harmonic series; the
  *  trombone: the lips in a cup mouthpiece on a cylindrical slide and a wide bell; the tuba: the horn's lips
  *  and conical bore at five metres, wide, with four valves) and the
  *  percussion (the timpani: membranes over kettles, struck with felt mallets) */
-export type Family = 'piano' | 'bowed' | 'wind' | 'reed' | 'brass' | 'percussion';
+export type Family = 'piano' | 'bowed' | 'plucked' | 'wind' | 'reed' | 'brass' | 'percussion';
 export const INSTRUMENT_INFO: Record<InstrumentId, { label: string; family: Family; lo: number; hi: number; blurb: string }> = {
   piano: { label: 'Piano', family: 'piano', lo: 21, hi: 108, blurb: 'Felt hammers, 2–3 stiff strings per note, a shared soundboard.' },
   violin: { label: 'Violin', family: 'bowed', lo: 55, hi: 100, blurb: 'Four strings G3–E5, bowed with stick–slip friction, on a resonant body.' },
   viola: { label: 'Viola', family: 'bowed', lo: 48, hi: 88, blurb: 'Four strings C3–A4: longer, heavier, a darker and larger body.' },
   cello: { label: 'Cello', family: 'bowed', lo: 36, hi: 81, blurb: 'Four strings C2–A3 on a big body with low air and wood resonances.' },
   bass: { label: 'Double bass', family: 'bowed', lo: 28, hi: 67, blurb: 'Four strings tuned in fourths, E1–G2, on the largest body: sloped shoulders, a flat back.' },
+  harp: { label: 'Harp', family: 'plucked', lo: 24, hi: 103, blurb: 'Forty-seven strings plucked with the fingers and left to ring on a long soundboard; seven pedals set their scale.' },
   flute: { label: 'Flute', family: 'wind', lo: 60, hi: 96, blurb: 'An air jet driving a resonant tube; harder blowing jumps registers.' },
   oboe: { label: 'Oboe', family: 'reed', lo: 58, hi: 93, blurb: 'A double reed blown closed, on a conical bore: every harmonic, overblown at the octave.' },
   clarinet: { label: 'Clarinet', family: 'reed', lo: 50, hi: 94, blurb: 'A single reed beating on a mouthpiece, on a cylindrical bore: odd harmonics low down, overblown at the twelfth.' },
