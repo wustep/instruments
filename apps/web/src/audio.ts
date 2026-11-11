@@ -733,7 +733,7 @@ class AudioApp {
       const v = d1 / 127;
       if (this.instrument === 'flute') this.setParams({ vibrato: 0.15 * v });
       else if (this.instrument === 'oboe' || this.instrument === 'clarinet' || this.instrument === 'bassoon') this.setParams({ vibrato: 0.1 * v });
-      else if (this.instrument === 'horn' || this.instrument === 'trombone') this.setParams({ vibrato: 0.01 * v });
+      else if (this.instrument === 'horn' || this.instrument === 'trombone' || this.instrument === 'tuba') this.setParams({ vibrato: 0.01 * v });
       // (the timpani: pressing into the key rolls it)
       else if (this.instrument === 'timpani') this.setParams({ roll: v });
       else if (this.instrument !== 'piano') this.setParams({ vibrato: 35 * v });

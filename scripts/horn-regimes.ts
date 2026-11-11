@@ -4,11 +4,21 @@
 // lips on two partials at once). Read off the pressure in the mouthpiece over the held note's last 0.3 s,
 // at the multiples of the tube's own fundamental (the note over its partial): a note on partial n has its
 // energy at n, 2n, 3n …, its lowest strong one n.
-//   npx tsx scripts/horn-regimes.ts [--fs 22050,44100,48000,96000] [--voice '{"lipQ":8}'] [--dur 2]
+// The tuba is the same engine (lipcone.ts) and is surveyed the same way: --instrument tuba (C1–F4).
+//   npx tsx scripts/horn-regimes.ts [--instrument horn|tuba] [--fs 22050,44100,48000,96000] [--voice '{"lipQ":8}'] [--dur 2]
 import { HornCore, hornFingering, HORN_HI, HORN_LO } from '../packages/engine/src/core/horn.ts';
+import { TubaCore, tubaFingering, TUBA_HI, TUBA_LO } from '../packages/engine/src/core/tuba.ts';
 
-export function regime(m: number, vel: number, fs: number, voice?: object, dur = 2): string {
-  const c = new HornCore({ sampleRate: fs, dry: true, params: { vibrato: 0, ...(voice ? { voice } : {}) } as never });
+/** the instruments on the lips-and-cone engine */
+export const LIPCONE = {
+  horn: { Core: HornCore, fingering: hornFingering, lo: HORN_LO, hi: HORN_HI, span: 'B♭1…F5' },
+  tuba: { Core: TubaCore, fingering: tubaFingering, lo: TUBA_LO, hi: TUBA_HI, span: 'C1…F4' },
+} as const;
+export type LipConeName = keyof typeof LIPCONE;
+
+export function regime(m: number, vel: number, fs: number, voice?: object, dur = 2, inst: LipConeName = 'horn'): string {
+  const I = LIPCONE[inst];
+  const c = new I.Core({ sampleRate: fs, dry: true, params: { vibrato: 0, ...(voice ? { voice } : {}) } as never });
   c.schedule({ type: 'noteOn', midi: m, velocity: vel }, 0);
   const bl = new Float32Array(128);
   const br = new Float32Array(128);
@@ -25,7 +35,7 @@ export function regime(m: number, vel: number, fs: number, voice?: object, dur =
     }
   }
   const f = 440 * 2 ** ((m - 69) / 12);
-  const fg = hornFingering(m);
+  const fg = I.fingering(m);
   const fb = f / fg.partial;
   const W = Math.round(0.3 * fs);
   const s0 = n - W;
@@ -76,19 +86,21 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const fss = opt('--fs', '22050,44100,48000,96000').split(',').map(Number);
   const voice = args.includes('--voice') ? JSON.parse(opt('--voice', '{}')) : undefined;
   const dur = +opt('--dur', '2');
+  const inst = opt('--instrument', 'horn') as LipConeName;
+  const I = LIPCONE[inst];
   let wrong = 0;
   let all = 0;
   console.log('(1 right; A, B … one, two partials above; a, b … below; . silent; x no clear pitch)');
   for (const fs of fss)
     for (const vel of [30, 70, 112]) {
       let row = '';
-      for (let m = HORN_LO; m <= HORN_HI; m++) {
-        const r = regime(m, vel, fs, voice, dur);
+      for (let m = I.lo; m <= I.hi; m++) {
+        const r = regime(m, vel, fs, voice, dur, inst);
         row += r;
         all++;
         if (r !== '1') wrong++;
       }
       console.log(`${String(fs).padStart(5)} v${String(vel).padStart(3)} ${row}`);
     }
-  console.log(`B♭1…F5: ${all - wrong} of ${all} on their partial`);
+  console.log(`${I.span}: ${all - wrong} of ${all} on their partial`);
 }

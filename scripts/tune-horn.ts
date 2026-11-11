@@ -2,18 +2,26 @@
 // (autocorrelation, 0.6–1.0 s), and store the correction in cents per sample rate (it lengthens the bore
 // and lowers the lips by as much). Two iterations
 // converge to about a cent. Run after any change to the voicing: npx tsx scripts/tune-horn.ts
+// The tuba is the same engine (lipcone.ts) and is voiced the same way: npx tsx scripts/tune-horn.ts --instrument tuba
+// (its low notes are measured later and over longer: a C1's period is 31 ms).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { HornCore, HORN_HI, HORN_LO } from '../packages/engine/src/core/horn.ts';
+import { TubaCore, TUBA_HI, TUBA_LO } from '../packages/engine/src/core/tuba.ts';
 
-const OUT = join(import.meta.dirname, '..', 'packages/engine/src/core/horn-tuning.json');
-const midis = Array.from({ length: HORN_HI - HORN_LO + 1 }, (_, i) => HORN_LO + i);
+const TUBA = process.argv.includes('--instrument') && process.argv[process.argv.indexOf('--instrument') + 1] === 'tuba';
+const Core = TUBA ? TubaCore : HornCore;
+const [LO, HI] = TUBA ? [TUBA_LO, TUBA_HI] : [HORN_LO, HORN_HI];
+const OUT = join(import.meta.dirname, '..', `packages/engine/src/core/${TUBA ? 'tuba' : 'horn'}-tuning.json`);
+const midis = Array.from({ length: HI - LO + 1 }, (_, i) => LO + i);
 const FSS = [22050, 44100, 48000, 96000];
+/** when the pitch is read (s) and over how long: the horn's 0.6 + 0.35; the tuba's longer */
+const [T0, TW] = TUBA ? [1.0, 0.6] : [0.6, 0.35];
 
 export function measureCents(fs: number, m: number, vel = 70): number {
-  const c = new HornCore({ sampleRate: fs, dry: true, params: { vibrato: 0, noise: 0 } });
+  const c = new Core({ sampleRate: fs, dry: true, params: { vibrato: 0, noise: 0 } });
   c.schedule({ type: 'noteOn', midi: m, velocity: vel }, 64);
-  const n = Math.round((1.1 * fs) / 128) * 128;
+  const n = Math.round(((T0 + TW + 0.15) * fs) / 128) * 128;
   const L = new Float32Array(n);
   const bl = new Float32Array(128);
   const br = new Float32Array(128);
@@ -22,8 +30,8 @@ export function measureCents(fs: number, m: number, vel = 70): number {
     L.set(bl, i);
   }
   const f = 440 * 2 ** ((m - 69) / 12);
-  const s0 = Math.round(0.6 * fs);
-  const W = Math.round(0.35 * fs);
+  const s0 = Math.round(T0 * fs);
+  const W = Math.round(TW * fs);
   const ac = (lag: number) => {
     let s = 0;
     for (let i = 0; i < W; i++) s += L[s0 + i] * L[s0 + i + lag];
@@ -50,7 +58,7 @@ export function measureCents(fs: number, m: number, vel = 70): number {
 if (import.meta.url === `file://${process.argv[1]}`) {
   for (let iter = 0; iter < 3; iter++) {
     const cur = JSON.parse(readFileSync(OUT, 'utf8'));
-    HornCore.tuningTable = cur;
+    Core.tuningTable = cur;
     const table: number[][] = FSS.map((fs, fi) =>
       midis.map((m, mi) => {
         const err = measureCents(fs, m);
@@ -61,6 +69,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     );
     writeFileSync(OUT, JSON.stringify({ fs: FSS, midi: midis, cents: table }) + '\n');
   }
-  HornCore.tuningTable = JSON.parse(readFileSync(OUT, 'utf8'));
+  Core.tuningTable = JSON.parse(readFileSync(OUT, 'utf8'));
   for (const fs of FSS) console.log(`residual cents @${fs}`, midis.map((m) => measureCents(fs, m).toFixed(1)).join(' '));
 }

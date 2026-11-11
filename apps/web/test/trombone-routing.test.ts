@@ -25,10 +25,10 @@ describe('orchestra: the trombone', () => {
   it('its names in five languages, its sizes and abbreviations, and General MIDI 57; its neighbours keep theirs', () => {
     for (const n of ['Trombone', 'Trombones', 'trombone 1', 'Tromboni', 'Trombone I', 'Trombón', 'Posaune', 'Posaunen', 'Altposaune', 'Tenorposaune', 'Bassposaune', 'Alto Trombone', 'Tenor Trombone', 'Bass Trombone', 'Trombone basso', 'Trombone alto', 'Sackbut', 'Saqueboute', 'Tbn.', 'Tbn', 'Tbns', 'Trb.', 'Tromb.', 'Pos. 1', 'B. Tbn.', 'Trombone in B♭'])
       expect(voiceFromName(n), n).toBe('trombone');
-    for (const [n, v] of [['Tromba', 'trumpet'], ['Trumpet', 'trumpet'], ['Trompete', 'trumpet'], ['Cornet', 'trumpet'], ['Tuba', 'bass'], ['Contrabass', 'bass'], ['Basso', 'bass'], ['Alto', 'viola'], ['Viola', 'viola'], ['Horn in F', 'horn'], ['Corno', 'horn'], ['Bass Clarinet', 'clarinet'], ['Fagotto', 'bassoon'], ['Position', null]] as const)
+    for (const [n, v] of [['Tromba', 'trumpet'], ['Trumpet', 'trumpet'], ['Trompete', 'trumpet'], ['Cornet', 'trumpet'], ['Tuba', 'tuba'], ['Contrabass', 'bass'], ['Basso', 'bass'], ['Alto', 'viola'], ['Viola', 'viola'], ['Horn in F', 'horn'], ['Corno', 'horn'], ['Bass Clarinet', 'clarinet'], ['Fagotto', 'bassoon'], ['Position', null]] as const)
       expect(voiceFromName(n), n).toBe(v);
     expect(voiceFromProgram(57)).toBe('trombone');
-    for (const p of [56, 58, 59, 61, 62, 63]) expect(voiceFromProgram(p), String(p)).toBe('trumpet');
+    for (const p of [56, 59, 61, 62, 63]) expect(voiceFromProgram(p), String(p)).toBe('trumpet');
     expect(voiceFromProgram(60)).toBe('horn');
   });
 

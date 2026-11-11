@@ -24,12 +24,13 @@ import { drawRoom, newRoomState } from '../ui/room-draw.ts';
 import { createHandBow, type HandBow } from '../ui/hand-bow.ts';
 import { stageKnob } from '../ui/stage-knob.ts';
 import { LID_RESTS, lidNotch, lidSettle, onNotch } from '../ui/lid.ts';
-import { Contours, SCOPE_INK_V, SPECTRUM_INK_V, SPECTRUM_INK_V_PIANO, drawBassoonV, drawBowedV, drawClarinetV, drawFluteV, drawOboeV, drawPianoV, drawRoomV, drawTrumpetV, drawHornV, drawTromboneV, drawTimpaniV, glow, loadVectorFont, slotColor } from '../ui/vector/index.ts';
+import { Contours, SCOPE_INK_V, SPECTRUM_INK_V, SPECTRUM_INK_V_PIANO, drawBassoonV, drawBowedV, drawClarinetV, drawFluteV, drawOboeV, drawPianoV, drawRoomV, drawTrumpetV, drawHornV, drawTromboneV, drawTubaV, drawTimpaniV, glow, loadVectorFont, slotColor } from '../ui/vector/index.ts';
 import { drawOboe, newOboeState } from '../ui/oboe-draw.ts';
 import { drawClarinet, newClarinetState } from '../ui/clarinet-draw.ts';
 import { drawBassoon, newBassoonState } from '../ui/bassoon-draw.ts';
 import { drawHorn, newHornState } from '../ui/horn-draw.ts';
 import { drawTrombone, newTromboneState } from '../ui/trombone-draw.ts';
+import { drawTuba, newTubaState } from '../ui/tuba-draw.ts';
 import { drawTimpani, newTimpaniState } from '../ui/timpani-draw.ts';
 
 const PIANO_KNOBS: KnobSpec[] = [
@@ -77,6 +78,12 @@ const TROMBONE_KNOBS: KnobSpec[] = [
   { key: 'gliss', label: 'Slide', short: 'slide', sub: 'a slur that moves the slide: a soft legato tongue (0) … a glissando (1)', min: 0, max: 1, step: 1, fmt: (v) => (v >= 0.5 ? 'gliss' : 'legato') },
   { key: 'size', label: 'Size', short: 'size', sub: 'alto in E♭ · tenor in B♭/F · bass in B♭/F/G♭: one model at each one’s measures', min: 0, max: 2, step: 1, fmt: (v) => ['alto', 'tenor', 'bass'][Math.round(v)] ?? 'tenor' },
 ];
+const TUBA_KNOBS: KnobSpec[] = [
+  { key: 'breath', label: 'Breath pressure', short: 'breath', sub: '× the dynamic’s blowing pressure: harder, the tone opens and brightens', min: 0.6, max: 1.4, step: 0.01, fmt: (v) => `×${fmt(v, 2)}` },
+  { key: 'lip', label: 'Lip tension', short: 'lips', sub: 'semitones above or below the note; far enough, the next partial speaks', min: -3, max: 3, step: 0.05, fmt: (v) => `${v > 0 ? '+' : ''}${fmt(v, 2)} st` },
+  { key: 'noise', label: 'Breath noise', short: 'noise', sub: 'turbulence in the lips’ slit', min: 0, max: 4, step: 0.01, fmt: (v) => fmt(v, 2) },
+  { key: 'vibrato', label: 'Vibrato', short: 'vibrato', sub: 'lip vibrato depth', min: 0, max: 0.01, step: 0.0005, fmt: (v) => fmt(v * 1000, 1) },
+];
 const TIMPANI_KNOBS: KnobSpec[] = [
   { key: 'mallet', label: 'Mallet', short: 'mallet', sub: 'the felt’s hardness: soft and round … hard, a short bright stroke', min: 0.25, max: 4, step: 0.01, log: true, fmt: (v) => `×${fmt(v, 2)}` },
   { key: 'spot', label: 'Strike point', short: 'spot', sub: 'out from the head’s centre (a fraction of its radius): the middle thumps, near the rim rings thin', min: 0.2, max: 0.9, step: 0.01, fmt: (v) => fmt(v, 2) },
@@ -90,7 +97,7 @@ const VISIBLE_PRESETS = ['grand', 'upright'];
 
 /** how many of each one lineup may have (a tap on its button adds one, past this it has none; a
  *  section's menu adds more desks, as far as the stage has room: assign.ts fitsStage) */
-const MOST: Record<Voice, number> = { flute: 2, oboe: 2, clarinet: 2, bassoon: 2, horn: 4, trumpet: 2, trombone: 3, timpani: 2, violin: 3, viola: 2, cello: 2, bass: 2, grand: 2, upright: 2 };
+const MOST: Record<Voice, number> = { flute: 2, oboe: 2, clarinet: 2, bassoon: 2, horn: 4, trumpet: 2, trombone: 3, tuba: 1, timpani: 2, violin: 3, viola: 2, cello: 2, bass: 2, grand: 2, upright: 2 };
 const familyOf = (v: Voice) => INSTRUMENT_INFO[VOICE_INFO[v].instrument].family;
 /** the picker's groups, as a score orders them after the keys: the eye finds a family, then the instrument */
 const GROUPS = ['keys', 'strings', 'woodwinds', 'brass', 'percussion'] as const;
@@ -668,7 +675,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   // ---------------------------------------------------------------- knobs
   const knobsFor = (id: InstrumentId) => {
     const f = INSTRUMENT_INFO[id].family;
-    return f === 'piano' ? PIANO_KNOBS : f === 'bowed' ? BOWED_KNOBS : f === 'percussion' ? TIMPANI_KNOBS : id === 'horn' ? HORN_KNOBS : id === 'trombone' ? TROMBONE_KNOBS : f === 'brass' ? TRUMPET_KNOBS : f === 'reed' ? OBOE_KNOBS : FLUTE_KNOBS;
+    return f === 'piano' ? PIANO_KNOBS : f === 'bowed' ? BOWED_KNOBS : f === 'percussion' ? TIMPANI_KNOBS : id === 'horn' ? HORN_KNOBS : id === 'tuba' ? TUBA_KNOBS : id === 'trombone' ? TROMBONE_KNOBS : f === 'brass' ? TRUMPET_KNOBS : f === 'reed' ? OBOE_KNOBS : FLUTE_KNOBS;
   };
   let knobEls: { c: KnobSpec; k: ReturnType<typeof knob> }[] = [];
   const currentParams = (): Record<string, number> => ({ ...(inst === 'piano' ? DEFAULT_PARAMS : {}), ...(audio.piano?.params ?? {}) }) as Record<string, number>;
@@ -728,6 +735,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   const bassoonState = newBassoonState();
   const hornState = newHornState();
   const tromboneState = newTromboneState();
+  const tubaState = newTubaState();
   const timpaniState = newTimpaniState();
   const roomState = newRoomState();
   const tdBuf = new Float32Array(2048);
@@ -884,7 +892,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       return {
         family: familyOf(p.voice),
         reed: p.voice === 'clarinet' || p.voice === 'bassoon' ? p.voice : 'oboe',
-        brass: p.voice === 'horn' ? 'horn' : p.voice === 'trombone' ? 'trombone' : 'trumpet',
+        brass: p.voice === 'horn' ? 'horn' : p.voice === 'trombone' ? 'trombone' : p.voice === 'tuba' ? 'tuba' : 'trumpet',
         tromboneSize: p.voice === 'trombone' ? (p.size ?? 'tenor') : undefined,
         kind: p.voice === 'upright' ? 'upright' : 'grand',
         fr: p.frame,
@@ -1113,6 +1121,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
         tromboneState.sizeHint = tromboneSizeOf((audio.piano?.params as Record<string, unknown> | undefined)?.size);
         (vec ? drawTromboneV : drawTrombone)(ctx, w, ih, frame, tromboneState, pl);
       }
+      // (the tuba too)
+      else if (inst === 'tuba') (vec ? drawTubaV : drawTuba)(ctx, w, ih, frame, tubaState, pl);
       else (vec ? drawTrumpetV : drawTrumpet)(ctx, w, ih, frame, trumpetState);
     } else if (family() === 'percussion') {
       // (the timpani keep clear of the file player at the top of the stage, as the reeds do)
@@ -1136,7 +1146,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     }
     const fam = family();
     const grand = fam === 'piano' && !(audio.preset === 'upright' || audio.preset === 'honky-tonk') && !ens;
-    const src = ens ? { x: w / 2, y: ih / 2 } : fam === 'piano' ? pianoState.src : fam === 'bowed' ? { x: w * 0.62, y: ih / 2 } : fam === 'brass' ? ((inst === 'horn' ? hornState : inst === 'trombone' ? tromboneState : trumpetState).src ?? { x: w * 0.85, y: ih * 0.55 }) : fam === 'reed' ? ((inst === 'clarinet' ? clarinetState : inst === 'bassoon' ? bassoonState : oboeState).src ?? { x: w * 0.8, y: ih * 0.5 }) : fam === 'percussion' ? (timpaniState.src ?? { x: w * 0.5, y: ih * 0.45 }) : { x: w * 0.5, y: ih * 0.45 };
+    const src = ens ? { x: w / 2, y: ih / 2 } : fam === 'piano' ? pianoState.src : fam === 'bowed' ? { x: w * 0.62, y: ih / 2 } : fam === 'brass' ? ((inst === 'horn' ? hornState : inst === 'trombone' ? tromboneState : inst === 'tuba' ? tubaState : trumpetState).src ?? { x: w * 0.85, y: ih * 0.55 }) : fam === 'reed' ? ((inst === 'clarinet' ? clarinetState : inst === 'bassoon' ? bassoonState : oboeState).src ?? { x: w * 0.8, y: ih * 0.5 }) : fam === 'percussion' ? (timpaniState.src ?? { x: w * 0.5, y: ih * 0.45 }) : { x: w * 0.5, y: ih * 0.45 };
     // (an ensemble's cells have no room drawn round them: its outline would cross the instruments)
     if (!in3d && !ens) (vec ? drawRoomV : drawRoom)(ctx, w, ih, roomState, src, roomVal(), rms, now, grand ? { open: lidVal(), dir: -Math.PI / 4 } : null);
     ctx.restore();
@@ -1158,7 +1168,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
         fr: frame,
         family: fam,
         reed: inst === 'clarinet' || inst === 'bassoon' ? inst : 'oboe',
-        brass: inst === 'horn' ? 'horn' : inst === 'trombone' ? 'trombone' : 'trumpet',
+        brass: inst === 'horn' ? 'horn' : inst === 'trombone' ? 'trombone' : inst === 'tuba' ? 'tuba' : 'trumpet',
         tromboneSize: inst === 'trombone' ? tromboneSizeOf(audio.piano?.params?.size) : undefined,
         kind: grand ? 'grand' : 'upright',
         keys,
