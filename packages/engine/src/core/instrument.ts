@@ -15,9 +15,14 @@ export const isBowed = (id: string): id is BowedId => id === 'violin' || id === 
  *  agree within 1 dB, and orchestral sound powers put a trombone with the other brass (Kahle 1995, Table 1,
  *  after J. Meyer, Acustica 71, 1990: trombone 101 dB re 1 pW, bassoon and clarinet 93, cello 90). Measured
  *  (scripts/audio-levels.ts, held, each voice's centre ±7 semitones): the trombone was 12 dB under the
- *  trumpet at ff, 18 dB at mf (audio audit 2). The Orchestra's bus counts a part at this level
+ *  trumpet at ff, 18 dB at mf (audio audit 2). The timpani were fitted at the level of their own session (VSCO 2
+ *  CE, shared with no other instrument here); the same table has them 1 dB under the trombone (timpani 100 dB
+ *  re 1 pW): a forte roll (G2, 12 strokes a second, v100) measured −23.9 LUFS against the trombone's held forte
+ *  −15.9 (with its 9 dB), the horn's −17.4 and the cello's −20.3, 3.6 dB under the cello the table puts 10 dB
+ *  below; with 7 dB, 1 dB under the trombone. Their loudest stroke (the top drum, v127) then peaks at +0.8
+ *  dBFS before the limiter, the low drums at −4…−7. The Orchestra's bus counts a part at this level
  *  (apps/web/src/orchestra/mix.ts), so a lineup of trombones alone sounds as it did. */
-export const PLAYBACK_DB: Partial<Record<InstrumentId, number>> = { trombone: 9 };
+export const PLAYBACK_DB: Partial<Record<InstrumentId, number>> = { trombone: 9, timpani: 7 };
 
 /** the instrument families: the piano, the bowed strings, the flute (an air jet), the reeds (the oboe: a
  *  double reed on a conical bore; the clarinet: a single reed on a cylinder; the bassoon: the oboe's double
