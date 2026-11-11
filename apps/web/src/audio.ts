@@ -3,7 +3,7 @@
 
 import { audibleTime, type ClockSource } from './clock.ts';
 import { CC_DYNAMICS, CC_REST, createInstrument, foresees, INSTRUMENT_INFO, processorUrl, type DesignEntry, type InstrumentId, type Piano, type Stats, type KeySummary } from '@piano-model/engine';
-import designUrls from 'virtual:piano-designs';
+import designUrls, { byPreset as designsByPreset } from 'virtual:piano-designs';
 import { diag } from './diag.ts';
 import { modLines, modValue, PartLevels, volumeRef, type PartLevel } from './expression.ts';
 import type { FileEvent, MidiSong } from './midi-file.ts';
@@ -11,11 +11,17 @@ import { FileKeys } from './file-keys.ts';
 
 // Fetch the start-up material as soon as the page loads, before anyone touches a
 // key: the piano's precomputed filter designs and the worklet script.
-const designFetch = new Map<number, Promise<DesignEntry[] | null>>();
-export const fetchDesigns = (fs: number): Promise<DesignEntry[] | null> => {
-  let p = designFetch.get(fs);
+// (The grand's at once; the upright's, shipped beside them, when it is the piano shown or the first
+// time it is asked for: its strings' filters used to be designed in the page then, a second of long
+// tasks on a computer and three to four on a phone before the pianos changed.)
+const designFetch = new Map<string, Promise<DesignEntry[] | null>>();
+/** the piano whose shipped designs a preset uses (the others are designed in the page) */
+const shippedFor = (preset: string): 'grand' | 'upright' | null => (preset === 'grand' || preset === 'upright' ? preset : null);
+export const fetchDesigns = (fs: number, preset: 'grand' | 'upright' = 'grand'): Promise<DesignEntry[] | null> => {
+  const id = `${preset}:${fs}`;
+  let p = designFetch.get(id);
   if (!p) {
-    const url = designUrls[fs];
+    const url = (preset === 'grand' ? designUrls : designsByPreset[preset])?.[fs];
     // bounded: a stalled or redirected request (e.g. an expired login on a protected
     // deployment) falls back to designing in the page instead of waiting forever
     const ac = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -24,7 +30,7 @@ export const fetchDesigns = (fs: number): Promise<DesignEntry[] | null> => {
     p = url
       ? fetch(url, { signal: ac?.signal, credentials: 'same-origin' })
           .then((r) => {
-            diag(`filter designs ${fs} Hz: HTTP ${r.status}${r.redirected ? ' (redirected)' : ''}`, `${Math.round(performance.now() - tf)} ms, ${r.headers.get('content-type') ?? '?'}`);
+            diag(`filter designs ${preset === 'grand' ? '' : `(${preset}) `}${fs} Hz: HTTP ${r.status}${r.redirected ? ' (redirected)' : ''}`, `${Math.round(performance.now() - tf)} ms, ${r.headers.get('content-type') ?? '?'}`);
             return r.ok ? (r.json() as Promise<DesignEntry[]>) : (console.warn(`filter designs: HTTP ${r.status} for ${url}; designing them here instead`), null);
           })
           .catch((e) => {
@@ -36,9 +42,9 @@ export const fetchDesigns = (fs: number): Promise<DesignEntry[] | null> => {
       : (diag(`filter designs ${fs} Hz: none shipped for this rate`), Promise.resolve(null));
     // a failed fetch is not cached: the next start tries again
     void p.then((d) => {
-      if (!d) designFetch.delete(fs);
+      if (!d) designFetch.delete(id);
     });
-    designFetch.set(fs, p);
+    designFetch.set(id, p);
   }
   return p;
 };
@@ -297,7 +303,9 @@ class AudioApp {
         diag('STALLED after 3 s', `context ${ctx.state}`);
         this.setStatus('stalled');
       }, 3000);
-      const designs = await fetchDesigns(ctx.sampleRate);
+      // (the designs of the piano it starts as: the upright's own on /piano/upright, where the grand's
+      // left the audio thread to design the upright's strings itself)
+      const designs = await fetchDesigns(ctx.sampleRate, (this.instrument === 'piano' && shippedFor(this.preset)) || 'grand');
       if (!live()) return;
       diag('filter designs', designs ? `${designs.length} shipped for ${ctx.sampleRate} Hz` : `none for ${ctx.sampleRate} Hz: designing in the page`);
       // the engine is returned as soon as its node exists; "started" is the context running and
@@ -369,6 +377,8 @@ class AudioApp {
       const q = this.queue;
       this.queue = [];
       for (const fn of q) fn(piano);
+      // the other piano's designs, fetched while nothing waits on them (a change of piano then has them)
+      if (this.instrument === 'piano') window.setTimeout(() => live() && void fetchDesigns(ctx.sampleRate, this.preset === 'upright' ? 'grand' : 'upright'), 1500);
     })().catch((err: unknown) => {
       window.clearTimeout(watchdog);
       if (!live()) return;
@@ -606,7 +616,17 @@ class AudioApp {
   async setPreset(id: string): Promise<void> {
     const changed = id !== this.preset;
     this.preset = id;
-    this.presetSettled = this.piano ? this.piano.setPreset(id) : Promise.resolve();
+    const piano = this.piano;
+    const shipped = shippedFor(id);
+    // the piano's shipped designs first (fetched, not designed in the page: a file's request, or
+    // nothing if it has come already), then the change; a later change overtakes one still waiting
+    this.presetSettled = !piano
+      ? Promise.resolve()
+      : (shipped && this.ctx ? fetchDesigns(this.ctx.sampleRate, shipped) : Promise.resolve(null)).then((d) => {
+          if (this.preset !== id || this.piano !== piano) return;
+          if (d) piano.addDesigns(d);
+          return piano.setPreset(id);
+        });
     if (changed) this.presetChanged.emit(id);
     await this.presetSettled;
   }

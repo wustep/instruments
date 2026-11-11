@@ -123,3 +123,51 @@ test('a piece playing plays on through a change of piano: no silence where the p
   for (const f of post) expect(f.rms / ref, `${f.t.toFixed(0)} ms`).toBeGreaterThan(0.1);
   expect(errors).toEqual([]);
 });
+
+// The upright's string filters are shipped as the grand's are (vite.config.ts). They used to be designed
+// in the page the first time the upright was asked for (a second of long tasks on a computer, three to
+// four on a phone, before the pianos changed), and on the audio thread when the page opened on
+// /piano/upright (0.7 s before the first sound).
+test('the first change to the upright is as quick as the next: its designs are fetched, not worked out in the page', async ({ page }) => {
+  const errors = collectErrors(page);
+  const asked: string[] = [];
+  page.on('request', (r) => /\/designs\//.test(r.url()) && asked.push(new URL(r.url()).pathname));
+  await page.goto('/piano?view=2d');
+  await startAudio(page);
+  await page.waitForTimeout(300);
+  const ms = await page.evaluate(async () => {
+    const t0 = performance.now();
+    ([...document.querySelectorAll('.presets button')].find((b) => b.textContent!.trim() === 'upright') as HTMLElement).click();
+    await (window as any).__piano.presetSettled;
+    return performance.now() - t0;
+  });
+  expect(await page.evaluate(() => (window as any).__piano.piano.preset)).toBe('upright');
+  // (it took a second here before; the fetch of a file is the most of it now)
+  expect(ms).toBeLessThan(450);
+  expect(asked.some((u) => /\/designs\/upright-\d+\./.test(u))).toBe(true);
+  // and it plays
+  await page.evaluate(() => (window as any).__piano.noteOn(60, 0.7, 'midi'));
+  await expect.poll(() => page.evaluate(() => (window as any).__piano.isSounding(60))).toBe(true);
+  await page.evaluate(() => (window as any).__piano.noteOff(60, 'midi'));
+  expect(errors).toEqual([]);
+});
+
+test('/piano/upright starts on the upright’s own shipped designs: the audio thread builds it in a moment', async ({ page }) => {
+  const errors = collectErrors(page);
+  const asked: string[] = [];
+  page.on('request', (r) => /\/designs\//.test(r.url()) && asked.push(new URL(r.url()).pathname));
+  await page.goto('/piano/upright?view=2d');
+  await page.waitForTimeout(600);
+  await startAudio(page);
+  const t = await page.evaluate(async () => {
+    const p = (window as any).__piano.piano;
+    await p.ready;
+    return { initMs: p.initMs as number, preset: p.preset as string, keys: p.keys.length as number };
+  });
+  expect(t.preset).toBe('upright');
+  expect(t.keys).toBe(88);
+  // (the worklet's constructor: about 13 ms with the designs; it was about 680 ms, designing them itself)
+  expect(t.initMs).toBeLessThan(150);
+  expect(asked.some((u) => /\/designs\/upright-\d+\./.test(u))).toBe(true);
+  expect(errors).toEqual([]);
+});
