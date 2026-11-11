@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://instruments-wustep.vercel.app/orchestra"><img src="apps/web/public/og/instruments.jpg" alt="An orchestra in 3D on dark risers: timpani, horns, trumpets, bassoons, oboes, clarinets, flutes, violins, viola, cello and double bass, under the title Instruments: computed from physics, not samples." width="100%" /></a>
+  <a href="https://instruments-wustep.vercel.app/piano?view=3d"><img src="apps/web/public/og/instruments-grand.jpg" alt="A 3D grand piano with its lid raised, lit by a single pool of light, beside the title Instruments." width="100%" /></a>
 </p>
 
 # Instruments
