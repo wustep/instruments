@@ -283,6 +283,9 @@ export class BassoonCore implements InstrumentCore {
   /** the radiation's corner for the note at ff (Hz), and the corner its section now has */
   private lpNote = 4000;
   private lpSet = -1;
+  /** the corner as it glides to the note's and the dynamic's (Hz; −1: none yet, a note from silence
+   *  takes its own at once) */
+  private lpNow = -1;
   /** the note's level across the compass (tilt), and as the output last had it (eased across a block) */
   private tiltNote = 1;
   private tiltOut = 1;
@@ -370,6 +373,7 @@ export class BassoonCore implements InstrumentCore {
     // the radiation's corner for this note (the dynamic moves it further: render())
     this.lpNote = V.lp * Math.pow(f / 440, V.lpExp);
     this.lpSet = -1;
+    if (immediate) this.lpNow = -1;
     this.note = m;
     this.formant();
     this.tiltNote = Math.pow(f / et(BASSOON_LO), V.tilt / 6.0206);
@@ -472,6 +476,7 @@ export class BassoonCore implements InstrumentCore {
   }
 
   private clear(): void {
+    this.lpNow = -1;
     this.longB.fill(0);
     this.apexB.fill(0);
     this.rx1 = this.rx2 = this.ry1 = this.ry2 = this.sx1 = this.sx2 = this.sy1 = this.sy2 = this.wy = 0;
@@ -553,9 +558,13 @@ export class BassoonCore implements InstrumentCore {
     // the radiation's corner for the note and the dynamic, written into its section in place (only when
     // it moves: a swell's glide)
     const lpF = Math.min(0.45 * fs, this.lpNote * Math.pow(2, V.lpDyn * (vc - 1)));
-    if (Math.abs(lpF - this.lpSet) > 0.5) {
-      lowpassInto(this.eq.c, 5 * LP_SECTION, lpF, V.lpQ, fs);
-      this.lpSet = lpF;
+    // the corner glides there (a time constant, in octaves): switched in one step, the section's
+    // coefficients changed under a sounding tone and the output jumped (audio audit, Nov 2026: a
+    // re-tongued note at another dynamic, or a leap, while the last still sounded)
+    this.lpNow = this.lpNow < 0 ? lpF : this.lpNow * Math.pow(lpF / this.lpNow, 1 - Math.exp(-dt / LP_GLIDE));
+    if (Math.abs(this.lpNow - this.lpSet) > 0.5) {
+      lowpassInto(this.eq.c, 5 * LP_SECTION, this.lpNow, V.lpQ, fs);
+      this.lpSet = this.lpNow;
     }
     const nzF = V.noiseFloor * P.noise * gamma;
     // (Newton's method below needs zeta/2 < 1: the flow's slope never turns the solution back)
@@ -782,6 +791,8 @@ export class BassoonCore implements InstrumentCore {
 /** the radiation chain's low-pass section (voiced(): high-pass, low shelf, two formants, low-pass, shelf),
  *  and its first formant's */
 const LP_SECTION = 4;
+/** the brightness corner's glide to a new note or dynamic (s): within the attack, slower than a click */
+const LP_GLIDE = 0.01;
 const F1_SECTION = 2;
 /** RBJ peaking coefficients [b0,b1,b2,a1,a2] written into c at `at` (no allocation) */
 function peakingInto(c: Float64Array, at: number, f: number, q: number, gainDb: number, fs: number): void {

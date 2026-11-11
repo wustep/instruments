@@ -302,6 +302,8 @@ const SIGMA = 0.264;
 const EH = (4.9e9 * 1.9e-4) / (1 - 0.38);
 /** modes per drum (the lowest by frequency, cos mθ only: the strike at θ = 0 cannot excite the sin mθ twins) */
 const NMODE = 96;
+/** the fingers stopping a ringing head before its pedal moves (1/s: amplitude τ = 10 ms, −60 dB in 70 ms) */
+const STOP = 100;
 /** the visual's modes per drum */
 const NVIS = 14;
 const TRACE = 1024;
@@ -626,6 +628,9 @@ export class TimpaniCore implements InstrumentCore {
   dry: boolean;
   private V: TimpaniVoice;
   private drums: Drum[];
+  /** a spare head per drum: a drum retuned while it rings hands its head here, to ring out under the fingers
+   *  (STOP) while the drum, retuned, is struck; allocated with the drums, swapped (nothing allocated) */
+  private spare: Drum[];
   private queue: { frame: number; ev: PianoEvent | { type: 'control'; cc: number; value: number } }[] = [];
   private rng: () => number;
   /** the two mallets (left hand, right hand) */
@@ -663,14 +668,15 @@ export class TimpaniCore implements InstrumentCore {
     this.room = new Room(this.fs);
     this.limiter = new Limiter(this.fs);
     this.drums = this.build();
+    this.spare = this.build(undefined, 4800);
     this.voiced();
     this.freqsOf(this.drums[this.last]);
   }
 
-  private build(notes?: number[]): Drum[] {
+  private build(notes?: number[], seed = 4700): Drum[] {
     const spot = clamp(this.params.spot, 0.05, 0.95);
     return TIMPANI_DRUMS.map((spec, i) => {
-      const d = new Drum(spec, this.V, this.fs, playerSeed(4700 + i, this.player));
+      const d = new Drum(spec, this.V, this.fs, playerSeed(seed + i, this.player));
       const m = notes ? notes[i] : spec.rest + this.off();
       if (m !== d.note || spot !== TIMPANI_SPOT) d.tune(m, this.V, this.fs, spot);
       d.noteNow = m;
@@ -763,12 +769,27 @@ export class TimpaniCore implements InstrumentCore {
         while (m > TIMPANI_HI) m -= 12;
         const di = this.drumFor(m);
         if (di < 0) return;
-        const d = this.drums[di];
+        let d = this.drums[di];
         const target = m + this.off();
         if (Math.abs(d.note - target) > 0.01) {
-          // retuned: the player has stopped it first
+          // retuned: the player stops the head first. A ringing one is handed to the spare and rings out
+          // under the fingers (STOP) while the drum takes the new note; cleared at once, its sound stopped
+          // in one sample (audio audit, Nov 2026: a step up to 12× the tone's own at the stroke)
           for (const mm of this.mallets) if (mm.drum === di) mm.drum = -1;
-          d.clear();
+          if (d.peak > 0) {
+            const s = this.spare[di];
+            s.clear();
+            s.noteNow = d.noteNow;
+            s.bend = d.bend;
+            s.bendTarget = d.bendTarget;
+            this.spare[di] = d;
+            this.drums[di] = s;
+            d.held = false;
+            d.rollNext = -1;
+            d.key = -1;
+            d.extra = STOP;
+            d = s;
+          } else d.clear();
           d.tune(target, this.V, this.fs, clamp(this.params.spot, 0.05, 0.95));
         }
         d.key = ev.midi;
@@ -829,6 +850,7 @@ export class TimpaniCore implements InstrumentCore {
     if (this.params.voice !== old.voice) {
       this.V = { ...TIMPANI_VOICE, ...this.params.voice };
       this.drums = this.build(this.drums.map((d) => d.note));
+      this.spare = this.build(undefined, 4800);
       for (const mm of this.mallets) mm.drum = -1;
       this.voiced();
     } else {
@@ -852,7 +874,7 @@ export class TimpaniCore implements InstrumentCore {
   }
 
   allSoundOff(): void {
-    for (const d of this.drums) {
+    for (const d of [...this.drums, ...this.spare]) {
       d.clear();
       d.held = false;
       d.rollNext = -1;
@@ -932,8 +954,10 @@ export class TimpaniCore implements InstrumentCore {
     const maxContact = Math.round(0.03 * fs);
     const kHi = Math.pow(10, V.hiGain / 20) / fs;
     const force = this.force;
-    for (let di = 0; di < this.drums.length; di++) {
-      const d = this.drums[di];
+    // the drums, then the spare heads still ringing out (no mallet is ever on a spare)
+    const nd = this.drums.length;
+    for (let di = 0; di < 2 * nd; di++) {
+      const d = di < nd ? this.drums[di] : this.spare[di - nd];
       const ml = this.mallets[0].drum === di ? this.mallets[0] : this.mallets[1].drum === di ? this.mallets[1] : null;
       if (!ml && d.peak === 0) continue;
       // the pedal (the wheel) glides; the head's strain sets its tension (time constants: the block's length
