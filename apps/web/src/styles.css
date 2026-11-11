@@ -2057,39 +2057,58 @@ figure[title] {
   margin-top: 48px;
 }
 .notes .credit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.2em 0.7em;
   margin: 36px 0 0;
   padding-top: 18px;
   border-top: 1px solid var(--rule);
   font: italic 400 14px/1.5 var(--serif);
   color: var(--ink-2);
 }
+.notes .credit-line {
+  margin: 0;
+}
+.notes .credit-icons {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45em;
+  flex: 0 0 auto;
+}
 .notes .credit-icon {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  margin: 0 1px 0 6px;
-  vertical-align: -7px;
+  width: 0.82em;
+  height: 0.82em;
+  margin: 0;
+  padding: 0;
   color: inherit;
   background: none;
   border: none;
-  border-radius: 3px;
   text-decoration: none;
-}
-.notes .credit-icon:last-of-type {
-  margin-right: 7px;
+  /* flex baseline is the box bottom; sit it on the type baseline */
 }
 .notes .credit-icon:hover,
 .notes .credit-icon:focus-visible {
   color: var(--ink);
   outline: none;
+}
+.notes .credit-icon:focus-visible {
+  border-radius: 2px;
   box-shadow: 0 0 0 1px rgba(242, 166, 70, 0.8);
 }
 .notes .credit-icon svg {
-  width: 14px;
-  height: 14px;
+  width: 100%;
+  height: 100%;
   display: block;
+}
+.notes .credit-icon[href='https://x.com/wustep'] {
+  /* the filled X reads heavier than the stroked globe at the same box */
+  width: 0.72em;
+  height: 0.72em;
 }
 @media (max-width: 600px) {
   .notes h2.sec {
