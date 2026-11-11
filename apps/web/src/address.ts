@@ -8,9 +8,10 @@
 //             &keys=1.3&view=3d&expr=on
 //
 //   v      the format: 1 (absent: 1; any other: the setup is not read, the Orchestra opens as it was)
-//   seats  the instruments on the stage in seating order, seat 1 first (the audience's left):
-//          grand upright violin viola cello bass flute oboe clarinet bassoon horn trumpet trombone timpani, any of them more
-//          than once
+//   seats  the instruments on the stage, seat 1 first: a few players sit on an arc in this order (seat 1 at the
+//          audience's left), five or more where an orchestra seats them (orchestra/seats.ts), each kind in this
+//          order (the first half of the violins are the firsts): grand upright violin viola cello bass flute oboe
+//          clarinet bassoon horn trumpet trombone timpani, any of them more than once
 //   lines  a file's lines in the file's order, each name~program:seats: its track name (+ for a
 //          space), its General MIDI program, the seats that play it (1.3: seats 1 and 3; -: none,
 //          silent); the name or the program may be left out. A file dropped in later is matched by

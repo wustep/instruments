@@ -16,7 +16,8 @@ import { BASSOON_SEAT, BASSOON_VIEW, BASSOON_WIDE, buildBassoonModel, poseBassoo
 import { HORN_HELD, HORN_SEAT, HORN_VIEW, buildHornModel, poseHorn, type HornModel } from './horn3d.ts';
 import { TROMBONE_SEAT, TROMBONE_VIEW, buildTromboneModel, poseTrombone, tromboneSizeIn, type TromboneModel } from './trombone3d.ts';
 import { TIMPANI_SEAT, TIMPANI_VIEW, buildTimpaniModel, newTimpaniPose, poseTimpani, type TimpaniModel, type TimpaniPose } from './timpani3d.ts';
-import { seatPlaces } from '../../orchestra/seats.ts';
+import { TALL, seatPlaces, seatRisers, type Inst, type Riser, type SeatKind } from '../../orchestra/seats.ts';
+import { M, MeshBuilder, extrude, fanCap } from './mesh.ts';
 
 export { keyX3 } from './piano3d.ts';
 
@@ -52,6 +53,9 @@ export interface SceneIn {
   ensemble?: EnsPartIn[] | null;
   /** the stage's width over its height (an ensemble's seating and framing follow it) */
   aspect?: number;
+  /** how much of the stage's height something lies over at its top (the file player), as a share of it:
+   *  an ensemble is framed under it */
+  clearTop?: number;
 }
 
 /** one instrument of an ensemble on the 3D stage */
@@ -324,7 +328,7 @@ function tromboneModel(st: Scene3State, size: string): TromboneModel {
 
 /** default cameras: a three-quarter view from the audience's side, a little above */
 export function viewFor(si: SceneIn, st: Scene3State): View3 {
-  if (si.ensemble?.length) return ensembleView(si.ensemble, si.aspect);
+  if (si.ensemble?.length) return ensembleView(si.ensemble, si.aspect, si.clearTop);
   // the grand from the treble front corner (as in Steinway's own photographs), above the rim so the
   // plate and strings show; the upright from the treble side, a little above the keys, into the action
   // (an upright is wider than it is tall: on a phone held upright it is seen from further round its
@@ -395,14 +399,16 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
 
 
 // ================================================================ orchestra mode
-/** where an ensemble's instruments sit: the melodic ones on an arc opening towards the audience (the
- *  first at the audience's left, as a quartet sits: first violin, second, viola, cello), held about
- *  where a seated player holds them, each turned to show its best side (the single instrument's hero
- *  angle); the pianos behind, side-on with the lid open towards the audience. A tall, narrow stage (a
- *  phone held upright) seats them in two rows. */
+/** where an ensemble's instruments sit (orchestra/seats.ts): a few on an arc opening towards the audience
+ *  (the first at the audience's left, as a quartet sits), five or more as an orchestra (the strings in
+ *  front, the woodwinds behind them, the brass and timpani at the back, each row behind the strings a
+ *  riser higher); held about where a seated player holds them, each turned to show its best side (the
+ *  single instrument's hero angle); the pianos side-on with the lid open towards the audience. A tall,
+ *  narrow stage (a phone held upright) seats them in more, shorter rows. */
 export interface Seat {
   T: Mat4;
-  /** the seat's footprint centre (x, z), a radius and the instrument's height, for the floor and the framing */
+  /** the seat's footprint centre (x, the riser's height, z), a radius and the instrument's top (world y),
+   *  for the floor, the framing and a tap */
   c: Vec3;
   r: number;
   top: number;
@@ -410,17 +416,20 @@ export interface Seat {
 /** a held instrument's lift above its single-instrument pose (m) */
 const HELD = 0.42;
 type SeatIn = Pick<EnsPartIn, 'family' | 'kind' | 'bowed'> & { reed?: EnsPartIn['reed']; brass?: EnsPartIn['brass'] };
+/** a part as the seating takes it */
+const seatKind = (p: SeatIn): SeatKind => {
+  const id = p.bowed?.id;
+  const inst: Inst = p.family === 'piano' ? p.kind : p.family === 'bowed' ? (id === 'viola' || id === 'cello' || id === 'bass' ? id : 'violin') : p.family === 'wind' ? 'flute' : p.family === 'reed' ? (p.reed ?? 'oboe') : p.family === 'brass' ? (p.brass ?? 'trumpet') : 'timpani';
+  return { family: p.family, kind: p.kind, cello: inst === 'cello' || inst === 'bass', bass: inst === 'bass', inst };
+};
 export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
-  const places = seatPlaces(
-    parts.map((p) => ({ family: p.family, kind: p.kind, cello: p.family === 'bowed' && (p.bowed?.id === 'cello' || p.bowed?.id === 'bass'), bass: p.family === 'bowed' && p.bowed?.id === 'bass' })),
-    aspect,
-  );
+  const places = seatPlaces(parts.map(seatKind), aspect);
   return parts.map((p, i) => {
-    const { x, z, face } = places[i];
+    const { x, z, face, y } = places[i];
     if (p.family === 'piano') {
       // a grand side-on, its open lid towards the audience; an upright faces them
-      const T = p.kind === 'grand' ? chain(translate(x - 1.0, 0, z), rotY(Math.PI / 2)) : chain(translate(x, 0, z - 0.1), rotY(Math.PI));
-      return { T, c: [x, 0, z], r: 1.05, top: 1.75 };
+      const T = p.kind === 'grand' ? chain(translate(x - 1.0, y, z), rotY(Math.PI / 2)) : chain(translate(x, y, z - 0.1), rotY(Math.PI));
+      return { T, c: [x, y, z], r: 1.05, top: y + 1.75 };
     }
     // held about where a seated player holds it, turned to its hero angle (the single instrument's
     // camera yaw); the renderer's world is mirrored in x: −x is the audience's left
@@ -429,27 +438,85 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
     const wind = p.family !== 'bowed';
     // (a bassoon is held diagonally, its boot by the seated player's right thigh, its bell up past the
     // left shoulder: bassoon3d.ts BASSOON_SEAT)
-    if (p.family === 'reed' && p.reed === 'bassoon') return { T: chain(translate(x, BASSOON_SEAT.y, z), rotY(face + BASSOON_SEAT.turn), rotZ(BASSOON_SEAT.lean)), c: [x, 0, z], r: 0.42, top: BASSOON_SEAT.top };
+    if (p.family === 'reed' && p.reed === 'bassoon') return { T: chain(translate(x, y + BASSOON_SEAT.y, z), rotY(face + BASSOON_SEAT.turn), rotZ(BASSOON_SEAT.lean)), c: [x, y, z], r: 0.42, top: y + BASSOON_SEAT.top };
     // (a horn is held as a seated player holds it: the valves up under the left hand, the bell down by
     // the right thigh, its mouth back: horn3d.ts HORN_SEAT)
-    if (p.family === 'brass' && p.brass === 'horn') return { T: chain(translate(x, HORN_SEAT.y, z), rotY(face + HORN_SEAT.turn)), c: [x, 0, z], r: 0.42, top: HORN_SEAT.top };
+    if (p.family === 'brass' && p.brass === 'horn') return { T: chain(translate(x, y + HORN_SEAT.y, z), rotY(face + HORN_SEAT.turn)), c: [x, y, z], r: 0.42, top: y + HORN_SEAT.top };
     // (a trombone is held as a seated player holds it: the slide forward and a little down, the bell over
     // the left shoulder towards the audience: trombone3d.ts TROMBONE_SEAT, TROMBONE_HELD)
-    if (p.family === 'brass' && p.brass === 'trombone') return { T: chain(translate(x, TROMBONE_SEAT.y, z), rotY(face + TROMBONE_SEAT.turn)), c: [x, 0, z + TROMBONE_SEAT.dz], r: TROMBONE_SEAT.r, top: TROMBONE_SEAT.top };
-    // (the timpani stand on the floor in their arc, their player's place behind them: timpani3d.ts)
-    if (p.family === 'percussion') return { T: chain(translate(x, 0, z), rotY(face)), c: [x, 0, z], r: TIMPANI_SEAT.r, top: TIMPANI_SEAT.top };
+    if (p.family === 'brass' && p.brass === 'trombone') return { T: chain(translate(x, y + TROMBONE_SEAT.y, z), rotY(face + TROMBONE_SEAT.turn)), c: [x, y, z + TROMBONE_SEAT.dz], r: TROMBONE_SEAT.r, top: y + TROMBONE_SEAT.top };
+    // (the timpani stand on the floor (or their riser) in their arc, their player's place behind them: timpani3d.ts)
+    if (p.family === 'percussion') return { T: chain(translate(x, y, z), rotY(face)), c: [x, y, z], r: TIMPANI_SEAT.r, top: y + TIMPANI_SEAT.top };
     let T: Mat4;
-    if (cello) T = chain(translate(x, 0, z), rotY(face - 0.62));
-    else if (p.family === 'bowed') T = chain(translate(x, HELD, z), rotY(face + 0.5));
+    if (cello) T = chain(translate(x, y, z), rotY(face - 0.62));
+    else if (p.family === 'bowed') T = chain(translate(x, y + HELD, z), rotY(face + 0.5));
     // (an oboe is held as the flute is, its middle level with the flute's, slanting down from the
     // player's mouth: its own model stands 0.13 m higher, oboe3d.ts OBOE_POSE)
-    else if (p.family === 'reed') T = chain(translate(x, HELD + 0.4 - 0.13, z), rotY(face - 0.32));
+    else if (p.family === 'reed') T = chain(translate(x, y + HELD + 0.4 - 0.13, z), rotY(face - 0.32));
     // (a flute or trumpet is held higher, level with the player's mouth)
-    else T = chain(translate(x, HELD + 0.4, z), rotY(face - 0.3));
+    else T = chain(translate(x, y + HELD + 0.4, z), rotY(face - 0.3));
     // (a bass stands 1.97 m to its scroll's top, strings3d.ts SPEC.bass: framed to 2.15, headroom for
     // the scroll, the stage's highest point, under the file player; the oboe's reed reaches 1.17 m)
-    return { T, c: [x, 0, z], r: bass ? 0.6 : cello ? 0.45 : 0.36, top: bass ? 2.15 : cello ? 1.5 : p.family === 'reed' ? HELD + 0.78 : wind ? HELD + 0.62 : HELD + 0.38 };
+    return { T, c: [x, y, z], r: bass ? 0.6 : cello ? 0.45 : 0.36, top: y + (bass ? 2.15 : cello ? 1.5 : p.family === 'reed' ? HELD + 0.78 : wind ? HELD + 0.62 : HELD + 0.38) };
   });
+}
+/** the risers an ensemble's rows stand on (none for a few players) */
+export const ensembleRisers = (parts: SeatIn[], aspect = 2): Riser[] => seatRisers(parts.map(seatKind), aspect);
+
+/** a riser: a stepped platform of the stage, an arc round the podium, its top edge chamfered (2 cm), a
+ *  dark stained wood top over a black fascia */
+const RISER_TOP = M.caseInner;
+const RISER_SIDE = M.caseRaw;
+function riserMesh(r: Riser): Mesh {
+  const mb = new MeshBuilder();
+  const n = Math.max(8, Math.ceil(((r.a1 - r.a0) * r.r1) / 0.12));
+  const ch = Math.min(0.02, r.y / 3);
+  /** the outline (front arc, then the back arc returned), inset by d metres */
+  const outline = (d: number): [number, number][] => {
+    const pts: [number, number][] = [];
+    // (an inset of d along the arcs is d/R in angle: the ends drawn in by it)
+    const a0 = r.a0 + d / r.r0;
+    const a1 = r.a1 - d / r.r0;
+    const b0 = r.a0 + d / r.r1;
+    const b1 = r.a1 - d / r.r1;
+    for (let k = 0; k <= n; k++) {
+      const a = a0 + ((a1 - a0) * k) / n;
+      pts.push([(r.r0 + d) * Math.sin(a), r.zc + (r.r0 + d) * Math.cos(a)]);
+    }
+    for (let k = n; k >= 0; k--) {
+      const a = b0 + ((b1 - b0) * k) / n;
+      pts.push([(r.r1 - d) * Math.sin(a), r.zc + (r.r1 - d) * Math.cos(a)]);
+    }
+    return pts;
+  };
+  const side = outline(0);
+  const top = outline(ch);
+  // the sides (smooth along the arcs, a crease at the four corners), the chamfer, the top
+  extrude(mb, side, 0, r.y - ch, RISER_SIDE, { smooth: 0.9, top: false, bottom: false });
+  for (let i = 0; i < side.length; i++) {
+    const j = (i + 1) % side.length;
+    const a0: Vec3 = [side[i][0], r.y - ch, side[i][1]];
+    const b0: Vec3 = [side[j][0], r.y - ch, side[j][1]];
+    const a1: Vec3 = [top[i][0], r.y, top[i][1]];
+    const b1: Vec3 = [top[j][0], r.y, top[j][1]];
+    // (wound so its normal looks outwards and up)
+    mb.quad(a0, a1, b1, b0, RISER_SIDE);
+  }
+  fanCap(mb, top, r.y, RISER_TOP, true);
+  return mb.build();
+}
+/** an ensemble's risers, built once per shape */
+function drawRisers(b: Batch, st: Scene3State, rs: Riser[]): void {
+  for (const r of rs) {
+    const key = `riser:${[r.zc, r.r0, r.r1, r.a0, r.a1, r.y].map((v) => v.toFixed(3)).join(',')}`;
+    let m = st.floors.get(key);
+    if (!m) {
+      const rr = r;
+      m = timed(st, () => riserMesh(rr));
+      st.floors.set(key, m);
+    }
+    b.mesh(m);
+  }
 }
 
 function ensSeat(st: Scene3State, i: number, key: string): EnsSeat {
@@ -520,19 +587,36 @@ function buildEnsemble(b: Batch, si: SceneIn, parts: EnsPartIn[], st: Scene3Stat
       hi[k] = Math.max(hi[k], seat.c[k] + seat.r);
     }
   });
+  // the risers the rows behind the strings stand on (an orchestra's), inside the same bounds
+  const rs = ensembleRisers(parts, si.aspect);
+  drawRisers(b, st, rs);
+  for (const q of rs)
+    for (const a of [q.a0, q.a1, (q.a0 + q.a1) / 2])
+      for (const R of [q.r0, q.r1]) {
+        lo[0] = Math.min(lo[0], R * Math.sin(a));
+        hi[0] = Math.max(hi[0], R * Math.sin(a));
+        lo[2] = Math.min(lo[2], q.zc + R * Math.cos(a));
+        hi[2] = Math.max(hi[2], q.zc + R * Math.cos(a));
+      }
   const c: Vec3 = [(lo[0] + hi[0]) / 2, 0.6, (lo[2] + hi[2]) / 2];
   const r = Math.max(1, 0.5 * Math.hypot(hi[0] - lo[0], hi[2] - lo[2], 1.5));
   b.bounds = { c, r };
   floor(b, st, 'ensemble', c, r, null);
 }
 
-/** the camera for an ensemble: from the audience, a little above the players, every instrument in
- *  frame. Each seat's box is projected through the stage's lens (24° vertical; the views' distances are
- *  in units stage3d scales by FRAME) and the distance found that fits them all. */
+/** the camera for an ensemble: from the audience, a little above the players (higher over an orchestra's
+ *  rows, more so on a phone held upright, so the rows behind show over the ones in front), every instrument
+ *  in frame and under what lies over the stage's top (`clearTop`, a share of its height). Each seat's box
+ *  (from its riser to its top) and the risers' corners are projected through the stage's lens (24°
+ *  vertical; the views' distances are in units stage3d scales by FRAME) and the distance found that fits
+ *  them all. */
 const ENS_FOV = (24 * Math.PI) / 180;
 const ENS_FRAME = Math.tan(0.3) / Math.tan(ENS_FOV / 2);
-export function ensembleView(parts: EnsPartIn[], aspect = 2): View3 {
+/** an orchestra's camera height (radians above level): a computer's stage, a phone's held upright */
+export const ORCH_PITCH = { wide: 0.5, tall: 0.66 };
+export function ensembleView(parts: EnsPartIn[], aspect = 2, clearTop = 0): View3 {
   const seats = ensembleSeats(parts, aspect);
+  const rs = ensembleRisers(parts, aspect);
   let x0 = Infinity;
   let x1 = -Infinity;
   let z0 = Infinity;
@@ -546,7 +630,7 @@ export function ensembleView(parts: EnsPartIn[], aspect = 2): View3 {
     top = Math.max(top, s.top);
   }
   const yaw = 0;
-  const pitch = parts.some((p) => p.family === 'piano') ? 0.42 : top > 1.5 ? 0.36 : 0.32;
+  const pitch = rs.length ? (aspect < TALL ? ORCH_PITCH.tall : ORCH_PITCH.wide) : parts.some((p) => p.family === 'piano') ? 0.42 : top > 1.5 ? 0.36 : 0.32;
   const target: Vec3 = [(x0 + x1) / 2, top * 0.42, (z0 + z1) / 2];
   const dir: Vec3 = [Math.cos(pitch) * Math.sin(yaw), Math.sin(pitch), -Math.cos(pitch) * Math.cos(yaw)];
   const f: Vec3 = [-dir[0], -dir[1], -dir[2]];
@@ -556,7 +640,12 @@ export function ensembleView(parts: EnsPartIn[], aspect = 2): View3 {
   const tanV = Math.tan(ENS_FOV / 2);
   const tanH = tanV * Math.max(0.4, aspect);
   const pts: Vec3[] = [];
-  for (const s of seats) for (const dx of [-1, 1]) for (const dz of [-1, 1]) for (const y of [0, s.top]) pts.push([s.c[0] + dx * s.r, y, s.c[2] + dz * s.r]);
+  for (const s of seats) for (const dx of [-1, 1]) for (const dz of [-1, 1]) for (const y of [s.c[1], s.top]) pts.push([s.c[0] + dx * s.r, y, s.c[2] + dz * s.r]);
+  for (const q of rs) for (const a of [q.a0, q.a1]) for (const R of [q.r0, q.r1]) pts.push([R * Math.sin(a), 0, q.zc + R * Math.cos(a)]);
+  // the picture's window (NDC): the stage's, less a margin, and (an orchestra's back row reaches the top
+  // middle, where the file player is) less what lies over its top
+  const yb = -0.93;
+  const yt = Math.max(yb + 1, 0.93 - 2 * (rs.length ? Math.max(0, Math.min(0.4, clearTop)) : 0));
   /** the points' extent on screen (NDC) from distance D */
   const extent = (D: number) => {
     const E: Vec3 = [target[0] + D * dir[0], target[1] + D * dir[1], target[2] + D * dir[2]];
@@ -581,16 +670,24 @@ export function ensembleView(parts: EnsPartIn[], aspect = 2): View3 {
     for (let k = 0; k < 30; k++) {
       const mid = (lo + hi) / 2;
       const e = extent(mid);
-      if (e.near > 0.2 && e.xm <= 0.96 && e.y1 - e.y0 <= 1.86) hi = mid;
+      if (e.near > 0.2 && e.xm <= 0.96 && e.y1 - e.y0 <= yt - yb) hi = mid;
       else lo = mid;
     }
     return hi;
   };
-  // fit, centre the picture vertically (the near floor reaches lower than the scrolls reach up), fit again
+  // an orchestra is framed on its middle (the podium, x = 0: the timpani hang off the brass row's left end)
+  // when that costs no more than a few per cent of its size, else on its extent's middle
+  if (rs.length) {
+    const t0 = target[0];
+    const D0 = fit();
+    target[0] = 0;
+    if (fit() > D0 * 1.03) target[0] = t0;
+  }
+  // fit, centre the picture in the window (the near floor reaches lower than the scrolls reach up), fit again
   let D = fit();
   for (let k = 0; k < 2; k++) {
     const e = extent(D);
-    const mid = (e.y0 + e.y1) / 2;
+    const mid = (e.y0 + e.y1) / 2 - (yt + yb) / 2;
     // a shift of the target along the screen's up by mid·tanV·(distance to the target)
     const sh = mid * tanV * D;
     for (let j = 0; j < 3; j++) target[j] += u[j] * sh;

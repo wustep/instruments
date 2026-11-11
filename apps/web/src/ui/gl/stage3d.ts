@@ -409,10 +409,12 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       let best: number | null = null;
       let bd = Infinity;
       st.seats.forEach((s, i) => {
-        const a = project(lastVP!, [s.c[0], 0, s.c[2]], cssW, cssH);
+        // (from the riser it stands on, c[1], to its top)
+        const mid = (s.c[1] + s.top) / 2;
+        const a = project(lastVP!, [s.c[0], s.c[1], s.c[2]], cssW, cssH);
         const b = project(lastVP!, [s.c[0], s.top, s.c[2]], cssW, cssH);
-        const e = project(lastVP!, [s.c[0] + s.r, s.top / 2, s.c[2]], cssW, cssH);
-        const m = project(lastVP!, [s.c[0], s.top / 2, s.c[2]], cssW, cssH);
+        const e = project(lastVP!, [s.c[0] + s.r, mid, s.c[2]], cssW, cssH);
+        const m = project(lastVP!, [s.c[0], mid, s.c[2]], cssW, cssH);
         if (!a || !b || !e || !m) return;
         // the distance to the column's axis on the picture, over its half-width there
         const dx = b[0] - a[0];
@@ -431,7 +433,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
     seatScreen(i) {
       const s = st.seats[i];
       if (!lastVP || !s) return null;
-      return project(lastVP, [s.c[0], s.top * 0.55, s.c[2]], cssW, cssH);
+      return project(lastVP, [s.c[0], s.c[1] + (s.top - s.c[1]) * 0.55, s.c[2]], cssW, cssH);
     },
     pick(x, y) {
       if (!lastVP || !st.picks.length) return null;
@@ -501,6 +503,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       // (a trombone by its size too: the Size knob makes another instrument, framed for itself)
       const key = si.ensemble?.length ? `ens:${W / H < 1.1 ? 'tall' : 'wide'}:${si.ensemble.map((p) => (p.family === 'piano' ? p.kind : p.family === 'bowed' ? (p.bowed?.id ?? 'bowed') : p.family === 'reed' ? (p.reed ?? 'oboe') : p.family === 'brass' ? (p.brass ?? 'trumpet') : p.family)).join(',')}` : si.family === 'piano' ? si.kind : si.family === 'bowed' ? (si.bowed?.id ?? 'bowed') : si.family === 'reed' ? (si.reed ?? 'oboe') : si.family === 'brass' ? (si.brass === 'trombone' ? `trombone:${tromboneSizeIn(si.fr, si.tromboneSize)}` : (si.brass ?? 'trumpet')) : si.family;
       const clear = Math.max(0, Math.min(0.4 * H, clearPx));
+      si.clearTop = clear / H;
       const sig = `${key}|${W}|${H}|${Math.round(clear)}`;
       // a key's close-up outlives a change of piano (grand ↔ upright: the same key, the other
       // action) and of the stage (the phone turned): it is framed again, once the view is

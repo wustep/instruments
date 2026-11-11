@@ -7,6 +7,7 @@
 
 import { bowedGeometry, type VisualFrame } from '@piano-model/engine';
 import { isKeyboard, VOICE_INFO, type Voice } from '../orchestra/assign.ts';
+import { isOrchestral, orchestraPlan, seatKinds } from '../orchestra/seats.ts';
 import type { PartLive } from '../orchestra/ensemble.ts';
 import { drawPiano, newPianoState, type PianoState } from './piano-draw.ts';
 import { Contours, drawBassoonV, drawBowedV, drawClarinetV, drawFluteV, drawHornV, drawOboeV, drawPianoV, drawTromboneV, drawTrumpetV, drawTimpaniV } from './vector/index.ts';
@@ -233,6 +234,124 @@ function fitGroup(mel: Voice[], W: number, H: number): Cell[] | null {
   return best;
 }
 
+// ---- an orchestra (five players or more: orchestra/seats.ts). Its rows as the 3D stage seats them, front to
+// back up the stage: the strings at the bottom (first violins at the left, the basses at the right end),
+// the woodwinds above them, the brass and the timpani above those; each row centred, every instrument at
+// one scale, each row's instruments on one centre line. A row comes down as far as the instruments in front
+// of it allow (a tall bassoon or timpani set over a violin, not over the bass beside it), so the rows nest
+// as an orchestra seen from the hall does. A phone's stage may take the shorter rows the 3D stage gives it,
+// or put the strings' last sections behind their first; whichever draws the orchestra larger.
+
+/** the least an instrument is drawn long (px): an orchestra's rows drawing one smaller keep the one line */
+const MIN_PX = 24;
+/** px a row stands at least above the one in front of it */
+const ROW_STEP = 16;
+
+/** a row of the 2D orchestra: its seats left to right (indices into the voices); `hang`: it stands past
+ *  the left end of the row before it (the timpani beside the brass), no lower than the row before that */
+interface Row2 {
+  seats: number[];
+  hang?: boolean;
+}
+
+/** each row (front first) at `sc` px/m on a W×H band: the cells, or null if they do not fit. The whole
+ *  group (bodies and bows at full reach) is centred up and down the band, and its middle across it (as far
+ *  as the timpani hanging off the brass row's end allow) */
+function placeRows(voices: Voice[], rows: Row2[], sc: number, W: number, H: number): Cell[] | null {
+  const m = margin(W, H);
+  const out: Cell[] = new Array(voices.length);
+  type It = { i: number; hu: number; hv: number; lo: number; hi: number; x: number; v: number };
+  const done: It[] = [];
+  const lines: { L: number; v: number }[] = [];
+  for (const row of rows) {
+    const its: It[] = row.seats.map((i) => {
+      const s = seatOf(voices[i], true);
+      const hu = (s.across * sc) / 2 + s.pad;
+      return { i, hu, hv: (s.along * sc) / 2 + s.pad, lo: Math.max(hu, s.lo * sc), hi: Math.max(hu, s.hi * sc), x: 0, v: 0 };
+    });
+    // along the row: boxes clear of each other, each bow clear of its neighbour's box (placeGroup's rule)
+    for (let k = 1; k < its.length; k++) {
+      const a = its[k - 1];
+      const b = its[k];
+      const sa = seatOf(voices[a.i], true);
+      const sb = seatOf(voices[b.i], true);
+      b.x = a.x + Math.max(a.hu + b.hu + AISLE, sa.hi * sc + CLEAR + b.hu, sb.lo * sc + CLEAR + a.hu);
+    }
+    const L = Math.min(...its.map((t) => t.x - t.lo));
+    const R = Math.max(...its.map((t) => t.x + t.hi));
+    const prev = lines[lines.length - 1];
+    // centred, or past the left end of the row before
+    const dx = row.hang && prev ? prev.L - AISLE - R : -(L + R) / 2;
+    for (const t of its) t.x += dx;
+    // up the stage: as low as the instruments in front allow (their boxes and bows, a gap between)
+    const floor = row.hang ? (lines.length > 1 ? lines[lines.length - 2].v + ROW_STEP : 0) : prev ? prev.v + ROW_STEP : 0;
+    let v = floor;
+    for (const t of its)
+      for (const d of done)
+        if (t.x - t.lo < d.x + d.hi + CLEAR && d.x - d.lo < t.x + t.hi + CLEAR) v = Math.max(v, d.v + d.hv + LINE_GAP + t.hv);
+    for (const t of its) t.v = v;
+    lines.push({ L: L + dx, v });
+    done.push(...its);
+  }
+  const left = Math.min(...done.map((t) => t.x - t.lo));
+  const right = Math.max(...done.map((t) => t.x + t.hi));
+  const bottom = Math.min(...done.map((t) => t.v - t.hv));
+  const top = Math.max(...done.map((t) => t.v + t.hv));
+  if (right - left > W - 2 * m || top - bottom > H - 2 * m) return null;
+  const mid = (top + bottom) / 2;
+  // the orchestra's middle (its podium: every row but the timpani's is centred on it) in the stage's middle,
+  // unless that would put the group off the stage (the timpani past the brass's left end on a narrow one)
+  const cx = Math.min(Math.max(0, right - (W / 2 - m)), left + (W / 2 - m));
+  for (const t of done) {
+    const w = Math.round(2 * t.hu);
+    const h = Math.round(2 * t.hv);
+    const xc = W / 2 + t.x - cx;
+    const yc = H / 2 - (t.v - mid);
+    out[t.i] = { x: Math.round(xc - w / 2), y: Math.round(yc - h / 2), w, h, sc };
+  }
+  return out;
+}
+
+/** the orchestra's cells at the largest scale its rows fit at, in the lineup's order (the keyboards' left
+ *  out: they take the band below). Tried: the computer's plan and the phone's (shorter rows), the strings
+ *  in one line or their last sections behind the first, the woodwinds in their two rows or one */
+function orchestraCells(voices: Voice[], mel: number[], W: number, H: number): Cell[] | null {
+  const kinds = seatKinds(mel.map((i) => VOICE_INFO[voices[i]]));
+  const sub = mel.map((i) => voices[i]);
+  let best: Cell[] | null = null;
+  let bs = 0;
+  for (const tall of [false, true]) {
+    const plan = orchestraPlan(kinds, tall);
+    const secs = [...plan.strings, ...(plan.basses.length ? [plan.basses] : [])];
+    const fronts: number[][][] = [[secs.flat()]];
+    if (secs.length >= 3) fronts.push([secs.slice(0, Math.ceil(secs.length / 2)).flat(), secs.slice(Math.ceil(secs.length / 2)).flat()]);
+    const winds: number[][][] = [plan.winds];
+    if (plan.winds.length > 1) winds.push([plan.winds.flat()]);
+    const back: Row2[] = plan.brass.map((r) => ({ seats: r }));
+    if (plan.drums.length) back.push({ seats: plan.drums, hang: back.length > 0 && !plan.drumsBehind });
+    for (const f of fronts)
+      for (const w of winds) {
+        const rows = [...f.map((r) => ({ seats: r })), ...w.map((r) => ({ seats: r })), ...back].filter((r) => r.seats.length);
+        if (!placeRows(sub, rows, 1, W, H)) continue;
+        let a = 1;
+        let b = Math.max(W, H) / 0.3;
+        for (let k = 0; k < 30; k++) {
+          const c = (a + b) / 2;
+          if (placeRows(sub, rows, c, W, H)) a = c;
+          else b = c;
+        }
+        if (a > bs * 1.02) {
+          bs = a;
+          best = placeRows(sub, rows, a, W, H);
+        }
+      }
+  }
+  if (!best) return null;
+  const out: Cell[] = new Array(voices.length);
+  mel.forEach((i, k) => (out[i] = best![k]));
+  return out;
+}
+
 /** the cells for a lineup on a W×H stage, in the lineup's order */
 export function ensembleCells(voices: Voice[], W: number, H: number): Cell[] {
   const kb = voices.map((v, i) => (isKeyboard(v) ? i : -1)).filter((i) => i >= 0);
@@ -248,7 +367,15 @@ export function ensembleCells(voices: Voice[], W: number, H: number): Cell[] {
   if (mel.length) {
     const n = mel.length;
     const melV = mel.map((i) => voices[i]);
-    // with bowed strings: the group at one scale, its bows clear of the others, centred
+    // an orchestra in its rows; with bowed strings: the group at one scale, its bows clear of the others, centred
+    // (a stage too short for rows, a phone on its side, keeps the one line: no instrument under 24 px long)
+    if (isOrchestral(seatKinds(melV.map((v) => VOICE_INFO[v])))) {
+      const oc = orchestraCells(voices, mel, W, mh);
+      if (oc && mel.every((i) => Math.max(oc[i].w, oc[i].h) >= MIN_PX)) {
+        mel.forEach((i) => (out[i] = oc[i]));
+        return out;
+      }
+    }
     let cells = melV.some(bowedId) ? fitGroup(melV, W, mh) : null;
     if (!cells) {
       // the winds alone: each fills an equal cell, in the grid that draws an instrument largest
