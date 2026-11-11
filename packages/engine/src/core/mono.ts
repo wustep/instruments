@@ -111,8 +111,9 @@ export class MonoKeys {
   private curOff = -1;
   /** the frame of the note a stroke was begun ahead for (−1: none) */
   private strokeFor = -1;
-  /** the note `coming` last found strikes the pitch that is playing again */
+  /** the note `coming` last found strikes the pitch that is playing again; its pitch */
   comingSame = false;
+  comingMidi = -1;
   /** the frame of a foreseen note the breath is kept for over a rest (−1: none), and whether the tongue
    *  holds the note stopped meanwhile */
   private waitFor = -1;
@@ -380,6 +381,7 @@ export class MonoKeys {
       if (this.curOff > on + tol ? !same : on - this.curOff > (same ? LICK_REPEAT : LICK_MOVE) * this.fs) return -1;
       if (!same && on - this.lastTongue < FASTEST * this.fs) return -1;
       this.comingSame = same;
+      this.comingMidi = this.aMidi[i];
       return on;
     }
     return -1;

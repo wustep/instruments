@@ -183,7 +183,7 @@ const LICK_BOOST = 0.5;
 /** the tongue on the blades stops the note at about the rate a real bore's resonances decay, 400 dB/s (Li,
  *  Almeida, Smith & Wolfe 2016, JASA 139, the clarinet; a cone's are as wide). This bore, fitted on held
  *  notes, rings on at about 70 dB/s with the reed shut, so the tongue takes the rest (dB/s) where it lies */
-const STOP_RATE = 200;
+const STOP_RATE = 100;
 
 const et = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -561,7 +561,11 @@ export class OboeCore implements InstrumentCore {
         this.pTarget = 0;
         if (this.lick.down) this.pressure = 0;
       }
-      if (this.keys.strokeNow >= 0) this.lick.ahead(this.fs, this.keys.strokeNow - this.frame, this.tongueOpen(this.note));
+      if (this.keys.strokeNow >= 0) {
+        this.lick.ahead(this.fs, this.keys.strokeNow - this.frame, this.tongueOpen(this.note));
+        // (the fingers move under the tongue, as a player's do: the reed is let go on the new note's tube)
+        this.setNote(clamp(this.keys.comingMidi, OBOE_LO, OBOE_HI), false);
+      }
       this.render(n);
       for (let t = 0; t < n; t++) {
         L[t] = this.oL[t];

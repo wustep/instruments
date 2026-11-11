@@ -583,7 +583,11 @@ export class ClarinetCore implements InstrumentCore {
         this.pTarget = 0;
         if (this.lick.down) this.pressure = 0;
       }
-      if (this.keys.strokeNow >= 0) this.lick.ahead(this.fs, this.keys.strokeNow - this.frame, this.tongueOpen(this.note));
+      if (this.keys.strokeNow >= 0) {
+        this.lick.ahead(this.fs, this.keys.strokeNow - this.frame, this.tongueOpen(this.note));
+        // (the fingers move under the tongue, as a player's do: the reed is let go on the new note's tube)
+        this.setNote(clamp(this.keys.comingMidi, CLARINET_LO, CLARINET_HI), false);
+      }
       this.render(n);
       for (let t = 0; t < n; t++) {
         L[t] = this.oL[t];

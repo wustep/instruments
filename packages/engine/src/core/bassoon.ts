@@ -194,7 +194,7 @@ const LICK_BOOST = 0.5;
 /** what the tongue on the reed takes from the bore while it lies there (dB/s), on top of the bore's own
  *  decay with the reed shut: together about the rate a real bore's resonances decay when the tongue stops
  *  a note, 400 dB/s (Li, Almeida, Smith & Wolfe 2016, JASA 139, the clarinet) */
-const STOP_RATE = 200;
+const STOP_RATE = 100;
 
 const et = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -602,7 +602,11 @@ export class BassoonCore implements InstrumentCore {
         this.pTarget = 0;
         if (this.lick.down) this.pressure = 0;
       }
-      if (this.keys.strokeNow >= 0) this.lick.ahead(this.fs, this.keys.strokeNow - this.frame, this.tongueOpen(this.note));
+      if (this.keys.strokeNow >= 0) {
+        this.lick.ahead(this.fs, this.keys.strokeNow - this.frame, this.tongueOpen(this.note));
+        // (the fingers move under the tongue, as a player's do: the reed is let go on the new note's tube)
+        this.setNote(clamp(this.keys.comingMidi, BASSOON_LO, BASSOON_HI), false);
+      }
       this.render(n);
       for (let t = 0; t < n; t++) {
         L[t] = this.oL[t];
