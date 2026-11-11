@@ -403,7 +403,7 @@ test('phone keys: no computer-key letters on touch; a thin strip of all 88 keys 
   await expect(letterA).toBeVisible();
 });
 
-test('3D on a phone held upright: the cello and the upright fill the stage’s height, the grand is whole, all clear of the file player; a wide stage keeps its own views', async ({ page }, info) => {
+test('3D on a phone held upright: the cello and the upright fill the stage’s height, the grand is whole, all clear of the file player; a wide stage keeps its own views, but for the grand, whole there too with its lid wide open', async ({ page }, info) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await page.locator('.dim-toggle').click();
@@ -425,9 +425,17 @@ test('3D on a phone held upright: the cello and the upright fill the stage’s h
   if (info.project.name !== 'phone') {
     // a wide stage: the scenes' own views, which crop like a photograph (the lens scales their distances)
     const lens = Math.tan(0.3) / Math.tan((12 * Math.PI) / 180);
+    // but the grand is whole: its lid on the long stick, the tip under the file player's row (it ran
+    // out of the top of the stage behind the player), its casters on the stage, as tall as the stage
+    // that is free
     const g = await show('grand', 0.74);
-    expect(g.home.dist).toBeCloseTo(3.8 * lens, 3);
-    expect(g.home.target).toEqual([-0.12, 0.58, 1.0]);
+    await expect.poll(() => page.evaluate(() => (window as any).__stage3d.sticks[0] as number), { message: 'the lid on its long stick' }).toBe(1);
+    const gb = (await seen()).box!;
+    expect(gb.y0, 'the open lid’s tip under the file player').toBeGreaterThanOrEqual(g.over);
+    expect(gb.y1, 'the casters on the stage').toBeLessThanOrEqual(g.h);
+    expect(gb.x0).toBeGreaterThanOrEqual(0);
+    expect(gb.x1).toBeLessThanOrEqual(g.w);
+    expect((gb.y1 - gb.y0) / (g.h - g.over), 'as tall as the free stage').toBeGreaterThan(0.93);
     const c = await show('cello', 0.62);
     expect(c.home.dist).toBeCloseTo(2.25 * lens, 3);
     expect(errors).toEqual([]);

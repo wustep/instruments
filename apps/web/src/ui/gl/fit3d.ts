@@ -135,6 +135,16 @@ export function fitView(b: Batch, v: Bearing, tanV: number, aspect: number, rect
   return { target: [v.target[0] + sx * r[0] + sy * u[0], v.target[1] + sx * r[1] + sy * u[1], v.target[2] + sx * r[2] + sy * u[2]], dist: D, binds: dx >= dy ? 'x' : 'y' };
 }
 
+/** Whether everything the framing counts lies under the height `top` of the picture (NDC, y up)
+ *  seen from `dist` on `v`'s bearing: exact, in one pass. A point at y up the picture and z beyond
+ *  the target is under it when y ≤ top·tanV·(dist + z): one linear form's largest value. */
+export function fitsUnder(b: Batch, v: Bearing, dist: number, tanV: number, top: number): boolean {
+  const { u, f } = frameOf(v.yaw, v.pitch);
+  const a = top * tanV;
+  const [C] = maxima(b, v.target, [u[0] - a * f[0], u[1] - a * f[1], u[2] - a * f[2]], 1);
+  return !Number.isFinite(C) || C <= a * dist;
+}
+
 /** tests and review shots: the box of everything the framing counts, in CSS pixels of a w×h picture
  *  drawn through `vp` (every vertex projected) */
 export function screenBox(b: Batch, vp: Mat4, w: number, h: number): { x0: number; y0: number; x1: number; y1: number } | null {

@@ -1050,6 +1050,13 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   /** how far down from the instrument area's top the file player's row lies over it (px): a narrow
    *  3D stage frames its instrument clear of it */
   const overTop = () => (player.el.hidden ? 0 : Math.max(0, (player.el.firstElementChild ?? player.el).getBoundingClientRect().bottom - top.getBoundingClientRect().bottom));
+  /** and how far down the lines of an ensemble's file reach, under that row (one row of them, or two
+   *  where a long score's wrap on a phone): the 3D stage keeps an orchestra's back row out from under
+   *  them. The row's own reach when no lines show. */
+  const overLines = () => {
+    const lines = player.el.hidden ? null : player.el.querySelector<HTMLElement>('.pl-lines:not([hidden])');
+    return lines ? Math.max(0, lines.getBoundingClientRect().bottom - top.getBoundingClientRect().bottom) : overTop();
+  };
   let raf = 0;
   const loop = (now: number) => {
     const { ctx, w, h: hh } = fitCanvas(canvas);
@@ -1160,7 +1167,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
         down: (m) => audio.down.has(m),
         caseHidden,
         ensemble: ens ? ensIn() : null,
-      }, overTop());
+      }, overTop(), overLines());
     }
     // the knobs, in 2D and in 3D (not in a key's close-up); in 3D the pool's rim brightens while the
     // room's knob is under the pointer, turned or focused
