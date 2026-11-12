@@ -4,7 +4,9 @@
 // resonance, the first far below it), concert pitch across each size's compass, every note on its own
 // partial at pp, mf and ff (pedals too), the slide moving at a player's speed (a soft legato tongue while it
 // travels; a glissando when asked), louder and brighter with velocity, the size changed in place, a second
-// player its own (blocksize.test covers the host's block size).
+// player its own (blocksize.test covers the host's block size). Its player (`human`: core/trombone.ts
+// TROMBONE_HUMAN): no two notes alike, the slide put by ear, a held note's breath and pitch moving; `human` 0
+// is the model alone, which is what the tuning, the regimes, the fit and the judge take.
 import { describe, expect, it } from 'vitest';
 import { renderInstrument, TromboneCore, TROMBONE_SIZES, tromboneFingering, tromboneSlideOut, tromboneTubeLength } from '../src/core/index.ts';
 import { regime } from '../../../scripts/trombone-regimes.ts';
@@ -158,5 +160,85 @@ describe('trombone', () => {
     let d = 0;
     for (let i = 0; i < a.length; i++) d += Math.abs(a[i] - b[i]);
     expect(d).toBeGreaterThan(0);
+  });
+  it('a player: no two notes alike (their level, their first moments, where the slide is put), a held note sags and its pitch wanders; `human` 0 is the model alone; the same notes give the same samples', () => {
+    const six = (human: number, midi = 58) => {
+      const ev: { time: number; event: unknown }[] = [];
+      for (let k = 0; k < 6; k++) ev.push({ time: 0.05 + k * 1.3, event: { type: 'noteOn', midi, velocity: 100 } }, { time: 0.05 + k * 1.3 + 0.6, event: { type: 'noteOff', midi } });
+      return renderInstrument({ sampleRate: FS, instrument: 'trombone', dry: true, params: { vibrato: 0, noise: 0, human } as never, events: ev as never, duration: 8 }).left;
+    };
+    const spread = (xs: number[]) => Math.max(...xs) - Math.min(...xs);
+    const alone = six(0);
+    const played = six(1);
+    const body = (x: Float32Array) => [1, 2, 3, 4, 5].map((k) => rmsDb(x, 0.35 + k * 1.3, 0.6 + k * 1.3));
+    const start = (x: Float32Array) => [1, 2, 3, 4, 5].map((k) => rmsDb(x, 0.05 + k * 1.3, 0.13 + k * 1.3) - rmsDb(x, 0.35 + k * 1.3, 0.6 + k * 1.3));
+    // (the model alone, without its breath's noise: each note from silence is the last one over again)
+    expect(spread(body(alone))).toBeLessThan(0.05);
+    expect(spread(start(alone))).toBeLessThan(0.3);
+    // a player's: a few tenths of a decibel to a decibel or two apart, each attack its own
+    expect(spread(body(played))).toBeGreaterThan(0.25);
+    expect(spread(body(played))).toBeLessThan(3.5);
+    expect(spread(start(played))).toBeGreaterThan(0.5);
+    // the pitch of a held part (cents from `m`): the fundamental's phase over 0.2 s against the next 0.2 s
+    const pitch = (x: Float32Array, m: number, t: number) => {
+      const f0 = 440 * 2 ** ((m - 69) / 12);
+      const ph = (t0: number) => {
+        let re = 0;
+        let im = 0;
+        const n = Math.round(0.2 * FS);
+        const i0 = Math.round(t0 * FS);
+        for (let i = 0; i < n; i++) {
+          const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / n);
+          re += x[i0 + i] * w * Math.cos((2 * Math.PI * f0 * (i0 + i)) / FS);
+          im -= x[i0 + i] * w * Math.sin((2 * Math.PI * f0 * (i0 + i)) / FS);
+        }
+        return Math.atan2(im, re);
+      };
+      let d = ph(t + 0.1) - ph(t);
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      return 1200 * Math.log2(1 + d / (2 * Math.PI * f0 * 0.1));
+    };
+    // the slide is put by ear: a line's notes each a few cents off their own way (the recorded player's:
+    // ±5–6 ¢ from note to note), the model's all where the tube is tuned
+    const line = (human: number) => {
+      const ns = [53, 55, 57, 58, 60, 62, 60, 58];
+      const ev: { time: number; event: unknown }[] = [];
+      ns.forEach((m, k) => ev.push({ time: 0.05 + k * 0.8, event: { type: 'noteOn', midi: m, velocity: 90 } }, { time: 0.05 + k * 0.8 + 0.6, event: { type: 'noteOff', midi: m } }));
+      const x = renderInstrument({ sampleRate: FS, instrument: 'trombone', dry: true, params: { vibrato: 0, noise: 0, human } as never, events: ev as never, duration: 6.6 }).left;
+      // (each note's pitch over its held part, the mean of three readings)
+      return ns.map((m, k) => (pitch(x, m, 0.3 + k * 0.8) + pitch(x, m, 0.36 + k * 0.8) + pitch(x, m, 0.42 + k * 0.8)) / 3);
+    };
+    const sdOf = (xs: number[]) => {
+      const m = xs.reduce((a, b) => a + b, 0) / xs.length;
+      return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length);
+    };
+    // (the tube's own tuning leaves the model's notes a cent or two apart: the tuning table's)
+    expect(sdOf(line(0))).toBeLessThan(2.5);
+    expect(sdOf(line(1))).toBeGreaterThan(2.5);
+    expect(sdOf(line(1))).toBeLessThan(12);
+    // a held note: the breath is spent (the model alone holds, or still grows), and wanders
+    const long = (human: number, player?: number) => renderInstrument({ sampleRate: FS, instrument: 'trombone', dry: true, params: { vibrato: 0, noise: 0, human } as never, events: [{ time: 0.05, event: { type: 'noteOn', midi: 53, velocity: 100 } }] as never, duration: 4.2, player }).left;
+    const l0 = long(0);
+    const l1 = long(1);
+    const sag = (x: Float32Array) => rmsDb(x, 3.2, 4) - rmsDb(x, 0.35, 0.55);
+    expect(sag(l1) - sag(l0)).toBeLessThan(-0.5);
+    expect(sag(l1) - sag(l0)).toBeGreaterThan(-4);
+    // its pitch wanders by a cent or two from one tenth of a second to the next, the model's not
+    const wander = (x: Float32Array) => {
+      const cs: number[] = [];
+      for (let t = 0.8; t < 3.8; t += 0.1) cs.push(pitch(x, 53, t));
+      return sdOf(cs);
+    };
+    expect(wander(l0)).toBeLessThan(0.6);
+    expect(wander(l1)).toBeGreaterThan(1);
+    expect(wander(l1)).toBeLessThan(8);
+    // the same notes, the same samples (a seeded stream); another player, another stream
+    const again = long(1);
+    let d = 0;
+    for (let i = 0; i < l1.length; i++) d = Math.max(d, Math.abs(l1[i] - again[i]));
+    expect(d).toBe(0);
+    const other = long(1, 1);
+    expect(Math.abs(sag(other) - sag(l1)) + Math.abs(wander(other) - wander(l1))).toBeGreaterThan(0);
   });
 });
