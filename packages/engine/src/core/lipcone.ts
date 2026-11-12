@@ -37,7 +37,7 @@ import { CC_DYNAMICS, DYN_TAU, type ExciteTrace, type InstrumentCore } from './i
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { biquadHighpass, biquadHighShelf, biquadLowpass, biquadPeaking } from './filters.ts';
 import type { PianoEvent } from './piano-core.ts';
-import { clamp, interp, mulberry32, playerCents, playerSeed, playerVibrato } from './util.ts';
+import { clamp, Human, interp, mulberry32, playerCents, playerSeed, playerVibrato } from './util.ts';
 
 export interface LipConeParams {
   /** blowing pressure scale (1 = the dynamic's own) */
@@ -48,6 +48,9 @@ export interface LipConeParams {
   noise: number;
   /** lip vibrato depth (fraction of the lips' frequency) */
   vibrato: number;
+  /** the player (an instrument whose spec has one: the tuba): 0 the model alone, every note the same and
+   *  held dead still … 1 a player's breath, lips and tongue (LipConeHuman) */
+  human?: number;
   room: number;
   volume: number;
   /** orchestra mode: where it sits on the stage (post.ts Seat); none, the single instrument's place */
@@ -106,6 +109,41 @@ export interface LipConeSpec<F extends ConeFingering = ConeFingering> {
   /** what the stopped lips take from the tube while the tongue holds the air (dB/s; the horn's 60 when not
    *  given: STOP_RATE) */
   stopRate?: number;
+  /** its player (none: the model alone, as the horn is) */
+  human?: LipConeHuman<F>;
+}
+
+/** A player on the instrument: what no two notes of his have alike, and what a held note does. Measured on
+ *  the recordings where they say (scripts/tuba-variation.ts: a held note's level peaks a third of a second in
+ *  and then falls; its pitch wanders 2 ¢), a player's known habits elsewhere. All of it is scaled by the
+ *  `human` parameter, and a seeded stream: the same notes give the same samples. */
+export interface LipConeHuman<F extends ConeFingering = ConeFingering> {
+  seed: number;
+  /** the breath over a held note: it begins this share under and comes up over `bloomTau` s (a tongued note
+   *  blooms; one tongued over the breath a third as much), then sags by `sag` (a share) over `sagTau` s as
+   *  the air is spent, and wanders by `drift` (a share, a standard deviation) */
+  bloom: number;
+  bloomTau: number;
+  sag: number;
+  sagTau: number;
+  drift: number;
+  /** the pitch's slow wander (cents, a standard deviation) */
+  wander: number;
+  /** from one tongued note to the next (standard deviations): the tongue's hold and the lips' kick (shares),
+   *  the breath (velocity steps), and the lips set a little off the note for its first moments (cents,
+   *  dying over `scoopTau` s) */
+  hold: number;
+  kick: number;
+  vel: number;
+  scoop: number;
+  scoopTau: number;
+  /** the air: the tongue's release lets a puff through (× the breath noise at the release, dying over
+   *  `puffTau` s) */
+  puff: number;
+  puffTau: number;
+  /** how sharp (+) or flat a fingering is left by the player (cents): the valves' loops are cut for the open
+   *  tube and fall short together, and the series' own partials are not equal temperament's */
+  intonation: (f: F) => number;
 }
 
 /** The voicing: the lips, the bore's losses and the radiation's colour, each instrument's fitted to its
@@ -178,6 +216,8 @@ export interface LipConeVoice {
    *  the recordings' harmonics-to-noise ratio rises from ~32 dB at B♭1 to ~48 at F5) */
   noise: number;
   noiseTop: number;
+  /** how much airier a soft note is (× the noise at the softest dynamic, less one; absent: no airier) */
+  noiseSoft?: number;
   /** the radiation's colour: a high-pass (Hz); a formant (Hz, dB, Q: the horn's harmonics gather near
    *  500 Hz); a low-pass at lp × (f₀/440 Hz)^lpExp (Hz, Q), lpDyn octaves lower at velocity 1 than at 127;
    *  a shelf above shelfF (dB) */
@@ -328,6 +368,17 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
   /** the lips' opening and the blowing pressure, now (for the pictures) */
   private hNow = 0;
   private gammaNow = 0;
+  /** the player (spec.human): his stream; the breath's and the pitch's slow wander (each a random walk
+   *  drawn back to rest, and smoothed); this note's own breath (velocity steps), its lips' first offset
+   *  (cents), how much it blooms, and its fingering's intonation (cents) */
+  private hum: Human | null = null;
+  private driftRaw = 0;
+  private drift = 0;
+  private wanderRaw = 0;
+  private wander = 0;
+  private velJit = 0;
+  private scoopNow = 0;
+  private bloomNow = 1;
 
   constructor(spec: LipConeSpec<F>, opts: { sampleRate: number; params?: Partial<LipConeParams>; dry?: boolean; player?: number }) {
     this.spec = spec;
@@ -342,6 +393,7 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
     this.V = { ...this.spec.voice, ...this.params.voice };
     this.keys = new MonoKeys(this.fs);
     this.rng = mulberry32(playerSeed(spec.seed, opts.player));
+    if (spec.human) this.hum = new Human(spec.human.seed, opts.player);
     const pv = playerVibrato(opts.player);
     this.vib0 = this.vibPhase = pv.phase;
     this.vibRate = pv.rate;
@@ -381,12 +433,19 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
     return Math.pow(2, c / 1200);
   }
 
+  /** how much of a player there is (0: none; an instrument without one: 0) */
+  private get human(): number {
+    return this.spec.human ? clamp(this.params.human ?? 1, 0, 1) : 0;
+  }
+
   private setNote(m: number, immediate: boolean): void {
     const fs = this.fs;
     const V = this.V;
-    const f = et(m);
     const fg = this.spec.fingering(m);
     this.fingering = fg;
+    // (the player's intonation on this fingering: the tube is that much short or long, and the lips with it)
+    const H = this.human;
+    const f = H > 0 ? et(m) * Math.pow(2, (H * this.spec.human!.intonation(fg)) / 1200) : et(m);
     // the tube's round trip and the apex's are one period of the tube's fundamental (the note over its
     // partial), less each end's reflection's phase delay at the note (so that its n-th resonance is the
     // note) and the interpolation
@@ -533,6 +592,7 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
       this.noteStart = this.frame;
       this.tongueAt = this.frame;
       this.quickLips(quickness(a.len));
+      this.newNote(1);
       this.afterStop = false;
       this.blowUntil = this.frame + Math.round((this.minBlowPp + (this.minBlow - this.minBlowPp) * (vel / 127)) * this.fs);
     } else {
@@ -552,9 +612,29 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
       this.afterStop = false;
       this.lickKick = true;
       this.noteStart = this.frame;
+      this.newNote(1 / 3);
       this.blowUntil = this.frame + Math.round(this.minBlow * this.fs);
     }
     if (a.tap) this.release();
+  }
+
+  /** A player's new note (tongued from silence: `bloom` 1; over the breath: less): no two alike. Its tongue
+   *  holds a little longer or shorter, its lips are kicked a little more or less and set a few cents off for
+   *  their first moments, its breath is a little stronger or weaker. */
+  private newNote(bloom: number): void {
+    const hu = this.spec.human;
+    const H = this.human;
+    if (!hu || !this.hum || !(H > 0)) {
+      this.velJit = this.scoopNow = 0;
+      this.bloomNow = 0;
+      return;
+    }
+    const hum = this.hum;
+    this.bloomNow = bloom;
+    this.velJit = H * hu.vel * hum.near();
+    this.scoopNow = H * hu.scoop * hum.near();
+    this.kickNow *= Math.max(0.3, 1 + H * hu.kick * hum.near());
+    if (this.tongueN > 0 && bloom === 1) this.tongueN = Math.max(1, Math.round(this.tongueN * Math.max(0.4, 1 + H * hu.hold * hum.near())));
   }
 
   /** The key is up: stop blowing, but not before the tongued note has had its minimum breath. */
@@ -675,15 +755,38 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
       this.dyn += (this.dynTarget - this.dyn) * (1 - Math.exp(-dt / DYN_TAU));
       if (Math.abs(this.dynTarget - this.dyn) < 1e-3) this.dyn = this.dynTarget;
     }
-    const v01 = this.dyn ? clamp(this.velocity + this.dyn, 1, 127) / 127 : this.velocity / 127;
+    // the player (the tuba's): his breath's and his pitch's slow wander, and this note's own breath
+    const hu = this.spec.human;
+    const H = this.human;
+    let breath = 1;
+    let off = 1;
+    let air = 1;
+    let jit = 0;
+    if (hu && this.hum && H > 0) {
+      // (each a walk drawn back to rest over a fifth of a second, then smoothed: time constants, whatever
+      // the block)
+      const a = Math.exp(-dt / 0.2);
+      const sgm = Math.sqrt(1 - a * a) * 1.25;
+      this.driftRaw = a * this.driftRaw + sgm * this.hum.near();
+      this.wanderRaw = a * this.wanderRaw + sgm * this.hum.near();
+      const ks = 1 - Math.exp(-dt / 0.05);
+      this.drift += (this.driftRaw - this.drift) * ks;
+      this.wander += (this.wanderRaw - this.wander) * ks;
+      breath = 1 - H * (hu.bloom * this.bloomNow * Math.exp(-age / hu.bloomTau) + hu.sag * (1 - Math.exp(-age / hu.sagTau)) - hu.drift * this.drift);
+      off = Math.pow(2, (H * hu.wander * this.wander) / 1200);
+      jit = this.velJit;
+    }
+    const v01 = this.dyn || jit ? clamp(this.velocity + this.dyn + jit, 1, 127) / 127 : this.velocity / 127;
     const vc = Math.pow(v01, V.gammaCurve);
-    const gamma = (V.gammaLo + (V.gammaHi - V.gammaLo) * vc) * this.gNote * this.pressure * P.breath * this.expression;
+    const gamma = (V.gammaLo + (V.gammaHi - V.gammaLo) * vc) * this.gNote * this.pressure * P.breath * this.expression * breath;
     this.gammaNow = gamma;
     // the lips follow the note (the player's tension offset, the vibrato), a little below it; a slur glides
     // (time constants, not per-block fractions: nothing may depend on the block's length)
     // (a short note's attack: the lips set lower while the tube's first reflections are still to come)
     const lipSet = this.lipDipNow ? Math.pow(2, (-QUICK_LIP * this.lipDipNow * Math.exp(-Math.max(0, this.frame - this.tongueAt) / fs / QUICK_LIP_TAU)) / 12) : 1;
-    const lipTarget = (this.lipFTarget * lipSet * Math.pow(2, (P.lip - V.lipBelow) / 12) * vib) / this.bendFactor;
+    // (the player's lips: a few cents off the note as it begins, and wandering with the pitch)
+    const scoop = hu && this.scoopNow ? Math.pow(2, (this.scoopNow * Math.exp(-Math.max(0, this.frame - this.tongueAt) / fs / hu.scoopTau)) / 1200) : 1;
+    const lipTarget = (this.lipFTarget * lipSet * scoop * off * Math.pow(2, (P.lip - V.lipBelow) / 12) * vib) / this.bendFactor;
     this.lipF += (lipTarget - this.lipF) * (1 - Math.exp(-dt / 0.006));
     const th = (2 * Math.PI * Math.min(this.lipF, 0.2 * fs)) / fs;
     const ageT = Math.max(0, this.frame - this.tongueAt) / fs;
@@ -697,7 +800,10 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
     const zeta = this.zetaNote * boost;
     const h0 = V.h0;
     const hMax = V.hMax;
-    const nz = this.noiseNote * P.noise;
+    // (the player's air: a puff as the tongue lets go; the voicing's: more of it under a soft note)
+    if (hu && H > 0) air = 1 + H * hu.puff * Math.exp(-ageT / hu.puffTau);
+    if (V.noiseSoft) air *= 1 + V.noiseSoft * (1 - vc);
+    const nz = this.noiseNote * P.noise * air;
     // the radiation's corner for the note and the dynamic, written into its section in place
     const lpF = Math.min(0.45 * fs, this.lpNote * Math.pow(2, V.lpDyn * (vc - 1)));
     if (Math.abs(lpF - this.lpSet) > 0.5) {
@@ -705,7 +811,7 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
       this.lpSet = lpF;
     }
     this.tiltOut += (this.tiltNote - this.tiltOut) * (1 - Math.exp(-dt / 0.03));
-    const DT = this.Dtarget * this.bendFactor;
+    const DT = (this.Dtarget * this.bendFactor) / off;
     const ease = 1 - Math.exp(-1 / (0.004 * fs));
     const bc = this.bc;
     const g = V.wall;

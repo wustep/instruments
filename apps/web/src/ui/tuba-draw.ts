@@ -12,7 +12,7 @@
 import { tubaFingering, valvesDown, type TubaFingering, type VisualFrame } from '@piano-model/engine';
 import { glowTube, lipsLive, tubePx, type HornState, type TubePx } from './horn-draw.ts';
 import type { P, Run } from './horn-plan.ts';
-import { BELL_LEN, BELL_PTS, BELL_X, BORE, BUTTON_Y, CASING_R, CASING_Y0, CASING_Y1, MOUTH_K, MPIECE, MP_DIR, MP_RIM, RIM_R, RIM_Y, STACK_Y0, TB_X0, TB_X1, TB_Y0, TB_Y1, TRAVEL, TUBES, VALVE_X, VALVE_Y, bellR, tubaAir } from './tuba-plan.ts';
+import { BELL_LEN, BELL_PTS, BELL_TILT, BELL_TOP_X, LEAD_X, LEAD_Y0, BORE, BUTTON_Y, CASING_R, CASING_Y0, CASING_Y1, MOUTH_K, MPIECE, MP_DIR, MP_RIM, RIM_R, RIM_Y, STACK_Y0, TB_X0, TB_X1, TB_Y0, TB_Y1, TRAVEL, TUBES, VALVE_X, VALVE_Y, bellR, tubaAir, PISTON_LEAN, lean } from './tuba-plan.ts';
 import { AutoScale, BRASS_BREATH, INK, boreAt, brassBreath, breathStream, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
@@ -92,8 +92,9 @@ export function tubaLayout(W: number, H: number, top = 0): TbLayout {
     } else for (const s of [A, B]) s.forEach(([x, y], i) => (i ? p.lineTo(x, y) : p.moveTo(x, y)));
     return p;
   };
+  // (the mouth across the leaning axis: its near side lower at the left)
   const mouth = new Path2D();
-  mouth.ellipse(X(BELL_X), Y(RIM_Y), RIM_R * sc, RIM_R * MOUTH_K * sc, 0, 0, 2 * Math.PI);
+  mouth.ellipse(X(BELL_TOP_X), Y(RIM_Y), RIM_R * sc, RIM_R * MOUTH_K * sc, -BELL_TILT, 0, 2 * Math.PI);
   // ---- the mouthpiece (its silhouette along its axis, rim to shank)
   const MPt = (s: number, r: number): [number, number] => [X(MP_RIM[0] + MP_DIR[0] * s), Y(MP_RIM[1] + r)];
   const mp = new Path2D();
@@ -106,19 +107,28 @@ export function tubaLayout(W: number, H: number, top = 0): TbLayout {
   const casings = new Path2D();
   const caps = new Path2D();
   const knuckles = new Path2D();
+  /** a piston's upright rectangle, leaning with it (plan lean) */
+  const leaning = (path: Path2D, k: number, x0: number, y0: number, x1: number, y1: number) => {
+    ([[x0, y0], [x1, y0], [x1, y1], [x0, y1]] as P[]).forEach((q, i) => {
+      const [x, y] = lean(k, q);
+      if (i) path.lineTo(X(x), Y(y));
+      else path.moveTo(X(x), Y(y));
+    });
+    path.closePath();
+  };
   VALVE_X.forEach((x, k) => {
-    casings.rect(X(x - CASING_R), Y(CASING_Y1), 2 * CASING_R * sc, (CASING_Y1 - CASING_Y0) * sc);
-    for (const [y0, y1] of [[CASING_Y1, CASING_Y1 + 0.011], [CASING_Y0 - 0.013, CASING_Y0]]) caps.rect(X(x - CASING_R - 0.0018), Y(y1), 2 * (CASING_R + 0.0018) * sc, (y1 - y0) * sc);
-    if (k < 3) knuckles.rect(X(VALVE_X[k + 1] + CASING_R), Y(VALVE_Y + BORE), (x - VALVE_X[k + 1] - 2 * CASING_R) * sc, 2 * BORE * sc);
+    leaning(casings, k, x - CASING_R, CASING_Y0, x + CASING_R, CASING_Y1);
+    for (const [y0, y1] of [[CASING_Y1, CASING_Y1 + 0.011], [CASING_Y0 - 0.013, CASING_Y0]]) leaning(caps, k, x - CASING_R - 0.0018, y0, x + CASING_R + 0.0018, y1);
+    if (k < 3) knuckles.rect(X(x), Y(VALVE_Y + BORE), (VALVE_X[k + 1] - x) * sc, 2 * BORE * sc);
   });
   // ---- braces: the stays between the bell's stack and the body, the leadpipe on the bell, the fourth loop
   const braces = new Path2D();
   for (const [a, b] of [
-    [[-0.016, 0.3], [0.035, 0.3]],
-    [[-0.016, 0.6], [0.012, 0.6]],
-    [[-0.2, 0.42], [-0.262, 0.42]],
-    [[-0.045, 0.7], [-0.045, 0.76]],
-    [[0.012, 0.56], [0.03, 0.56]],
+    [[0.016, 0.3], [0, 0.3]],
+    [[0.2, 0.42], [0.262, 0.42]],
+    [[LEAD_X, 0.5], [LEAD_X - 0.02, 0.5]],
+    [[LEAD_X, LEAD_Y0 + 0.05], [LEAD_X - 0.022, LEAD_Y0 + 0.05]],
+    [[0.045, 0.6], [0.09, 0.6]],
   ] as [P, P][]) {
     braces.moveTo(X(a[0]), Y(a[1]));
     braces.lineTo(X(b[0]), Y(b[1]));
@@ -219,13 +229,14 @@ export function tubaRecord(L: TbLayout, st: TubaState, lv: TbLive): void {
   const box = (x0: number, y0: number, x1: number, y1: number): Box => ({ x0: X(x0), y0: Y(y1), x1: X(x1), y1: Y(y0) });
   st.drawn = {
     body: box(TB_X0, TB_Y0, TB_X1, TB_Y1),
-    valves: box(VALVE_X[3] - 0.03, CASING_Y0 - 0.02, VALVE_X[0] + 0.03, BUTTON_Y + 0.012),
-    mouth: box(MP_RIM[0] - 0.075, MP_RIM[1] - 0.03, MP_RIM[0] + 0.03, MP_RIM[1] + 0.03),
-    bell: box(BELL_X - RIM_R, RIM_Y - 0.12, BELL_X + RIM_R, RIM_Y + RIM_R * MOUTH_K),
+    // (the leaning pistons: from the first one's button to the fourth one's foot)
+    valves: box(lean(0, [VALVE_X[0], BUTTON_Y])[0] - 0.03, CASING_Y0 - 0.02, lean(3, [VALVE_X[3], CASING_Y0])[0] + 0.03, BUTTON_Y + 0.012),
+    mouth: box(MP_RIM[0] - 0.03, MP_RIM[1] - 0.03, MP_RIM[0] + 0.075, MP_RIM[1] + 0.03),
+    bell: box(BELL_TOP_X - RIM_R, RIM_Y - 0.12, BELL_TOP_X + RIM_R, RIM_Y + RIM_R * MOUTH_K),
     levers: lv.f ? lv.down.reduce((a, d, i) => a | (d ? 1 << i : 0), 0) : 0,
-    buttons: lv.press.map((p) => Y(BUTTON_Y - TRAVEL * p)),
+    buttons: lv.press.map((p, k) => Y(lean(k, [VALVE_X[k], BUTTON_Y - TRAVEL * p])[1])),
   };
-  st.src = { x: X(BELL_X), y: Y(RIM_Y) };
+  st.src = { x: X(BELL_TOP_X), y: Y(RIM_Y) };
 }
 
 // ---------------------------------------------------------------- the drawn look
@@ -235,7 +246,7 @@ const NICKEL_BODY = '#3c3a36';
 const nickel = (a: number) => rgba('236,230,216', a);
 const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
 
-/** The tuba from its front: the body's spiral into the bell, the leadpipe round the bell's front, the four
+/** The tuba from its valve side: the body's spiral into the bell, the leadpipe across the stack's front, the four
  *  pistons with their loops, the main tuning slide; the pistons going down for the engine's fingering, the
  *  air's path lit, the standing wave along it, the breath going into the mouthpiece. `top`: the file player's
  *  px over the box's top. */
@@ -308,7 +319,7 @@ export function drawTuba(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   ctx.stroke(L.ferrules);
   // ---- the bell's mouth: its inside (the far wall lit along the rim, dark down the throat), the rim's bead
   {
-    const gm = ctx.createRadialGradient(X(BELL_X), Y(RIM_Y - 0.01), 0, X(BELL_X), Y(RIM_Y), RIM_R * sc * 1.02);
+    const gm = ctx.createRadialGradient(X(BELL_TOP_X), Y(RIM_Y - 0.01), 0, X(BELL_TOP_X), Y(RIM_Y), RIM_R * sc * 1.02);
     gm.addColorStop(0, '#0c0804');
     gm.addColorStop(0.35, '#1d1409');
     gm.addColorStop(0.8, '#4a3414');
@@ -317,7 +328,7 @@ export function drawTuba(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     ctx.fill(B.mouth);
     if (lv.sounding) {
       const A = Math.min(1, Math.abs(lv.ampAt(lv.air.total - 0.001)));
-      const rg = ctx.createRadialGradient(X(BELL_X), Y(RIM_Y), 0, X(BELL_X), Y(RIM_Y), RIM_R * sc);
+      const rg = ctx.createRadialGradient(X(BELL_TOP_X), Y(RIM_Y), 0, X(BELL_TOP_X), Y(RIM_Y), RIM_R * sc);
       rg.addColorStop(0, rgba(INK.vermilion, 0.1 + 0.22 * A * lv.lvl));
       rg.addColorStop(1, rgba(INK.vermilion, 0));
       ctx.fillStyle = rg;
@@ -340,25 +351,31 @@ export function drawTuba(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   ctx.fillStyle = BRASS_BODY;
   ctx.fill(L.casings);
   VALVE_X.forEach((x, k) => {
-    const g = ctx.createLinearGradient(X(x - CASING_R), 0, X(x + CASING_R), 0);
+    // (drawn upright about the main line's passage and leaned with the piston: the plan's lean)
+    ctx.save();
+    ctx.translate(X(x), Y(VALVE_Y));
+    ctx.rotate(-PISTON_LEAN);
+    const yy = (y: number) => -(y - VALVE_Y) * sc;
+    const g = ctx.createLinearGradient(-CASING_R * sc, 0, CASING_R * sc, 0);
     g.addColorStop(0, rgba(INK.amber, 0.1));
     g.addColorStop(0.28, rgba('255,226,160', lv.down[k] ? 0.42 : 0.3));
     g.addColorStop(0.55, rgba(INK.amber, 0.1));
     g.addColorStop(1, 'rgba(0,0,0,0.3)');
     ctx.fillStyle = g;
-    ctx.fillRect(X(x - CASING_R), Y(CASING_Y1), 2 * CASING_R * sc, (CASING_Y1 - CASING_Y0) * sc);
+    ctx.fillRect(-CASING_R * sc, yy(CASING_Y1), 2 * CASING_R * sc, (CASING_Y1 - CASING_Y0) * sc);
     // the stem and the button, down by the piston's travel
     const by = BUTTON_Y - TRAVEL * lv.press[k];
     ctx.strokeStyle = nickel(0.55);
     ctx.lineWidth = Math.max(1, 0.0042 * sc);
     ctx.beginPath();
-    ctx.moveTo(X(x), Y(CASING_Y1 + 0.011));
-    ctx.lineTo(X(x), Y(by));
+    ctx.moveTo(0, yy(CASING_Y1 + 0.011));
+    ctx.lineTo(0, yy(by));
     ctx.stroke();
     ctx.fillStyle = lv.down[k] ? rgba('255,246,226', 0.95) : rgba('226,218,200', 0.8);
     ctx.beginPath();
-    ctx.ellipse(X(x), Y(by), 0.0135 * sc, Math.max(1.2, 0.0045 * sc), 0, 0, 2 * Math.PI);
+    ctx.ellipse(0, yy(by), 0.0135 * sc, Math.max(1.2, 0.0045 * sc), 0, 0, 2 * Math.PI);
     ctx.fill();
+    ctx.restore();
   });
   ctx.strokeStyle = rgba(INK.amber, 0.7);
   ctx.lineWidth = 1;
@@ -388,11 +405,11 @@ export function drawTuba(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   ctx.lineWidth = 1.1;
   ctx.stroke(L.mp);
   if (lv.sounding && lv.blow > 0.01) {
-    // (the breath comes from the right, into the cup: the reeds' streams, pulsing with the lips' opening;
-    // drawn 1.7 times the horn's, as the cup is)
+    // (the breath comes from the player's side, into the cup: the reeds' streams, pulsing with the lips'
+    // opening; drawn 1.7 times the horn's, as the cup is)
     const o = lv.open / Math.max(0.3, lv.swing + 0.2);
     const k = 1.7 * sc;
-    breathStream(ctx, (a, w) => [X(MP_RIM[0]) + a * k, Y(MP_RIM[1]) - w * k], k, BRASS_BREATH, brassBreath(lv.lvl, o), now);
+    breathStream(ctx, (a, w) => [X(MP_RIM[0]) - MP_DIR[0] * a * k, Y(MP_RIM[1]) - w * k], k, BRASS_BREATH, brassBreath(lv.lvl, o), now);
   }
   ctx.restore();
   tubaRecord(L, st, lv);

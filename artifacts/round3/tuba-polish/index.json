@@ -1,0 +1,79 @@
+{
+ "instrument": "tuba",
+ "seconds": 18.056250000000002,
+ "notes": 23,
+ "before": {
+  "peakDb": -3.8,
+  "peakAt": 9.18,
+  "lufs": -22.2,
+  "repeats": [
+   {
+    "midi": 41,
+    "n": 8,
+    "levelSdDb": 0.33,
+    "centroidSdCents": 29,
+    "levelsDb": [
+     -22.8,
+     -22.2,
+     -22.3,
+     -22,
+     -21.9,
+     -22.3,
+     -21.7,
+     -22
+    ]
+   }
+  ],
+  "held": [
+   {
+    "midi": 36,
+    "seconds": 2.6,
+    "centroidMoveCents": 31,
+    "levelMoveDb": 0.25
+   },
+   {
+    "midi": 31,
+    "seconds": 2.6,
+    "centroidMoveCents": 44,
+    "levelMoveDb": 0.87
+   }
+  ]
+ },
+ "after": {
+  "peakDb": -4.3,
+  "peakAt": 9.16,
+  "lufs": -22.4,
+  "repeats": [
+   {
+    "midi": 41,
+    "n": 8,
+    "levelSdDb": 1.52,
+    "centroidSdCents": 78,
+    "levelsDb": [
+     -25.1,
+     -20.8,
+     -22,
+     -21.4,
+     -22.3,
+     -21.3,
+     -20,
+     -22.3
+    ]
+   }
+  ],
+  "held": [
+   {
+    "midi": 36,
+    "seconds": 2.6,
+    "centroidMoveCents": 29,
+    "levelMoveDb": 0.39
+   },
+   {
+    "midi": 31,
+    "seconds": 2.6,
+    "centroidMoveCents": 51,
+    "levelMoveDb": 0.74
+   }
+  ]
+ }
+}

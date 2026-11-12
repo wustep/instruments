@@ -9,27 +9,27 @@
 // pistons and the wave over.
 import type { VisualFrame } from '@piano-model/engine';
 import { tubaLayout, tubaLive, tubaRecord, type TbLayout, type TubaState } from '../tuba-draw.ts';
-import { BELL_X, BUTTON_Y, CASING_R, CASING_Y1, MOUTH_K, MP_DIR, MP_RIM, RIM_R, RIM_Y, TRAVEL, VALVE_X, bellR } from '../tuba-plan.ts';
+import { BELL_TILT, BELL_TOP_X, BUTTON_Y, CASING_R, CASING_Y1, MOUTH_K, MP_DIR, MP_RIM, RIM_R, RIM_Y, TRAVEL, VALVE_X, bellAxisX, bellR, lean } from '../tuba-plan.ts';
 import { airHatch, slots, strokeHatch } from './horn.ts';
 import { V, beam, mix, seg } from './kit.ts';
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-/** the bell's sections: three ellipses round its upright axis, each the flare's width there */
+/** the bell's sections: three ellipses round its leaning axis, each the flare's width there */
 function bellSections(L: TbLayout): Path2D {
   const p = new Path2D();
   for (const d of [0.05, 0.14, 0.3]) {
     const r = bellR(d) * L.sc;
-    const cx = L.ox + BELL_X * L.sc;
+    const cx = L.ox + bellAxisX(RIM_Y - d) * L.sc;
     const cy = L.oy - (RIM_Y - d) * L.sc;
     // (the near half: the far half is behind the flare)
-    p.moveTo(cx - r, cy);
-    p.ellipse(cx, cy, r, r * MOUTH_K, 0, Math.PI, 0, true);
+    p.moveTo(cx - r * Math.cos(BELL_TILT), cy + r * Math.sin(BELL_TILT));
+    p.ellipse(cx, cy, r, r * MOUTH_K, -BELL_TILT, Math.PI, 0, true);
   }
   return p;
 }
 
-/** The tuba from its front, as lines. `top`: the file player's px over the box's top. */
+/** The tuba from its valve side, as lines. `top`: the file player's px over the box's top. */
 export function drawTubaV(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: TubaState, top = 0): void {
   const L = tubaLayout(W, H, top);
   const { sc } = L;
@@ -88,17 +88,23 @@ export function drawTubaV(ctx: CanvasRenderingContext2D, W: number, H: number, f
     const q = clamp(lv.press[k], 0, 1);
     const by = BUTTON_Y - TRAVEL * lv.press[k];
     const c = mix(V.blueMid, V.white, 0.7 * q);
-    seg(ctx, X(x), Y(CASING_Y1 + 0.011), X(x), Y(by), c, lw, { hot: q > 0.5 });
-    seg(ctx, X(x - 0.0135), Y(by), X(x + 0.0135), Y(by), c, lw + 0.6, { hot: q > 0.5 });
+    // (each line drawn on the upright piston and leaned with it: the plan's lean)
+    const ln = (x0: number, y0: number, x1: number, y1: number, col: string, w: number, o?: { hot?: boolean }) => {
+      const a = lean(k, [x0, y0]);
+      const b = lean(k, [x1, y1]);
+      seg(ctx, X(a[0]), Y(a[1]), X(b[0]), Y(b[1]), col, w, o);
+    };
+    ln(x, CASING_Y1 + 0.011, x, by, c, lw, { hot: q > 0.5 });
+    ln(x - 0.0135, by, x + 0.0135, by, c, lw + 0.6, { hot: q > 0.5 });
     // (the piston inside its casing, going down with the stem)
-    if (!small) seg(ctx, X(x - CASING_R * 0.7), Y(CASING_Y1 - 0.02 - TRAVEL * lv.press[k]), X(x + CASING_R * 0.7), Y(CASING_Y1 - 0.02 - TRAVEL * lv.press[k]), mix(V.blueDim, V.white, 0.5 * q), 1);
+    if (!small) ln(x - CASING_R * 0.7, CASING_Y1 - 0.02 - TRAVEL * lv.press[k], x + CASING_R * 0.7, CASING_Y1 - 0.02 - TRAVEL * lv.press[k], mix(V.blueDim, V.white, 0.5 * q), 1);
   });
   // ---- the mouthpiece, and the four slots at it (the breath, the lips, the noise, the vibrato)
   mask(L.mp);
   beam(ctx, L.mp, V.blue, lw);
   slots(ctx, L, lv, st, fr, now, small, lw, [MP_RIM[0], MP_RIM[1]], [MP_DIR[0], MP_DIR[1]], 0.02);
   // (the rim of the bell names where the sound leaves)
-  if (lv.sounding && !small) seg(ctx, X(BELL_X - RIM_R), Y(RIM_Y), X(BELL_X + RIM_R), Y(RIM_Y), V.amber, 1, { alpha: 0.25 * fade });
+  if (lv.sounding && !small) seg(ctx, X(BELL_TOP_X - RIM_R * Math.cos(BELL_TILT)), Y(RIM_Y - RIM_R * Math.sin(BELL_TILT)), X(BELL_TOP_X + RIM_R * Math.cos(BELL_TILT)), Y(RIM_Y + RIM_R * Math.sin(BELL_TILT)), V.amber, 1, { alpha: 0.25 * fade });
   ctx.restore();
   tubaRecord(L, st, lv);
 }
