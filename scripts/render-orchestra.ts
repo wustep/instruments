@@ -12,6 +12,13 @@
 // --undivided: a wind staff two players share sent whole to each (as before they divided it: a chord asked
 // of one wind; the comparison)
 // --start <s>: from this time of the piece (at its tempo), to --seconds after it
+// --played: as the file player plays it (ui/player.ts, audio.ts, orchestra/ensemble.ts): the automatic
+//   expression on the flat lines (expression.ts express), the file's volume and expression as each part's
+//   gain (CC7, CC11: a 20 ms glide, as the output's gain node), its mod wheel and swells to the engine, and
+//   every note told ahead to the bows and the winds (foresee: its length and the dynamics over it)
+// --stems: also write every part alone, as it reaches the bus (its seat, its limiter, the bus gain):
+//   <name>-<nn>-<voice>.mp3 (and .wav with --wav), and <name>-stems.json, each part's notes as it was sent
+//   them (time, midi, velocity, length). For hearing and measuring one part of a score as seated.
 // --post-bus: each part's own limiter blind to the bus gain after it (as before audio audit 2; ensemble.ts
 //   tells every part its share, the engine's Limiter.bus: a part's limiter works on the level the bus hears)
 // A built-in piece of more than six instruments is seated whole (as the stage seats it: ensemble.ts).
@@ -22,7 +29,9 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderInstrument, type TimedEvent } from '../packages/engine/src/core/render.ts';
 import { encodeWav } from '../packages/engine/src/analysis/wav.ts';
-import { parseMidi } from '../apps/web/src/midi-file.ts';
+import { notesAhead, parseMidi } from '../apps/web/src/midi-file.ts';
+import { express, modLines, modValue, PartLevels, volumeRef } from '../apps/web/src/expression.ts';
+import { CC_DYNAMICS, CC_REST, foresees } from '../packages/engine/src/core/instrument.ts';
 import { autoPlan, deskOf, placeNote, planOf, playersOf, playsNote, shiftsOf, VOICE_INFO, VOICES, type Plan, type Voice } from '../apps/web/src/orchestra/assign.ts';
 import { PIECES, piecePlan, pieceSong } from '../apps/web/src/orchestra/pieces.ts';
 import { busGain } from '../apps/web/src/orchestra/mix.ts';
@@ -62,6 +71,8 @@ const FLAT = args.includes('--flat') ? (args.splice(args.indexOf('--flat'), 1), 
 const JSON_OUT = args.includes('--json') ? (args.splice(args.indexOf('--json'), 1), true) : false;
 const UNDIVIDED = args.includes('--undivided') ? (args.splice(args.indexOf('--undivided'), 1), true) : false;
 const START = Number(opt('--start', '0'));
+const PLAYED = args.includes('--played') ? (args.splice(args.indexOf('--played'), 1), true) : false;
+const STEMS = args.includes('--stems') ? (args.splice(args.indexOf('--stems'), 1), true) : false;
 const POST_BUS = args.includes('--post-bus') ? (args.splice(args.indexOf('--post-bus'), 1), true) : false;
 const FS = 48000;
 mkdirSync(OUT, { recursive: true });
@@ -112,6 +123,8 @@ for (const job of jobs) {
   const plan: Plan = SOLO ? { parts: [{ voice: SOLO, lines: song.lines.map((_, i) => i) }], lines: song.lines.map(() => [{ part: 0, shift: 0 }]) } : job.plan(song.lines);
   const players = ONE ? plan.parts.map(() => 0) : playersOf(plan);
   const dur = Math.min(SECONDS, song.duration - START + 2);
+  const played = PLAYED ? express(song).events : song.events;
+  const ahead = notesAhead(played);
   const n = Math.ceil(dur * FS);
   const L = new Float32Array(n);
   const R = new Float32Array(n);
@@ -123,18 +136,36 @@ for (const job of jobs) {
   const rows: { voice: string; lines: number[]; seat: number[] | null; peakDb: number; rmsDb: number; ildDb: number; lagMs: number; limiterDb: number; limiterFrac: number }[] = [];
   // the bus gain after every part; its limiter told of it (as ensemble.ts does), or not (--post-bus)
   const post = SOLO ? 1 : g;
+  const stems: { file: string; voice: string; lines: number[]; notes: { t: number; midi: number; vel: number; len: number }[] }[] = [];
   for (const [k, part] of plan.parts.entries()) {
     const info = VOICE_INFO[part.voice];
     const events: TimedEvent[] = [];
     /** notes this part is sent at one moment (a wind asked for a chord: more than one) */
     const at = new Map<number, number>();
-    for (const e of song.events) {
+    // (--played) the file's dynamics on this part: its gain's steps, the wheel and the swells to the engine
+    const lv = new PartLevels(volumeRef(song), modLines(song));
+    const gains: [number, number][] = [];
+    for (const [i, e] of played.entries()) {
+      if (PLAYED && (e.kind === 'cc' || e.kind === 'dyn') && e.line !== undefined && part.lines.includes(e.line) && e.t - START <= dur - 1) {
+        if (!lv.take(e)) continue;
+        const prev = lv.sent;
+        const next = lv.next(part.lines);
+        if (!next) continue;
+        const time = Math.max(0, e.t - START) + 0.05;
+        if (next.gain !== (prev?.gain ?? 1)) gains.push([time, next.gain]);
+        if (info.instrument !== 'piano') {
+          if (next.mod !== (prev?.mod ?? null)) events.push({ time, event: { type: 'control', cc: 1, value: next.mod === null ? CC_REST : modValue(next.mod) } as never });
+          if (next.dyn !== (prev?.dyn ?? 0)) events.push({ time, event: { type: 'control', cc: CC_DYNAMICS, value: next.dyn } as never });
+        }
+        continue;
+      }
       if (e.t < START || e.t - START > dur - 1 || e.line === undefined || !part.lines.includes(e.line)) continue;
       // (a wind of a pair on one staff plays its own voice: orchestra/ensemble.ts schedule)
       if ((e.kind === 'on' || e.kind === 'off') && !SOLO && !UNDIVIDED && !playsNote(e, deskOf(plan, song.lines, e.line, k))) continue;
       const sh = plan.lines[e.line].find((r) => r.part === k)?.shift ?? 0;
       const time = e.t - START + 0.05;
       if (e.kind === 'on') {
+        if (PLAYED && ahead.len[i] > 0 && foresees(info.instrument)) events.push({ time, event: { type: 'foresee', midi: placeNote(e.midi, sh, part.voice), velocity: e.vel, dur: ahead.len[i], dyn: ahead.dyn[i] } as never });
         events.push({ time, event: { type: 'noteOn', midi: placeNote(e.midi, sh, part.voice), velocity: e.vel } });
         at.set(e.t, (at.get(e.t) ?? 0) + 1);
       } else if (e.kind === 'off') events.push({ time, event: { type: 'noteOff', midi: placeNote(e.midi, sh, part.voice) } });
@@ -144,7 +175,46 @@ for (const job of jobs) {
     const chords = [...at.values()].filter((n) => n > 1).length;
     const r = renderInstrument({ sampleRate: FS, instrument: info.instrument, preset: info.preset, events, duration: dur, player: players[k], params: seats ? { seat: seats[k] } : undefined, bus: SOLO || POST_BUS ? undefined : g, maxVoices: info.instrument === 'piano' ? (plan.parts.filter((q) => q.voice === 'grand' || q.voice === 'upright').length > 1 ? 32 : 48) : undefined });
     cpu += r.cpuMs;
+    if (gains.length) {
+      // the output's gain node: setTargetAtTime(gain, at, 0.02)
+      const kg = 1 - Math.exp(-1 / (0.02 * FS));
+      let gi = 0;
+      let target = 1;
+      let cur = 1;
+      for (let i = 0; i < n; i++) {
+        while (gi < gains.length && gains[gi][0] * FS <= i) target = gains[gi++][1];
+        cur += (target - cur) * kg;
+        r.left[i] *= cur;
+        r.right[i] *= cur;
+      }
+    }
     outs.push(r.left);
+    if (STEMS) {
+      const file = `${job.name}-${String(k + 1).padStart(2, '0')}-${part.voice}`;
+      const sl = new Float32Array(n);
+      const sr = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        sl[i] = post * r.left[i];
+        sr[i] = post * r.right[i];
+      }
+      const w = join(OUT, `${file}.wav`);
+      writeFileSync(w, encodeWav({ sampleRate: FS, channels: [sl, sr] }));
+      execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', w, '-b:a', '160k', join(OUT, `${file}.mp3`)]);
+      if (!WAV) execFileSync('rm', [w]);
+      const held = new Map<number, { t: number; midi: number; vel: number; len: number }[]>();
+      const sent: { t: number; midi: number; vel: number; len: number }[] = [];
+      for (const e of events) {
+        if (e.event.type === 'noteOn') {
+          const note = { t: +e.time.toFixed(4), midi: e.event.midi, vel: e.event.velocity, len: 0 };
+          sent.push(note);
+          held.set(note.midi, [...(held.get(note.midi) ?? []), note]);
+        } else if (e.event.type === 'noteOff') {
+          const note = held.get(e.event.midi)?.shift();
+          if (note) note.len = +(e.time - note.t).toFixed(4);
+        }
+      }
+      stems.push({ file, voice: part.voice, lines: part.lines, notes: sent });
+    }
     let pk = 0;
     let s2 = 0;
     for (let i = 0; i < n; i++) {
@@ -185,6 +255,7 @@ for (const job of jobs) {
   }
   console.log(`  mix      peak ${db(pk)} dBFS  rms ${db(Math.sqrt(s2 / n))} dBFS  (all parts ${(cpu / dur / 10).toFixed(1)} % of real time)`);
   const name = POST_BUS ? `${job.name}-post-bus` : SOLO ? `${job.name}-before-one-${SOLO}` : ONE ? `${job.name}-one-player` : FLAT ? `${job.name}-flat` : UNDIVIDED ? `${job.name}-undivided` : job.name;
+  if (STEMS) writeFileSync(join(OUT, `${job.name}-stems.json`), JSON.stringify({ piece: job.name, seconds: dur, start: START, bus: g, parts: stems }));
   if (JSON_OUT) writeFileSync(join(OUT, `${name}.json`), JSON.stringify({ piece: job.name, seconds: dur, flat: FLAT, bus: g, parts: rows, mix: { peakDb: +db(pk), rmsDb: +db(Math.sqrt(s2 / n)) } }, null, 1));
   const wav = join(OUT, `${name}.wav`);
   writeFileSync(wav, encodeWav({ sampleRate: FS, channels: [L, R] }));
