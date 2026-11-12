@@ -66,7 +66,10 @@ out), the third-octave spectrum.
 * All twenty-three strings now (`apps/web/public/data/harp.json`, the Measurements page): brightness ×1.00
   and the time to fall 20 dB ×0.99 in the median, partials' levels 8.9 dB RMS, third-octave spectrum 11.0 dB,
   stretch 7.3 ¢.
-* Level: a mezzo-forte middle C is −40 dBFS over its first half second, 3 dB under the piano's.
+* Level: set beside the piano's as the piano is played: a mezzo-forte middle C 1.4 dB under the piano's
+  (−31.8 dBFS RMS over its first half second), a mezzo-forte walk 6 LU under. (As first merged, #64, it was
+  matched to the piano's dry level by mistake and was 8 dB quieter than that: corrected with the glockenspiel's
+  PR.)
 
 ## Known weaknesses
 

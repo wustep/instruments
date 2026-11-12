@@ -271,8 +271,10 @@ export interface HarpVoice {
 /** The fitted voicing (scripts/fit-harp.ts on every second recorded string: the search from three seeds, then
  *  its coordinate polish; the fit half 1.63 → 0.91 in the judge's units, each measure about as far from the
  *  recording as its neighbouring strings are from each other). The level is not the library's (its gain is
- *  its session's): it is set so that a mezzo-forte middle C sounds 3 dB under the piano's (−40 dBFS RMS over
- *  its first half second; the piano's −37). */
+ *  its session's): it is set beside the piano's as the piano is played (its dry level and 6 dB: PLAYBACK_GAIN_DB),
+ *  a mezzo-forte middle C 1.4 dB under the piano's over its first half second (−31.8 dBFS RMS; the piano's
+ *  −30.4), a mezzo-forte walk C3–G5 6 LU under. (As first shipped it was matched to the piano's dry level by
+ *  mistake, and was 9.4 dB and 14 LU under: 8 dB too quiet.) */
 export const HARP_VOICE: HarpVoice = {
   beta: 0.485,
   betaTop: 0.485,
@@ -314,7 +316,7 @@ export const HARP_VOICE: HarpVoice = {
   polDecay: 0.4045,
   polCents: 0.3029,
   velPow: 2,
-  gainDb: -26,
+  gainDb: -18,
 };
 
 /** the most partials a string is given: the wire strings of the bass (a C1's 64th is at 2.1 kHz), the rest */

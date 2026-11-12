@@ -106,6 +106,14 @@ would fall under the horn's. Its golden envelope is 3.00 dB lower throughout and
 judge's level measure (not a guard) moves by 3 dB. Before and after clips are in `artifacts/new3/` (not
 committed).
 
+## The harp's level (a correction to #64)
+
+The harp was merged 8 dB too quiet: its level was set 3 dB under the piano's on dry renders, and the piano
+is played 6 dB over its dry level (`PLAYBACK_GAIN_DB`); as heard, a mezzo-forte middle C was 9.4 dB under the
+piano's and a mezzo-forte walk 14 LU under (−36.5 LUFS against −22.5), the quietest instrument by far. It is
+now 8 dB up (`HARP_VOICE.gainDb` −18): middle C 1.4 dB under the piano's, the walk 6 LU under (−28.5 LUFS mf,
+−21.3 ff). Its golden envelope is 8.00 dB higher throughout and otherwise identical.
+
 ## Pictures
 
 `glockenspiel-2d.jpg`, `glockenspiel-vector.jpg`, `glockenspiel-3d.jpg` (C6 ringing), `glockenspiel-phone-2d.jpg`,
