@@ -3,6 +3,8 @@
 //   npx tsx scripts/same-sound.ts --before ../piano-model/packages/engine/src/core/index.ts --instrument horn,trumpet
 // A passage with held notes, joined notes (tongued over the breath), a slur, repeated notes and foreseen ones,
 // at 44.1 and 48 kHz, dry and through the room. Prints the largest difference; exits 1 when there is one.
+// --params '{"human":0}': the instrument's parameters, both engines' (an instrument given a player of its own
+// is still the model it was with none: `human` 0, which the old engine does not know and ignores)
 import { resolve } from 'node:path';
 import * as now from '../packages/engine/src/core/index.ts';
 
@@ -11,6 +13,7 @@ const arg = (k: string) => {
   return i >= 0 ? process.argv[i + 1] : undefined;
 };
 const before = (await import(resolve(arg('--before') ?? '../piano-model/packages/engine/src/core/index.ts'))) as typeof now;
+const params = arg('--params') ? (JSON.parse(arg('--params')!) as Record<string, unknown>) : undefined;
 const ids = (arg('--instrument') ?? 'horn,trumpet').split(',') as now.InstrumentId[];
 
 let bad = 0;
@@ -34,7 +37,7 @@ for (const id of ids) {
   events.sort((a, b) => a.time - b.time);
   for (const fs of [44100, 48000])
     for (const dry of [true, false]) {
-      const o = { instrument: id, sampleRate: fs, events: events as never, duration: t + 0.6, dry } as never;
+      const o = { instrument: id, sampleRate: fs, events: events as never, duration: t + 0.6, dry, ...(params ? { params } : {}) } as never;
       const a = before.renderInstrument(o);
       const b = now.renderInstrument(o);
       let d = 0;

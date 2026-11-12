@@ -13,7 +13,7 @@ const FSS = [22050, 44100, 48000, 96000];
 type Table = Record<string, { fs: number[]; midi: number[]; cents: number[][] }>;
 
 export function measureCents(fs: number, m: number, size: TromboneSize, vel = 70, voice?: object): number {
-  const c = new TromboneCore({ sampleRate: fs, dry: true, params: { size, vibrato: 0, noise: 0, ...(voice ? { voice } : {}) } as never });
+  const c = new TromboneCore({ sampleRate: fs, dry: true, params: { size, vibrato: 0, noise: 0, human: 0, ...(voice ? { voice } : {}) } as never });
   c.schedule({ type: 'noteOn', midi: m, velocity: vel }, 64);
   const n = Math.round((1.1 * fs) / 128) * 128;
   const L = new Float32Array(n);

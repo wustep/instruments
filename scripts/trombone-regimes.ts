@@ -8,7 +8,7 @@
 import { TromboneCore, tromboneFingering, TROMBONE_SIZES, type TromboneSize } from '../packages/engine/src/core/trombone.ts';
 
 export function regime(m: number, vel: number, fs: number, size: TromboneSize, voice?: object, dur = 2): string {
-  const c = new TromboneCore({ sampleRate: fs, dry: true, params: { size, vibrato: 0, ...(voice ? { voice } : {}) } as never });
+  const c = new TromboneCore({ sampleRate: fs, dry: true, params: { size, vibrato: 0, human: 0, ...(voice ? { voice } : {}) } as never });
   c.schedule({ type: 'noteOn', midi: m, velocity: vel }, 0);
   const bl = new Float32Array(128);
   const br = new Float32Array(128);

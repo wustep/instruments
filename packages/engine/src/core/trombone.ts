@@ -53,7 +53,7 @@ import { CC_DYNAMICS, DYN_TAU, PLAYBACK_DB, type ExciteTrace, type InstrumentCor
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { biquadHighpass, biquadHighShelf, biquadLowpass, biquadPeaking } from './filters.ts';
 import type { PianoEvent } from './piano-core.ts';
-import { clamp, interp, mulberry32, playerCents, playerSeed, playerVibrato } from './util.ts';
+import { clamp, Human, interp, mulberry32, playerCents, playerSeed, playerVibrato } from './util.ts';
 import tromboneTuning from './trombone-tuning.json';
 
 /** air (20 °C): speed of sound, density, the coefficient of nonlinearity (γ + 1)/2 */
@@ -186,9 +186,69 @@ export interface TromboneParams {
   room: number;
   volume: number;
   seat?: Seat | null;
+  /** how much of a player: 0 the model alone (what is fitted and judged: every note of one pitch and
+   *  strength the same, a held note held dead still) … 1 a player's breath, lips, tongue and slide hand
+   *  (TROMBONE_HUMAN) */
+  human?: number;
   /** fitting only (scripts/fit-trombone.ts): the voicing below, overridden */
   voice?: Partial<TromboneVoice>;
 }
+
+/** A player on the trombone: what no two notes of his have alike, and what a held note does. Measured on the
+ *  University of Iowa MIS tenor trombone where the recordings say (scripts/trombone-variation.ts: from one note
+ *  of a run to the next the pitch is ±5–6 ¢ from the run's own tuning and the attack's length ±22–43 % from its
+ *  own; a held note's level peaks a quarter to four tenths of the way through and then falls 0.7–1.5 dB/s,
+ *  wandering ±0.12 dB, its pitch ±1.3–2.5 ¢ from one tenth of a second to the next and several cents over a
+ *  second; the model alone: ±0.1 ¢, ±11–16 %, level still rising at the end, ±0.03–0.06 dB, ±0.1 ¢). All of
+ *  it is scaled by the `human` parameter, and a seeded stream: the same notes give the same samples. */
+export interface TromboneHuman {
+  seed: number;
+  /** the breath over a held note: supported for `sagAfter` s, then sagging by `sag` (a share of the mouth
+   *  pressure) over `sagTau` s as the air is spent, a new tongued note taking a new support; and wandering by
+   *  `drift` (a share, a standard deviation) */
+  sag: number;
+  sagAfter: number;
+  sagTau: number;
+  drift: number;
+  /** the pitch's wander, the lips and the hand on the slide together (cents, standard deviations): from one
+   *  fifth of a second to the next, and slowly (over `slowTau` s) */
+  wander: number;
+  slow: number;
+  slowTau: number;
+  /** where the slide is put for a note, found by ear (cents, a standard deviation): a note's own for as long
+   *  as it sounds, and the same again if its pitch is struck again (the slide has not moved). Under the
+   *  recordings' ±5–6 ¢: those notes were played alone, with nothing to tune to */
+  place: number;
+  /** from one tongued note to the next (standard deviations, shares): the tongue's hold, the lips' kick, the
+   *  breath's rise, and the breath's strength (of the mouth pressure: the level moves two to three times as
+   *  far, ±0.4 dB fortissimo, ±0.5 dB pianissimo) */
+  hold: number;
+  kick: number;
+  rise: number;
+  strength: number;
+  /** the air: the tongue's release lets a puff through (× the breath noise at the release, dying over
+   *  `puffTau` s) */
+  puff: number;
+  puffTau: number;
+}
+
+export const TROMBONE_HUMAN: TromboneHuman = {
+  seed: 571,
+  sag: 0.16,
+  sagAfter: 0.4,
+  sagTau: 1.6,
+  drift: 0.02,
+  wander: 4.5,
+  slow: 2.5,
+  slowTau: 1.2,
+  place: 4,
+  hold: 0.25,
+  kick: 0.15,
+  rise: 0.25,
+  strength: 0.02,
+  puff: 3,
+  puffTau: 0.03,
+};
 
 /** The voicing: the lips and the radiation's colour, fitted to the University of Iowa MIS tenor and bass
  *  trombones (scripts/fit-trombone.ts on the fit half of the notes, judged on the other half). The bore's
@@ -531,6 +591,18 @@ export class TromboneCore implements InstrumentCore {
   private hNow = 0;
   private gammaNow = 0;
   private lastOut = 0;
+  /** the player (TROMBONE_HUMAN): his stream; the breath's and the pitch's wanders (each a random walk drawn
+   *  back to rest, and smoothed) and the breath as it is now (the sag and the wander: 1 the model's own); this
+   *  note's own breath (a share more or less) and where its slide was put (semitones) */
+  private hum: Human;
+  private driftRaw = 0;
+  private drift = 0;
+  private wanderRaw = 0;
+  private wander = 0;
+  private slowRaw = 0;
+  private breathNow = 1;
+  private velJit = 0;
+  private place = 0;
 
   constructor(opts: { sampleRate: number; params?: Partial<TromboneParams>; dry?: boolean; player?: number }) {
     this.fs = opts.sampleRate;
@@ -539,6 +611,7 @@ export class TromboneCore implements InstrumentCore {
     this.V = { ...TROMBONE_VOICE, ...this.params.voice };
     this.keys = new MonoKeys(this.fs);
     this.rng = mulberry32(playerSeed(57, opts.player));
+    this.hum = new Human(TROMBONE_HUMAN.seed, opts.player);
     const pv = playerVibrato(opts.player);
     this.vib0 = this.vibPhase = pv.phase;
     this.vibRate = pv.rate;
@@ -548,6 +621,46 @@ export class TromboneCore implements InstrumentCore {
     this.build();
     this.voiced();
     this.setNote(this.home(), true);
+  }
+
+  /** how much of a player there is (0: none, the model alone) */
+  private get human(): number {
+    return clamp(this.params.human ?? 1, 0, 1);
+  }
+
+  /** A player's new note on pitch `m` (`tongued`: from silence, or over the breath; a slur is the lips and the
+   *  slide only): no two alike. Its breath is a little stronger or weaker, and the slide is put where the ear
+   *  finds the note, a few cents either side (where it stands already if the pitch is the same). Before the
+   *  tube is set for it (setNote). */
+  private newNote(m: number, tongued: boolean): void {
+    const H = this.human;
+    if (!(H > 0)) {
+      this.velJit = this.place = 0;
+      return;
+    }
+    const hu = TROMBONE_HUMAN;
+    if (tongued) this.velJit = H * hu.strength * this.hum.near();
+    if (this.noteOf(m) !== this.note || !(this.pTarget > 0)) this.place = (H * hu.place * this.hum.near()) / 100;
+  }
+
+  /** A tongued note's own first moments, once the model's are set: the tongue's hold, the lips' kick and the
+   *  breath's rise each a little more or less (`first`: tongued from silence, the lips held first). A note
+   *  known to be short (`len` s; mono.ts quickness) gets less of it, a quick one none: a run's strokes are a
+   *  run's, one like the next, and such a note has no room to begin otherwise (a scale of 70 ms notes with
+   *  70 ms rests, twelve players through: with the whole of it 8 of the 96 notes were more than 10 dB under
+   *  the others, where the model alone lost 3; as it is, 3 against the model's 2:
+   *  scripts/trombone-variation.ts --detached). */
+  private ownAttack(first: boolean, len: number): void {
+    const H = this.human * (1 - quickness(len));
+    if (!(this.human > 0)) return;
+    const hu = TROMBONE_HUMAN;
+    // (drawn whatever the note's length: the stream runs on the same)
+    const k = this.hum.near();
+    const r = this.hum.near();
+    const h = this.hum.near();
+    this.kickNow *= Math.max(0.3, 1 + H * hu.kick * k);
+    this.attackTau *= Math.max(0.4, 1 + H * hu.rise * r);
+    if (first && this.tongueN > 0) this.tongueN = Math.max(1, Math.round(this.tongueN * Math.max(0.4, 1 + H * hu.hold * h)));
   }
 
   /** a note to rest on (the middle of the size's compass) */
@@ -809,7 +922,7 @@ export class TromboneCore implements InstrumentCore {
    * on the slide alone (C3 in sixth). What is left of the loop is the valve's, the rest the slide's.
    */
   private weigh(m: number, fg: TromboneFingering): void {
-    const c = this.tuningCorrection(m) / Math.pow(2, (this.bend + this.tune) / 12);
+    const c = this.tuningCorrection(m) / Math.pow(2, (this.bend + this.tune + this.place) / 12);
     const f = et(m) / c;
     // a pedal note is played on the resonances above it: tune the 2nd to its octave
     const n = Math.max(2, fg.partial);
@@ -859,7 +972,7 @@ export class TromboneCore implements InstrumentCore {
   private retarget(immediate: boolean): void {
     const m = this.note;
     const fg = this.fingering;
-    const c = this.tuningCorrection(m) / Math.pow(2, (this.bend + this.tune) / 12);
+    const c = this.tuningCorrection(m) / Math.pow(2, (this.bend + this.tune + this.place) / 12);
     const f = et(m) / c;
     const n = Math.max(2, fg.partial);
     this.aim(m, fg, immediate);
@@ -1020,6 +1133,7 @@ export class TromboneCore implements InstrumentCore {
     // (a stroke made ahead for a note that came otherwise lets go)
     if (this.lick.down && !(a.kind === 'retongue' && a.struck)) this.lick.release(this.tongueOpen(this.note));
     if (a.kind === 'slur') {
+      this.newNote(m, false);
       this.setNote(m, false);
       // (back to a note still held: the lips and the tube only)
       if (a.velocity) {
@@ -1029,6 +1143,7 @@ export class TromboneCore implements InstrumentCore {
       // (a slide sent ahead has had its soft tongue: what is left, the partial's own correction, moves without)
       if (!ahead) this.legatoMove();
     } else if (a.kind === 'tongue') {
+      this.newNote(m, true);
       this.setNote(m, this.level < 1e-3);
       this.pTarget = 1;
       this.lick.reset();
@@ -1048,10 +1163,12 @@ export class TromboneCore implements InstrumentCore {
       this.qDipNow = 1;
       this.kickNow = 1 + QUICK_KICK * quickness(a.len);
       this.afterStop = false;
+      this.ownAttack(true, a.len);
       this.blowUntil = this.frame + Math.round((MIN_BLOW_PP + (MIN_BLOW - MIN_BLOW_PP) * (vel / 127)) * this.fs);
     } else {
       // tongued over the breath: the lips and the tube move, the tongue stops the air and lets it go again
       const same = this.noteOf(m) === this.note;
+      this.newNote(m, true);
       this.setNote(m, false);
       this.pTarget = 1;
       this.attackTau = Math.min(this.attackTau, quickRise((this.V.riseLo + (this.V.riseHi - this.V.riseLo) * (vel / 127)) * this.riseNote, a.len));
@@ -1070,6 +1187,7 @@ export class TromboneCore implements InstrumentCore {
       if (wait === 0 && this.afterStop && a.len <= QUICK_FULL) this.kickPending = true;
       this.afterStop = false;
       this.lickKick = wait > 0;
+      this.ownAttack(false, a.len);
       this.noteStart = this.frame;
       this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
     }
@@ -1225,14 +1343,36 @@ export class TromboneCore implements InstrumentCore {
       this.dyn += (this.dynTarget - this.dyn) * (1 - Math.exp(-dt / DYN_TAU));
       if (Math.abs(this.dynTarget - this.dyn) < 1e-3) this.dyn = this.dynTarget;
     }
+    // the player: his breath's and his pitch's wander, the air spent over a held note, this note's own breath
+    const H = this.human;
+    let off = 1;
+    let air = 1;
+    if (H > 0) {
+      const hu = TROMBONE_HUMAN;
+      // (each a walk drawn back to rest, a fifth of a second for the quick ones, then smoothed: time
+      // constants, whatever the block)
+      const a = Math.exp(-dt / 0.2);
+      const sgm = Math.sqrt(1 - a * a) * 1.25;
+      this.driftRaw = a * this.driftRaw + sgm * this.hum.near();
+      this.wanderRaw = a * this.wanderRaw + sgm * this.hum.near();
+      const as = Math.exp(-dt / hu.slowTau);
+      this.slowRaw = as * this.slowRaw + Math.sqrt(1 - as * as) * this.hum.near();
+      const ks = 1 - Math.exp(-dt / 0.05);
+      this.drift += (this.driftRaw - this.drift) * ks;
+      this.wander += (this.wanderRaw - this.wander) * ks;
+      // (the support a new tongued note takes comes up within the tongue's stroke: nothing steps under a tone)
+      const breath = (1 + this.velJit) * (1 - H * (hu.sag * (1 - Math.exp(-Math.max(0, age - hu.sagAfter) / hu.sagTau)) - hu.drift * this.drift));
+      this.breathNow += (breath - this.breathNow) * (1 - Math.exp(-dt / 0.03));
+      off = Math.pow(2, (H * (hu.wander * this.wander + hu.slow * this.slowRaw)) / 1200);
+    } else this.breathNow = 1;
     const v01 = this.dyn ? clamp(this.velocity + this.dyn, 1, 127) / 127 : this.velocity / 127;
     const vc = Math.pow(v01, V.gammaCurve);
-    const pm = (V.pLo + (V.pHi - V.pLo) * vc) * this.gNote * this.pressure * P.breath * this.expression;
+    const pm = (V.pLo + (V.pHi - V.pLo) * vc) * this.gNote * this.pressure * P.breath * this.expression * this.breathNow;
     this.gammaNow = pm;
     // the legato tongue: a soft dip of the lips' opening while the slide travels (a time constant)
     const dipT = this.legatoUntil > this.frame ? 0.85 : 0;
     this.legatoDip += (dipT - this.legatoDip) * (1 - Math.exp(-dt / 0.006));
-    const lipTarget = this.lipFTarget * Math.pow(2, (P.lip - V.lipBelow) / 12) * vib;
+    const lipTarget = this.lipFTarget * off * Math.pow(2, (P.lip - V.lipBelow) / 12) * vib;
     this.lipF += (lipTarget - this.lipF) * (1 - Math.exp(-dt / 0.006));
     const th = (2 * Math.PI * Math.min(this.lipF, 0.2 * fs)) / fs;
     const ageT = Math.max(0, this.frame - this.tongueAt) / fs;
@@ -1245,7 +1385,9 @@ export class TromboneCore implements InstrumentCore {
     const h0 = V.h0;
     const hMax = V.hMax;
     const wq = V.width * Math.SQRT2 / Math.sqrt(RHO);
-    const nz = this.noiseNote * P.noise;
+    // (the player's air: a puff as the tongue lets go)
+    if (H > 0) air = 1 + H * TROMBONE_HUMAN.puff * Math.exp(-ageT / TROMBONE_HUMAN.puffTau);
+    const nz = this.noiseNote * P.noise * air;
     const lpF = Math.min(0.45 * fs, this.lpNote * Math.pow(2, V.lpDyn * (vc - 1)));
     // the corner glides there (a time constant, in octaves): switched in one step, the section's
     // coefficients changed under a sounding tone and the output jumped (audio audit, Nov 2026: a
@@ -1263,7 +1405,8 @@ export class TromboneCore implements InstrumentCore {
     const km = sdt / bt.C;
     const zc = bt.zc;
     // the slide: heading for the note (× the wheel), at most SLIDE_SPEED, smoothed
-    const DT = this.Dtarget;
+    // (the pitch's wander: the tube that much shorter or longer under the hand, as the lips are set)
+    const DT = this.Dtarget / off;
     const vMax = (4 * SLIDE_SPEED) / C_AIR; // samples of round trip per sample
     const sk = 1 / (SLIDE_TAU * fs);
     const vk = 1 - Math.exp(-1 / (0.004 * fs));

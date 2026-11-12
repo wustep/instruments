@@ -58,7 +58,8 @@ test('the trombone through the worklet at 22.05, 44.1, 48 and 96 kHz: at pitch o
   for (const [rate, midi, vel] of [[22050, 41, 70], [44100, 34, 70], [48000, 53, 30], [48000, 53, 112], [48000, 55, 70], [96000, 65, 70], [44100, 70, 112]] as const) {
     const out = await page.evaluate(async ([fs, m, v]) => {
       const { renderOffline } = (window as any).__engine;
-      const buf: AudioBuffer = await renderOffline({ instrument: 'trombone', sampleRate: fs, duration: 1.4, params: { room: 0, vibrato: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: v } }] });
+      // (the tube's own tuning at each rate: the model alone, `human` 0. Its player puts the slide a few cents either side)
+      const buf: AudioBuffer = await renderOffline({ instrument: 'trombone', sampleRate: fs, duration: 1.4, params: { room: 0, vibrato: 0, human: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: v } }] });
       const L = buf.getChannelData(0);
       const R = buf.getChannelData(1);
       const x = L.map((s, i) => 0.5 * (s + R[i]));
