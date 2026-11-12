@@ -195,9 +195,13 @@ export class TrumpetCore implements InstrumentCore {
   private histI = 0;
   private modeAmps = new Float32Array(16);
   private modeFreqs = new Float64Array(16);
-  /** output level, matched to the Iowa trumpet's (as the other instruments are to theirs): the
-   *  bell's high-pass (round 3b) took 5.7 dB off the fundamental-heavy level it had */
-  private gain = 0.9 * Math.pow(10, 5.7 / 20);
+  /** Output level. It was matched to the Iowa trumpet's (the bell's high-pass, round 3b, took 5.7 dB off the
+   *  fundamental-heavy level it had), which is recorded hot: its fortissimo's peaks ran to +2.4 dBFS before
+   *  its limiter, which took 3–4 dB off its loudest notes and left 1.6 dB between its mezzo-forte and its
+   *  fortissimo (−10.8 and −9.2 LUFS over a walk C4–C6; the horn's −16.4 and −11.2). It is played 3 dB under
+   *  that: fortissimo −11.1 LUFS, level with the horn's and the trombone's (−11.6), its peaks at the limiter's
+   *  ceiling and not through it; mezzo-forte −13.7, still the loudest of the brass. */
+  private gain = 0.9 * Math.pow(10, (5.7 - 3) / 20);
   private noteStart = 0;
   /** frame until which a tongued note keeps its breath (MIN_BLOW), and a key let go before it */
   private blowUntil = 0;

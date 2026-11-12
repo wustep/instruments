@@ -460,7 +460,7 @@
 }
 
 /* ------------------------------------------------------------ no room for thirteen: one button, a sheet */
-@media (max-width: 1320px), (max-height: 500px) and (orientation: landscape) {
+@media (max-width: 1340px), (max-height: 500px) and (orientation: landscape) {
   .picker {
     gap: 6px;
   }
@@ -858,7 +858,7 @@
 :root[data-style='vector'] .part[data-on] {
   color: var(--v-amber);
 }
-@media (max-width: 1320px), (max-height: 500px) and (orientation: landscape) {
+@media (max-width: 1340px), (max-height: 500px) and (orientation: landscape) {
   :root[data-style='vector'] .picker-pop {
     background: #000;
     border-radius: 0;

@@ -276,6 +276,16 @@ export function notesView(): View {
       ],
     },
     {
+      id: 'glockenspiel',
+      title: 'Glockenspiel',
+      body: [
+        p('Thirty steel bars, each cut to its pitch (a quarter of a metre at G5, eleven centimetres at C8), lying on felt over their nodes and struck in the middle with a hard mallet. It sounds two octaves above where its part is written: here a note is its sounding pitch, G5–C8, and a note typed lower is read as written and brought up by octaves, so a part plays either way.'),
+        eq('f₁ = 1.028 · h · √(E/ρ) / L²,   thin free bar: 1 : 2.76 : 5.40 : 8.93 : 13.34', 'the pitch of a bar of thickness h and length L, free at both ends; and the overtones a thin bar’s theory gives it'),
+        p('Those overtones are not what a glockenspiel’s bar does. The mallet lands on the bar’s middle, where the second and fourth flatwise modes have a node; and the bar is a third as thick as it is wide, so it also bends edgewise, as a thick beam whose overtones crowd together, and twists. The recordings show five families of partials above the pitch, each a smooth function of the bar: about 3.1, 6.3 and 14 times the pitch at C6, falling slowly as the bars shorten (read here as the edgewise bending: the bar is 3.3 times as wide as thick), and about 3.8 and 8 times it, falling as 1/√f (twisting: its pitch goes as 1/L where the bending’s goes as 1/L²). Each family’s ratio, level and decay over the compass and the dynamics is measured on the recordings and regressed; the model is those partials as exact resonators, and the mallet’s knock.'),
+        p('The low bars carry strong high partials for a fraction of a second, a ting at 4–9 kHz; the top bars are nearly a sine and a knock. A harder stroke is brighter as well as louder. The pitch itself rings for seconds (about 5 dB/s through the middle, 20 and more in the top octave), and nothing damps it unless the damping knob says the hand does. Two mallets play it, the engine’s own hands: they take the bars without crossing and alternate on a bar struck again, and the stage draws them where the engine has them.'),
+      ],
+    },
+    {
       id: 'room',
       title: 'The room',
       body: [
@@ -317,7 +327,7 @@ export function notesView(): View {
       id: 'calibration',
       title: 'Calibration: measured against real instruments',
       body: [
-        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, double bass, flute, oboe, B♭ clarinet, bassoon, horn, trumpet, tenor and bass trombones and tuba — and, for the timpani and the harp (Iowa has neither), the VSCO 2 Community Edition’s (Versilian Studios, CC0), used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
+        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, double bass, flute, oboe, B♭ clarinet, bassoon, horn, trumpet, tenor and bass trombones, tuba and orchestra bells — and, for the timpani and the harp (Iowa has neither), the VSCO 2 Community Edition’s (Versilian Studios, CC0), used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
         h3('Like with like, and a judge'),
         ul(
           'Each model note is rendered exactly as long as the part of the recording that is analysed, with vibrato only where the player used it; a note’s pitch with vibrato is the centre of its fine pitch track.',
@@ -362,6 +372,11 @@ export function notesView(): View {
           ['VSCO 2 CE', 'partials’ levels dB', 'spectrum dB', 'brightness ×', 'time to fall 20 dB ×', 'partials’ stretch ¢'],
           [['harp', '8.9', '11.0', '1.00', '0.99', '7.3']],
           'Twenty-three strings of one harp, E1–F7, each plucked once (every second string held out of the fit). Against the voicing first set by hand the judge says NO CLEAR CHANGE on the held-out strings (1.59 → 1.32, Δ 0.27 ± 0.15; the fit half 1.63 → 0.91): eleven single plucks, each with its own place under the finger, cannot tell the two apart, and the fitted one is kept as measured, not as proven.',
+        ),
+        table(
+          ['Iowa MIS bells', 'partials’ ratios ¢', 'partials’ levels dB', 'spectrum dB', 'brightness ×', 'pitch’s decay ×', 'time to fall 20 dB ×'],
+          [['glockenspiel', '21', '13.6', '12.8', '0.98', '1.05', '1.21']],
+          'The bars G5–C8 struck with plastic mallets at pp, mf and ff (84 clean strokes; every second bar held out of the fit: judge BETTER against a thin free bar’s overtones, held-out 1.86 → 1.48, ratios 88 → 23 ¢, partials’ levels 26 → 14 dB). The brass mallets’ run is 15–25 dB lower and in its own noise: it is not fitted to nor judged by, and the mallet knob’s brass is set by hand from its clean strokes.',
         ),
         p('Full histories are in the repository (', code('docs/calibration-rounds.json'), ', ', code('docs/ensemble-rounds.json'), ', ', code('artifacts/round3/'), '), and the Measurements page charts the details.'),
       ],

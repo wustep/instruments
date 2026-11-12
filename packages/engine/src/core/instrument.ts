@@ -3,8 +3,8 @@
 
 import type { KeySummary } from '../api/messages.ts';
 
-export type InstrumentId = 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'harp' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani';
-export const INSTRUMENT_IDS: InstrumentId[] = ['piano', 'violin', 'viola', 'cello', 'bass', 'harp', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani'];
+export type InstrumentId = 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'harp' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani' | 'glockenspiel';
+export const INSTRUMENT_IDS: InstrumentId[] = ['piano', 'violin', 'viola', 'cello', 'bass', 'harp', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'glockenspiel'];
 /** the bowed strings (bowed.ts), high to low */
 export type BowedId = 'violin' | 'viola' | 'cello' | 'bass';
 export const isBowed = (id: string): id is BowedId => id === 'violin' || id === 'viola' || id === 'cello' || id === 'bass';
@@ -38,8 +38,9 @@ export const PLAYBACK_DB: Partial<Record<InstrumentId, number>> = { trombone: 9,
  *  on a tube two and a half times as long, wound in a circle, played high in its harmonic series; the
  *  trombone: the lips in a cup mouthpiece on a cylindrical slide and a wide bell; the tuba: the horn's lips
  *  and conical bore at five metres, wide, with four valves) and the
- *  percussion (the timpani: membranes over kettles, struck with felt mallets) */
-export type Family = 'piano' | 'bowed' | 'plucked' | 'wind' | 'reed' | 'brass' | 'percussion';
+ *  percussion (the timpani: membranes over kettles, struck with felt mallets) and the mallet instruments
+ *  (the glockenspiel: steel bars struck with hard mallets and left to ring) */
+export type Family = 'piano' | 'bowed' | 'plucked' | 'wind' | 'reed' | 'brass' | 'percussion' | 'mallet';
 export const INSTRUMENT_INFO: Record<InstrumentId, { label: string; family: Family; lo: number; hi: number; blurb: string }> = {
   piano: { label: 'Piano', family: 'piano', lo: 21, hi: 108, blurb: 'Felt hammers, 2–3 stiff strings per note, a shared soundboard.' },
   violin: { label: 'Violin', family: 'bowed', lo: 55, hi: 100, blurb: 'Four strings G3–E5, bowed with stick–slip friction, on a resonant body.' },
@@ -56,6 +57,7 @@ export const INSTRUMENT_INFO: Record<InstrumentId, { label: string; family: Fami
   trombone: { label: 'Trombone', family: 'brass', lo: 28, hi: 77, blurb: 'Buzzing lips on a cylindrical slide and a wide bell: the slide lengthens the tube, the lips pick its partial.' },
   tuba: { label: 'Tuba', family: 'brass', lo: 24, hi: 65, blurb: 'Buzzing lips on the widest, most conical bore of the brass, five metres long: four valves lengthen it, the lips pick its partial.' },
   timpani: { label: 'Timpani', family: 'percussion', lo: 36, hi: 57, blurb: 'Four kettledrums struck with felt mallets: the air on the heads draws their modes into a pitch; pedals tune them.' },
+  glockenspiel: { label: 'Glockenspiel', family: 'mallet', lo: 79, hi: 108, blurb: 'Thirty steel bars struck with hard mallets and left to ring, two octaves above where they are written.' },
 };
 
 /** Extra events beyond the piano's (continuous controllers). */

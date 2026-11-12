@@ -10,4 +10,5 @@ export { drawHornV } from './horn.ts';
 export { drawTromboneV } from './trombone.ts';
 export { drawTubaV } from './tuba.ts';
 export { drawHarpV } from './harp.ts';
+export { drawGlockV } from './glock.ts';
 export { drawTimpaniV } from './timpani.ts';

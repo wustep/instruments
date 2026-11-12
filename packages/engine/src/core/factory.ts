@@ -11,6 +11,7 @@ import { HornCore, type HornParams } from './horn.ts';
 import { TromboneCore, type TromboneParams } from './trombone.ts';
 import { TubaCore, type TubaParams } from './tuba.ts';
 import { HarpCore, type HarpParams } from './harp.ts';
+import { GlockenspielCore, type GlockParams } from './glockenspiel.ts';
 import { TimpaniCore, type TimpaniParams } from './timpani.ts';
 import { type InstrumentCore, type InstrumentId } from './instrument.ts';
 import { PianoCore, type CoreOptions } from './piano-core.ts';
@@ -72,6 +73,8 @@ function makeCore(opts: InstrumentOptions): InstrumentCore & { process: PianoCor
       return new TromboneCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<TromboneParams>, dry: opts.dry, player: opts.player });
     case 'harp':
       return new HarpCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<HarpParams>, dry: opts.dry, player: opts.player });
+    case 'glockenspiel':
+      return new GlockenspielCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<GlockParams>, dry: opts.dry, player: opts.player });
     case 'tuba':
       return new TubaCore({ sampleRate: opts.sampleRate, params: opts.params as Partial<TubaParams>, dry: opts.dry, player: opts.player });
     case 'timpani':

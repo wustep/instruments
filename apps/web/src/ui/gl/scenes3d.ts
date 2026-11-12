@@ -16,6 +16,7 @@ import { BASSOON_SEAT, BASSOON_VIEW, BASSOON_WIDE, buildBassoonModel, poseBassoo
 import { HORN_HELD, HORN_SEAT, HORN_VIEW, buildHornModel, poseHorn, type HornModel } from './horn3d.ts';
 import { TROMBONE_SEAT, TROMBONE_VIEW, buildTromboneModel, poseTrombone, tromboneSizeIn, type TromboneModel } from './trombone3d.ts';
 import { HARP_SEAT, HARP_VIEW, buildHarpModel, poseHarp, type HarpModel } from './harp3d.ts';
+import { GLOCK_SEAT, GLOCK_VIEW, buildGlockModel, poseGlock, type GlockModel } from './glock3d.ts';
 import { TUBA_HELD, TUBA_SEAT, TUBA_VIEW, buildTubaModel, poseTuba, type TubaModel } from './tuba3d.ts';
 import { TIMPANI_SEAT, TIMPANI_VIEW, buildTimpaniModel, newTimpaniPose, poseTimpani, type TimpaniModel, type TimpaniPose } from './timpani3d.ts';
 import { TALL, seatPlaces, seatRisers, type Inst, type Riser, type SeatKind } from '../../orchestra/seats.ts';
@@ -28,7 +29,7 @@ export interface SceneIn {
   now: number;
   /** seconds since the last frame */
   dt: number;
-  family: 'piano' | 'bowed' | 'plucked' | 'wind' | 'reed' | 'brass' | 'percussion';
+  family: 'piano' | 'bowed' | 'plucked' | 'wind' | 'reed' | 'brass' | 'percussion' | 'mallet';
   /** the reed family's instrument (default the oboe) */
   reed?: 'oboe' | 'clarinet' | 'bassoon';
   /** the brass family's (default the trumpet) */
@@ -62,7 +63,7 @@ export interface SceneIn {
 
 /** one instrument of an ensemble on the 3D stage */
 export interface EnsPartIn {
-  family: 'piano' | 'bowed' | 'plucked' | 'wind' | 'reed' | 'brass' | 'percussion';
+  family: 'piano' | 'bowed' | 'plucked' | 'wind' | 'reed' | 'brass' | 'percussion' | 'mallet';
   /** the reed family's instrument (default the oboe) */
   reed?: 'oboe' | 'clarinet' | 'bassoon';
   /** the brass family's (default the trumpet) */
@@ -106,6 +107,7 @@ export interface Scene3State {
   horn: HornModel | null;
   tuba: TubaModel | null;
   harp: HarpModel | null;
+  glock: GlockModel | null;
   /** the trombones, by size (alto, tenor, bass: one model at each one's measures), built on first use */
   trombones: Map<string, TromboneModel>;
   timpani: TimpaniModel | null;
@@ -151,6 +153,7 @@ export const newScene3State = (): Scene3State => ({
   horn: null,
   tuba: null,
   harp: null,
+  glock: null,
   trombones: new Map(),
   timpani: null,
   timpPose: newTimpaniPose(),
@@ -285,6 +288,13 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): void {
     floor(b, st, 'harp', st.harp.bounds.c, st.harp.bounds.r, si);
     return;
   }
+  if (si.family === 'mallet') {
+    if (!st.glock) st.glock = timed(st, () => buildGlockModel());
+    poseGlock(b, st.glock, si.fr, si.dt, si.now);
+    b.bounds = st.glock.bounds;
+    floor(b, st, 'glock', st.glock.bounds.c, st.glock.bounds.r, si);
+    return;
+  }
   if (si.family === 'brass' && si.brass === 'tuba') {
     if (!st.tuba) st.tuba = timed(st, () => buildTubaModel());
     poseTuba(b, st.tuba, si.fr, st.windPose, si.dt, si.now, si.rms);
@@ -381,6 +391,9 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
   }
   // the harp: three-quarter from the audience's side, the strings fanned across the picture, whole on every
   // stage (harp3d.ts sets its view)
+  // the glockenspiel: from the player's side and above, its low bars at the left, whole on every stage
+  // (glock3d.ts sets its view)
+  if (si.family === 'mallet') return { target: [0, 0.62, 0.02], dist: 2.0, yaw: GLOCK_VIEW.yaw, pitch: GLOCK_VIEW.pitch, swing: GLOCK_VIEW.swing, whole: true };
   if (si.family === 'plucked') {
     const c = st.harp ? st.harp.bounds.c : ([0, 0.95, 0] as Vec3);
     return { target: [c[0], c[1], c[2]], dist: 2.6, yaw: HARP_VIEW.yaw, pitch: HARP_VIEW.pitch, swing: HARP_VIEW.swing, whole: true };
@@ -453,7 +466,7 @@ type SeatIn = Pick<EnsPartIn, 'family' | 'kind' | 'bowed'> & { reed?: EnsPartIn[
 /** a part as the seating takes it */
 const seatKind = (p: SeatIn): SeatKind => {
   const id = p.bowed?.id;
-  const inst: Inst = p.family === 'piano' ? p.kind : p.family === 'bowed' ? (id === 'viola' || id === 'cello' || id === 'bass' ? id : 'violin') : p.family === 'wind' ? 'flute' : p.family === 'reed' ? (p.reed ?? 'oboe') : p.family === 'brass' ? (p.brass ?? 'trumpet') : p.family === 'plucked' ? 'harp' : 'timpani';
+  const inst: Inst = p.family === 'piano' ? p.kind : p.family === 'bowed' ? (id === 'viola' || id === 'cello' || id === 'bass' ? id : 'violin') : p.family === 'wind' ? 'flute' : p.family === 'reed' ? (p.reed ?? 'oboe') : p.family === 'brass' ? (p.brass ?? 'trumpet') : p.family === 'plucked' ? 'harp' : p.family === 'mallet' ? 'glockenspiel' : 'timpani';
   return { family: p.family, kind: p.kind, cello: inst === 'cello' || inst === 'bass', bass: inst === 'bass', inst };
 };
 export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
@@ -476,6 +489,8 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
     // (a horn is held as a seated player holds it: the valves up under the left hand, the bell down by
     // the right thigh, its mouth back: horn3d.ts HORN_SEAT)
     if (p.family === 'brass' && p.brass === 'horn') return { T: chain(translate(x, y + HORN_SEAT.y, z), rotY(face + HORN_SEAT.turn)), c: [x, y, z], r: 0.42, top: y + HORN_SEAT.top };
+    // (a glockenspiel stands on its stand by the timpani, its player behind it facing the audience: glock3d.ts)
+    if (p.family === 'mallet') return { T: chain(translate(x, y, z), rotY(face + Math.PI)), c: [x, y, z], r: GLOCK_SEAT.r, top: y + GLOCK_SEAT.top };
     // (a harp stands on the floor (or its riser) by its player: harp3d.ts HARP_SEAT)
     if (p.family === 'plucked') return { T: chain(translate(x, y, z), rotY(face + HARP_SEAT.turn)), c: [x, y, z], r: HARP_SEAT.r, top: y + HARP_SEAT.top };
     // (a tuba rests on the seated player's lap, its bell up: tuba3d.ts TUBA_SEAT, TUBA_HELD)
@@ -603,6 +618,9 @@ function buildEnsemble(b: Batch, si: SceneIn, parts: EnsPartIn[], st: Scene3Stat
     } else if (p.family === 'plucked') {
       if (!st.harp) st.harp = timed(st, () => buildHarpModel());
       poseHarp(b, st.harp, p.fr, si.dt, si.now);
+    } else if (p.family === 'mallet') {
+      if (!st.glock) st.glock = timed(st, () => buildGlockModel());
+      poseGlock(b, st.glock, p.fr, si.dt, si.now);
     } else if (p.family === 'brass' && p.brass === 'tuba') {
       if (!st.tuba) st.tuba = timed(st, () => buildTubaModel());
       poseTuba(b, st.tuba, p.fr, e.windPose, si.dt, si.now, si.rms, TUBA_HELD);

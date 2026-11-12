@@ -75,6 +75,8 @@ export interface VisualFrame extends Stats {
   timpani?: TimpaniVisual;
   /** harp: the pedals, every string's swing, the loudest strings' shapes */
   harp?: HarpVisual;
+  /** the glockenspiel: every bar's swing, the last strokes and the two mallets (see GlockVisual) */
+  glock?: GlockVisual;
   /** piano: the watched key's action and strings (see `watchKey`) */
   watch?: WatchKey | null;
   /** piano: every sounding string's shape (struck first, then sympathetic) */
@@ -136,6 +138,20 @@ export type FromProcessor =
   | { type: 'preset'; instrument: InstrumentId; preset: string; params: Record<string, unknown>; modeFreqs: number[]; keys: KeySummary[] }
   | ({ type: 'stats' } & Stats)
   | ({ type: 'visual' } & VisualFrame);
+
+/** The glockenspiel's own part of a visual frame (core/glockenspiel.ts getVisual). Bars are numbered 0 (G5) … 29 (C8). */
+export interface GlockVisual {
+  /** every bar's swing now: 0 at rest … 1 a hard stroke's (30 values) */
+  amp: Float32Array;
+  /** the bar struck last, how long ago (s; −1: it has died away) and how hard (velocity 1–127) */
+  last: number;
+  ago: number;
+  vel: number;
+  /** the last strokes, newest first (at most six): the bar, seconds ago, the velocity, the mallet (0 left, 1 right) */
+  hits: { bar: number; ago: number; vel: number; hand: number }[];
+  /** the bar each mallet is over (left, right) */
+  hands: [number, number];
+}
 
 /** The harp's own part of a visual frame (core/harp.ts getVisual). Strings are numbered 0 (C1) … 46 (G7). */
 export interface HarpVisual {

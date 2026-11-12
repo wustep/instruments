@@ -46,7 +46,7 @@ test('page loads with the keyboard and no errors', async ({ page }) => {
   // no wordmark on the page; the name lives in the tab title
   await expect(page.locator('.inlay')).toHaveCount(0);
   await expect(page).toHaveTitle('Instruments');
-  await expect(page.locator('.instruments .pick')).toHaveCount(15);
+  await expect(page.locator('.instruments .pick')).toHaveCount(16);
   await expect(page.locator('.keyboard .key')).toHaveCount(88);
   await page.waitForTimeout(500);
   expect(errors).toEqual([]);
@@ -473,7 +473,7 @@ test('the picker: the ring on the selected instrument is whole, on every instrum
     await page.goto('/');
     await page.waitForTimeout(400);
     const picks = page.locator('.instruments .pick');
-    await expect(picks).toHaveCount(15);
+    await expect(picks).toHaveCount(16);
     for (let i = 0; i < 7; i++) {
       const pick = picks.nth(i);
       await openPicker(page).then(() => pick.click());
@@ -517,17 +517,17 @@ test('the picker: the ring on the selected instrument is whole, on every instrum
   await page.setViewportSize(vp);
 });
 
-test('all fifteen instruments: selectable in the UI and rendered through the worklet at pitch', async ({ page }, info) => {
+test('all sixteen instruments: selectable in the UI and rendered through the worklet at pitch', async ({ page }, info) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await startAudio(page);
-  for (const [label, id] of [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Double bass', 'bass'], ['Harp', 'harp'], ['Flute', 'flute'], ['Oboe', 'oboe'], ['Clarinet', 'clarinet'], ['Bassoon', 'bassoon'], ['Horn', 'horn'], ['Trumpet', 'trumpet'], ['Trombone', 'trombone'], ['Tuba', 'tuba'], ['Timpani', 'timpani'], ['Piano', 'piano']] as const) {
+  for (const [label, id] of [['Violin', 'violin'], ['Viola', 'viola'], ['Cello', 'cello'], ['Double bass', 'bass'], ['Harp', 'harp'], ['Flute', 'flute'], ['Oboe', 'oboe'], ['Clarinet', 'clarinet'], ['Bassoon', 'bassoon'], ['Horn', 'horn'], ['Trumpet', 'trumpet'], ['Trombone', 'trombone'], ['Tuba', 'tuba'], ['Timpani', 'timpani'], ['Glockenspiel', 'glockenspiel'], ['Piano', 'piano']] as const) {
     await openPicker(page).then(() => page.locator(`.pick[aria-label="${label}"]`).click());
     await page.waitForFunction((x) => (window as any).__piano.piano?.instrument === x, id, { timeout: 15_000 });
     await expect(page.locator('.pick[aria-pressed="true"]')).toHaveAttribute('aria-label', label);
     await expect(page.locator('.knobs .knob').first()).toBeVisible({ visible: info.project.name !== 'phone' });
   }
-  for (const [id, midi] of [['violin', 69], ['viola', 62], ['cello', 48], ['bass', 40], ['harp', 60], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['bassoon', 50], ['horn', 53], ['trumpet', 65], ['trombone', 53], ['tuba', 41], ['timpani', 48]] as const) {
+  for (const [id, midi] of [['violin', 69], ['viola', 62], ['cello', 48], ['bass', 40], ['harp', 60], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['bassoon', 50], ['horn', 53], ['trumpet', 65], ['trombone', 53], ['tuba', 41], ['timpani', 48], ['glockenspiel', 84]] as const) {
     const out = await page.evaluate(async ([inst, m]) => {
       const { renderOffline } = (window as any).__engine;
       const buf: AudioBuffer = await renderOffline({ instrument: inst, sampleRate: 48000, duration: 1.6, params: { room: 0, vibrato: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: 90 } }] });
@@ -1487,7 +1487,7 @@ test('3D stage: every instrument draws in WebGL2 from live frames; orbit and zoo
   await expect(cv).toBeVisible();
   await page.evaluate(() => ((window as any).__stage3d.probe = true));
   const stats = () => page.evaluate(() => ({ ...(window as any).__stage3d.stats }));
-  for (const [inst, note] of [['piano', 60], ['violin', 72], ['viola', 60], ['cello', 50], ['bass', 40], ['harp', 60], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['bassoon', 50], ['horn', 53], ['trumpet', 67], ['timpani', 43]] as const) {
+  for (const [inst, note] of [['piano', 60], ['violin', 72], ['viola', 60], ['cello', 50], ['bass', 40], ['harp', 60], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['bassoon', 50], ['horn', 53], ['trumpet', 67], ['timpani', 43], ['glockenspiel', 84]] as const) {
     await page.evaluate(async ([i, m]) => {
       await (window as any).__piano.setInstrument(i);
       (window as any).__piano.noteOn(m, 96, 'keys');
