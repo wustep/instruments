@@ -266,7 +266,10 @@ export class ClarinetCore implements InstrumentCore {
   private tongueAt = 0;
   private boostNow = 1;
   private velocity = 80;
-  private noteStart = 0;
+  /** when this breath began (frame): a note from silence. The vibrato comes in over the breath, not over
+   *  each note of it: a note tongued over the breath is in the same breath (it used to begin the vibrato
+   *  again, 0.3 s in: a file's notes, which mostly end where the next begins, never had one) */
+  private breathStart = 0;
   /** frame until which a tongued note keeps its breath (MIN_BLOW), and a key let go before it */
   private blowUntil = 0;
   private releasePending = false;
@@ -489,7 +492,7 @@ export class ClarinetCore implements InstrumentCore {
       this.tongueLen = this.tongueOpen(m);
       this.tongueI = 0;
       this.vibPhase = this.vib0;
-      this.noteStart = this.frame;
+      this.breathStart = this.frame;
       this.tongueAt = this.frame;
       this.boostNow = 1;
       this.afterStop = false;
@@ -503,7 +506,6 @@ export class ClarinetCore implements InstrumentCore {
       this.tongueAt = this.frame + this.lick.retongue(a.struck, this.fs, same, this.tongueOpen(m));
       this.boostNow = this.afterStop ? 1 : LICK_BOOST;
       this.afterStop = false;
-      this.noteStart = this.frame;
       this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
     }
     if (a.tap) this.release();
@@ -613,7 +615,7 @@ export class ClarinetCore implements InstrumentCore {
     const k = 1 - Math.exp(-dt / (this.pTarget > this.pressure ? this.attackTau : 0.03));
     this.pressure += (this.pTarget - this.pressure) * k;
     if (this.pressure < 1e-5 && this.pTarget === 0) this.pressure = 0;
-    const age = (this.frame - this.noteStart) / fs;
+    const age = (this.frame - this.breathStart) / fs;
     this.vibPhase += 2 * Math.PI * 5 * this.vibRate * dt;
     const vib = 1 + P.vibrato * clamp((age - 0.3) / 0.4, 0, 1) * Math.sin(this.vibPhase);
     this.vibNow = vib - 1;

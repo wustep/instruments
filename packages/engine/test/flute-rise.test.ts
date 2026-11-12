@@ -2,8 +2,9 @@
 // length used to be glided to every new note, its standing wave carried along: C♯5→D5 then began on the D4
 // tube's first mode and took 150–250 ms to overblow (a crack on every step up), and a rise to the third
 // register took whichever mode the last note's ring was nearest (audio audit 3: 526 of 1008 rises not on
-// their note; scripts/flute-rise.ts). Now a fingering that changes register replaces the tube, and the
-// notes fingered with a vent have one (flute.ts FINGER, VENT).
+// their note; scripts/flute-rise.ts). Then a fingering that changed register replaced the tube and the notes
+// fingered with a vent had one: the rises arrived, late. Now the tube's wave goes with the note (flute.ts
+// CARRY, VENT; packages/engine/test/legato.test.ts for how soon).
 import { describe, expect, it } from 'vitest';
 import { renderInstrument } from '../src/core/index.ts';
 import type { TimedEvent } from '../src/core/render.ts';

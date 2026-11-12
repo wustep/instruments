@@ -124,3 +124,63 @@ test('the flute’s own piece: its notes are told ahead; paused, no note hangs; 
   await page.waitForFunction(() => (window as any).__piano.sounding.size === 0, null, { timeout: 10_000 });
   expect(errors).toEqual([]);
 });
+
+// A note joined to one of another register (the flute's breaks: C♯5 | D5, C♯6 | D6) takes the tube's wave
+// with it (engine flute.ts CARRY): it used to come 50–100 ms late behind a hole of some 10 dB, often after
+// the octave below had sounded. Engine: packages/engine/test/legato.test.ts; scripts/winds-legato.ts.
+test('the built engine: the flute slurs across its register breaks with no hole and on no other octave', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/flute?view=2d');
+  const out = await page.evaluate(async () => {
+    const { renderOffline } = (window as any).__engine;
+    const fs = 48000;
+    const et = (m: number) => 440 * 2 ** ((m - 69) / 12);
+    const rows: { pair: string; hole: number; under: number }[] = [];
+    // a step over the lower break, a leap over it, a fall over the upper one, the same fingering's octave
+    for (const [from, to] of [[73, 74], [69, 76], [88, 84], [65, 77]]) {
+      const t1 = 0.4;
+      const ev = [
+        { time: 0.1, event: { type: 'foresee', midi: from, velocity: 80, dur: 0.33 } },
+        { time: t1, event: { type: 'foresee', midi: to, velocity: 80, dur: 0.3 } },
+        { time: 0.1, event: { type: 'noteOn', midi: from, velocity: 80 } },
+        { time: t1, event: { type: 'noteOn', midi: to, velocity: 80 } },
+        { time: t1 + 0.03, event: { type: 'noteOff', midi: from } },
+        { time: t1 + 0.3, event: { type: 'noteOff', midi: to } },
+      ];
+      const x: Float32Array = (await renderOffline({ instrument: 'flute', sampleRate: fs, duration: 0.9, params: { room: 0 }, events: ev })).getChannelData(0);
+      const rms = (t0: number, t1: number) => {
+        let s = 0;
+        const a = Math.round(t0 * fs);
+        const e = Math.round(t1 * fs);
+        for (let i = a; i < e; i++) s += x[i] * x[i];
+        return 10 * Math.log10(s / (e - a) + 1e-20);
+      };
+      // the level's lowest (10 ms windows) from the join to 60 ms after, against the quieter of the two notes
+      let lo = Infinity;
+      for (let c = t1; c <= t1 + 0.06; c += 0.002) lo = Math.min(lo, rms(c - 0.005, c + 0.005));
+      const hole = lo - Math.min(rms(t1 - 0.08, t1 - 0.02), rms(t1 + 0.15, t1 + 0.28));
+      // the octave under the new note, 25–75 ms after the join, against the note itself
+      const tone = (f: number) => {
+        const a = Math.round((t1 + 0.025) * fs);
+        const n = Math.round(0.05 * fs);
+        let re = 0;
+        let im = 0;
+        for (let i = 0; i < n; i++) {
+          const h = 0.5 - 0.5 * Math.cos((2 * Math.PI * (i + 0.5)) / n);
+          re += x[a + i] * h * Math.cos((2 * Math.PI * f * i) / fs);
+          im += x[a + i] * h * Math.sin((2 * Math.PI * f * i) / fs);
+        }
+        return 10 * Math.log10(re * re + im * im + 1e-30);
+      };
+      rows.push({ pair: `${from}→${to}`, hole, under: tone(et(to) / 2) - tone(et(to)) });
+    }
+    return rows;
+  });
+  for (const r of out) {
+    // (before: holes of 8, 11 and 13 dB on three of the four; the octave below 10 dB under the note on A4→E5
+    // and 2 dB under it on F4→F5. Now under 1 dB, and 67 dB under)
+    expect(r.hole, `${r.pair}: no hole (dB)`).toBeGreaterThan(-4);
+    expect(r.under, `${r.pair}: the octave below, against the note (dB)`).toBeLessThan(-20);
+  }
+  expect(errors).toEqual([]);
+});
