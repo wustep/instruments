@@ -3,6 +3,7 @@
 // cannot be read left out rather than failing.
 import { describe, expect, it } from 'vitest';
 import { emptyAddress, formatAddress, ownSetup, parseAddress, PIECE_PATHS, tabOf, type Address } from '../src/address.ts';
+import { keysOnScreen } from '../src/look.ts';
 import type { LineRule } from '../src/orchestra/rules.ts';
 import { ELEVEN, QUINTET, THIRTEEN } from './presets.ts';
 
@@ -244,7 +245,8 @@ describe('a piece’s own address: /everything', () => {
 });
 
 // Two parameters no control sets (look.ts): keys=0, no keys on the screen; ui=0, the stage and nothing
-// else. Each is read on any address and written back on every one, so the page keeps it as it goes.
+// else (the keys stay under a piano drawn flat; keys=1 keeps them on one instrument). Each is read on any
+// address and written back on every one, so the page keeps it as it goes.
 describe('keys=0 and ui=0: less of the page round the stage', () => {
   it('keys=0 on an instrument, the Orchestra, a piece and a page; with the look, in either order', () => {
     expect(at('/piano').keysOff).toBe(false);
@@ -296,5 +298,55 @@ describe('keys=0 and ui=0: less of the page round the stage', () => {
     const q = at(`${QUINTET}&ui=0`);
     expect(q.orchestra?.seats).toEqual(['violin', 'violin', 'viola', 'cello', 'bass']);
     expect(formatAddress(q).endsWith('&ui=0')).toBe(true);
+  });
+
+  it('keys=1 on an instrument’s address: the keys with ui=0 too; on the Orchestra’s and a piece’s, 1 is still a seat', () => {
+    for (const url of ['/piano?ui=0&keys=1', '/piano?keys=on&ui=0', '/violin?view=3d&keys=1', '/piano/upright?keys=1', '/notes?keys=1', '/?keys=1']) {
+      const a = at(url);
+      expect(a.keysOn, url).toBe(true);
+      expect(a.keysOff, url).toBe(false);
+      expect(a.orchestra, url).toBeNull();
+      expect(a.rest, url).toEqual([]);
+    }
+    for (const url of ['/piano', '/piano?ui=0', '/piano?keys=', '/piano?keys=2', '/piano?keys=off']) expect(at(url).keysOn, url).toBe(false);
+    // written back as 1, beside the look and ui=0, in the order the others are
+    expect(formatAddress(at('/piano?ui=0&keys=1'))).toBe('/piano?keys=1&ui=0');
+    expect(formatAddress(at('/piano?keys=on&view=3d&ui=0'))).toBe('/piano?keys=1&view=3d&ui=0');
+    expect(formatAddress(at('/violin?ui=0&view=vector&keys=1'))).toBe('/violin?keys=1&view=vector&ui=0');
+    expect(formatAddress(at('/notes?keys=1'))).toBe('/notes?keys=1');
+    // the 0 is stronger: keys=0.1 is no keys
+    expect(at('/piano?keys=0.1&ui=0')).toMatchObject({ keysOff: true, keysOn: false });
+    expect(formatAddress(at('/piano?keys=0.1&ui=0'))).toBe('/piano?keys=0&ui=0');
+    // the Orchestra counts its seats from 1: keys=1 is the first seat's, as ever
+    const q = at(`${QUINTET}&keys=1&ui=0`);
+    expect(q.keysOn).toBe(false);
+    expect(q.orchestra?.keys).toEqual([0]);
+    expect(formatAddress(q)).toBe(`${QUINTET}&keys=1&ui=0`);
+    const sym = at('/symphony?keys=1&ui=0');
+    expect(sym.keysOn).toBe(false);
+    expect(sym.orchestra?.keys).toEqual([0]);
+    expect(formatAddress(sym)).toBe('/symphony?keys=1&ui=0');
+    // an Orchestra on the stage with the page's keys=1: not written there (it would be a seat)
+    const orch: Address = { ...emptyAddress(), orchestra: { seats: ['violin', 'cello'], lines: null, keys: null }, keysOn: true, uiOff: true };
+    expect(formatAddress(orch)).toBe('/orchestra?v=1&seats=violin,cello&ui=0');
+    expect(parseAddress('/orchestra', '?v=1&seats=violin,cello&ui=0').orchestra?.keys).toBeNull();
+  });
+
+  it('the keys on the screen: with the page round the stage always; with ui=0 under a piano drawn flat, or as keys=1 asks; never with keys=0', () => {
+    const on = (o: Partial<Parameters<typeof keysOnScreen>[0]>) => keysOnScreen({ keys: true, ui: true, keysOn: false, solo: 'piano', look: '2d', ...o });
+    // the page as it is: the keys, under every instrument and the Orchestra, in every look
+    for (const solo of ['piano', 'violin', 'harp', null] as const) for (const look of ['2d', 'vector', '3d'] as const) expect(on({ solo, look }), `${solo} ${look}`).toBe(true);
+    // ui=0: the 2D pianos keep them (both styles); the 3D piano, another instrument and the Orchestra do not
+    expect(on({ ui: false, look: '2d' })).toBe(true);
+    expect(on({ ui: false, look: 'vector' })).toBe(true);
+    expect(on({ ui: false, look: '3d' })).toBe(false);
+    for (const solo of ['violin', 'cello', 'harp', 'glockenspiel', 'timpani'] as const) expect(on({ ui: false, solo }), solo).toBe(false);
+    expect(on({ ui: false, solo: null })).toBe(false);
+    // keys=1: one instrument keeps them, in any look; the Orchestra does not (its 1 is a seat)
+    expect(on({ ui: false, look: '3d', keysOn: true })).toBe(true);
+    expect(on({ ui: false, solo: 'violin', keysOn: true })).toBe(true);
+    expect(on({ ui: false, solo: null, keysOn: true })).toBe(false);
+    // keys=0: never
+    for (const ui of [true, false]) for (const look of ['2d', 'vector', '3d'] as const) expect(on({ keys: false, ui, look, keysOn: true })).toBe(false);
   });
 });

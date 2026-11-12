@@ -17,12 +17,15 @@
 //          silent); the name or the program may be left out. A file dropped in later is matched by
 //          name, then program, then place (orchestra/rules.ts); with no lines, by register
 //   keys   the seats the keys play (1.3), or split (absent: the piano, else the leading instrument); a 0
-//          among them (keys=0, keys=0.1.3, on any address): no keys on the screen, the stage has their room
+//          among them (keys=0, keys=0.1.3, on any address): no keys on the screen, the stage has their room.
+//          On an instrument's address (one instrument, or a page: no seats to count) keys=1 (or on): the keys
+//          on the screen with ui=0 too; a piano in 2D or vector lines keeps them there unasked (look.ts)
 //   view   2d, vector or 3d (absent: as this device last had it)
 //   expr   automatic expression, on or off (absent: as this device has it)
 //   ui     0 (on any address): the stage and nothing else, for looking, listening and filming: no bar, no
-//          band, no file player, no keys. What it would have pressed is asked of the page (the address
-//          sets the piece up; window.__player plays it)
+//          band, no file player; no keys, but under a piano in 2D or vector lines (its strings stand over
+//          them) or as keys=1 asks. What it would have pressed is asked of the page (the address sets the
+//          piece up; window.__player plays it)
 //
 // A piece with an address of its own (orchestra/pieces.ts `path`: /symphony, "Toward Morning";
 // /everything, "Everything So Far") stands for its orchestra and its routing, with the piece loaded:
@@ -59,13 +62,15 @@ export interface Address {
   expr: boolean | null;
   /** no keys on the screen (keys=0): the stage takes the room of the fallboard and the keyboard */
   keysOff: boolean;
-  /** the stage and nothing else (ui=0): no bar, no band, no file player, no keys */
+  /** the keys on the screen with ui=0 too (keys=1 on an instrument's address; on the Orchestra's, 1 is a seat) */
+  keysOn: boolean;
+  /** the stage and nothing else (ui=0): no bar, no band, no file player; the keys only where look.ts has them */
   uiOff: boolean;
   /** the address's other parameters, as written (?debug) */
   rest: string[];
 }
 
-export const emptyAddress = (): Address => ({ page: 'stage', instrument: null, preset: null, orchestra: null, piece: null, look: null, expr: null, keysOff: false, uiOff: false, rest: [] });
+export const emptyAddress = (): Address => ({ page: 'stage', instrument: null, preset: null, orchestra: null, piece: null, look: null, expr: null, keysOff: false, keysOn: false, uiOff: false, rest: [] });
 
 /** the most of anything an address is read for (a longer one is cut there) */
 const MAX_LINES = 128;
@@ -196,6 +201,8 @@ export function parseAddress(path: string, search: string, hash = ''): Address {
     .map((x) => x.trim())
     .filter(Boolean);
   a.keysOff = keyParts.includes('0');
+  // (keys=1 on an instrument's address or a page's: the Orchestra's and a piece's count their seats from 1)
+  a.keysOn = !a.keysOff && !a.orchestra && keyParts.some((x) => x === '1' || x === 'on');
   a.uiOff = ['0', 'off'].includes(dec(get('ui') ?? '').trim().toLowerCase());
   const keys = keyParts.filter((x) => x !== '0').join('.');
   const v = get('v');
@@ -224,8 +231,9 @@ const formatLine = (r: LineRule): string => `${encName(r.name)}${r.program >= 0 
 export function formatAddress(a: Address): string {
   let path = '/';
   const q: string[] = [];
-  /** the keys: 0 (none on the screen: kept on every page, the stage comes back as it was), then an Orchestra's seats */
-  const keys: string[] = a.keysOff ? ['0'] : [];
+  /** the keys: 0 (none on the screen: kept on every page, the stage comes back as it was), then an Orchestra's
+   *  seats; or 1 (on the screen with ui=0 too), where no seats are counted */
+  const keys: string[] = a.keysOff ? ['0'] : a.keysOn && !(a.page === 'stage' && a.orchestra) ? ['1'] : [];
   if (a.page !== 'stage') path = `/${a.page}`;
   else if (a.orchestra) {
     path = '/orchestra';

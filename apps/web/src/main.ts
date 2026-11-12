@@ -118,16 +118,33 @@ const routes: Record<Page, { title: string; make: () => View }> = {
 };
 
 let current: View | null = null;
+/** The keys on the screen or not (look.ts `keysOnScreen`). An address opened with keys=0 has none: no
+ *  fallboard and no keys, the stage has their room. With ui=0 the stage is all there is, the bar, the band
+ *  and the file player gone (panel.css), and its keys with it only under a piano drawn flat, or as keys=1
+ *  asks: so they follow the stage (another instrument, the Orchestra, the look). */
+function syncKeys(): void {
+  look.solo = ensemble.active ? null : audio.instrument;
+  const on = look.keysShown;
+  const was = dock.hidden;
+  dock.hidden = !current?.dock || !on;
+  // (keys that come onto the screen show the octave the computer keys play, as at the start: kept off it
+  // until now, a phone's would be at the bottom of the compass)
+  if (was && !dock.hidden) requestAnimationFrame(() => keyboard.scrollToMidi(keys.base + 6));
+  document.documentElement.toggleAttribute('data-nokeys', !on);
+  document.documentElement.toggleAttribute('data-noui', !look.ui);
+}
+// (the instrument is the one coming as soon as it is asked for: after the event that says so)
+const syncSoon = () => queueMicrotask(syncKeys);
+audio.instrumentChanging.on(syncSoon);
+audio.instrumentChanged.on(syncSoon);
+ensemble.changed.on(syncSoon);
+look.on(syncKeys);
 function render(id: Page): void {
   const r = routes[id];
   current?.unmount?.();
   current = r.make();
   main.replaceChildren(current.el);
-  // (an address opened with keys=0: no fallboard and no keys, the stage has their room; with ui=0 the
-  // stage is all there is, the bar, the band and the file player gone too: panel.css)
-  dock.hidden = !current.dock || !look.keysShown;
-  document.documentElement.toggleAttribute('data-nokeys', !look.keysShown);
-  document.documentElement.toggleAttribute('data-noui', !look.ui);
+  syncKeys();
   document.documentElement.dataset.route = id;
   links.forEach((a) => (a.dataset.route === id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   document.title = r.title ? `${r.title} · ${WORDMARK}` : WORDMARK;

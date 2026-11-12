@@ -1158,9 +1158,11 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       drawEnsemble(ctx, cells, ensemble.parts, draws, (p) => ensemble.keysOf(p), now, vec);
     } else if (family() === 'piano') {
       const sr = canvas.getBoundingClientRect();
-      // the strings stand over their keys; with no keys on the screen (keys=0, ui=0) over where all 88
-      // would lie across the stage, the case whole between its sides
-      const kr = look.keysShown ? kb.strip.getBoundingClientRect() : keysAcross({ left: sr.left, width: w });
+      // the strings stand over their keys (with ui=0 too: the keys stay under a piano drawn flat); with no
+      // keys on the screen (keys=0, ui=0 under another view) over where all 88 would lie across the stage,
+      // the case whole between its sides
+      const strip = look.keysShown ? kb.strip.getBoundingClientRect() : null;
+      const kr = strip && strip.width > 0 ? strip : keysAcross({ left: sr.left, width: w });
       pianoState.down = new Set(audio.down.keys());
       pianoState.sustain = audio.lastStats?.sustain ?? audio.sustainValue;
       pianoState.soft = audio.lastStats?.soft ?? audio.softValue;
