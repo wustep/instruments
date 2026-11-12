@@ -3,7 +3,8 @@
 // the recordings show (not a thin bar's 2.76 and 5.40), brighter and louder with the stroke, a brass mallet
 // brighter still; it rings on by itself, the low bars for seconds and the top for less, its upper partials
 // gone first; nothing damps it unless `damp` says so; two mallets, the engine's own hands; the same sound
-// whatever the host's block size.
+// whatever the host's block size. A player's strokes are no two alike (`human`); a bar struck while it rings
+// has the stroke added to its motion; a held key rolls (`roll`, the wheel).
 import { describe, expect, it } from 'vitest';
 import { GlockenspielCore, GLOCK_BARS, GLOCK_HI, GLOCK_LO, GLOCK_TEXTBOOK, GLOCK_VOICE, barShape, createCore, glockBarOf, glockBars, renderInstrument } from '../src/core/index.ts';
 
@@ -190,5 +191,150 @@ describe('glockenspiel', () => {
     };
     const ref = lvl(48000);
     for (const fs of [22050, 44100, 96000]) expect(Math.abs(lvl(fs) - ref), `${fs}`).toBeLessThan(0.5);
+    // the mallet's knock too (the first 3 ms of the voicing's own stroke, in the knock's band: a resonator
+    // kicked by one sample rings louder the higher the rate, unless the kick is made for the rate)
+    const knock = (fs: number) => {
+      const r = renderInstrument({ sampleRate: fs, instrument: 'glockenspiel', dry: true, params: { human: 0 } as never, events: [{ time: 0.02, event: { type: 'noteOn', midi: 79, velocity: 106 } }] as never, duration: 0.1 }).left;
+      const W = Math.round(0.004 * fs);
+      const i0 = Math.round(0.02 * fs);
+      let re = 0;
+      let im = 0;
+      for (let i = 0; i < W; i++) {
+        const h = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / W);
+        re += r[i0 + i] * h * Math.cos((2 * Math.PI * 3200 * i) / fs);
+        im += r[i0 + i] * h * Math.sin((2 * Math.PI * 3200 * i) / fs);
+      }
+      return 20 * Math.log10(Math.hypot(re, im) / W);
+    };
+    for (const fs of [44100, 96000]) expect(Math.abs(knock(fs) - knock(48000)), `knock at ${fs}`).toBeLessThan(1.5);
+  });
+
+  it('a player’s strokes: no two alike (their level, their upper partials, their instant, the two mallets); `human` 0 is the voicing itself, every stroke the same', () => {
+    // one bar six times, stopped between (damp) so that each stroke meets a bar at rest
+    const six = (human: number) => {
+      const ev: { time: number; event: unknown }[] = [];
+      for (let k = 0; k < 6; k++) ev.push({ time: 0.02 + k * 0.6, event: { type: 'noteOn', midi: 84, velocity: 96 } }, { time: 0.02 + k * 0.6 + 0.3, event: { type: 'noteOff', midi: 84 } });
+      return renderInstrument({ sampleRate: FS, instrument: 'glockenspiel', dry: true, params: { damp: 1, human } as never, events: ev as never, duration: 3.7 }).left;
+    };
+    const spread = (xs: number[]) => Math.max(...xs) - Math.min(...xs);
+    const machine = six(0);
+    const player = six(1);
+    const f1 = et(84);
+    const pitch = (x: Float32Array) => [0, 1, 2, 3, 4, 5].map((k) => at(x, f1, 0.03 + k * 0.6, 0.23 + k * 0.6));
+    // (the partial near 6.2 times the pitch: the strongest of the upper families on this bar)
+    const upper = (x: Float32Array) => [0, 1, 2, 3, 4, 5].map((k) => Math.max(...[6.1, 6.2, 6.3].map((r) => at(x, f1 * r, 0.022 + k * 0.6, 0.062 + k * 0.6))));
+    expect(spread(pitch(machine))).toBeLessThan(0.05);
+    expect(spread(upper(machine))).toBeLessThan(0.3);
+    // a player's: the pitch's level a decibel or two apart, never wild; the upper partials many decibels
+    expect(spread(pitch(player))).toBeGreaterThan(0.6);
+    expect(spread(pitch(player))).toBeLessThan(7);
+    expect(spread(upper(player))).toBeGreaterThan(4);
+    // each a different sound: no two strokes' first 50 ms the same
+    const head = (x: Float32Array, k: number) => rmsDb(x, 0.02 + k * 0.6, 0.07 + k * 0.6);
+    const heads = [0, 1, 2, 3, 4, 5].map((k) => head(player, k));
+    for (let a = 0; a < 6; a++) for (let b = a + 1; b < 6; b++) expect(Math.abs(heads[a] - heads[b]), `${a} and ${b}`).toBeGreaterThan(0.01);
+    // on average the player's stroke is the voicing's (within 2 dB over a hundred strokes)
+    const c = core({ damp: 1 });
+    const m = core({ damp: 1, human: 0 });
+    let sum = 0;
+    const one = (k: GlockenspielCore) => {
+      const L = new Float32Array(4800);
+      const R = new Float32Array(4800);
+      k.schedule({ type: 'noteOn', midi: 84, velocity: 96 });
+      k.process(L, R, 4800);
+      k.schedule({ type: 'noteOff', midi: 84 });
+      run(k, 0.3);
+      return rmsDb(L, 0.004, 0.1);
+    };
+    const mach = one(m);
+    for (let k = 0; k < 100; k++) sum += one(c);
+    expect(Math.abs(sum / 100 - mach)).toBeLessThan(2);
+    // a stroke lands a moment late, never more than 4 ms; the machine's on the instant
+    const first = (x: Float32Array) => {
+      for (let i = 0; i < x.length; i++) if (Math.abs(x[i]) > 1e-5) return i / FS;
+      return -1;
+    };
+    expect(first(machine)).toBeCloseTo(0.02, 3);
+    expect(first(player)).toBeGreaterThanOrEqual(0.02 - 1e-4);
+    expect(first(player)).toBeLessThan(0.0245);
+    // the strokes land near the bar's middle, each somewhere else, and say where
+    const v = vis(c).hits as unknown as { along: number; across: number }[];
+    expect(v.every((h) => Math.abs(h.along) <= 0.14 && Math.abs(h.across) <= 1)).toBe(true);
+    expect(new Set(v.map((h) => h.along.toFixed(4))).size).toBeGreaterThan(3);
+    expect((vis(m).hits as unknown as { along: number; across: number }[]).every((h) => h.along === 0 && h.across === 0)).toBe(true);
+  });
+
+  it('a bar struck while it rings: the stroke is added to its motion, louder with the swing and softer against it', () => {
+    // (the voicing's own strokes, on the instant; a second stroke a whole number of the pitch's cycles after
+    // the first meets the bar as the first left it, half a cycle more meets it coming back)
+    const f1 = et(79);
+    const cycles = Math.round(0.2 * f1);
+    const two = (after: number) =>
+      at(renderInstrument({ sampleRate: FS, instrument: 'glockenspiel', dry: true, params: { human: 0 } as never, events: [{ time: 0.02, event: { type: 'noteOn', midi: 79, velocity: 80 } }, { time: 0.02 + after, event: { type: 'noteOn', midi: 79, velocity: 80 } }] as never, duration: 1 }).left, f1, 0.5, 0.9);
+    const alone = at(strike(79, 80, 1, { human: 0 }), f1, 0.5, 0.9);
+    const withIt = two(cycles / f1);
+    const against = two((cycles + 0.5) / f1);
+    // (the second stroke is 0.2 s younger: with the swing the two are 6.5 dB over one, less the mallet's share)
+    expect(withIt - alone).toBeGreaterThan(4.5);
+    expect(withIt - alone).toBeLessThan(6.6);
+    expect(against - alone).toBeLessThan(-8);
+    // a player's repeats gather: twenty strokes four a second settle some decibels over one stroke alone
+    const ev: { time: number; event: unknown }[] = [];
+    for (let k = 0; k < 20; k++) ev.push({ time: 0.02 + k * 0.25, event: { type: 'noteOn', midi: 79, velocity: 80 } });
+    const many = renderInstrument({ sampleRate: FS, instrument: 'glockenspiel', dry: true, events: ev as never, duration: 5.4 }).left;
+    const one = strike(79, 80, 1);
+    let sum = 0;
+    for (let k = 8; k < 20; k++) sum += 10 ** (at(many, f1, 0.04 + k * 0.25, 0.24 + k * 0.25) / 10);
+    const settled = 10 * Math.log10(sum / 12) - at(one, f1, 0.04, 0.24);
+    expect(settled).toBeGreaterThan(2);
+    expect(settled).toBeLessThan(9);
+  });
+
+  it('a roll: a held key with `roll` (or the wheel) up is struck on, ten to sixteen times a second, the two mallets in turn, and does not die away; let go, it rings out', () => {
+    const c = core({ roll: 0.5 });
+    c.schedule({ type: 'noteOn', midi: 88, velocity: 80 });
+    const hands: number[] = [];
+    let strokes = 0;
+    let lastAgo = Infinity;
+    const L = new Float32Array(240);
+    const R = new Float32Array(240);
+    const levels: number[] = [];
+    for (let n = 0; n < 600; n++) {
+      c.process(L, R, 240);
+      const g = vis(c);
+      if (g.hits[0] && g.hits[0].ago < lastAgo) {
+        strokes++;
+        hands.push(g.hits[0].hand);
+      }
+      lastAgo = g.hits[0]?.ago ?? Infinity;
+      if (n % 100 === 99) levels.push(rmsDb(L, 0, 240 / FS));
+    }
+    // three seconds: 30–48 strokes of the roll and the note's own
+    expect(strokes).toBeGreaterThanOrEqual(30);
+    expect(strokes).toBeLessThanOrEqual(50);
+    for (let k = 1; k < hands.length; k++) expect(hands[k]).not.toBe(hands[k - 1]);
+    expect((c.getVisual() as { glock: { rolling: boolean } }).glock.rolling).toBe(true);
+    // let go: no more strokes; the bar rings on and dies away
+    c.schedule({ type: 'noteOff', midi: 88 });
+    run(c, 0.2);
+    const n0 = (vis(c).hits[0] as { ago: number }).ago;
+    run(c, 0.5);
+    expect((vis(c).hits[0] as { ago: number }).ago).toBeGreaterThan(n0 + 0.45);
+    expect((c.getVisual() as { glock: { rolling: boolean } }).glock.rolling).toBe(false);
+    // the roll holds the note where a single stroke has died away: its level from the second second on, against
+    // the single stroke's first half second (the strokes meet the bar's swing as they fall: the level wavers)
+    const single = rmsDb(strike(88, 80, 3.2), 0.1, 0.5);
+    const lv = (params: object, extra: { time: number; event: unknown }[] = []) => rmsDb(strike(88, 80, 3.2, params, extra), 1, 3.1) - single;
+    expect(lv({})).toBeLessThan(-6);
+    expect(lv({ roll: 0.5 })).toBeGreaterThan(-6);
+    expect(lv({ roll: 0.5 })).toBeLessThan(6);
+    // the modulation wheel rolls a held key too, as the knob does
+    expect(lv({}, [{ time: 0.01, event: { type: 'control', cc: 1, value: 0.5 } }])).toBeCloseTo(lv({ roll: 0.5 }), 6);
+    // a roll is no louder than the limiter's room: as played, a fortissimo roll on the lowest bar
+    const played = renderInstrument({ sampleRate: FS, instrument: 'glockenspiel', params: { roll: 1 } as never, events: [{ time: 0.02, event: { type: 'noteOn', midi: 79, velocity: 110 } }] as never, duration: 3 });
+    let pk = 0;
+    for (let i = 0; i < played.left.length; i++) pk = Math.max(pk, Math.abs(played.left[i]));
+    expect(pk).toBeLessThan(0.97);
+    expect(rmsDb(played.left, 1, 2.9) - rmsDb(played.left, 0.1, 0.5)).toBeLessThan(6);
   });
 });

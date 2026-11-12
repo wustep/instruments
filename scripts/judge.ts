@@ -166,6 +166,20 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     await t.useEngine(opt('--before') && !textbook ? resolve(opt('--before')!) : undefined);
     const before = t.glockErrors(await t.compareAll(textbook ? { voice: GLOCK_TEXTBOOK } : undefined));
     await t.useEngine(opt('--after') ? resolve(opt('--after')!) : undefined);
+    if (opt('--folds')) {
+      // Two folds, as the harp's: --folds a.json,b.json: a the voicing fitted on the bars not held
+      // (fit-glock.ts), b the one fitted on the held ones (fit-glock.ts --swap); each bar is judged by the
+      // voicing that never saw it, so all the strokes are held out (the engine's other changes with both).
+      const { readFileSync } = await import('node:fs');
+      const [a, b] = opt('--folds')!.split(',').map((f) => JSON.parse(readFileSync(f, 'utf8')) as Record<string, unknown>);
+      const ea = t.glockErrors(await t.compareAll({ voice: a })).errs;
+      const eb = t.glockErrors(await t.compareAll({ voice: b })).errs;
+      const merged = ea.map((n, i) => ({ ...(n.held ? n : eb[i]), held: true }));
+      const v = judge(before.errs.map((n) => ({ ...n, held: true })), merged, before.measures);
+      printVerdict(v, `glockenspiel, two folds: ${opt('--before') ? 'before' : 'this'} → each bar by the voicing fitted without it`);
+      if (args.includes('--json')) console.log(JSON.stringify(v));
+      process.exit(0);
+    }
     const after = t.glockErrors(await t.compareAll());
     const v = judge(before.errs, after.errs, before.measures);
     printVerdict(v, `glockenspiel: ${textbook ? 'the textbook bar' : opt('--before') ? 'before' : 'this'} → ${opt('--after') ?? 'this checkout'}`);

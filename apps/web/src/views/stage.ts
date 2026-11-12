@@ -110,6 +110,7 @@ const TIMPANI_KNOBS: KnobSpec[] = [
 const GLOCK_KNOBS: KnobSpec[] = [
   { key: 'mallet', label: 'Mallets', short: 'mallet', sub: 'the heads: hard rubber, round … plastic … brass, every bar’s upper partials and the knock brought out', min: 0, max: 1, step: 0.01, fmt: (v) => (v < 0.25 ? 'rubber' : v > 0.75 ? 'brass' : 'plastic') },
   { key: 'damp', label: 'Damping', short: 'damp', sub: 'a key let go: the bar rings on (0) … the hand stops it (1)', min: 0, max: 1, step: 0.01, fmt: (v) => (v < 0.02 ? 'l.v.' : fmt(v, 2)) },
+  { key: 'roll', label: 'Roll', short: 'roll', sub: 'a held key rolls, the two mallets in turn: single strokes (0) … a fast roll', min: 0, max: 1, step: 0.01, fmt: (v) => (v < 0.02 ? 'off' : fmt(v, 2)) },
 ];
 const PRESET_SHORT: Record<string, string> = { grand: 'grand', upright: 'upright', 'honky-tonk': 'honky-tonk', prepared: 'prepared' };
 /** presets offered on the stage; 'honky-tonk' and 'prepared' still exist in the engine

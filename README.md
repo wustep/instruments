@@ -69,7 +69,8 @@ The list lives in `packages/engine/src/core/instrument.ts` (`INSTRUMENT_IDS`).
   * brass: lips as a mass–spring valve on a bore that the valves or slide lengthen, with nonlinear
     steepening when loud;
   * timpani: air-loaded membrane modes struck by a felt mallet;
-  * glockenspiel: thirty steel bars, each its pitch and five families of partials measured on recordings.
+  * glockenspiel: thirty steel bars, each its pitch and five families of partials measured on recordings,
+    struck by a player's two mallets (no two strokes alike; a held key can roll).
 
   Each is fitted to the University of Iowa MIS recordings (the harp and timpani to VSCO 2 CE, the
   glockenspiel to the Iowa orchestra bells), and each change is judged on notes held out of the fit

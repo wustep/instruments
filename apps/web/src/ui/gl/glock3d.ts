@@ -11,7 +11,7 @@ import { GLOCK_BAR_THICK } from '@piano-model/engine';
 import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, mulInto, rotY, translate, xform } from './gl3d.ts';
 import { M, box, cyl, ellipsoid, extrude, variant } from './mesh.ts';
 import { boxOf, make } from './horn3d.ts';
-import { BARS, CASE, GK_X0, GK_X1, GK_Y0, GK_Y1, HEAD_R, RAILS, SHAFT, barBox, barCentre } from '../glock-plan.ts';
+import { BARS, CASE, GK_X0, GK_X1, GK_Y0, GK_Y1, HEAD_R, RAILS, SHAFT, barBox, barCentre, strokePlace } from '../glock-plan.ts';
 
 /** the bars' top above the floor, the case's depth under them, the far row's step up */
 const TOP = 0.86;
@@ -138,10 +138,12 @@ export function poseGlock(b: Batch, gm: GlockModel, fr: VisualFrame | null, _dt:
   const heads: Vec3[] = [];
   const lift: number[] = [];
   for (const hand of [0, 1]) {
-    const to = barCentre(gv ? Math.max(0, Math.min(BARS.length - 1, gv.hands[hand])) : hand ? 20 : 8);
+    // (where the engine says its last stroke landed on the bar)
+    const last = gv?.hits.find((x) => x.hand === hand);
+    const over = gv ? Math.max(0, Math.min(BARS.length - 1, gv.hands[hand])) : hand ? 20 : 8;
+    const to = last && last.bar === over ? strokePlace(over, last.along, last.across) : barCentre(over);
     h.p[hand][0] += (to[0] - h.p[hand][0]) * k;
     h.p[hand][1] += (to[1] - h.p[hand][1]) * k;
-    const last = gv?.hits.find((x) => x.hand === hand);
     const ago = last ? last.ago : 9;
     const up = ago < 0.03 ? 0 : Math.min(1, 1 - Math.exp(-(ago - 0.03) / 0.07));
     lift.push(up);
