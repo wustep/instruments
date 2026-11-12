@@ -1,12 +1,13 @@
 // Orchestra mode's built-in pieces: the files are Mutopia's own (checksums), they parse, and each
 // piece sets out its parts as listed (orchestra/pieces.ts), fitted to a smaller stage when needed.
-// One is this project's own: "Toward Morning" (Fable 5.2, CC0), thirteen parts on thirteen seats.
+// Two are this project's own (Fable 5.2, CC0): "Toward Morning", thirteen parts on thirteen seats, and
+// "Everything So Far", eleven on eleven.
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseMidi } from '../src/midi-file.ts';
 import { express } from '../src/expression.ts';
-import { autoPlan, lineupOf, placeNote, VOICE_INFO } from '../src/orchestra/assign.ts';
+import { autoPlan, fitsStage, lineupOf, placeNote, VOICE_INFO } from '../src/orchestra/assign.ts';
 import { DEMOS, demoSong, pieceForLineup, PIECES, piecePlan, type Demo } from '../src/orchestra/pieces.ts';
 import type { MidiSong } from '../src/midi-file.ts';
 import { INSTRUMENT_IDS, INSTRUMENT_INFO } from '../../../packages/engine/src/core/instrument.ts';
@@ -17,14 +18,14 @@ const load = (file: string) => {
 };
 
 describe('orchestra: the pieces', () => {
-  it('each file is Mutopia’s, byte for byte (one this project’s own, CC0), and parses into the lines its plan names', () => {
+  it('each file is Mutopia’s, byte for byte (two this project’s own, CC0), and parses into the lines its plan names', () => {
     for (const p of PIECES) {
       const { b, song } = load(p.file);
       expect(createHash('sha256').update(b).digest('hex'), p.id).toBe(p.sha256);
       expect(song.duration, p.id).toBeGreaterThan(30);
       for (const part of p.parts) for (const l of part.lines) expect(l, p.id).toBeLessThan(song.lines.length);
       expect(p.credit).toMatch(/public domain/);
-      if (p.id === 'toward-morning') {
+      if (p.id === 'toward-morning' || p.id === 'everything-so-far') {
         // not Mutopia's: written for this page, and said so, with its licence
         expect(p.source).toBe('https://github.com/wustep/instruments#license');
         expect(p.credit).toMatch(/Fable 5\.2/);
@@ -32,7 +33,7 @@ describe('orchestra: the pieces', () => {
       } else expect(p.source).toMatch(/^https:\/\/www\.mutopiaproject\.org\/cgibin\/piece-info\.cgi\?id=\d+$/);
     }
     // the only pieces that are not Mutopia's are those named here
-    expect(PIECES.filter((p) => !/mutopiaproject/.test(p.source)).map((p) => p.id)).toEqual(['toward-morning']);
+    expect(PIECES.filter((p) => !/mutopiaproject/.test(p.source)).map((p) => p.id)).toEqual(['toward-morning', 'everything-so-far']);
   });
 
   it('Toward Morning: thirteen lines, one to a seat by its own names; every note in its instrument’s compass, one voice to a wind; its own dynamics; the thirteen’s play icon plays it', () => {
@@ -63,7 +64,45 @@ describe('orchestra: the pieces', () => {
     expect(PIECES[pieceForLineup(seats as never)].id).toBe('toward-morning');
     const fifth = PIECES.find((p) => p.id === 'beethoven5-i')!;
     expect(PIECES[pieceForLineup(fifth.parts.map((q) => q.voice))].id).toBe('beethoven5-i');
-    expect(PIECES[PIECES.length - 1].id).toBe('toward-morning');
+    // (the page's own pieces come last, in the order they were written)
+    expect(PIECES.slice(-2).map((p) => p.id)).toEqual(['toward-morning', 'everything-so-far']);
+  });
+
+  it('Everything So Far: eleven lines (the conductor track is none), one to a seat by its own names; every note in its instrument’s compass; its own dynamics; the eleven’s play icon plays it', () => {
+    const es = PIECES.find((p) => p.id === 'everything-so-far')!;
+    const { song } = load(es.file);
+    expect(`${es.composer}, ${es.title}`).toBe('Fable 5.2, Everything So Far');
+    expect(es.path).toBe('everything');
+    expect(song.lines.map((l) => `${l.name}~${l.program}`)).toEqual(['Flute~73', 'Clarinet~71', 'Horn~60', 'Glockenspiel~9', 'Harp~46', 'Grand Piano~0', 'Violin I~40', 'Violin II~40', 'Viola~41', 'Cello~42', 'Double Bass~43']);
+    // three minutes (180.97 s, first note to the end of the last), 77 bars of 7/8
+    expect(song.duration).toBeGreaterThan(180);
+    expect(song.duration).toBeLessThan(182);
+    expect(song.bars).toHaveLength(77);
+    const seats = ['flute', 'clarinet', 'horn', 'glockenspiel', 'harp', 'grand', 'violin', 'violin', 'viola', 'cello', 'bass'];
+    const plan = piecePlan(es, song.lines, 11);
+    expect(lineupOf(plan)).toEqual(seats);
+    // each line on its own seat, as written (no transposition, nothing folded by octaves)
+    expect(plan.lines.map((rs) => rs.map((r) => [r.part, r.shift]))).toEqual(seats.map((_, i) => [[i, 0]]));
+    song.lines.forEach((l, i) => {
+      const v = VOICE_INFO[plan.parts[i].voice];
+      expect(l.lo, `${l.name} low`).toBeGreaterThanOrEqual(v.lo);
+      expect(l.hi, `${l.name} high`).toBeLessThanOrEqual(v.hi);
+      expect(l.poly, `${l.name} voices`).toBeLessThanOrEqual(v.poly);
+    });
+    // the whole of it on a phone's stage and a computer's (36.3 of 45.6: assign.ts fitLineup)
+    expect(fitsStage(seats as never, 6)).toBe(true);
+    expect(fitsStage(seats as never, 8)).toBe(true);
+    // dropped as a plain file on a stage with room, its names seat the same orchestra
+    expect(lineupOf(autoPlan(song.lines, { cap: 11 }))).toEqual(seats);
+    // its own dynamics, but for the viola's held notes, all at one soft velocity (34): automatic
+    // expression phrases that line alone (offline, every note of it still speaks within 0.2 s)
+    expect(express(song).shapes.map((sh, i) => (sh.flat ? song.lines[i].name : null)).filter(Boolean)).toEqual(['Viola']);
+    // the play icon: eleven seats play it; the thirteen still Toward Morning, the symphony's eighteen Beethoven's Fifth
+    expect(PIECES[pieceForLineup(seats as never)].id).toBe('everything-so-far');
+    const tm = PIECES.find((p) => p.id === 'toward-morning')!;
+    expect(PIECES[pieceForLineup(tm.parts.map((q) => q.voice))].id).toBe('toward-morning');
+    const fifth = PIECES.find((p) => p.id === 'beethoven5-i')!;
+    expect(PIECES[pieceForLineup(fifth.parts.map((q) => q.voice))].id).toBe('beethoven5-i');
   });
 
   it('the quartet is a quartet, the concerto six players, the fanfare a trumpet at concert pitch with the piano', () => {

@@ -239,7 +239,7 @@ export class MidiPlayer {
       });
       return b;
     });
-    // (the typesettings are Mutopia's; Toward Morning is this project's own, CC0)
+    // (the typesettings are Mutopia's; Toward Morning and Everything So Far are this project's own, CC0)
     const credit = h('a', { class: 'sm-credit', href: '/notes', 'data-route': 'notes' }, 'public domain · Mutopia, Fable 5.2');
     credit.addEventListener('click', () => this.closePieces());
     const m = h('div', { class: 'score-menu', role: 'menu', 'aria-label': 'Pieces' }, ...items, credit);

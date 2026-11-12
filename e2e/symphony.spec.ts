@@ -135,9 +135,9 @@ test('/symphony is kept by a reload and by back and forward; reorganised, the ad
   await expect.poll(async () => (await state(page)).playing, { timeout: 60_000 }).toBe(true);
   // (the address is the one it was opened at: the preset's seats and lines; the piece is not in it)
   await page.evaluate(() => (window as any).__player.stop());
-  // the pieces menu: the last of them, with its thirteen instruments
+  // the pieces menu: after Mutopia's six, the first of the page's own, with its thirteen instruments
   await page.locator('.player .pl-pieces').click();
-  const last = page.locator('.score-menu .sm-item').last();
+  const last = page.locator('.score-menu .sm-item').nth(6);
   await expect(last).toHaveAttribute('data-piece', 'toward-morning');
   await expect(last).toContainText('Fable 5.2');
   await expect(last).toContainText('Toward Morning');

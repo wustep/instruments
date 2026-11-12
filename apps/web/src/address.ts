@@ -1,5 +1,5 @@
 // The page's address. Every tab has a path of its own (/piano, /piano/upright, /violin, /viola,
-// /cello, /bass, /harp, /flute, /oboe, /clarinet, /bassoon, /horn, /trumpet, /trombone, /tuba, /timpani, /glockenspiel, /orchestra, /symphony, /measurements, /notes), and the Orchestra's
+// /cello, /bass, /harp, /flute, /oboe, /clarinet, /bassoon, /horn, /trumpet, /trombone, /tuba, /timpani, /glockenspiel, /orchestra, /symphony, /everything, /measurements, /notes), and the Orchestra's
 // carries its whole setup in a short, readable, versioned query, so the address itself is a preset; nav.ts keeps
 // it in step with the page. Pure (no DOM), tested fast.
 //
@@ -24,9 +24,10 @@
 //          band, no file player, no keys. What it would have pressed is asked of the page (the address
 //          sets the piece up; window.__player plays it)
 //
-// A piece with an address of its own (orchestra/pieces.ts `path`: /symphony, "Toward Morning") stands
-// for its orchestra and its routing, with the piece loaded: /symphony?view=3d. It is written so for as
-// long as the piece is on its own orchestra as it came; reorganised, the address is the Orchestra's.
+// A piece with an address of its own (orchestra/pieces.ts `path`: /symphony, "Toward Morning";
+// /everything, "Everything So Far") stands for its orchestra and its routing, with the piece loaded:
+// /symphony?view=3d. It is written so for as long as the piece is on its own orchestra as it came;
+// reorganised, the address is the Orchestra's.
 //
 // An instrument's path carries ?view= too when the stage is not the plain 2D one. Old addresses still
 // open where they did: #/, #/notes, #/measurements (and #/play, #/inside), ?style=vector. Anything
@@ -112,7 +113,7 @@ export const INSTRUMENT_PATHS: Record<string, [InstrumentId, ('grand' | 'upright
 };
 for (const id of INSTRUMENT_IDS) INSTRUMENT_PATHS[id] ??= [id];
 
-/** the pieces with a path of their own, by that path (/symphony; vercel.json rewrites each to the page) */
+/** the pieces with a path of their own, by that path (/symphony, /everything; vercel.json rewrites each to the page) */
 export const PIECE_PATHS: Record<string, Piece> = Object.fromEntries(PIECES.filter((p) => p.path).map((p) => [p.path!, p]));
 /** a piece's own orchestra: its instruments, one to a seat, in its order */
 const pieceSeats = (p: Piece): Voice[] => p.parts.map((q) => q.voice);
