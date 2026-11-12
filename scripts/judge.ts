@@ -156,6 +156,22 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     if (args.includes('--json')) console.log(JSON.stringify(v));
     process.exit(0);
   }
+  if (inst[0] === 'glockenspiel') {
+    // the glockenspiel: struck bars against the Iowa MIS bells (scripts/calibrate-glock.ts). --before textbook:
+    // this checkout's engine with the voicing it was first wired with (a thin free bar's overtones, no
+    // recording looked at: core/glockenspiel.ts GLOCK_TEXTBOOK)
+    const t = await import('./calibrate-glock.ts');
+    const { GLOCK_TEXTBOOK } = await import('../packages/engine/src/core/index.ts');
+    const textbook = opt('--before') === 'textbook';
+    await t.useEngine(opt('--before') && !textbook ? resolve(opt('--before')!) : undefined);
+    const before = t.glockErrors(await t.compareAll(textbook ? { voice: GLOCK_TEXTBOOK } : undefined));
+    await t.useEngine(opt('--after') ? resolve(opt('--after')!) : undefined);
+    const after = t.glockErrors(await t.compareAll());
+    const v = judge(before.errs, after.errs, before.measures);
+    printVerdict(v, `glockenspiel: ${textbook ? 'the textbook bar' : opt('--before') ? 'before' : 'this'} → ${opt('--after') ?? 'this checkout'}`);
+    if (args.includes('--json')) console.log(JSON.stringify(v));
+    process.exit(0);
+  }
   if (inst[0] === 'harp') {
     // the harp: plucked strings against VSCO 2 CE (scripts/calibrate-harp.ts)
     const t = await import('./calibrate-harp.ts');

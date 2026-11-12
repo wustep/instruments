@@ -22,4 +22,5 @@ export { TubaCore, TUBA_VOICE, TUBA_LO, TUBA_HI, TUBA_LENGTH, tubaFingering, tub
 export { LipConeCore, type ConeFingering, type LipConeId, type LipConeParams, type LipConeSpec, type LipConeVoice, type TuningTable } from './lipcone.ts';
 export { VALVES3, VALVES4, valveFingering, valvesDown, type ValveFingering } from './valves.ts';
 export { HarpCore, HARP_VOICE, HARP_LO, HARP_HI, HARP_STRINGS, HARP_PEDALS, harpStrings, harpStringOf, harpStringFor, harpPedalsFor, type HarpParams, type HarpVoice, type HarpString, type HarpPedal } from './harp.ts';
+export { GlockenspielCore, GLOCK_VOICE, GLOCK_TEXTBOOK, GLOCK_LO, GLOCK_HI, GLOCK_BARS, GLOCK_FAMILIES, GLOCK_BAR_WIDTH, GLOCK_BAR_THICK, glockBars, glockBarOf, barShape, type GlockParams, type GlockVoice, type GlockBar } from './glockenspiel.ts';
 export { TimpaniCore, TIMPANI_VOICE, TIMPANI_SPOT, TIMPANI_LO, TIMPANI_HI, TIMPANI_DRUMS, besselJ, besselZeros, type TimpaniParams, type TimpaniVoice, type TimpaniDrum } from './timpani.ts';
