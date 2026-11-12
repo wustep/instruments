@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { TUBA_HI, TUBA_LENGTH, TUBA_LO, tubaFingering, tubaTubeLength, valvesDown, type VisualFrame } from '@piano-model/engine';
 import { plen } from '../src/ui/horn-plan.ts';
-import { BELL_X, BORE, CASING_R, MPIECE, MP_LEN, MP_RIM, RIM_R, RIM_Y, TB_X0, TB_X1, TB_Y0, TB_Y1, TUBES, TUBE_LEN, VALVE_X, bellR, loopLength, tubaAir, tubaAirLength } from '../src/ui/tuba-plan.ts';
+import { BELL_X, BORE, CASING_R, MPIECE, MP_LEN, MP_RIM, RIM_R, RIM_Y, TB_X0, TB_X1, TB_Y0, TB_Y1, TUBES, TUBE_LEN, VALVE_X, bellR, loopLength, tubaAir, tubaAirLength, BELL_TILT, BELL_TOP_X, BUTTON_Y, CASING_Y0, MP_DIR, PISTON_LEAN, STACK_Y0, VALVE_Y, bellAxisX, lean } from '../src/ui/tuba-plan.ts';
 import { drawTuba, newTubaState, tubaBox, tubaLayout } from '../src/ui/tuba-draw.ts';
 import { drawTubaV } from '../src/ui/vector/tuba.ts';
 import { installCanvas, recorder } from './recording-ctx.ts';
@@ -41,7 +41,8 @@ describe('the 2D tuba’s plan, at a contrabass tuba’s measures', () => {
       last = r;
     }
     expect(2 * (BORE - 0.001)).toBeCloseTo(0.019, 3);
-    for (let k = 1; k < 4; k++) expect(VALVE_X[k - 1] - VALVE_X[k]).toBeCloseTo(0.045, 6);
+    // (the first valve nearest the leadpipe: at the left of the row)
+    for (let k = 1; k < 4; k++) expect(VALVE_X[k] - VALVE_X[k - 1]).toBeCloseTo(0.045, 6);
     expect(2 * CASING_R).toBeCloseTo(0.033, 3);
     expect(MP_LEN).toBeCloseTo(0.09, 3);
     expect(2 * Math.max(...MPIECE.map((p) => p[0]))).toBeGreaterThan(0.045);
@@ -57,10 +58,41 @@ describe('the 2D tuba’s plan, at a contrabass tuba’s measures', () => {
       expect(y).toBeGreaterThan(TB_Y0);
       expect(y).toBeLessThan(TB_Y1);
     }
-    // the mouthpiece beside the bell, under its rim; the bell right of the valves
-    expect(MP_RIM[0]).toBeGreaterThan(BELL_X + RIM_R);
-    expect(MP_RIM[1]).toBeLessThan(RIM_Y);
-    expect(Math.max(...VALVE_X)).toBeLessThan(BELL_X);
+    // Which way round (a front-action tuba from its valve side, as it is held: the bell at the player's
+    // left, the valves before his right hand). The bell's stack at the left, leaning a few degrees further
+    // left; the valves and the wound body to its right; the mouthpiece past the stack at the left, at a
+    // seated player's mouth (0.55–0.65 of the height: the makers' photographs), the air going in towards the
+    // right; the pistons leaning, their buttons towards the mouthpiece's side.
+    expect(BELL_X).toBeLessThan(Math.min(...VALVE_X));
+    expect(BELL_TOP_X).toBeLessThan(BELL_X - 0.03);
+    expect(BELL_TILT).toBeGreaterThan((2 * Math.PI) / 180);
+    expect(BELL_TILT).toBeLessThan((8 * Math.PI) / 180);
+    expect(bellAxisX(STACK_Y0)).toBeCloseTo(BELL_X, 9);
+    expect(bellAxisX(RIM_Y)).toBeCloseTo(BELL_TOP_X, 9);
+    expect(MP_RIM[0]).toBeLessThan(bellAxisX(MP_RIM[1]) - bellR(RIM_Y - MP_RIM[1]) - 0.05);
+    expect(MP_DIR).toEqual([1, 0]);
+    expect(MP_RIM[1] / RIM_Y).toBeGreaterThan(0.55);
+    expect(MP_RIM[1] / RIM_Y).toBeLessThan(0.65);
+    const wound = TUBES.body.pts;
+    expect(Math.max(...wound.map((q) => q[0]))).toBeGreaterThan(0.15);
+    expect(Math.max(...TUBES.L4.pts.map((q) => q[0]))).toBeGreaterThan(Math.max(...wound.map((q) => q[0])));
+    for (let k = 0; k < 4; k++) {
+      const top = lean(k, [VALVE_X[k], BUTTON_Y]);
+      const foot = lean(k, [VALVE_X[k], CASING_Y0]);
+      expect(top[0]).toBeLessThan(VALVE_X[k] - 0.03);
+      expect(foot[0]).toBeGreaterThan(VALVE_X[k] + 0.015);
+      // (leaned, not bent: the casing's length is kept, and the main line still passes through its middle)
+      expect(Math.hypot(top[0] - foot[0], top[1] - foot[1])).toBeCloseTo(BUTTON_Y - CASING_Y0, 9);
+      expect(lean(k, [VALVE_X[k], VALVE_Y])).toEqual([VALVE_X[k], VALVE_Y]);
+    }
+    expect(PISTON_LEAN).toBeGreaterThan((12 * Math.PI) / 180);
+    expect(PISTON_LEAN).toBeLessThan((35 * Math.PI) / 180);
+    // the leadpipe: from the mouthpiece across the front of the stack and down into the first valve, 0.7–0.9 m
+    const lead = TUBES.lead.pts;
+    expect(lead[0][0]).toBeLessThan(BELL_TOP_X);
+    expect(lead[lead.length - 1][0]).toBeCloseTo(VALVE_X[0] - CASING_R, 6);
+    expect(TUBE_LEN.lead).toBeGreaterThan(0.7);
+    expect(TUBE_LEN.lead).toBeLessThan(0.9);
   });
   it('the open tube is the engine’s 4.88 m; each valve alone adds its semitones’ share exactly', () => {
     expect(tubaAir([false, false, false, false]).total).toBeCloseTo(TUBA_LENGTH, 3);
@@ -127,8 +159,8 @@ describe('the 2D tuba draws, both styles', () => {
       const { ctx } = recorder();
       draw(ctx, 1440, 551, null, st, 39);
       expect(st.drawn?.levers).toBe(0);
-      // the sound leaves from the bell's mouth, at the top, right of the middle
-      expect(st.src!.x).toBeGreaterThan(720);
+      // the sound leaves from the bell's mouth, at the top, left of the middle (the bell at the player's side)
+      expect(st.src!.x).toBeLessThan(720);
       expect(st.src!.y).toBeLessThan(200);
       const up = st.drawn!.buttons.slice();
       const step = async (m: number, n: number, blow = 0.8) => {

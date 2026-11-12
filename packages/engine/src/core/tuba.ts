@@ -19,16 +19,19 @@
 // tube a fourth, in place of 1+3 (which is sharp): so 4, 2+4, 1+4, 1+2+4, 2+3+4, 1+3+4, 1+2+3+4 carry the
 // second resonance down from F1 to D♭1, and the open pedal is C1 (tubaFingering; the common charts, e.g.
 // W. Bell's and R. Bobo's: C2 open, B1 2, B♭1 1, A1 1+2, A♭1 2+3, G1 4, G♭1 2+4, F1 1+4, E1 1+2+4,
-// E♭1 2+3+4, D1 1+3+4, D♭1 1+2+3+4). A real tuba's low valve notes are sharp (each valve's loop is cut for
-// the open tube) and are pulled into tune with a slide or a fifth valve; the model's tube is simply the
-// right length (its tuning table: tuba-tuning.json).
+// E♭1 2+3+4, D1 1+3+4, D♭1 1+2+3+4). A real tuba's valve notes are sharp together (each valve's loop is cut
+// for the open tube, so two loops fall short of what the two together should add: 1+2 by 10 ¢, 2+4 by 24,
+// 1+4 by 48, 1+2+4 by 79, all four by 175) and are pulled into tune with a slide, the lips or a fifth
+// valve; and the tube's own partials are not equal temperament's (the fifth and tenth are 14 ¢ flat). The
+// model's tube is the right length for every note (its tuning table: tuba-tuning.json), and its player
+// (TUBA_HUMAN) leaves a little of both, as players do: tubaIntonation.
 //
 // The compass. C1–F4 as it sounds (MIDI 24–65; the tuba's parts are written at pitch, in the bass clef): the
 // orchestral range is D1–F4 (Adler 2002, "The Study of Orchestration" 3rd ed., ch. 10), and the pedal C1
 // under it is the open tube's own.
 
 import { clamp } from './util.ts';
-import { LipConeCore, type ConeFingering, type LipConeParams, type LipConeVoice, type TuningTable } from './lipcone.ts';
+import { LipConeCore, type ConeFingering, type LipConeHuman, type LipConeParams, type LipConeVoice, type TuningTable } from './lipcone.ts';
 import { valveFingering, VALVES4 } from './valves.ts';
 import tubaTuning from './tuba-tuning.json';
 
@@ -66,6 +69,58 @@ export function tubaFingering(m: number): TubaFingering {
 /** the tube's length (m) for a fingering: the open tube lengthened by its valves */
 export const tubaTubeLength = (f: TubaFingering): number => TUBA_LENGTH * Math.pow(2, f.lower / 12);
 
+/** each valve's loop lowers the open tube by this many semitones (valves 1–4) */
+const VALVE_SEMIS = [2, 1, 3, 5];
+/** How sharp a fingering stands before the player does anything about it (cents): its valves' loops, each
+ *  cut to lower the open tube by its own interval, add up to less than the note's tube when two or more
+ *  are down. One valve, or none: 0. */
+export function tubaValveSharp(valves: string): number {
+  let add = 0;
+  let semis = 0;
+  for (const v of valves.split('+')) {
+    const k = Number.parseInt(v, 10);
+    if (!(k >= 1 && k <= 4)) continue;
+    add += Math.pow(2, VALVE_SEMIS[k - 1] / 12) - 1;
+    semis += VALVE_SEMIS[k - 1];
+  }
+  return 1200 * Math.log2(Math.pow(2, semis / 12) / (1 + add));
+}
+/** how far the tube's n-th partial lies from equal temperament's nearest note (cents: the 5th, −14) */
+export const partialCents = (n: number): number => 1200 * Math.log2(n) - 100 * Math.round(12 * Math.log2(n));
+/** What a player leaves of it (cents; + sharp). The valves' sharpness is pulled out with a slide and the
+ *  lips: all but 15 % of it, and never more than 12 ¢ left (the Iowa tubist's notes with two valves or more
+ *  stand within a few cents of the open ones; his E♭1 at fortissimo, 2+3+4 unpulled, is 76 ¢ sharp). Half of
+ *  a partial's own distance from equal temperament is left (his fifth-partial notes, D3–E3, are 14 ¢ under
+ *  their neighbours: he leaves it all). */
+export function tubaIntonation(f: TubaFingering): number {
+  return Math.min(12, 0.15 * tubaValveSharp(f.valves)) + 0.5 * partialCents(f.partial);
+}
+
+/** The tuba's player (lipcone.ts LipConeHuman). A held note's breath blooms and sags (the Iowa notes' level
+ *  peaks a quarter to a third of the way through a one-second note and falls 2–4 dB/s after: played alone,
+ *  each a little arch; here it comes up 1.2 dB and sags 0.6 dB in its first second and 1.5 dB in five, a
+ *  note in a line being held up; a per cent of breath is a tenth of a decibel), the pitch wanders 2 ¢ (theirs:
+ *  1.4–2.4 ¢, the model's alone 0.3), no vibrato (they have none). From note to note the tongue, the kick,
+ *  the breath and the lips' first setting each vary a little, and the tongue's release is a puff of air
+ *  (scripts/tuba-variation.ts). */
+export const TUBA_HUMAN: LipConeHuman<TubaFingering> = {
+  seed: 580,
+  bloom: 0.12,
+  bloomTau: 0.16,
+  sag: 0.18,
+  sagTau: 2.5,
+  drift: 0.02,
+  wander: 4,
+  hold: 0.25,
+  kick: 0.15,
+  vel: 3,
+  scoop: 12,
+  scoopTau: 0.05,
+  puff: 4,
+  puffTau: 0.03,
+  intonation: tubaIntonation,
+};
+
 /** The voicing (lipcone.ts LipConeVoice): the lips, the bore's losses and the radiation's colour. Fitted to
  *  the University of Iowa MIS tuba (pp/mf/ff, C1–C4) with scripts/fit-tuba.ts on the fit half of its notes
  *  (even MIDI numbers), judged on the held-out half (scripts/judge.ts): BETTER than the horn's voicing set
@@ -98,7 +153,8 @@ export const TUBA_VOICE: TubaVoice = {
   bellQ: 0.557,
   wall: 0.948,
   noise: 0.4,
-  noiseTop: 0.2443,
+  noiseTop: 0.16,
+  noiseSoft: 0.5,
   hp: 299.7,
   f1: 601.6,
   g1: 15.9,
@@ -137,6 +193,7 @@ export class TubaCore extends LipConeCore<TubaFingering> {
         // packages/engine/test/mono.test.ts); 140 dB/s leaves each its own (5 dB), about what the lips and
         // the deep cup take from a real tuba's low resonances (Q 20–40: 60–120 dB/s by themselves)
         stopRate: 140,
+        human: TUBA_HUMAN,
         fingering: tubaFingering,
         tubeLength: tubaTubeLength,
         prep: (fg) => `valves ${fg.valves}, partial ${fg.partial}`,

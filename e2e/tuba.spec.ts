@@ -62,10 +62,13 @@ test('the tuba through the worklet at 22.05, 44.1, 48 and 96 kHz: at pitch on it
   await page.goto('/tuba');
   await startAudio(page);
   const levels: Record<string, number> = {};
-  for (const [rate, midi, vel] of [[22050, 36, 70], [44100, 29, 70], [48000, 41, 30], [48000, 41, 112], [48000, 25, 70], [96000, 53, 70], [44100, 65, 112]] as const) {
-    const out = await page.evaluate(async ([fs, m, v]) => {
+  // (the tube alone, `human` 0: at pitch; and the last two with its player, who leaves F1 on 1+4 some cents
+  // sharp and E3 on the fifth partial some cents flat)
+  const cents: Record<string, number> = {};
+  for (const [rate, midi, vel, human] of [[22050, 36, 70, 0], [44100, 29, 70, 0], [48000, 41, 30, 0], [48000, 41, 112, 0], [48000, 25, 70, 0], [96000, 53, 70, 0], [44100, 65, 112, 0], [48000, 31, 70, 1], [48000, 29, 70, 1], [48000, 52, 70, 1]] as const) {
+    const out = await page.evaluate(async ([fs, m, v, hu]) => {
       const { renderOffline } = (window as any).__engine;
-      const buf: AudioBuffer = await renderOffline({ instrument: 'tuba', sampleRate: fs, duration: 1.8, params: { room: 0, vibrato: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: v } }] });
+      const buf: AudioBuffer = await renderOffline({ instrument: 'tuba', sampleRate: fs, duration: 1.8, params: { room: 0, vibrato: 0, human: hu }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: v } }] });
       const L = buf.getChannelData(0);
       const R = buf.getChannelData(1);
       const x = L.map((s, i) => 0.5 * (s + R[i]));
@@ -93,8 +96,13 @@ test('the tuba through the worklet at 22.05, 44.1, 48 and 96 kHz: at pitch on it
       let peak = 0;
       for (let i = 0; i < x.length; i++) peak = Math.max(peak, Math.abs(L[i]), Math.abs(R[i]));
       return { cents: 1200 * Math.log2(fm / f), peak, n: x.length, db: 10 * Math.log10(e / W + 1e-20) };
-    }, [rate, midi, vel] as const);
-    const who = `${rate} Hz, MIDI ${midi}, velocity ${vel}`;
+    }, [rate, midi, vel, human] as const);
+    const who = `${rate} Hz, MIDI ${midi}, velocity ${vel}${human ? ', with its player' : ''}`;
+    if (human) {
+      cents[String(midi)] = out.cents;
+      expect(Math.abs(out.cents), who).toBeLessThan(25);
+      continue;
+    }
     expect(out.n, who).toBe(Math.round(1.8 * rate));
     expect(out.peak, who).toBeGreaterThan(0.01);
     expect(out.peak, who).toBeLessThanOrEqual(1);
@@ -102,6 +110,12 @@ test('the tuba through the worklet at 22.05, 44.1, 48 and 96 kHz: at pitch on it
     levels[`${midi}/${vel}`] = out.db;
   }
   expect(levels['41/112'] - levels['41/30']).toBeGreaterThan(8);
+  // its player: against G1 (the fourth valve alone, left where it is), F1 on 1+4 stands a few cents sharp and
+  // E3 on the tube's fifth partial a few cents flat (the same player's wander is under all three)
+  expect(cents['29'] - cents['31']).toBeGreaterThan(3);
+  expect(cents['29'] - cents['31']).toBeLessThan(12);
+  expect(cents['52'] - cents['31']).toBeLessThan(-3);
+  expect(cents['52'] - cents['31']).toBeGreaterThan(-12);
   expect(errors).toEqual([]);
 });
 
@@ -117,9 +131,15 @@ for (const look of ['2d', 'vector'] as const)
     expect(d0.body.x1).toBeLessThanOrEqual(d0.stage.x1);
     expect(d0.body.y0).toBeGreaterThanOrEqual(over - 1);
     expect(d0.body.y1).toBeLessThanOrEqual(d0.stage.y1);
-    // the bell over the valves, the mouthpiece beside the bell
+    // the bell over the valves and at their left; the mouthpiece at the bell's side, left of the valves, at
+    // a seated player's mouth (0.55–0.65 of the way up): a front-action tuba from its valve side, as it is held
     expect(d0.bell.y1).toBeLessThan(d0.valves.y0);
-    expect(d0.mouth.x0).toBeGreaterThan(d0.valves.x1);
+    expect((d0.bell.x0 + d0.bell.x1) / 2).toBeLessThan((d0.valves.x0 + d0.valves.x1) / 2);
+    expect(d0.mouth.x1).toBeLessThan(d0.valves.x0);
+    expect(d0.mouth.x0).toBeLessThan((d0.bell.x0 + d0.bell.x1) / 2);
+    const up = (d0.body.y1 - (d0.mouth.y0 + d0.mouth.y1) / 2) / (d0.body.y1 - d0.body.y0);
+    expect(up).toBeGreaterThan(0.5);
+    expect(up).toBeLessThan(0.68);
     expect(d0.levers).toBe(0);
     // F1: valves 1 and 4, their buttons down
     await page.evaluate(() => (window as any).__piano.noteOn(29, 90, 'midi'));

@@ -9,7 +9,7 @@ import { Batch, type Mesh, xform } from '../src/ui/gl/gl3d.ts';
 import { TUBA_HELD, TUBA_SEAT, VALVE_Z, buildTubaModel, poseTuba, tubaPistonState, type TubaModel } from '../src/ui/gl/tuba3d.ts';
 import { newWindPose } from '../src/ui/gl/winds3d.ts';
 import { ensembleSeats } from '../src/ui/gl/scenes3d.ts';
-import { BELL_LEN, TRAVEL, TUBE_LEN } from '../src/ui/tuba-plan.ts';
+import { BELL_LEN, TRAVEL, TUBE_LEN, BELL_TOP_X, BELL_X, VALVE_X } from '../src/ui/tuba-plan.ts';
 
 const t0 = performance.now();
 const tm: TubaModel = buildTubaModel();
@@ -48,8 +48,29 @@ describe('the tuba in 3D', () => {
       top = Math.max(top, tm.rim.data[i * 14 + 1]);
     }
     expect(rx1 - rx0).toBeCloseTo(tm.bellWidth, 2);
-    expect(top).toBeGreaterThan(0.97);
-    expect(top).toBeLessThan(0.98);
+    // (the bell leans 4° towards the mouthpiece's side: the rim's far edge stands 17 mm over its middle's
+    // 0.97 m, and its middle 54 mm to that side of the stack's foot)
+    expect(top).toBeGreaterThan(0.975);
+    expect(top).toBeLessThan(1.0);
+    expect((rx0 + rx1) / 2).toBeCloseTo(BELL_TOP_X, 2);
+    expect(BELL_TOP_X).toBeLessThan(BELL_X - 0.03);
+  });
+
+  it('is the right way round: the mouthpiece at the bell’s side pointing out to the player, the valves at the other side, their pistons leaning to him', () => {
+    // the lips' place: left of the bell's stack, at a seated player's mouth; the breath comes from further left
+    expect(tm.lips[0]).toBeLessThan(BELL_TOP_X - 0.1);
+    expect(tm.lips[1]).toBeGreaterThan(0.53);
+    expect(tm.lips[1]).toBeLessThan(0.63);
+    expect(tm.lipAxis[0]).toBeLessThan(-0.9);
+    // every piston's button stands up and to the mouthpiece's side of its casing's foot
+    for (let k = 0; k < 4; k++) {
+      const m = tm.pistons[k];
+      let hiY = -Infinity;
+      let hiX = 0;
+      for (let i = 0; i < m.count; i++) if (m.data[i * 14 + 1] > hiY) [hiY, hiX] = [m.data[i * 14 + 1], m.data[i * 14]];
+      expect(hiX).toBeLessThan(VALVE_X[k] - 0.03);
+      expect(hiX).toBeGreaterThan(BELL_X);
+    }
   });
 
   it('every tube is as long as the plan’s (the engine’s lengths); in space the leadpipe goes round the bell, 0.2 m more', () => {
@@ -83,7 +104,15 @@ describe('the tuba in 3D', () => {
     const down = play(frame(25));
     const up = play(frame(36));
     const yOf = (b: Batch, m: Mesh) => b.inst.get(m)!.a[13];
-    for (let k = 0; k < 4; k++) expect(yOf(up.b, tm.pistons[k]) - yOf(down.b, tm.pistons[k])).toBeCloseTo(TRAVEL, 3);
+    const xOf = (b: Batch, m: Mesh) => b.inst.get(m)!.a[12];
+    for (let k = 0; k < 4; k++) {
+      // (down its leaning casing: 21 mm along it, down and away from the mouthpiece's side)
+      const dy = yOf(up.b, tm.pistons[k]) - yOf(down.b, tm.pistons[k]);
+      const dx = xOf(down.b, tm.pistons[k]) - xOf(up.b, tm.pistons[k]);
+      expect(Math.hypot(dx, dy)).toBeCloseTo(TRAVEL, 3);
+      expect(dy).toBeGreaterThan(0.85 * TRAVEL);
+      expect(dx).toBeGreaterThan(0.2 * TRAVEL);
+    }
     // the note over: a moment later every piston is up
     const { pose } = play(frame(25));
     const after = play(frame(null), 90, pose);

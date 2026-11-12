@@ -403,14 +403,25 @@ One plan for the 2D stage and the 3D model (`apps/web/src/ui/tuba-plan.ts`; `tub
 
 The body is a flattened spiral, each lap wider than the last (11 mm at the main tuning slide to 110 mm at the
 stack's foot); the bell a Bessel horn (r ∝ (d + 0.125 m)^−0.75) from the foot to the rim; the valve block stands
-78 mm in front of the body's plane with its loops; the leadpipe goes round the front of the bell from the
-mouthpiece beside it. The main slide's depth and each loop's reach are solved so that the open path is the
-engine's 4.88 m and each valve alone adds its loop exactly (`apps/web/test/tuba2d.test.ts`); valves together
-fall short of the note's tube, up to 10 % with all four, as a real tuba's do. In space the leadpipe is 0.2 m
-longer than the plan's flat one (round the bell); the wave is laid along the plan's lengths
-(`apps/web/test/tuba3d.test.ts`). No photograph was traced and none is kept; the layout is a schematic of
-the front-action pattern (the laps nested in one plane, the fourth loop outside the body), not a copy of one
-maker's wrap.
+78 mm in front of the body's plane with its loops. The main slide's depth and each loop's reach are solved so
+that the open path is the engine's 4.88 m and each valve alone adds its loop exactly
+(`apps/web/test/tuba2d.test.ts`); valves together fall short of the note's tube, up to 10 % with all four, as a
+real tuba's do. In space the leadpipe is longer than the plan's flat one (round the bell's front); the wave is
+laid along the plan's lengths (`apps/web/test/tuba3d.test.ts`). No photograph was traced and none is kept; the
+layout is a schematic of the front-action pattern (the laps nested in one plane, the fourth loop outside the
+body), not a copy of one maker's wrap.
+
+**Which way round** (corrected in the polish pass; as first drawn it was the mirror image, with the
+mouthpiece at the height of the bell's flare):
+
+| | here | photographs looked at (Wikimedia Commons, not kept) |
+|---|---|---|
+| bell and valves | seen from the valve side, the bell's stack at the left and the wound body and valves at its right | Yamaha YCB-822 / YFB-822 (front-action pistons) and YBB-641 (rotary): bell left. A top-action tuba (YBB-321) is the mirror image and is held with the bell at the player's right |
+| the bell's lean | 4° from upright, towards the mouthpiece's side | the same photographs: a tuba's bell stands a few degrees off its body |
+| mouthpiece | past the stack at the left, 0.58 m up (0.60 of the height), pointing out to the player | 0.55–0.60 of the height in all three; the leadpipe crosses the front of the stack |
+| leadpipe | 0.81 m: across the stack's front, down along it, round and up into the first valve | a front-action tuba's leadpipe, braced to the bell |
+| pistons | leaning 22°, their buttons up and towards the mouthpiece's side, where the right hand's fingers come round to them | front-action: the buttons face the player's right hand |
+| hold (the Orchestra) | on the lap (the bottom bow 0.56 m up, the mouthpiece at the lips, 1.14 m), the mouthpiece going back to the player, the bell's stack beside his head, the valves half towards the hall; leaning a little back and to his left | seated tubists (a U.S. Navy Band concert, a Concertgebouw principal's portrait): the bell at the viewer's right of the head, the right hand on the valves in front |
 
 ## Harp (concert grand pedal harp, 47 strings)
 

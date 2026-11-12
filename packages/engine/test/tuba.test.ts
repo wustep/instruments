@@ -3,9 +3,10 @@
 // compass, every note on its own partial at pp, mf and ff, the low notes' weak fundamental under harmonics
 // gathered near 300–600 Hz and the top notes nearly their fundamental and second, louder and brighter with
 // velocity, a note outside the compass at its end, a second player its own; and the engine it shares: the
-// valve search is the trumpet's and the horn's (core/valves.ts).
+// valve search is the trumpet's and the horn's (core/valves.ts). Its player (`human`): the intonation he
+// leaves on valves together and on the fifth partial, no two notes alike, a held note's bloom and wander.
 import { describe, expect, it } from 'vitest';
-import { createCore, renderInstrument, HornCore, LipConeCore, TubaCore, TUBA_HI, TUBA_LENGTH, TUBA_LO, TUBA_VOICE, VALVES3, VALVES4, hornFingering, trumpetFingering, tubaFingering, tubaTubeLength, valveFingering, valvesDown } from '../src/core/index.ts';
+import { createCore, renderInstrument, HornCore, LipConeCore, TubaCore, TUBA_HI, TUBA_LENGTH, TUBA_LO, TUBA_VOICE, VALVES3, VALVES4, hornFingering, partialCents, trumpetFingering, tubaFingering, tubaIntonation, tubaTubeLength, tubaValveSharp, valveFingering, valvesDown } from '../src/core/index.ts';
 import { regime } from '../../../scripts/horn-regimes.ts';
 import { measureCents } from '../../../scripts/tune-horn.ts';
 
@@ -130,6 +131,115 @@ describe('tuba', () => {
     // (a wide bell lets go of the highs lower than a horn's)
     expect(TUBA_VOICE.bellFc).toBeLessThan(1213);
     expect(TUBA_VOICE.gammaHi).toBeGreaterThan(TUBA_VOICE.gammaLo);
+  });
+
+  it('intonation: valves together stand sharp (each loop is cut for the open tube) and the fifth partial flat; the player leaves a little of both, the tube alone none', () => {
+    // what the valves leave before anything is done about it (cents sharp)
+    expect(tubaValveSharp('0')).toBeCloseTo(0, 9);
+    for (const v of ['1', '2', '4']) expect(tubaValveSharp(v)).toBeCloseTo(0, 9);
+    expect(tubaValveSharp('1+2')).toBeCloseTo(10.5, 0);
+    expect(tubaValveSharp('2+4')).toBeCloseTo(24.5, 0);
+    expect(tubaValveSharp('1+4')).toBeCloseTo(48, 0);
+    expect(tubaValveSharp('1+2+4')).toBeCloseTo(79, 0);
+    expect(tubaValveSharp('1+2+3+4')).toBeGreaterThan(160);
+    // (the fourth valve in place of 1+3, and 2+4 of 1+2+3: what they would have left)
+    expect(tubaValveSharp('1+3')).toBeGreaterThan(25);
+    expect(tubaValveSharp('1+2+3')).toBeGreaterThan(45);
+    expect(partialCents(5)).toBeCloseTo(-13.7, 1);
+    expect(partialCents(3)).toBeCloseTo(2, 0);
+    expect(partialCents(8)).toBeCloseTo(0, 9);
+    // what the player leaves: nothing on an open or one-valve octave partial, a few cents on two valves, never
+    // more than 12 on the low four-valve notes, the fifth partial 7 ¢ flat
+    for (const m of [24, 31, 34, 35, 36, 48, 59, 60]) expect(Math.abs(tubaIntonation(tubaFingering(m))), `MIDI ${m}`).toBeLessThan(1.1);
+    expect(tubaIntonation(tubaFingering(33))).toBeCloseTo(1.6, 1);
+    expect(tubaIntonation(tubaFingering(30))).toBeCloseTo(3.7, 1);
+    expect(tubaIntonation(tubaFingering(29))).toBeCloseTo(7.2, 1);
+    for (const m of [25, 26, 27, 28]) {
+      expect(tubaIntonation(tubaFingering(m)), `MIDI ${m}`).toBeGreaterThan(11);
+      expect(tubaIntonation(tubaFingering(m)), `MIDI ${m}`).toBeLessThanOrEqual(12);
+    }
+    for (const m of [50, 51, 52]) expect(tubaIntonation(tubaFingering(m)), `MIDI ${m}`).toBeCloseTo(-6.8, 1);
+    // played: against a note the player leaves where it is (G1, the fourth valve alone; the same player's
+    // wander is under both), E1 on 1+2+4 is 12 ¢ sharper, E3 on the fifth partial 7 ¢ flatter; the tube alone
+    // plays them all at pitch
+    const with_ = (m: number) => measureCents(FS, m, 70, 'tuba', { human: 1 });
+    const g1 = with_(31);
+    expect(with_(28) - g1).toBeGreaterThan(9);
+    expect(with_(28) - g1).toBeLessThan(15);
+    expect(with_(52) - g1).toBeLessThan(-4);
+    expect(with_(52) - g1).toBeGreaterThan(-10);
+    for (const m of [28, 31, 52]) expect(Math.abs(measureCents(FS, m, 70, 'tuba')), `the tube alone, MIDI ${m}`).toBeLessThan(1.5);
+  });
+
+  it('a player: no two notes alike (their level, their first moments), a held note blooms and its pitch wanders; `human` 0 is the model alone; the same notes give the same samples', () => {
+    const six = (human: number) => {
+      const ev: { time: number; event: unknown }[] = [];
+      for (let k = 0; k < 6; k++) ev.push({ time: 0.05 + k * 1.3, event: { type: 'noteOn', midi: 41, velocity: 84 } }, { time: 0.05 + k * 1.3 + 0.5, event: { type: 'noteOff', midi: 41 } });
+      return renderInstrument({ sampleRate: FS, instrument: 'tuba', dry: true, params: { vibrato: 0, noise: 0, human } as never, events: ev as never, duration: 8 }).left;
+    };
+    const spread = (xs: number[]) => Math.max(...xs) - Math.min(...xs);
+    const alone = six(0);
+    const played = six(1);
+    const body = (x: Float32Array) => [1, 2, 3, 4, 5].map((k) => rmsDb(x, 0.3 + k * 1.3, 0.5 + k * 1.3));
+    const start = (x: Float32Array) => [1, 2, 3, 4, 5].map((k) => rmsDb(x, 0.05 + k * 1.3, 0.13 + k * 1.3) - rmsDb(x, 0.3 + k * 1.3, 0.5 + k * 1.3));
+    // (the model alone, without its breath's noise: each note from silence is the last one over again)
+    expect(spread(body(alone))).toBeLessThan(0.05);
+    expect(spread(start(alone))).toBeLessThan(0.3);
+    // a player's: a few tenths of a decibel to a decibel or two apart, each attack its own
+    expect(spread(body(played))).toBeGreaterThan(0.25);
+    expect(spread(body(played))).toBeLessThan(3.5);
+    expect(spread(start(played))).toBeGreaterThan(0.5);
+    // a held note: the breath comes up over its first quarter second (the model alone begins at its full level)
+    const long = (human: number) => renderInstrument({ sampleRate: FS, instrument: 'tuba', dry: true, params: { vibrato: 0, noise: 0, human } as never, events: [{ time: 0.05, event: { type: 'noteOn', midi: 36, velocity: 80 } }] as never, duration: 5 }).left;
+    const l0 = long(0);
+    const l1 = long(1);
+    const bloom = (x: Float32Array) => rmsDb(x, 0.6, 0.9) - rmsDb(x, 0.1, 0.22);
+    expect(bloom(l1) - bloom(l0)).toBeGreaterThan(0.4);
+    // … and sags a little as the air is spent, where the model alone holds
+    const sag = (x: Float32Array) => rmsDb(x, 3.8, 4.8) - rmsDb(x, 0.6, 0.9);
+    expect(sag(l1) - sag(l0)).toBeLessThan(-0.5);
+    expect(sag(l1) - sag(l0)).toBeGreaterThan(-3);
+    // its pitch wanders by a cent or two (the period from one tenth of a second to the next), the model's not
+    const wander = (x: Float32Array) => {
+      const f0 = 440 * 2 ** ((36 - 69) / 12);
+      const cs: number[] = [];
+      for (let t = 0.8; t < 4.6; t += 0.1) {
+        // (the phase of the fundamental over 0.2 s, against the next 0.2 s: its advance is the pitch)
+        const ph = (t0: number) => {
+          let re = 0;
+          let im = 0;
+          const n = Math.round(0.2 * FS);
+          const i0 = Math.round(t0 * FS);
+          for (let i = 0; i < n; i++) {
+            const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / n);
+            re += x[i0 + i] * w * Math.cos((2 * Math.PI * f0 * (i0 + i)) / FS);
+            im -= x[i0 + i] * w * Math.sin((2 * Math.PI * f0 * (i0 + i)) / FS);
+          }
+          return Math.atan2(im, re);
+        };
+        let d = ph(t + 0.1) - ph(t);
+        while (d > Math.PI) d -= 2 * Math.PI;
+        while (d < -Math.PI) d += 2 * Math.PI;
+        cs.push((1200 * Math.log2(1 + d / (2 * Math.PI * f0 * 0.1))));
+      }
+      const m = cs.reduce((a, b) => a + b, 0) / cs.length;
+      return Math.sqrt(cs.reduce((a, b) => a + (b - m) ** 2, 0) / cs.length);
+    };
+    expect(wander(l0)).toBeLessThan(0.6);
+    expect(wander(l1)).toBeGreaterThan(1);
+    expect(wander(l1)).toBeLessThan(8);
+    // the same notes, the same samples (a seeded stream); another player, another stream
+    const again = long(1);
+    let d = 0;
+    for (let i = 0; i < l1.length; i++) d = Math.max(d, Math.abs(l1[i] - again[i]));
+    expect(d).toBe(0);
+    // the horn has no player of its own: `human` changes nothing there
+    const horn = (human: number) => renderInstrument({ sampleRate: FS, instrument: 'horn', dry: true, params: { human } as never, events: [{ time: 0.05, event: { type: 'noteOn', midi: 55, velocity: 80 } }] as never, duration: 0.6 }).left;
+    const h0 = horn(0);
+    const h1 = horn(1);
+    let dh = 0;
+    for (let i = 0; i < h0.length; i++) dh = Math.max(dh, Math.abs(h0[i] - h1[i]));
+    expect(dh).toBe(0);
   });
 
   it('a second player of the same part is another player: other noise, a few cents off', () => {

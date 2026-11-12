@@ -18,9 +18,11 @@ const FSS = [22050, 44100, 48000, 96000];
 
 /** the pitch a held note settles at, cents from equal temperament (`inst`: the horn, or the tuba, read later
  *  and over longer: a C1's period is 31 ms) */
-export function measureCents(fs: number, m: number, vel = 70, inst: 'horn' | 'tuba' = TUBA ? 'tuba' : 'horn'): number {
+/** (the tube alone: `human` 0, no player's intonation or wander in what the tuning table corrects; `extra`:
+ *  other parameters, for tests of the player) */
+export function measureCents(fs: number, m: number, vel = 70, inst: 'horn' | 'tuba' = TUBA ? 'tuba' : 'horn', extra: Record<string, unknown> = {}): number {
   const [T0, TW] = inst === 'tuba' ? [1.0, 0.6] : [0.6, 0.35];
-  const c = new (inst === 'tuba' ? TubaCore : HornCore)({ sampleRate: fs, dry: true, params: { vibrato: 0, noise: 0 } });
+  const c = new (inst === 'tuba' ? TubaCore : HornCore)({ sampleRate: fs, dry: true, params: { vibrato: 0, noise: 0, human: 0, ...extra } });
   c.schedule({ type: 'noteOn', midi: m, velocity: vel }, 64);
   const n = Math.round(((T0 + TW + 0.15) * fs) / 128) * 128;
   const L = new Float32Array(n);

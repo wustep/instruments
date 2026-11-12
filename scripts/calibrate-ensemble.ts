@@ -185,7 +185,9 @@ export function summarise(pairs: Pair[], instrument: EnsInstrument) {
 }
 
 /** Like with like: where the player used no vibrato (none detected), neither does the model. */
-export const matchedParams = (r: { vibRate: number }, extra?: Record<string, unknown>) => (r.vibRate > 0 ? { ...extra } : { ...extra, vibrato: 0 });
+/** (and the model alone, `human` 0, where an instrument has a player of its own: what is fitted and judged
+ *  is the voicing; what the player adds is measured by itself, scripts/tuba-variation.ts) */
+export const matchedParams = (r: { vibRate: number }, extra?: Record<string, unknown>) => (r.vibRate > 0 ? { human: 0, ...extra } : { human: 0, ...extra, vibrato: 0 });
 
 export async function compareAll(opts: { only?: EnsInstrument[]; params?: Partial<Record<EnsInstrument, Record<string, unknown>>> } = {}) {
   const refs = (await referenceNotes()).filter((r) => !opts.only || opts.only.includes(r.instrument));
