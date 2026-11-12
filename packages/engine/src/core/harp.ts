@@ -35,9 +35,27 @@
 // of the board's own modes are knocked by each pluck, and the other strings' partials that lie on the plucked
 // string's take a little of its motion (sympathetic vibration: Le Carrou et al. 2009).
 //
-// The voicing (HARP_VOICE) is fitted to the VSCO 2 Community Edition's harp (CC0; scripts/harp-refs.ts): the
-// partials' levels and decays, how long each string rings, its brightness at the pluck and later, on every
-// second recorded string; the others are held out for the judge (scripts/judge.ts --instrument harp).
+// The voicing (HARP_VOICE) is fitted to the concert harp of the Versilian Community Sample Library (CC0;
+// scripts/harp-refs.ts: twenty-three strings, each plucked at two dynamics): the partials' levels and decays,
+// how long each string rings, its brightness at the pluck and later, and how all of that changes with the
+// pluck's strength, on every second recorded string; the others are held out for the judge (scripts/judge.ts
+// --instrument harp).
+//
+// A harder pluck is not the same pluck louder. The recordings' f against their mf on one string: up to 0.9
+// of an octave brighter and an attack 1–7 dB stronger. The finger lets go of a string it has drawn further
+// more abruptly (its upper partials stronger: `slopeVel`), the board is knocked and the fingertip's release
+// heard more than in proportion (`knockVel`: the knock, and a moment's noise of skin leaving the string, more
+// of it on the wound wire strings, where it is the scrape across the winding), and a wire string swung
+// wide enough rattles against its disc on the neck (`buzz`: where its motion passes a limit it is cut short
+// each cycle, a rasp at its own pitch that dies as the string does; a soft pluck has none).
+//
+// The player (`human`, 1 by default; 0 is the voicing itself, what is fitted and judged). No two plucks are
+// alike: the finger takes the string a little nearer or further from the board, with more or less of its pad
+// (the thumb plays rounder and stronger than the fourth finger: four fingers in turn, as the line moves), a
+// little harder or softer, a moment late; the notes of a chord are never plucked on one instant, but from
+// the bottom up, some milliseconds apart; and a string that still rings is touched before it is plucked again:
+// told the notes to come (a file playing), the finger is on it a twentieth of a second early and stops it
+// (on a wire string with the small rattle of a finger meeting a swinging string).
 
 import { Pump } from './pump.ts';
 import type { KeySummary } from '../api/messages.ts';
@@ -45,7 +63,7 @@ import type { ExciteTrace, InstrumentCore } from './instrument.ts';
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { biquadHighpass, biquadHighShelf, biquadPeaking } from './filters.ts';
 import type { PianoEvent } from './piano-core.ts';
-import { clamp, playerCents } from './util.ts';
+import { clamp, Human, mulberry32, playerCents, playerSeed } from './util.ts';
 
 export interface HarpParams {
   /** where along the string the finger takes it, from the soundboard (0.08: by the board, près de la table,
@@ -57,6 +75,9 @@ export interface HarpParams {
   damp: number;
   /** how much the other strings answer (× the fitted sympathetic coupling) */
   resonance: number;
+  /** the player's hands: 0 the voicing itself (every pluck at one place, as hard as asked, on the instant;
+   *  what is fitted and judged) … 1 a player's */
+  human: number;
   /** the pedals, each −1 (up: flat), 0 (middle: natural) or 1 (down: sharp); a note that needs another moves it */
   pedalD: number;
   pedalC: number;
@@ -264,6 +285,21 @@ export interface HarpVoice {
   polCents: number;
   /** the velocity's curve: the pluck's force ∝ (velocity/127)^velPow */
   velPow: number;
+  /** a harder pluck is brighter: the slope less by this per unit of the velocity/127 over mezzo-forte's 0.55 */
+  slopeVel: number;
+  /** … and its transients stronger than in proportion: the knock and the pluck's noise go as the pluck's
+   *  force × (velocity/127 over 0.55)^knockVel */
+  knockVel: number;
+  /** the finger leaving the string: a moment's noise, its level (re the pluck's force), its band's centre
+   *  (Hz) and how long it lasts (s, a time constant); × this on the wound wire strings (the winding's scrape) */
+  noise: number;
+  noiseF: number;
+  noiseTau: number;
+  wNoise: number;
+  /** a wire string rattling against its disc: how much of what its swing passes the limit by is heard (0:
+   *  none), and the limit (× a mezzo-forte pluck's swing) */
+  buzz: number;
+  buzzAt: number;
   /** the level (dB) */
   gainDb: number;
 }
@@ -316,6 +352,14 @@ export const HARP_VOICE: HarpVoice = {
   polDecay: 0.4045,
   polCents: 0.3029,
   velPow: 2,
+  slopeVel: 0.6,
+  knockVel: 2,
+  noise: 0.1,
+  noiseF: 2500,
+  noiseTau: 0.006,
+  wNoise: 2,
+  buzz: 4,
+  buzzAt: 2.2,
   gainDb: -18,
 };
 
@@ -338,6 +382,34 @@ const DISC_LOSS = 0.8;
 const STOP_RATE = 500;
 /** the finger on a string already ringing, before it plucks it again: what it leaves of the old motion */
 const REPLUCK_KEEP = 0.12;
+/** The player's hands (`human` 1). From one pluck to the next: where the finger takes the string (a share of
+ *  the pluck's place, a standard deviation), how much of its pad (octaves of the release's corner), how hard
+ *  (dB). A harp has no recorded set of one string plucked many times to measure these on (the library has two
+ *  plucks a string, at two dynamics), so they are a player's known scatter kept small: the spread of the
+ *  recorded strings about the fitted voicing is 7 dB a partial, and this is a third of it. */
+const PLACE_SD = 0.07;
+const PAD_SD = 0.22;
+const HAND_SD = 0.9;
+/** the four fingers, thumb first: each one's place on the string (a share more or less), its pad (octaves:
+ *  the thumb's is the roundest) and its strength (dB: the thumb the strongest, the fourth finger the weakest) */
+const FINGER_PLACE = [0.03, 0, 0, -0.02];
+const FINGER_PAD = [-0.12, 0.05, 0.03, 0.08];
+const FINGER_DB = [0.6, 0, -0.2, -0.7];
+/** how late a pluck is (ms, a standard deviation), and a chord's notes from the bottom up: this far apart (ms) */
+const LATE_MS = 1.5;
+const SPREAD_MS = 7;
+/** the finger on a ringing string before it plucks it again, when the note is known to be coming: this long
+ *  before (s), and what it takes from the string meanwhile (dB/s) */
+const PLACE_AHEAD = 0.045;
+const PLACE_RATE = 380;
+/** the most notes of one instant taken as a chord */
+const NCHORD = 12;
+/** The rattle: each time the string meets the disc or leaves it, its excess over the limit turns a corner,
+ *  and that corner is a tap on the board (the excess's second derivative: an impulse as large as the corner
+ *  is sharp, whatever the sample rate). Scaled so that a tone at this frequency (Hz) would pass at its own
+ *  size, and rounded off above this one (the disc is brass on a wound string, not a knife). */
+const BUZZ_REF = 1500;
+const BUZZ_TOP = 3500;
 /** notes known to be coming are kept this long and this many (a file playing: `foresee`) */
 const AHEAD = 4;
 const NAHEAD = 24;
@@ -347,6 +419,12 @@ const TRACE = 2048;
 /** the strings whose shapes the pictures are given (the loudest) */
 const NSHAPE = 8;
 const SHAPE_POINTS = 32;
+
+/** the wire strings: the lowest twelve */
+const WIRES = 12;
+/** the core's own events: a pluck on its way (a chord's notes, a hand's lateness), a finger placed on a
+ *  string a moment before a note known to be coming */
+type Own = { type: 'pluck'; string: number; velocity: number } | { type: 'place'; midi: number };
 
 export class HarpCore implements InstrumentCore {
   readonly id = 'harp' as const;
@@ -359,7 +437,35 @@ export class HarpCore implements InstrumentCore {
   sympatheticAllowed = true;
   dry: boolean;
   private V: HarpVoice;
-  private queue: { frame: number; ev: PianoEvent | { type: 'control'; cc: number; value: number } }[] = [];
+  private queue: { frame: number; ev: PianoEvent | { type: 'control'; cc: number; value: number } | Own }[] = [];
+  /** the player's hands, and the noise's own stream */
+  private hum: Human;
+  private nrng: () => number;
+  /** the pluck's noise: its level now (it dies by itself) and its band (a resonator's two states and its
+   *  coefficients) */
+  private nEnv = 0;
+  private nDecay = 0;
+  private n1 = 0;
+  private n2 = 0;
+  private nc1 = 0;
+  private nc2 = 0;
+  private ng = 0;
+  /** the wire strings' rattle against their discs: each one's swing (low-passed) and its excess over the
+   *  limit a sample ago, the limit, how much of this pluck's excess is heard, the low-pass's coefficient */
+  private bz = new Float64Array(WIRES);
+  private bzE = new Float64Array(WIRES);
+  private bzE2 = new Float64Array(WIRES);
+  private bzL = new Float64Array(WIRES);
+  private bzAt = new Float64Array(WIRES);
+  private bzGain = new Float64Array(WIRES);
+  private bzK = new Float64Array(WIRES);
+  /** the plucks of this instant (a chord is taken from the bottom up): their strings and velocities */
+  private chordS = new Int8Array(NCHORD);
+  private chordV = new Float64Array(NCHORD);
+  private chordN = 0;
+  /** the finger that took the last string (0 the thumb … 3 the fourth), and that string */
+  private finger = 1;
+  private fingered = -1;
   /** the pedals as they are set, by letter (C … B: −1, 0, 1), and where each pedal is on its way there */
   private acc = new Int8Array(7);
   private pedalAt = new Float64Array(7);
@@ -424,8 +530,10 @@ export class HarpCore implements InstrumentCore {
     this.fs = opts.sampleRate;
     this.dry = !!opts.dry;
     this.V = { ...HARP_VOICE, ...opts.params?.voice };
-    this.params = { pluck: this.V.beta, finger: 1, damp: 0, resonance: 1, pedalD: 0, pedalC: 0, pedalB: 0, pedalE: 0, pedalF: 0, pedalG: 0, pedalA: 0, room: 0.3, volume: 1, ...opts.params };
+    this.params = { pluck: this.V.beta, finger: 1, damp: 0, resonance: 1, human: 1, pedalD: 0, pedalC: 0, pedalB: 0, pedalE: 0, pedalF: 0, pedalG: 0, pedalA: 0, room: 0.3, volume: 1, ...opts.params };
     this.tune = playerCents(opts.player) / 100;
+    this.hum = new Human(47, opts.player);
+    this.nrng = mulberry32(playerSeed(4747, opts.player));
     this.room = new Room(this.fs);
     this.limiter = new Limiter(this.fs);
     for (let li = 0; li < 7; li++) this.acc[li] = this.pedalParam(li);
@@ -460,6 +568,20 @@ export class HarpCore implements InstrumentCore {
       this.kc2[k] = r * r;
     }
     this.gain = Math.pow(10, V.gainDb / 20) * this.params.volume;
+    // the pluck's noise: its band (a resonator an octave or so wide, unit gain at its centre) and its dying
+    const wn = (2 * Math.PI * Math.min(0.4 * fs, V.noiseF)) / fs;
+    const rn = Math.exp(-wn / 2);
+    this.nc1 = 2 * rn * Math.cos(wn);
+    this.nc2 = rn * rn;
+    // (… and what makes the band's output as loud as the level asked: evenly spread samples of ±e have a
+    // third of e²'s power, and the band lets through π/2 of its centre's share of the spectrum)
+    this.ng = (1 - rn) * Math.sqrt(1 - 2 * rn * Math.cos(2 * wn) + rn * rn) * Math.sqrt(3 / Math.min(1, (Math.PI * V.noiseF) / fs));
+    this.nDecay = Math.exp(-1 / (Math.max(0.0005, V.noiseTau) * fs));
+  }
+
+  /** how much of a player there is (0 … 1) */
+  private get human(): number {
+    return clamp(Number(this.params.human) || 0, 0, 1);
   }
 
   /** a string's stiffness B */
@@ -526,11 +648,34 @@ export class HarpCore implements InstrumentCore {
     const f = frame === undefined ? this.frame : Math.max(this.frame, Math.floor(frame));
     const fe = ev as { type?: string; midi: number };
     // a note to come is not an event: it is known at once (the pedals are chosen with it)
-    if (fe.type === 'foresee') return this.foresee(f, fe.midi);
+    if (fe.type === 'foresee') {
+      // (the player, told the note: the finger will be on its string a moment before; when the same note
+      // has only just been played, no more than a third of the way back to it: a quick repeat is not choked)
+      let since = Infinity;
+      for (let k = 0; k < this.aheadN; k++) if (this.aheadM[k] === fe.midi && this.aheadAt[k] < f) since = Math.min(since, f - this.aheadAt[k]);
+      this.foresee(f, fe.midi);
+      const at = f - Math.round(Math.min((PLACE_AHEAD + 0.01 * this.hum.even()) * this.fs, 0.33 * since));
+      if (this.human > 0 && at > this.frame) this.own(at, { type: 'place', midi: fe.midi });
+      return;
+    }
     const q = this.queue;
     let i = q.length;
     while (i > 0 && q[i - 1].frame > f) i--;
     q.splice(i, 0, { frame: f, ev: ev as PianoEvent });
+  }
+
+  /** one of the core's own events, in its place in the queue */
+  private own(frame: number, ev: Own): void {
+    const q = this.queue;
+    let i = q.length;
+    while (i > 0 && q[i - 1].frame > frame) i--;
+    q.splice(i, 0, { frame, ev });
+  }
+  /** the core's own events of a kind (or all) are dropped: the notes they were for will not come */
+  private disown(kind?: Own['type']): void {
+    let kept = 0;
+    for (const e of this.queue) if (!((e.ev.type === 'pluck' || e.ev.type === 'place') && (!kind || e.ev.type === kind))) this.queue[kept++] = e;
+    this.queue.length = kept;
   }
 
   /** a note known to be coming (kept in order; the earliest dropped when there is no room) */
@@ -557,6 +702,21 @@ export class HarpCore implements InstrumentCore {
   /** what was foreseen is forgotten (the file paused or stopped) */
   forget(): void {
     this.aheadN = 0;
+    this.disown('place');
+  }
+
+  /** the finger that takes string i: the next one along the hand as the line moves (up the strings towards
+   *  the thumb, 4 3 2 1 and over; down them from it, 1 2 3 4), the hand set again on a leap */
+  private fingerFor(i: number): number {
+    const last = this.fingered;
+    let f = this.finger;
+    if (last < 0 || Math.abs(i - last) > 7) f = i >= last ? 3 : 0;
+    else if (i > last) f = f > 0 ? f - 1 : 3;
+    else if (i < last) f = f < 3 ? f + 1 : 0;
+    else f = f > 0 ? f - 1 : 1;
+    this.finger = f;
+    this.fingered = i;
+    return f;
   }
 
   /** is a string ringing loud enough for a retuning to be heard? */
@@ -644,11 +804,22 @@ export class HarpCore implements InstrumentCore {
     this.coeffs(i, true);
     const v = clamp(velocity, 1, 127) / 127;
     const u = i / (HARP_STRINGS - 1);
-    const beta = clamp(P.pluck + (V.betaTop - V.beta) * u, 0.04, 0.5);
-    const wire = i < 12;
+    // the player's hand on this pluck: which finger, where on the string, how much of its pad, how hard
+    const H = this.human;
+    const hum = this.hum;
+    const fg = this.fingerFor(i);
+    const place = H > 0 ? clamp(1 + H * (PLACE_SD * hum.near() + FINGER_PLACE[fg]), 0.7, 1.3) : 1;
+    const pad = H > 0 ? Math.pow(2, H * (PAD_SD * hum.near() + FINGER_PAD[fg])) : 1;
+    const hard = H > 0 ? H * (HAND_SD * hum.near() + FINGER_DB[fg]) : 0;
+    const beta = clamp((P.pluck + (V.betaTop - V.beta) * u) * place, 0.04, 0.5);
+    const wire = i < WIRES;
     const oct = (STRINGS[i].midi - 60) / 12;
-    const fc = V.corner * Math.pow(V.cornerOct, oct) * Math.pow(0.45 + v, V.cornerVel) * clamp(P.finger, 0.1, 10) * (wire ? V.wCorner : 1);
-    const A = Math.pow(v, V.velPow) * Math.pow(10, (V.tilt * oct + (wire ? V.wGain : 0)) / 20);
+    const fc = V.corner * Math.pow(V.cornerOct, oct) * Math.pow(0.45 + v, V.cornerVel) * clamp(P.finger, 0.1, 10) * (wire ? V.wCorner : 1) * pad;
+    const A = Math.pow(v, V.velPow) * Math.pow(10, (V.tilt * oct + (wire ? V.wGain : 0) + hard) / 20);
+    // (a harder pluck lets go more abruptly: its upper partials stronger)
+    const slope = Math.max(0.2, V.slope - V.slopeVel * (v - 0.55));
+    // (… and its transients stronger than in proportion)
+    const sharp = Math.pow(v / 0.55, V.knockVel);
     const f0 = et(this.pitch[i] + this.tune + this.bend);
     const B = this.stiffOf(i);
     const o = i * MAXP_WIRE;
@@ -663,7 +834,7 @@ export class HarpCore implements InstrumentCore {
     for (let k = 0; k < n; k++) {
       const h = k + 1;
       const f = h * f0 * stretch(B, h);
-      let a = (A * Math.sin(h * Math.PI * beta)) / Math.pow(h, V.slope) / Math.sqrt(1 + Math.pow(f / fc, 2 * V.order));
+      let a = (A * Math.sin(h * Math.PI * beta)) / Math.pow(h, slope) / Math.sqrt(1 + Math.pow(f / fc, 2 * V.order));
       // (the tension's octave, on the second partial)
       if (k === 1) a += (V.octave * A * v) / 0.55;
       const w = (2 * Math.PI * f) / fs;
@@ -698,9 +869,77 @@ export class HarpCore implements InstrumentCore {
     this.trN = 0;
     this.freqsOf(i);
     // the board knocked: more by a long heavy string than by a short light one
-    const kn = V.knock * A * Math.pow(10, (-V.tilt * oct) / 40);
+    const kn = V.knock * A * sharp * Math.pow(10, (-V.tilt * oct) / 40);
     for (let k = 0; k < KNOCK_RATIOS.length; k++) this.k1[k] += kn / (k + 1);
+    // the finger leaving the string: a moment's noise (the winding's scrape on a wire string)
+    if (V.noise > 0) this.nEnv += V.noise * A * sharp * (wire ? V.wNoise : 1) * (H > 0 ? Math.pow(2, 0.4 * H * hum.near()) : 1);
+    if (wire) {
+      // the rattle against the disc: where the string's swing passes the limit (a mezzo-forte pluck's swing
+      // × buzzAt); each pluck swings in its own plane, and meets the disc more or less
+      this.bzAt[i] = V.buzzAt * Math.pow(0.55, V.velPow) * Math.pow(10, (V.tilt * oct + V.wGain) / 20);
+      this.bzGain[i] = V.buzz * Math.pow(fs / (2 * Math.PI * BUZZ_REF), 2) * (H > 0 ? clamp(1 + 0.5 * H * hum.near(), 0, 2.2) : 1);
+      this.bzK[i] = 1 - Math.exp((-2 * Math.PI * Math.min(0.2 * fs, 3 * f0)) / fs);
+    }
     this.answer(i, f0, B, A);
+  }
+
+  /** A key's pluck: at once (`human` 0), or taken with the instant's other notes as a chord (settle). */
+  private strike(i: number, velocity: number): void {
+    if (!(this.human > 0)) return this.pluck(i, velocity);
+    if (this.chordN < NCHORD) {
+      this.chordS[this.chordN] = i;
+      this.chordV[this.chordN++] = velocity;
+    } else this.pluck(i, velocity);
+  }
+
+  /** The instant's plucks, as a player's hands take them: each a moment late, a chord's notes from the bottom
+   *  string up, some milliseconds apart. */
+  private settle(): void {
+    const n = this.chordN;
+    if (!n) return;
+    this.chordN = 0;
+    const H = this.human;
+    const S = this.chordS;
+    const Vv = this.chordV;
+    // (the bottom string first: a few notes, sorted in place)
+    for (let a = 1; a < n; a++) {
+      const s = S[a];
+      const v = Vv[a];
+      let b = a - 1;
+      while (b >= 0 && S[b] > s) {
+        S[b + 1] = S[b];
+        Vv[b + 1] = Vv[b];
+        b--;
+      }
+      S[b + 1] = s;
+      Vv[b + 1] = v;
+    }
+    let t = 0;
+    for (let k = 0; k < n; k++) {
+      if (k > 0) t += SPREAD_MS * H * (1 + 0.35 * this.hum.even());
+      const late = Math.round(((t + Math.abs(this.hum.near()) * LATE_MS * H) * this.fs) / 1000);
+      if (late <= 0) this.landed(S[k], Vv[k]);
+      else this.own(this.frame + late, { type: 'pluck', string: S[k], velocity: Vv[k] });
+    }
+  }
+
+  /** a pluck on its way has come: the string is plucked; its key already let go and the hand damping, stopped */
+  private landed(i: number, velocity: number): void {
+    this.pluck(i, velocity);
+    if (!this.held[i] && this.params.damp > 0 && this.sustain < 0.5) this.stop(i);
+  }
+
+  /** The finger set on a string a moment before a note known to be coming: a string still ringing is stopped
+   *  under it (and a wire string rattles a little against it as it is). */
+  private placeFinger(midi: number): void {
+    let pm = Math.round(midi);
+    while (pm < HARP_LO) pm += 12;
+    while (pm > HARP_HI) pm -= 12;
+    const i = harpStringFor(pm, this.acc);
+    if (i < 0 || !this.rings(i)) return;
+    this.stopRate[i] = PLACE_RATE * this.human;
+    this.coeffs(i);
+    if (i < WIRES && this.V.noise > 0) this.nEnv += 0.6 * this.level[i] * this.V.noise * this.V.wNoise;
   }
 
   /** The other strings answer a pluck: a partial of theirs within a few cents of one of the plucked string's
@@ -750,8 +989,14 @@ export class HarpCore implements InstrumentCore {
     }
   }
 
-  private apply(ev: PianoEvent | { type: 'control'; cc: number; value: number }): void {
+  private apply(ev: PianoEvent | { type: 'control'; cc: number; value: number } | Own): void {
     switch (ev.type) {
+      case 'pluck':
+        this.landed(ev.string, ev.velocity);
+        break;
+      case 'place':
+        this.placeFinger(ev.midi);
+        break;
       case 'noteOn': {
         if (ev.velocity <= 0) return this.release(ev.midi);
         const m = Math.round(ev.midi);
@@ -764,9 +1009,9 @@ export class HarpCore implements InstrumentCore {
         while (pm > HARP_HI) pm -= 12;
         const i = gliss ? harpStringOf(m) : this.stringFor(pm);
         if (i < 0) return;
-        this.pluck(i, ev.velocity);
         if (m >= 0 && m < 128) this.keyString[m] = i;
         this.held[i] = 1;
+        this.strike(i, ev.velocity);
         break;
       }
       case 'noteOff':
@@ -787,6 +1032,8 @@ export class HarpCore implements InstrumentCore {
           if (this.live[i] > 0) this.stop(i, 1);
         }
         this.keyString.fill(-1);
+        this.chordN = 0;
+        this.disown();
         break;
       default:
         break;
@@ -856,6 +1103,14 @@ export class HarpCore implements InstrumentCore {
     this.k1.fill(0);
     this.k2.fill(0);
     this.aheadN = 0;
+    this.chordN = 0;
+    this.disown();
+    this.nEnv = this.n1 = this.n2 = 0;
+    this.bz.fill(0);
+    this.bzE.fill(0);
+    this.bzE2.fill(0);
+    this.bzL.fill(0);
+    this.bzGain.fill(0);
     for (let i = 0; i < HARP_STRINGS; i++) this.pitch[i] = this.pitchTo[i];
     this.room.reset();
     this.eq.reset();
@@ -883,6 +1138,8 @@ export class HarpCore implements InstrumentCore {
     this.pump.pull(outL, outR, frames, (L, R) => {
       const q = this.queue;
       while (q.length && q[0].frame <= this.frame) this.apply(q.shift()!.ev);
+      // the instant's notes, as the hands take them (a chord from the bottom up); what is due at once is plucked
+      this.settle();
       let n = 64;
       if (q.length) n = Math.max(1, Math.min(n, q[0].frame - this.frame));
       this.render(n);
@@ -972,6 +1229,30 @@ export class HarpCore implements InstrumentCore {
         }
         this.liveP[i] = lp;
       }
+      if (i < WIRES && this.bzGain[i] > 0) {
+        // the rattle against the disc: the string's swing (its low partials) past the limit is cut short
+        // each cycle, and each corner of that (meeting the disc, leaving it) is a tap on the board
+        let z = this.bz[i];
+        let e1 = this.bzE[i];
+        let e2 = this.bzE2[i];
+        let lp = this.bzL[i];
+        const kz = this.bzK[i];
+        const kl = 1 - Math.exp((-2 * Math.PI * Math.min(0.4 * this.fs, BUZZ_TOP)) / this.fs);
+        const at = this.bzAt[i];
+        const g = this.bzGain[i];
+        for (let t = 0; t < n; t++) {
+          z += kz * (buf[t] - z);
+          const e = z > at ? z - at : z < -at ? z + at : 0;
+          lp += kl * (g * (e - 2 * e1 + e2) - lp);
+          buf[t] += lp;
+          e2 = e1;
+          e1 = e;
+        }
+        this.bz[i] = z;
+        this.bzE[i] = e1;
+        this.bzE2[i] = e2;
+        this.bzL[i] = Math.abs(lp) < 1e-12 ? 0 : lp;
+      }
       let pk = 0;
       const gl = this.gL[i];
       const gr = this.gR[i];
@@ -1018,6 +1299,31 @@ export class HarpCore implements InstrumentCore {
       if (Math.abs(u1) + Math.abs(u2) < QUIET) u1 = u2 = 0;
       this.k1[k] = u1;
       this.k2[k] = u2;
+    }
+    // the fingers leaving the strings: a moment's noise in its band, through the board with the strings
+    if (this.nEnv > QUIET || this.n1 !== 0 || this.n2 !== 0) {
+      let e = this.nEnv;
+      let u1 = this.n1;
+      let u2 = this.n2;
+      const a1 = this.nc1;
+      const a2 = this.nc2;
+      const g = this.ng;
+      const d = this.nDecay;
+      for (let t = 0; t < n; t++) {
+        const u = g * e * (2 * this.nrng() - 1) + a1 * u1 - a2 * u2;
+        u2 = u1;
+        u1 = u;
+        e *= d;
+        oL[t] += u;
+        oR[t] += 0.94 * u;
+      }
+      if (e < QUIET) {
+        e = 0;
+        if (Math.abs(u1) + Math.abs(u2) < QUIET) u1 = u2 = 0;
+      }
+      this.nEnv = e;
+      this.n1 = u1;
+      this.n2 = u2;
     }
     const gn = this.gain;
     for (let t = 0; t < n; t++) {

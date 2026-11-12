@@ -1,11 +1,12 @@
-// Fit the harp's voicing (packages/engine/src/core/harp.ts HARP_VOICE) to the VSCO 2 CE harp on the FIT HALF of
-// the recorded strings only (every second one; the others are held out for the judge, scripts/harp-refs.ts).
+// Fit the harp's voicing (packages/engine/src/core/harp.ts HARP_VOICE) to the VCSL concert harp on the FIT HALF
+// of the recorded strings only (every second one, both its plucks; the others are held out for the judge,
+// scripts/harp-refs.ts).
 // The score is the judge's own: each measure's error over the recordings' own string-to-string spread,
 // averaged over the measures and the strings (the partials' levels, the third-octave spectrum, the leading
 // partial's decay and the upper partials', how long the string rings, the centroid at the pluck and later,
 // the attack, the stiffness, and the level once the gain has matched the median string).
 //   npx tsx scripts/fit-harp.ts [--iters 1500] [--seed 1] [--from voice.json] [--out voice.json] [--sigma 0.15]
-//   npx tsx scripts/fit-harp.ts --polish [--from voice.json] [--out voice.json]   coordinate descent from there
+//   npx tsx scripts/fit-harp.ts --polish [--from voice.json] [--out voice.json] [--keys a,b] [--rounds n]   coordinate descent from there
 // A (1+1) evolution strategy in the parameters' normalised ranges (log for the scale-free ones), its step
 // adapted by the 1/5 rule.
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -56,6 +57,17 @@ export const RANGES: Partial<Record<Key, [number, number, boolean?]>> = {
   pol: [0.02, 0.8],
   polDecay: [0.04, 1, true],
   polCents: [0, 8],
+  // how the pluck changes with its strength (the recordings' second dynamic): the release's corner, the
+  // slope, the transients; the pluck's noise; the wire strings' rattle
+  cornerVel: [0, 4],
+  slopeVel: [0, 2.5],
+  knockVel: [0, 4],
+  noise: [0.0005, 0.3, true],
+  noiseF: [800, 6000, true],
+  noiseTau: [0.002, 0.03, true],
+  wNoise: [0.5, 8, true],
+  buzz: [0.05, 20, true],
+  buzzAt: [0.6, 3],
 };
 const KEYS = Object.keys(RANGES) as Key[];
 
@@ -130,10 +142,13 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   console.log(`start ${best.s.toFixed(3)} gain ${best.gain.toFixed(1)} ${show(best)}`);
   if (args.includes('--polish')) {
     // coordinate descent: each parameter in turn, a step either way, the step halved when neither helps
+    // (--keys a,b,c: those parameters only; --rounds n: so many times round at most, 6 when not said)
+    const only = opt('--keys')?.split(',');
     const step = KEYS.map(() => 0.08);
-    for (let round = 0; round < 6; round++) {
+    for (let round = 0; round < Number(opt('--rounds') ?? 6); round++) {
       let moved = 0;
       for (let i = 0; i < KEYS.length; i++) {
+        if (only && !only.includes(KEYS[i])) continue;
         for (const dir of [1, -1]) {
           const cand = u.slice();
           cand[i] = Math.min(1, Math.max(0, u[i] + dir * step[i]));

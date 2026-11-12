@@ -1,26 +1,33 @@
-// Reference recordings for the harp, used ONLY for analysis (never as the instrument's sound): VSCO 2
-// Community Edition (Versilian Studios, Sam Gossner & Simon Dalzell; https://github.com/sgossner/VSCO-2-CE,
-// released CC0 1.0: "You are permitted to use these samples for ANY purpose"), Strings/Harp: a concert pedal
-// harp, twenty-three strings from E1 to F7 plucked once each and left to ring (every second or third string:
-// E1 G1 B1 D2 F2 A2 C3 E3 G3 B3 D4 F4 A4 C5 E5 G5 B5 D6 F6 A6 B6 D7 F7), one dynamic (the library's "mf"; its
-// lowest and its two highest are marked f, G1 mp), 16-bit/44.1 kHz stereo. The University of Iowa MIS has no
-// harp. The files end in a fade: only their first 85 % is read.
-//   npx tsx scripts/harp-refs.ts            download (if needed) + analyse (cached in .cache/vsco-harp)
-//   npx tsx scripts/harp-refs.ts --table    … and print each string's measures
+// Reference recordings for the harp, used ONLY for analysis (never as the instrument's sound): the Versilian
+// Community Sample Library (Versilian Studios, Sam Gossner; https://github.com/sgossner/VCSL, CC0 1.0),
+// Chordophones/Composite Chordophones/Concert Harp: a concert pedal harp, twenty-three strings from E1 to F7
+// (every second or third string: E1 G1 B1 D2 F2 A2 C3 E3 G3 B3 D4 F4 A4 C5 E5 G5 B5 D6 F6 A6 B6 D7 F7), each
+// plucked and left to ring at two dynamics: the library's f, and a softer one (mf; G1 mp; D7 and F7 p; E1 has
+// its f alone): forty-five plucks, 16-bit/44.1 kHz stereo. It is the harp of VSCO 2 Community Edition
+// (sgossner/VSCO-2-CE, CC0), whose Strings/Harp has the softer pluck of each string only: the voicing was
+// first fitted to those twenty-three (#64), and one pluck a string could not tell a fitted voicing from one
+// set by hand. The University of Iowa MIS has no harp. The files end in a fade: only their first 85 % is read.
+//   npx tsx scripts/harp-refs.ts            download (if needed) + analyse (cached in .cache/vcsl-harp)
+//   npx tsx scripts/harp-refs.ts --table    … and print each pluck's measures
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { analyzeRing, decodeWav, type RingAnalysis } from '../packages/engine/src/analysis/index.ts';
 
-export const HARP_CACHE = join(import.meta.dirname, '..', '.cache', 'vsco-harp');
+export const HARP_CACHE = join(import.meta.dirname, '..', '.cache', 'vcsl-harp');
 const ANALYSIS = join(HARP_CACHE, 'analysis-v1.json');
-const RAW = 'https://raw.githubusercontent.com/sgossner/VSCO-2-CE/master/Strings/Harp';
+const RAW = 'https://raw.githubusercontent.com/sgossner/VCSL/master/Chordophones/Composite%20Chordophones/Concert%20Harp';
 
 const NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
-/** the strings recorded, by name and the library's dynamic mark */
-export const HARP_FILES: [string, string][] = [
-  ['E1', 'f'], ['G1', 'mp'], ['B1', 'mf'], ['D2', 'mf'], ['F2', 'mf'], ['A2', 'mf'], ['C3', 'mf'], ['E3', 'mf'], ['G3', 'mf'], ['B3', 'mf'], ['D4', 'mf'], ['F4', 'mf'],
-  ['A4', 'mf'], ['C5', 'mf'], ['E5', 'mf'], ['G5', 'mf'], ['B5', 'mf'], ['D6', 'mf'], ['F6', 'mf'], ['A6', 'mf'], ['B6', 'mf'], ['D7', 'f'], ['F7', 'f'],
+/** the strings recorded, low to high: the softer pluck's mark and take ('' : none), and the f pluck's take */
+const STRINGS: [string, string, string][] = [
+  ['E1', '', 'f1'], ['G1', 'mp1', 'f1'], ['B1', 'mf1', 'f1'], ['D2', 'mf1', 'f1'], ['F2', 'mf1', 'f1'], ['A2', 'mf1', 'f1'], ['C3', 'mf3', 'f2'], ['E3', 'mf1', 'f1'], ['G3', 'mf1', 'f1'], ['B3', 'mf1', 'f1'], ['D4', 'mf1', 'f1'], ['F4', 'mf1', 'f1'],
+  ['A4', 'mf1', 'f1'], ['C5', 'mf1', 'f1'], ['E5', 'mf1', 'f1'], ['G5', 'mf1', 'f1'], ['B5', 'mf1', 'f1'], ['D6', 'mf1', 'f1'], ['F6', 'mf1', 'f1'], ['A6', 'mf1', 'f1'], ['B6', 'mf1', 'f1'], ['D7', 'p1', 'f1'], ['F7', 'p1', 'f1'],
 ];
+/** every recorded pluck: the string's name, its place among the recorded strings, the library's dynamic mark
+ *  (p, mp, mf, f) and the file */
+export const HARP_FILES: { name: string; string: number; mark: string; file: string }[] = STRINGS.flatMap(([name, soft, loud], i) =>
+  [soft, loud].filter((t) => t).map((take) => ({ name, string: i, mark: take.replace(/\d+$/, ''), file: `KSHarp_${name}_${take}.wav` })),
+);
 const midiOf = (s: string): number => {
   const m = /^([A-G]b?)(\d)$/.exec(s)!;
   return NAMES.indexOf(m[1]) + 12 * (+m[2] + 1);
@@ -39,7 +46,7 @@ export interface HarpRef extends RingAnalysis {
   pitch: number;
   mark: string;
   file: string;
-  /** held out of every fit: every second recorded string */
+  /** held out of every fit: every second recorded string, both its plucks */
   held: boolean;
 }
 
@@ -54,8 +61,7 @@ export function loadMono(path: string): { x: Float32Array; fs: number } {
 
 export async function fetchRefs(): Promise<void> {
   if (!existsSync(HARP_CACHE)) mkdirSync(HARP_CACHE, { recursive: true });
-  for (const [n, mark] of HARP_FILES) {
-    const file = `KSHarp_${n}_${mark}.wav`;
+  for (const { file } of HARP_FILES) {
     const path = join(HARP_CACHE, file);
     if (existsSync(path)) continue;
     const res = await fetch(`${RAW}/${file}`, { headers: { 'User-Agent': 'calibration-client' } });
@@ -67,12 +73,11 @@ export async function fetchRefs(): Promise<void> {
 export async function harpRefs(opts: { refresh?: boolean } = {}): Promise<HarpRef[]> {
   if (!opts.refresh && existsSync(ANALYSIS)) return JSON.parse(readFileSync(ANALYSIS, 'utf8')) as HarpRef[];
   await fetchRefs();
-  const out: HarpRef[] = HARP_FILES.map(([n, mark], i) => {
-    const file = `KSHarp_${n}_${mark}.wav`;
+  const out: HarpRef[] = HARP_FILES.map(({ name, string, mark, file }) => {
     const { x, fs } = loadMono(join(HARP_CACHE, file));
-    const midi = midiOf(n);
+    const midi = midiOf(name);
     const a = analyzeRing(x, fs, 440 * 2 ** ((midi - 69) / 12), { ...harpRing(midi), use: 0.85 });
-    return { ...a, name: n, midi, pitch: 69 + 12 * Math.log2(a.f0 / 440), mark, file, held: i % 2 === 1 };
+    return { ...a, name, midi, pitch: 69 + 12 * Math.log2(a.f0 / 440), mark, file, held: string % 2 === 1 };
   });
   writeFileSync(ANALYSIS, JSON.stringify(out));
   return out;
