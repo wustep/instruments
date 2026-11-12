@@ -15,6 +15,7 @@ import { buildClarinetModel, poseClarinet, type ClarinetModel } from './clarinet
 import { BASSOON_SEAT, BASSOON_VIEW, BASSOON_WIDE, buildBassoonModel, poseBassoon, type BassoonModel } from './bassoon3d.ts';
 import { HORN_HELD, HORN_SEAT, HORN_VIEW, buildHornModel, poseHorn, type HornModel } from './horn3d.ts';
 import { TROMBONE_SEAT, TROMBONE_VIEW, buildTromboneModel, poseTrombone, tromboneSizeIn, type TromboneModel } from './trombone3d.ts';
+import { HARP_SEAT, HARP_VIEW, buildHarpModel, poseHarp, type HarpModel } from './harp3d.ts';
 import { TUBA_HELD, TUBA_SEAT, TUBA_VIEW, buildTubaModel, poseTuba, type TubaModel } from './tuba3d.ts';
 import { TIMPANI_SEAT, TIMPANI_VIEW, buildTimpaniModel, newTimpaniPose, poseTimpani, type TimpaniModel, type TimpaniPose } from './timpani3d.ts';
 import { TALL, seatPlaces, seatRisers, type Inst, type Riser, type SeatKind } from '../../orchestra/seats.ts';
@@ -27,7 +28,7 @@ export interface SceneIn {
   now: number;
   /** seconds since the last frame */
   dt: number;
-  family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass' | 'percussion';
+  family: 'piano' | 'bowed' | 'plucked' | 'wind' | 'reed' | 'brass' | 'percussion';
   /** the reed family's instrument (default the oboe) */
   reed?: 'oboe' | 'clarinet' | 'bassoon';
   /** the brass family's (default the trumpet) */
@@ -61,7 +62,7 @@ export interface SceneIn {
 
 /** one instrument of an ensemble on the 3D stage */
 export interface EnsPartIn {
-  family: 'piano' | 'bowed' | 'wind' | 'reed' | 'brass' | 'percussion';
+  family: 'piano' | 'bowed' | 'plucked' | 'wind' | 'reed' | 'brass' | 'percussion';
   /** the reed family's instrument (default the oboe) */
   reed?: 'oboe' | 'clarinet' | 'bassoon';
   /** the brass family's (default the trumpet) */
@@ -104,6 +105,7 @@ export interface Scene3State {
   bassoon: BassoonModel | null;
   horn: HornModel | null;
   tuba: TubaModel | null;
+  harp: HarpModel | null;
   /** the trombones, by size (alto, tenor, bass: one model at each one's measures), built on first use */
   trombones: Map<string, TromboneModel>;
   timpani: TimpaniModel | null;
@@ -148,6 +150,7 @@ export const newScene3State = (): Scene3State => ({
   bassoon: null,
   horn: null,
   tuba: null,
+  harp: null,
   trombones: new Map(),
   timpani: null,
   timpPose: newTimpaniPose(),
@@ -275,6 +278,13 @@ export function buildScene(b: Batch, si: SceneIn, st: Scene3State): void {
     floor(b, st, 'horn', st.horn.bounds.c, st.horn.bounds.r, si);
     return;
   }
+  if (si.family === 'plucked') {
+    if (!st.harp) st.harp = timed(st, () => buildHarpModel());
+    poseHarp(b, st.harp, si.fr, si.dt, si.now);
+    b.bounds = st.harp.bounds;
+    floor(b, st, 'harp', st.harp.bounds.c, st.harp.bounds.r, si);
+    return;
+  }
   if (si.family === 'brass' && si.brass === 'tuba') {
     if (!st.tuba) st.tuba = timed(st, () => buildTubaModel());
     poseTuba(b, st.tuba, si.fr, st.windPose, si.dt, si.now, si.rms);
@@ -369,6 +379,12 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
     // the picture: horn3d.ts HORN_VIEW.swing)
     return { target: [c[0], c[1], c[2]], dist: 1.1, yaw: HORN_VIEW.yaw, pitch: HORN_VIEW.pitch, swing: HORN_VIEW.swing, whole: true };
   }
+  // the harp: three-quarter from the audience's side, the strings fanned across the picture, whole on every
+  // stage (harp3d.ts sets its view)
+  if (si.family === 'plucked') {
+    const c = st.harp ? st.harp.bounds.c : ([0, 0.95, 0] as Vec3);
+    return { target: [c[0], c[1], c[2]], dist: 2.6, yaw: HARP_VIEW.yaw, pitch: HARP_VIEW.pitch, swing: HARP_VIEW.swing, whole: true };
+  }
   // the tuba: from the player's side (the valves), a little above, whole on every stage (tuba3d.ts sets its
   // pose and its view)
   if (si.family === 'brass' && si.brass === 'tuba') {
@@ -437,7 +453,7 @@ type SeatIn = Pick<EnsPartIn, 'family' | 'kind' | 'bowed'> & { reed?: EnsPartIn[
 /** a part as the seating takes it */
 const seatKind = (p: SeatIn): SeatKind => {
   const id = p.bowed?.id;
-  const inst: Inst = p.family === 'piano' ? p.kind : p.family === 'bowed' ? (id === 'viola' || id === 'cello' || id === 'bass' ? id : 'violin') : p.family === 'wind' ? 'flute' : p.family === 'reed' ? (p.reed ?? 'oboe') : p.family === 'brass' ? (p.brass ?? 'trumpet') : 'timpani';
+  const inst: Inst = p.family === 'piano' ? p.kind : p.family === 'bowed' ? (id === 'viola' || id === 'cello' || id === 'bass' ? id : 'violin') : p.family === 'wind' ? 'flute' : p.family === 'reed' ? (p.reed ?? 'oboe') : p.family === 'brass' ? (p.brass ?? 'trumpet') : p.family === 'plucked' ? 'harp' : 'timpani';
   return { family: p.family, kind: p.kind, cello: inst === 'cello' || inst === 'bass', bass: inst === 'bass', inst };
 };
 export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
@@ -460,6 +476,8 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
     // (a horn is held as a seated player holds it: the valves up under the left hand, the bell down by
     // the right thigh, its mouth back: horn3d.ts HORN_SEAT)
     if (p.family === 'brass' && p.brass === 'horn') return { T: chain(translate(x, y + HORN_SEAT.y, z), rotY(face + HORN_SEAT.turn)), c: [x, y, z], r: 0.42, top: y + HORN_SEAT.top };
+    // (a harp stands on the floor (or its riser) by its player: harp3d.ts HARP_SEAT)
+    if (p.family === 'plucked') return { T: chain(translate(x, y, z), rotY(face + HARP_SEAT.turn)), c: [x, y, z], r: HARP_SEAT.r, top: y + HARP_SEAT.top };
     // (a tuba rests on the seated player's lap, its bell up: tuba3d.ts TUBA_SEAT, TUBA_HELD)
     if (p.family === 'brass' && p.brass === 'tuba') return { T: chain(translate(x, y + TUBA_SEAT.y, z), rotY(face + TUBA_SEAT.turn)), c: [x, y, z], r: TUBA_SEAT.r, top: y + TUBA_SEAT.top };
     // (a trombone is held as a seated player holds it: the slide forward and a little down, the bell over
@@ -582,6 +600,9 @@ function buildEnsemble(b: Batch, si: SceneIn, parts: EnsPartIn[], st: Scene3Stat
     } else if (p.family === 'brass' && p.brass === 'horn') {
       if (!st.horn) st.horn = timed(st, () => buildHornModel());
       poseHorn(b, st.horn, p.fr, e.windPose, si.dt, si.now, si.rms, HORN_HELD);
+    } else if (p.family === 'plucked') {
+      if (!st.harp) st.harp = timed(st, () => buildHarpModel());
+      poseHarp(b, st.harp, p.fr, si.dt, si.now);
     } else if (p.family === 'brass' && p.brass === 'tuba') {
       if (!st.tuba) st.tuba = timed(st, () => buildTubaModel());
       poseTuba(b, st.tuba, p.fr, e.windPose, si.dt, si.now, si.rms, TUBA_HELD);

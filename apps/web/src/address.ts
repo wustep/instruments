@@ -1,5 +1,5 @@
 // The page's address. Every tab has a path of its own (/piano, /piano/upright, /violin, /viola,
-// /cello, /bass, /flute, /oboe, /clarinet, /bassoon, /horn, /trumpet, /trombone, /tuba, /timpani, /orchestra, /symphony, /measurements, /notes), and the Orchestra's
+// /cello, /bass, /harp, /flute, /oboe, /clarinet, /bassoon, /horn, /trumpet, /trombone, /tuba, /timpani, /orchestra, /symphony, /measurements, /notes), and the Orchestra's
 // carries its whole setup in a short, readable, versioned query, so the address itself is a preset; nav.ts keeps
 // it in step with the page. Pure (no DOM), tested fast.
 //
@@ -10,7 +10,7 @@
 //   v      the format: 1 (absent: 1; any other: the setup is not read, the Orchestra opens as it was)
 //   seats  the instruments on the stage, seat 1 first: a few players sit on an arc in this order (seat 1 at the
 //          audience's left), five or more where an orchestra seats them (orchestra/seats.ts), each kind in this
-//          order (the first half of the violins are the firsts): grand upright violin viola cello bass flute oboe
+//          order (the first half of the violins are the firsts): grand upright violin viola cello bass harp flute oboe
 //          clarinet bassoon horn trumpet trombone tuba timpani, any of them more than once
 //   lines  a file's lines in the file's order, each name~program:seats: its track name (+ for a
 //          space), its General MIDI program, the seats that play it (1.3: seats 1 and 3; -: none,

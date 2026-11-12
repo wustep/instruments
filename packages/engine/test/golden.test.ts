@@ -12,8 +12,8 @@ import { fft } from '../src/analysis/index.ts';
 
 const FS = 48000;
 const DIR = join(import.meta.dirname, 'golden');
-const PASSAGE: Record<string, number[]> = { piano: [48, 60, 64, 67], violin: [67, 71, 74], cello: [43, 50, 55], bass: [28, 33, 40], flute: [72, 76, 79], oboe: [69, 74, 77], clarinet: [55, 67, 74], bassoon: [41, 50, 55], horn: [41, 53, 65], trumpet: [60, 64, 67], trombone: [46, 53, 58], tuba: [29, 36, 48], timpani: [43, 48, 52] };
-const TOL: Record<string, number> = { piano: 0.3, flute: 0.6, violin: 1.5, cello: 1.5, bass: 1.5, oboe: 1.5, clarinet: 1.5, bassoon: 1.5, horn: 1.5, trumpet: 1.5, trombone: 1.5, tuba: 1.5, timpani: 0.3 };
+const PASSAGE: Record<string, number[]> = { piano: [48, 60, 64, 67], violin: [67, 71, 74], cello: [43, 50, 55], bass: [28, 33, 40], flute: [72, 76, 79], oboe: [69, 74, 77], clarinet: [55, 67, 74], bassoon: [41, 50, 55], horn: [41, 53, 65], trumpet: [60, 64, 67], trombone: [46, 53, 58], tuba: [29, 36, 48], harp: [36, 60, 84], timpani: [43, 48, 52] };
+const TOL: Record<string, number> = { piano: 0.3, flute: 0.6, violin: 1.5, cello: 1.5, bass: 1.5, oboe: 1.5, clarinet: 1.5, bassoon: 1.5, horn: 1.5, trumpet: 1.5, trombone: 1.5, tuba: 1.5, harp: 0.3, timpani: 0.3 };
 
 function fingerprint(inst: InstrumentId) {
   const notes = PASSAGE[inst];

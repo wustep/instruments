@@ -219,7 +219,8 @@ export function createKeyboard(): KeyboardHandle {
     audio.noteOff(cur.midi, 'mouse');
     const next = { midi: hit.midi, vel: cur.vel };
     pointerKey.set(e.pointerId, next);
-    audio.noteOn(next.midi, next.vel, 'mouse');
+    // (a key reached by a drag: on the harp a string of a glissando, whatever its pedal makes of it)
+    audio.noteOn(next.midi, next.vel, 'mouse', true);
   });
   const end = (e: PointerEvent) => {
     const cur = pointerKey.get(e.pointerId);

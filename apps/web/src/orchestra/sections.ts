@@ -11,8 +11,8 @@
 import { fitsStage, isKeyboard, lineupOf, mayBecome, planOf, seatFor, shiftsOf, VOICE_INFO, type LineInfo, type Part, type Plan, type Voice } from './assign.ts';
 import type { LineRule } from './rules.ts';
 
-export type Family = 'winds' | 'brass' | 'percussion' | 'strings' | 'keyboards';
-export const familyOf = (v: Voice): Family => (isKeyboard(v) ? 'keyboards' : v === 'timpani' ? 'percussion' : v === 'horn' || v === 'trumpet' || v === 'trombone' || v === 'tuba' ? 'brass' : v === 'violin' || v === 'viola' || v === 'cello' || v === 'bass' ? 'strings' : 'winds');
+export type Family = 'winds' | 'brass' | 'percussion' | 'harp' | 'strings' | 'keyboards';
+export const familyOf = (v: Voice): Family => (isKeyboard(v) ? 'keyboards' : v === 'harp' ? 'harp' : v === 'timpani' ? 'percussion' : v === 'horn' || v === 'trumpet' || v === 'trombone' || v === 'tuba' ? 'brass' : v === 'violin' || v === 'viola' || v === 'cello' || v === 'bass' ? 'strings' : 'winds');
 
 /** a section: its instrument, its seats (neighbours in the lineup, a desk each) and the lines they all play */
 export interface Section {

@@ -73,6 +73,8 @@ export interface VisualFrame extends Stats {
   trombone?: TromboneVisual;
   /** timpani: the drums (low to high: the player's left to right), the two mallets, the strike point */
   timpani?: TimpaniVisual;
+  /** harp: the pedals, every string's swing, the loudest strings' shapes */
+  harp?: HarpVisual;
   /** piano: the watched key's action and strings (see `watchKey`) */
   watch?: WatchKey | null;
   /** piano: every sounding string's shape (struck first, then sympathetic) */
@@ -134,3 +136,24 @@ export type FromProcessor =
   | { type: 'preset'; instrument: InstrumentId; preset: string; params: Record<string, unknown>; modeFreqs: number[]; keys: KeySummary[] }
   | ({ type: 'stats' } & Stats)
   | ({ type: 'visual' } & VisualFrame);
+
+/** The harp's own part of a visual frame (core/harp.ts getVisual). Strings are numbered 0 (C1) … 46 (G7). */
+export interface HarpVisual {
+  /** where each pedal is now, in the order they stand at the harpist's feet (D C B | E F G A): −1 up (flat),
+   *  0 the middle notch (natural), 1 down (sharp); between notches while it travels */
+  pedals: number[];
+  /** the notches the pedals are set to (−1, 0, 1), same order */
+  set: number[];
+  /** every string's swing now: 0 at rest … 1 a hard pluck's (47 values) */
+  amp: Float32Array;
+  /** the string plucked last, how long ago (s) and how hard (velocity 1–127) */
+  last: number;
+  ago: number;
+  vel: number;
+  /** every string: seconds since a finger plucked it (−1: not plucked, or died away since; a string only
+   *  answering another has −1 and a swing) */
+  plucked: number[];
+  /** the loudest strings' shapes now (at most eight): displacement along the string, the soundboard at 0 and
+   *  the neck at 1, in the units of `amp` */
+  shapes: { string: number; shape: Float32Array }[];
+}

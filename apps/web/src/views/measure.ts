@@ -104,6 +104,15 @@ export function measureView(): View {
     } catch {
       /* timpani data optional */
     }
+    try {
+      const hp: Harp = await (await fetch('/data/harp.json')).json();
+      const at = root.querySelector('.listen-section');
+      const sec = harpSection(hp);
+      if (at) root.insertBefore(sec, at);
+      else root.append(sec);
+    } catch {
+      /* harp data optional */
+    }
   })();
   return { el: root, dock: false };
 }
@@ -549,6 +558,87 @@ function timpaniSection(t: Timp): HTMLElement {
     { class: 'ensemble timpani' },
     h('h2', {}, 'Timpani against recordings'),
     h('p', { class: 'hint', style: 'margin-top:8px' }, `VSCO 2 CE (CC0), a room · ${t.strokes.length} strokes on five pedal drums, pp/mf/ff · same pitch, dry, same analysis`),
+    tiles,
+    figs,
+  );
+}
+
+interface HarpPluck {
+  f0: number;
+  levels: (number | null)[];
+  decays: (number | null)[];
+  ring20: number | null;
+  centroid: number;
+  centroidLate: number;
+  attack: number;
+  level: number;
+  bands: number[];
+}
+interface Harp {
+  reference: string;
+  thirdOct: number[];
+  summary: Record<string, number>;
+  strings: { name: string; midi: number; mark: string; held: boolean; ref: HarpPluck; model: HarpPluck }[];
+}
+
+/** the harp against the VSCO 2 CE strings: how long each rings, how bright it is, its partials, model and recording */
+function harpSection(hp: Harp): HTMLElement {
+  const leg = () =>
+    legend([
+      { name: 'recording', color: 'ref', kind: 'dot' },
+      { name: 'model', color: 'model', kind: 'dot' },
+    ]);
+  const xs = { label: 'string', min: 26, max: 103, ticks: [36, 48, 60, 72, 84, 96], fmt: (m: number) => midiName(Math.round(m)) };
+  const by = (k: 'ref' | 'model', f: (s: HarpPluck) => number | null) => hp.strings.map((x) => ({ x: x.midi + (k === 'model' ? 0.35 : 0), y: f(x[k]) ?? NaN }));
+  const two = (title: string, y: { label: string; min: number; max: number; ticks: number[]; fmt: (v: number) => string }, f: (s: HarpPluck) => number | null, show: (v: number) => string) =>
+    chart({
+      title,
+      x: xs,
+      y,
+      series: [
+        { name: 'recording', color: 'ref', kind: 'dots', points: by('ref', f), fmt: show },
+        { name: 'model', color: 'model', kind: 'dots', points: by('model', f), fmt: show },
+      ],
+      xName: (m) => midiName(Math.round(m)),
+      width: 300,
+      height: 200,
+    });
+  const l2 = (v: number | null) => (v && v > 0 ? Math.log2(v) : null);
+  const grid = h('div', { class: 'ens-grid' });
+  grid.append(
+    two('time to fall 20 dB', { label: 's', min: l2(0.06)!, max: l2(12)!, ticks: [0.1, 0.3, 1, 3, 10].map((v) => Math.log2(v)), fmt: (v) => String(+Math.pow(2, v).toFixed(1)) }, (s) => l2(s.ring20), (v) => `${fmt(Math.pow(2, v), 2)} s`),
+    two('brightness', { label: 'Hz', min: l2(150)!, max: l2(4000)!, ticks: [200, 400, 800, 1600, 3200].map((v) => Math.log2(v)), fmt: (v) => String(Math.round(Math.pow(2, v))) }, (s) => l2(s.centroid), (v) => `${fmt(Math.pow(2, v), 0)} Hz`),
+    two('second partial re the first', { label: 'dB', min: -45, max: 15, ticks: [-40, -20, 0], fmt: (v) => String(v) }, (s) => (s.levels[0] !== null && s.levels[1] !== null ? s.levels[1] - s.levels[0] : null), (v) => `${fmt(v, 1)} dB`),
+  );
+  const figs = h(
+    'div',
+    { class: 'figs' },
+    fig(
+      'A string plucked and left to ring',
+      'each of the twenty-three recorded strings, E1–F7: the seconds its level takes to fall 20 dB from its peak; the spectral centroid of its first quarter second; its octave partial against its fundamental',
+      [leg(), grid],
+      'A harp has no dampers: a wire string of the bass rings for many seconds, a nylon string of the top for a tenth of one. Each note falls fast and then slowly (the string swings in two planes, and only one of them moves the soundboard much), and the other strings answer it. The finger takes the string near its middle, which leaves the even partials weak: the octave lies 10–30 dB under the fundamental. Every second string was held out of the fit.',
+      true,
+    ),
+  );
+  const med = (f: (x: Harp['strings'][0]) => number) => {
+    const v = hp.strings.map(f).filter(Number.isFinite).sort((a, b) => a - b);
+    return v[Math.floor(v.length / 2)];
+  };
+  const sm = hp.summary;
+  const tiles = h(
+    'div',
+    { class: 'tiles' },
+    tile(`×${fmt(med((x) => x.model.centroid / x.ref.centroid), 2)}`, 'brightness, model / recording'),
+    tile(`×${fmt(med((x) => (x.model.ring20 ?? NaN) / (x.ref.ring20 ?? NaN)), 2)}`, 'time to fall 20 dB, model / recording'),
+    tile(`${fmt(sm.partials, 1)} dB`, 'the first eight partials’ levels, RMS'),
+    tile(`${fmt(sm.stretch, 1)} ¢`, 'their stretch (stiffness), RMS'),
+  );
+  return h(
+    'section',
+    { class: 'ensemble harp' },
+    h('h2', {}, 'Harp against recordings'),
+    h('p', { class: 'hint', style: 'margin-top:8px' }, `VSCO 2 CE (CC0) · ${hp.strings.length} strings of a concert pedal harp, each plucked once · same pitch, dry, same analysis`),
     tiles,
     figs,
   );

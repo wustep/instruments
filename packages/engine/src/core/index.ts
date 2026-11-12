@@ -21,4 +21,5 @@ export { HornCore, HORN_VOICE, HORN_LO, HORN_HI, hornFingering, hornTubeLength, 
 export { TubaCore, TUBA_VOICE, TUBA_LO, TUBA_HI, TUBA_LENGTH, tubaFingering, tubaTubeLength, type TubaFingering, type TubaParams, type TubaVoice } from './tuba.ts';
 export { LipConeCore, type ConeFingering, type LipConeId, type LipConeParams, type LipConeSpec, type LipConeVoice, type TuningTable } from './lipcone.ts';
 export { VALVES3, VALVES4, valveFingering, valvesDown, type ValveFingering } from './valves.ts';
+export { HarpCore, HARP_VOICE, HARP_LO, HARP_HI, HARP_STRINGS, HARP_PEDALS, harpStrings, harpStringOf, harpStringFor, harpPedalsFor, type HarpParams, type HarpVoice, type HarpString, type HarpPedal } from './harp.ts';
 export { TimpaniCore, TIMPANI_VOICE, TIMPANI_SPOT, TIMPANI_LO, TIMPANI_HI, TIMPANI_DRUMS, besselJ, besselZeros, type TimpaniParams, type TimpaniVoice, type TimpaniDrum } from './timpani.ts';

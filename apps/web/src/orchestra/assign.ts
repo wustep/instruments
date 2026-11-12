@@ -17,13 +17,13 @@
 // piano; a line that goes below the cello's C is a bass line (the double bass is a candidate for it). With a lineup chosen by hand, the lines are matched to it by register instead: the highest
 // line to the highest instrument, and so on down.
 
-export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani';
-export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani'];
+export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'harp' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani';
+export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'bass', 'harp', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani'];
 
 export interface VoiceInfo {
   label: string;
   /** the engine's instrument and (pianos) preset */
-  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani';
+  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'harp' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani';
   preset?: 'grand' | 'upright';
   /** playable range (MIDI notes) and where the instrument sings best */
   lo: number;
@@ -50,6 +50,7 @@ export const VOICE_INFO: Record<Voice, VoiceInfo> = {
   viola: { label: 'viola', instrument: 'viola', lo: 48, hi: 88, centre: 63, poly: 4 },
   cello: { label: 'cello', instrument: 'cello', lo: 36, hi: 81, centre: 52, poly: 4 },
   bass: { label: 'double bass', instrument: 'bass', lo: 28, hi: 67, centre: 40, poly: 4 },
+  harp: { label: 'harp', instrument: 'harp', lo: 24, hi: 103, centre: 64, poly: 47 },
   flute: { label: 'flute', instrument: 'flute', lo: 60, hi: 96, centre: 79, poly: 1 },
   oboe: { label: 'oboe', instrument: 'oboe', lo: 58, hi: 93, centre: 74, poly: 1 },
   clarinet: { label: 'clarinet', instrument: 'clarinet', lo: 50, hi: 94, centre: 70, poly: 1 },
@@ -61,20 +62,24 @@ export const VOICE_INFO: Record<Voice, VoiceInfo> = {
   timpani: { label: 'timpani', instrument: 'timpani', lo: 36, hi: 57, centre: 46, poly: 2 },
 };
 export const isKeyboard = (v: Voice): boolean => v === 'grand' || v === 'upright';
+/** one player takes every line of the voice: a piano's staves, a harp's two hands (often two tracks) */
+export const takesAll = (v: Voice): boolean => isKeyboard(v) || v === 'harp';
+/** a bowed instrument: a line may join another's as a section's desk */
+const isBowed = (v: Voice): boolean => VOICE_INFO[v].poly === 4;
 
 /** what each instrument costs the audio thread, per cent of one core's real time at 48 kHz (an M-series
  *  Mac, offline: scripts/stage-cost.ts, the busier of its own piece and idle, rounded up; a piano with 32
  *  voices, as two on the stage have): what decides how many instruments a piece or an address may seat
  *  (fitLineup) */
-export const VOICE_COST: Record<Voice, number> = { grand: 16, upright: 17, violin: 2, viola: 2, cello: 2.6, bass: 2.9, flute: 1.3, oboe: 1.3, clarinet: 1.3, bassoon: 1.3, horn: 1.2, trumpet: 1.2, trombone: 1.8, tuba: 1.2, timpani: 2 };
+export const VOICE_COST: Record<Voice, number> = { grand: 16, upright: 17, violin: 2, viola: 2, cello: 2.6, bass: 2.9, harp: 3.7, flute: 1.3, oboe: 1.3, clarinet: 1.3, bassoon: 1.3, horn: 1.2, trumpet: 1.2, trombone: 1.8, tuba: 1.2, timpani: 2 };
 /** a lineup's cost (VOICE_COST summed) */
 export const lineupCost = (lineup: Voice[]): number => lineup.reduce((s, v) => s + (VOICE_COST[v] ?? 0), 0);
-/** the heaviest lineup of `n` instruments the stage has seated by count: two pianos (the most it takes)
- *  and the heaviest of the others */
+/** the heaviest lineup of `n` instruments the stage was sized for by count: two pianos (the most it takes)
+ *  and double basses, the heaviest of the others when it was measured on the devices. (A harp left to ring
+ *  costs more than a bass: it is counted at its own cost, and does not raise what the stage may hold.) */
 export const heaviestCost = (n: number): number => {
   const kb = Math.max(...VOICES.filter(isKeyboard).map((v) => VOICE_COST[v]));
-  const other = Math.max(...VOICES.filter((v) => !isKeyboard(v)).map((v) => VOICE_COST[v]));
-  return Math.min(2, n) * kb + Math.max(0, n - 2) * other;
+  return Math.min(2, n) * kb + Math.max(0, n - 2) * VOICE_COST.bass;
 };
 /** the most seats an Orchestra has (an address is read for no more: address.ts) */
 export const MAX_SEATS = 24;
@@ -100,7 +105,7 @@ export const mayBecome = (from: Voice[], to: Voice[], cap: number): boolean => (
 
 /** the score's order (woodwinds, brass, timpani, strings, then the keyboards): a new instrument's place in
  *  a lineup, and the order of a lineup picked by hand (the seats from the audience's left) */
-export const SCORE_ORDER: Voice[] = ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
+export const SCORE_ORDER: Voice[] = ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'harp', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
 
 /** what assignment needs to know of a line (midi-file.ts MidiLine) */
 export interface LineInfo {
@@ -196,7 +201,9 @@ export function voiceFromName(s: string): Voice | null {
   if (/fl[uü]gel|post ?horn/.test(t)) return 'trumpet';
   if (/flute|flauto|fl[oö]te|flûte|piccolo|recorder|\bfl\.?\b|sax/.test(t)) return 'flute';
   if (/trumpet|tromba|trompete|trompette|cornet|brass|\btpt?\.?\b/.test(t)) return 'trumpet';
-  if (/piano|klavier|cembalo|harpsichord|clavecin|keyboard|organ|orgel|continuo|clavichord|celesta|harp|guitar|lute/.test(t)) return 'grand';
+  // the harp: harp(s), Harfe(n), arpa/arpe, harpe(s), "Hp.", "Hrp." (the harpsichord is a keyboard's: below)
+  if (/\bharps?\b|\bharfen?\b|\barp[ae]\b|\bharpes?\b|\bhp\.(?![a-z])|\bhrp\.?(?![a-z])/.test(t)) return 'harp';
+  if (/piano|klavier|cembalo|harpsichord|clavecin|keyboard|organ|orgel|continuo|clavichord|celesta|guitar|lute/.test(t)) return 'grand';
   return null;
 }
 
@@ -209,7 +216,7 @@ export function voiceFromProgram(p: number): Voice | null {
   if (p === 41) return 'viola';
   if (p === 42) return 'cello';
   if (p === 43) return 'bass'; // contrabass
-  if (p === 46) return 'grand'; // harp
+  if (p === 46) return 'harp'; // orchestral harp (General MIDI 47)
   if (p === 47) return 'timpani';
   if (p <= 55) return null; // string and voice ensembles: by range
   if (p === 57) return 'trombone';
@@ -367,7 +374,9 @@ const fits0 = (l: LineInfo, v: Voice): number => {
 function rangeScore(l: LineInfo, v: Voice): number {
   if (isKeyboard(v)) return 1;
   const k = fitShift(l, v);
-  return 2 * fits(l, v) - Math.abs(l.median + k - VOICE_INFO[v].centre) / 12 - (2.5 * Math.abs(k)) / 12;
+  // (the harp's six and a half octaves have no middle a line should be near: a left hand is as much its as a right)
+  const off = v === 'harp' ? 0 : Math.abs(l.median + k - VOICE_INFO[v].centre) / 12;
+  return 2 * fits(l, v) - off - (2.5 * Math.abs(k)) / 12;
 }
 
 /** A brass line the file names for no instrument of its own (a track called "Brass" or "Low Brass", a brass
@@ -408,8 +417,10 @@ export function guessVoice(l: LineInfo): Voice {
   // a line below the cello's C: a bass line, the double bass's
   if (l.lo < VOICE_INFO.cello.lo) cands.set('bass', 0);
   for (const [v, w] of hints) if (v && (isKeyboard(v) || fits0(l, v) >= 0.9)) cands.set(v, (cands.get(v) ?? 0) + w);
-  // chords: four notes at once are a keyboard's; three may be a string's triple stop
-  if (l.poly >= 3) cands.set('grand', (cands.get('grand') ?? 0) + (l.poly >= 4 ? 2.5 : 0.6));
+  // chords: four notes at once are a keyboard's (a harp's, where the file says harp); three may be a
+  // string's triple stop
+  const chords: Voice = cands.has('harp') ? 'harp' : 'grand';
+  if (l.poly >= 3) cands.set(chords, (cands.get(chords) ?? 0) + (l.poly >= 4 ? 2.5 : 0.6));
   let best: Voice = 'grand';
   let bs = -Infinity;
   for (const [v, bonus] of cands) {
@@ -430,16 +441,17 @@ type Sized = Pick<LineInfo, 'notes' | 'median' | 'poly'>;
 const shiftFor = (l: LineInfo, v: Voice, t = 0) => t + (isKeyboard(v) ? 0 : fitShift(sounding(l, t), v));
 
 /**
- * The instruments a voice per line puts on the stage: one per keyboard voice (all its lines), one per
- * other line, in the file's order. With more than `cap` instruments the smallest lines join a like
- * bowed instrument (a section, nearest in register) or the piano (made if there is none).
+ * The instruments a voice per line puts on the stage: one per keyboard voice (all its lines) and one
+ * harp (its two hands, often two tracks, are one player's), one per other line, in the file's order.
+ * With more than `cap` instruments the smallest lines join a like bowed instrument (a section, nearest
+ * in register) or the piano (made if there is none).
  */
 export function partsOf(voices: (Voice | null)[], lines: Sized[], cap: number): Part[] {
   const parts: Part[] = [];
   const kb = new Map<Voice, Part>();
   voices.forEach((v, i) => {
     if (!v) return;
-    if (isKeyboard(v)) {
+    if (takesAll(v)) {
       let p = kb.get(v);
       if (!p) {
         kb.set(v, (p = { voice: v, lines: [] }));
@@ -455,8 +467,9 @@ export function partsOf(voices: (Voice | null)[], lines: Sized[], cap: number): 
 export function capParts(parts: Part[], lines: Sized[], cap: number): Part[] {
   const size = (p: Part) => p.lines.reduce((s, i) => s + lines[i].notes, 0);
   const med = (p: Part) => lines[p.lines[0]].median;
-  // (the timpani's two mallets are not a section's desks: a line does not join them to make room)
-  const bowed = (p: Part) => !isKeyboard(p.voice) && VOICE_INFO[p.voice].poly > 2;
+  // (the timpani's two mallets are not a section's desks, nor a harp's strings: a line does not join
+  // them to make room, and neither becomes the continuo)
+  const bowed = (p: Part) => isBowed(p.voice);
   const over = () => parts.length > Math.max(1, cap);
   // 1. sections: the smallest bowed instrument joins another of its kind, nearest in register
   while (over()) {
@@ -545,6 +558,7 @@ export function matchLineup(lines: LineInfo[], lineup: Voice[]): Plan {
   const n = ls.length;
   const m = slots.length;
   const busiest = Math.max(1, ...lines.map((l) => l.notes));
+  const harps = lineup.includes('harp');
   const cost = (i: number, j: number) => {
     const l = lines[ls[i]];
     const v = lineup[slots[j]];
@@ -552,7 +566,10 @@ export function matchLineup(lines: LineInfo[], lineup: Voice[]): Plan {
     const drums = v === 'timpani' ? (isTimpaniLine(l) ? -3 : 2) : isTimpaniLine(l) ? 2 : 0;
     // (and a tuba its own part, named or GM 58, before the trombone's or the double bass's beside it)
     const tuba = v === 'tuba' && isTubaLine(l) ? -1.5 : 0;
-    return Math.abs(l.median - VOICE_INFO[v].centre) / 12 + (1 - fits(l, v)) * 3 + (holds(l, v) ? 0 : 4) - l.notes / busiest + drums + tuba;
+    // (and a harp its own, named or GM 46, wherever its hands lie: the harp has no register to be far from)
+    const harp = !harps ? 0 : v === 'harp' ? (isHarpLine(l) ? -3 : 0) : isHarpLine(l) ? 1 : 0;
+    const off = v === 'harp' && isHarpLine(l) ? 0 : Math.abs(l.median - VOICE_INFO[v].centre) / 12;
+    return off + (1 - fits(l, v)) * 3 + (holds(l, v) ? 0 : 4) - l.notes / busiest + drums + tuba + harp;
   };
   // E[i][j]: the first i lines and the first j instruments; a line may join another instrument only
   // when there are more lines than instruments, an instrument may wait only when there are fewer
@@ -587,7 +604,8 @@ export function matchLineup(lines: LineInfo[], lineup: Voice[]): Plan {
     if (led.has(li)) continue;
     const l = lines[li];
     let best = 0;
-    const key = (k: number) => (VOICE_INFO[parts[k].voice].poly > 2 ? 0 : 100) + Math.abs(l.median - VOICE_INFO[parts[k].voice].centre);
+    // (a harp's other hand joins its harp, wherever it lies)
+    const key = (k: number) => (parts[k].voice === 'harp' && isHarpLine(l) ? -100 : 0) + (VOICE_INFO[parts[k].voice].poly > 2 ? 0 : 100) + Math.abs(l.median - VOICE_INFO[parts[k].voice].centre);
     for (let k = 1; k < parts.length; k++) if (key(k) < key(best)) best = k;
     parts[best].lines.push(li);
   }
@@ -600,6 +618,9 @@ const isTimpaniLine = (l: LineInfo): boolean => voiceFromName(l.name) === 'timpa
 
 /** a tuba part by its name or its program */
 const isTubaLine = (l: LineInfo): boolean => voiceFromName(l.name) === 'tuba' || voiceFromName(l.instrument) === 'tuba' || l.program === 58;
+
+/** a harp part by its name or its program */
+const isHarpLine = (l: LineInfo): boolean => voiceFromName(l.name) === 'harp' || voiceFromName(l.instrument) === 'harp' || l.program === 46;
 
 /** a plan of instruments without a file (live play) */
 export const lineupPlan = (lineup: Voice[]): Plan => ({ parts: lineup.map((v) => ({ voice: v, lines: [] })), lines: [] });
@@ -615,7 +636,7 @@ const partsCopy = (plan: Plan): Part[] => plan.parts.map((p) => ({ voice: p.voic
 
 /**
  * Move one line to another instrument, and only that one (null: mute it). A keyboard voice joins its
- * piano if there is one; another voice takes over the line's own instrument when the line is its only
+ * piano if there is one, a harp's line its harp; another voice takes over the line's own instrument when the line is its only
  * one, else gets an instrument of its own, or (the stage full) joins one of that voice. Instruments
  * left with no line leave the stage. Returns null when the stage has no room for it.
  */
@@ -625,8 +646,8 @@ export function reassign(plan: Plan, lines: LineInfo[], li: number, voice: Voice
   if (voice) {
     // the line's own instrument: one that played it and nothing else
     const alone = was.find((k) => plan.parts[k].lines.length === 1);
-    const same = parts.findIndex((p) => p.voice === voice && (isKeyboard(voice) || p.lines.length === 0));
-    if (isKeyboard(voice) && same >= 0) parts[same].lines.push(li);
+    const same = parts.findIndex((p) => p.voice === voice && (takesAll(voice) || p.lines.length === 0));
+    if (takesAll(voice) && same >= 0) parts[same].lines.push(li);
     else if (alone !== undefined) {
       parts[alone].voice = voice;
       parts[alone].lines.push(li);

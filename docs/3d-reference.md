@@ -412,6 +412,32 @@ longer than the plan's flat one (round the bell); the wave is laid along the pla
 the front-action pattern (the laps nested in one plane, the fourth loop outside the body), not a copy of one
 maker's wrap.
 
+## Harp (concert grand pedal harp, 47 strings)
+
+One plan for the 2D stage and the 3D model (`apps/web/src/ui/harp-plan.ts`; `harp-draw.ts`, `vector/harp.ts`,
+`gl/harp3d.ts`), in metres, seen from its side as it stands, the column at the left and the player's place at
+the right. Drawn from the makers' published measures of concert grand harps (the Lyon & Healy styles 23 and
+30, the Salvi Diana: 1.85–1.88 m tall, about a metre from the column to the body's back, 35–37 kg), not traced
+from a photograph:
+
+| measure | here | note |
+|---|---|---|
+| height to the crown | 1.885 m | the column 1.83 m, 60 mm across |
+| strings | 47, C1–G7 | the engine's own (`harpStrings`): 1.544 m to 66 mm; wire C1–B1, gut to B4, nylon above |
+| spacing along the board | 17 mm in the bass to 12.6 mm at the top | |
+| colours | every C red, every F dark, the wire strings bronze | as a harpist finds them |
+| soundboard | rising from the base to the knee, 0.42 m wide at its foot (3D) | flat spruce; the box a tapering shell behind it |
+| pedals | seven round the base's back: D C B at the left foot, E F G A at the right | three notches each, 14 mm apart: up flat, the middle natural, down sharp |
+| discs | each string is stopped a semitone or two short of its top by its pedal | the string drawn from its stop |
+
+Every string hangs plumb from the neck to the soundboard at the engine's length, so the strings' tops draw the
+neck's harmonic curve by themselves: high at the column, swooping down, and up again a little at the knee
+(`apps/web/test/harp2d.test.ts`). What moves is the engine's: each string swings as wide as the engine says it
+does (the loudest few in their own shapes, the plucked triangle running out and back), each pedal stands in
+the notch the engine has it in and travels when a note moves it (`apps/web/test/harp3d.test.ts`). No
+photograph was traced and none is kept. Left out: the action's rods inside the column and the forked discs'
+own shapes (each stop is a mark on its string), the carving of the crown and the base's feet.
+
 ## Reference photos
 
 The photos are in `.cache/refs-3d/`, which is not committed. Full attributions are in `.cache/refs-3d/SOURCES.md`.

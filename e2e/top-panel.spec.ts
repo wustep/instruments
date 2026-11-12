@@ -1,6 +1,6 @@
 // The top panel: what is on the stage and how it is seen (the bar), and what is sounding (the band under it).
 // The readout says every note sounding (a chord is never one of its notes), an ensemble its parts; the picker
-// is fourteen instruments by family, at a size to read and to touch (behind one button where there is no
+// is fifteen instruments by family, at a size to read and to touch (behind one button where there is no
 // room); the view is one choice of three; the pages are two words that show which one is open.
 import { test, expect, type Page } from '@playwright/test';
 import { openPicker } from './picker.ts';
@@ -172,13 +172,13 @@ test('an ensemble: the readout says the notes its parts sound together and how m
   expect(errors).toEqual([]);
 });
 
-test('the picker on a computer: fourteen instruments in five families on one row, each name whole and clear of its neighbour’s, the one on the stage marked; the orchestra beside them', async ({ page }, info) => {
-  test.skip(info.project.name === 'phone', 'the bar with room for all fourteen');
+test('the picker on a computer: fifteen instruments in five families on one row, each name whole and clear of its neighbour’s, the one on the stage marked; the orchestra beside them', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone', 'the bar with room for all fifteen');
   await page.goto('/piano?view=2d');
   await expect(page.locator('.pick-open')).toBeHidden();
-  expect(await page.locator('.instruments .fam').evaluateAll((els) => els.map((el) => `${(el as HTMLElement).dataset.fam}:${el.querySelectorAll('.pick').length}`))).toEqual(['keys:1', 'strings:4', 'woodwinds:4', 'brass:4', 'percussion:1']);
+  expect(await page.locator('.instruments .fam').evaluateAll((els) => els.map((el) => `${(el as HTMLElement).dataset.fam}:${el.querySelectorAll('.pick').length}`))).toEqual(['keys:2', 'strings:4', 'woodwinds:4', 'brass:4', 'percussion:1']);
   const names = await page.locator('.instruments .pick-name').evaluateAll((els) => els.map((el) => { const r = el.getBoundingClientRect(); return { t: el.textContent, l: r.left, r: r.right, y: r.top, cut: (el as HTMLElement).scrollWidth > (el as HTMLElement).clientWidth + 1 }; }));
-  expect(names.map((n) => n.t)).toEqual(['piano', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani']);
+  expect(names.map((n) => n.t)).toEqual(['piano', 'harp', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani']);
   for (let i = 1; i < names.length; i++) {
     expect(names[i].l, `${names[i].t} clear of ${names[i - 1].t}`).toBeGreaterThanOrEqual(names[i - 1].r + 4);
     expect(names[i].y).toBeCloseTo(names[0].y, 0);
@@ -213,7 +213,7 @@ test('the picker on a computer: fourteen instruments in five families on one row
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test('the picker on a phone: one button names the instrument; its sheet shows all fourteen, each large enough to touch, four to a row, every row a kind; the piano’s kind at its foot; choosing one shuts it; an orchestra keeps it open to count instruments in', async ({ page }, info) => {
+test('the picker on a phone: one button names the instrument; its sheet shows all fifteen, each large enough to touch, four to a row, every row a kind; the piano’s kind at its foot; choosing one shuts it; an orchestra keeps it open to count instruments in', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone', 'the phone layout');
   const errors = collectErrors(page);
   for (const size of [null, { width: 390, height: 844 }, { width: 320, height: 640 }, { width: 844, height: 390 }]) {
@@ -228,7 +228,7 @@ test('the picker on a phone: one button names the instrument; its sheet shows al
     await open.click();
     await expect(open).toHaveAttribute('aria-expanded', 'true');
     const picks = page.locator('.instruments .pick');
-    await expect(picks).toHaveCount(14);
+    await expect(picks).toHaveCount(15);
     const vp = page.viewportSize()!;
     const boxes = await picks.evaluateAll((els) => els.map((el) => { const r = el.getBoundingClientRect(); const n = el.querySelector('.pick-name')!.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom, nl: n.left, nr: n.right, name: el.querySelector('.pick-name')!.textContent }; }));
     for (const [i, b] of boxes.entries()) {
@@ -244,13 +244,13 @@ test('the picker on a phone: one button names the instrument; its sheet shows al
       // no two overlap
       for (const c of boxes.slice(0, i)) expect(b.l >= c.r - 0.5 || c.l >= b.r - 0.5 || b.t >= c.b - 0.5 || c.t >= b.b - 0.5, `${where}: ${b.name} / ${c.name}`).toBe(true);
     }
-    expect(boxes.map((b) => b.name)).toEqual(['piano', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani']);
-    // four to a row, every row a kind: what is struck or plucked first (the piano, the timpani beside it), then
+    expect(boxes.map((b) => b.name)).toEqual(['piano', 'harp', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani']);
+    // four to a row, every row a kind: what is struck or plucked first (the piano, the harp, the timpani beside them), then
     // the strings, the woodwinds, the brass; every row begins in the first column, and none has a gap in it
     const rows = [...new Set(boxes.map((b) => Math.round(b.t)))].sort((a, b) => a - b);
     expect(rows.length, where).toBe(4);
     const row = (k: number) => boxes.filter((b) => Math.round(b.t) === rows[k]).sort((a, b) => a.l - b.l);
-    expect(row(0).map((b) => b.name)).toEqual(['piano', 'timpani']);
+    expect(row(0).map((b) => b.name)).toEqual(['piano', 'harp', 'timpani']);
     expect(row(1).map((b) => b.name)).toEqual(['violin', 'viola', 'cello', 'bass']);
     expect(row(2).map((b) => b.name)).toEqual(['flute', 'oboe', 'clarinet', 'bassoon']);
     expect(row(3).map((b) => b.name)).toEqual(['horn', 'trumpet', 'trombone', 'tuba']);

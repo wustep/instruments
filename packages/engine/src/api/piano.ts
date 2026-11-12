@@ -62,7 +62,9 @@ export interface Piano {
   readonly initMs: number;
   /** settles when the processor has built the instrument (see PianoOptions.waitReady) */
   readonly ready: Promise<void>;
-  noteOn(midi: number, velocity?: number, time?: number): void;
+  /** `gliss`: the harp only: the note is a string drawn across (a white key's, at the pitch its pedal gives; a
+   *  black key is no string), not a pitch that finds its string and moves a pedal for it (core/harp.ts) */
+  noteOn(midi: number, velocity?: number, time?: number, gliss?: boolean): void;
   noteOff(midi: number, time?: number): void;
   /** bowed strings, winds and brass: a note that will begin at `time` (AudioContext seconds) and last
    *  `dur` seconds, said ahead of its noteOn (4 s or more: BOW_LOOK) by a player that knows what is
@@ -328,7 +330,7 @@ export async function createPiano(ctx: BaseAudioContext, opts: PianoOptions = {}
     get initMs() {
       return state.initMs;
     },
-    noteOn: (midi, velocity = 80, time) => ev({ type: 'noteOn', midi, velocity }, time),
+    noteOn: (midi, velocity = 80, time, gliss) => ev(gliss ? { type: 'noteOn', midi, velocity, gliss: true } : { type: 'noteOn', midi, velocity }, time),
     noteOff: (midi, time) => ev({ type: 'noteOff', midi }, time),
     foresee: (midi, velocity, time, dur, dyn) => ev({ type: 'foresee', midi, velocity, dur, dyn }, time),
     sustain: (v, time) => ev({ type: 'sustain', value: val(v) }, time),
