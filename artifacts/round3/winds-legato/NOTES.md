@@ -201,6 +201,17 @@ Measured the same way, 3024 pairs each, before any change:
   that nothing changed within a register, and that a change of register is the same samples whatever the
   host's block: 128, 37 or 500 frames a call).
 
+## The gate, on the rebased tree
+
+* `pnpm typecheck`: clean. `pnpm build`: built, the worklet parses in Safari 14.1 (285 kB).
+* `pnpm test`: 98 files, 1030 tests pass.
+* Playwright, the whole suite (Chrome desktop and Pixel 7, the WebKit smoke test): 369 passed, 32 skipped,
+  1 failed: `[phone] e2e/app.spec.ts:1256` "click a note's strings: that key's action opens…", `.av-speed`
+  empty. That is the known flake of the piano's action close-up, which nothing here touches (it passed on the
+  desktop project in the same run, and failed on desktop and passed on the phone in a run before the
+  rebase). Rerun alone it failed once more the same way, then passed 6 times of 6 on the phone and 3 of 3 on
+  the desktop. Not loosened.
+
 ## Left
 
 * **The players are too still.** A held note of the engine moves far less than a player's (the Iowa
