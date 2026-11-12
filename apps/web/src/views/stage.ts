@@ -129,7 +129,7 @@ const groupOf = (id: InstrumentId): (typeof GROUPS)[number] => {
 };
 /** where the picker folds behind one button (a sheet of every instrument, large enough to read and to
  *  touch): a phone either way up, a narrow window */
-const COMPACT = '(max-width: 1320px), (max-height: 500px) and (orientation: landscape)';
+const COMPACT = '(max-width: 1340px), (max-height: 500px) and (orientation: landscape)';
 /** where the stage's own tools (the view, the piano's case) sit in the band under the bar, beside the readout */
 const PHONE = '(max-width: 760px)';
 /** where the bar has no room for the piano's kind beside the view (a phone either way up, a narrow window):
@@ -152,8 +152,9 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   const closeUpOffered = () => family() === 'piano' && !ensemble.active;
 
   // ---------------------------------------------------------------- picker
-  // (the double bass's name under its glyph is "bass", one word as the others are; its full name is its
-  // accessible name and tooltip)
+  // (the double bass's name under its glyph is "bass", one word as the others are, and the glockenspiel's
+  // "glock", as its players call it: sixteen names share one row; the full name is the accessible name and
+  // the tooltip)
   const instBtns = INSTRUMENT_IDS.map((id) => {
     const b = h(
       'button',
@@ -170,7 +171,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
           void audio.setInstrument(id);
         },
       },
-      h('span', { class: 'pick-name' }, (id === 'bass' ? 'bass' : INSTRUMENT_INFO[id].label).toLowerCase()),
+      h('span', { class: 'pick-name' }, (id === 'bass' ? 'bass' : id === 'glockenspiel' ? 'glock' : INSTRUMENT_INFO[id].label).toLowerCase()),
       h('span', { class: 'pick-n', 'aria-hidden': 'true' }),
     );
     b.prepend(glyph(id) as unknown as HTMLElement);

@@ -7,7 +7,7 @@ import type { VisualFrame } from '@piano-model/engine';
 import { Batch, xform } from '../src/ui/gl/gl3d.ts';
 import { buildGlockModel, poseGlock, type GlockModel } from '../src/ui/gl/glock3d.ts';
 import { ensembleSeats } from '../src/ui/gl/scenes3d.ts';
-import { BARS, barCentre } from '../src/ui/glock-plan.ts';
+import { BARS } from '../src/ui/glock-plan.ts';
 
 (globalThis as unknown as { window: unknown }).window ??= globalThis;
 const t0 = performance.now();
@@ -63,9 +63,18 @@ describe('the glockenspiel in 3D', () => {
     expect(s.glow[0]).toBe(0);
     expect(s.lift[0]).toBeLessThan(0.05);
     expect(s.lift[1]).toBeGreaterThan(0.9);
-    // the heads over their bars (the model's frame: plan x, plan y away from the player → −z), the left one
-    // on the bar, the right one lifted
-    const at = (i: number) => xform(gm.T, [barCentre(i)[0], 0, -barCentre(i)[1]]);
+    // the heads over their bars (each bar's own mesh says where it is), the left one on the bar, the right
+    // one lifted
+    const at = (i: number) => {
+      const m = gm.bars[i];
+      let x = 0;
+      let z = 0;
+      for (let k = 0; k < m.count; k++) {
+        x += m.data[k * 14] / m.count;
+        z += m.data[k * 14 + 2] / m.count;
+      }
+      return xform(gm.T, [x, 0, z]);
+    };
     expect(s.heads[0][0]).toBeCloseTo(at(5)[0], 2);
     expect(s.heads[0][2]).toBeCloseTo(at(5)[2], 2);
     expect(s.heads[1][0]).toBeCloseTo(at(26)[0], 2);

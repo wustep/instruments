@@ -113,6 +113,15 @@ export function measureView(): View {
     } catch {
       /* harp data optional */
     }
+    try {
+      const gk: Glock = await (await fetch('/data/glockenspiel.json')).json();
+      const at = root.querySelector('.listen-section');
+      const sec = glockSection(gk);
+      if (at) root.insertBefore(sec, at);
+      else root.append(sec);
+    } catch {
+      /* glockenspiel data optional */
+    }
   })();
   return { el: root, dock: false };
 }
@@ -639,6 +648,100 @@ function harpSection(hp: Harp): HTMLElement {
     { class: 'ensemble harp' },
     h('h2', {}, 'Harp against recordings'),
     h('p', { class: 'hint', style: 'margin-top:8px' }, `VSCO 2 CE (CC0) · ${hp.strings.length} strings of a concert pedal harp, each plucked once · same pitch, dry, same analysis`),
+    tiles,
+    figs,
+  );
+}
+
+interface GlockStroke {
+  f0: number | null;
+  ratios: (number | null)[];
+  levels: (number | null)[];
+  decays: (number | null)[];
+  ring20: number | null;
+  centroid: number;
+  attack: number | null;
+  level: number | null;
+}
+interface Glock {
+  reference: string;
+  summary: Record<string, number>;
+  strokes: { midi: number; mark: string; held: boolean; ref: GlockStroke; model: GlockStroke }[];
+}
+
+/** the glockenspiel against the Iowa bells: each bar's partials, how fast its pitch dies, how bright it is */
+function glockSection(gk: Glock): HTMLElement {
+  const leg = () =>
+    legend([
+      { name: 'recording', color: 'ref', kind: 'dot' },
+      { name: 'model', color: 'model', kind: 'dot' },
+    ]);
+  const xs = { label: 'bar', min: 78, max: 109, ticks: [79, 84, 91, 96, 103, 108], fmt: (m: number) => midiName(Math.round(m)) };
+  const ff = gk.strokes.filter((s) => s.mark === 'ff');
+  const pts = (ss: Glock['strokes'], k: 'ref' | 'model', f: (s: GlockStroke) => number | null) => ss.map((x) => ({ x: x.midi + (k === 'model' ? 0.3 : 0), y: f(x[k]) ?? NaN }));
+  const two = (title: string, ss: Glock['strokes'], y: { label: string; min: number; max: number; ticks: number[]; fmt: (v: number) => string }, f: (s: GlockStroke) => number | null, show: (v: number) => string) =>
+    chart({
+      title,
+      x: xs,
+      y,
+      series: [
+        { name: 'recording', color: 'ref', kind: 'dots', points: pts(ss, 'ref', f), fmt: show },
+        { name: 'model', color: 'model', kind: 'dots', points: pts(ss, 'model', f), fmt: show },
+      ],
+      xName: (m) => midiName(Math.round(m)),
+      width: 300,
+      height: 200,
+    });
+  const l2 = (v: number | null) => (v && v > 0 ? Math.log2(v) : null);
+  const grid = h('div', { class: 'ens-grid' });
+  // every family's ratio to the pitch, fortissimo: the recording's and the model's on one chart
+  const fam = (k: 'ref' | 'model') => ff.flatMap((x) => [1, 2, 3, 4, 5].map((q) => ({ x: x.midi + (k === 'model' ? 0.3 : 0), y: x.ref.levels[q] !== null && x.ref.levels[q]! > -45 ? (x[k].ratios[q] ?? NaN) : NaN })));
+  grid.append(
+    chart({
+      title: 'partials over the pitch · ff',
+      x: xs,
+      y: { label: '×', min: 2, max: 16, ticks: [2.76, 5.4, 8.93, 13.34], fmt: (v) => String(v) },
+      series: [
+        { name: 'recording', color: 'ref', kind: 'dots', points: fam('ref'), fmt: (v) => `×${fmt(v, 2)}` },
+        { name: 'model', color: 'model', kind: 'dots', points: fam('model'), fmt: (v) => `×${fmt(v, 2)}` },
+      ],
+      xName: (m) => midiName(Math.round(m)),
+      width: 300,
+      height: 200,
+    }),
+    two('the pitch’s decay · all dynamics', gk.strokes, { label: 'dB/s', min: l2(2)!, max: l2(64)!, ticks: [2, 4, 8, 16, 32, 64].map((v) => Math.log2(v)), fmt: (v) => String(Math.round(Math.pow(2, v))) }, (s) => l2(s.decays[0]), (v) => `${fmt(Math.pow(2, v), 1)} dB/s`),
+    two('brightness · ff', ff, { label: 'Hz', min: l2(700)!, max: l2(6000)!, ticks: [1000, 2000, 4000].map((v) => Math.log2(v)), fmt: (v) => String(Math.round(Math.pow(2, v))) }, (s) => l2(s.centroid), (v) => `${fmt(Math.pow(2, v), 0)} Hz`),
+  );
+  const figs = h(
+    'div',
+    { class: 'figs' },
+    fig(
+      'A bar struck and left to ring',
+      'the bars G5–C8: every partial’s frequency over the bar’s pitch at fortissimo (the grid lines are a thin free bar’s 2.76, 5.40, 8.93 and 13.34); how fast the pitch itself dies; the spectral centroid of the first quarter second',
+      [leg(), grid],
+      'None of the partials lies where a thin bar’s would. A mallet lands on the bar’s middle, where its second and fourth flatwise modes have a node, and a bar a third as thick as it is wide also bends edgewise and twists: the recordings’ partials are families that fall slowly up the compass (about 3.1, 6.3 and 14 times the pitch at C6) and two that fall as 1/√f (3.8 and 8 times it). They die in a fraction of a second; the pitch rings for seconds, and at the top a bar is little but its pitch and the mallet’s knock. Every second bar was held out of the fit.',
+      true,
+    ),
+  );
+  const med = (ss: Glock['strokes'], f: (x: Glock['strokes'][0]) => number) => {
+    const v = ss.map(f).filter(Number.isFinite).sort((a, b) => a - b);
+    return v[Math.floor(v.length / 2)];
+  };
+  const loud = gk.strokes.filter((s) => s.mark !== 'pp');
+  const sm = gk.summary;
+  const tiles = h(
+    'div',
+    { class: 'tiles' },
+    tile(`${fmt(sm.ratios, 0)} ¢`, 'the partials’ ratios to the pitch'),
+    tile(`${fmt(sm.partials, 1)} dB`, 'their levels, RMS'),
+    tile(`×${fmt(med(gk.strokes, (x) => (x.model.decays[0] ?? NaN) / (x.ref.decays[0] ?? NaN)), 2)}`, 'the pitch’s decay, model / recording'),
+    tile(`×${fmt(med(loud, (x) => x.model.centroid / x.ref.centroid), 2)}`, 'brightness, model / recording'),
+  );
+  return h(
+    'section',
+    { class: 'ensemble glockenspiel' },
+    h('h2', {}, 'Glockenspiel against recordings'),
+    h('p', { class: 'hint', style: 'margin-top:8px' }, `Iowa MIS “Bells”, anechoic · ${gk.strokes.length} strokes on the bars G5–C8, plastic mallets, pp/mf/ff · same pitch, dry, same analysis`),
     tiles,
     figs,
   );

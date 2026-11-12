@@ -438,6 +438,27 @@ the notch the engine has it in and travels when a note moves it (`apps/web/test/
 photograph was traced and none is kept. Left out: the action's rods inside the column and the forked discs'
 own shapes (each stop is a mark on its string), the carving of the crown and the base's feet.
 
+## Glockenspiel (orchestra bells, thirty steel bars, G5–C8)
+
+One plan for the 2D stage and the 3D model (`apps/web/src/ui/glock-plan.ts`; `glock-draw.ts`, `vector/glock.ts`,
+`gl/glock3d.ts`), in metres, from above as its player sees it, the low bars at the left. Built from the
+bars' own physics and the usual measures of an orchestral instrument, not traced from a photograph:
+
+| measure | here | note |
+|---|---|---|
+| bars | 30, G5–C8, steel 31.75 × 9.5 mm (1¼ × ⅜ in) | the engine's own (`glockBars`) |
+| lengths | 251 mm (G5) to 108 mm (C8) | from the pitch: f₁ = 1.028·h·√(E/ρ)/L², steel √(E/ρ) = 5050 m/s |
+| rows | the naturals near the player, 35.75 mm apart; the accidentals behind, each between its neighbours | each row centred on one line, so both taper to the treble |
+| supports | two felted rails a row, under the bars' nodes (0.224 of the length from each end); a pin through each node | the rails converge as the bars shorten |
+| case | a trapezoid tray 0.70 × 0.52 m, 50 mm deep; in 3D on a folding stand, the bars 0.86 m above the floor | the far row 12 mm higher |
+| mallets | two, a 28 mm head on a 0.3 m shaft | |
+
+What moves is the engine's: a bar that rings is lit as far as the engine says it swings (in the vector style
+its bending between its nodes is drawn across it), and each mallet is over the bar its hand last struck, down
+on it at the stroke and up again within a fifth of a second (`apps/web/test/glock2d.test.ts`,
+`glock3d.test.ts`). No photograph was traced and none is kept. Left out: the bars' cord or the pins' grommets,
+the case's lid and latches, a damper pedal (orchestral bells have none).
+
 ## Reference photos
 
 The photos are in `.cache/refs-3d/`, which is not committed. Full attributions are in `.cache/refs-3d/SOURCES.md`.

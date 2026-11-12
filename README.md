@@ -4,12 +4,12 @@
 
 # Instruments
 
-Fifteen acoustic instruments, physically modelled and computed in real time in the
+Sixteen acoustic instruments, physically modelled and computed in real time in the
 browser: a **piano**, a **violin**, a **viola**, a **cello**, a **double bass**, a **harp**, a
 **flute**, an **oboe**, a **clarinet**, a **bassoon**, a **horn**, a **trumpet**, a
-**trombone** (alto, tenor and bass), a **tuba** and the **timpani**. No samples are ever played as the sound. Every note is a simulation of
+**trombone** (alto, tenor and bass), a **tuba**, the **timpani** and a **glockenspiel**. No samples are ever played as the sound. Every note is a simulation of
 felt hammers, bows, fingers, air jets, reeds and lips driving strings and tubes, which in turn
-drive a soundboard or body, or of felt mallets on the air-loaded membranes of kettledrums.
+drive a soundboard or body, or of mallets on the air-loaded membranes of kettledrums and on steel bars.
 
 **Play it:** [https://instruments-wustep.vercel.app](https://instruments-wustep.vercel.app)
 
@@ -32,7 +32,8 @@ Each instrument has its own address
 [trumpet](https://instruments-wustep.vercel.app/trumpet),
 [trombone](https://instruments-wustep.vercel.app/trombone),
 [tuba](https://instruments-wustep.vercel.app/tuba),
-[timpani](https://instruments-wustep.vercel.app/timpani)),
+[timpani](https://instruments-wustep.vercel.app/timpani),
+[glockenspiel](https://instruments-wustep.vercel.app/glockenspiel)),
 as do the [Orchestra](https://instruments-wustep.vercel.app/orchestra),
 [Notes](https://instruments-wustep.vercel.app/notes) and
 [Measurements](https://instruments-wustep.vercel.app/measurements).
@@ -76,7 +77,7 @@ artifacts if you want them after all.
   alike: the architecture, the commands, the gate before a merge, the checklist for a new
   instrument, and each rule with the test that enforces it.
 
-**Places to start.** A sixteenth instrument (the checklist in `AGENTS.md`; the oboe, clarinet and
+**Places to start.** A seventeenth instrument (the checklist in `AGENTS.md`; the oboe, clarinet and
 bassoon were each one pull request of the same shape). Your own piece: drop a MIDI file on the
 Orchestra, and its address becomes a preset you can share. Another look for the stage:
 `apps/web/src/ui/vector` is a second drawing of every instrument on the same data. A voicing you
@@ -103,7 +104,7 @@ disagree with: every fitted number is in a `*-tuning.json` or `*-fit.json` next 
     that off. `apps/web/src/expression.ts`.
   * On the computer keyboard, hold `Space` for sustain and `Shift` for una corda.
 * **The top panel.** The bar is what is on the stage and how it is seen: the instruments by family (one
-  button and a sheet of all fifteen on a phone or a narrow window, four to a row and every row a kind), the orchestra, the piano's kind, the
+  button and a sheet of all sixteen on a phone or a narrow window, four to a row and every row a kind), the orchestra, the piano's kind, the
   view, the two pages. The band under it is what is sounding: the readout names every note (one note with
   its frequency; a few notes with the chord they make; many, counted with their span; an ensemble, how
   many of its parts), then the spectrum and one instrument's excitation or an ensemble's parts, each lit
@@ -287,6 +288,15 @@ disagree with: every fitted number is in a `*-tuning.json` or `*-fit.json` next 
     a long push that sounds the principal tone and little else, a loud one is
     short and hard, brings out the modes above and stretches the head, so the
     note starts a little sharp.
+* **Glockenspiel.**
+  * **Bars.** Thirty steel bars, G5–C8 as they sound (two octaves above where the
+    part is written; a note typed lower is brought up by octaves), each its pitch
+    and five families of partials measured on recordings: not a thin bar's 2.76
+    and 5.40, but the bar bending edgewise and twisting under a mallet at its
+    middle. The low bars ting at 4–9 kHz for a fraction of a second; the pitch
+    rings for seconds; the top bars are nearly a sine and a knock.
+  * **Mallets.** Two, the engine's own hands, drawn where it has them. Harder is
+    brighter; the mallet knob goes from rubber through plastic to brass.
 * **Where it runs.** Everything runs in an AudioWorklet written in TypeScript; no
   WASM was needed, as measured below. The DSP core has no Web Audio dependency,
   so the same code runs in Node for tests, calibration and offline rendering.
@@ -314,6 +324,7 @@ CPU and latency: [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
 | **Trombone** | the same lips in SI units, a cup-and-throat mouthpiece, a lossy cylinder the slide lengthens, a Bessel-horn bell of scattering sections, nonlinear steepening from the air's own constants, slide glissando and legato tongue; three sizes; **fitted to the Iowa tenor and bass trombones** | no mutes; the slide is placed by ear (so the chosen resonance is the note), not by a ruler; the alto has no recording of its own |
 | **Tuba** | the horn's engine (outward-striking lips, a conical bore as two waveguides, the wave's steepening) at the contrabass tuba in C's 4.88 m and four valves; **fitted to the Iowa tuba** | bell high-pass, a formant near 600 Hz, the dynamic's low-pass |
 | **Timpani** | air-loaded membrane modes (96 per drum), the kettle's air as a spring on the symmetric modes, each mode's radiation loss from its own far field, tension rising with the stroke, a felt mallet with hysteresis that bottoms out, rolls, pedals; voicing **fitted to the VSCO 2 CE timpani** | the kettle's own air resonances (above about 300 Hz) are left out; modes above the 96 are a band of noise; the added mass's scale and the floor of the losses are fitted |
+| **Glockenspiel** | thirty bars, each six exact resonators: its pitch and five families of partials whose ratios, levels and decays over the compass and the dynamics are **regressed on the Iowa bells** (judge BETTER against a thin free bar's overtones); the mallet's knock; two mallets | the families are the recordings', read as edgewise bending and twisting, not derived from a beam theory; the case and rails do not sound; brass mallets are set by hand |
 | **Listener** | close "microphones" from mode shapes | lid shelf, small FDN room, safety limiter (audio effects, not physics) |
 
 ## Realism, candidly
@@ -359,7 +370,12 @@ CPU and latency: [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
   against the VSCO 2 CE strings (one pluck each): brightness and the time to fall
   20 dB matched in the median, partials' levels within 9 dB; on its held-out
   strings the judge says NO CLEAR CHANGE against the voicing first set by hand
-  (1.59 → 1.32, Δ 0.27 ± 0.15). The whole
+  (1.59 → 1.32, Δ 0.27 ± 0.15). The glockenspiel, against the Iowa bells: the
+  partials' ratios within 21 ¢ and their levels within 14 dB, the pitch's decay
+  ×1.05; judge BETTER against a thin free bar's overtones (held-out 1.86 → 1.48).
+  The trumpet is played 3 dB under its recordings' level (they are hot: its
+  fortissimo ran 3–4 dB into its own limiter), level with the horn's and the
+  trombone's fortissimo. The whole
   table is on the [Notes](https://instruments-wustep.vercel.app/notes) page, and the
   histories are in `docs/ensemble-rounds.json` and `artifacts/round3/`.
 
@@ -387,6 +403,8 @@ npx tsx scripts/fit-horn.ts --instrument tuba   # the tuba's: the horn's engine,
 npx tsx scripts/fit-trombone.ts   # the trombone's: the Iowa tenor and bass trombones, three sizes (tune-trombone.ts, trombone-regimes.ts, trombone-grid.ts, render-trombone.ts)
 npx tsx scripts/harp-refs.ts      # the VSCO 2 CE harp (CC0; .cache/vsco-harp), each string analysed as a pluck left to ring
 npx tsx scripts/fit-harp.ts       # the harp's voicing on every second string (--polish; calibrate-harp.ts --table / --write)
+npx tsx scripts/glock-refs.ts     # the Iowa MIS bells (.cache/iowa-bells), each stroke analysed as a bar left to ring
+npx tsx scripts/fit-glock.ts      # the glockenspiel's voicing: a regression on every second bar (calibrate-glock.ts --table / --write)
 npx tsx scripts/timpani-refs.ts   # the VSCO 2 CE timpani (CC0; .cache/vsco-timpani), analysed as struck strokes
 npx tsx scripts/fit-timpani.ts    # the timpani's voicing on drums 1, 3, 5 (polish-timpani.ts, tune-timpani.ts, calibrate-timpani.ts --write, render-timpani.ts)
 npx tsx scripts/judge.ts --instrument <id> --before <an older checkout's engine>   # BETTER / WORSE / NO CLEAR CHANGE on held-out notes
@@ -438,6 +456,9 @@ inst.control(11, 0.8);                       // expression
   see into, and the alto trombone has no recording of its own.
 * **Timpani.** Iowa has no timpani: the reference is one set of five drums
   recorded in a room (VSCO 2 CE, 24 strokes), not an anechoic one.
+* **Glockenspiel.** Its partials are the recordings' own, regressed: the reading
+  of them (edgewise bending, twisting) is not derived. The recorded instrument
+  goes down to C5; the model is the orchestral G5–C8. No brass-mallet fit.
 * **Harp.** Iowa has no harp either: the reference is twenty-three strings of
   one harp, each plucked once at one dynamic (VSCO 2 CE). The soundboard is a
   few filters, not a model of the board; there are no harmonics, no près de la
@@ -458,7 +479,7 @@ Claude Fable 5.2, Anthropic's models, working in Claude Code.
 * **Reference recordings:** the [University of Iowa Musical Instrument
   Samples](https://theremin.music.uiowa.edu/MIS.html): a Steinway model B (2001), violin, viola (1996),
   cello (2001), double bass, flute (2000), oboe, B♭ clarinet, bassoon, horn (1997), trumpet, tenor
-  and bass trombones (1997) and tuba (1997). They are used for analysis only, never played as an instrument and never
+  and bass trombones (1997), tuba (1997) and orchestra bells (2001). They are used for analysis only, never played as an instrument and never
   committed. The six short labelled excerpts on the Measurements page are used under the MIS terms
   ("used for any projects, without restrictions").
 * **Timpani and harp recordings:** the [VSCO 2 Community Edition](https://github.com/sgossner/VSCO-2-CE) by

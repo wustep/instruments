@@ -18,11 +18,13 @@ const TOP = 0.86;
 const TRAY = 0.05;
 const STEP = 0.012;
 const WOOD = variant(M.maple, { name: 'glockCase', col: [0.16, 0.1, 0.06] as never });
-const BAR = variant(M.silver, { name: 'glockBar', rough: 0.3 });
+// (brushed steel: a flat face turned to a dark room mirrors the dark, so half of its look is its own grey)
+const BAR = variant(M.steel, { name: 'glockBar', rough: 0.42, metal: 0.45 });
 const HEAD = variant(M.brass, { name: 'glockHead', rough: 0.3 });
 
 export interface GlockModel {
-  /** the instrument on its stand, its middle over the stage's: plan x → x, plan y (away from the player) → −z */
+  /** the instrument on its stand, its middle over the stage's: plan x → x, plan y (away from the player) → z
+   *  as the meshes are stored */
   T: Mat4;
   statics: Mesh[];
   /** each bar's own mesh (drawn with its glow) */
@@ -145,7 +147,9 @@ export function poseGlock(b: Batch, gm: GlockModel, fr: VisualFrame | null, _dt:
     lift.push(up);
     const bar = gv ? gv.hands[hand] : hand ? 20 : 8;
     const y = TOP + (BARS[Math.max(0, Math.min(BARS.length - 1, bar))].sharp ? STEP : 0) + HEAD_R + 0.07 * up;
-    const p: Vec3 = [h.p[hand][0], y, -h.p[hand][1]];
+    // (the meshes are built with plan y away from the player as −z and stored mirrored, as every model's is:
+    // in the frame the instances are placed in, away from the player is +z)
+    const p: Vec3 = [h.p[hand][0], y, h.p[hand][1]];
     heads.push(p);
     // (the shaft back towards the player, fanned out a little from the instrument's middle)
     const m = translate(p[0], p[1], p[2]);

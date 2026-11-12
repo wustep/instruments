@@ -72,7 +72,7 @@ const isBowed = (v: Voice): boolean => VOICE_INFO[v].poly === 4;
  *  Mac, offline: scripts/stage-cost.ts, the busier of its own piece and idle, rounded up; a piano with 32
  *  voices, as two on the stage have): what decides how many instruments a piece or an address may seat
  *  (fitLineup) */
-export const VOICE_COST: Record<Voice, number> = { grand: 16, upright: 17, violin: 2, viola: 2, cello: 2.6, bass: 2.9, harp: 3.7, flute: 1.3, oboe: 1.3, clarinet: 1.3, bassoon: 1.3, horn: 1.2, trumpet: 1.2, trombone: 1.8, tuba: 1.2, timpani: 2, glockenspiel: 1 };
+export const VOICE_COST: Record<Voice, number> = { grand: 16, upright: 17, violin: 2, viola: 2, cello: 2.6, bass: 2.9, harp: 3.7, flute: 1.3, oboe: 1.3, clarinet: 1.3, bassoon: 1.3, horn: 1.2, trumpet: 1.2, trombone: 1.8, tuba: 1.2, timpani: 2, glockenspiel: 1.3 };
 /** a lineup's cost (VOICE_COST summed) */
 export const lineupCost = (lineup: Voice[]): number => lineup.reduce((s, v) => s + (VOICE_COST[v] ?? 0), 0);
 /** the heaviest lineup of `n` instruments the stage was sized for by count: two pianos (the most it takes)

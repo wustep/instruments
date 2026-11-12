@@ -30,6 +30,7 @@ const SCENES = [
   ['trumpet', 'trumpet', null, null],
   ['tuba', 'tuba', null, null],
   ['harp', 'harp', null, null],
+  ['glockenspiel', 'glockenspiel', null, null],
   ['harp orchestra', 'harp', null, null, null, ['violin', 'harp', 'flute', 'cello', 'horn']],
   ['tuba orchestra', 'tuba', null, null, null, ['violin', 'horn', 'trombone', 'tuba', 'cello']],
   ['trombone', 'trombone', null, null],
@@ -39,7 +40,7 @@ const SCENES = [
   ['timpani', 'timpani', null, null],
   ['timpani orchestra', 'timpani', null, null, null, ['violin', 'violin', 'viola', 'cello', 'bass', 'timpani', 'timpani']],
 ];
-const NOTE = { piano: 60, violin: 72, viola: 60, cello: 50, flute: 74, oboe: 62, clarinet: 55, bassoon: 41, horn: 66, trumpet: 67, trombone: 36, tuba: 29, harp: 55, timpani: 43 };
+const NOTE = { piano: 60, violin: 72, viola: 60, cello: 50, flute: 74, oboe: 62, clarinet: 55, bassoon: 41, horn: 66, trumpet: 67, trombone: 36, tuba: 29, harp: 55, glockenspiel: 84, timpani: 43 };
 
 const out = {};
 let total = 0;
