@@ -12,7 +12,7 @@ styles), 3D and the Orchestra. General MIDI program 47 (byte 46).
 * **Two planes.** A string swings across the soundboard (heard at once, soon spent) and along it (hardly
   moves the board, rings on), the two a fraction of a cent apart: each of the first eight partials is two
   resonators. This is the two-stage decay every recorded string shows (E5 falls 14 dB in its first half
-  second, then 10 dB in the next two and a half); before it the model's notes fell at one rate and its
+  second and 10 dB in the next second and a half); before it the model's notes fell at one rate and its
   20 dB times were half an octave too long in the treble.
 * **The tension's octave.** A string plucked at its middle has no even partials, yet the recordings' second
   lies 16–20 dB under the first: the string's own tension swings twice a cycle (Legge & Fletcher 1984). Added
@@ -54,14 +54,15 @@ out), the third-octave spectrum.
   the voicing fitted without it, so all twenty-three are held out): 1.61 → 1.41 (n = 23, Δ 0.20 ± 0.15). The
   fit is better on the held-out strings by 1.3 to 1.8 standard errors, not the 2 the judge asks. Three rounds
   of fitting (before and after the two-planes decay was added) gave the same answer. One pluck a string, each
-  with its own place under the finger (A2's octave is 2 dB under its fundamental, its neighbours' 20 dB), is
+  with its own place under the finger (A2's octave is 2 dB under its fundamental, E3's 20 dB), is
   too little for eleven strings to tell a fit from a careful hand. **The fitted voicing ships as measured, not
   as proven better**: this is an exception to the rule that a fit is kept only with BETTER, and it is said
   wherever the numbers are given (the Notes page, the README, here).
 * What moved on the held-out strings: the level across the compass 5.9 → 2.9 dB, the time to fall 20 dB
-  1.09 → 0.54 octaves, the upper partials' decay 0.74 → 0.49 octaves, the attack 4.7 → 3.5 dB. What did not:
-  the partials' levels (9.8 → 10.3 dB), the stretch (6.6 → 6.5 ¢), brightness a second later (0.24 → 0.36
-  octaves, inside its guard).
+  1.09 → 0.54 octaves, the upper partials' decay 0.74 → 0.50 octaves, the attack 4.7 → 3.5 dB, the
+  fundamental's decay 0.99 → 0.88 octaves. What did not: the partials' levels (9.8 → 10.3 dB), the spectrum
+  (11.8 → 12.0 dB), the stretch (6.6 → 6.5 ¢), brightness a second later (0.24 → 0.36 octaves, just inside
+  its guard).
 * All twenty-three strings now (`apps/web/public/data/harp.json`, the Measurements page): brightness ×1.00
   and the time to fall 20 dB ×0.99 in the median, partials' levels 8.9 dB RMS, third-octave spectrum 11.0 dB,
   stretch 7.3 ¢.
@@ -71,7 +72,7 @@ out), the third-octave spectrum.
 
 * The verdict above. The recordings cannot say more.
 * The bass (wire) strings: the recordings' own fundamentals are 13–54 dB under their upper partials and
-  their partials' frequencies scatter (the stretch error is 15–18 ¢ there); the model's wire strings are
+  their partials' frequencies scatter (the stretch error is 14–19 ¢ there); the model's wire strings are
   smoother than a real harp's and have no buzz against the disc.
 * The pluck is at one place for every note of a dynamic (near the middle; the `pluck` knob moves it). No
   harmonics, no près de la table but by the knob, no pedal slides or pedal buzz, no nail.
@@ -103,9 +104,8 @@ which used to go to the piano.
 
 ## Pictures
 
-`harp-2d.jpg`, `harp-vector.jpg`, `harp-3d.jpg` (a C major chord ringing), `harp-pedals-2d.jpg` (D major on the
-pedals), `harp-phone-2d.jpg`, `harp-phone-3d.jpg`, `orchestra-2d.jpg`, `orchestra-3d.jpg` (fifteen seats),
-`measurements.jpg`. No audio is committed.
+`harp-2d.jpg`, `harp-vector.jpg`, `harp-3d.jpg` (C3 ringing), `harp-phone-2d.jpg`, `harp-phone-3d.jpg`,
+`orchestra-2d.jpg`, `orchestra-3d.jpg` (fifteen seats). No audio is committed.
 
 ## Tests and tools
 
