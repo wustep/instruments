@@ -2507,6 +2507,10 @@ test('orchestra by hand: the ensemble toggle, instruments counted in; the keys p
   } else {
     await page.locator('.kf-split').hover();
     await expect(page.locator('.tip')).toHaveText('split · one note each, by register');
+    // no sign before the instruments: each says, by its tooltip, that it is what the keys play
+    await expect(page.locator('.kf > :first-child')).toHaveClass(/kf-part/);
+    await page.locator('.kf-part[data-part="1"]').hover();
+    await expect(page.locator('.tip')).toHaveText('keys · violin 1');
   }
   await page.locator('.ens-toggle').click();
   expect((await ens(page)).active).toBe(false);
