@@ -67,6 +67,16 @@ describe('the flute across its register breaks', () => {
       }
   });
 
+  it('whatever the host’s block: the same samples at 128, 37 and 500 frames a call', () => {
+    for (const [from, to, art] of [[73, 74, 'slur'], [69, 76, 'join'], [88, 84, 'gap'], [77, 65, 'slur']] as [number, number, Join][]) {
+      const { events, end } = pairEvents(from, to, art, 80, 0.2, false);
+      const [a, b, c] = [128, 37, 500].map((quantum) => renderInstrument({ instrument: 'flute', sampleRate: FS, events, duration: end + 0.2, quantum }));
+      let d = 0;
+      for (let i = 0; i < a.left.length; i++) d = Math.max(d, Math.abs(a.left[i] - b.left[i]), Math.abs(a.left[i] - c.left[i]), Math.abs(a.right[i] - b.right[i]), Math.abs(a.right[i] - c.right[i]));
+      expect(d, `${from}→${to} ${art}`).toBe(0);
+    }
+  });
+
   it('within a register nothing has changed: a slur glides, in 20 ms, with no hole', () => {
     for (const [from, to] of [[67, 69], [72, 65], [76, 79], [84, 81], [88, 91]] as [number, number][]) {
       const m = join(from, to, 'slur', 80, 0.15, false);

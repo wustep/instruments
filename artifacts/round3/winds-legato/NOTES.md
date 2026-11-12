@@ -197,8 +197,9 @@ Measured the same way, 3024 pairs each, before any change:
   ⅓-octave bands at 252 and 318 Hz (E4, the octave under the E5) fell 5.5 and 7.7 dB, the loudness in the
   50 ms where the E5 begins rose 2.2 dB, every band above is within 0.7 dB. The other fourteen snapshots pass
   unblessed.
-* `packages/engine/test/legato.test.ts` (new, 7 cases, 2 s) fails on `0ac0ba5` in 6 of 7 (the seventh says
-  that nothing changed within a register).
+* `packages/engine/test/legato.test.ts` (new, 8 cases, 2 s) fails on `0ac0ba5` in 6 of 8 (the other two say
+  that nothing changed within a register, and that a change of register is the same samples whatever the
+  host's block: 128, 37 or 500 frames a call).
 
 ## Left
 
