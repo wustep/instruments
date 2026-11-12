@@ -4,7 +4,9 @@
 // ringing string and keeps the notes known to be coming playable); a glissando's notes are strings, at the
 // pitches the pedals give; plucked strings ring on by themselves (the bass for many seconds, the top for
 // less than one), brighter and louder with the velocity, stopped by the hand when `damp` asks; the other
-// strings answer; the same sound whatever the host's block size.
+// strings answer; the same sound whatever the host's block size. A harder pluck is brighter, with more of
+// the finger's noise, and rattles a wire string against its disc; a player's plucks are no two alike
+// (`human`), a chord's from the bottom up, and a ringing string is touched before it is plucked again.
 import { describe, expect, it } from 'vitest';
 import { createCore, renderInstrument, HarpCore, HARP_HI, HARP_LO, HARP_PEDALS, HARP_STRINGS, HARP_VOICE, harpPedalsFor, harpStringFor, harpStringOf, harpStrings } from '../src/core/index.ts';
 
@@ -295,5 +297,136 @@ describe('harp', () => {
     a.c.process(L, R, 512);
     expect(Math.max(...L.map(Math.abs))).toBeLessThan(1e-6);
     expect(a.c.sounding()).toEqual([]);
+  });
+  it('a harder pluck is not the same pluck louder: brighter, its attack stronger; a wire string swung wide rattles against its disc, a soft one does not', () => {
+    // (the voicing itself, `human` 0: one string at mezzo-forte and at forte)
+    const one = (m: number, vel: number, voice?: object) => pluck(m, vel, 1.2, { human: 0, ...(voice ? { voice } : {}) });
+    const centroid = (x: Float32Array, f0: number) => {
+      let num = 0;
+      let den = 0;
+      for (let k = 1; k <= 16; k++) {
+        const p = 10 ** (at(x, k * f0, 0.03, 0.28) / 10);
+        num += k * p;
+        den += p;
+      }
+      return num / den;
+    };
+    for (const m of [60, 67, 76]) {
+      const mf = one(m, 70);
+      const f = one(m, 100);
+      expect(rmsDb(f, 0.03, 0.5) - rmsDb(mf, 0.03, 0.5), `MIDI ${m}: louder`).toBeGreaterThan(3);
+      expect(centroid(f, et(m)) / centroid(mf, et(m)), `MIDI ${m}: brighter`).toBeGreaterThan(1.02);
+    }
+    expect(HARP_VOICE.slopeVel).toBeGreaterThan(0);
+    // the pluck's noise: the first 12 ms carry more above 2 kHz with it than without, on a wire string most
+    const high = (x: Float32Array, a: number, b: number) => {
+      // (a first difference twice over: what is left is the top of the spectrum)
+      let s = 0;
+      for (let i = Math.round(a * FS) + 2; i < Math.round(b * FS); i++) s += (x[i] - 2 * x[i - 1] + x[i - 2]) ** 2;
+      return 10 * Math.log10(s / ((b - a) * FS) + 1e-30);
+    };
+    expect(HARP_VOICE.noise).toBeGreaterThan(0);
+    expect(high(one(60, 100), 0.02, 0.032) - high(one(60, 100, { noise: 0 }), 0.02, 0.032)).toBeGreaterThan(0.5);
+    // the rattle: a C2 plucked hard has it for its first moments, plucked softly none at all
+    expect(HARP_VOICE.buzz).toBeGreaterThan(0);
+    const hard = high(one(36, 120), 0.05, 0.35) - high(one(36, 120, { buzz: 0 }), 0.05, 0.35);
+    const soft = high(one(36, 45), 0.05, 0.35) - high(one(36, 45, { buzz: 0 }), 0.05, 0.35);
+    expect(hard).toBeGreaterThan(0.5);
+    expect(Math.abs(soft)).toBeLessThan(0.05);
+    // … and it dies as the string does: gone from the third second
+    expect(Math.abs(high(pluck(36, 120, 4, { human: 0 }), 3, 3.9) - high(pluck(36, 120, 4, { human: 0, voice: { buzz: 0 } }), 3, 3.9))).toBeLessThan(0.3);
+    // a gut string has none whatever the pluck
+    expect(Math.abs(high(one(60, 125), 0.05, 0.35) - high(one(60, 125, { buzz: 0 }), 0.05, 0.35))).toBeLessThan(1e-6);
+  });
+
+  it('a player’s plucks: no two alike (their level, their colour, their instant); a chord from the bottom string up; `human` 0 is the voicing itself, on the instant', () => {
+    // one string six times, stopped between (damp) so that each pluck meets a string at rest
+    const six = (human: number) => {
+      const ev: { time: number; event: unknown }[] = [];
+      for (let k = 0; k < 6; k++) ev.push({ time: 0.02 + k * 0.7, event: { type: 'noteOn', midi: 60, velocity: 84 } }, { time: 0.02 + k * 0.7 + 0.35, event: { type: 'noteOff', midi: 60 } });
+      // (no other string answering: what answers rings on between the plucks, and is not the hand's doing)
+      return renderInstrument({ sampleRate: FS, instrument: 'harp', dry: true, params: { damp: 1, human, resonance: 0, voice: { noise: 0 } } as never, events: ev as never, duration: 4.3 }).left;
+    };
+    const spread = (xs: number[]) => Math.max(...xs) - Math.min(...xs);
+    const alone = six(0);
+    const played = six(1);
+    const f1 = et(60);
+    const lv = (x: Float32Array, h: number) => [0, 1, 2, 3, 4, 5].map((k) => at(x, h * f1, 0.04 + k * 0.7, 0.3 + k * 0.7));
+    expect(spread(lv(alone, 1))).toBeLessThan(0.05);
+    expect(spread(lv(alone, 3))).toBeLessThan(0.05);
+    expect(spread(lv(played, 1))).toBeGreaterThan(0.4);
+    expect(spread(lv(played, 1))).toBeLessThan(6);
+    // (its colour: the third partial against the first, pluck to pluck)
+    const colour = lv(played, 3).map((v, k) => v - lv(played, 1)[k]);
+    expect(spread(colour)).toBeGreaterThan(0.5);
+    // on average the player's pluck is the voicing's (within 1.5 dB over sixty plucks)
+    const c = core({ damp: 1 });
+    const m = core({ damp: 1, human: 0 });
+    const one = (k: HarpCore) => {
+      const L = new Float32Array(9600);
+      const R = new Float32Array(9600);
+      k.schedule({ type: 'noteOn', midi: 60, velocity: 84 });
+      k.process(L, R, 9600);
+      k.schedule({ type: 'noteOff', midi: 60 });
+      run(k, 0.4);
+      return rmsDb(L, 0.01, 0.2);
+    };
+    const mach = one(m);
+    let sum = 0;
+    for (let k = 0; k < 60; k++) sum += one(c);
+    expect(Math.abs(sum / 60 - mach)).toBeLessThan(1.5);
+    // a chord's four notes: the voicing plucks them on one instant; a player from the bottom string up, each a
+    // few milliseconds after the one below, the whole within a twentieth of a second
+    const chord = (human: number) => {
+      const k = core({ human });
+      for (const n of [72, 48, 64, 55]) k.schedule({ type: 'noteOn', midi: n, velocity: 80 }, 480);
+      run(k, 0.2);
+      const v = (k.getVisual() as { harp: { plucked: number[] } }).harp.plucked;
+      return [48, 55, 64, 72].map((n) => v[harpStringOf(n)]);
+    };
+    const flat = chord(0);
+    expect(spread(flat)).toBe(0);
+    const rolled = chord(1);
+    for (let k = 1; k < 4; k++) expect(rolled[k], `note ${k} after the one below`).toBeLessThan(rolled[k - 1] - 0.002);
+    expect(rolled[0] - rolled[3]).toBeLessThan(0.05);
+    // the same notes give the same samples; another player's hands are another's
+    const again = six(1);
+    let d = 0;
+    for (let i = 0; i < played.length; i++) d = Math.max(d, Math.abs(played[i] - again[i]));
+    expect(d).toBe(0);
+    const other = renderInstrument({ sampleRate: FS, instrument: 'harp', dry: true, player: 1, events: [{ time: 0.02, event: { type: 'noteOn', midi: 60, velocity: 84 } }] as never, duration: 0.5 }).left;
+    const mine = renderInstrument({ sampleRate: FS, instrument: 'harp', dry: true, events: [{ time: 0.02, event: { type: 'noteOn', midi: 60, velocity: 84 } }] as never, duration: 0.5 }).left;
+    let d2 = 0;
+    for (let i = 0; i < mine.length; i++) d2 = Math.max(d2, Math.abs(mine[i] - other[i]));
+    expect(d2).toBeGreaterThan(1e-5);
+  });
+
+  it('told the notes to come, the finger is on a ringing string before it plucks it again: the old note is stopped a twentieth of a second early; a key in the hand plucks without warning', () => {
+    const twice = (told: boolean, human = 1) => {
+      const ev: { time: number; event: unknown }[] = [{ time: 0.02, event: { type: 'noteOn', midi: 48, velocity: 90 } }];
+      if (told) ev.push({ time: 0.8, event: { type: 'foresee', midi: 48, velocity: 90, dur: 0.5 } });
+      ev.push({ time: 0.8, event: { type: 'noteOn', midi: 48, velocity: 90 } });
+      return renderInstrument({ sampleRate: FS, instrument: 'harp', dry: true, params: { human } as never, events: ev as never, duration: 1.6 }).left;
+    };
+    const f = et(48);
+    const before = (x: Float32Array) => at(x, f, 0.775, 0.798) - at(x, f, 0.6, 0.7);
+    // (not told: the string rings on into the pluck, a decibel or so lower than a tenth of a second before)
+    expect(before(twice(false))).toBeGreaterThan(-4);
+    // told: the finger has been on it for some hundredths of a second
+    expect(before(twice(true))).toBeLessThan(before(twice(false)) - 5);
+    // the voicing alone places no finger
+    expect(before(twice(true, 0))).toBeGreaterThan(-4);
+    // and the note itself is plucked either way
+    for (const x of [twice(true), twice(false)]) expect(rmsDb(x, 0.82, 1.2)).toBeGreaterThan(rmsDb(x, 0.6, 0.78) - 3);
+    // a file that stops: the finger is not placed for a note that will not come (forget)
+    const c = core();
+    c.schedule({ type: 'noteOn', midi: 48, velocity: 90 }, 0);
+    c.schedule({ type: 'foresee', midi: 48, velocity: 90, dur: 0.5 }, Math.round(0.8 * FS));
+    run(c, 0.3);
+    const ringing = (c.getVisual() as { harp: { amp: Float32Array } }).harp.amp[harpStringOf(48)];
+    c.forget();
+    run(c, 0.6);
+    const later = (c.getVisual() as { harp: { amp: Float32Array } }).harp.amp[harpStringOf(48)];
+    expect(later).toBeGreaterThan(0.25 * ringing);
   });
 });

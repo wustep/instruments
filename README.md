@@ -72,7 +72,7 @@ The list lives in `packages/engine/src/core/instrument.ts` (`INSTRUMENT_IDS`).
   * glockenspiel: thirty steel bars, each its pitch and five families of partials measured on recordings,
     struck by a player's two mallets (no two strokes alike; a held key can roll).
 
-  Each is fitted to the University of Iowa MIS recordings (the harp and timpani to VSCO 2 CE, the
+  Each is fitted to the University of Iowa MIS recordings (the timpani to VSCO 2 CE, the harp to VCSL, the
   glockenspiel to the Iowa orchestra bells), and each change is judged on notes held out of the fit
   (`scripts/judge.ts`). Citations are
   in [`docs/RESEARCH.md`](docs/RESEARCH.md), numbers in [`docs/CALIBRATION.md`](docs/CALIBRATION.md).
@@ -124,7 +124,8 @@ Claude Fable 5.2, Anthropic's models, working in Claude Code.
   only, never played as an instrument. Six short Steinway excerpts on the Measurements page are used
   under the MIS terms.
 * **Harp and timpani recordings:** the [VSCO 2 Community Edition](https://github.com/sgossner/VSCO-2-CE)
-  by Versilian Studios (Sam Gossner and Simon Dalzell), CC0. Analysis only.
+  by Versilian Studios (Sam Gossner and Simon Dalzell), CC0, and for the harp's two dynamics their
+  [Versilian Community Sample Library](https://github.com/sgossner/VCSL), CC0. Analysis only.
 * **Pieces:** the [Mutopia Project](https://www.mutopiaproject.org)'s typesettings of Bach, Handel,
   Haydn, Mozart, Beethoven, Chopin and a ground from Playford's Division Violin, played unchanged; each
   file's typesetter, source and sha256 are in `apps/web/src/orchestra/pieces.ts` and on the Notes page.

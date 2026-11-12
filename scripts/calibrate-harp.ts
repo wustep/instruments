@@ -1,6 +1,7 @@
-// The harp against the VSCO 2 CE recordings (scripts/harp-refs.ts): each recorded string plucked by the model
-// (dry, the same string, at the recording's dynamic), both analysed with analyzeRing(), and compared measure
-// by measure. Every second recorded string is held out (the judge's held-out half).
+// The harp against the VCSL recordings (scripts/harp-refs.ts: twenty-three strings, each at two dynamics):
+// each recorded pluck made by the model (dry, the same string, at the recording's dynamic, the voicing itself:
+// `human` 0), both analysed with analyzeRing(), and compared measure by measure. Every second recorded string
+// is held out, both its plucks (the judge's held-out half).
 //   npx tsx scripts/calibrate-harp.ts [--engine <path to an engine's core/index.ts>] [--table] [--write]
 // --write: apps/web/public/data/harp.json (the Measurements page), every string model against recording.
 import { writeFileSync } from 'node:fs';
@@ -13,7 +14,7 @@ import type { Measure, NoteErr } from './judge.ts';
 import { harpRefs, harpRing, type HarpRef } from './harp-refs.ts';
 
 /** the library's dynamic marks as velocities */
-export const MARK_VEL: Record<string, number> = { mp: 55, mf: 70, f: 95 };
+export const MARK_VEL: Record<string, number> = { p: 40, mp: 55, mf: 70, f: 95 };
 const FS = 44100;
 /** seconds rendered after the pluck (the decays are followed for 4 s) */
 /** how long the model's pluck is left to ring (s): the wire strings fall 20 dB in 5–8 s */
@@ -30,7 +31,7 @@ export function modelPluck(r: Pick<HarpRef, 'midi' | 'mark'>, params?: Record<st
     sampleRate: fs,
     instrument: 'harp' as never,
     dry: true,
-    params: params as never,
+    params: { human: 0, ...params } as never,
     events: [{ time: 0.05, event: { type: 'noteOn', midi: r.midi, velocity: MARK_VEL[r.mark] ?? 70 } }],
     duration: durOf(r.midi),
   });
@@ -70,20 +71,21 @@ export async function compareAll(params?: Record<string, unknown>, refs?: HarpRe
 
 /** the recordings' own variation of a per-string value: neighbouring recorded strings differ by this much;
  *  median |Δ| / √2 */
+/** (neighbours at one dynamic: the f plucks among themselves, the softer ones among themselves) */
+const runs = (refs: HarpRef[]): HarpRef[][] => [refs.filter((r) => r.mark === 'f'), refs.filter((r) => r.mark !== 'f')].map((g) => g.slice().sort((a, b) => a.midi - b.midi));
 function spreadOf(refs: HarpRef[], v: (r: HarpRef) => number, min = 1e-6): number {
-  const xs = refs.slice().sort((a, b) => a.midi - b.midi);
   const ds: number[] = [];
-  for (let i = 1; i < xs.length; i++) {
-    const d = Math.abs(v(xs[i]) - v(xs[i - 1]));
-    if (Number.isFinite(d)) ds.push(d);
-  }
+  for (const xs of runs(refs))
+    for (let i = 1; i < xs.length; i++) {
+      const d = Math.abs(v(xs[i]) - v(xs[i - 1]));
+      if (Number.isFinite(d)) ds.push(d);
+    }
   ds.sort((a, b) => a - b);
   return Math.max(min, (ds[Math.floor(ds.length / 2)] ?? 1) / Math.SQRT2);
 }
 function profileSpread(refs: HarpRef[], f: (a: HarpRef, b: HarpRef) => number, min: number): number {
-  const xs = refs.slice().sort((a, b) => a.midi - b.midi);
   const ds: number[] = [];
-  for (let i = 1; i < xs.length; i++) ds.push(f(xs[i], xs[i - 1]));
+  for (const xs of runs(refs)) for (let i = 1; i < xs.length; i++) ds.push(f(xs[i], xs[i - 1]));
   const s = ds.filter(Number.isFinite).sort((a, b) => a - b);
   return Math.max(min, (s[Math.floor(s.length / 2)] ?? 1) / Math.SQRT2);
 }
@@ -96,7 +98,7 @@ export function harpErrors(pairs: Pair[], all?: HarpRef[]): { errs: NoteErr[]; m
   const errs: NoteErr[] = pairs.map(({ ref: r, model: m }) => {
     const k = Math.max(0, lead(r));
     return {
-      key: `harp:${r.name}`,
+      key: `harp:${r.name}:${r.mark}`,
       midi: r.midi,
       held: r.held,
       errs: {
@@ -162,7 +164,7 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     const pick = (a: RingAnalysis) => ({ f0: +a.f0.toFixed(2), levels: a.levels.slice(0, 10).map((x) => (Number.isFinite(x) ? +x.toFixed(1) : null)), decays: a.decays.slice(0, 6).map((x) => (Number.isFinite(x) ? +x.toFixed(1) : null)), ring20: Number.isFinite(a.ring20) ? +a.ring20.toFixed(2) : null, centroid: Math.round(a.centroid), centroidLate: Math.round(a.centroidLate), attack: +a.attack.toFixed(1), level: +a.level.toFixed(1), bands: a.bands.map((x) => +x.toFixed(1)) });
     const out = {
       generated: new Date().toISOString().slice(0, 10),
-      reference: 'VSCO 2 Community Edition harp (Versilian Studios; CC0): twenty-three strings of a concert pedal harp, E1–F7, each plucked once and left to ring',
+      reference: 'Versilian Community Sample Library, Concert Harp (Versilian Studios; CC0): twenty-three strings of a concert pedal harp, E1–F7, each plucked at two dynamics and left to ring',
       velocities: MARK_VEL,
       thirdOct: THIRD_OCT,
       measures: measures.map((m) => ({ name: m.name, spread: +m.spread.toFixed(3) })),

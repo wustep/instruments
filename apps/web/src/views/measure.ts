@@ -590,7 +590,8 @@ interface Harp {
   strings: { name: string; midi: number; mark: string; held: boolean; ref: HarpPluck; model: HarpPluck }[];
 }
 
-/** the harp against the VSCO 2 CE strings: how long each rings, how bright it is, its partials, model and recording */
+/** the harp against the VCSL strings (each at two dynamics): how long each rings, how bright it is, its partials, and
+ *  what a harder pluck does to its colour, model and recording */
 function harpSection(hp: Harp): HTMLElement {
   const leg = () =>
     legend([
@@ -619,14 +620,36 @@ function harpSection(hp: Harp): HTMLElement {
     two('brightness', { label: 'Hz', min: l2(150)!, max: l2(4000)!, ticks: [200, 400, 800, 1600, 3200].map((v) => Math.log2(v)), fmt: (v) => String(Math.round(Math.pow(2, v))) }, (s) => l2(s.centroid), (v) => `${fmt(Math.pow(2, v), 0)} Hz`),
     two('second partial re the first', { label: 'dB', min: -45, max: 15, ticks: [-40, -20, 0], fmt: (v) => String(v) }, (s) => (s.levels[0] !== null && s.levels[1] !== null ? s.levels[1] - s.levels[0] : null), (v) => `${fmt(v, 1)} dB`),
   );
+  // a string's forte pluck against its softer one: how much brighter (octaves of the centroid)
+  const pairsOf = (k: 'ref' | 'model') =>
+    hp.strings
+      .filter((x) => x.mark === 'f')
+      .map((x) => [x, hp.strings.find((y) => y.name === x.name && y.mark !== 'f')] as const)
+      .filter((p): p is readonly [Harp['strings'][0], Harp['strings'][0]] => !!p[1])
+      .map(([f, soft]) => ({ x: f.midi + (k === 'model' ? 0.35 : 0), y: Math.log2(f[k].centroid / soft[k].centroid) }));
+  if (pairsOf('ref').length)
+    grid.append(
+      chart({
+        title: 'a forte pluck’s brightness over a softer one’s',
+        x: xs,
+        y: { label: 'octaves', min: -0.4, max: 1.2, ticks: [0, 0.5, 1], fmt: (v) => String(v) },
+        series: [
+          { name: 'recording', color: 'ref', kind: 'dots', points: pairsOf('ref'), fmt: (v) => `${fmt(v, 2)} oct` },
+          { name: 'model', color: 'model', kind: 'dots', points: pairsOf('model'), fmt: (v) => `${fmt(v, 2)} oct` },
+        ],
+        xName: (m) => midiName(Math.round(m)),
+        width: 300,
+        height: 200,
+      }),
+    );
   const figs = h(
     'div',
     { class: 'figs' },
     fig(
       'A string plucked and left to ring',
-      'each of the twenty-three recorded strings, E1–F7: the seconds its level takes to fall 20 dB from its peak; the spectral centroid of its first quarter second; its octave partial against its fundamental',
+      'each of the twenty-three recorded strings, E1–F7, at two dynamics: the seconds its level takes to fall 20 dB from its peak; the spectral centroid of its first quarter second; its octave partial against its fundamental; how much brighter its forte pluck is than its softer one',
       [leg(), grid],
-      'A harp has no dampers: a wire string of the bass rings for many seconds, a nylon string of the top for a tenth of one. Each note falls fast and then slowly (the string swings in two planes, and only one of them moves the soundboard much), and the other strings answer it. The finger takes the string near its middle, which leaves the even partials weak: the octave lies 10–30 dB under the fundamental. Every second string was held out of the fit.',
+      'A harp has no dampers: a wire string of the bass rings for many seconds, a nylon string of the top for a tenth of one. Each note falls fast and then slowly (the string swings in two planes, and only one of them moves the soundboard much), and the other strings answer it. The finger takes the string near its middle, which leaves the even partials weak: the octave lies 10–30 dB under the fundamental. A harder pluck is not the same pluck louder: the finger lets go more abruptly, and in the middle of the compass the forte pluck is a quarter to most of an octave brighter. Every second string was held out of the fit.',
       true,
     ),
   );
@@ -647,7 +670,7 @@ function harpSection(hp: Harp): HTMLElement {
     'section',
     { class: 'ensemble harp' },
     h('h2', {}, 'Harp against recordings'),
-    h('p', { class: 'hint', style: 'margin-top:8px' }, `VSCO 2 CE (CC0) · ${hp.strings.length} strings of a concert pedal harp, each plucked once · same pitch, dry, same analysis`),
+    h('p', { class: 'hint', style: 'margin-top:8px' }, `VCSL concert harp (CC0) · ${hp.strings.length} plucks on ${new Set(hp.strings.map((x) => x.name)).size} strings of a concert pedal harp, each at two dynamics · same pitch, dry, same analysis`),
     tiles,
     figs,
   );

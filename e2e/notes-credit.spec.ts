@@ -1,7 +1,7 @@
 // The Notes page names who built the instruments, with icon buttons (not text links)
 // to the author's site and X, after the sentence, not inside it; and, over that line, what the work
 // stands on that is not a paper, each a link: Chimera (the vector view is after it; none of its code
-// is used), the Mutopia Project, the Iowa samples, VSCO 2 CE, three.js.
+// is used), the Mutopia Project, the Iowa samples, VSCO 2 CE and VCSL (the harp's two dynamics), three.js.
 import { test, expect } from '@playwright/test';
 
 test('the notes name who built them, with icons to the site and X', async ({ page }) => {
@@ -24,7 +24,7 @@ test('the notes name who built them, with icons to the site and X', async ({ pag
   await expect(credit.locator('.credit-line, .credit-icons, .credit-icons a')).toHaveCount(4);
 });
 
-test('the notes thank what the work stands on, each a link: Chimera (the vector view’s inspiration, none of its code), Mutopia, the Iowa samples, VSCO 2 CE, three.js', async ({ page }) => {
+test('the notes thank what the work stands on, each a link: Chimera (the vector view’s inspiration, none of its code), Mutopia, the Iowa samples, VSCO 2 CE and VCSL, three.js', async ({ page }) => {
   await page.goto('/notes');
   const thanks = page.locator('.notes .thanks');
   await expect(thanks).toBeVisible();
@@ -34,6 +34,7 @@ test('the notes thank what the work stands on, each a link: Chimera (the vector 
     ['Mutopia Project', 'https://www.mutopiaproject.org'],
     ['University of Iowa Musical Instrument Samples', 'https://theremin.music.uiowa.edu/MIS.html'],
     ['VSCO 2 Community Edition', 'https://github.com/sgossner/VSCO-2-CE'],
+    ['Versilian Community Sample Library', 'https://github.com/sgossner/VCSL'],
     ['three.js', 'https://threejs.org'],
   ];
   await expect(thanks.locator('a')).toHaveCount(links.length);
