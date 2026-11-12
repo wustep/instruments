@@ -1,0 +1,341 @@
+{
+ "parts": [
+  {
+   "voice": "flute",
+   "dynamicsDb": 6.560459434453733,
+   "velocities": [
+    52,
+    127
+   ],
+   "file": "toward-morning-01-flute",
+   "notes": 70,
+   "underMixDb": -13.403638966156418,
+   "loudestPct": 0.7142857142857143,
+   "held": {
+    "n": 9,
+    "levelDb": 0.8863628218121798,
+    "pitchCents": 0.23224665337097838,
+    "brightCents": 50.248026353592884,
+    "vibrato": null
+   },
+   "repeats": {
+    "n": 6,
+    "corr": 0.7810971274829102,
+    "corrHigh": 0.9470630545594022,
+    "specDb": 10.118422855569726
+   }
+  },
+  {
+   "voice": "oboe",
+   "dynamicsDb": 4.218868352747144,
+   "velocities": [
+    59,
+    127
+   ],
+   "file": "toward-morning-02-oboe",
+   "notes": 72,
+   "underMixDb": -12.599682767851714,
+   "loudestPct": 0.17857142857142858,
+   "held": {
+    "n": 10,
+    "levelDb": 0.2821824663603916,
+    "pitchCents": 0.184688773872711,
+    "brightCents": 16.96532544042396,
+    "vibrato": null
+   },
+   "repeats": {
+    "n": 8,
+    "corr": 0.9261181033991897,
+    "corrHigh": 0.9505516081320444,
+    "specDb": 8.834393338029846
+   }
+  },
+  {
+   "voice": "clarinet",
+   "dynamicsDb": 2.8934745880006503,
+   "velocities": [
+    74,
+    127
+   ],
+   "file": "toward-morning-03-clarinet",
+   "notes": 195,
+   "underMixDb": -10.733153814589745,
+   "loudestPct": 6.517857142857143,
+   "held": {
+    "n": 2,
+    "levelDb": 0.5081357296865704,
+    "pitchCents": 0.23409001475819596,
+    "brightCents": 62.163967844087736,
+    "vibrato": null
+   },
+   "repeats": {
+    "n": 3,
+    "corr": 0.8724276548540175,
+    "corrHigh": 0.977160818895777,
+    "specDb": 3.846987666873646
+   }
+  },
+  {
+   "voice": "bassoon",
+   "dynamicsDb": 4.18937273421399,
+   "velocities": [
+    56,
+    120
+   ],
+   "file": "toward-morning-04-bassoon",
+   "notes": 77,
+   "underMixDb": -14.16238545351273,
+   "loudestPct": 0.44642857142857145,
+   "held": {
+    "n": 6,
+    "levelDb": 0.3814424394056581,
+    "pitchCents": 0.4686012162233047,
+    "brightCents": 25.528740823120053,
+    "vibrato": null
+   },
+   "repeats": {
+    "n": 19,
+    "corr": 0.7828196703538673,
+    "corrHigh": 0.922983872800785,
+    "specDb": 6.093966227402354
+   }
+  },
+  {
+   "voice": "horn",
+   "dynamicsDb": 3.958230493053634,
+   "velocities": [
+    36,
+    115
+   ],
+   "file": "toward-morning-05-horn",
+   "notes": 54,
+   "underMixDb": -12.166648070183388,
+   "loudestPct": 0.9821428571428571,
+   "held": {
+    "n": 18,
+    "levelDb": 0.17799617309020155,
+    "pitchCents": 0.19134978088024118,
+    "brightCents": 14.66827395122421,
+    "vibrato": null
+   },
+   "repeats": {
+    "n": 11,
+    "corr": 0.7015640594213627,
+    "corrHigh": 0.8729479059003061,
+    "specDb": 6.278057618664632
+   }
+  },
+  {
+   "voice": "trumpet",
+   "dynamicsDb": 4.016899017128267,
+   "velocities": [
+    34,
+    127
+   ],
+   "file": "toward-morning-06-trumpet",
+   "notes": 68,
+   "underMixDb": -12.980316660385558,
+   "loudestPct": 0.7142857142857143,
+   "held": {
+    "n": 9,
+    "levelDb": 0.3133010609251418,
+    "pitchCents": 0.5642950998718645,
+    "brightCents": 51.7910191761517,
+    "vibrato": null
+   },
+   "repeats": {
+    "n": 14,
+    "corr": 0.7886393215266113,
+    "corrHigh": 0.8586970616346618,
+    "specDb": 3.7551095222385578
+   }
+  },
+  {
+   "voice": "trombone",
+   "dynamicsDb": 3.484002413969712,
+   "velocities": [
+    118,
+    127
+   ],
+   "file": "toward-morning-07-trombone",
+   "notes": 50,
+   "underMixDb": -7.024437322876775,
+   "loudestPct": 50.089285714285715,
+   "held": {
+    "n": 17,
+    "levelDb": 0.2527226373826378,
+    "pitchCents": 1.2499080706491434,
+    "brightCents": 79.55989470326804,
+    "vibrato": null
+   },
+   "repeats": {
+    "n": 0,
+    "corr": null,
+    "corrHigh": null,
+    "specDb": null
+   }
+  },
+  {
+   "voice": "timpani",
+   "dynamicsDb": 5.608473577808624,
+   "velocities": [
+    91,
+    127
+   ],
+   "file": "toward-morning-08-timpani",
+   "notes": 157,
+   "underMixDb": -15.832931014415731,
+   "loudestPct": 1.25,
+   "held": {
+    "n": 0,
+    "levelDb": null,
+    "pitchCents": null,
+    "brightCents": null,
+    "vibrato": null
+   },
+   "repeats": {
+    "n": 11,
+    "corr": 0.9297844865825786,
+    "corrHigh": 0.9937153873437414,
+    "specDb": 1.9892605863648314
+   },
+   "rolls": {
+    "n": 6,
+    "depthDb": 6.700485567299765,
+    "perSec": 13.899999999999979,
+    "line": 0.21374822471430538
+   }
+  },
+  {
+   "voice": "violin",
+   "dynamicsDb": 8.171185171987979,
+   "velocities": [
+    51,
+    111
+   ],
+   "file": "toward-morning-09-violin",
+   "notes": 96,
+   "underMixDb": -11.76019187573753,
+   "loudestPct": 2.767857142857143,
+   "held": {
+    "n": 2,
+    "levelDb": 0.20136387921985083,
+    "pitchCents": 7.684128696139993,
+    "brightCents": 86.67605905467359,
+    "vibrato": null
+   },
+   "repeats": {
+    "n": 5,
+    "corr": 0.5199417776072324,
+    "corrHigh": 0.7901600358699586,
+    "specDb": 6.542995912306415
+   }
+  },
+  {
+   "voice": "violin",
+   "dynamicsDb": 8.103716386042798,
+   "velocities": [
+    49,
+    119
+   ],
+   "file": "toward-morning-10-violin",
+   "notes": 104,
+   "underMixDb": -11.522032642341433,
+   "loudestPct": 3.9285714285714284,
+   "held": {
+    "n": 2,
+    "levelDb": 0.3836649857004557,
+    "pitchCents": 8.012474472971165,
+    "brightCents": 99.38720606746459,
+    "vibrato": null
+   },
+   "repeats": {
+    "n": 3,
+    "corr": 0.6779887048509431,
+    "corrHigh": 0.7127570747459802,
+    "specDb": 7.803314756595022
+   }
+  },
+  {
+   "voice": "viola",
+   "dynamicsDb": 12.302465089901894,
+   "velocities": [
+    49,
+    127
+   ],
+   "file": "toward-morning-11-viola",
+   "notes": 232,
+   "underMixDb": -7.651277262547257,
+   "loudestPct": 17.857142857142858,
+   "held": {
+    "n": 0,
+    "levelDb": null,
+    "pitchCents": null,
+    "brightCents": null,
+    "vibrato": null
+   },
+   "repeats": {
+    "n": 31,
+    "corr": 0.3702396598647533,
+    "corrHigh": 0.546111541726256,
+    "specDb": 4.912852797066452
+   }
+  },
+  {
+   "voice": "cello",
+   "dynamicsDb": 4.257444537281522,
+   "velocities": [
+    45,
+    111
+   ],
+   "file": "toward-morning-12-cello",
+   "notes": 98,
+   "underMixDb": -15.272193930579302,
+   "loudestPct": 2.142857142857143,
+   "held": {
+    "n": 5,
+    "levelDb": 0.1487383148339766,
+    "pitchCents": 5.534576582211084,
+    "brightCents": 33.3935522440961,
+    "vibrato": null
+   },
+   "repeats": {
+    "n": 16,
+    "corr": 0.32908237088791614,
+    "corrHigh": 0.5629852755584889,
+    "specDb": 5.068452264911103
+   }
+  },
+  {
+   "voice": "bass",
+   "dynamicsDb": 5.58546966547253,
+   "velocities": [
+    45,
+    127
+   ],
+   "file": "toward-morning-13-bass",
+   "notes": 53,
+   "underMixDb": -10.389240138046052,
+   "loudestPct": 12.410714285714286,
+   "held": {
+    "n": 22,
+    "levelDb": 0.16897205574342553,
+    "pitchCents": 4.613864287055651,
+    "brightCents": 22.50967746019837,
+    "vibrato": {
+     "depth": 16.797747480815442,
+     "rate": 5.749999999999992,
+     "rateSd": 0.4941322360124514,
+     "depthSdPct": 14.445898768211476,
+     "sine": 0.835089138893137
+    }
+   },
+   "repeats": {
+    "n": 17,
+    "corr": 0.6361777775226268,
+    "corrHigh": 0.9547862707403616,
+    "specDb": 3.8884178818894597
+   }
+  }
+ ]
+}
