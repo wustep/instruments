@@ -1,6 +1,7 @@
 // Less of the page round the stage, by two parameters of the address no control sets (address.ts,
 // look.ts): keys=0, no fallboard and no keys, the stage in their room; ui=0, the stage and nothing else
-// (no bar, no band, no file player, no keys), for looking, listening and filming. Each on one instrument
+// (no bar, no band, no file player; the keys only under a piano drawn flat, or as keys=1 asks), for
+// looking, listening and filming. Each on one instrument
 // and on the Orchestra, in 2D, in vector lines and in 3D, on a computer and a phone; each kept by every
 // address the page writes; and with ui=0 everything still asked of the page (window.__player plays the
 // piece the address set up). And the room's knob in 3D, which stood in the stage's corner while the
@@ -51,6 +52,42 @@ const reaches = (s: Awaited<ReturnType<typeof screen>>, top: number | null, what
   const cv = (s.cv3 ?? s.cv) as Box;
   expect(cv, what).not.toBeNull();
   expect([cv![0], cv![2], cv![3]], `${what}: the picture`).toEqual([0, W, H]);
+};
+
+/** ui=0 with the keys: no bar, no band, no file player; the stage from the window's top down to the keys,
+ *  the keys (the fallboard, the position strip on a phone, the keyboard) to its bottom; no scroll */
+const overKeys = (s: Awaited<ReturnType<typeof screen>>, what: string) => {
+  const [W, H] = s.win;
+  for (const k of ['bar', 'band', 'player'] as const) expect(s[k], `${what}: ${k}`).toBeNull();
+  expect(s.dock, `${what}: the keys`).not.toBeNull();
+  expect(s.keys, `${what}: the keys`).not.toBeNull();
+  expect(s.stage, what).not.toBeNull();
+  expect(s.stage!, `${what}: the stage from the top down to the keys`).toEqual([0, 0, W, s.dock![1]]);
+  expect([s.dock![0], s.dock![2], s.dock![3]], `${what}: the keys across the bottom`).toEqual([0, W, H]);
+  expect(s.scroll[0], `${what}: no sideways scroll`).toBeLessThanOrEqual(W);
+  expect(s.scroll[1], `${what}: no scroll down`).toBeLessThanOrEqual(H);
+};
+/** the 2D piano's strings stand over the keys on the screen: each string in view from C3 up begins over
+ *  its own key (the bass, overstrung, fans out from it) */
+const stringsOverKeys = async (page: Page, what: string) => {
+  const off = await page.evaluate(() => {
+    const p = (window as any).__piano2d();
+    const out: string[] = [];
+    let n = 0;
+    for (const q of p.strings) {
+      const k = document.querySelector(`.keyboard .key[data-midi="${q.midi}"]`)!.getBoundingClientRect();
+      if (q.midi < 48 || k.right < 0 || k.left > innerWidth) continue;
+      n++;
+      const white = !document.querySelector(`.keyboard .key[data-midi="${q.midi}"]`)!.classList.contains('black');
+      // (each string at its key's semitone place, as on the page with its bar: a B's or an E's at its
+      // white key's edge, a black key's between its neighbours' whites)
+      const reach = white ? k.width * 0.75 : k.width * 1.25;
+      if (Math.abs(q.x0 - (k.left + k.right) / 2) > reach) out.push(`${q.midi}: ${Math.round(q.x0)} vs ${Math.round(k.left)}–${Math.round(k.right)}`);
+    }
+    return { n, out };
+  });
+  expect(off.n, `${what}: strings over keys in view`).toBeGreaterThan(10);
+  expect(off.out, `${what}: strings away from their keys`).toEqual([]);
 };
 
 test('keys=0: no fallboard and no keys, the stage in their room; one instrument in 2D, vector lines and 3D', async ({ page }) => {
@@ -235,19 +272,31 @@ test('ui=0 on one instrument: the stage’s own knobs stay, the piano changed fr
   await page.evaluate(() => ([...document.querySelectorAll('.presets button')].find((b) => b.textContent!.trim() === 'upright') as HTMLElement).click());
   await expect.poll(() => path(page)).toBe('/piano/upright?view=3d&ui=0');
   await expect.poll(() => page.evaluate(() => (window as any).__piano.piano.preset)).toBe('upright');
-  // 2D too: nothing but the piano
+  // 2D too: nothing but the piano and its keys (a piano drawn flat keeps them: its strings stand over them)
   await page.goto('/piano/upright?view=2d&ui=0');
   await page.waitForTimeout(250);
   s = await screen(page);
-  for (const k of ['bar', 'band', 'player', 'dock', 'cv3'] as const) expect(s[k], k).toBeNull();
-  reaches(s, 0, 'the upright in 2D');
+  for (const k of ['bar', 'band', 'player', 'cv3'] as const) expect(s[k], k).toBeNull();
+  overKeys(s, 'the upright in 2D');
   const p = await page.evaluate(() => (window as any).__piano2d());
   expect(p.upright).toBe(true);
-  expect(p.strings.length).toBe(88);
-  expect(p.box.x0).toBeGreaterThanOrEqual(4);
-  expect(p.box.x1).toBeLessThanOrEqual(s.win[0] - 4);
+  // (every key's strings; on a phone those over the keys in view)
+  expect(p.strings.length).toBeGreaterThan(10);
   expect(p.box.y0).toBeGreaterThanOrEqual(0);
-  expect(p.box.y1).toBeLessThanOrEqual(s.win[1]);
+  expect(p.box.y1).toBeLessThanOrEqual(s.dock![1]);
+  await stringsOverKeys(page, 'the upright in 2D');
+  // and with keys=0, nothing but the piano, whole across the stage
+  await page.goto('/piano/upright?view=2d&ui=0&keys=0');
+  await page.waitForTimeout(250);
+  s = await screen(page);
+  for (const k of ['bar', 'band', 'player', 'dock', 'cv3'] as const) expect(s[k], k).toBeNull();
+  reaches(s, 0, 'the upright in 2D, keys=0');
+  const q = await page.evaluate(() => (window as any).__piano2d());
+  expect(q.strings.length).toBe(88);
+  expect(q.box.x0).toBeGreaterThanOrEqual(4);
+  expect(q.box.x1).toBeLessThanOrEqual(s.win[0] - 4);
+  expect(q.box.y0).toBeGreaterThanOrEqual(0);
+  expect(q.box.y1).toBeLessThanOrEqual(s.win[1]);
   // a page that is not the stage keeps its bar: it is the way back; the stage then is as it was
   await page.goto('/notes?ui=0');
   await expect(page.locator('header.top')).toBeVisible();
@@ -255,9 +304,91 @@ test('ui=0 on one instrument: the stage’s own knobs stay, the piano changed fr
   await page.locator('a.back').click();
   await expect(page.locator('html')).toHaveAttribute('data-route', 'stage');
   await expect.poll(() => path(page)).toMatch(/ui=0$/);
+  await page.waitForTimeout(250);
   s = await screen(page);
-  for (const k of ['bar', 'band', 'player', 'dock'] as const) expect(s[k], k).toBeNull();
-  reaches(s, 0, 'back from the notes');
+  // (the upright drawn flat, as the device has the look: its keys with it)
+  overKeys(s, 'back from the notes');
+  expect(errors).toEqual([]);
+});
+
+test('ui=0 on a piano drawn flat keeps its keys (2D and vector lines), its strings over them; the 3D piano, another instrument and the Orchestra do not, unless keys=1 asks; they follow the look', async ({ page }, info) => {
+  test.setTimeout(150_000);
+  const errors = collectErrors(page);
+  // the grand and the upright, as drawn and in vector lines: the keys stay, the strings stand over them,
+  // and the address is written as ever (no keys parameter: they are the picture's own)
+  for (const [url, want] of [
+    ['/piano?view=2d&ui=0', '/piano?ui=0'],
+    ['/piano?view=vector&ui=0', '/piano?view=vector&ui=0'],
+    ['/piano/upright?view=vector&ui=0', '/piano/upright?view=vector&ui=0'],
+  ]) {
+    await page.goto(url);
+    await expect(page.locator('html')).toHaveAttribute('data-noui', '');
+    await expect(page.locator('html')).not.toHaveAttribute('data-nokeys', '');
+    await expect(page.locator('.keyboard .key')).toHaveCount(88);
+    await page.waitForTimeout(250);
+    overKeys(await screen(page), url);
+    expect((await page.evaluate(() => (window as any).__piano2d())).strings.length, url).toBeGreaterThan(10);
+    await stringsOverKeys(page, url);
+    await expect.poll(() => path(page)).toBe(want);
+  }
+  // the keys play there: a key tapped on the screen sounds
+  await startAudio(page);
+  const key = page.locator('.keyboard .key[data-midi="60"]');
+  await key.scrollIntoViewIfNeeded();
+  const kb = (await key.boundingBox())!;
+  if (info.project.name === 'phone') await page.touchscreen.tap(kb.x + kb.width / 2, kb.y + kb.height * 0.9);
+  else await page.mouse.click(kb.x + kb.width / 2, kb.y + kb.height * 0.9);
+  await expect.poll(() => page.evaluate(() => (window as any).__piano.lastStats?.voices ?? 0)).toBeGreaterThanOrEqual(1);
+  // keys=0 takes them off
+  await page.goto('/piano?view=2d&ui=0&keys=0');
+  await page.waitForTimeout(250);
+  let s = await screen(page);
+  for (const k of ['bar', 'band', 'player', 'dock', 'keys'] as const) expect(s[k], k).toBeNull();
+  reaches(s, 0, 'the grand in 2D, keys=0');
+  await expect.poll(() => path(page)).toBe('/piano?keys=0&ui=0');
+  // the 3D piano has its own keys in the picture: none on the screen, until the look is 2D again (its
+  // buttons are there, not shown), and none once it is 3D again
+  await page.goto('/piano?view=3d&ui=0');
+  await frames3d(page);
+  s = await screen(page);
+  for (const k of ['bar', 'band', 'player', 'dock', 'keys'] as const) expect(s[k], k).toBeNull();
+  reaches(s, 0, 'the grand in 3D');
+  await page.evaluate(() => (document.querySelector('.view-2d') as HTMLElement).click());
+  await expect.poll(() => path(page)).toBe('/piano?ui=0');
+  await expect(page.locator('.dock')).toBeVisible();
+  await page.waitForTimeout(250);
+  overKeys(await screen(page), 'the grand turned to 2D');
+  await stringsOverKeys(page, 'the grand turned to 2D');
+  await page.evaluate(() => (document.querySelector('.dim-toggle') as HTMLElement).click());
+  await expect.poll(() => path(page)).toBe('/piano?view=3d&ui=0');
+  await expect(page.locator('.dock')).toBeHidden();
+  await frames3d(page);
+  reaches(await screen(page), 0, 'the grand turned to 3D again');
+  // keys=1: the keys under the 3D piano too, and under another instrument; kept by the address
+  for (const [url, want] of [
+    ['/piano?view=3d&ui=0&keys=1', '/piano?keys=1&view=3d&ui=0'],
+    ['/violin?view=2d&ui=0&keys=1', '/violin?keys=1&ui=0'],
+  ]) {
+    await page.goto(url);
+    if (url.includes('3d')) await frames3d(page);
+    else await page.waitForTimeout(250);
+    overKeys(await screen(page), url);
+    await expect.poll(() => path(page)).toBe(want);
+  }
+  // another instrument without it: the stage alone, as ever
+  await page.goto('/violin?view=2d&ui=0');
+  await page.waitForTimeout(250);
+  s = await screen(page);
+  for (const k of ['bar', 'band', 'player', 'dock', 'keys'] as const) expect(s[k], k).toBeNull();
+  reaches(s, 0, 'the violin');
+  // the Orchestra: its keys=1 is the first seat's, as ever, and the stage is alone, a piano among its seats or not
+  await page.goto('/orchestra?v=1&seats=grand,violin&keys=1&view=2d&ui=0');
+  await expect.poll(() => page.evaluate(() => (window as any).__orchestra.ensemble.keys.parts)).toEqual([0]);
+  await page.waitForTimeout(250);
+  s = await screen(page);
+  for (const k of ['bar', 'band', 'player', 'dock', 'keys'] as const) expect(s[k], k).toBeNull();
+  reaches(s, 0, 'the orchestra');
+  await expect.poll(() => path(page)).toMatch(/^\/orchestra\?v=1&seats=grand,violin&keys=1&view=2d.*&ui=0$/);
   expect(errors).toEqual([]);
 });
 

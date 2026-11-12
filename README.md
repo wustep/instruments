@@ -55,7 +55,7 @@ The list lives in `packages/engine/src/core/instrument.ts` (`INSTRUMENT_IDS`).
 * **[Measurements](https://instruments-wustep.vercel.app/measurements)** compares the models with their
   reference recordings; **[Notes](https://instruments-wustep.vercel.app/notes)** explains the physics and
   lists the sources.
-* **Less page, for filming:** `keys=0` hides the keys; `ui=0` shows the stage alone.
+* **Less page, for filming:** `keys=0` hides the keys; `ui=0` shows the stage alone (a 2D piano keeps its keys; `keys=1` keeps them on any one instrument).
 
 ## How it works
 

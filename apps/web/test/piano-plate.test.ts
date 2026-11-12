@@ -144,7 +144,8 @@ describe('the upright (2D)', () => {
   });
 });
 
-// With no keys on the screen (an address opened with keys=0 or ui=0) the strings stand over where all 88
+// With no keys on the screen (an address opened with keys=0, or ui=0 under a view that does not keep them:
+// look.ts `keysOnScreen`) the strings stand over where all 88
 // would lie across the stage (`keysAcross`): the upright's case, 1.4 key pitches past its outermost keys,
 // is whole between the stage's sides, on a computer and a phone.
 describe('the 2D pianos with no keys on the screen', () => {

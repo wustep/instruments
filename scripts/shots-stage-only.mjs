@@ -1,7 +1,8 @@
 // The stage with less of the page round it: each scene as the page is, with keys=0 (no fallboard and no
 // keys) and with ui=0 (the stage and nothing else), on a computer and a phone, in 2D, vector and 3D; one
 // instrument and the orchestra. What each shot measured (the stage's box, the window, what is hidden)
-// goes to stdout: the stage must reach the window's bottom with keys=0 and fill it with ui=0.
+// goes to stdout: the stage must reach the window's bottom with keys=0 and fill it with ui=0 (but for a
+// piano drawn flat, which keeps its keys: down to them; scripts/shots-solo-piano-keys.mjs).
 //   BASE=http://localhost:5199 OUT=test-results/stage-only node scripts/shots-stage-only.mjs
 //   (ONLY=desktop|phone, SCENES=piano-2d,symphony-3d, MODES=,keys=0,ui=0)
 import { chromium } from '@playwright/test';

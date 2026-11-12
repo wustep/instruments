@@ -47,6 +47,7 @@ export function startNav(player: MidiPlayer, render: (page: Page) => void): Nav 
     look: look.value,
     expr: player.auto,
     keysOff: !look.keys,
+    keysOn: look.keysOn,
     uiOff: !look.ui,
     rest,
   });
@@ -120,9 +121,10 @@ export function startNav(player: MidiPlayer, render: (page: Page) => void): Nav 
       // the look and the expression are the page's, for this page (the device keeps its own)
       if (a.look) look.ask(a.look);
       if (a.expr !== null) player.setAuto(a.expr, false);
-      // (keys=0: no keys on the screen; ui=0: the stage and nothing else. For as long as the page lives:
-      // every address it writes says so)
+      // (keys=0: no keys on the screen; ui=0: the stage and nothing else; keys=1: the keys with it. For as
+      // long as the page lives: every address it writes says so)
       look.keys = !a.keysOff;
+      look.keysOn = a.keysOn;
       look.ui = !a.uiOff;
     }
     if (a.page === 'stage') {
