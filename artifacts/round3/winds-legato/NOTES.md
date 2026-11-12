@@ -1,6 +1,7 @@
 # Woodwinds from note to note, and 3D tone holes without colour
 
-Branch `improve/winds-legato`, on `0ac0ba5` (main, #71). Two asks: the 3D woodwinds' tone holes should not be
+Branch `improve/winds-legato`, written on `0ac0ba5` (#71) and rebased onto `2651c3b` (#72, which touches
+only the trombone: for the woodwinds "before" is the same engine either way). Two asks: the 3D woodwinds' tone holes should not be
 coloured, and the flute and the winds "sound off, especially the flute when swapping notes".
 
 I cannot hear. Everything here is measured from renders (level, pitch and periodicity every millisecond
@@ -10,8 +11,8 @@ round each change of note; spectra; the pictures below), and the clips are for t
 
 **1. The flute stumbled every time it crossed a register.** A flute's notes up to C♯5 are the first mode of
 its tube, D5 to C♯6 the second (the same fingerings, overblown), D6 and up the third. Inside one register the
-model went from note to note in 12 ms with no hole. Across a break it came 50 to 100 ms late, behind a hole of
-about 10 dB, and in a fifth of the cases the wrong octave sounded first (A4 → E5 slurred: E4 for 137 ms,
+model went from note to note in 12 ms with no hole. Across a break it came about 50 ms late (over 100 in one
+case in ten), behind a hole of about 10 dB, and in a fifth of the cases the wrong octave sounded first (A4 → E5 slurred: E4 for 137 ms,
 then E5). Any scale through D5 or D6 did it, slurred, tongued or after a short rest, from a file or by hand.
 Then, when the note had arrived, its upper harmonics were 4 to 13 dB too strong for a fifth of a second.
 
@@ -117,9 +118,8 @@ coming up (a soft note by hand has the long tone's attack), and a slur now goes 
 is. Before, crossing a register kicked the jet and hid it; within a register a soft slur by hand was always
 so.
 
-At 22.05, 44.1 and 96 kHz the crossings behave as at 48 (a subset of 552 pairs at each): none on a wrong
-register; the only late ones (4 at 44.1 kHz, 6 at 22.05) all start from one note that is itself wrong before
-the change, E♭6 pp of 250 ms, see "left".
+At 22.05, 44.1 and 96 kHz the crossings behave as at 48 (672 pairs at each, 276 of them across a register):
+none late, none on a wrong register, the latest 28, 14 and 11 ms, no slur's hole deeper than 3.8 dB.
 
 ### How the note sounds once it has arrived
 
@@ -216,15 +216,16 @@ Measured the same way, 3024 pairs each, before any change:
 
   (The clarinet's recordings do not segment into notes with this tool.) And every tongue stroke and every
   attack is the same as the last. That is what a player in the engine would be given (`human`, as the tuba,
-  the harp and the glockenspiel have, and the trombone in #72): it is not in this PR. It is a second change
-  of a different kind, #72 is the same idea waiting to be heard, and this PR is easier to judge by ear if it
-  is only the note changes. The numbers above are ready for it.
+  the harp, the glockenspiel and, since #72, the trombone have): it is not in this PR. It is a second change
+  of a different kind, and this PR is easier to judge by ear if it is only the note changes. The numbers
+  above are ready for it.
 * **The flute's vibrato is small:** 6 % of the blowing pressure moves the level by 0.2–0.3 dB. Fletcher (1975)
   measured about 10 % on players, mostly in the upper harmonics. Left as fitted; a player layer is where it
   belongs.
-* **E♭6 pp by hand at 44.1 kHz** speaks on its tube's fourth mode when it is shorter than about 0.3 s (a
-  single note's attack; bit-identical to before, not touched). By hand a few soft short notes near the lower
-  break (D5, E♭5, G5 at pp) are still coming up after 280 ms: the long tone's attack, as fitted.
+* **A few short notes alone, by hand** (nothing announced) are not on their pitch over their second half,
+  as before: 9 of 222 at each of 44.1 and 48 kHz (`scripts/winds-legato.ts --fresh`). Soft D5, E♭5 and G5 of
+  280 ms are still coming up (the long tone's attack, as fitted); E♭6 ff of 280 ms at 44.1 kHz is a third
+  high. A single note's attack, bit-identical to before, not touched.
 * **Oboe and bassoon low-register octaves**, above.
 * **2D** is untouched: no 2D drawer shares the 3D modules' code (nothing outside `ui/gl/` imports them).
 * **The reeds' bell shimmer in 3D**, above: Stephen's call.
