@@ -4,11 +4,11 @@
 
 # Instruments
 
-Fourteen acoustic instruments, physically modelled and computed in real time in the
-browser: a **piano**, a **violin**, a **viola**, a **cello**, a **double bass**, a
+Fifteen acoustic instruments, physically modelled and computed in real time in the
+browser: a **piano**, a **violin**, a **viola**, a **cello**, a **double bass**, a **harp**, a
 **flute**, an **oboe**, a **clarinet**, a **bassoon**, a **horn**, a **trumpet**, a
 **trombone** (alto, tenor and bass), a **tuba** and the **timpani**. No samples are ever played as the sound. Every note is a simulation of
-felt hammers, bows, air jets, reeds and lips driving strings and tubes, which in turn
+felt hammers, bows, fingers, air jets, reeds and lips driving strings and tubes, which in turn
 drive a soundboard or body, or of felt mallets on the air-loaded membranes of kettledrums.
 
 **Play it:** [https://instruments-wustep.vercel.app](https://instruments-wustep.vercel.app)
@@ -23,6 +23,7 @@ Each instrument has its own address
 [viola](https://instruments-wustep.vercel.app/viola),
 [cello](https://instruments-wustep.vercel.app/cello),
 [double bass](https://instruments-wustep.vercel.app/bass),
+[harp](https://instruments-wustep.vercel.app/harp),
 [flute](https://instruments-wustep.vercel.app/flute),
 [oboe](https://instruments-wustep.vercel.app/oboe),
 [clarinet](https://instruments-wustep.vercel.app/clarinet),
@@ -75,7 +76,7 @@ artifacts if you want them after all.
   alike: the architecture, the commands, the gate before a merge, the checklist for a new
   instrument, and each rule with the test that enforces it.
 
-**Places to start.** A fourteenth instrument (the checklist in `AGENTS.md`; the oboe, clarinet and
+**Places to start.** A sixteenth instrument (the checklist in `AGENTS.md`; the oboe, clarinet and
 bassoon were each one pull request of the same shape). Your own piece: drop a MIDI file on the
 Orchestra, and its address becomes a preset you can share. Another look for the stage:
 `apps/web/src/ui/vector` is a second drawing of every instrument on the same data. A voicing you
@@ -102,7 +103,7 @@ disagree with: every fitted number is in a `*-tuning.json` or `*-fit.json` next 
     that off. `apps/web/src/expression.ts`.
   * On the computer keyboard, hold `Space` for sustain and `Shift` for una corda.
 * **The top panel.** The bar is what is on the stage and how it is seen: the instruments by family (one
-  button and a sheet of all fourteen on a phone or a narrow window, four to a row and every row a kind), the orchestra, the piano's kind, the
+  button and a sheet of all fifteen on a phone or a narrow window, four to a row and every row a kind), the orchestra, the piano's kind, the
   view, the two pages. The band under it is what is sounding: the readout names every note (one note with
   its frequency; a few notes with the chord they make; many, counted with their span; an ensemble, how
   many of its parts), then the spectrum and one instrument's excitation or an ensemble's parts, each lit
@@ -207,6 +208,18 @@ disagree with: every fitted number is in a `*-tuning.json` or `*-fit.json` next 
     resonances, so open strings ring sympathetically. The double bass is the same
     physics at its own measures: a 3/4 bass tuned in fourths (E1–G4), its air
     mode near 60 Hz among its own fundamentals.
+* **Harp.**
+  * **Strings.** A concert pedal harp's forty-seven strings, C1–G7 (wire in the
+    bass, gut, nylon at the top), each as its partials: plucked near its middle,
+    which leaves the even ones weak; stiff, so the upper ones are sharp. Each
+    string swings in two planes, one that moves the soundboard and is soon spent
+    and one that rings on, so a note falls fast and then slowly. Nothing damps
+    it: a harp has no dampers, and the other strings answer every pluck.
+  * **Pedals.** Seven, one per letter (D C B | E F G A), each with three notches:
+    flat, natural, sharp. A note the strings do not have moves the pedal that
+    reaches it, choosing the one that retunes no ringing string and keeps the
+    notes a file says are coming. A finger drawn across the keys is a glissando:
+    each white key is its string, at whatever pitch its pedal gives it.
 * **Flute.**
   * **Jet and tube.** A jet of breath is deflected by the sound in the tube. The
     time a ripple takes to travel along the jet decides which resonance it feeds.
@@ -291,6 +304,7 @@ CPU and latency: [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
 | **Soundboard** | ≈150-mode passive modal board at three bridge zones, coupled to every undamped string, giving sympathetic resonance | modes are plausible rather than measured; above ~3 kHz a smoothed path; the bass aftersound is still short |
 | **Dampers / pedals** | continuous damper contact with half-pedal, undamped top keys, sostenuto, pitched damper noise | key and action noises are short synthetic pulses |
 | **Bowed strings** | stick–slip friction with hysteresis, Helmholtz motion, bow position/force/speed (Schelleng), one shared bow with length, direction and automatic bow changes, stopped strings with vibrato, four strings on one bridge, modal body with A0/B1 modes, sympathetic open strings | torsional waves, bow width and the bridge hill on the cello and the double bass only; body modes from the literature, their radiation **fitted to Iowa MIS recordings** (violin and viola note by note on held-out-checked halves, with the Helmholtz corner's brightness following the bow force), not measured |
+| **Harp** | 47 strings as modal resonators (up to 64 partials each) with stiffness, a pluck at a place along the string through the finger's low-pass, two polarisations (the two-stage decay), the tension's octave, sympathetic strings, seven pedals with three notches; voicing **fitted to the VSCO 2 CE harp** | the soundboard and box are a high-pass, two resonances and a shelf, with four knock modes; no buzz of a wire string against its disc, no harmonics, no pedal slides |
 | **Flute** | jet-drive feedback with jet delay from blowing pressure, overblowing, Strouhal-limited jet, offset jet (even harmonics), vortex-shedding amplitude limit, monopole radiation, turbulence noise, open–open bore; voicing **fitted to Iowa MIS recordings** | no tone holes or bore taper; low-register H2 at mf/ff still ~10 dB short of a real flute; per-note tuning uses a measured voicing table |
 | **Oboe** | double reed blown closed (quasi-static Bernoulli flow, closing at pM), conical bore as two waveguides meeting at the reed (cylindrical saxophone), dynamics through the reed's opening (lips), tonguing, turbulence noise; voicing and radiation **fitted to Iowa MIS recordings** | no tone holes, octave vents or reed resonance; each note is played on the tube whose fundamental it is; low notes at ff speak slowly (the fundamental takes over from the 4th–6th harmonics in about 0.3 s); per-note tuning uses a measured voicing table |
 | **Bassoon** | the oboe's double reed and two-tube conical bore with a long missing apex (0.14 m), walls losing more a few octaves above the note, dynamics through the reed's opening, tonguing, turbulence noise; voicing and radiation (its fixed formant near 480 Hz) **fitted to Iowa MIS recordings** | no tone holes, half-hole, flick or whisper key (each note on the tube whose fundamental it is); C♯3–D♯3 at mf/ff radiate their odd harmonics weakly (heard leaning to the octave); per-note tuning uses a measured voicing table |
@@ -341,7 +355,11 @@ CPU and latency: [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
   to say BETTER). Third-octave spectral error now: double bass 4.9 dB, oboe 10.5,
   clarinet 4.0, bassoon 8.7, horn 14.4, trumpet 3.3, trombones 5.5, tuba 14.4; pitch within
   0.2–3 ¢ RMS. The timpani, against the VSCO 2 CE drums in a room: partials within
-  31 ¢, their levels within 8 dB, the principal tone's decay matched. The whole
+  31 ¢, their levels within 8 dB, the principal tone's decay matched. The harp,
+  against the VSCO 2 CE strings (one pluck each): brightness and the time to fall
+  20 dB matched in the median, partials' levels within 9 dB; on its held-out
+  strings the judge says NO CLEAR CHANGE against the voicing first set by hand
+  (1.59 → 1.32, Δ 0.27 ± 0.15). The whole
   table is on the [Notes](https://instruments-wustep.vercel.app/notes) page, and the
   histories are in `docs/ensemble-rounds.json` and `artifacts/round3/`.
 
@@ -367,6 +385,8 @@ npx tsx scripts/fit-bassoon.ts    # the bassoon's, the same way (tune-bassoon.ts
 npx tsx scripts/fit-horn.ts       # the horn's, the same way (tune-horn.ts, horn-regimes.ts: every note on its partial, render-horn.ts)
 npx tsx scripts/fit-horn.ts --instrument tuba   # the tuba's: the horn's engine, the Iowa tuba (tune-horn.ts and horn-regimes.ts take --instrument tuba too)
 npx tsx scripts/fit-trombone.ts   # the trombone's: the Iowa tenor and bass trombones, three sizes (tune-trombone.ts, trombone-regimes.ts, trombone-grid.ts, render-trombone.ts)
+npx tsx scripts/harp-refs.ts      # the VSCO 2 CE harp (CC0; .cache/vsco-harp), each string analysed as a pluck left to ring
+npx tsx scripts/fit-harp.ts       # the harp's voicing on every second string (--polish; calibrate-harp.ts --table / --write)
 npx tsx scripts/timpani-refs.ts   # the VSCO 2 CE timpani (CC0; .cache/vsco-timpani), analysed as struck strokes
 npx tsx scripts/fit-timpani.ts    # the timpani's voicing on drums 1, 3, 5 (polish-timpani.ts, tune-timpani.ts, calibrate-timpani.ts --write, render-timpani.ts)
 npx tsx scripts/judge.ts --instrument <id> --before <an older checkout's engine>   # BETTER / WORSE / NO CLEAR CHANGE on held-out notes
@@ -418,6 +438,10 @@ inst.control(11, 0.8);                       // expression
   see into, and the alto trombone has no recording of its own.
 * **Timpani.** Iowa has no timpani: the reference is one set of five drums
   recorded in a room (VSCO 2 CE, 24 strokes), not an anechoic one.
+* **Harp.** Iowa has no harp either: the reference is twenty-three strings of
+  one harp, each plucked once at one dynamic (VSCO 2 CE). The soundboard is a
+  few filters, not a model of the board; there are no harmonics, no près de la
+  table but by the pluck knob, and no buzz of a string against its disc.
 * **Orchestra.** A seat is one player on one engine, so a section is as many
   instruments as it has seats (twenty-four at most, fewer where the audio thread
   could not keep up), not the blend of a real section's many. Levels between
@@ -437,7 +461,7 @@ Claude Fable 5.2, Anthropic's models, working in Claude Code.
   and bass trombones (1997) and tuba (1997). They are used for analysis only, never played as an instrument and never
   committed. The six short labelled excerpts on the Measurements page are used under the MIS terms
   ("used for any projects, without restrictions").
-* **Timpani recordings:** the [VSCO 2 Community Edition](https://github.com/sgossner/VSCO-2-CE) by
+* **Timpani and harp recordings:** the [VSCO 2 Community Edition](https://github.com/sgossner/VSCO-2-CE) by
   Versilian Studios (Sam Gossner and Simon Dalzell), CC0. Analysis only, as above.
 * **Pieces:** the [Mutopia Project](https://www.mutopiaproject.org)'s typesettings of Bach, Handel,
   Haydn, Mozart, Beethoven, Chopin and a ground from Playford's Division Violin, played unchanged; each

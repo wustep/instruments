@@ -71,15 +71,15 @@ const isBowed = (v: Voice): boolean => VOICE_INFO[v].poly === 4;
  *  Mac, offline: scripts/stage-cost.ts, the busier of its own piece and idle, rounded up; a piano with 32
  *  voices, as two on the stage have): what decides how many instruments a piece or an address may seat
  *  (fitLineup) */
-export const VOICE_COST: Record<Voice, number> = { grand: 16, upright: 17, violin: 2, viola: 2, cello: 2.6, bass: 2.9, harp: 2.9, flute: 1.3, oboe: 1.3, clarinet: 1.3, bassoon: 1.3, horn: 1.2, trumpet: 1.2, trombone: 1.8, tuba: 1.2, timpani: 2 };
+export const VOICE_COST: Record<Voice, number> = { grand: 16, upright: 17, violin: 2, viola: 2, cello: 2.6, bass: 2.9, harp: 3.7, flute: 1.3, oboe: 1.3, clarinet: 1.3, bassoon: 1.3, horn: 1.2, trumpet: 1.2, trombone: 1.8, tuba: 1.2, timpani: 2 };
 /** a lineup's cost (VOICE_COST summed) */
 export const lineupCost = (lineup: Voice[]): number => lineup.reduce((s, v) => s + (VOICE_COST[v] ?? 0), 0);
-/** the heaviest lineup of `n` instruments the stage has seated by count: two pianos (the most it takes)
- *  and the heaviest of the others */
+/** the heaviest lineup of `n` instruments the stage was sized for by count: two pianos (the most it takes)
+ *  and double basses, the heaviest of the others when it was measured on the devices. (A harp left to ring
+ *  costs more than a bass: it is counted at its own cost, and does not raise what the stage may hold.) */
 export const heaviestCost = (n: number): number => {
   const kb = Math.max(...VOICES.filter(isKeyboard).map((v) => VOICE_COST[v]));
-  const other = Math.max(...VOICES.filter((v) => !isKeyboard(v)).map((v) => VOICE_COST[v]));
-  return Math.min(2, n) * kb + Math.max(0, n - 2) * other;
+  return Math.min(2, n) * kb + Math.max(0, n - 2) * VOICE_COST.bass;
 };
 /** the most seats an Orchestra has (an address is read for no more: address.ts) */
 export const MAX_SEATS = 24;

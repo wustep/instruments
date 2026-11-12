@@ -162,6 +162,21 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     await t.useEngine(opt('--before') ? resolve(opt('--before')!) : undefined);
     const before = t.harpErrors(await t.compareAll());
     await t.useEngine(opt('--after') ? resolve(opt('--after')!) : undefined);
+    if (opt('--folds')) {
+      // Two folds (one recorded pluck a string leaves eleven held-out strings: few). --folds a.json,b.json:
+      // a the voicing fitted on the strings not held (fit-harp.ts), b the one fitted on the held ones
+      // (fit-harp.ts --swap); each string is judged by the voicing that never saw it, so all twenty-three
+      // are held out.
+      const { readFileSync } = await import('node:fs');
+      const [a, b] = opt('--folds')!.split(',').map((f) => JSON.parse(readFileSync(f, 'utf8')) as Record<string, number>);
+      const ea = t.harpErrors(await t.compareAll({ voice: a })).errs;
+      const eb = t.harpErrors(await t.compareAll({ voice: b })).errs;
+      const merged = ea.map((n, i) => ({ ...(n.held ? n : eb[i]), held: true }));
+      const v = judge(before.errs.map((n) => ({ ...n, held: true })), merged, before.measures);
+      printVerdict(v, `harp, two folds: ${opt('--before') ? 'before' : 'this'} → each string by the voicing fitted without it`);
+      if (args.includes('--json')) console.log(JSON.stringify(v));
+      process.exit(0);
+    }
     const after = t.harpErrors(await t.compareAll());
     const v = judge(before.errs, after.errs, before.measures);
     printVerdict(v, `harp: ${opt('--before') ? 'before' : 'this'} → ${opt('--after') ?? 'this checkout'}`);

@@ -81,6 +81,23 @@ describe('the harp in 3D', () => {
     expect(hi).toBeGreaterThan(1.8);
   });
 
+  it('in an orchestra it stands on the first riser at the woodwinds’ left, beside the flute, and nobody else has moved for it but along that row', () => {
+    const fam = (family: string, extra: object = {}) => ({ family, kind: 'grand', bowed: null, ...extra }) as never;
+    const others = [fam('bowed', { bowed: { id: 'violin' } }), fam('bowed', { bowed: { id: 'violin' } }), fam('bowed', { bowed: { id: 'viola' } }), fam('bowed', { bowed: { id: 'cello' } }), fam('wind'), fam('reed', { reed: 'oboe' }), fam('reed', { reed: 'clarinet' }), fam('brass', { brass: 'horn' }), fam('brass', { brass: 'trumpet' }), fam('percussion')];
+    const withIt = [...others.slice(0, 4), fam('plucked'), ...others.slice(4)];
+    const a = ensembleSeats(others);
+    const b = ensembleSeats(withIt);
+    const harp = b[4];
+    const flute = b[5];
+    // on the woodwinds' riser, at the flute's left (−x: the audience's left), a seat's width from it
+    expect(harp.c[1]).toBeCloseTo(flute.c[1], 6);
+    expect(harp.c[1]).toBeGreaterThan(0.1);
+    expect(harp.c[0]).toBeLessThan(flute.c[0] - 0.8);
+    expect(Math.hypot(harp.c[0] - flute.c[0], harp.c[2] - flute.c[2])).toBeLessThan(1.4);
+    // the strings, the brass and the timpani are where they were
+    for (const [i, j] of [[0, 0], [1, 1], [2, 2], [3, 3], [7, 8], [8, 9], [9, 10]]) for (const k of [0, 1, 2]) expect(b[j].c[k], `seat ${i} axis ${k}`).toBeCloseTo(a[i].c[k], 6);
+  });
+
   it('stands on the floor on its own, inside its bounds', () => {
     let lowY = Infinity;
     let far = 0;

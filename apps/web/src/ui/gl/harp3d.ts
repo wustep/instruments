@@ -49,9 +49,10 @@ export interface HarpModel {
 /** the camera for the harp alone (scenes3d viewFor): three-quarter from the audience's side, the strings
  *  fanned across the picture; a narrow stage may swing further round */
 export const HARP_VIEW = { yaw: -0.5, pitch: 0.1, swing: 0.5 };
-/** a harp in the Orchestra stands on the floor by its player: its turn from the seat's facing (its strings'
- *  plane towards the conductor), its footprint's radius and its top (m) */
-export const HARP_SEAT = { r: 0.6, top: 1.95, turn: Math.PI / 2 };
+/** a harp in the Orchestra stands on the floor by its player: its turn from the seat's facing (its profile to
+ *  the hall, the column towards the conductor and the player behind the soundbox, as a harp is seen from the
+ *  audience), its footprint's radius and its top (m) */
+export const HARP_SEAT = { r: 0.6, top: 1.95, turn: Math.PI };
 
 /** a side-view outline (x, y) as a slab between z0 and z1 */
 const slab = (mb: Parameters<typeof box>[0], pts: P2[], z0: number, z1: number, m: typeof M.maple) => mb.with(rotX(-Math.PI / 2), () => extrude(mb, pts.map(([x, y]): P2 => [x, y]), -z1, -z0, m));

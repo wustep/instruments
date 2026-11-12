@@ -453,7 +453,7 @@ type SeatIn = Pick<EnsPartIn, 'family' | 'kind' | 'bowed'> & { reed?: EnsPartIn[
 /** a part as the seating takes it */
 const seatKind = (p: SeatIn): SeatKind => {
   const id = p.bowed?.id;
-  const inst: Inst = p.family === 'piano' ? p.kind : p.family === 'bowed' ? (id === 'viola' || id === 'cello' || id === 'bass' ? id : 'violin') : p.family === 'wind' ? 'flute' : p.family === 'reed' ? (p.reed ?? 'oboe') : p.family === 'brass' ? (p.brass ?? 'trumpet') : 'timpani';
+  const inst: Inst = p.family === 'piano' ? p.kind : p.family === 'bowed' ? (id === 'viola' || id === 'cello' || id === 'bass' ? id : 'violin') : p.family === 'wind' ? 'flute' : p.family === 'reed' ? (p.reed ?? 'oboe') : p.family === 'brass' ? (p.brass ?? 'trumpet') : p.family === 'plucked' ? 'harp' : 'timpani';
   return { family: p.family, kind: p.kind, cello: inst === 'cello' || inst === 'bass', bass: inst === 'bass', inst };
 };
 export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {

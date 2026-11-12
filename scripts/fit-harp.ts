@@ -16,13 +16,15 @@ import { HARP_VOICE, type HarpVoice } from '../packages/engine/src/core/harp.ts'
 type Key = keyof HarpVoice;
 /** what the search may move, within what, and whether on a log scale */
 export const RANGES: Partial<Record<Key, [number, number, boolean?]>> = {
-  beta: [0.3, 0.5],
-  betaTop: [0.12, 0.5],
+  // (never the string's very middle: a finger has a width and a hand its habits, and no recorded string's
+  // even partials are gone: its fourth and sixth lie 25–45 dB under, not 150)
+  beta: [0.3, 0.485],
+  betaTop: [0.12, 0.485],
   slope: [0.3, 2.4],
   corner: [300, 9000, true],
   cornerOct: [0.8, 2.2],
   order: [0.5, 4],
-  d0: [1, 40, true],
+  d0: [1, 90, true],
   d0Oct: [1, 2.6],
   d1: [3, 250, true],
   d1Oct: [0.5, 2.2],
@@ -51,6 +53,9 @@ export const RANGES: Partial<Record<Key, [number, number, boolean?]>> = {
   knockTau: [0.008, 0.15, true],
   symp: [0.002, 0.2, true],
   octave: [0.005, 0.6, true],
+  pol: [0.02, 0.8],
+  polDecay: [0.04, 1, true],
+  polCents: [0, 8],
 };
 const KEYS = Object.keys(RANGES) as Key[];
 
@@ -65,8 +70,10 @@ const fromU = (k: Key, u: number) => {
 };
 
 const all = await harpRefs();
-const fitRefs = all.filter((r) => !r.held);
-const heldRefs = all.filter((r) => r.held);
+// (--swap: the halves exchanged, for the other fold of a two-fold cross-check: scripts/judge-harp-folds.ts)
+const SWAP = process.argv.includes('--swap');
+const fitRefs = all.filter((r) => r.held === SWAP);
+const heldRefs = all.filter((r) => r.held !== SWAP);
 // the measures' spreads from every recorded string (the recordings' own variation)
 const SPREADS = harpErrors(await compareAll(undefined, all), all).measures;
 

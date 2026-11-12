@@ -16,7 +16,8 @@ import { harpRefs, harpRing, type HarpRef } from './harp-refs.ts';
 export const MARK_VEL: Record<string, number> = { mp: 55, mf: 70, f: 95 };
 const FS = 44100;
 /** seconds rendered after the pluck (the decays are followed for 4 s) */
-const DUR = 4.6;
+/** how long the model's pluck is left to ring (s): the wire strings fall 20 dB in 5–8 s */
+const durOf = (midi: number) => (midi < 45 ? 9.6 : 4.6);
 
 let RENDER = renderInstrument;
 export async function useEngine(path?: string): Promise<void> {
@@ -31,7 +32,7 @@ export function modelPluck(r: Pick<HarpRef, 'midi' | 'mark'>, params?: Record<st
     dry: true,
     params: params as never,
     events: [{ time: 0.05, event: { type: 'noteOn', midi: r.midi, velocity: MARK_VEL[r.mark] ?? 70 } }],
-    duration: DUR,
+    duration: durOf(r.midi),
   });
   const x = new Float32Array(out.left.length);
   for (let i = 0; i < x.length; i++) x[i] = 0.5 * (out.left[i] + out.right[i]);
@@ -89,6 +90,9 @@ function profileSpread(refs: HarpRef[], f: (a: HarpRef, b: HarpRef) => number, m
 
 /** per-string errors and the measures (each in units of the recordings' own string-to-string variation) */
 export function harpErrors(pairs: Pair[], all?: HarpRef[]): { errs: NoteErr[]; measures: Measure[] } {
+  // the level is each string's against the others': the library's gain is its session's, not the
+  // instrument's (the model's is set beside the piano's), so the median difference over the strings is taken out
+  const gain = median(pairs.map(({ ref: r, model: m }) => m.level - r.level));
   const errs: NoteErr[] = pairs.map(({ ref: r, model: m }) => {
     const k = Math.max(0, lead(r));
     return {
@@ -105,7 +109,7 @@ export function harpErrors(pairs: Pair[], all?: HarpRef[]): { errs: NoteErr[]; m
         later: Math.log2(m.centroidLate / r.centroidLate),
         attack: m.attack - r.attack,
         stretch: stretchErr(m, r),
-        level: m.level - r.level,
+        level: m.level - r.level - (Number.isFinite(gain) ? gain : 0),
       },
     };
   });

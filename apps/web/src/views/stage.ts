@@ -115,11 +115,12 @@ const VISIBLE_PRESETS = ['grand', 'upright'];
  *  section's menu adds more desks, as far as the stage has room: assign.ts fitsStage) */
 const MOST: Record<Voice, number> = { flute: 2, oboe: 2, clarinet: 2, bassoon: 2, horn: 4, trumpet: 2, trombone: 3, tuba: 1, timpani: 2, violin: 3, viola: 2, cello: 2, bass: 2, harp: 2, grand: 2, upright: 2 };
 const familyOf = (v: Voice) => INSTRUMENT_INFO[VOICE_INFO[v].instrument].family;
-/** the picker's groups, as a score orders them after the keys: the eye finds a family, then the instrument */
+/** the picker's groups, as a score orders them after the keys (the harp is written with them): the eye finds
+ *  a family, then the instrument */
 const GROUPS = ['keys', 'strings', 'woodwinds', 'brass', 'percussion'] as const;
 const groupOf = (id: InstrumentId): (typeof GROUPS)[number] => {
   const f = INSTRUMENT_INFO[id].family;
-  return f === 'piano' ? 'keys' : f === 'bowed' || f === 'plucked' ? 'strings' : f === 'brass' ? 'brass' : f === 'percussion' ? 'percussion' : 'woodwinds';
+  return f === 'piano' || f === 'plucked' ? 'keys' : f === 'bowed' ? 'strings' : f === 'brass' ? 'brass' : f === 'percussion' ? 'percussion' : 'woodwinds';
 };
 /** where the picker folds behind one button (a sheet of every instrument, large enough to read and to
  *  touch): a phone either way up, a narrow window */
@@ -1299,6 +1300,12 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     unsubVis?.();
     visOf = p;
     syncKnobs(p.params as unknown as Record<string, number>);
+    // (an engine's own parameters are known when it is ready: a page opened on an instrument's address
+    // showed every knob at its middle until then, and for good)
+    void p.ready.then(
+      () => audio.piano === p && syncKnobs(p.params as unknown as Record<string, number>),
+      () => {},
+    );
     unsubVis = p.onVisual((v) => {
       frame = v;
       // the harp's pedals move themselves for a note no string has (engine core/harp.ts): the pedals' knobs

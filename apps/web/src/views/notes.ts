@@ -175,6 +175,18 @@ export function notesView(): View {
       ],
     },
     {
+      id: 'harp',
+      title: 'Harp',
+      body: [
+        p('A harp is strings and almost nothing else: forty-seven of them, C1 to G7, wire in the bass, gut through the middle, nylon at the top, each fastened at one end to a soundboard it pulls on directly. Nothing strikes them and nothing damps them. A finger draws a string aside near its middle and lets it go; it rings until it has given its energy away or a hand stops it, and while it rings the other forty-six answer it. So each string here is its own partials, up to sixty-four exact resonators each, set going by the pluck and left alone.'),
+        eq('aₙ ∝ sin(nπβ) / n^s · 1/√(1 + (fₙ/f_c)^2p),   fₙ = n·f₀·√(1 + B·n²)', 'a string plucked at the fraction β of its length (β near ½: the even partials nearly vanish), through the finger’s release (a low-pass at f_c); stiff, so the upper partials are sharp'),
+        p('Plucked at its very middle a string would have no even partials at all. The recordings’ second partial is there, 16–20 dB under the first, while the fourth and sixth are 30–45 dB under: it is the string’s own tension, which swings twice a cycle whatever the pluck’s place and pulls the board along the string at twice the fundamental (Legge & Fletcher 1984). The model adds that octave, growing with the pluck.'),
+        p('A string swings in two planes. Across the soundboard it moves the board, is heard at once and is soon spent; along the board it hardly moves it and rings on; and the two are never quite at one pitch. So a harp note falls fast, then slowly, and wavers a little as it goes (Weinreich 1977 found it on the piano; Woodhouse 2004 on plucked strings). Each of a string’s first eight partials is two resonators here, one for each plane. The strings that answer a pluck (those with a partial within a few cents of one of the plucked string’s: its octaves, twelfths and double octaves most, Le Carrou et al. 2009) ring in the slow plane, and are the halo a harp has and a piano with its dampers down has not.'),
+        p('The seven pedals are the harp’s whole chromatic machinery: one for every letter (D, C, B at the left foot; E, F, G, A at the right), each with three notches. Up, every string of that letter is open and flat; in the middle a disc turns against it and shortens it a semitone, natural; down, a second disc, sharp. A harp is tuned in C♭ major and played in whatever key its pedals set, which is why its glissando is a chord or a scale and never chromatic: a finger drawn across the strings sounds whatever the pedals have made of them. Here a finger drawn across the keys does the same (each white key is its string), and a note the strings do not have moves the pedal that reaches it: the one that retunes no string still ringing, keeps the notes a file says are coming, and travels least; of two spellings, the one that comes first among the key signatures (B♭ before A♯).'),
+        p('The soundboard and the box behind it are a few filters fitted to recordings, not a model of the board: a low cut (a harp’s board radiates little under 100 Hz, so the bass strings are heard by their upper partials), two resonances, a shelf, and four of the board’s own modes knocked by each pluck. The voicing was fitted to twenty-three recorded strings of one concert harp (VSCO 2 CE; every second string held out): brightness and the time a string takes to fall 20 dB match the recordings in the median, the partials’ levels within 9 dB. One pluck a string is little to judge by: on the strings held out the fit is not clearly better than the voicing first set by hand (the table under Calibration).'),
+      ],
+    },
+    {
       id: 'flute',
       title: 'Flute',
       body: [
@@ -305,7 +317,7 @@ export function notesView(): View {
       id: 'calibration',
       title: 'Calibration: measured against real instruments',
       body: [
-        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, double bass, flute, oboe, B♭ clarinet, bassoon, horn, trumpet, tenor and bass trombones and tuba — and, for the timpani (Iowa has none), the VSCO 2 Community Edition’s (Versilian Studios, CC0), used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
+        p('The models are tuned against recordings from the University of Iowa Musical Instrument Samples — a Steinway model B, and violin, viola, cello, double bass, flute, oboe, B♭ clarinet, bassoon, horn, trumpet, tenor and bass trombones and tuba — and, for the timpani and the harp (Iowa has neither), the VSCO 2 Community Edition’s (Versilian Studios, CC0), used for analysis only. The same analysis runs on the recording and on a dry render of the model at the same notes and dynamics, and parameters move only to reduce the measured difference.'),
         h3('Like with like, and a judge'),
         ul(
           'Each model note is rendered exactly as long as the part of the recording that is analysed, with vibrato only where the player used it; a note’s pitch with vibrato is the centre of its fine pitch track.',
@@ -345,6 +357,11 @@ export function notesView(): View {
           ['VSCO 2 CE, a room', 'partials’ frequencies ¢', 'partials’ levels dB', 'spectrum dB', 'brightness ×', '(1,1) decay ×', 'pitch ¢'],
           [['timpani', '31', '8.1', '14.8', '0.98', '1.00', '0.3']],
           'Five pedal drums struck pp, mf and ff, two takes each (24 strokes; drums 2 and 4 held out of the fit: judge BETTER, held-out 9.25 → 3.50). Brightness pp 151 / 148 Hz, mf 195 / 201, ff 272 / 363 (model / recording).',
+        ),
+        table(
+          ['VSCO 2 CE', 'partials’ levels dB', 'spectrum dB', 'brightness ×', 'time to fall 20 dB ×', 'partials’ stretch ¢'],
+          [['harp', '8.9', '11.0', '1.00', '0.99', '7.3']],
+          'Twenty-three strings of one harp, E1–F7, each plucked once (every second string held out of the fit). Against the voicing first set by hand the judge says NO CLEAR CHANGE on the held-out strings (1.59 → 1.32, Δ 0.27 ± 0.15; the fit half 1.63 → 0.91): eleven single plucks, each with its own place under the finger, cannot tell the two apart, and the fitted one is kept as measured, not as proven.',
         ),
         p('Full histories are in the repository (', code('docs/calibration-rounds.json'), ', ', code('docs/ensemble-rounds.json'), ', ', code('artifacts/round3/'), '), and the Measurements page charts the details.'),
       ],
@@ -432,6 +449,8 @@ export function notesView(): View {
         'A. H. Benade, “On the mathematical theory of woodwind finger holes,” JASA 32(12), 1960',
         'A. Hirschberg, J. Gilbert, R. Msallam & A. P. J. Wijnands, “Shock waves in trombones,” JASA 99(3), 1996',
         'T. D. Rossing, “The physics of kettledrums,” Scientific American 247(5), 1982',
+        'J.-L. Le Carrou, F. Gautier & R. Badeau, “Sympathetic string modes in the concert harp,” Acta Acustica united with Acustica 95(4), 2009; D. Chadefaux, J.-L. Le Carrou, B. Fabre & L. Daudet, “Experimentally based description of harp plucking,” JASA 131(1), 2012',
+        'K. A. Legge & N. H. Fletcher, “Nonlinear generation of missing modes on a vibrating string,” JASA 76(1), 1984; J. Woodhouse, “Plucked guitar transients: comparison of measurements and synthesis,” Acta Acustica united with Acustica 90, 2004',
         'S. Ternström, “Choir acoustics: an overview of scientific research published to date,” Int. J. Research in Choral Singing 1, 2003',
         'A. Friberg, R. Bresin & J. Sundberg, “Overview of the KTH rule system for musical performance,” Advances in Cognitive Psychology 2, 2006; N. P. McA. Todd, “The dynamics of dynamics,” JASA 91(6), 1992',
         'R. B. MacLeod, Journal of Research in Music Education 56(1), 2008 (violinists’ and violists’ vibrato by dynamic and register)',
@@ -450,7 +469,7 @@ export function notesView(): View {
       h('a', { href: 'https://www.mutopiaproject.org', target: '_blank', rel: 'noopener' }, 'Mutopia Project'),
       '’s; the recordings the models are measured against are the ',
       h('a', { href: 'https://theremin.music.uiowa.edu/MIS.html', target: '_blank', rel: 'noopener' }, 'University of Iowa Musical Instrument Samples'),
-      ' and, for the timpani, Versilian Studios’ ',
+      ' and, for the timpani and the harp, Versilian Studios’ ',
       h('a', { href: 'https://github.com/sgossner/VSCO-2-CE', target: '_blank', rel: 'noopener' }, 'VSCO 2 Community Edition'),
       '; the 3D stage is drawn with ',
       h('a', { href: 'https://threejs.org', target: '_blank', rel: 'noopener' }, 'three.js'),
