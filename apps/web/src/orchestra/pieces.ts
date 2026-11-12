@@ -289,6 +289,18 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     shift: 12,
     vel: 0.8,
   },
+  glockenspiel: {
+    instrument: 'glockenspiel',
+    composer: 'Bach',
+    title: 'Partita in A minor, Bourrée anglaise (on the glockenspiel)',
+    file: 'bach-bwv1013-bourree.mid',
+    source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1528',
+    credit: 'Partita in A minor for flute alone, BWV 1013, Bourrée anglaise, a twelfth above the flute (in E minor: the whole of it inside the glockenspiel’s two and a half octaves), its bars left to ring over each other. The file has no tempo (LilyPond’s default, ♩ = 60); it is played at ♩ = 78. Typeset by Jacob Shapiro from the manuscript (c. 1722–23, via IMSLP); Mutopia-2017/10/31-1528; public domain.',
+    sha256: 'dd000c559a8b62a92306187d20353213362201651338a689626571bd62ec4725',
+    shift: 19,
+    rate: 1.3,
+    vel: 0.8,
+  },
   flute: {
     instrument: 'flute',
     composer: 'Bach',
