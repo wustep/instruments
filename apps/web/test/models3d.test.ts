@@ -463,6 +463,33 @@ describe('3D instruments', () => {
     expect(tp.slide[2]).toBeGreaterThan(0.5);
     expect(tp.slide[0]).toBeLessThan(0.05);
   });
+
+  it('no cup, pad or tone hole of the flute is lit or tinted while it sounds, and its tube is plain silver', () => {
+    const f = buildFluteModel();
+    const pose = newWindPose();
+    const b = new Batch();
+    // G4, loud, the breath's vibrato on its upswing, pressure along the bore
+    const g4 = 440 * 2 ** ((67 - 69) / 12);
+    const fr = { focus: { midi: 67, lengthM: 343 / (2 * g4), shapes: [Float32Array.from({ length: 32 }, (_, i) => Math.sin((Math.PI * i) / 31))] }, breath: { pressure: 1, vib: 0.1 } } as unknown as VisualFrame;
+    for (let k = 0; k < 40; k++) {
+      b.clear();
+      poseFlute(b, f, fr, pose, 1 / 60, k * 16);
+    }
+    // the cups are drawn, each once, those above G seated on their holes
+    for (const k of f.keys) expect(b.inst.get(k.mesh)!.n).toBe(20);
+    expect(f.keys.filter((_, i) => pose.cups[i] < 0.1).length).toBeGreaterThan(5);
+    // not one thing drawn (the tube, the cups with their pads, the levers) carries a light: an instance's
+    // glow, its rgb and its amount, all 0
+    expect(b.meshes().length).toBe(f.statics.length + f.keys.length + f.levers.length);
+    for (const m of b.meshes()) {
+      const { a, n } = b.inst.get(m)!;
+      for (let o = 0; o < n; o += 20) expect(Array.from(a.subarray(o + 16, o + 20))).toEqual([0, 0, 0, 0]);
+    }
+    // and no part of it is of the material that glows along a tube (mesh.ts: kind 2)
+    const kinds = new Set<number>();
+    for (const m of b.meshes()) for (const id of m.mats!) kinds.add(MAT_LIST[id].kind ?? 0);
+    expect([...kinds]).toEqual([0]);
+  });
 });
 
 describe('pedals in the action (2D and 3D share it)', () => {

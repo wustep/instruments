@@ -1,8 +1,9 @@
 // The oboe in 3D (oboe3d.ts), without WebGL: built to the real instrument's measures (docs/
 // 3d-reference.md, "Oboe": within 3 %), every key over its tone hole, posed from the engine's frames —
 // its keys follow the conservatoire fingering for the note sounding (oboe-fingering.ts) and go back to
-// rest after it, the reed's blades close with its opening, the closed keys glow with the bore's
-// standing wave — and seated in the Orchestra beside the flute without moving anyone else.
+// rest after it, the reed's blades close with its opening, no key, pad or tone hole is lit or tinted
+// while it sounds (the bell's rim alone shimmers) — and seated in the Orchestra beside the flute without
+// moving anyone else.
 import { describe, expect, it } from 'vitest';
 import type { VisualFrame } from '@piano-model/engine';
 import { Batch, type Mesh, xform } from '../src/ui/gl/gl3d.ts';
@@ -153,7 +154,7 @@ describe('the oboe in 3D', () => {
     expect(path[path.length - 1]).toBeLessThan(0.005);
   });
 
-  it('the reed’s blades close with its opening; the closed keys glow with the standing wave; the rim shimmers', () => {
+  it('the reed’s blades close with its opening; the rim shimmers', () => {
     // the middle of each blade's tip, as posed (world)
     const tip = (b: Batch, s: number) => {
       const bl = om.blades.find((x) => x.s === s)!;
@@ -167,18 +168,43 @@ describe('the oboe in 3D', () => {
       return Math.hypot(u[0] - d[0], u[1] - d[1], u[2] - d[2]);
     };
     expect(gap(shut)).toBeLessThan(gap(rest) - 0.0005);
-    // a closed key's instance carries a glow while the oboe sounds; nothing glows at rest
-    const glowOf = (b: Batch, name: string) => {
-      const k = om.keys.find((x) => x.name === name)!;
-      return b.inst.get(k.mesh)!.a[19];
-    };
-    expect(glowOf(rest, 'L1')).toBeGreaterThan(0.02);
-    const quiet = play(frame(null), 90).b;
-    expect(glowOf(quiet, 'L1')).toBe(0);
     // the rim, loud
     const b = new Batch();
     poseOboe(b, om, frame(62), newWindPose(), 1 / 60, 0, 0.2);
     expect(b.inst.get(om.rim)!.a[19]).toBeGreaterThan(0.02);
+  });
+
+  it('no key, pad or tone hole is lit or tinted while it sounds: plain silver, cork, leather and wood', () => {
+    // what a batch draws with a light on it (an instance's glow: rgb and amount, any of them not 0), by name
+    const name = (m: Mesh) => (m === om.rim ? 'rim' : om.statics.includes(m) ? 'body' : (om.keys.find((k) => k.mesh === m)?.name ?? 'blade'));
+    const lit = (b: Batch) =>
+      b.meshes().filter((m) => {
+        const { a, n } = b.inst.get(m)!;
+        for (let o = 0; o < n; o += 20) if (a[o + 16] !== 0 || a[o + 17] !== 0 || a[o + 18] !== 0 || a[o + 19] !== 0) return true;
+        return false;
+      }).map(name);
+    // loud, the breath's vibrato on its upswing, pressure all along the bore: D4 (all six fingers down),
+    // B♭3 (the bell's keys closed too), E5 (the thumb's octave key), A4 (L1 and L2 alone)
+    for (const midi of [62, 58, 76, 69]) {
+      const fr = frame(midi);
+      (fr.breath as { vib: number }).vib = 0.1;
+      const pose = newWindPose();
+      const b = new Batch();
+      for (let k = 0; k < 45; k++) {
+        b.clear();
+        poseOboe(b, om, fr, pose, 1 / 60, k * 16.7, 0.2);
+      }
+      // the keys are drawn, each once, the closed ones seated on their holes
+      const st = oboeKeyState(pose)!;
+      for (const k of om.keys) expect(b.inst.get(k.mesh)!.n, k.name).toBe(20);
+      expect(om.keys.filter((k, i) => k.kind === 'cup' && st[i] < 0.08).length, `${midi}: seated pads`).toBeGreaterThan(midi === 69 ? 3 : 8);
+      // and the one thing lit is the bell's rim
+      expect(lit(b), `${midi}`).toEqual(['rim']);
+    }
+    // silent, nothing is
+    const quiet = new Batch();
+    poseOboe(quiet, om, frame(null), newWindPose(), 1 / 60, 0, 0);
+    expect(lit(quiet)).toEqual([]);
   });
 
   it('takes a seat in the Orchestra beside the flute (the others’ seats as they were), and is framed whole there', () => {

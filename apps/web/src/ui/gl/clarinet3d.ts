@@ -27,16 +27,15 @@
 //
 // Live: the rings and keys follow the clarinet's Boehm fingering for the engine's note (clarinet-
 // fingering.ts, the chart the 2D stage uses): each pad seats with a small bounce or overshoots a little
-// off its stop as it opens (the oboe's springs); the closed holes (a seated pad, a pressed ring, the
-// plain hole under its finger) glow faintly with the standing wave in the bore under them (the engine's
-// own pressure shape, reed → open end); the reed's tip curls onto the lay with its opening (`fr.reed.open`:
-// blown shut once a cycle when loud) and shimmers; the bell shimmers with the level. A moment after the
-// clarinet stops sounding the keys go back to rest.
+// off its stop as it opens (the oboe's springs); the reed's tip curls onto the lay with its opening
+// (`fr.reed.open`: blown shut once a cycle when loud) and shimmers; the bell shimmers with the level. The
+// rings, the keys, their pads and the tone holes are never lit or tinted: silver, pad skin and wood,
+// sounding or not. A moment after the clarinet stops sounding the keys go back to rest.
 // Approximations: the linkages are shown, not simulated (each key springs to the state the mechanism
 // gives it: the low pads close with the little fingers' touches through their clutches, the bridge and
 // the ring pad with the second ring); the trill keys never open (the chart has no trills).
 import type { VisualFrame } from '@piano-model/engine';
-import { L1, L2, L3, LA, LCS, LE, LFS, LGS, R1, R2, R3, RAB, RE, REG, RF, SEB, T, clarinetFingersFor } from '../clarinet-fingering.ts';
+import { L1, L2, LA, LCS, LE, LFS, LGS, R1, R2, R3, RAB, RE, REG, RF, SEB, T, clarinetFingersFor } from '../clarinet-fingering.ts';
 import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, chain, cross, dot, mulInto, norm, rotX, rotY, rotZ, scale, sub, translate, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, ellipsoid, extrude, grid, spline, variant, type Mat } from './mesh.ts';
 import { aboutAxis, dome, fillet, frameY, lx, pchip, pipe, revolve, spline3, springTo, sweep } from './oboe3d.ts';
@@ -630,7 +629,7 @@ const NEEDLES: [Rod, number, number][] = [
   [RG, rb(1640), rb(1300)],
 ];
 /** the plain finger hole (the left hand's third finger: no ring) */
-const PLAIN = [{ name: 'L3', b: rb(2620), phi: ph(320, 2620), hole: 0.004, bit: L3 }];
+const PLAIN = [{ name: 'L3', b: rb(2620), phi: ph(320, 2620), hole: 0.004 }];
 
 /** a side key's long lever from its hinge tube down the player's right to its touch (stacked at the
  *  joint's foot, pressed by the side of the right forefinger) */
@@ -797,8 +796,6 @@ export interface ClarinetKey {
   /** a cup: open for these fingers; a touch or ring: pressed */
   open: (f: number) => boolean;
   mesh: Mesh;
-  /** model x of the point that travels (the glow's place along the bore) */
-  x: number;
   /** its rod line (a point and the unit direction), and the turn that opens or presses it */
   p0: Vec3;
   u: Vec3;
@@ -814,8 +811,6 @@ export interface ClarinetModel {
   /** the reed's tip, in pieces that curl onto the lay (each turns about its own hinge line, b mm from
    *  the tip, on the table) */
   reed: { mesh: Mesh; b: number }[];
-  /** the open finger hole under the left forefinger (no ring): drawn when the finger closes it, to glow */
-  plain: { mesh: Mesh; x: number; bit: number }[];
   bounds: { c: Vec3; r: number };
   /** the tone holes the keys and fingers cover (model x) and their names */
   holes: { x: number; name: string }[];
@@ -894,7 +889,7 @@ export function buildClarinetModel(): ClarinetModel {
     const d = sub(ref, p0);
     const armL = len3(sub(d, scale(u, dot(d, u))));
     const travel = k.lift ?? (k.kind === 'ring' ? (RING_LIFT - 0.15) * mm : 0.0016);
-    return { name: k.name, kind: k.kind, closed: !!k.closed, open: k.open, mesh: kb.build(), x: ref[0], p0, u, sign, maxAng: travel / Math.max(0.002, armL) };
+    return { name: k.name, kind: k.kind, closed: !!k.closed, open: k.open, mesh: kb.build(), p0, u, sign, maxAng: travel / Math.max(0.002, armL) };
   });
   // the reed's tip pieces
   const reed = REED_CUTS.slice(0, -1).map((b0, i) => {
@@ -902,16 +897,10 @@ export function buildClarinetModel(): ClarinetModel {
     reedPiece(rb, b0, REED_CUTS[i + 1]);
     return { mesh: rb.build(), b: REED_CUTS[i + 1] };
   });
-  const plain = PLAIN.map((h) => {
-    const pb = new MeshBuilder();
-    // a disc of shadow just inside the hole (the fingertip's place): shown, glowing, while it is closed
-    grid(pb, 3, 36, (u, v) => wrapped(h.b, h.phi, h.hole * u, v * TAU, -0.2), DARK, { wrapV: true });
-    return { mesh: pb.build(), x: X(h.b), bit: h.bit };
-  });
   const { tilt, lean, turn, swing, y } = CLARINET_POSE;
   const T = chain(translate(0, y, 0.02), rotY(swing), rotX(lean), rotZ(-deg(90 - tilt)), rotX(-Math.PI / 2 + deg(turn)), translate(-CLARINET_LEN / 2, 0, 0));
   const holes = [...ALL.filter((k) => k.b !== undefined).map((k) => ({ x: X(k.b!), name: k.name })), ...PLAIN.map((h) => ({ x: X(h.b), name: h.name }))].sort((a, b) => a.x - b.x);
-  return { T, statics: [mb.build()], bell: bellMesh(), keys, reed, plain, bounds: { c: xform(T, [CLARINET_LEN / 2, 0, 0]), r: 0.37 }, holes };
+  return { T, statics: [mb.build()], bell: bellMesh(), keys, reed, bounds: { c: xform(T, [CLARINET_LEN / 2, 0, 0]), r: 0.37 }, holes };
 }
 
 // ================================================================ posing
@@ -925,6 +914,7 @@ interface ClarinetPose {
   R: Float32Array;
   R2: Float32Array;
   W: Float32Array;
+  /** the bell's shimmer (rgb, amount) */
   glow: RGBA;
 }
 /** each seat's own springs (the shared WindPose carries the flute's and the trumpet's) */
@@ -947,25 +937,13 @@ export function poseClarinet(b: Batch, cm: ClarinetModel, fr: VisualFrame | null
   for (const s of cm.statics) b.mesh(s, T);
   const br = fr?.breath;
   const blow = br ? br.pressure : 0;
-  const vib = br ? br.vib : 0;
   const focus = fr?.focus ?? null;
   // the fingers for the note the engine plays, held while it sounds and for a moment after
   st.quiet = blow > 0.015 ? 0 : Math.min(9, st.quiet + dt);
   const midi = focus && st.quiet < 0.8 ? (focus.midi ?? null) : null;
   const fingers = midi === null ? 0 : clarinetFingersFor(midi);
-  // the standing wave in the bore (reed → open end), for the closed keys' glow
-  const shape = focus?.shapes?.[0] ?? null;
-  const Lb = focus?.lengthM ?? 0;
-  let peak = 0;
-  if (shape) for (let i = 0; i < shape.length; i++) peak = Math.max(peak, Math.abs(shape[i]));
-  const sounding = blow > 0.02 && !!shape && peak > 0 && Lb > 0;
-  // (the bore's acoustic length is a quarter wave; along the instrument it runs from the reed's tip)
-  const glowAt = (x: number): number => {
-    if (!sounding || x >= Lb) return 0;
-    const j = Math.min(shape!.length - 1, Math.round((x / Lb) * (shape!.length - 1)));
-    return (0.09 + 0.06 * vib) * Math.min(1, blow * 1.5) * (Math.abs(shape![j]) / peak);
-  };
   const lvl = Math.min(1, Math.sqrt(rms) * 3);
+  // (the bell's shimmer: the one light on the clarinet)
   const setGlow = (a: number): RGBA | null => {
     if (a <= 0.003) return null;
     st.glow[0] = 1;
@@ -974,18 +952,15 @@ export function poseClarinet(b: Batch, cm: ClarinetModel, fr: VisualFrame | null
     st.glow[3] = a;
     return st.glow;
   };
+  // the rings and keys, each turned on its rod to where its spring has it: drawn as built, with no light
+  // on them
   for (let i = 0; i < cm.keys.length; i++) {
     const k = cm.keys[i];
     const p = springTo(st.pos, st.vel, i, k.open(fingers) ? 1 : 0, dt, 26, 0.62);
     aboutAxis(st.R, k.p0, k.u, k.sign * k.maxAng * p);
     mulInto(st.W, 0, T, st.R);
-    // a closed key (a cup seated, a ring pressed onto its hole) glows faintly with the pressure in
-    // the bore under it
-    const closed = k.kind === 'cup' ? p < 0.5 : k.kind === 'ring' && p > 0.5;
-    b.mesh(k.mesh, st.W, closed ? setGlow(glowAt(k.x)) : null);
+    b.mesh(k.mesh, st.W);
   }
-  // the plain hole under a finger
-  for (const h of cm.plain) if (fingers & h.bit) b.mesh(h.mesh, T, setGlow(glowAt(h.x)));
   // the reed: its tip curls onto the lay as it closes (blown shut once a cycle when loud), and shimmers
   const want = fr?.reed ? Math.min(1.3, fr.reed.open) : 1;
   st.open += (want - st.open) * (1 - Math.exp(-dt / 0.05));

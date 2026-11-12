@@ -1,8 +1,9 @@
 // The bassoon in 3D (bassoon3d.ts), without WebGL: built to the real instrument's measures (docs/
 // 3d-reference.md, "Bassoon": within 3 %), its keywork in place, posed from the engine's frames — its keys
 // and rings follow the Heckel fingering for the note sounding (bassoon-fingering.ts) and go back to rest
-// after it, on springs; the reed's blades close with its opening; the closed holes glow with the bore's
-// standing wave; the bell shimmers — and seated in the Orchestra without moving anyone else.
+// after it, on springs; the reed's blades close with its opening; no key, ring, pad or tone hole is lit
+// or tinted while it sounds; the bell alone shimmers — and seated in the Orchestra without moving anyone
+// else.
 import { describe, expect, it } from 'vitest';
 import type { VisualFrame } from '@piano-model/engine';
 import { Batch, type Mesh, xform } from '../src/ui/gl/gl3d.ts';
@@ -92,7 +93,8 @@ describe('the bassoon in 3D', () => {
     for (const name of ['W', 'pCsT', 'tCsT', 'FA', 'FB', 'FD', 'tLD', 'tLC', 'tLB', 'tLBB', 'pD', 'pC', 'pB', 'pBb', 'tEb', 'pEb', 'L3', 'tLEb', 'pLEb', 'tLCs', 'pLCs', 'R2', 'tG', 'pG', 'tF', 'pF', 'tFsP', 'pFs', 'tGsP', 'pGs', 'E', 'Bb', 'tFsR', 'tGsR'])
       expect(bm.keys.some((k) => k.name === name), name).toBe(true);
     expect(bm.keys.filter((k) => k.kind === 'ring').length).toBe(2);
-    expect(bm.plain.length).toBe(3);
+    // L1, L2 and R1 are plain holes: on the list of holes, no ring or key over them
+    for (const name of ['L1', 'L2', 'R1']) expect(bm.keys.some((k) => k.name === name), name).toBe(false);
     // the bore folds: down the wing (deeper further down), up the long joint (deeper further up), and the
     // long joint is further along than the whole wing
     expect(boreAt('wing', 560)).toBeGreaterThan(boreAt('wing', 640));
@@ -172,7 +174,7 @@ describe('the bassoon in 3D', () => {
     expect(path[path.length - 1]).toBeLessThan(0.005);
   });
 
-  it('the reed’s blades close with its opening; the closed holes glow with the standing wave; the bell shimmers', () => {
+  it('the reed’s blades close with its opening; the bell shimmers', () => {
     // the upper blade's tip (its middle, on its inner face) as posed: how far it has moved towards the
     // other blade (mm, along the reed frame's z)
     const tipMove = (b: Batch) => {
@@ -193,21 +195,45 @@ describe('the bassoon in 3D', () => {
     expect(Math.abs(tipMove(rest))).toBeLessThan(0.06);
     expect(tipMove(shut)).toBeGreaterThan(0.85 * REED_TIP.halfOpen);
     expect(tipMove(shut)).toBeLessThan(1.15 * REED_TIP.halfOpen);
-    // a pressed ring's instance carries a glow while the bassoon sounds; the finger holes under their
-    // fingers are drawn glowing; nothing glows at rest
-    const glowOf = (b: Batch, m: Mesh) => b.inst.get(m)?.a[19] ?? 0;
-    const key = (name: string) => bm.keys.find((x) => x.name === name)!.mesh;
-    expect(glowOf(rest, key('L3'))).toBeGreaterThan(0.01);
-    // (the R2 ring is near a node of this note's wave: its glow is faint, the L3 ring's strong)
-    expect(glowOf(rest, key('R2'))).toBeLessThan(glowOf(rest, key('L3')));
-    for (const h of bm.plain) expect(glowOf(rest, h.mesh)).toBeGreaterThan(0.005);
-    const quiet = play(frame(null), 90).b;
-    expect(glowOf(quiet, key('L3'))).toBe(0);
-    for (const h of bm.plain) expect(quiet.inst.get(h.mesh)?.n ?? 0).toBe(0);
     // the bell, loud
     const b = new Batch();
     poseBassoon(b, bm, frame(41), newWindPose(), 1 / 60, 0, 0.2);
     expect(b.inst.get(bm.bell)!.a[19]).toBeGreaterThan(0.02);
+  });
+
+  it('no key, ring, pad or tone hole is lit or tinted while it sounds: plain silver, leather and wood', () => {
+    // what a batch draws with a light on it (an instance's glow: rgb and amount, any of them not 0), by name
+    const name = (m: Mesh) => (m === bm.bell ? 'bell' : bm.statics.includes(m) ? 'body' : (bm.keys.find((k) => k.mesh === m)?.name ?? 'blade'));
+    const lit = (b: Batch) =>
+      b.meshes().filter((m) => {
+        const { a, n } = b.inst.get(m)!;
+        for (let o = 0; o < n; o += 20) if (a[o + 16] !== 0 || a[o + 17] !== 0 || a[o + 18] !== 0 || a[o + 19] !== 0) return true;
+        return false;
+      }).map(name);
+    // loud, the breath's vibrato on its upswing, pressure all along the bore: F2 (both hands down, both
+    // rings pressed), B♭1 (every hole and key closed), C♯3 (the left thumb's C♯ key), A4 (a flick key)
+    for (const midi of [41, 34, 49, 69]) {
+      const fr = frame(midi);
+      (fr.breath as { vib: number }).vib = 0.1;
+      const pose = newWindPose();
+      const b = new Batch();
+      for (let k = 0; k < 45; k++) {
+        b.clear();
+        poseBassoon(b, bm, fr, pose, 1 / 60, k * 16.7, 0.2);
+      }
+      // the keys and rings are drawn, each once, the closed pads seated on their holes
+      const st = bassoonKeyState(pose)!;
+      for (const k of bm.keys) expect(b.inst.get(k.mesh)!.n, k.name).toBe(20);
+      if (midi === 41 || midi === 34) expect(bm.keys.filter((k, i) => k.kind === 'ring' && st[i] > 0.92).length, `${midi}: rings down`).toBe(2);
+      expect(bm.keys.filter((k, i) => k.kind === 'cup' && st[i] < 0.08).length, `${midi}: seated pads`).toBeGreaterThan(3);
+      // nothing else is drawn (no disc in a covered hole), and the one thing lit is the bell
+      expect(b.meshes().length, `${midi}`).toBe(bm.statics.length + 1 + bm.keys.length + bm.blades.length);
+      expect(lit(b), `${midi}`).toEqual(['bell']);
+    }
+    // silent, nothing is
+    const quiet = new Batch();
+    poseBassoon(quiet, bm, frame(null), newWindPose(), 1 / 60, 0, 0);
+    expect(lit(quiet)).toEqual([]);
   });
 
   it('takes its own seat among a few players, held diagonally (the others’ seats as they were), framed whole there', () => {

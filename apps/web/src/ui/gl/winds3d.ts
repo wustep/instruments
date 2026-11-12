@@ -19,8 +19,8 @@
 // through the linkages: L1 closes the C♯ key, the B♭ key closes for the Briccialdi lever, L2 or R1, L3
 // takes the duplicate G♯ key down, R1, R2 or R3 close the F♯ key. Each key springs to its state (the
 // pad seats with a small bounce, an opening key overshoots off its stop) and they go back to rest a
-// moment after the flute stops sounding. The breath jet crosses the embouchure hole, and the bore's
-// standing wave glows faintly along the tube up to the first open hole.
+// moment after the flute stops sounding. The breath jet crosses the embouchure hole. The tube, the cups,
+// their pads and the tone holes are never lit or tinted: silver and pad skin, sounding or not.
 //
 // Trumpet: a B♭ trumpet laid out from `trumpet-side.jpg` at the Bach 180S37's published sizes
 // (docs/3d-reference.md): 480 mm from the receiver to the bell rim, an 11.66 mm bore in 12.7 mm
@@ -47,7 +47,7 @@
 import type { VisualFrame } from '@piano-model/engine';
 import { CC, CS, EB, GS, L1, L2, L3, R1, R2, R3, RH, TB, TBB, boreNote, fingersFor } from '../flute-fingering.ts';
 import { INK, VALVE_DOWN } from '../stage-draw.ts';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, about, add, chain, cross, dot, ink, norm, rotX, rotZ, scale, sub, translate, xform } from './gl3d.ts';
+import { type Batch, type Mat4, type Mesh, type Vec3, about, add, chain, cross, dot, ink, norm, rotX, rotZ, scale, sub, translate, xform } from './gl3d.ts';
 import { M, MeshBuilder, box, cyl, ellipsoid, grid, variant, type Mat } from './mesh.ts';
 
 type P2 = [number, number];
@@ -60,8 +60,8 @@ const C = {
 
 // ---------------------------------------------------------------- materials
 const AG = M.silverKeys;
-/** the flute's tube: the bore's standing wave as a faint light (uv.x along the bore) */
-const AGG = variant(M.silverPolish, { kind: 2 });
+/** the flute's tube */
+const TUBE = M.silverPolish;
 const BORE = M.boreDark;
 const BR = M.brassLacquer;
 /** brass on the air path (uv.x from the mouthpiece to the bell) */
@@ -794,16 +794,15 @@ function lipPlate(mb: MeshBuilder): void {
 
 export function buildFluteModel(): FluteModel {
   const mb = new MeshBuilder();
-  const uvx = (x: number) => (x - EMB) / (FL - EMB);
   // ---- the tube
   // crown: a domed cap and two beads
   lx(mb, fillet([[0, 0], [0.005, 0.0003], [0.0078, 0.0016], [0.009, 0.0034], [0.0093, 0.0046], [0.0096, 0.0052], [0.0096, 0.006], [0.0093, 0.0064], [0.0096, 0.0068], [0.0096, 0.0076], [0.0093, 0.008], [0.0093, 0.0112], [rHead(0.0124), 0.0124]], [0, 0.003, 0.003, 0.002, 0.0003, 0.0003, 0.0002, 0.0002, 0.0002, 0.0002, 0.0002, 0.0003, 0], 4), 48, AG);
-  // the head tube (no glow behind the cork), then from the lip plate on
+  // the head tube: behind the cork, then from the lip plate on
   {
     const xs = Array.from({ length: 6 }, (_, i) => lerp(0.0124, 0.047, i / 5));
-    lx(mb, xs.map((x) => [rHead(x), x] as P2), 56, M.silverPolish);
+    lx(mb, xs.map((x) => [rHead(x), x] as P2), 56, TUBE);
     const xg = Array.from({ length: 14 }, (_, i) => lerp(0.047, HEAD_END + 0.0004, i / 13));
-    lx(mb, xg.map((x) => [rHead(x), x] as P2), 56, AGG, (i) => uvx(xg[i]));
+    lx(mb, xg.map((x) => [rHead(x), x] as P2), 56, TUBE);
   }
   lipPlate(mb);
   // the body's socket with its two rings
@@ -812,10 +811,10 @@ export function buildFluteModel(): FluteModel {
     const prof: P2[] = [[rHead(HEAD_END - 0.0005), HEAD_END - 0.0005], ...ring(HEAD_END), [0.0103, 0.2286], ...ring(0.229), [RB + 0.0001, 0.2345], [RB, 0.235]];
     lx(mb, fillet(prof, 0.00025, 3), 56, AG);
   }
-  lx(mb, [[RB, 0.235], [RB, FOOT_J]], 64, AGG, (i) => uvx(i ? FOOT_J : 0.235));
+  lx(mb, [[RB, 0.235], [RB, FOOT_J]], 64, TUBE);
   // the foot's socket ring
   lx(mb, fillet([[RB, FOOT_J], [0.0106, FOOT_J + 0.0006], [0.0108, FOOT_J + 0.0016], [0.0108, FOOT_J + 0.0042], [0.0105, FOOT_J + 0.0047], [0.0108, FOOT_J + 0.0052], [0.0108, FOOT_J + 0.0094], [RB + 0.0001, FOOT_J + 0.0104], [RB, FOOT_J + 0.0108]], 0.0002, 3), 56, AG);
-  lx(mb, [[RB, FOOT_J + 0.0108], [RB, FL - 0.0045]], 64, AGG, (i) => uvx(i ? FL - 0.0045 : FOOT_J + 0.0108));
+  lx(mb, [[RB, FOOT_J + 0.0108], [RB, FL - 0.0045]], 64, TUBE);
   // the foot's end ring, the open end and the bore inside it
   lx(mb, fillet([[RB, FL - 0.0045], [0.0103, FL - 0.0038], [0.0104, FL - 0.0012], [0.01, FL], [0.0095, FL], [0.0095, FL - 0.006]], [0, 0.0002, 0.0004, 0.0003, 0.0002, 0], 3), 56, AG);
   lx(mb, [[0, FL - 0.006], [0.0095, FL - 0.006]], 40, BORE);
@@ -940,13 +939,11 @@ export function poseFlute(b: Batch, fm: FluteModel, fr: VisualFrame | null, pose
   pose.quiet[0] = blow > 0.015 ? 0 : pose.quiet[0] + dt;
   const midi = focus && pose.quiet[0] < 0.8 ? (focus.midi ?? boreNote(focus.lengthM)) : null;
   const fingers = midi === null ? 0 : fingersFor(midi);
-  // the closed cups pulse faintly with the breath vibrato, nothing more
-  const pulse = Math.min(0.06, 0.9 * vib * blow);
   fm.keys.forEach((k, i) => {
     // each key springs to the state the mechanism gives it: the pad seats with a small bounce, an
-    // opening key overshoots a little off its stop
+    // opening key overshoots a little off its stop. It is drawn as built, with no light on it
     const p = springTo(pose.cups, pose.cupV, i, k.open(fingers) ? 1 : 0, dt, 26, 0.62);
-    b.mesh(k.mesh, chain(T, about(k.rod, rotX(k.sign * k.maxAng * p))), focus && p < 0.5 && pulse > 0.004 ? ([1, 0.7, 0.42, pulse] as RGBA) : null);
+    b.mesh(k.mesh, chain(T, about(k.rod, rotX(k.sign * k.maxAng * p))));
   });
   fm.levers.forEach((l, j) => {
     const p = springTo(pose.cups, pose.cupV, fm.keys.length + j, l.pressed(fingers) ? 0 : 1, dt, 26, 0.62);
