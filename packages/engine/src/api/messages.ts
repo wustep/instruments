@@ -147,10 +147,14 @@ export interface GlockVisual {
   last: number;
   ago: number;
   vel: number;
-  /** the last strokes, newest first (at most six): the bar, seconds ago, the velocity, the mallet (0 left, 1 right) */
-  hits: { bar: number; ago: number; vel: number; hand: number }[];
+  /** the last strokes, newest first (at most six): the bar, seconds ago, the velocity, the mallet (0 left, 1
+   *  right), and where it landed: along the bar from its middle (a share of its length, ±0.14 at most) and
+   *  across it (−1 … 1 of half its width's reach) */
+  hits: { bar: number; ago: number; vel: number; hand: number; along?: number; across?: number }[];
   /** the bar each mallet is over (left, right) */
   hands: [number, number];
+  /** the last bar is being rolled (a held key with `roll` or the wheel up) */
+  rolling?: boolean;
 }
 
 /** The harp's own part of a visual frame (core/harp.ts getVisual). Strings are numbered 0 (C1) … 46 (G7). */

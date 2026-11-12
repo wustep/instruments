@@ -17,24 +17,31 @@ const FS = 44100;
 export const MARK_VEL: Record<GlockMark, number> = { pp: 22, mf: 75, ff: 106, brass: 106 };
 export const MARK_MALLET: Record<GlockMark, number> = { pp: 0.5, mf: 0.5, ff: 0.5, brass: 1 };
 
+/** the model's stroke at the recorded bar's own pitch (--et: at equal temperament's, as first judged) */
+let SAME_PITCH = !process.argv.includes('--et');
 let RENDER = renderInstrument;
 export async function useEngine(path?: string): Promise<void> {
   RENDER = path ? (await import(pathToFileURL(path).href)).renderInstrument : renderInstrument;
 }
 
 /** the model's stroke on a recorded bar */
-export function modelStroke(r: Pick<GlockRef, 'midi' | 'mark'>, params?: Record<string, unknown>, fs = FS): RingAnalysis {
+export function modelStroke(r: Pick<GlockRef, 'midi' | 'mark'> & { f0?: number }, params?: Record<string, unknown>, fs = FS): RingAnalysis {
+  const et = 440 * 2 ** ((r.midi - 69) / 12);
+  const f0 = r.f0 ?? NaN;
   const out = RENDER({
     sampleRate: fs,
     instrument: 'glockenspiel' as never,
     dry: true,
-    params: { mallet: MARK_MALLET[r.mark], ...params } as never,
-    events: [{ time: 0.05, event: { type: 'noteOn', midi: r.midi, velocity: MARK_VEL[r.mark] } }],
+    // (the stroke the voicing is: on the bar's middle, as hard as asked: `human` 0)
+    params: { mallet: MARK_MALLET[r.mark], human: 0, ...params } as never,
+    // (at the recorded bar's own pitch: the recorded instrument is 10–30 ¢ sharp, and a bar that lies a fifth
+    // of a semitone under a third-octave band's edge, as every fourth one does, is in the next band there)
+    events: [...(SAME_PITCH && Number.isFinite(f0) ? [{ time: 0, event: { type: 'bend' as const, value: Math.max(-0.6, Math.min(0.6, 12 * Math.log2(f0 / et))) } }] : []), { time: 0.05, event: { type: 'noteOn', midi: r.midi, velocity: MARK_VEL[r.mark] } }],
     duration: r.midi < 96 ? 6.6 : 4.6,
   });
   const x = new Float32Array(out.left.length);
   for (let i = 0; i < x.length; i++) x[i] = 0.5 * (out.left[i] + out.right[i]);
-  return analyzeRing(x, fs, 440 * 2 ** ((r.midi - 69) / 12), glockRing(r.midi));
+  return analyzeRing(x, fs, SAME_PITCH && Number.isFinite(f0) ? f0 : et, glockRing(r.midi));
 }
 
 const rms = (xs: number[]) => {

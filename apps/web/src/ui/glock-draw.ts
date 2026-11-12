@@ -4,7 +4,7 @@
 // engine says it swings, and the two mallets are where the engine's two hands are: each hangs over the bar it
 // last struck, comes down on a bar as it is struck and springs back up.
 import type { VisualFrame } from '@piano-model/engine';
-import { BARS, BAR_W, CASE, GK_X0, GK_X1, GK_Y0, GK_Y1, HEAD_R, RAILS, SHAFT, barBox, barCentre, barNodes, type P } from './glock-plan.ts';
+import { BARS, BAR_W, CASE, GK_X0, GK_X1, GK_Y0, GK_Y1, HEAD_R, RAILS, SHAFT, barBox, barCentre, barNodes, type P, strokePlace } from './glock-plan.ts';
 import { INK, rgba } from './stage-draw.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
@@ -84,10 +84,12 @@ export function glockLive(fr: VisualFrame | null, st: GlockState, now: number): 
   const kGo = 1 - Math.exp(-dt / 0.03);
   let hit = -1;
   for (const h of [0, 1] as const) {
-    const to = barCentre(gv ? Math.max(0, Math.min(BARS.length - 1, gv.hands[h])) : h ? 20 : 8);
-    head[h] = [head[h][0] + (to[0] - head[h][0]) * kGo, head[h][1] + (to[1] - head[h][1]) * kGo];
-    // (its last stroke: on the bar for 30 ms, then springing up over a fifth of a second)
+    // (its last stroke: on the bar for 30 ms, where the engine says it landed, then springing up over a
+    // fifth of a second)
     const last = gv?.hits.find((x) => x.hand === h);
+    const bar = gv ? Math.max(0, Math.min(BARS.length - 1, gv.hands[h])) : h ? 20 : 8;
+    const to = last && last.bar === bar ? strokePlace(bar, last.along, last.across) : barCentre(bar);
+    head[h] = [head[h][0] + (to[0] - head[h][0]) * kGo, head[h][1] + (to[1] - head[h][1]) * kGo];
     const ago = last ? last.ago : 9;
     lift[h] = ago < 0.03 ? 0 : Math.min(1, 1 - Math.exp(-(ago - 0.03) / 0.07));
     if (last && ago < 0.12) hit = last.bar;

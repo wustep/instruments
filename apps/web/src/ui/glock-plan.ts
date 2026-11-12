@@ -37,6 +37,12 @@ export const barBox = (i: number): [number, number, number, number] => {
   return [BAR_X[i] - BAR_W / 2, y - BARS[i].length / 2, BAR_X[i] + BAR_W / 2, y + BARS[i].length / 2];
 };
 export const barCentre = (i: number): P => [BAR_X[i], ROW_Y[BARS[i].sharp ? 1 : 0]];
+/** where a stroke landed on bar i (the engine's: along the bar from its middle as a share of its length,
+ *  across it −1 … 1): no player's two strokes land on one spot. The mallet's head keeps on the bar. */
+export const strokePlace = (i: number, along = 0, across = 0): P => {
+  const [x, y] = barCentre(i);
+  return [x + Math.max(-1, Math.min(1, across)) * 0.25 * BAR_W, y + Math.max(-0.14, Math.min(0.14, along)) * BARS[i].length];
+};
 /** a bar's nodes (its pins): 0.224 of its length from each end */
 export const barNodes = (i: number): [P, P] => {
   const [x, y] = barCentre(i);

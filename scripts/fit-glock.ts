@@ -3,16 +3,18 @@
 // measured on each recorded stroke, and its ratio to the pitch, its level and its decay are regressed over
 // the bar's pitch (octaves from C6) and the dynamic (−1 pp, 0 mf, 1 ff). Only the mallet's knock is found by
 // trying (a small grid on the attack's error).
-//   npx tsx scripts/fit-glock.ts [--out .fit/glock.json]
+//   npx tsx scripts/fit-glock.ts [--out .fit/glock.json] [--swap]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { GLOCK_FAMILIES, GLOCK_TEXTBOOK, type GlockVoice } from '../packages/engine/src/core/index.ts';
-import { compareAll, glockErrors, inCompass, MARK_VEL, summary } from './calibrate-glock.ts';
+import { compareAll, glockErrors, inCompass, MARK_VEL, modelStroke, summary } from './calibrate-glock.ts';
 import { FAMILY_AT, glockRefs, type GlockRef } from './glock-refs.ts';
 
 const all = inCompass(await glockRefs());
-const fit = all.filter((r) => !r.held);
+// (--swap: the other half, for the judge's second fold: scripts/judge.ts --folds)
+const SWAP = process.argv.includes('--swap');
+const fit = all.filter((r) => r.held === SWAP);
 const plastic = fit.filter((r) => r.mark !== 'brass');
-const brass = inCompass(await glockRefs(), true).filter((r) => !r.held && r.mark === 'brass');
+const brass = inCompass(await glockRefs(), true).filter((r) => r.held === SWAP && r.mark === 'brass');
 const oct = (r: GlockRef) => (r.midi - 84) / 12;
 /** the stroke's level re mezzo-forte's, in tens of dB (the engine's dynamic coordinate) */
 const dyn = (r: GlockRef) => 4 * Math.log10(MARK_VEL[r.mark] / 75);
@@ -93,7 +95,52 @@ for (let k = 0; k < GLOCK_FAMILIES; k++) {
   }
   console.log(`family ${k}: on ${got.length}/${on(fit).length} strokes  ratio ${V.ratio[k]} (−${V.ratioOct[k]}/oct)  level ${V.level[k]} ${V.levelOct[k]}/oct ${V.levelDyn[k]}/dyn brass ${V.levelBrass[k]}  decay ${V.decay[k]} dB/s ×${V.decayOct[k]}/oct`);
 }
-// (the brass mallet's level is its strokes': the engine adds levelBrass[0] at mallet 1, so keep it in the level)
+// The levels again, through the model. A family that dies in a fraction of a second reads lower in the
+// analysis's quarter second than it began, so its level regressed straight from the readings (above) leaves
+// the model's stroke short of the recording's: by 14 dB RMS as first fitted. So the model's stroke is read as
+// the recording's is, and what is left over is regressed on the octaves, their square and the dynamic and
+// added, a few times over. Only the strokes that have the family count (it is there or not as the mallet
+// lands: the engine's stroke is one that has it); the octaves squared may only bend its level down (the top
+// octave has little of any).
+V.levelOct2 = new Array<number>(GLOCK_FAMILIES).fill(0);
+const loud = fit.filter((r) => r.mark !== 'pp' && r.mark !== 'brass');
+const clampTo = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
+for (let it = 0; it < 12; it++) {
+  // (each stroke read with its own measured decays: a family's reading over the first quarter second falls
+  // 17 dB short of its first level if it dies at 160 dB/s and 29 dB if at 320, and one bar's is the one, its
+  // neighbour's the other; with the curve's decay in place of the stroke's own, the level would be made to
+  // answer for the decay's scatter, and a low bar's upper partials begin louder than its pitch, which the
+  // recordings' attacks, 1–2 dB there, say they do not)
+  const pairs = loud.map((ref) => {
+    const o = oct(ref);
+    const decay = V.decay.map((d, k) => (k > 0 && ref.decays[k] > 20 && ref.decays[k] < 1500 && found(ref, k) ? ref.decays[k] : d * V.decayOct[k] ** o * V.decayOct2[k] ** (o * o)));
+    return { ref, model: modelStroke(ref, { voice: { ...V, decay, decayOct: decay.map(() => 1), decayOct2: decay.map(() => 1) } }) };
+  });
+  for (let k = 1; k < GLOCK_FAMILIES; k++) {
+    const rows = pairs.filter(({ ref }) => Number.isFinite(FAMILY_AT(ref.midi)[k]) && found(ref, k) && ref.levels[k] > -45);
+    if (rows.length < 6) continue;
+    const has = (m: { levels: number[] }) => (Number.isFinite(m.levels[k]) ? Math.max(-62, m.levels[k] - m.levels[0]) : -62);
+    const res = rows.map(({ ref, model }) => clampTo(ref.levels[k] - ref.levels[0] - has(model), -30, 30));
+    // (how it grows with the stroke first, held to 0–12 dB a step; then its level over the octaves with what
+    // that leaves, bent down or not at all)
+    const X = (r: GlockRef) => oct(r);
+    const d0 = V.levelDyn[k];
+    V.levelDyn[k] = round(clampTo(d0 + 0.7 * lsq(rows.map(({ ref }) => [1, X(ref), dyn(ref)]), res)[2], 0, 12), 2);
+    const left = res.map((e, i) => e - (V.levelDyn[k] - d0) * dyn(rows[i].ref));
+    // (a ridge on the slope and on the bend: a family heard on a dozen strokes over an octave, each 8 dB
+    // from the next as the mallet lands, does not fix its slope to better than 7 dB an octave, and the
+    // held-out bars are flatter than the steepest fits: a slope is believed as far as it stands clear of
+    // that, a prior of 12 dB an octave)
+    const RIDGE = Number(process.env.RIDGE ?? 8 / 12);
+    const q0 = V.levelOct2[k];
+    if (rows.length >= 12) V.levelOct2[k] = round(clampTo(q0 + 0.7 * lsq([...rows.map(({ ref }) => [1, X(ref), X(ref) ** 2]), [0, 0, RIDGE]], [...left, -RIDGE * q0])[2], -40, 0), 2);
+    const [a, b] = lsq([...rows.map(({ ref }) => [1, X(ref)]), [0, RIDGE]], [...left.map((e, i) => e - (V.levelOct2[k] - q0) * X(rows[i].ref) ** 2), -RIDGE * V.levelOct[k]]);
+    V.level[k] = round(V.level[k] + 0.7 * a, 2);
+    V.levelOct[k] = round(V.levelOct[k] + 0.7 * b, 2);
+  }
+  const s = summary(glockErrors(pairs, all).errs, glockErrors(pairs, all).measures);
+  console.log(`levels, pass ${it}: partials ${s.partials.toFixed(2)} dB (each stroke at its own decays; before the pass)`);
+}
 // the knock: its level and how it grows with the dynamic, by the attack's error on the fit bars
 const score = async (v: GlockVoice) => {
   const { errs, measures } = glockErrors(await compareAll({ voice: v }, fit), all);
@@ -101,8 +148,10 @@ const score = async (v: GlockVoice) => {
   return { attack: s.attack, all: measures.reduce((t, m) => t + s[m.name] / m.spread, 0) / measures.length, s };
 };
 let best = { k: V.knock, d: V.knockDyn, e: Infinity };
-for (const d of [0, 2, 4, 6])
-  for (let k = -44; k <= -4; k += 4) {
+// (how it grows with the stroke is held to 12 dB a step, as the families' is: two dynamics do not say what a
+// stroke harder than the recorded fortissimo does, and the attack's error keeps falling to 24)
+for (const d of [0, 3, 6, 9, 12])
+  for (let k = -30; k <= 6; k += 4) {
     const e = (await score({ ...V, knock: k, knockDyn: d })).attack;
     if (e < best.e) best = { k, d, e };
   }
@@ -112,6 +161,8 @@ for (const k of [best.k - 2, best.k + 2]) {
 }
 V.knock = best.k;
 V.knockDyn = best.d;
+// (A polish of the levels on the fit half's whole score was tried here and dropped: it brought the fit half
+// from 1.158 to 1.114 and left the held-out bars where they were, 1.34, their brightness worse.)
 const r = await score(V);
 console.log(`knock ${V.knock} dB, ${V.knockDyn} dB a dynamic step (attack error ${best.e.toFixed(2)} dB)`);
 console.log(`fit half: ${r.all.toFixed(3)}  ` + Object.entries(r.s).map(([k, x]) => `${k} ${x.toFixed(2)}`).join(' '));

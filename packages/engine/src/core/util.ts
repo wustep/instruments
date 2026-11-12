@@ -85,3 +85,23 @@ export function gauss(rand: () => number): number {
   const v = rand();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
+
+/** A player's hands, or lips: what no player does twice alike. A deterministic stream (the same notes give
+ *  the same sound: tests, the block-size rule), each instrument's and each player's its own. */
+export class Human {
+  private rng: () => number;
+  constructor(seed: number, player = 0) {
+    this.rng = mulberry32(playerSeed(seed, player));
+  }
+  /** evenly from −1 to 1 */
+  even(): number {
+    return 2 * this.rng() - 1;
+  }
+  /** about a normal deviate: standard deviation 1, never past ±2.5 (the sum of four even ones: a player's
+   *  stroke lands near where it was meant, never a mile off) */
+  near(): number {
+    const r = this.rng;
+    const x = (r() + r() + r() + r() - 2) * 1.7320508;
+    return x < -2.5 ? -2.5 : x > 2.5 ? 2.5 : x;
+  }
+}

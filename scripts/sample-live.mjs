@@ -2,15 +2,20 @@
 // renderOffline: the deployed bundle's DSP, through its room and limiter) renders a phrase, which is written
 // as WAV and encoded to MP3 (ffmpeg), then measured (peak, RMS, silence).
 //   BASE=https://instruments-wustep.vercel.app OUT=artifacts/new3 ID=tuba node scripts/sample-live.mjs
+//   SET=polish NAME=before …: the polish pass's material (repeated notes and sustained notes first: what a
+//   mechanical instrument gives itself away on), written as <id>-<NAME>.mp3
 // The phrases: the tuba's a bass line with tongued repeated notes and a legato phrase; the harp's arpeggios
 // and a glissando on a pedal setting; the glockenspiel's a bright melody left to ring.
 import { chromium } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { polish } from './polish-phrases.mjs';
 
 const BASE = process.env.BASE ?? 'http://localhost:4331';
 const OUT = process.env.OUT ?? 'test-results/samples';
 const ID = process.env.ID ?? 'tuba';
+const SET = process.env.SET ?? '';
+const NAME = process.env.NAME ?? 'sample';
 const FS = 48000;
 mkdirSync(OUT, { recursive: true });
 
@@ -25,6 +30,7 @@ function phrase(id) {
     if (told) ev.push(see(t, m, v, len));
     ev.push(on(t, m, v), off(t + len, m));
   };
+  if (SET === 'polish') return polish(id);
   if (id === 'tuba') {
     // a march's bass: tonic and dominant, tongued, with repeated eighths (F major, ♩ = 96)
     const q = 60 / 96;
@@ -121,8 +127,8 @@ for (let i = 0; i < n; i++) {
   wav.writeInt16LE(Math.round(Math.max(-1, Math.min(1, L[i])) * 32767), 44 + i * 4);
   wav.writeInt16LE(Math.round(Math.max(-1, Math.min(1, R[i])) * 32767), 46 + i * 4);
 }
-const wavPath = `${OUT}/${ID}-sample.wav`;
+const wavPath = `${OUT}/${ID}-${NAME}.wav`;
 writeFileSync(wavPath, wav);
-execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', wavPath, '-codec:a', 'libmp3lame', '-b:a', '192k', `${OUT}/${ID}-sample.mp3`]);
+execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', wavPath, '-codec:a', 'libmp3lame', '-b:a', '192k', `${OUT}/${ID}-${NAME}.mp3`]);
 execFileSync('rm', ['-f', wavPath]);
 console.log(JSON.stringify({ id: ID, base: BASE, seconds: +(n / FS).toFixed(2), notes: events.filter((e) => e.event.type === 'noteOn').length, peakDb: +(20 * Math.log10(peak + 1e-12)).toFixed(1), rmsDb: +(10 * Math.log10(sq / n + 1e-20)).toFixed(1), silentShare: +(quiet / n).toFixed(3), clipped: peak >= 0.999 }));

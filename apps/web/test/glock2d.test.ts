@@ -5,8 +5,8 @@
 // Orchestra cell; both styles draw, silent and sounding.
 import { describe, expect, it } from 'vitest';
 import { glockBars, type VisualFrame } from '@piano-model/engine';
-import { BARS, BAR_X, CASE, GK_X0, GK_X1, GK_Y0, GK_Y1, PITCH, RAILS, ROW_Y, barBox, barCentre, barNodes } from '../src/ui/glock-plan.ts';
-import { drawGlock, glockBox, glockLayout, newGlockState } from '../src/ui/glock-draw.ts';
+import { BARS, BAR_X, CASE, GK_X0, GK_X1, GK_Y0, GK_Y1, HEAD_R, PITCH, RAILS, ROW_Y, barBox, barCentre, barNodes, strokePlace } from '../src/ui/glock-plan.ts';
+import { drawGlock, glockBox, glockLayout, glockLive, newGlockState } from '../src/ui/glock-draw.ts';
 import { drawGlockV } from '../src/ui/vector/glock.ts';
 import { installCanvas, recorder } from './recording-ctx.ts';
 
@@ -17,6 +17,44 @@ const frame = (amps: Record<number, number>, hands: [number, number] = [8, 20], 
   for (const [i, a] of Object.entries(amps)) amp[+i] = a;
   return { focus: { midi: 84, f1: 1046.5, shapes: [new Float32Array(160)] }, glock: { amp, last: 5, ago: 0.1, vel: 80, hits, hands } } as unknown as VisualFrame;
 };
+
+describe('the mallets land where the strokes did', () => {
+  it('a stroke’s place is on its bar: as far along it and across it as the engine’s hands ever land, the head whole on the steel', () => {
+    for (const i of [0, 1, 12, 29]) {
+      const [x0, y0, x1, y1] = barBox(i);
+      for (const [al, ac] of [[0.14, 1], [-0.14, -1], [0.14, -1], [0, 0], [9, 9]] as const) {
+        const [x, y] = strokePlace(i, al, ac);
+        expect(x - HEAD_R * 0.5).toBeGreaterThan(x0);
+        expect(x + HEAD_R * 0.5).toBeLessThan(x1);
+        expect(y).toBeGreaterThan(y0);
+        expect(y).toBeLessThan(y1);
+      }
+      expect(strokePlace(i)).toEqual(barCentre(i));
+    }
+  });
+
+  it('each mallet’s head goes to where its last stroke landed (no two strokes on one spot), not to the bar’s middle every time', () => {
+    const st = newGlockState();
+    const f1 = { ...frame({ 5: 0.8 }, [5, 20], [{ bar: 5, ago: 0.01, vel: 90, hand: 0 }]) } as VisualFrame;
+    (f1.glock!.hits[0] as { along?: number; across?: number }).along = 0.1;
+    (f1.glock!.hits[0] as { along?: number; across?: number }).across = -0.8;
+    let lv = glockLive(f1, st, 1000);
+    for (let t = 1016; t < 1400; t += 16) lv = glockLive(f1, st, t);
+    const want = strokePlace(5, 0.1, -0.8);
+    expect(lv.head[0][0]).toBeCloseTo(want[0], 4);
+    expect(lv.head[0][1]).toBeCloseTo(want[1], 4);
+    expect(Math.hypot(want[0] - barCentre(5)[0], want[1] - barCentre(5)[1])).toBeGreaterThan(0.01);
+    // the other mallet, which has struck nothing, hangs over its bar's middle
+    expect(lv.head[1][0]).toBeCloseTo(barCentre(20)[0], 4);
+    expect(lv.head[1][1]).toBeCloseTo(barCentre(20)[1], 4);
+    // an older engine's frame (no place said): the middle
+    const st2 = newGlockState();
+    const f2 = frame({ 5: 0.8 }, [5, 20], [{ bar: 5, ago: 0.01, vel: 90, hand: 0 }]);
+    let l2 = glockLive(f2, st2, 1000);
+    for (let t = 1016; t < 1400; t += 16) l2 = glockLive(f2, st2, t);
+    expect(l2.head[0][0]).toBeCloseTo(barCentre(5)[0], 4);
+  });
+});
 
 describe('the 2D glockenspiel’s plan', () => {
   it('thirty bars in two rows, each the engine’s length and 31.75 mm wide, the low bars at the left, each row tapering to the treble', () => {

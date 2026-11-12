@@ -3,7 +3,8 @@
 // at the sample rates the site meets (22.05 to 96 kHz) at pitch, a key under the compass read as written and
 // brought up by octaves; on the stage in both 2D styles (whole, clear of the file player, the struck bar lit,
 // the mallet down on it and up again, the knobs at the engine's values) and in 3D (whole, the bar glowing, the
-// mallet over it, not one WebGL error or warning); its own piece from the overlay; and Orchestra mode: a file
+// mallet over it, not one WebGL error or warning); a roll (the roll knob: the two mallets in turn on a held
+// key); its own piece from the overlay; and Orchestra mode: a file
 // whose "Glockenspiel" track (GM 10) is written two octaves under where it sounds routed to a glockenspiel
 // and brought up, a file without one routed as it was, and the glockenspiel by hand from the picker.
 import { test, expect, type Page } from '@playwright/test';
@@ -159,6 +160,47 @@ for (const look of ['2d', 'vector'] as const)
     await page.keyboard.up('d');
     expect(errors).toEqual([]);
   });
+
+test('a roll: with the roll knob up a held key is struck on by the two mallets in turn, each coming down on the bar again and again; let go, the bar rings out', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/glockenspiel');
+  await startAudio(page);
+  await expect.poll(() => drawn(page), { timeout: 10_000 }).not.toBeNull();
+  // the knobs: mallets, damping, roll (off: single strokes)
+  await expect(page.locator('.knob').nth(2)).toContainText('off');
+  await page.evaluate(() => (window as any).__piano.setParams({ roll: 0.6 }));
+  await page.evaluate(() => (window as any).__piano.noteOn(84, 90, 'midi'));
+  // both mallets come to the bar (a single stroke brings one)
+  const onBar = async () => {
+    const d = (await drawn(page))!;
+    const b = d.bars[5];
+    return d.heads.filter(([x, y]) => x > b.x0 - 2 && x < b.x1 + 2 && y > b.y0 && y < b.y1).length;
+  };
+  await expect.poll(onBar, { timeout: 5000 }).toBe(2);
+  // each hand's mallet is seen coming down several times in a second and a half
+  const downs = [0, 0];
+  const was = [false, false];
+  const t0 = Date.now();
+  while (Date.now() - t0 < 1500) {
+    const d = (await drawn(page))!;
+    for (const h of [0, 1]) {
+      const down = d.lift[h] < 0.3;
+      if (down && !was[h]) downs[h]++;
+      was[h] = down;
+    }
+    await page.waitForTimeout(12);
+  }
+  expect(downs[0], `left ${downs[0]}`).toBeGreaterThanOrEqual(3);
+  expect(downs[1], `right ${downs[1]}`).toBeGreaterThanOrEqual(3);
+  // let go: no more strokes, both mallets up and staying up, the bar ringing on
+  await page.evaluate(() => (window as any).__piano.noteOff(84, 'midi'));
+  await expect.poll(async () => Math.min(...(await drawn(page))!.lift), { timeout: 3000 }).toBeGreaterThan(0.9);
+  await page.waitForTimeout(400);
+  const d2 = (await drawn(page))!;
+  expect(Math.min(...d2.lift)).toBeGreaterThan(0.9);
+  expect(d2.ringing).toBeGreaterThanOrEqual(1);
+  expect(errors).toEqual([]);
+});
 
 test('3D: the glockenspiel whole on the stage, clear of the file player; a struck bar glows and its mallet is over it; not one WebGL error or warning', async ({ page }) => {
   const errors = collectErrors(page);

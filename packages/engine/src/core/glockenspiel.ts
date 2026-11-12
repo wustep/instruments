@@ -19,6 +19,20 @@
 // octaves into it (a note above, down), so a part typed where it is written still plays.
 //
 // Nothing damps a bar: a key let go changes nothing unless `damp` says the hand stops it.
+//
+// The player. No two strokes of a player are alike, and what makes them differ is known: where the mallet
+// lands (the recordings' strokes differ from the voicing's smooth curves by 4–8 dB in each family of upper
+// partials, stroke to stroke on one bar: STROKE_SD), how hard (a decibel or so), when (the two hands never
+// land together to the millisecond), and which of the two mallets, never quite a pair. The bars differ too
+// (BAR_SD: a bar's upper partials keep some of their offset from one stroke to the next; two bars of the
+// recorded instrument die three times as fast as their neighbours). `human` 1 (the default) plays so; 0 is
+// the voicing itself, every stroke on the bar's middle: what is fitted and judged. A bar struck while it
+// rings is the stroke added to its motion (the mallet is on the bar a quarter of a millisecond and going ten
+// times as fast as the bar's face: it gives its blow whatever the bar is doing, and takes a little of the
+// bar's motion with it: MALLET_TAKES), so a repeated
+// note is louder or softer as the stroke happens to meet the bar's swing, and a roll (`roll`, or the
+// modulation wheel, on a held key: the two mallets in turn, ten to sixteen strokes a second) gathers into one
+// sustained note, as rolls do.
 
 import type { ExciteTrace, InstrumentCore } from './instrument.ts';
 import type { KeySummary } from '../api/messages.ts';
@@ -26,13 +40,18 @@ import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { biquadHighpass } from './filters.ts';
 import type { PianoEvent } from './piano-core.ts';
 import { Pump } from './pump.ts';
-import { clamp, playerCents } from './util.ts';
+import { clamp, Human, playerCents } from './util.ts';
 
 export interface GlockParams {
   /** the mallets' heads: 0 hard rubber … 0.5 plastic (the recordings' pp–ff) … 1 brass */
   mallet: number;
   /** what a key let go does: 0 nothing (the bar rings on) … 1 the hand stops it */
   damp: number;
+  /** a held key rolls: 0 single strokes, above 0 a roll (faster towards 1); the modulation wheel rolls too */
+  roll: number;
+  /** the player's hands and the instrument's own bars: 0 the voicing itself (every stroke on the bar's
+   *  middle, as hard as asked, on the instant; what is fitted and judged) … 1 a player's */
+  human: number;
   room: number;
   volume: number;
   /** orchestra mode: where it stands on the stage (post.ts Seat); none, the single instrument's place */
@@ -100,6 +119,9 @@ export interface GlockVoice {
    *  mallet re plastic */
   level: number[];
   levelOct: number[];
+  /** … and per octave squared (absent: none): the upper families hold their level over the low two octaves
+   *  and are gone in the top one */
+  levelOct2?: number[];
   levelDyn: number[];
   levelBrass: number[];
   /** the decay (dB/s) at C6, × per octave up, and × per octave squared (the pitch's own decay is nearly level
@@ -144,34 +166,80 @@ export const GLOCK_TEXTBOOK: GlockVoice = {
 /** The fitted voicing (scripts/fit-glock.ts: each family's ratio, level and decay regressed over the bar's
  *  pitch and the dynamic, on every second recorded bar). */
 export const GLOCK_VOICE: GlockVoice = {
-  ratio: [1, 3.1111, 3.8311, 6.2469, 8.0338, 14.0426],
-  ratioOct: [0, 0.0849, 0.2418, 0.192, 0.559, 0.1815],
-  level: [0, -30.95, -35.01, -24.01, -23.31, -33.24],
-  levelOct: [1.94, -8.88, -0.83, -17.06, -23.93, 5.1],
-  levelDyn: [0, 8, 0, 8, 8, 8],
-  levelBrass: [0, 3.5, 0, 7.37, 0, 12],
-  decay: [4.83, 92.43, 13.89, 218.28, 44.52, 59.96],
-  decayOct: [1.292, 1.117, 4.113, 0.401, 1.172, 1.727],
-  decayOct2: [1.341, 1, 1, 1, 1, 1],
-  knock: -6,
-  knockDyn: 6,
+  ratio: [1,  3.1111,  3.8311,  6.2469,  8.0338,  14.0426],
+  ratioOct: [0,  0.0849,  0.2418,  0.192,  0.559,  0.1815],
+  level: [0,  -14.92,  -33.43,  -4.01,  -20.85,  -28.35],
+  levelOct: [1.94,  -2.51,  1.34,  -18.27,  -11.84,  4.74],
+  levelOct2: [0,  -3.17,  0,  -5.92,  0,  0],
+  levelDyn: [0,  0,  0,  12,  12,  12],
+  levelBrass: [0,  3.5,  0,  7.37,  0,  12],
+  decay: [4.83,  92.43,  13.89,  218.28,  44.52,  59.96],
+  decayOct: [1.292,  1.117,  4.113,  0.401,  1.172,  1.727],
+  decayOct2: [1.341,  1,  1,  1,  1,  1],
+  knock: -8,
+  knockDyn: 12,
   knockF: 3200,
   knockTau: 0.004,
   hp: 300,
   gainDb: -24,
 };
 
+/** No upper family begins more than this over the bar's pitch (dB), whatever the fitted lines say where they
+ *  are steepest (the lowest bars at fortissimo: their recorded attacks stand 2–7 dB over what follows, which
+ *  a partial twice the pitch's size and gone in 50 ms already is). */
+const FAMILY_TOP = 6;
 /** a partial this far under a hard stroke is dropped */
 const QUIET = 1e-6;
 /** the hand on a bar (`damp` 1): dB/s */
 const STOP_RATE = 900;
-/** a bar struck again while it rings keeps this much of its motion under the new stroke */
-const RESTRIKE_KEEP = 0.5;
-/** the velocity that is mezzo-forte */
+/** How the recorded strokes differ (the Iowa bells' mezzo-forte and fortissimo strokes against the fitted
+ *  curves, scripts/glock-variation.ts): each family's level from one stroke to the next on the same bar
+ *  (dB, a standard deviation; the families move together a little, a correlation of 0.3), and what a bar
+ *  keeps from stroke to stroke (the bar's own: used at 0.7 of it, the fit's own error being in it). */
+const STROKE_SD = [0, 7.8, 3.9, 7.5, 6.9, 5.9];
+const BAR_SD = [0, 0, 2.5, 4.2, 5.6, 3.9];
+/** the stroke's own level from one to the next (dB), and a bar's (the recordings' neighbouring strokes are
+ *  3–4 dB apart in a slow chromatic row, bar and stroke together) */
+const HAND_SD = 1.1;
+const BAR_LEVEL_SD = 1;
+/** where the mallet lands along the bar, from its middle (a share of its length, a standard deviation): the
+ *  bar's pitch is set going less off its middle (barShape) */
+const PLACE_SD = 0.05;
+/** a bar's tuning (cents: every bar within 2 ¢ of its note, a well-tuned instrument's) and how its pitch
+ *  dies (octaves of the rate): each bar its own */
+const BAR_CENTS_SD = 0.8;
+const BAR_DECAY_SD = 0.2;
+/** how late a stroke lands (ms, a standard deviation; never early: nothing is known ahead) */
+const LATE_MS = 1.3;
+/** the two mallets: the left's head a little softer than the right's (dB on the upper partials and the
+ *  knock; the knock's pitch) */
+const MALLET_DB = [-0.8, 0.8];
+const MALLET_PITCH = [0.95, 1.05];
+/** What a stroke takes from a bar already ringing. The mallet's blow is its speed against the bar's face:
+ *  Δv = μ(1 + e)(v_mallet − v_bar), μ the mallet's mass over the bar's as its pitch's motion carries it at
+ *  its middle (0.68 of the bar's own: a free bar's first mode), e the rebound. A 15 g head and shaft on a
+ *  C6 bar of 0.5 kg, e ≈ 0.7: the bar gets 0.075 of the mallet's speed, and loses 0.075 of what it had in
+ *  that direction at that instant. The bar's mass goes as its length: this over the length (m). */
+const MALLET_TAKES = 0.016;
+/** A roll's level: the bar gathers its strokes (each adds its energy; the bar loses 2α of what it holds a
+ *  second and, on average, MALLET_TAKES/length of it a stroke), so a roll settles 1/(2α·gap + takes) times
+ *  one stroke's energy up: 7 dB on a low bar at thirteen strokes a second. A player rolls at the dynamic
+ *  asked, with lighter strokes: here the roll settles this far over the note's own single stroke (dB). The
+ *  strokes meet the bar's swing as they fall, so the note wavers as it is held: a metal roll's shimmer. */
+const ROLL_OVER = 2;
+/** the velocities that are mezzo-forte and the recorded fortissimo */
 const VEL_MF = 75;
+const VEL_FF = 106;
 const TRACE = 2048;
 /** the strokes the pictures are told of */
 const NHITS = 6;
+
+/** a stroke on its way (the core's own event: a key's stroke lands a moment late) */
+interface Stroke {
+  type: 'stroke';
+  bar: number;
+  velocity: number;
+}
 
 export class GlockenspielCore implements InstrumentCore {
   readonly id = 'glockenspiel' as const;
@@ -184,7 +252,15 @@ export class GlockenspielCore implements InstrumentCore {
   params: GlockParams;
   private dry: boolean;
   private V: GlockVoice;
-  private queue: { frame: number; ev: PianoEvent }[] = [];
+  private queue: { frame: number; ev: PianoEvent | Stroke }[] = [];
+  private hum: Human;
+  /** each bar's own: its tuning (cents), its pitch's decay (a factor), its families' levels (dB) */
+  private barCents = new Float64Array(GLOCK_BARS);
+  private barDecay = new Float64Array(GLOCK_BARS).fill(1);
+  private barLevel = new Float64Array(GLOCK_BARS * GLOCK_FAMILIES);
+  /** a roll in progress on a bar: its next stroke's frame (−1: none); the modulation wheel */
+  private rollNext = new Float64Array(GLOCK_BARS).fill(-1);
+  private modWheel = 0;
   private y1 = new Float64Array(GLOCK_BARS * GLOCK_FAMILIES);
   private y2 = new Float64Array(GLOCK_BARS * GLOCK_FAMILIES);
   private c1 = new Float64Array(GLOCK_BARS * GLOCK_FAMILIES);
@@ -201,17 +277,25 @@ export class GlockenspielCore implements InstrumentCore {
   private gR = new Float64Array(GLOCK_BARS);
   /** the key that holds each bar's note (a key outside the compass plays a bar inside it) */
   private keyBar = new Int8Array(128).fill(-1);
-  /** the mallet's knock: two short resonators */
-  private k1 = new Float64Array(2);
-  private k2 = new Float64Array(2);
-  private kc1 = new Float64Array(2);
-  private kc2 = new Float64Array(2);
+  /** the mallets' knocks: two short resonators to a mallet; the noise of its contact still to come (samples,
+   *  level) */
+  private k1 = new Float64Array(4);
+  private k2 = new Float64Array(4);
+  private kc1 = new Float64Array(4);
+  private kc2 = new Float64Array(4);
+  /** what sets a knock's resonator going for its fitted level, whatever the sample rate and its pitch */
+  private kg = new Float64Array(4);
+  private burst = new Int32Array(2);
+  private burstAmp = new Float64Array(2);
   /** the two mallets: the bar each is over, and the last strokes (bar, frame, velocity, hand) */
   private hands = new Int8Array([8, 20]);
   private hitBar = new Int8Array(NHITS).fill(-1);
   private hitAt = new Float64Array(NHITS).fill(-1);
   private hitVel = new Float64Array(NHITS);
   private hitHand = new Int8Array(NHITS);
+  /** where each landed: along the bar from its middle (a share of its length), across it (−1 … 1) */
+  private hitU = new Float32Array(NHITS);
+  private hitV = new Float32Array(NHITS);
   private hitN = 0;
   private last = 5;
   private tune = 0;
@@ -232,8 +316,17 @@ export class GlockenspielCore implements InstrumentCore {
     this.fs = opts.sampleRate;
     this.dry = !!opts.dry;
     this.V = { ...GLOCK_VOICE, ...opts.params?.voice };
-    this.params = { mallet: 0.5, damp: 0, room: 0.3, volume: 1, ...opts.params };
+    this.params = { mallet: 0.5, damp: 0, roll: 0, human: 1, room: 0.3, volume: 1, ...opts.params };
     this.tune = playerCents(opts.player) / 100;
+    // the instrument's own bars (another player's is another instrument), then the player's hands
+    const made = new Human(791, opts.player);
+    for (let i = 0; i < GLOCK_BARS; i++) {
+      this.barCents[i] = BAR_CENTS_SD * made.near();
+      this.barDecay[i] = Math.pow(2, BAR_DECAY_SD * made.near());
+      this.barLevel[i * GLOCK_FAMILIES] = BAR_LEVEL_SD * made.near();
+      for (let k = 1; k < GLOCK_FAMILIES; k++) this.barLevel[i * GLOCK_FAMILIES + k] = BAR_SD[k] * made.near();
+    }
+    this.hum = new Human(79, opts.player);
     this.room = new Room(this.fs);
     this.limiter = new Limiter(this.fs);
     for (let i = 0; i < GLOCK_BARS; i++) {
@@ -251,18 +344,34 @@ export class GlockenspielCore implements InstrumentCore {
     const V = this.V;
     this.eq.set([biquadHighpass(Math.min(0.4 * fs, V.hp), 0.7, fs)]);
     this.room.configure(this.params.room, this.params.seat);
-    for (let k = 0; k < 2; k++) {
-      const w = (2 * Math.PI * Math.min(0.42 * fs, V.knockF * (k ? 1.9 : 1))) / fs;
-      const r = Math.exp(-1 / (Math.max(0.0005, V.knockTau) * fs));
-      this.kc1[k] = 2 * r * Math.cos(w);
-      this.kc2[k] = r * r;
-    }
+    for (let h = 0; h < 2; h++) this.knockOf(h, 1);
     this.gain = Math.pow(10, V.gainDb / 20) * this.params.volume;
+  }
+
+  /** a mallet's knock: its two resonators at `pitch` times the voicing's (the head, the stroke) */
+  private knockOf(hand: number, pitch: number): void {
+    const fs = this.fs;
+    const V = this.V;
+    for (let k = 0; k < 2; k++) {
+      const f = V.knockF * (k ? 1.9 : 1);
+      const w = (2 * Math.PI * Math.min(0.42 * fs, f * pitch)) / fs;
+      const r = Math.exp(-1 / (Math.max(0.0005, V.knockTau) * fs));
+      this.kc1[2 * hand + k] = 2 * r * Math.cos(w);
+      this.kc2[2 * hand + k] = r * r;
+      // (a resonator kicked by one sample rings at 1/sin ω of the kick: the voicing's knock was fitted at
+      // 44.1 kHz with a kick of the knock's level, so its ring is that over sin ω there, at every rate)
+      this.kg[2 * hand + k] = (k ? 0.6 : 1) * (Math.sin(w) / Math.sin((2 * Math.PI * Math.min(0.42 * 44100, f)) / 44100));
+    }
+  }
+
+  /** how much of a player there is (0 … 1) */
+  private get human(): number {
+    return clamp(Number(this.params.human) || 0, 0, 1);
   }
 
   /** a bar's pitch now (Hz) */
   private pitchOf(i: number): number {
-    return et(BARS[i].midi + this.tune + this.bend);
+    return et(BARS[i].midi + this.tune + this.bend + (this.human * this.barCents[i]) / 100);
   }
   /** a family's ratio to the pitch on bar i (0: the bar has not that family: up the compass the twisting
    *  families come down onto the edgewise ones, and within 8 % the two are one partial) */
@@ -289,7 +398,7 @@ export class GlockenspielCore implements InstrumentCore {
         this.c1[o + k] = this.c2[o + k] = 0;
         continue;
       }
-      const rate = V.decay[k] * Math.pow(V.decayOct[k], oct) * Math.pow(V.decayOct2[k], oct * oct) + this.stopRate[i];
+      const rate = V.decay[k] * Math.pow(V.decayOct[k], oct) * Math.pow(V.decayOct2[k], oct * oct) * (k === 0 ? Math.pow(this.barDecay[i], this.human) : 1) + this.stopRate[i];
       const r = Math.pow(10, -rate / (20 * fs));
       this.c1[o + k] = 2 * r * Math.cos((2 * Math.PI * f) / fs);
       this.c2[o + k] = r * r;
@@ -323,65 +432,140 @@ export class GlockenspielCore implements InstrumentCore {
     return i - l < r - i ? 0 : i - l > r - i ? 1 : 1 - lastHand;
   }
 
-  /** Strike a bar: each family set going from nothing (a sine from now), on top of some of what it was doing. */
+  /** Strike a bar: each family set going from nothing (a sine from now) on top of what it was doing: the
+   *  stroke lands where the hand puts it (see the head of the file). */
   private strike(i: number, velocity: number): void {
     const V = this.V;
     const fs = this.fs;
+    const H = this.human;
+    const hum = this.hum;
     this.stopRate[i] = 0;
     this.coeffs(i);
+    const hand = this.handFor(i);
+    // the stroke: where along the bar and across it, how hard, how it glances (all the upper families a little)
+    const along = clamp(PLACE_SD * hum.near() * H, -0.14, 0.14);
+    const across = hum.near() * H;
+    const glance = hum.near() * H;
+    const hard = HAND_SD * hum.near() * H;
     // the stroke's level re mezzo-forte's (dB): the amplitude as the velocity squared
     const g = 40 * Math.log10(clamp(velocity, 1, 127) / VEL_MF);
-    const d = g / 10;
+    // (how the stroke's colour follows its strength: as far as the recorded fortissimo, velocity 106; a
+    // harder stroke still is louder, and no brighter than that for all the recordings say)
+    const d = Math.min(g, 40 * Math.log10(VEL_FF / VEL_MF)) / 10;
     const oct = (BARS[i].midi - 84) / 12;
     const brass = clamp((this.params.mallet - 0.5) * 2, -1, 1);
-    const A = Math.pow(10, (V.level[0] + V.levelOct[0] * oct + g) / 20);
-    const f1 = this.pitchOf(i);
     const o = i * GLOCK_FAMILIES;
-    const keep = this.live[i] ? RESTRIKE_KEEP : 0;
+    const A = Math.pow(10, (V.level[0] + V.levelOct[0] * oct + g + hard + H * this.barLevel[o]) / 20) * barShape(0.5 + along);
+    const f1 = this.pitchOf(i);
+    const head = H * MALLET_DB[hand];
+    // what the mallet takes: it leaves with some of the bar's own motion under it (see MALLET_TAKES)
+    const takes = this.live[i] ? MALLET_TAKES / BARS[i].length : 0;
     for (let k = 0; k < GLOCK_FAMILIES; k++) {
       if (this.c2[o + k] === 0) {
         this.y1[o + k] = this.y2[o + k] = 0;
         continue;
       }
-      const a = k === 0 ? A : A * Math.pow(10, (V.level[k] + V.levelOct[k] * oct + V.levelDyn[k] * d + V.levelBrass[k] * brass) / 20);
+      if (takes > 0) {
+        // (the family's motion now is P cos + Q sin from this instant; a stroke adds to Q, the part that is
+        // moving through its rest as the mallet lands, and the mallet takes its share of that part)
+        const w0 = Math.acos(clamp(this.c1[o + k] / (2 * Math.sqrt(this.c2[o + k])), -1, 1));
+        const r0 = Math.sqrt(this.c2[o + k]);
+        const sw = Math.sin(w0);
+        if (sw > 1e-6) {
+          const Q = (r0 * this.y1[o + k] * Math.cos(2 * w0) - r0 * r0 * this.y2[o + k] * Math.cos(w0)) / sw;
+          this.y1[o + k] += (takes * Q * sw) / r0;
+          this.y2[o + k] += (takes * Q * Math.sin(2 * w0)) / (r0 * r0);
+        }
+      }
+      // (a twisting family by where across the bar the mallet lands, the others each by its own chance; all
+      // of them a little together)
+      const own = k === 0 ? 0 : STROKE_SD[k] * (0.55 * glance + 0.835 * (k === 2 || k === 4 ? (k === 2 ? across : 0.6 * across + 0.8 * hum.near() * H) : hum.near() * H)) + H * this.barLevel[o + k] + head;
+      const a = k === 0 ? A : A * Math.pow(10, (Math.min(FAMILY_TOP, V.level[k] + V.levelOct[k] * oct + (V.levelOct2?.[k] ?? 0) * oct * oct + V.levelDyn[k] * d) + V.levelBrass[k] * brass + own) / 20);
       const w = (2 * Math.PI * f1 * this.ratioOf(i, k)) / fs;
       const r = Math.sqrt(this.c2[o + k]) || 1;
-      this.y1[o + k] = keep * this.y1[o + k] - (a * Math.sin(w)) / r;
-      this.y2[o + k] = keep * this.y2[o + k] - (a * Math.sin(2 * w)) / (r * r);
+      this.y1[o + k] -= (a * Math.sin(w)) / r;
+      this.y2[o + k] -= (a * Math.sin(2 * w)) / (r * r);
     }
     this.live[i] = 1;
     this.peak[i] = 0;
-    this.level[i] = A;
+    this.level[i] = Math.max(this.level[i], A);
     this.struckAt[i] = this.frame;
     this.vel[i] = velocity;
     this.last = i;
     this.trN = 0;
     this.freqsOf(i);
-    // the knock: harder, louder and (a brass head) more of it
-    const kn = Math.pow(10, (V.level[0] + V.knock + V.knockDyn * d + 4 * brass) / 20);
-    this.k1[0] += kn;
-    this.k1[1] += 0.6 * kn;
-    const hand = this.handFor(i);
+    // the knock: harder, louder, higher (the head is on the bar a shorter time: Hertz's contact, its length
+    // as the stroke's speed to the −1/5) and (a brass head) more of it and higher still; each mallet its own
+    const kn = Math.pow(10, (V.level[0] + (g - 10 * d) + V.knock + V.knockDyn * d + 4 * brass + head + 1.5 * hum.near() * H) / 20);
+    this.knockOf(hand, Math.pow(Math.min(clamp(velocity, 1, 127), VEL_FF) / VEL_MF, 0.4 * H) * Math.pow(1.6, brass) * Math.pow(MALLET_PITCH[hand], H));
+    if (H > 0) {
+      // (a player's stroke: the contact is a moment's noise, a quarter of a millisecond of it, not one
+      // sample's kick; no two the same. Evenly spread samples of ±1 have a third of a kick's power each)
+      this.burst[hand] = Math.max(2, Math.round(0.00025 * fs * Math.pow(1.6, -brass)));
+      this.burstAmp[hand] = kn / Math.sqrt(this.burst[hand] / 3);
+    } else {
+      this.k1[2 * hand] += kn * this.kg[2 * hand];
+      this.k1[2 * hand + 1] += kn * this.kg[2 * hand + 1];
+    }
     this.hands[hand] = i;
     const h = this.hitN % NHITS;
     this.hitBar[h] = i;
     this.hitAt[h] = this.frame;
     this.hitVel[h] = velocity;
     this.hitHand[h] = hand;
+    this.hitU[h] = along;
+    this.hitV[h] = clamp(across / 2.5, -1, 1);
     this.hitN++;
   }
 
-  private apply(ev: PianoEvent): void {
+  /** a key's stroke: on the instant (`human` 0), or as late as the hand is */
+  private hit(i: number, velocity: number): void {
+    const late = Math.round(Math.abs(this.hum.near()) * this.human * LATE_MS * 0.001 * this.fs);
+    if (late <= 0) return this.landed(i, velocity);
+    const q = this.queue;
+    const f = this.frame + late;
+    let k = 0;
+    while (k < q.length && q[k].frame <= f) k++;
+    q.splice(k, 0, { frame: f, ev: { type: 'stroke', bar: i, velocity } });
+  }
+
+  /** the stroke lands: the bar is struck; held with a roll asked for, it rolls; its key already let go and
+   *  the hand damping, it is stopped */
+  private landed(i: number, velocity: number): void {
+    this.strike(i, velocity);
+    if (this.held[i]) this.rollNext[i] = this.rolling() ? this.frame + this.rollGap() : -1;
+    else if (this.params.damp > 0 && this.sustain < 0.5) this.stop(i);
+  }
+
+  private rolling(): boolean {
+    return Math.max(Number(this.params.roll) || 0, this.modWheel) > 0.02;
+  }
+  /** a roll's strokes: 10–16 a second as the roll deepens, each a little early or late */
+  private rollGap(): number {
+    const r = clamp(Math.max(Number(this.params.roll) || 0, this.modWheel), 0, 1);
+    return Math.max(1, Math.round((this.fs / (10 + 6 * r)) * (1 + 0.1 * this.hum.even())));
+  }
+
+  private apply(ev: PianoEvent | Stroke): void {
     switch (ev.type) {
       case 'noteOn': {
         if (ev.velocity <= 0) return this.release(ev.midi);
         const m = Math.round(ev.midi);
         const i = glockBarOf(m);
-        this.strike(i, ev.velocity);
         if (m >= 0 && m < 128) this.keyBar[m] = i;
         this.held[i] = 1;
+        this.hit(i, ev.velocity);
         break;
       }
+      case 'stroke':
+        this.landed(ev.bar, ev.velocity);
+        break;
+      case 'control':
+        if (ev.cc === 1) {
+          this.modWheel = ev.value < 0 ? 0 : clamp(ev.value, 0, 1);
+          this.rollHeld();
+        }
+        break;
       case 'noteOff':
         this.release(ev.midi);
         break;
@@ -409,7 +593,17 @@ export class GlockenspielCore implements InstrumentCore {
     if (i < 0) return;
     this.keyBar[m] = -1;
     this.held[i] = 0;
+    this.rollNext[i] = -1;
     if (this.params.damp > 0 && this.sustain < 0.5 && this.live[i]) this.stop(i);
+  }
+
+  /** a roll asked for (or no longer) while keys are held */
+  private rollHeld(): void {
+    const on = this.rolling();
+    for (let i = 0; i < GLOCK_BARS; i++) {
+      if (!on) this.rollNext[i] = -1;
+      else if (this.held[i] && this.rollNext[i] < 0 && this.struckAt[i] >= 0) this.rollNext[i] = this.frame + this.rollGap();
+    }
   }
 
   /** the hand on a bar (`damp` 0 … 1: how firmly) */
@@ -428,6 +622,8 @@ export class GlockenspielCore implements InstrumentCore {
       for (let i = 0; i < GLOCK_BARS; i++) if (this.live[i]) this.coeffs(i);
     } else if (this.params.room !== old.room || this.params.volume !== old.volume) this.voiced();
     else if (this.params.seat !== old.seat) this.room.configure(this.params.room, this.params.seat);
+    if (this.params.roll !== old.roll) this.rollHeld();
+    if (this.params.human !== old.human) for (let i = 0; i < GLOCK_BARS; i++) if (this.live[i]) this.coeffs(i);
   }
 
   /** the bars ringing (their sounding pitches), loudest first */
@@ -453,6 +649,12 @@ export class GlockenspielCore implements InstrumentCore {
     this.stopRate.fill(0);
     this.keyBar.fill(-1);
     this.struckAt.fill(-1);
+    this.rollNext.fill(-1);
+    this.burst.fill(0);
+    // (strokes on their way are not made)
+    let kept = 0;
+    for (const e of this.queue) if (e.ev.type !== 'stroke') this.queue[kept++] = e;
+    this.queue.length = kept;
     this.k1.fill(0);
     this.k2.fill(0);
     this.room.reset();
@@ -472,13 +674,29 @@ export class GlockenspielCore implements InstrumentCore {
     return this.modeFreqs;
   }
 
-  /** Render `frames` samples into outL/outR. Internal blocks (≤ 64, cut at events) do not depend on `frames`
-   *  (see Pump). */
+  /** Render `frames` samples into outL/outR. Internal blocks (≤ 64, cut at events and at a roll's strokes) do
+   *  not depend on `frames` (see Pump). */
   process(outL: Float32Array | Float64Array, outR: Float32Array | Float64Array, frames: number): void {
     this.pump.pull(outL, outR, frames, (L, R) => {
       const q = this.queue;
       while (q.length && q[0].frame <= this.frame) this.apply(q.shift()!.ev);
+      // a roll's next strokes are the core's own events: due ones strike, and a block ends at the next
       let n = 64;
+      for (let i = 0; i < GLOCK_BARS; i++) {
+        if (this.rollNext[i] < 0) continue;
+        if (this.rollNext[i] <= this.frame) {
+          const v = this.vel[i];
+          const gap = this.rollGap();
+          // (the stroke's energy for the roll's level: see ROLL_OVER; the amplitude goes as the velocity squared)
+          const oct = (BARS[i].midi - 84) / 12;
+          const loss = (this.V.decay[0] * Math.pow(this.V.decayOct[0], oct) * Math.pow(this.V.decayOct2[0], oct * oct)) / 4.343;
+          const share = Math.min(1, Math.pow(10, ROLL_OVER / 10) * ((loss * gap) / this.fs + MALLET_TAKES / BARS[i].length));
+          this.strike(i, clamp(v * Math.pow(share, 0.25) * (1 + 0.05 * this.hum.near() * this.human), 1, 127));
+          this.vel[i] = v;
+          this.rollNext[i] = this.frame + gap;
+        }
+        n = Math.max(1, Math.min(n, this.rollNext[i] - this.frame));
+      }
       if (q.length) n = Math.max(1, Math.min(n, q[0].frame - this.frame));
       this.render(n);
       for (let t = 0; t < n; t++) {
@@ -546,23 +764,29 @@ export class GlockenspielCore implements InstrumentCore {
         this.struckAt[i] = -1;
       }
     }
-    // the mallet's knock
-    for (let k = 0; k < 2; k++) {
-      let u1 = this.k1[k];
-      let u2 = this.k2[k];
-      if (u1 === 0 && u2 === 0) continue;
-      const a1 = this.kc1[k];
-      const a2 = this.kc2[k];
-      for (let t = 0; t < n; t++) {
-        const u = a1 * u1 - a2 * u2;
-        u2 = u1;
-        u1 = u;
-        oL[t] += u;
-        oR[t] += u;
+    // the mallets' knocks: each one's two resonators, set going by the noise of its contact
+    for (let h = 0; h < 2; h++) {
+      const nb = Math.min(n, this.burst[h]);
+      for (let t = 0; t < nb; t++) buf[t] = this.burstAmp[h] * this.hum.even();
+      this.burst[h] -= nb;
+      for (let k = 2 * h; k < 2 * h + 2; k++) {
+        let u1 = this.k1[k];
+        let u2 = this.k2[k];
+        if (u1 === 0 && u2 === 0 && nb === 0) continue;
+        const a1 = this.kc1[k];
+        const a2 = this.kc2[k];
+        const gk = this.kg[k];
+        for (let t = 0; t < n; t++) {
+          const u = a1 * u1 - a2 * u2 + (t < nb ? gk * buf[t] : 0);
+          u2 = u1;
+          u1 = u;
+          oL[t] += u;
+          oR[t] += u;
+        }
+        if (Math.abs(u1) + Math.abs(u2) < QUIET) u1 = u2 = 0;
+        this.k1[k] = u1;
+        this.k2[k] = u2;
       }
-      if (Math.abs(u1) + Math.abs(u2) < QUIET) u1 = u2 = 0;
-      this.k1[k] = u1;
-      this.k2[k] = u2;
     }
     const gn = this.gain;
     for (let t = 0; t < n; t++) {
@@ -620,10 +844,10 @@ export class GlockenspielCore implements InstrumentCore {
       const oct = (BARS[s].midi - 84) / 12;
       amp[s] = clamp(this.level[s] / Math.pow(10, (V.level[0] + V.levelOct[0] * oct + 9) / 20), 0, 1);
     }
-    const hits: { bar: number; ago: number; vel: number; hand: number }[] = [];
+    const hits: { bar: number; ago: number; vel: number; hand: number; along: number; across: number }[] = [];
     for (let k = 0; k < Math.min(this.hitN, NHITS); k++) {
       const h = (this.hitN - 1 - k) % NHITS;
-      hits.push({ bar: this.hitBar[h], ago: (this.frame - this.hitAt[h]) / this.fs, vel: this.hitVel[h], hand: this.hitHand[h] });
+      hits.push({ bar: this.hitBar[h], ago: (this.frame - this.hitAt[h]) / this.fs, vel: this.hitVel[h], hand: this.hitHand[h], along: this.hitU[h], across: this.hitV[h] });
     }
     return {
       frame: this.frame,
@@ -633,7 +857,7 @@ export class GlockenspielCore implements InstrumentCore {
       strike: null,
       excite,
       modes,
-      glock: { amp, last: i, ago: this.struckAt[i] < 0 ? -1 : (this.frame - this.struckAt[i]) / this.fs, vel: this.vel[i], hits, hands: [this.hands[0], this.hands[1]] },
+      glock: { amp, last: i, ago: this.struckAt[i] < 0 ? -1 : (this.frame - this.struckAt[i]) / this.fs, vel: this.vel[i], hits, hands: [this.hands[0], this.hands[1]], rolling: this.rollNext[i] >= 0 },
       sustain: this.sustain,
       soft: 0,
       gainReduction: this.dry ? 1 : this.limiter.reduction,
