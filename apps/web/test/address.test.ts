@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { emptyAddress, formatAddress, ownSetup, parseAddress, PIECE_PATHS, tabOf, type Address } from '../src/address.ts';
 import { keysOnScreen } from '../src/look.ts';
 import type { LineRule } from '../src/orchestra/rules.ts';
-import { ELEVEN, QUINTET, THIRTEEN } from './presets.ts';
+import { ELEVEN, QUINTET, SEVENTEEN, THIRTEEN } from './presets.ts';
 
 const at = (url: string, hash = '') => {
   const u = new URL(url, 'https://instruments-wustep.vercel.app');
@@ -241,6 +241,51 @@ describe('a piece’s own address: /everything', () => {
     expect(ownSetup({ seats: seats as never, lines: lines.slice(0, 10), keys: null }, es)).toBe(false);
     // Toward Morning's thirteen are not this piece's orchestra
     expect(ownSetup({ seats: PIECE_PATHS.symphony.parts.map((q) => q.voice), lines: null, keys: null }, es)).toBe(false);
+  });
+});
+
+describe('a piece’s own address: /passiton', () => {
+  const po = PIECE_PATHS.passiton;
+  const seats = ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'glockenspiel', 'harp', 'grand', 'violin', 'violin', 'viola', 'cello', 'bass'];
+  /** the piece's lines as the ensemble knows them once its file is loaded: each on its own seat */
+  const lines: LineRule[] = ['Flute~73', 'Oboe~68', 'Clarinet~71', 'Bassoon~70', 'Horn~60', 'Trumpet~56', 'Trombone~57', 'Tuba~58', 'Timpani~47', 'Glockenspiel~9', 'Harp~46', 'Grand Piano~0', 'Violin I~40', 'Violin II~40', 'Viola~41', 'Cello~42', 'Double Bass~43'].map((x, i) => ({ name: x.split('~')[0], program: Number(x.split('~')[1]), seats: [i] }));
+
+  it('opens Pass It On’s orchestra, seventeen seats, with the piece named; the look, the expression and the keys are still the address’s', () => {
+    expect(po.id).toBe('pass-it-on');
+    const a = at('/passiton');
+    expect(a).toEqual({ ...emptyAddress(), piece: 'pass-it-on', orchestra: { seats, lines: null, keys: null } });
+    expect(tabOf(a)).toBe('orchestra');
+    expect(at('/PassItOn/')).toEqual(a);
+    const b = at('/passiton?view=3d&expr=off&keys=12&debug');
+    expect(b).toEqual({ ...a, look: '3d', expr: false, orchestra: { seats, lines: null, keys: [11] }, rest: ['debug'] });
+    expect(formatAddress(b)).toBe('/passiton?keys=12&view=3d&expr=off&debug');
+    // seats in its query are not read: the address is the piece's orchestra
+    expect(at('/passiton?v=1&seats=violin,cello').orchestra!.seats).toEqual(seats);
+    // the other pieces' addresses are still their own
+    expect(at('/symphony').piece).toBe('toward-morning');
+    expect(at('/everything').piece).toBe('everything-so-far');
+    expect(at(SEVENTEEN).piece).toBe(null);
+    expect(at(SEVENTEEN).orchestra!.seats).toEqual(seats);
+  });
+
+  it('is written for as long as the piece is on its own orchestra as it came; reorganised, the Orchestra’s own address', () => {
+    const own = (o: Partial<Address> = {}): Address => ({ ...emptyAddress(), piece: 'pass-it-on', orchestra: { seats: seats as never, lines: null, keys: null }, ...o });
+    expect(formatAddress(own())).toBe('/passiton');
+    expect(formatAddress(own({ orchestra: { seats: seats as never, lines, keys: null }, look: 'vector', expr: true }))).toBe('/passiton?view=vector&expr=on');
+    expect(ownSetup({ seats: seats as never, lines, keys: [11] }, po)).toBe(true);
+    // the same orchestra with no piece, or another's: the Orchestra's address (it is SEVENTEEN, the preset)
+    expect(formatAddress({ ...own({ orchestra: { seats: seats as never, lines, keys: null } }), piece: null })).toBe(SEVENTEEN);
+    expect(formatAddress({ ...own({ orchestra: { seats: seats as never, lines, keys: null } }), piece: 'everything-so-far' })).toBe(SEVENTEEN);
+    // a line moved to another seat, a line silenced, an instrument off the stage: no longer the piece's own
+    const moved = lines.map((r, i) => (i === 7 ? { ...r, seats: [6] } : r));
+    expect(formatAddress(own({ orchestra: { seats: seats as never, lines: moved, keys: null } }))).toMatch(/^\/orchestra\?v=1&seats=flute,oboe,.*Tuba~58:7,/);
+    const silent = lines.map((r, i) => (i === 9 ? { ...r, seats: [] } : r));
+    expect(formatAddress(own({ orchestra: { seats: seats as never, lines: silent, keys: null } }))).toMatch(/Glockenspiel~9:-/);
+    expect(formatAddress(own({ orchestra: { seats: seats.slice(0, 16) as never, lines: null, keys: null } }))).toBe(`/orchestra?v=1&seats=${seats.slice(0, 16).join(',')}`);
+    expect(ownSetup({ seats: seats as never, lines: lines.slice(0, 16), keys: null }, po)).toBe(false);
+    // the other pieces' orchestras are not this one's, nor this one theirs
+    expect(ownSetup({ seats: PIECE_PATHS.symphony.parts.map((q) => q.voice), lines: null, keys: null }, po)).toBe(false);
+    expect(ownSetup({ seats: seats as never, lines: null, keys: null }, PIECE_PATHS.everything)).toBe(false);
   });
 });
 

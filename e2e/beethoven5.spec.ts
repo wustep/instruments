@@ -85,8 +85,8 @@ test('Beethoven’s Fifth: both movements are in the pieces menu, its lineup fit
   await page.goto('/orchestra');
   await page.locator('.score-btn').click();
   const menu = page.locator('.score-menu');
-  // (six of Mutopia's, and the page's own Toward Morning and Everything So Far after them)
-  await expect(menu.locator('.sm-item')).toHaveCount(8);
+  // (six of Mutopia's, and the page's own Toward Morning, Everything So Far and Pass It On after them)
+  await expect(menu.locator('.sm-item')).toHaveCount(9);
   const items = menu.locator('.sm-item');
   await expect(items.nth(4)).toHaveAttribute('aria-label', /^Beethoven, Symphony No\. 5, I: flute, flute, oboe, oboe, clarinet, clarinet, bassoon, bassoon, horn, horn, trumpet, trumpet, timpani, violin, violin, viola, cello, double bass$/);
   // (each kind once, with its count: the row fits the menu)

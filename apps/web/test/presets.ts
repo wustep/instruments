@@ -28,3 +28,10 @@ export const THIRTEEN =
 export const ELEVEN =
   '/orchestra?v=1&seats=flute,clarinet,horn,glockenspiel,harp,grand,violin,violin,viola,cello,bass' +
   '&lines=Flute~73:1,Clarinet~71:2,Horn~60:3,Glockenspiel~9:4,Harp~46:5,Grand+Piano~0:6,Violin+I~40:7,Violin+II~40:8,Viola~41:9,Cello~42:10,Double+Bass~43:11';
+
+/** seventeen players, every instrument of the page: the orchestra of "Pass It On" (orchestra/pieces.ts), whose
+ *  own address is /passiton. This one is the Orchestra's, the same seats and lines written out: its play icon
+ *  plays the piece too */
+export const SEVENTEEN =
+  '/orchestra?v=1&seats=flute,oboe,clarinet,bassoon,horn,trumpet,trombone,tuba,timpani,glockenspiel,harp,grand,violin,violin,viola,cello,bass' +
+  '&lines=Flute~73:1,Oboe~68:2,Clarinet~71:3,Bassoon~70:4,Horn~60:5,Trumpet~56:6,Trombone~57:7,Tuba~58:8,Timpani~47:9,Glockenspiel~9:10,Harp~46:11,Grand+Piano~0:12,Violin+I~40:13,Violin+II~40:14,Viola~41:15,Cello~42:16,Double+Bass~43:17';

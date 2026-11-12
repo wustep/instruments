@@ -143,9 +143,9 @@ test('/everything is kept by a reload and by back and forward; reorganised, the 
   await expect.poll(async () => (await state(page)).playing, { timeout: 60_000 }).toBe(true);
   expect((await state(page)).lines).toEqual(SEATS.map((_, i) => [i]));
   await page.evaluate(() => (window as any).__player.stop());
-  // the pieces menu: the last of them, with its instruments
+  // the pieces menu: the second of the page's own, after Mutopia's six and Toward Morning, with its instruments
   await page.locator('.player .pl-pieces').click();
-  const last = page.locator('.score-menu .sm-item').last();
+  const last = page.locator('.score-menu .sm-item').nth(7);
   await expect(last).toHaveAttribute('data-piece', 'everything-so-far');
   await expect(last).toContainText('Fable 5.2');
   await expect(last).toContainText('Everything So Far');

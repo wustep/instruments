@@ -52,7 +52,7 @@ export function startNav(player: MidiPlayer, render: (page: Page) => void): Nav 
     rest,
   });
 
-  /** A piece's own address (/symphony, /everything): its orchestra is on the stage; the piece is loaded on it, ready
+  /** A piece's own address (/symphony, /everything, /passiton): its orchestra is on the stage; the piece is loaded on it, ready
    *  to play (not played: nothing has been pressed, and sound starts with a gesture), and the keys the
    *  address chose are chosen again (a piece coming on resets them). Already there as it came, it is
    *  left alone. */
