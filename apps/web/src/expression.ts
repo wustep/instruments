@@ -18,6 +18,13 @@
 // or wind instrument swells and fades (messa di voce) through the engines' CC_DYNAMICS, which moves
 // the bow (speed, force, vibrato) or the breath as a louder or softer note would. Where the file
 // moves its own dynamics, even on a flat line, the phrasing makes way.
+//
+// And its timing: a file typed into a notation program begins every line's note on the same tick, which
+// no ensemble does (Rasch 1979, "Synchronization in performed ensemble music", Acustica 43: the onsets
+// of notes written together stand 30–50 ms apart, a standard deviation, in professional trios). Where the
+// file's lines are together to the millisecond, each line is given a place in time of its own, slowly
+// moving either side of the beat (TIMING: well under what was measured); a file that was played in, or
+// written with its lines apart, keeps its own.
 
 import type { FileCC, FileEvent, MidiSong } from './midi-file.ts';
 
@@ -373,11 +380,84 @@ function within(grid: number[], t: number): { u: number; i: number } {
 }
 
 export interface Expressed {
-  /** the song's events with the flat lines phrased (velocities) and their swells (dyn events) */
+  /** the song's events with the flat lines phrased (velocities) and their swells (dyn events), and
+   *  a typed file's lines each in its own time */
   events: FileEvent[];
   shapes: LineShape[];
   /** some line was phrased */
   shaped: boolean;
+  /** the lines were typed together and are now each in their own time (TIMING) */
+  timed: boolean;
+}
+
+/** Ensemble timing. A file is typed when it has `least` instants or more at which two or more lines begin a
+ *  note within `near` s, and `share` of them are within `exact` s. Each line is then moved in time by a slow
+ *  wander of its own, the sum of three sines of `periods` s at phases of its own, `sd` s (a standard
+ *  deviation; never more than 2.45 of it, 22 ms): two lines stand 13 ms apart, a standard deviation, a third of
+ *  what Rasch measured between a trio's players. The whole line moves (its notes' ends, pedals and
+ *  controllers with them: a chord in one line stays a chord, a note is as long as written to within 6 %,
+ *  and nothing in a line changes order). A keyboard's or a harp's two staves are one player's two hands,
+ *  and move as one (`timingPlayers`): a pedal written on the left hand's staff changes with the right
+ *  hand's notes as it was written to. */
+export const TIMING = { least: 8, near: 0.03, exact: 0.001, share: 0.9, sd: 0.009, periods: [1.3, 2.9, 6.7] } as const;
+
+/** are the song's lines typed together (TIMING)? */
+export function typedTogether(song: MidiSong): boolean {
+  const ons: { t: number; line: number }[] = [];
+  for (const e of song.events) if (e.kind === 'on' && e.line !== undefined) ons.push({ t: e.t, line: e.line });
+  ons.sort((a, b) => a.t - b.t);
+  let n = 0;
+  let exact = 0;
+  for (let i = 0; i < ons.length; ) {
+    let j = i;
+    const lines = new Set<number>([ons[i].line]);
+    while (j + 1 < ons.length && ons[j + 1].t - ons[i].t < TIMING.near) lines.add(ons[++j].line);
+    if (lines.size > 1) {
+      n++;
+      if (ons[j].t - ons[i].t < TIMING.exact) exact++;
+    }
+    i = j + 1;
+  }
+  return n >= TIMING.least && exact >= TIMING.share * n;
+}
+
+/** Whose place in time each line has (TIMING): its own, or the line's before it when the two are one
+ *  player's hands: next to each other on one keyboard or harp program (General MIDI 0–23, the pianos, the
+ *  chromatic percussion and the organs; 46, the harp), or both with no program in a file that gives its
+ *  other lines one (a sonata's RH and LH beside its horn). */
+export function timingPlayers(song: MidiSong): number[] {
+  const out: number[] = [];
+  const programs = song.lines.some((l) => l.program >= 0);
+  song.lines.forEach((l, i) => {
+    const prev = song.lines[i - 1];
+    const hands = !!prev && prev.program === l.program && (l.program < 0 ? programs : l.program < 24 || l.program === 46);
+    out.push(hands ? out[i - 1] : i);
+  });
+  return out;
+}
+
+/** a player's place in time at t (s, either side of the written time: TIMING) */
+export function lineLag(line: number, t: number): number {
+  const a = TIMING.sd / Math.sqrt(TIMING.periods.length / 2);
+  let d = 0;
+  TIMING.periods.forEach((T, k) => {
+    // (each line's own phases: a hash of the line and the sine)
+    let h = ((line + 1) * 2654435761 + (k + 1) * 40503) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), h | 1);
+    h ^= h + Math.imul(h ^ (h >>> 7), h | 61);
+    const ph = (((h ^ (h >>> 14)) >>> 0) / 4294967296) * 2 * Math.PI;
+    d += a * Math.sin((2 * Math.PI * t) / T + ph);
+  });
+  return d;
+}
+
+/** the events with every line in its own time (TIMING); in time order, each line's own order kept */
+function inTime(song: MidiSong, events: FileEvent[]): FileEvent[] {
+  const who = timingPlayers(song);
+  const duration = song.duration;
+  const moved = events.map((e, i) => ({ e: e.line === undefined ? e : { ...e, t: Math.min(duration, Math.max(0, e.t + lineLag(who[e.line] ?? e.line, e.t))) }, i }));
+  moved.sort((a, b) => a.e.t - b.e.t || a.i - b.i);
+  return moved.map((x) => x.e);
 }
 
 /** The file played with automatic expression on its flat lines (the others, and every pedal and
@@ -385,7 +465,8 @@ export interface Expressed {
 export function express(song: MidiSong): Expressed {
   const notes = notesOf(song);
   const shapes = lineShapes(song, notes);
-  if (!shapes.some((s) => s.flat)) return { events: song.events, shapes, shaped: false };
+  const timed = typedTogether(song);
+  if (!shapes.some((s) => s.flat)) return { events: timed ? inTime(song, song.events) : song.events, shapes, shaped: false, timed };
   const P = PHRASING;
   const grid = phrases(song, notes);
   const pairs = grid.filter((_, i) => i % 2 === 0);
@@ -481,5 +562,6 @@ export function express(song: MidiSong): Expressed {
   const rank = (e: FileEvent) => (e.kind === 'on' ? 1 : 0);
   const all = events.map((e, i) => ({ e, i })).concat(dyn.map((e, i) => ({ e, i: events.length + i })));
   all.sort((a, b) => a.e.t - b.e.t || rank(a.e) - rank(b.e) || a.i - b.i);
-  return { events: all.map((x) => x.e), shapes, shaped: true };
+  const phrased = all.map((x) => x.e);
+  return { events: timed ? inTime(song, phrased) : phrased, shapes, shaped: true, timed };
 }
