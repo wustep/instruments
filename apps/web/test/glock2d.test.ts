@@ -5,8 +5,8 @@
 // Orchestra cell; both styles draw, silent and sounding.
 import { describe, expect, it } from 'vitest';
 import { glockBars, type VisualFrame } from '@piano-model/engine';
-import { BARS, BAR_X, CASE, GK_X0, GK_X1, GK_Y0, GK_Y1, HEAD_R, PITCH, RAILS, ROW_Y, barBox, barCentre, barNodes, strokePlace } from '../src/ui/glock-plan.ts';
-import { drawGlock, glockBox, glockLayout, glockLive, newGlockState } from '../src/ui/glock-draw.ts';
+import { BARS, BAR_X, CASE, GK_X0, GK_X1, GK_Y0, GK_Y1, HEAD_R, PITCH, RAILS, ROW_Y, TRAY, WALL, barBox, barCentre, barNodes, strokePlace } from '../src/ui/glock-plan.ts';
+import { RING_S, barStamp, drawGlock, glockBox, glockLayout, glockLive, newGlockState, strokeRings } from '../src/ui/glock-draw.ts';
 import { drawGlockV } from '../src/ui/vector/glock.ts';
 import { installCanvas, recorder } from './recording-ctx.ts';
 
@@ -106,6 +106,47 @@ describe('the 2D glockenspiel’s plan', () => {
     expect(RAILS.length).toBe(4);
     // a row's two rails converge towards the treble (the bars shorten)
     for (const k of [0, 2]) expect(Math.abs(RAILS[k][1][1] - RAILS[k + 1][1][1])).toBeLessThan(Math.abs(RAILS[k][0][1] - RAILS[k + 1][0][1]));
+  });
+});
+
+describe('the glockenspiel’s case, its strokes’ rings and its bars’ stamps', () => {
+  it('the tray lies inside the case, a wall in from every side', () => {
+    expect(TRAY.length).toBe(CASE.length);
+    const n = CASE.length;
+    for (let i = 0; i < n; i++) {
+      // each of the tray's corners is the wall away from the two sides of the case that meet at its corner
+      for (const k of [(i + n - 1) % n, i]) {
+        const a = CASE[k];
+        const b = CASE[(k + 1) % n];
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const d = ((b[0] - a[0]) * (TRAY[i][1] - a[1]) - (b[1] - a[1]) * (TRAY[i][0] - a[0])) / L;
+        expect(d).toBeCloseTo(WALL, 9);
+      }
+    }
+    // every bar inside the tray's reach
+    for (const b of BARS) {
+      const [x0, , x1] = barBox(b.index);
+      expect(x0).toBeGreaterThan(TRAY[0][0]);
+      expect(x1).toBeLessThan(TRAY[1][0]);
+    }
+  });
+  it('a stroke leaves a ring where it landed, opening for a fifth of a second, then nothing', () => {
+    const fr = (ago: number) => ({ glock: { amp: new Float32Array(30), hands: [5, 26], hits: [{ hand: 0, bar: 5, along: 0.05, across: -0.4, ago }] } }) as unknown as VisualFrame;
+    expect(strokeRings(null)).toEqual([]);
+    const a = strokeRings(fr(0.02));
+    expect(a.length).toBe(1);
+    expect(a[0].at).toEqual(strokePlace(5, 0.05, -0.4));
+    expect(a[0].k).toBeCloseTo(0.02 / RING_S, 9);
+    expect(strokeRings(fr(RING_S * 0.9))[0].k).toBeGreaterThan(a[0].k);
+    expect(strokeRings(fr(RING_S + 0.01))).toEqual([]);
+  });
+  it('each bar is stamped with its note, no octave: G at the bottom, C at the top', () => {
+    expect(barStamp(0)).toBe('G');
+    expect(barStamp(BARS.length - 1)).toBe('C');
+    for (const b of BARS) {
+      expect(barStamp(b.index)).toMatch(/^[A-G][♯♭]?$/);
+      expect(barStamp(b.index).length > 1).toBe(b.sharp);
+    }
   });
 });
 
