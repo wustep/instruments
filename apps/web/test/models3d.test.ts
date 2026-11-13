@@ -462,6 +462,10 @@ describe('3D instruments', () => {
     expect(tp.valves[2]).toBeGreaterThan(0.9);
     expect(tp.slide[2]).toBeGreaterThan(0.5);
     expect(tp.slide[0]).toBeLessThan(0.05);
+    // the bell's rim is never lit, loud as it may be (the pressed valves' slides keep their light)
+    b.clear();
+    poseTrumpet(b, t, tf, tp, 1 / 60, 1500, 0.2);
+    expect(Array.from(b.inst.get(t.rimBead)!.a.subarray(16, 20))).toEqual([0, 0, 0, 0]);
   });
 
   it('no cup, pad or tone hole of the flute is lit or tinted while it sounds, and its tube is plain silver', () => {

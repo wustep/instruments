@@ -27,15 +27,14 @@
 // Live: the keys follow the oboe's standard fingering for the engine's note (oboe-fingering.ts, the
 // chart the 2D stage uses): each plate seats with a small bounce or overshoots a little off its stop
 // as it opens (the flute's springs); the reed's blades close and shimmer with its opening
-// (`fr.reed.open`: blown shut once a cycle when loud); the bell's rim shimmers with the level. The keys,
-// their pads and the tone holes are never lit or tinted: silver, cork, leather and wood, sounding or
-// not. A moment after the oboe stops sounding the keys go back to rest.
+// (`fr.reed.open`: blown shut once a cycle when loud). The keys, their pads, the tone holes and the bell
+// are never lit or tinted: silver, cork, leather and wood, sounding or not. A moment after the oboe stops sounding the keys go back to rest.
 // Approximations: the linkages are shown, not simulated (each key springs to the state the mechanism
 // gives it), the trill keys never open (the chart has no trills), and the half-hole is the small
 // plate below L1 lifting.
 import type { VisualFrame } from '@piano-model/engine';
 import { HALF, L1, L2, L3, LB, LBB, LEB, LGS, OCT1, OCT2, R1, R2, R3, RC, RCS, REB, RF, oboeFingersFor } from '../oboe-fingering.ts';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cross, dot, mulInto, norm, rotX, rotY, rotZ, scale, sub, translate, xform } from './gl3d.ts';
+import { type Batch, type Mat4, type Mesh, type Vec3, add, chain, cross, dot, mulInto, norm, rotX, rotY, rotZ, scale, sub, translate, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, ellipsoid, grid, spline, variant, type Mat } from './mesh.ts';
 import type { WindPose } from './winds3d.ts';
 
@@ -690,7 +689,7 @@ export interface OboeKey {
 export interface OboeModel {
   T: Mat4;
   statics: Mesh[];
-  /** the bell: its flare, rim and throat (it shimmers with the level) */
+  /** the bell: its flare, rim and throat */
   rim: Mesh;
   keys: OboeKey[];
   /** the reed's two blades (they close with its opening): the side each is on (±1 along y) */
@@ -931,8 +930,6 @@ interface OboePose {
   open: number;
   R: Float32Array;
   W: Float32Array;
-  /** the bell's shimmer (rgb, amount) */
-  glow: RGBA;
 }
 /** each seat's own springs (the shared WindPose carries the flute's and the trumpet's) */
 const poses = new WeakMap<WindPose, OboePose>();
@@ -941,7 +938,7 @@ function oboePose(pose: WindPose, om: OboeModel): OboePose {
   if (!p || p.pos.length !== om.keys.length) {
     // every key where it rests
     const pos = Float32Array.from(om.keys, (k) => (k.kind === 'cup' && k.open(0) ? 1 : 0));
-    p = { pos, vel: new Float32Array(om.keys.length), quiet: 10, open: 1, R: new Float32Array(16), W: new Float32Array(16), glow: [0, 0, 0, 0] };
+    p = { pos, vel: new Float32Array(om.keys.length), quiet: 10, open: 1, R: new Float32Array(16), W: new Float32Array(16) };
     poses.set(pose, p);
   }
   return p;
@@ -993,12 +990,6 @@ export function poseOboe(b: Batch, om: OboeModel, fr: VisualFrame | null, pose: 
     mulInto(st.W, 0, T, R);
     b.mesh(bl.mesh, st.W);
   }
-  // the bell's rim shimmers with the level
-  if (lvl > 0.02) {
-    st.glow[0] = 1;
-    st.glow[1] = 0.7;
-    st.glow[2] = 0.42;
-    st.glow[3] = 0.16 * lvl * (0.75 + 0.25 * Math.sin(now * 0.021));
-    b.mesh(om.rim, T, st.glow);
-  } else b.mesh(om.rim, T);
+  // the bell's rim as it is, sounding or not: no light on it
+  b.mesh(om.rim, T);
 }

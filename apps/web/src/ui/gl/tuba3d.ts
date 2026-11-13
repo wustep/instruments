@@ -12,7 +12,7 @@
 //
 // What moves, by the engine's own state: the pistons go down for the note's fingering (tubaFingering), each
 // on its spring; the tubing the air goes through glows with the bore's standing wave (the loops of the valves
-// that are down among it), the bell's mouth shimmers with the level, the breath goes into the mouthpiece.
+// that are down among it), the breath goes into the mouthpiece. The bell is never lit, sounding or not.
 import { tubaFingering, valvesDown, type VisualFrame } from '@piano-model/engine';
 import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, chain, cross, mulInto, norm, rotX, rotZ, translate, xform } from './gl3d.ts';
 import { M, cyl } from './mesh.ts';
@@ -67,7 +67,7 @@ export interface TubaModel {
   statics: Mesh[];
   /** the bore's tubing in pieces, each glowing with the standing wave where the air goes through it */
   segs: TubaSeg[];
-  /** the bell's rim and inside (shimmers with the level) */
+  /** the bell's rim and inside */
   rim: Mesh;
   /** each piston's moving part (its stem and button), valves 1–4 */
   pistons: Mesh[];
@@ -277,8 +277,8 @@ export function poseTuba(b: Batch, tm: TubaModel, fr: VisualFrame | null, pose: 
     }
     b.mesh(s.mesh, T, setGlow(g));
   }
-  // the bell's mouth: a faint shimmer with the level
-  b.mesh(tm.rim, T, lvl > 0.02 ? setGlow(0.09 * lvl * (0.75 + 0.25 * Math.sin(now * 0.021))) : null);
+  // the bell's mouth as it is, sounding or not: no light on it (the bells of the winds are never lit)
+  b.mesh(tm.rim, T);
   // the breath into the mouthpiece while the note is blown (winds3d breathIn), pulsing with the engine's lips
   const open = lips ? Math.min(1.6, lips.open) : 0;
   st.lipGap += (open - st.lipGap) * (1 - Math.exp(-dt / 0.04));

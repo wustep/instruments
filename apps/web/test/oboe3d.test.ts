@@ -1,8 +1,8 @@
 // The oboe in 3D (oboe3d.ts), without WebGL: built to the real instrument's measures (docs/
 // 3d-reference.md, "Oboe": within 3 %), every key over its tone hole, posed from the engine's frames —
 // its keys follow the conservatoire fingering for the note sounding (oboe-fingering.ts) and go back to
-// rest after it, the reed's blades close with its opening, no key, pad or tone hole is lit or tinted
-// while it sounds (the bell's rim alone shimmers) — and seated in the Orchestra beside the flute without
+// rest after it, the reed's blades close with its opening, nothing on it is lit or tinted while it
+// sounds (keys, pads, tone holes, the bell's rim) — and seated in the Orchestra beside the flute without
 // moving anyone else.
 import { describe, expect, it } from 'vitest';
 import type { VisualFrame } from '@piano-model/engine';
@@ -154,7 +154,7 @@ describe('the oboe in 3D', () => {
     expect(path[path.length - 1]).toBeLessThan(0.005);
   });
 
-  it('the reed’s blades close with its opening; the rim shimmers', () => {
+  it('the reed’s blades close with its opening; the rim is not lit, loud or soft', () => {
     // the middle of each blade's tip, as posed (world)
     const tip = (b: Batch, s: number) => {
       const bl = om.blades.find((x) => x.s === s)!;
@@ -168,13 +168,13 @@ describe('the oboe in 3D', () => {
       return Math.hypot(u[0] - d[0], u[1] - d[1], u[2] - d[2]);
     };
     expect(gap(shut)).toBeLessThan(gap(rest) - 0.0005);
-    // the rim, loud
+    // the rim, loud: drawn as it is (no glow: rgb and amount all 0)
     const b = new Batch();
     poseOboe(b, om, frame(62), newWindPose(), 1 / 60, 0, 0.2);
-    expect(b.inst.get(om.rim)!.a[19]).toBeGreaterThan(0.02);
+    expect(Array.from(b.inst.get(om.rim)!.a.subarray(16, 20))).toEqual([0, 0, 0, 0]);
   });
 
-  it('no key, pad or tone hole is lit or tinted while it sounds: plain silver, cork, leather and wood', () => {
+  it('no key, pad, tone hole or bell is lit or tinted while it sounds: plain silver, cork, leather and wood', () => {
     // what a batch draws with a light on it (an instance's glow: rgb and amount, any of them not 0), by name
     const name = (m: Mesh) => (m === om.rim ? 'rim' : om.statics.includes(m) ? 'body' : (om.keys.find((k) => k.mesh === m)?.name ?? 'blade'));
     const lit = (b: Batch) =>
@@ -198,8 +198,8 @@ describe('the oboe in 3D', () => {
       const st = oboeKeyState(pose)!;
       for (const k of om.keys) expect(b.inst.get(k.mesh)!.n, k.name).toBe(20);
       expect(om.keys.filter((k, i) => k.kind === 'cup' && st[i] < 0.08).length, `${midi}: seated pads`).toBeGreaterThan(midi === 69 ? 3 : 8);
-      // and the one thing lit is the bell's rim
-      expect(lit(b), `${midi}`).toEqual(['rim']);
+      // and nothing is lit, the bell's rim included
+      expect(lit(b), `${midi}`).toEqual([]);
     }
     // silent, nothing is
     const quiet = new Batch();

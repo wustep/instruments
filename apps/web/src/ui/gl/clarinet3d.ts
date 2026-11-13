@@ -28,15 +28,14 @@
 // Live: the rings and keys follow the clarinet's Boehm fingering for the engine's note (clarinet-
 // fingering.ts, the chart the 2D stage uses): each pad seats with a small bounce or overshoots a little
 // off its stop as it opens (the oboe's springs); the reed's tip curls onto the lay with its opening
-// (`fr.reed.open`: blown shut once a cycle when loud) and shimmers; the bell shimmers with the level. The
-// rings, the keys, their pads and the tone holes are never lit or tinted: silver, pad skin and wood,
-// sounding or not. A moment after the clarinet stops sounding the keys go back to rest.
+// (`fr.reed.open`: blown shut once a cycle when loud) and shimmers. The rings, the keys, their pads, the
+// tone holes and the bell are never lit or tinted: silver, pad skin and wood, sounding or not. A moment after the clarinet stops sounding the keys go back to rest.
 // Approximations: the linkages are shown, not simulated (each key springs to the state the mechanism
 // gives it: the low pads close with the little fingers' touches through their clutches, the bridge and
 // the ring pad with the second ring); the trill keys never open (the chart has no trills).
 import type { VisualFrame } from '@piano-model/engine';
 import { L1, L2, LA, LCS, LE, LFS, LGS, R1, R2, R3, RAB, RE, REG, RF, SEB, T, clarinetFingersFor } from '../clarinet-fingering.ts';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, chain, cross, dot, mulInto, norm, rotX, rotY, rotZ, scale, sub, translate, xform } from './gl3d.ts';
+import { type Batch, type Mat4, type Mesh, type Vec3, chain, cross, dot, mulInto, norm, rotX, rotY, rotZ, scale, sub, translate, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, ellipsoid, extrude, grid, spline, variant, type Mat } from './mesh.ts';
 import { aboutAxis, dome, fillet, frameY, lx, pchip, pipe, revolve, spline3, springTo, sweep } from './oboe3d.ts';
 import type { WindPose } from './winds3d.ts';
@@ -805,7 +804,7 @@ export interface ClarinetKey {
 export interface ClarinetModel {
   T: Mat4;
   statics: Mesh[];
-  /** the bell: its ring, flare, rim and throat (it shimmers with the level) */
+  /** the bell: its ring, flare, rim and throat */
   bell: Mesh;
   keys: ClarinetKey[];
   /** the reed's tip, in pieces that curl onto the lay (each turns about its own hinge line, b mm from
@@ -914,8 +913,6 @@ interface ClarinetPose {
   R: Float32Array;
   R2: Float32Array;
   W: Float32Array;
-  /** the bell's shimmer (rgb, amount) */
-  glow: RGBA;
 }
 /** each seat's own springs (the shared WindPose carries the flute's and the trumpet's) */
 const poses = new WeakMap<WindPose, ClarinetPose>();
@@ -923,7 +920,7 @@ function clarinetPose(pose: WindPose, cm: ClarinetModel): ClarinetPose {
   let p = poses.get(pose);
   if (!p || p.pos.length !== cm.keys.length) {
     const pos = Float32Array.from(cm.keys, (k) => (k.kind === 'cup' && k.open(0) ? 1 : 0));
-    p = { pos, vel: new Float32Array(cm.keys.length), quiet: 10, open: 1, R: new Float32Array(16), R2: new Float32Array(16), W: new Float32Array(16), glow: [0, 0, 0, 0] };
+    p = { pos, vel: new Float32Array(cm.keys.length), quiet: 10, open: 1, R: new Float32Array(16), R2: new Float32Array(16), W: new Float32Array(16) };
     poses.set(pose, p);
   }
   return p;
@@ -943,15 +940,6 @@ export function poseClarinet(b: Batch, cm: ClarinetModel, fr: VisualFrame | null
   const midi = focus && st.quiet < 0.8 ? (focus.midi ?? null) : null;
   const fingers = midi === null ? 0 : clarinetFingersFor(midi);
   const lvl = Math.min(1, Math.sqrt(rms) * 3);
-  // (the bell's shimmer: the one light on the clarinet)
-  const setGlow = (a: number): RGBA | null => {
-    if (a <= 0.003) return null;
-    st.glow[0] = 1;
-    st.glow[1] = 0.72;
-    st.glow[2] = 0.45;
-    st.glow[3] = a;
-    return st.glow;
-  };
   // the rings and keys, each turned on its rod to where its spring has it: drawn as built, with no light
   // on them
   for (let i = 0; i < cm.keys.length; i++) {
@@ -983,9 +971,8 @@ export function poseClarinet(b: Batch, cm: ClarinetModel, fr: VisualFrame | null
     b.mesh(pc.mesh, st.W);
     prev = pc.b;
   }
-  // the bell shimmers with the level
-  if (lvl > 0.02) b.mesh(cm.bell, T, setGlow(0.07 * lvl * (0.75 + 0.25 * Math.sin(now * 0.021))));
-  else b.mesh(cm.bell, T);
+  // the bell as it is, sounding or not: no light on it
+  b.mesh(cm.bell, T);
 }
 
 /** tests: the measures the model is built to (mm from the mouthpiece's tip) */

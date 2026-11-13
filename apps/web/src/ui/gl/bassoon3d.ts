@@ -30,15 +30,14 @@
 //
 // Live: the keys and rings follow the bassoon's Heckel fingering for the engine's note (bassoon-
 // fingering.ts, the chart the 2D stage uses), on springs, back to rest a moment after it stops; the
-// reed's blades close with its opening (`fr.reed.open`) and shimmer; the bell shimmers with the level.
-// The keys, the rings, their pads and the tone holes are never lit or tinted: silver, leather and wood,
-// sounding or not.
+// reed's blades close with its opening (`fr.reed.open`) and shimmer. The keys, the rings, their pads, the
+// tone holes and the bell are never lit or tinted: silver, leather and wood, sounding or not.
 // Approximations: the linkages are shown, not simulated (each pad springs to the state its touches give
 // it); the trill keys never move (the chart has no trills); the keys' places are the photograph's where
 // it shows them and the bassoon diagram's order elsewhere.
 import type { VisualFrame } from '@piano-model/engine';
 import { FA, FB, FD, L3, LB, LBB, LC, LCS, LD, LEB, PF, PFS, PGS, R2, R3, RBB, RE, RFS, RGS, SEB, TCS, W, bassoonFingersFor } from '../bassoon-fingering.ts';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cross, dot, mulInto, norm, rotY, rotZ, scale, sub, translate, xform } from './gl3d.ts';
+import { type Batch, type Mat4, type Mesh, type Vec3, add, chain, cross, dot, mulInto, norm, rotY, rotZ, scale, sub, translate, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, ellipsoid, grid, variant, type Mat } from './mesh.ts';
 import { aboutAxis, fillet, frameY, lx, pchip, revolve, spline3, springTo, sweep } from './oboe3d.ts';
 import type { WindPose } from './winds3d.ts';
@@ -769,7 +768,7 @@ export interface BassoonModel {
   /** leaned across as a player holds it (a wide stage) */
   Tw: Mat4;
   statics: Mesh[];
-  /** the bell: its wood, its bead ring and its throat (it shimmers with the level) */
+  /** the bell: its wood, its bead ring and its throat */
   bell: Mesh;
   keys: BassoonKey[];
   /** the reed's two blades (each turns at the first wire towards the other) */
@@ -904,8 +903,6 @@ interface BassoonPose {
   open: number;
   R: Float32Array;
   W: Float32Array;
-  /** the bell's shimmer (rgb, amount) */
-  glow: RGBA;
 }
 /** each seat's own springs (the shared WindPose carries the flute's and the trumpet's) */
 const poses = new WeakMap<WindPose, BassoonPose>();
@@ -913,7 +910,7 @@ function bassoonPose(pose: WindPose, bm: BassoonModel): BassoonPose {
   let p = poses.get(pose);
   if (!p || p.pos.length !== bm.keys.length) {
     const pos = Float32Array.from(bm.keys, (k) => (k.kind === 'cup' && k.open(0) ? 1 : 0));
-    p = { pos, vel: new Float32Array(bm.keys.length), quiet: 10, open: 1, R: new Float32Array(16), W: new Float32Array(16), glow: [0, 0, 0, 0] };
+    p = { pos, vel: new Float32Array(bm.keys.length), quiet: 10, open: 1, R: new Float32Array(16), W: new Float32Array(16) };
     poses.set(pose, p);
   }
   return p;
@@ -934,15 +931,6 @@ export function poseBassoon(b: Batch, bm: BassoonModel, fr: VisualFrame | null, 
   const midi = focus && st.quiet < 0.8 ? (focus.midi ?? null) : null;
   const fingers = midi === null ? 0 : bassoonFingersFor(midi);
   const lvl = Math.min(1, Math.sqrt(rms) * 3);
-  // (the bell's shimmer: the one light on the bassoon)
-  const setGlow = (a: number): RGBA | null => {
-    if (a <= 0.003) return null;
-    st.glow[0] = 1;
-    st.glow[1] = 0.72;
-    st.glow[2] = 0.45;
-    st.glow[3] = a;
-    return st.glow;
-  };
   // the keys and rings, each turned on its rod to where its spring has it: drawn as built, with no light
   // on them
   for (let i = 0; i < bm.keys.length; i++) {
@@ -967,9 +955,8 @@ export function poseBassoon(b: Batch, bm: BassoonModel, fr: VisualFrame | null, 
     mulInto(st.W, 0, T, st.R);
     b.mesh(bl.mesh, st.W);
   }
-  // the bell shimmers with the level
-  if (lvl > 0.02) b.mesh(bm.bell, T, setGlow(0.07 * lvl * (0.75 + 0.25 * Math.sin(now * 0.021))));
-  else b.mesh(bm.bell, T);
+  // the bell as it is, sounding or not: wood and its bead ring, no light on it
+  b.mesh(bm.bell, T);
 }
 
 /** tests: the measures the model is built to (mm from the boot's foot) */

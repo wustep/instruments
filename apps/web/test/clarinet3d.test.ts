@@ -2,7 +2,7 @@
 // 3d-reference.md, "Clarinet": within 3 %), a key or ring over every tone hole, posed from the engine's
 // frames — its rings and keys follow the Boehm fingering for the note sounding (clarinet-fingering.ts) and
 // go back to rest after it, the reed's tip closes onto the lay with its opening, no ring, key, pad or
-// tone hole is lit or tinted while it sounds (the bell alone shimmers) — and seated in the Orchestra
+// tone hole, nor the bell, is lit or tinted while it sounds — and seated in the Orchestra
 // beside the oboe without moving anyone else.
 import { describe, expect, it } from 'vitest';
 import type { VisualFrame } from '@piano-model/engine';
@@ -167,7 +167,7 @@ describe('the clarinet in 3D', () => {
     expect(path[path.length - 1]).toBeLessThan(0.005);
   });
 
-  it('the reed’s tip closes onto the lay with its opening; the bell shimmers', () => {
+  it('the reed’s tip closes onto the lay with its opening; the bell is not lit, loud or soft', () => {
     // the reed's tip (its middle, on the table side) as posed, and how far it has moved towards the axis
     const tipMove = (b: Batch) => {
       const W4 = b.inst.get(cm.reed[0].mesh)!.a.subarray(0, 16);
@@ -182,13 +182,13 @@ describe('the clarinet in 3D', () => {
     expect(Math.abs(tipMove(rest))).toBeLessThan(0.08);
     expect(tipMove(shut)).toBeGreaterThan(0.85 * CM.tipOpening);
     expect(tipMove(shut)).toBeLessThan(1.15 * CM.tipOpening);
-    // the bell, loud
+    // the bell, loud: drawn as it is (no glow: rgb and amount all 0)
     const b = new Batch();
     poseClarinet(b, cm, frame(W(55)), newWindPose(), 1 / 60, 0, 0.2);
-    expect(b.inst.get(cm.bell)!.a[19]).toBeGreaterThan(0.02);
+    expect(Array.from(b.inst.get(cm.bell)!.a.subarray(16, 20))).toEqual([0, 0, 0, 0]);
   });
 
-  it('no ring, key, pad or tone hole is lit or tinted while it sounds: plain silver, pad skin and wood', () => {
+  it('no ring, key, pad, tone hole or bell is lit or tinted while it sounds: plain silver, pad skin and wood', () => {
     // what a batch draws with a light on it (an instance's glow: rgb and amount, any of them not 0), by name
     const name = (m: Mesh) => (m === cm.bell ? 'bell' : cm.statics.includes(m) ? 'body' : (cm.keys.find((k) => k.mesh === m)?.name ?? 'reed'));
     const lit = (b: Batch) =>
@@ -214,9 +214,9 @@ describe('the clarinet in 3D', () => {
       for (const k of cm.keys) expect(b.inst.get(k.mesh)!.n, k.name).toBe(20);
       expect(cm.keys.filter((k, i) => k.kind === 'ring' && st[i] > 0.92).length, `${written}: rings down`).toBe(written === 69 ? 0 : 6);
       expect(cm.keys.filter((k, i) => k.kind === 'cup' && st[i] < 0.08).length, `${written}: seated pads`).toBeGreaterThan(3);
-      // nothing else is drawn (no disc in a covered hole), and the one thing lit is the bell
+      // nothing else is drawn (no disc in a covered hole), and nothing is lit, the bell included
       expect(b.meshes().length, `${written}`).toBe(cm.statics.length + 1 + cm.keys.length + cm.reed.length);
-      expect(lit(b), `${written}`).toEqual(['bell']);
+      expect(lit(b), `${written}`).toEqual([]);
     }
     // silent, nothing is
     const quiet = new Batch();

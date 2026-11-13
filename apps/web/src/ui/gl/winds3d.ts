@@ -38,7 +38,7 @@
 // a spring return with a tiny bounce off the felt). The pressed valves' slides join the glowing air
 // path, the breath goes into the mouthpiece (faint steel streams, as the flute's jet and the 2D stage's
 // winds are drawn; breathIn) pulsing with the lips' buzz, the bore's standing wave glows faintly along the
-// brass, and the rim shimmers with the level.
+// brass. The bell is never lit, sounding or not.
 // Approximations: the flute's linkages are shown, not simulated (each key springs to the state the
 // mechanism gives it; a link's lost motion is not modelled), the thumb levers pivot on a steel along
 // the tube rather than on Briccialdi's cross axle, and the trill keys never open (the fingering chart
@@ -1036,7 +1036,7 @@ export interface TrumpetModel {
    *  player kicks out along `dir` on the notes that need it (the 1st and 3rd) */
   slides: { plain: Mesh; glow: Mesh; sleeve: Mesh; sleeveGlow: Mesh; dir: Vec3 }[];
   piston: Mesh;
-  /** the rolled rim (shimmers with the level) */
+  /** the rolled rim */
   rimBead: Mesh;
   valveX: number[];
   bounds: { c: Vec3; r: number };
@@ -1378,8 +1378,8 @@ export function poseTrumpet(b: Batch, tm: TrumpetModel, fr: VisualFrame | null, 
     const q = springTo(pose.slide, pose.slideV, k, kick[k], dt, 6, 0.9) * SLIDE_TRAVEL[k];
     b.mesh(down[k] ? sl.sleeveGlow : sl.sleeve, q ? chain(T, translate(sl.dir[0] * q, sl.dir[1] * q, sl.dir[2] * q)) : T);
   });
-  // the rim: a faint shimmer with the level
-  b.mesh(tm.rimBead, T, lvl > 0.02 ? [1, 0.7, 0.4, 0.1 * lvl * (0.75 + 0.25 * Math.sin(now * 0.021))] : null);
+  // the rim as it is, sounding or not: no light on it (the bells of the winds are never lit)
+  b.mesh(tm.rimBead, T);
   // the breath into the mouthpiece while it sounds (breathIn), pulsing with the lips' buzz (drawn slowed, as
   // on the 2D stage: a few times a second, a little quicker for higher notes)
   if (lvl > 0.02) {
