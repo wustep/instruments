@@ -1,8 +1,12 @@
 // The double horn in F and B♭ on the 2D stage: its plan in metres, shared by both styles (horn-draw.ts, the
 // stage's own look; vector/horn.ts, the lines). A Kruspe-wrap double horn (the Conn 8D's layout: the
-// thumb's change valve at the top of the column of four rotors, nearest the leadpipe) seen from its outside,
-// the rotors' caps and the levers towards us, as horn makers photograph it: the bell to the left opening
-// up and a little towards us, the mouthpiece rising at the upper right.
+// thumb's change valve at the top of the column of four rotors, nearest the leadpipe) seen from the hall's
+// side, as it is when it is played and as the 3D stage first shows it (horn3d.ts HORN_VIEW; the Orchestra's
+// seated horn is held that way round, HORN_HELD): the valves' caps towards us, the bell at the left (the
+// player's right) going away, seen from 40° round so that its rim shows a little of its mouth, the
+// mouthpiece rising at the upper right, back to the player. One side everywhere: 2D, vector lines, 3D,
+// alone and seated. The levers and their links are on the player's side of a horn; they are drawn through
+// here, as a diagram's: what the fingers do is the picture's subject.
 //
 // The measures. The bell 311 mm across its rim (Conn 8D, 12¼″; Alexander 103, Hans Hoyer 6801: 310 mm),
 // the bore 11.9 mm (8D, 0.468″). The corpus (the wound circle) 300–326 mm across its outside, the horn

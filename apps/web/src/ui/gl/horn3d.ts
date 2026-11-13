@@ -272,6 +272,8 @@ const BB = (BELL_RIM / 2 - BEAD) * X0 ** EPS;
 export const bellR = (x: number) => BB / (Math.max(0, x) + X0) ** EPS;
 const RIM_C: Vec3 = [317, -17, 97];
 const AXIS: Vec3 = norm([Math.cos(27 * DEG) * Math.cos(20 * DEG), Math.sin(27 * DEG) * Math.cos(20 * DEG), Math.sin(20 * DEG)]);
+/** the bell's axis out of its mouth, in the model (tests) */
+export const BELL_AXIS: Vec3 = [AXIS[0], AXIS[1], -AXIS[2]];
 /** the straight part of the bell before the rim (lathed about the axis) */
 const STRAIGHT = 290;
 /** the bell branch's wrap: a spiral round the outside of the coil, from where the main slide joins it
@@ -1080,31 +1082,58 @@ function handRest(mb: MeshBuilder): void {
 }
 
 // ================================================================ posing
-/** where the model stands on its own: upright, the coil's player side towards the camera's home, the
- *  bell to the right, floating a hand's width over the floor (a product photograph's pose) */
+/** where the model stands on its own: upright, floating a hand's width over the floor (a product
+ *  photograph's pose) */
 export const HORN_POSE: Mat4 = translate(0, 0.335, 0);
-/** the hero bearing (scenes3d viewFor): from the player's side, a little round from the levers, a little
- *  above; a phone held upright may turn it up to `swing` further round towards the bell's mouth, which
- *  shortens the bell across a narrow picture */
-export const HORN_VIEW = { yaw: -0.18, pitch: 0.15, swing: 0.75 };
-/** its seat in the Orchestra (scenes3d ensembleSeats): the coil's centre's height (its mouthpiece then at
- *  a seated player's lips, 1.18 m) and the seat's own turn; `top` the height the framing allows for */
-export const HORN_SEAT = { y: 0.96, turn: 0, top: 1.34 };
-/** held as a seated player holds it (Karl Bradač's photograph, a horn section's from the front), about
- *  the coil's centre: the coil standing, its valve caps' side turned 37° to the audience on the player's
- *  right (the world here is mirrored: the player's right is −x, the audience at −z); in its plane turned
- *  so the levers come up under the left hand and the leadpipe rises to the lips, the bell going down and
- *  back to rest by the right thigh, its mouth behind */
-const HELD_PLANE = 37 * DEG;
-const HELD_TURN = -55 * DEG;
+/** the hero bearing (scenes3d viewFor): from the hall's side, as the horn is seen when it is played and as
+ *  the 2D stage draws it (horn-plan.ts): the valves' caps towards us, the bell at the left going away, the
+ *  mouthpiece at the upper right; 40° round towards the bell, so that its rim shows as much of its mouth as
+ *  the 2D drawing's does (its axis leaves the coil's plane by 20° on the player's side), and a little
+ *  above. A phone held upright may turn it up to `swing` further, back past square on, which brings the
+ *  bell behind the coil and shortens it across a narrow picture. The player's side (the levers, the
+ *  linkage, the bell's mouth) is the other way round: a drag away */
+export const HORN_VIEW = { yaw: Math.PI - 0.7, pitch: 0.15, swing: 1.0 };
+/** its seat in the Orchestra (scenes3d ensembleSeats): the height of a seated player's lips, where the
+ *  mouthpiece's rim is (1.18 m), and the seat's own turn; `top` the height the framing allows for */
+export const HORN_SEAT = { y: 1.18, turn: 0, top: 1.34 };
+/** held as a seated player holds it, about the mouthpiece's rim (the lips' place). The seat's frame: the
+ *  player faces the hall; here the world is mirrored, the player's right is −x and the hall at −z.
+ *    The mouthpiece comes back to the lips: its axis out of the rim points at the player, the leadpipe
+ *      falling `HELD_PIPE` from them towards the hall (30–45° as horns are held: the bell off the leg).
+ *    The coil is turned about the leadpipe by `HELD_ROLL`: its levers' side from facing the player's left
+ *      (0°) round towards the lap (90°). At 60° the levers lie under the left hand's fingers, the bell is
+ *      down beside the right hip, 0.35 m to the right of the lips and 0.35 m under them, its mouth
+ *      going back and to the right, away from the hall (the right hand's place), and the hall sees the
+ *      valves' caps, obliquely, and the bell's back.
+ *  (Before, the coil stood 37° off square to the hall with the mouthpiece pointing 53° to the player's
+ *  right of the way back and the bell straight under it: a horn nobody was behind.)
+ *  `HELD_AT`: where the lips are from the seat's centre (to the player's right, back), so that the horn's
+ *  footprint is centred on its seat as every instrument's is (no player is drawn) */
+const HELD_PIPE = 38 * DEG;
+const HELD_ROLL = 60 * DEG;
+const HELD_AT: [number, number] = [-0.2, 0.09];
+/** the mouthpiece's rim (the lips' place), in the true frame (mm) */
+const LIPS: Vec3 = add(RCV, scale(LP_DIR, MP_IN - 2 - (MP_LEN + 0.6)));
 export const HORN_HELD: Mat4 = (() => {
-  const h: Vec3 = [-Math.cos(HELD_PLANE), 0, Math.sin(HELD_PLANE)];
-  const up: Vec3 = [0, 1, 0];
-  const nb = cross(up, h);
-  const eX = add(scale(h, Math.cos(HELD_TURN)), scale(up, Math.sin(HELD_TURN)));
-  const eY = add(scale(h, -Math.sin(HELD_TURN)), scale(up, Math.cos(HELD_TURN)));
-  // (the model is the true horn with z flipped: its −z is the player's side, nb)
-  return new Float32Array([eX[0], eX[1], eX[2], 0, eY[0], eY[1], eY[2], 0, -nb[0], -nb[1], -nb[2], 0, 0, 0, 0, 1]);
+  // the seat's frame as (right, up, back). In the true frame the mouthpiece's axis out of its rim is
+  // m = −LP_DIR (in the coil's plane) and the levers' side's normal n = +z; they go to:
+  const m: Vec3 = scale(LP_DIR, -1);
+  const n: Vec3 = [0, 0, 1];
+  const mt: Vec3 = [0, Math.sin(HELD_PIPE), Math.cos(HELD_PIPE)];
+  const left: Vec3 = [-1, 0, 0];
+  const nt = add(scale(left, Math.cos(HELD_ROLL)), scale(cross(mt, left), Math.sin(HELD_ROLL)));
+  const k = cross(m, n);
+  const kt = cross(mt, nt);
+  // R = [mt nt kt]·[m n k]ᵀ takes the true frame to the seat's; a true point is F3 of the model's, and
+  // the seat's (right, up, back) is the world's (−x, y, z)
+  const R = (v: Vec3): Vec3 => add(add(scale(mt, dot(m, v)), scale(nt, dot(n, v))), scale(kt, dot(k, v)));
+  const col = (v: Vec3): Vec3 => {
+    const s = R(F3(v));
+    return [-s[0], s[1], s[2]];
+  };
+  const [cx, cy, cz] = [col([1, 0, 0]), col([0, 1, 0]), col([0, 0, 1])];
+  const l = col(F3(V(...LIPS)));
+  return new Float32Array([cx[0], cx[1], cx[2], 0, cy[0], cy[1], cy[2], 0, cz[0], cz[1], cz[2], 0, -HELD_AT[0] - l[0], -l[1], HELD_AT[1] - l[2], 1]);
 })();
 
 interface HornPoseState {
