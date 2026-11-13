@@ -2,12 +2,15 @@
 // file player sends the notes (told ahead: `foresee`; the player's automatic expression on the pieces' parts).
 //   npx tsx scripts/render-winds-legato.ts --before <old>/packages/engine/src/core/index.ts [--out artifacts/winds-legato]
 //       [--piece beethoven5-ii] [--start 30] [--seconds 20] [--scan]
+//       [--solo "toward-morning flute 1" --solo-start 45 --solo-seconds 16 --solo-name flute-solo]
 // Writes
 //   flute-swaps-{before,after}.mp3   the flute alone over both its register breaks: slurred steps, leaps and
 //                                    octaves, the same steps tongued, a slow slurred line (its vibrato)
 //   winds-{before,after}.mp3         the woodwinds of a bundled piece's passage together (every flute, oboe,
 //                                    clarinet and bassoon part, as the Orchestra routes and plays them), the
 //                                    stretch where the flutes cross their registers most
+//   <solo-name>-{before,after}.mp3   with --solo: that one part alone, as the Orchestra plays it (its seat's room
+//                                    left out: the instrument's own), from --solo-start for --solo-seconds; and only it
 //   flute-swaps.png, winds.png       stacked spectrograms, the older engine on top
 //   index.json                       each clip's numbers, from dry renders of the same notes: every note
 //                                    joined to the one before it (slurred, tongued or after a rest under
@@ -137,6 +140,28 @@ function applyGain(x: Float32Array, steps: [number, number][], start: number): v
 }
 
 const index: Record<string, unknown>[] = [];
+
+// ------------------------------------------------------------------ one part alone (--solo)
+if (opt('--solo')) {
+  const p = windParts().find((q) => q.name.includes(opt('--solo')!))!;
+  if (!p) throw new Error(`no part ${opt('--solo')}`);
+  const start = Number(opt('--solo-start', '0'));
+  const secs = Number(opt('--solo-seconds', '16'));
+  const name = opt('--solo-name', 'solo')!;
+  const ex = excerpt(p as WindPart, start, secs);
+  const events = [...foreseen(ex.notes), ...ex.events];
+  const monos: { data: Float32Array; fs: number }[] = [];
+  for (const [tag, render] of engines) {
+    const wet = render({ sampleRate: FS, instrument: p.instrument, events, duration: ex.dur, player: p.player });
+    applyGain(wet.left, p.gain, start);
+    applyGain(wet.right, p.gain, start);
+    mp3(`${name}-${tag}`, wet.left, wet.right);
+    monos.push({ data: wet.left, fs: FS });
+  }
+  png(name, monos, ex.dur, 5000);
+  console.log(`${name}: ${p.name}, from ${start} s for ${secs} s, ${ex.notes.length} notes`);
+  process.exit(0);
+}
 
 // ------------------------------------------------------------------ the flute alone, over its breaks
 /** phrases of notes: each [pitches, seconds a note, slurred?], a rest of 0.4 s between phrases */
