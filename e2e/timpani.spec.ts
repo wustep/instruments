@@ -60,7 +60,7 @@ test('the timpani through the worklet at 22.05, 44.1, 48 and 96 kHz: the princip
   for (const [rate, midi, vel] of [[22050, 36, 70], [44100, 43, 70], [48000, 48, 30], [48000, 48, 112], [96000, 52, 70], [44100, 57, 112]] as const) {
     out[`${rate}/${midi}/${vel}`] = await page.evaluate(async ([fs, m, v]) => {
       const { renderOffline } = (window as any).__engine;
-      const buf: AudioBuffer = await renderOffline({ instrument: 'timpani', sampleRate: fs, duration: 1.4, params: { room: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: v } }] });
+      const buf: AudioBuffer = await renderOffline({ instrument: 'timpani', sampleRate: fs, duration: 1.4, params: { room: 0, human: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: v } }] });
       const x = buf.getChannelData(0);
       const f = 440 * 2 ** ((m - 69) / 12);
       // the principal tone: the DFT's peak near the note over 0.4–1.4 s (a ringing head: the (1,1) mode)

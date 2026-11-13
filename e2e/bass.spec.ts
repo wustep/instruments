@@ -46,7 +46,7 @@ test('the double bass: “bass” under its glyph, its full name to a screen rea
   for (const [rate, midi] of [[22050, 40], [44100, 28], [48000, 40], [48000, 55], [96000, 40]] as const) {
     const out = await page.evaluate(async ([fs, m]) => {
       const { renderOffline } = (window as any).__engine;
-      const buf: AudioBuffer = await renderOffline({ instrument: 'bass', sampleRate: fs, duration: 1.6, params: { room: 0, vibrato: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: 90 } }] });
+      const buf: AudioBuffer = await renderOffline({ instrument: 'bass', sampleRate: fs, duration: 1.6, params: { room: 0, vibrato: 0, human: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: 90 } }] });
       // the mono sum (both microphones), its pitch by autocorrelation over 0.9–1.4 s
       const L = buf.getChannelData(0);
       const R = buf.getChannelData(1);
