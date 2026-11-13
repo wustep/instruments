@@ -427,7 +427,11 @@ const BASS: BowedDesign = {
   // to 10 dB louder than its neighbours (median step between neighbouring notes 6.4 dB at mf; the
   // Iowa bass's 3.0 dB; 2.5×: 4.5 dB). A bass's large, thin plates radiate their low modes away fast.
   signature: [
-    { f: 60, eta: 0.1, m: 4.2, rad: 1.0 },
+    // (the air mode radiated at 1.0 at first: B1–C♯2, whose fundamentals lie on it, then stood 6–11 dB over
+    // the Iowa bass's beside its other notes at every dynamic, C♯2 10 dB over its neighbours as played:
+    // scripts/levels-vs-refs.ts --only bass --notes, scripts/levels-compass.ts. At 0.5: +1…+4 dB. The judge:
+    // NO CLEAR CHANGE, held-out 1.89 → 1.83, its level error 7.46 → 6.75 dB)
+    { f: 60, eta: 0.1, m: 4.2, rad: 0.5 },
     { f: 88, eta: 0.075, m: 6.8, rad: 0.1 },
     { f: 105, eta: 0.055, m: 3.4, rad: 0.3 },
     { f: 125, eta: 0.055, m: 3.6, rad: 1.0 },

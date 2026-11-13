@@ -22,7 +22,7 @@ function biquad(x: Float32Array | Float64Array, c: number[]): Float64Array {
 }
 
 /** BS.1770 K-weighting at any rate (the two stages' analogue prototypes, as pyloudnorm designs them) */
-function kWeight(x: Float32Array, fs: number): Float64Array {
+export function kWeight(x: Float32Array, fs: number): Float64Array {
   // stage 1: a high shelf, +4 dB above ~1.7 kHz
   {
     var G = 3.99984385397, Q = 0.7071752369554193, fc = 1681.974450955533;
