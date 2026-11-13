@@ -3,7 +3,7 @@
 // no controller that moves) is phrased, a line with dynamics of its own is left as written. Tiny files
 // made here (test/smf.ts), never a real piece.
 import { describe, expect, it } from 'vitest';
-import { ccGain, express, lineShapes, modLines, modValue, PartLevels, phrases, PHRASING, volumeRef } from '../src/expression.ts';
+import { ccGain, express, lineLag, lineShapes, modLines, modValue, PartLevels, phrases, PHRASING, TIMING, timingPlayers, typedTogether, volumeRef } from '../src/expression.ts';
 import { parseMidi, type FileEvent, type MidiSong } from '../src/midi-file.ts';
 import { smf } from './smf.ts';
 
@@ -147,9 +147,11 @@ describe('automatic expression', () => {
       const before = cello.filter((d) => d.t <= e.t + 1e-9 && d.t > e.t - 0.2);
       if (e.t > 0) expect(before[before.length - 1]?.value ?? 0, `at ${e.t}`).toBe(0);
     }
-    // everything else as written: the same events, in order, but for velocities and the swells
-    const strip = (es: FileEvent[]) => es.filter((e) => e.kind !== 'dyn').map((e) => (e.kind === 'on' ? { ...e, vel: 0 } : e));
-    expect(strip(x.events)).toEqual(strip(s.events));
+    // everything else as written: the same events, each line's in order, but for velocities and the swells,
+    // and each line's place in time (two lines typed together: TIMING)
+    expect(x.timed).toBe(true);
+    const strip = (es: FileEvent[], line: number) => es.filter((e) => e.kind !== 'dyn' && e.line === line).map((e) => ({ ...e, t: 0, ...(e.kind === 'on' ? { vel: 0 } : {}) }));
+    for (const li of [0, 1]) expect(strip(x.events, li)).toEqual(strip(s.events, li));
     // in time order
     for (let i = 1; i < x.events.length; i++) expect(x.events[i].t).toBeGreaterThanOrEqual(x.events[i - 1].t);
   });
@@ -199,5 +201,86 @@ describe('automatic expression', () => {
     const t = ons(express(terr).events, 0).map((e) => e.vel);
     const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
     expect(mean(t.slice(0, 20)) - mean(t.slice(28))).toBeGreaterThan(35);
+  });
+});
+
+// A file typed into a notation program begins every line's note on one tick; an ensemble does not (TIMING).
+describe('a typed file’s lines each in their own time', () => {
+  const dyn = (i: number) => 50 + ((i * 37) % 60);
+  const two = () => song(part(0, 'Violin', tune, 1, dyn), part(1, 'Cello', tune.map((m) => m - 24), 1, dyn));
+
+  it('lines typed together are told apart from lines written or played apart, and from one line alone', () => {
+    expect(typedTogether(two())).toBe(true);
+    // one line: nothing to be together with
+    expect(typedTogether(song(part(0, 'Violin', tune, 1, dyn)))).toBe(false);
+    // the second line 8 ms late throughout (480 ticks a second: 4 ticks): written apart, left alone
+    const late = part(1, 'Cello', tune.map((m) => m - 24), 1, dyn);
+    late[1] = [late[1][0] + 4, ...late[1].slice(1)] as never;
+    const apart = song(part(0, 'Violin', tune, 1, dyn), late);
+    expect(typedTogether(apart)).toBe(false);
+    const x = express(apart);
+    expect(x.timed).toBe(false);
+    expect(x.events).toBe(apart.events);
+  });
+
+  it('each line wanders either side of the beat, a few milliseconds, slowly; two lines stand apart as players do, less', () => {
+    const s = two();
+    const x = express(s);
+    // (these lines have dynamics of their own: only the time is given)
+    expect(x.shaped).toBe(false);
+    expect(x.timed).toBe(true);
+    const at = (es: FileEvent[], li: number) => ons(es, li).map((e) => e.t);
+    const d0 = at(x.events, 0).map((t, i) => t - at(s.events, 0)[i]);
+    const d1 = at(x.events, 1).map((t, i) => t - at(s.events, 1)[i]);
+    for (const d of [...d0, ...d1]) expect(Math.abs(d)).toBeLessThan(2.5 * TIMING.sd);
+    // each line about its standard deviation; the two apart by about √2 of it, a third of Rasch's 30–50 ms
+    expect(sd(d0.slice(1))).toBeGreaterThan(0.5 * TIMING.sd);
+    expect(sd(d0.slice(1))).toBeLessThan(1.5 * TIMING.sd);
+    const apart = sd(d0.map((d, i) => d - d1[i]).slice(1));
+    expect(apart).toBeGreaterThan(0.006);
+    expect(apart).toBeLessThan(0.02);
+    // a note is as long as written, to within 6 %, and nothing in a line changes order
+    for (const li of [0, 1]) {
+      const es = x.events.filter((e) => e.line === li && (e.kind === 'on' || e.kind === 'off'));
+      const ws = s.events.filter((e) => e.line === li && (e.kind === 'on' || e.kind === 'off'));
+      expect(es.map((e) => e.kind + (e as { midi: number }).midi)).toEqual(ws.map((e) => e.kind + (e as { midi: number }).midi));
+      for (let i = 1; i < es.length; i++) {
+        const len = es[i].t - es[i - 1].t;
+        const was = ws[i].t - ws[i - 1].t;
+        if (was > 0.1) expect(Math.abs(len / was - 1)).toBeLessThan(0.06);
+      }
+    }
+    // in time order, within the file, and the same every time
+    for (let i = 1; i < x.events.length; i++) expect(x.events[i].t).toBeGreaterThanOrEqual(x.events[i - 1].t);
+    expect(x.events[0].t).toBeGreaterThanOrEqual(0);
+    expect(x.events[x.events.length - 1].t).toBeLessThanOrEqual(s.duration);
+    expect(express(two()).events).toEqual(x.events);
+  });
+
+  it('a keyboard’s two staves are one player’s hands: they keep one time, and the pedal on one staff changes with the other’s notes', () => {
+    // a violin, then a piano's right and left hand (program 0 on both), the pedal on the left hand's staff
+    const prog = (ch: number, p: number): Ev => [0, 0xc0 | ch, p];
+    const withProg = (ch: number, p: number, evs: Ev[]): Ev[] => [evs[0], prog(ch, p), ...evs.slice(1)];
+    const pedal: [number, number, number, number][] = Array.from({ length: 24 }, (_, k) => [k * 960 + (k % 2 ? 0 : 30), 0xb0, 64, k % 2 ? 0 : 127]);
+    const s = song(withProg(0, 40, part(0, 'Violin', tune, 1, dyn)), withProg(1, 0, part(1, 'rh', tune.map((m) => m + 12), 1, dyn)), withProg(2, 0, part(2, 'lh', tune.map((m) => m - 12), 1, dyn, pedal)));
+    expect(s.lines.map((l) => l.program)).toEqual([40, 0, 0]);
+    expect(timingPlayers(s)).toEqual([0, 1, 1]);
+    const x = express(s);
+    expect(x.timed).toBe(true);
+    const at = (es: FileEvent[], li: number) => ons(es, li).map((e) => e.t);
+    // the hands together to the sample, as written; the violin its own way
+    at(x.events, 1).forEach((t, i) => expect(t).toBeCloseTo(at(x.events, 2)[i], 9));
+    expect(sd(at(x.events, 0).map((t, i) => t - at(x.events, 1)[i]))).toBeGreaterThan(0.005);
+    // each pedal change as far from the right hand's nearest note as it was written (to 6 % of 62 ms)
+    const near = (es: FileEvent[]) => es.filter((e) => e.kind === 'pedal').map((p) => Math.min(...at(es, 1).map((t) => Math.abs(t - p.t))));
+    const was = near(s.events);
+    near(x.events).forEach((d, i) => expect(Math.abs(d - was[i])).toBeLessThan(0.004));
+    // two violins next to each other (one program, not a keyboard's) are two players
+    const vv = song(withProg(0, 40, part(0, 'Violin I', tune, 1, dyn)), withProg(1, 40, part(1, 'Violin II', tune.map((m) => m - 5), 1, dyn)));
+    expect(timingPlayers(vv)).toEqual([0, 1]);
+  });
+
+  it('a line’s place moves slowly: under 6 % of the time that passes', () => {
+    for (const li of [0, 3, 11]) for (let t = 0; t < 60; t += 0.01) expect(Math.abs(lineLag(li, t + 0.01) - lineLag(li, t))).toBeLessThan(0.06 * 0.01);
   });
 });

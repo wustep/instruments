@@ -9,7 +9,8 @@ import { bowedGeometry, type VisualFrame } from '@piano-model/engine';
 import { isKeyboard, VOICE_INFO, type Voice } from '../src/orchestra/assign.ts';
 import { isOrchestral, seatKinds } from '../src/orchestra/seats.ts';
 import type { PartLive } from '../src/orchestra/ensemble.ts';
-import { drawEnsemble, ensembleCells, newPartDraw, type Cell } from '../src/ui/ensemble-draw.ts';
+import { drawable, drawEnsemble, ensembleCells, newPartDraw, type Cell } from '../src/ui/ensemble-draw.ts';
+import { PIECES } from '../src/orchestra/pieces.ts';
 import { BOWED_PLAN, FL_LEN, bowReach, bowedShapes, bowedSpan, type BowedGeom } from '../src/ui/stage-draw.ts';
 import { installCanvas, recorder } from './recording-ctx.ts';
 
@@ -333,4 +334,37 @@ describe('the bows as drawn (vector lines)', () => {
       expect(Math.abs(L - R), `left ${L.toFixed(1)}, right ${R.toFixed(1)}`).toBeLessThanOrEqual(0.03 * W);
       expect(Math.abs(T - B), `top ${T.toFixed(1)}, bottom ${B.toFixed(1)}`).toBeLessThanOrEqual(3);
     });
+});
+
+// Every seat is drawn. (Pass It On's oboe and clarinet were not, in 2D or in vector lines: their cells,
+// 5–8 px across at seventeen seats' scale, were under the least a cell was drawn at.)
+describe('every seat of an orchestra is drawn', () => {
+  it('no seat of a bundled piece has a cell too small to draw, on any stage', () => {
+    for (const piece of PIECES) {
+      const voices = piece.parts.map((p) => p.voice);
+      for (const [W, H] of STAGES) {
+        const cells = ensembleCells(voices, W, H);
+        voices.forEach((v, i) => expect(drawable(cells[i]), `${piece.id}: ${v} (seat ${i}) on ${W}×${H}: ${cells[i]?.w}×${cells[i]?.h}`).toBe(true));
+      }
+    }
+  });
+
+  it('an oboe and a clarinet among seventeen seats are drawn: their outlines stand in their cells (vector lines)', () => {
+    installCanvas();
+    const piece = PIECES.find((p) => p.id === 'pass-it-on')!;
+    const voices = piece.parts.map((p) => p.voice);
+    for (const [W, H] of [[1440, 505], [390, 422]] as const) {
+      const cells = ensembleCells(voices, W, H);
+      const parts = voices.map((voice) => ({ voice, frame: null, down: new Set(), strikes: [], vels: new Map() }) as unknown as PartLive);
+      const { ctx, outlines } = recorder();
+      // (the reeds alone: the others' cells left out)
+      const reeds = ['oboe', 'clarinet', 'bassoon'] as const;
+      drawEnsemble(ctx, cells.map((c, i) => ((reeds as readonly string[]).includes(voices[i]) ? c : (undefined as unknown as Cell))), parts, voices.map(newPartDraw), () => [], 1000, true);
+      for (const v of reeds) {
+        const c = cells[voices.indexOf(v)];
+        const inside = outlines.filter((o) => o.length > 1 && o.every(([x, y]) => x >= c.x - 1 && x <= c.x + c.w + 1 && y >= c.y - 1 && y <= c.y + c.h + 1));
+        expect(inside.length, `${v} on ${W}×${H} (its cell ${c.w.toFixed(1)}×${c.h.toFixed(1)})`).toBeGreaterThan(0);
+      }
+    }
+  });
 });

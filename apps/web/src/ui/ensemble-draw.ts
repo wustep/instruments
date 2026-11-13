@@ -451,6 +451,12 @@ export function syncPianoState(st: PianoState, p: PartLive): void {
   st.upright = p.voice === 'upright';
 }
 
+/** Is a cell large enough to draw its instrument in? Across, two px: an oboe or a clarinet in an orchestra
+ *  of seventeen stands in a cell 5–8 px wide (its box is its bore's width and its keys' reach at the
+ *  strings' px/m), and under the 8 px once asked here neither was drawn at all: Pass It On's woodwind row
+ *  was a flute, two empty seats and a bassoon, on a computer and on a phone. */
+export const drawable = (c: Cell): boolean => c.w >= 2 && c.h >= 8;
+
 /** draw the ensemble: each part in its cell (stage coordinates, the top band already translated) */
 export function drawEnsemble(ctx: CanvasRenderingContext2D, cells: Cell[], parts: PartLive[], draws: PartDraw[], keysOf: (p: PartLive) => import('@piano-model/engine').KeySummary[], now: number, vector = false): void {
   // the bows: each drawn after every instrument, over the whole stage (never cut at its own cell's edge)
@@ -458,7 +464,7 @@ export function drawEnsemble(ctx: CanvasRenderingContext2D, cells: Cell[], parts
   parts.forEach((p, i) => {
     const c = cells[i];
     const d = draws[i];
-    if (!c || !d || c.w < 8 || c.h < 8) return;
+    if (!c || !d || !drawable(c)) return;
     const fr: VisualFrame | null = p.frame;
     ctx.save();
     ctx.translate(c.x, c.y);

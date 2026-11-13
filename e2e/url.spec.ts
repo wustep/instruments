@@ -194,7 +194,9 @@ test('the string quintet preset: the address alone sets it up; the Daylight quin
   await expect.poll(() => page.evaluate(() => Object.keys((window as any).__first).length), { timeout: 5000 }).toBe(5);
   const first = await page.evaluate(() => (window as any).__first as Record<number, { at: number; engine: boolean }>);
   const ats = Object.values(first).map((f) => f.at);
-  expect(Math.max(...ats) - Math.min(...ats), 'every part’s first note at the same time').toBeLessThan(1e-9);
+  // (together as players are: a typed file's lines each within 22 ms of the beat, expression.ts TIMING; a
+  // part whose engine came late would be late by far more)
+  expect(Math.max(...ats) - Math.min(...ats), 'every part’s first note together').toBeLessThan(0.05);
   expect(Object.values(first).every((f) => f.engine), 'every engine there before its first note').toBe(true);
   // every part sounding
   await expect.poll(() => page.evaluate(() => (window as any).__orchestra.ensemble.parts.filter((p: any) => p.down.size > 0).length), { timeout: 5000 }).toBe(5);

@@ -279,7 +279,7 @@ export class MidiPlayer {
   private perform(): void {
     const s = this.song;
     const x = s ? expressOf(s) : null;
-    this.events = s ? (this.auto && x!.shaped ? x!.events : s.events) : [];
+    this.events = s ? (this.auto && (x!.shaped || x!.timed) ? x!.events : s.events) : [];
     audio.fileSong(s);
     this.syncExpr(x);
   }
@@ -313,7 +313,7 @@ export class MidiPlayer {
   private syncExpr(x: Expressed | null): void {
     const b = this.exprBtn;
     b.setAttribute('aria-pressed', String(this.auto));
-    const own = !!x && !x.shaped;
+    const own = !!x && !x.shaped && !x.timed;
     b.classList.toggle('own', own);
     b.dataset.tip = own ? 'expression · the file’s own' : this.auto ? 'expression · on' : 'expression · off';
     b.setAttribute('aria-label', own ? 'Automatic expression (the file has its own dynamics)' : 'Automatic expression');
