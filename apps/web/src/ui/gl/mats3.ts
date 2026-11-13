@@ -83,10 +83,8 @@ const P: Record<string, Phys> = {
   nickel: { color: '#dddcd6', metalness: 1, roughness: 0.1 },
   copper: { color: '#c4794a', metalness: 1, roughness: 0.3, anisotropy: 0.5, tex: 8 },
   brass: { color: '#e6bb62', metalness: 1, roughness: 0.14, clearcoat: 0.8, clearcoatRoughness: 0.04 },
-  brassGlow: { color: '#e6bb62', metalness: 1, roughness: 0.14, clearcoat: 0.8, clearcoatRoughness: 0.04 },
   brassDull: { color: '#c19b58', metalness: 1, roughness: 0.32, clearcoat: 0.4, clearcoatRoughness: 0.2 },
   silver: { color: '#ebebeb', metalness: 1, roughness: 0.07 },
-  silverGlow: { color: '#ebebeb', metalness: 1, roughness: 0.07 },
   pad: { color: '#ece1c6', roughness: 0.75, sheen: 0.6, sheenColor: '#fff5e0', sheenRoughness: 0.5 },
   pearl: { color: '#f6f1ea', roughness: 0.16, clearcoat: 0.6, clearcoatRoughness: 0.08, iridescence: 0.9, iridescenceIOR: 1.35, iridescenceThicknessRange: [220, 620] },
   castAction: { color: '#8a8985', metalness: 0.85, roughness: 0.45, tex: 5, cap: 3, cut: IRON },
@@ -304,7 +302,7 @@ export function materialFor(m: Mat, lite: boolean): THREE.Material {
     sh.uniforms.uCapSeed = { value: new THREE.Vector3(0.12 + 0.5 * ((hsh % 97) / 97), -0.45 + 0.9 * ((hsh % 89) / 89), 0.75 + 0.6 * ((hsh % 83) / 83)) };
     if (aux) sh.uniforms.tAux = { value: aux };
     if (paint) sh.uniforms.uRect = { value: new THREE.Vector4(...paint.rect) };
-    sh.defines = { ...(sh.defines ?? {}), TEX: tex, KIND: kind, PAINTED: paint ? 1 : 0, CAP: cap };
+    sh.defines = { ...(sh.defines ?? {}), TEX: tex, PAINTED: paint ? 1 : 0, CAP: cap };
     sh.vertexShader = sh.vertexShader
       .replace(
         '#include <common>',

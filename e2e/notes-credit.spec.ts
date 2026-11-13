@@ -16,6 +16,8 @@ test('the notes name who built them, with icons to the site and X', async ({ pag
   const x = icons.locator('a[href="https://x.com/wustep"]');
   await expect(site).toHaveAttribute('aria-label', 'Stephen Wu’s site');
   await expect(x).toHaveAttribute('aria-label', 'Stephen Wu on X');
+  await expect(site).toHaveAttribute('data-tip', 'Stephen Wu’s site');
+  await expect(x).toHaveAttribute('data-tip', 'Stephen Wu on X');
   await expect(site.locator('svg')).toHaveCount(1);
   await expect(x.locator('svg')).toHaveCount(1);
   await expect(site).not.toHaveText(/wustep|Stephen|site/i);

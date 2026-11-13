@@ -62,8 +62,9 @@ const OBOE_KNOBS: KnobSpec[] = [
   { key: 'vibrato', label: 'Vibrato', short: 'vibrato', sub: 'breath pressure modulation', min: 0, max: 0.12, step: 0.005, fmt: (v) => fmt(v, 3) },
 ];
 const TRUMPET_KNOBS: KnobSpec[] = [
-  { key: 'breath', label: 'Breath pressure', short: 'breath', sub: '× nominal blowing pressure', min: 0.4, max: 1.8, step: 0.01, fmt: (v) => `×${fmt(v, 2)}` },
+  { key: 'breath', label: 'Breath pressure', short: 'breath', sub: '× the dynamic’s blowing pressure: harder, the lips close sharper and the tone turns brassy', min: 0.6, max: 1.4, step: 0.01, fmt: (v) => `×${fmt(v, 2)}` },
   { key: 'lip', label: 'Lip tension', short: 'lips', sub: 'semitones above or below the note; far enough, the next partial speaks', min: -3, max: 3, step: 0.05, fmt: (v) => `${v > 0 ? '+' : ''}${fmt(v, 2)} st` },
+  { key: 'noise', label: 'Breath noise', short: 'noise', sub: 'turbulence in the lips’ slit', min: 0, max: 4, step: 0.01, fmt: (v) => fmt(v, 2) },
   { key: 'vibrato', label: 'Vibrato', short: 'vibrato', sub: 'lip vibrato depth', min: 0, max: 0.02, step: 0.0005, fmt: (v) => fmt(v * 1000, 1) },
 ];
 const HORN_KNOBS: KnobSpec[] = [
@@ -104,7 +105,7 @@ const TUBA_KNOBS: KnobSpec[] = [
 const TIMPANI_KNOBS: KnobSpec[] = [
   { key: 'mallet', label: 'Mallet', short: 'mallet', sub: 'the felt’s hardness: soft and round … hard, a short bright stroke', min: 0.25, max: 4, step: 0.01, log: true, fmt: (v) => `×${fmt(v, 2)}` },
   { key: 'spot', label: 'Strike point', short: 'spot', sub: 'out from the head’s centre (a fraction of its radius): the middle thumps, near the rim rings thin', min: 0.2, max: 0.9, step: 0.01, fmt: (v) => fmt(v, 2) },
-  { key: 'damp', label: 'Damping', short: 'damp', sub: 'a released key: the drum rings on (0) … the fingers stop the head at once', min: 0, max: 1, step: 0.01, fmt: (v) => fmt(v, 2) },
+  { key: 'damp', label: 'Damping', short: 'damp', sub: 'a released key: the drum rings on (0) … the fingers stop the head at once', min: 0, max: 1, step: 0.01, fmt: (v) => (v < 0.02 ? 'l.v.' : fmt(v, 2)) },
   { key: 'roll', label: 'Roll', short: 'roll', sub: 'a held key rolls: single strokes (0) … a fast roll', min: 0, max: 1, step: 0.01, fmt: (v) => (v < 0.02 ? 'off' : fmt(v, 2)) },
 ];
 const GLOCK_KNOBS: KnobSpec[] = [

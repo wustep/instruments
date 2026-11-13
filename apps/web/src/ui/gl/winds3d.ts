@@ -35,10 +35,9 @@
 // bell, a faint handled mottle on the casings), nickel silver, knurls as fine satin bands, the buttons'
 // pearl under polished bezels (trumpet-side.jpg, trumpet-valves.jpg).
 // Live: the pistons press for the engine's fingering ("valves 1+3 · partial 4"; 15.5 mm of travel,
-// a spring return with a tiny bounce off the felt). The pressed valves' slides join the glowing air
-// path, the breath goes into the mouthpiece (faint steel streams, as the flute's jet and the 2D stage's
-// winds are drawn; breathIn) pulsing with the lips' buzz, the bore's standing wave glows faintly along the
-// brass. The bell is never lit, sounding or not.
+// a spring return with a tiny bounce off the felt). The breath goes into the mouthpiece (faint steel streams, as the flute's jet and the 2D stage's
+// winds are drawn; breathIn) pulsing with the lips' buzz. The tubing and the bell are never lit, sounding or not (only the
+// pressed pistons take a faint warm light).
 // Approximations: the flute's linkages are shown, not simulated (each key springs to the state the
 // mechanism gives it; a link's lost motion is not modelled), the thumb levers pivot on a steel along
 // the tube rather than on Briccialdi's cross axle, and the trill keys never open (the fingering chart
@@ -64,15 +63,13 @@ const AG = M.silverKeys;
 const TUBE = M.silverPolish;
 const BORE = M.boreDark;
 const BR = M.brassLacquer;
-/** brass on the air path (uv.x from the mouthpiece to the bell) */
-const BRG = variant(M.brassLacquer, { kind: 2 });
 const NS = M.nickelSilver;
 /** the flute's pad skins, and its steels and needle springs (brushed stainless) */
 const PAD = M.padSkin;
 /** knurling (its fine ridges scatter: a satin band), the buttons' mother-of-pearl, the bell's
  *  burnished lacquer and the valve casings' handled lacquer */
 const KN = M.nickelKnurl;
-const BELLG = variant(M.brassBell, { kind: 2 });
+const BELLM = M.brassBell;
 const BRH = M.brassHandled;
 /** nickel-silver tube drawn and worn by the slides (satin) */
 const NSD = M.nickelDrawn;
@@ -1034,7 +1031,7 @@ export interface TrumpetModel {
   statics: Mesh[];
   /** each valve's slide: the fixed tubes, and the slide itself (the U and its outer tubes) that the
    *  player kicks out along `dir` on the notes that need it (the 1st and 3rd) */
-  slides: { plain: Mesh; glow: Mesh; sleeve: Mesh; sleeveGlow: Mesh; dir: Vec3 }[];
+  slides: { fixed: Mesh; sleeve: Mesh; dir: Vec3 }[];
   piston: Mesh;
   /** the rolled rim */
   rimBead: Mesh;
@@ -1098,15 +1095,15 @@ export function buildTrumpetModel(): TrumpetModel {
     revolve(mb, fillet([[0.0054, -0.0004], [0.0074, 0.0], [0.0079, 0.0012], [0.0079, 0.0028], [0.0071, 0.0042], [0.0068, 0.0196], [0.0073, 0.0204], [0.0073, 0.0222], [0.0062, 0.0244]], [0, 0.0003, 0.0004, 0.0004, 0.0006, 0.0003, 0.0003, 0.0003, 0], 3), 32, BR);
     revolve(mb, [[0.0054, -0.0004], [0.0054, 0.006]], 24, BORE);
   });
-  pipe(mb, leadPath, (f) => lerp(0.0061, RT, Math.min(1, f * 1.4)), BRG, 26, uLead);
+  pipe(mb, leadPath, (f) => lerp(0.0061, RT, Math.min(1, f * 1.4)), BR, 26, uLead);
   // ---- the main tuning slide: fixed tubes, the slide (a little larger) with ferrules, the nickel
   // silver of the inner tubes where they show
-  pipe(mb, msPath, RT, BRG, 26, uMs);
+  pipe(mb, msPath, RT, BR, 26, uMs);
   {
     const fr = (p: Vec3) => (a: number) => cyl(mb, add(p, [a, 0, 0]), add(p, [a + 0.003, 0, 0]), RT + 0.0012, RT + 0.0012, 26, BR);
     const outerTop: Vec3[] = [[0.1035, MS_TOP, ZL], ...crook, [0.1015, MS_LOW, -0.002]];
     const a0 = (0.1035 - LEAD_END) / pl(msPath);
-    pipe(mb, outerTop, RT + 0.0007, BRG, 26, [uMs[0] + (uMs[1] - uMs[0]) * a0, uMs[0] + (uMs[1] - uMs[0]) * (1 - (0.1015 - VX[2] - 0.004) / pl(msPath))]);
+    pipe(mb, outerTop, RT + 0.0007, BR, 26, [uMs[0] + (uMs[1] - uMs[0]) * a0, uMs[0] + (uMs[1] - uMs[0]) * (1 - (0.1015 - VX[2] - 0.004) / pl(msPath))]);
     fr([0.1035, MS_TOP, ZL])(0);
     fr([0.1015, MS_LOW, -0.002])(0);
     cyl(mb, [LEAD_END - 0.0005, MS_TOP, ZL], [0.1035, MS_TOP, ZL], RT + 0.0002, RT + 0.0002, 26, NSD, false);
@@ -1175,8 +1172,8 @@ export function buildTrumpetModel(): TrumpetModel {
       mb.with(translate(0, y, 0), () => lx(mb, fillet([[0, x0], [0.0042, x0], [0.003, x0 + 0.0022], [0.0028, (x0 + x1) / 2], [0.003, x1 - 0.0022], [0.0042, x1], [0, x1]], [0, 0, 0.0008, 0.002, 0.0008, 0, 0], 3), 16, BR));
     }
   // ---- the bell section: tail, bow, bell pipe and flare (one piece), the rolled rim
-  pipe(mb, tailPath, (f) => lerp(RT, 0.0065, f), BRG, 26, uTail);
-  pipe(mb, bowPath, (f) => lerp(0.0065, 0.0068, f), BRG, 26, uBow);
+  pipe(mb, tailPath, (f) => lerp(RT, 0.0065, f), BR, 26, uTail);
+  pipe(mb, bowPath, (f) => lerp(0.0065, 0.0068, f), BR, 26, uBow);
   ferrule(mb, [BOW_C[0] + 0.001, -0.02, ZB], [1, 0, 0], 0.0065, 0.0072);
   ferrule(mb, [BELL0[0] + 0.0012, BELL0[1], ZB], [1, 0, 0], 0.0068, 0.0076);
   const bellR = pchip(BELL_D, BELL_R);
@@ -1191,7 +1188,7 @@ export function buildTrumpetModel(): TrumpetModel {
       prof.push([bellR(d), bellLen - d]);
       ss.push(bellLen - d);
     }
-    mb.with(Fb, () => revolve(mb, prof, 120, BELLG, (i) => lerp(uBell[0], uBell[1], ss[i] / bellLen)));
+    mb.with(Fb, () => revolve(mb, prof, 120, BELLM, (i) => lerp(uBell[0], uBell[1], ss[i] / bellLen)));
   }
   const rb = new MeshBuilder();
   rb.with(Fb, () => {
@@ -1228,8 +1225,7 @@ export function buildTrumpetModel(): TrumpetModel {
     ellipsoid(mb, [xb, y0 + RT - 0.0004, ZL - 0.0004], [0.0034, 0.0012, 0.0024], 14, BR);
   }
 
-  // ---- the valve slides: fixed tubes from the casing's ports (plain, and glowing when their valve
-  // sends the air through them), and the slide itself, which moves: its U and outer tubes with
+  // ---- the valve slides: fixed tubes from the casing's ports, and the slide itself, which moves: its U and outer tubes with
   // ferrules, sliding over nickel-silver inner tubes that show when it is kicked out
   interface Slide { fixed: Vec3[][]; inner: [Vec3, Vec3][]; sleeve: Vec3[]; ferrules: Vec3[]; ports: Vec3[]; dir: Vec3; onSleeve?: (s: MeshBuilder, m: Mat) => void; onFixed?: (s: MeshBuilder, m: Mat) => void }
   const slideDefs: Slide[] = [];
@@ -1308,23 +1304,22 @@ export function buildTrumpetModel(): TrumpetModel {
   }
   const slides = slideDefs.map((d, k) => {
     const u: [number, number] = [uV[0] + ((uV[1] - uV[0]) * k) / 3, uV[0] + ((uV[1] - uV[0]) * (k + 1)) / 3];
-    const fixedMesh = (glow: boolean) => {
+    const fixedMesh = () => {
       const s = new MeshBuilder();
-      const m = glow ? BRG : BR;
-      for (const f of d.fixed) pipe(s, f, RT, m, 24, u);
+      for (const f of d.fixed) pipe(s, f, RT, BR, 24, u);
       for (const [a, b] of d.inner) cyl(s, a, b, RT - 0.0001, RT - 0.0001, 24, NSD, false);
       for (const p of d.ports) cyl(s, p, add(p, [0, 0, -0.0035]), RT + 0.0011, RT + 0.0008, 24, BR);
       d.onFixed?.(s, BR);
       return s.build();
     };
-    const sleeveMesh = (glow: boolean) => {
+    const sleeveMesh = () => {
       const s = new MeshBuilder();
-      pipe(s, d.sleeve, RT + 0.0007, glow ? BRG : BR, 24, u);
+      pipe(s, d.sleeve, RT + 0.0007, BR, 24, u);
       for (const f of d.ferrules) cyl(s, add(f, [-0.0015, 0, 0]), add(f, [0.0015, 0, 0]), RT + 0.0012, RT + 0.0012, 24, BR);
       d.onSleeve?.(s, BR);
       return s.build();
     };
-    return { plain: fixedMesh(false), glow: fixedMesh(true), sleeve: sleeveMesh(false), sleeveGlow: sleeveMesh(true), dir: d.dir };
+    return { fixed: fixedMesh(), sleeve: sleeveMesh(), dir: d.dir };
   });
   // ports where the main slide and the bell tail enter the casings
   cyl(mb, [VX[2] + RC - 0.0004, MS_LOW, -0.002], [VX[2] + RC + 0.0032, MS_LOW, -0.002], RT + 0.0011, RT + 0.0008, 24, BR);
@@ -1374,9 +1369,9 @@ export function poseTrumpet(b: Batch, tm: TrumpetModel, fr: VisualFrame | null, 
     const p = springTo(pose.valves, pose.valveV, k, down[k] ? 1 : 0, dt, 22, 0.6);
     b.mesh(tm.piston, chain(T, translate(x, -STROKE * p, 0)), down[k] ? [1, 0.62, 0.34, 0.05] : null);
     const sl = tm.slides[k];
-    b.mesh(down[k] ? sl.glow : sl.plain, T);
+    b.mesh(sl.fixed, T);
     const q = springTo(pose.slide, pose.slideV, k, kick[k], dt, 6, 0.9) * SLIDE_TRAVEL[k];
-    b.mesh(down[k] ? sl.sleeveGlow : sl.sleeve, q ? chain(T, translate(sl.dir[0] * q, sl.dir[1] * q, sl.dir[2] * q)) : T);
+    b.mesh(sl.sleeve, q ? chain(T, translate(sl.dir[0] * q, sl.dir[1] * q, sl.dir[2] * q)) : T);
   });
   // the rim as it is, sounding or not: no light on it (the bells of the winds are never lit)
   b.mesh(tm.rimBead, T);

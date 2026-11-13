@@ -625,7 +625,8 @@ export function obRecord(L: ObLayout, W: number, st: OboeState, fingers: number)
 // ---------------------------------------------------------------- the classic drawing
 const silver = (a: number) => rgba('230,232,236', a);
 const SILVER_BODY = 'rgb(62,64,68)';
-const WOOD = '#15100c';
+/** the grenadilla's fill: dark wood, lifted just enough to read against the stage (contrast over 1.3:1, test) */
+export const WOOD = '#332820';
 const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
 const D2R = Math.PI / 180;
 
@@ -729,7 +730,7 @@ export function drawOboe(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   ctx.strokeStyle = 'rgba(110,84,62,0.16)';
   ctx.lineWidth = 0.7;
   ctx.stroke(L.grain);
-  ctx.fillStyle = 'rgba(236,226,206,0.07)';
+  ctx.fillStyle = 'rgba(236,226,206,0.09)';
   ctx.fill(L.sheen);
   ctx.fillStyle = 'rgba(236,226,206,0.16)';
   ctx.fill(L.spec);
@@ -743,13 +744,13 @@ export function drawOboe(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   ctx.strokeStyle = 'rgba(0,0,0,0.55)';
   ctx.lineWidth = 1;
   ctx.stroke(L.seams);
-  ctx.strokeStyle = rgba(INK.ivory, 0.22);
+  ctx.strokeStyle = rgba(INK.ivory, 0.4);
   ctx.lineWidth = 1;
   ctx.stroke(L.body);
   ctx.strokeStyle = rgba(INK.ivory, 0.32);
   ctx.stroke(L.rimUp);
   // the bell's mouth: its rim's face, the inner lip, the dark of the bore
-  ctx.fillStyle = '#1d1712';
+  ctx.fillStyle = '#41342a';
   ctx.fill(L.mouth);
   ctx.strokeStyle = rgba(INK.ivory, 0.3);
   ctx.stroke(L.mouth);

@@ -11,15 +11,14 @@
 // the Conn 52J/54J and the Yamaha YCB-822; docs/3d-reference.md).
 //
 // What moves, by the engine's own state: the pistons go down for the note's fingering (tubaFingering), each
-// on its spring; the tubing the air goes through glows with the bore's standing wave (the loops of the valves
-// that are down among it), the breath goes into the mouthpiece. The bell is never lit, sounding or not.
+// on its spring; the breath goes into the mouthpiece (winds3d breathIn). The tubing and the bell are never lit, sounding or not.
 import { tubaFingering, valvesDown, type VisualFrame } from '@piano-model/engine';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, chain, cross, mulInto, norm, rotX, rotZ, translate, xform } from './gl3d.ts';
+import { type Batch, type Mat4, type Mesh, type Vec3, chain, cross, mulInto, norm, rotX, rotZ, translate, xform } from './gl3d.ts';
 import { M, cyl } from './mesh.ts';
 import { F3, boxOf, latheOn, make, tubeAlong } from './horn3d.ts';
 import { fillet, springTo } from './oboe3d.ts';
 import { breathIn, type WindPose } from './winds3d.ts';
-import { BELL_LEN, BELL_TILT, BELL_X, BORE, BUTTON_Y, CASING_R, CASING_Y0, CASING_Y1, LEAD_X, MPIECE, MP_DIR, MP_RIM, PISTON_LEAN, RIM_R, RIM_Y, STACK_Y0, TRAVEL, TUBES, VALVE_X, VALVE_Y, bellAxisX, bellR, lean, tubaAir } from '../tuba-plan.ts';
+import { BELL_LEN, BELL_TILT, BELL_X, BORE, BUTTON_Y, CASING_R, CASING_Y0, CASING_Y1, LEAD_X, MPIECE, MP_DIR, MP_RIM, PISTON_LEAN, RIM_R, RIM_Y, STACK_Y0, TRAVEL, TUBES, VALVE_X, VALVE_Y, bellAxisX, bellR, lean } from '../tuba-plan.ts';
 
 type P2 = [number, number];
 const BR = M.hornBrass;
@@ -219,7 +218,6 @@ interface TubaPoseState {
   /** seconds since it last sounded */
   quiet: number;
   W: Float32Array;
-  glow: RGBA;
   lipGap: number;
 }
 const poses = new WeakMap<WindPose, TubaPoseState>();
@@ -232,7 +230,7 @@ const DOWN = new Float32Array(16);
 
 export function poseTuba(b: Batch, tm: TubaModel, fr: VisualFrame | null, pose: WindPose, dt: number, now: number, rms: number, T: Mat4 = tm.T): void {
   let st = poses.get(pose);
-  if (!st) poses.set(pose, (st = { pos: new Float32Array(4), vel: new Float32Array(4), quiet: 10, W: new Float32Array(16), glow: [0, 0, 0, 0], lipGap: 0 }));
+  if (!st) poses.set(pose, (st = { pos: new Float32Array(4), vel: new Float32Array(4), quiet: 10, W: new Float32Array(16), lipGap: 0 }));
   if (T === tm.T) stageState = st;
   for (const s of tm.statics) b.mesh(s, T);
   const lips = fr?.lips ?? null;
@@ -249,34 +247,9 @@ export function poseTuba(b: Batch, tm: TubaModel, fr: VisualFrame | null, pose: 
     mulInto(st.W, 0, T, DOWN);
     b.mesh(tm.pistons[k], st.W);
   }
-  // the bore: the standing wave along the air's path (lips → bell), on the tubing the air goes through
-  const shape = focus?.shapes?.[0] ?? null;
-  let peak = 0;
-  if (shape) for (let i = 0; i < shape.length; i++) peak = Math.max(peak, Math.abs(shape[i]));
-  const sounding = blow > 0.02 && !!shape && peak > 0 && !!fg;
+  // the bore's tubing as it is, sounding or not: no light on it (no wind or brass body is lit by its sound)
+  for (const s of tm.segs) b.mesh(s.mesh, T);
   const lvl = Math.min(1, Math.sqrt(rms) * 3);
-  const setGlow = (a: number): RGBA | null => {
-    if (a <= 0.003) return null;
-    st!.glow[0] = 1;
-    st!.glow[1] = 0.7;
-    st!.glow[2] = 0.42;
-    st!.glow[3] = a;
-    return st!.glow;
-  };
-  const air = sounding ? tubaAir(down) : null;
-  for (const s of tm.segs) {
-    let g = 0;
-    if (air) {
-      const ri = air.runs.findIndex((r) => r.id === s.route);
-      if (ri >= 0) {
-        const off = air.starts[ri] - (air.runs[ri].offset ?? 0);
-        const f = Math.min(1, Math.max(0, (off + (s.s0 + s.s1) / 2) / air.total));
-        const j = Math.min(shape!.length - 1, Math.round(f * (shape!.length - 1)));
-        g = 0.095 * Math.min(1, blow * 1.4) * (Math.abs(shape![j]) / peak);
-      }
-    }
-    b.mesh(s.mesh, T, setGlow(g));
-  }
   // the bell's mouth as it is, sounding or not: no light on it (the bells of the winds are never lit)
   b.mesh(tm.rim, T);
   // the breath into the mouthpiece while the note is blown (winds3d breathIn), pulsing with the engine's lips

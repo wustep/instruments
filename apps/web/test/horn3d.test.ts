@@ -3,8 +3,7 @@
 // the B♭ horn's 2.80 m, each valve's slide its semitones), inside its budget; posed from the engine's
 // frames — the levers follow the engine's own double-horn fingering (hornFingering: the thumb's lever on
 // the B♭ side, the fingers' for the valves) on springs, their linkages turning the rotors a quarter turn,
-// back to rest after the note; the bore glows along the air's own path (the side and the pressed valves'
-// slides, not the others); the bell is never lit — and seated in the Orchestra without moving
+// back to rest after the note; nothing is lit or tinted by the sound (not the bore, not the bell) — and seated in the Orchestra without moving
 // anyone else.
 import { describe, expect, it } from 'vitest';
 import { hornFingering, type VisualFrame } from '@piano-model/engine';
@@ -140,24 +139,13 @@ describe('the horn in 3D', () => {
     expect(Math.hypot(linkEnd[0] - ball[0], linkEnd[1] - ball[1], linkEnd[2] - ball[2])).toBeLessThan(0.0003);
   });
 
-  it('glows along the air’s path while it sounds: the pressed valves’ slides of the side played, nothing else; the bell is not lit', () => {
-    const segsOf = (route: string) => hm.segs.filter((s) => s.route === route).map((s) => s.mesh);
-    const lit = (b: Batch, route: string) => Math.max(...segsOf(route).map((m) => glowOf(b, m)));
-    // A2: F side, 1+2
-    const f = play(frame(45)).b;
-    for (const r of ['lead', 'Floop', 'v1F', 'v2F', 'tail']) expect(lit(f, r), r).toBeGreaterThan(0.004);
-    for (const r of ['Bbslide', 'v1Bb', 'v2Bb', 'v3F', 'v3Bb']) expect(lit(f, r), r).toBe(0);
-    // F♯4: B♭ side
-    const bb = play(frame(66)).b;
-    expect(lit(bb, 'Bbslide')).toBeGreaterThan(0.004);
-    expect(lit(bb, 'Floop')).toBe(0);
-    // silent: nothing glows
+  it('no tube, bell, rotor, lever or link is lit or tinted while it sounds (the bore does not glow)', () => {
+    for (const m of [45, 66, 55]) {
+      const loud = play(frame(m), 5, newWindPose(), new Batch(), 0.2).b;
+      for (const mesh of all()) expect(glowOf(loud, mesh), `note ${m}`).toBe(0);
+    }
     const quiet = play(frame(null), 90, newWindPose(), new Batch(), 0).b;
-    for (const s of hm.segs) expect(glowOf(quiet, s.mesh)).toBe(0);
-    // the rim, loud: not lit either
-    const loud = play(frame(45), 5, newWindPose(), new Batch(), 0.2).b;
-    expect(glowOf(loud, hm.rim)).toBe(0);
-    expect(glowOf(quiet, hm.rim)).toBe(0);
+    for (const mesh of all()) expect(glowOf(quiet, mesh)).toBe(0);
   });
 
   it('takes its own seat among a few players, held as a seated player holds it (the others’ seats as they were)', () => {

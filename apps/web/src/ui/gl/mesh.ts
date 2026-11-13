@@ -3,7 +3,7 @@
 // the materials. Everything is built once per instrument; units are metres.
 import { type Mat4, type Mesh, type Vec3, add, cross, norm, scale, sub, xdir, xform } from './gl3d.ts';
 
-/** a surface: sRGB colour, roughness, metalness, and a kind (0 plain, 1 modal plate, 2 tube glow,
+/** a surface: sRGB colour, roughness, metalness, and a kind (0 plain, 1 modal plate,
  *  3 floor). The renderer turns each into a physically based material (`mats3.ts`, by `name`);
  *  `paint` gives a surface its own painted maps (a violin's plates: varnish, purfling, f-holes). */
 export interface Mat {
@@ -74,10 +74,8 @@ export const M = {
   nickel: { col: hex('#d6d6d2'), rough: 0.14, metal: 1 },
   copper: { col: hex('#c78a5c'), rough: 0.3, metal: 1 },
   brass: { col: hex('#d7b065'), rough: 0.17, metal: 1 },
-  brassGlow: { col: hex('#d7b065'), rough: 0.17, metal: 1, kind: 2 },
   brassDull: { col: hex('#b8975a'), rough: 0.35, metal: 1 },
   silver: { col: hex('#dcdcdc'), rough: 0.1, metal: 1 },
-  silverGlow: { col: hex('#dcdcdc'), rough: 0.1, metal: 1, kind: 2 },
   pad: { col: hex('#e8dcc0'), rough: 0.8, metal: 0 },
   pearl: { col: hex('#efe9df'), rough: 0.18, metal: 0 },
   castAction: { col: hex('#8c8a86'), rough: 0.45, metal: 0.8 },

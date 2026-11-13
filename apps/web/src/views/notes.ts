@@ -107,7 +107,7 @@ function creditIcon(href: string, label: string, inner: string): HTMLAnchorEleme
     target: '_blank',
     rel: 'noopener noreferrer',
     'aria-label': label,
-    title: label,
+    'data-tip': label,
   });
   const s = document.createElementNS(SVGNS, 'svg');
   s.setAttribute('viewBox', '0 0 24 24');
