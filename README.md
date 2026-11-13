@@ -10,8 +10,9 @@ membranes and bars.
 
 **Play it:** [instruments-wustep.vercel.app](https://instruments-wustep.vercel.app).
 **Hear the orchestra:** [/symphony](https://instruments-wustep.vercel.app/symphony), *Toward Morning*
-on thirteen seats, or [/everything](https://instruments-wustep.vercel.app/everything), *Everything So Far*
-on eleven. Press play.
+on thirteen seats, [/everything](https://instruments-wustep.vercel.app/everything), *Everything So Far*
+on eleven, or [/passiton](https://instruments-wustep.vercel.app/passiton), *Pass It On* on all seventeen.
+Press play.
 
 ## Instruments
 
@@ -47,8 +48,8 @@ The list lives in `packages/engine/src/core/instrument.ts` (`INSTRUMENT_IDS`).
 * **Orchestra.** Up to 24 seats, each its own engine. Up to four sit on one arc; five or more as an
   orchestra on risers, and each part is heard from its seat. The address carries the whole setup
   (`?v=1&seats=…&lines=…`), so it is a shareable preset.
-* **/symphony, /everything.** *Toward Morning* on its thirteen seats, *Everything So Far* on its eleven,
-  loaded and silent until you press play.
+* **/symphony, /everything, /passiton.** *Toward Morning* on its thirteen seats, *Everything So Far* on
+  its eleven, *Pass It On* on seventeen (every instrument here), loaded and silent until you press play.
 * **Look inside.** A live readout of every note sounding, the spectrum, and each instrument's
   excitation (hammer force, bow stick–slip, jet, bore pressure); physical controls such as hammer
   hardness, bow force, breath pressure, the piano's lid and the room.
@@ -131,7 +132,8 @@ Claude Fable 5.2, Anthropic's models, working in Claude Code.
 * **Pieces:** the [Mutopia Project](https://www.mutopiaproject.org)'s typesettings of Bach, Handel,
   Haydn, Mozart, Beethoven, Chopin and a ground from Playford's Division Violin, played unchanged; each
   file's typesetter, source and sha256 are in `apps/web/src/orchestra/pieces.ts` and on the Notes page.
-  *Toward Morning* and *Everything So Far* were written for these instruments by Fable 5.2 (2026).
+  *Toward Morning*, *Everything So Far* and *Pass It On* were written for these instruments by Fable 5.2
+  (2026).
 * **3D:** [three.js](https://threejs.org) (MIT).
 * **The vector view** is after [Chimera](https://github.com/jamesondh/chimera-vocal-synth), Jameson
   Hodge's vocal synth: its screens were the inspiration, and none of its code is used. Its type is
@@ -148,9 +150,10 @@ The code is under the [MIT License](LICENSE). Bundled third-party files keep the
 * **Pieces** (`apps/web/public/pieces/*.mid`): Mutopia Project files, public domain, except
   `bach-bwv1046-adagio-oboe.mid` (typeset by Ben Stewart, Mutopia-2008/10/29-1577), which is Creative
   Commons Attribution 3.0.
-* **Toward Morning** (`apps/web/public/pieces/fable-toward-morning.mid`) and **Everything So Far**
-  (`apps/web/public/pieces/fable-everything-so-far.mid`), this project's own pieces, are dedicated to the
-  public domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+* **Toward Morning** (`apps/web/public/pieces/fable-toward-morning.mid`), **Everything So Far**
+  (`apps/web/public/pieces/fable-everything-so-far.mid`) and **Pass It On**
+  (`apps/web/public/pieces/fable-pass-it-on.mid`), this project's own pieces, are dedicated to the public
+  domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
 * **Reference excerpts** (`apps/web/public/ref/*.mp3`): University of Iowa MIS, see
   `apps/web/public/ref/LICENSE.txt`.
 * **Fonts:** AVHershey Simplex (CC0 / WTFPL); Newsreader and IBM Plex (SIL OFL).

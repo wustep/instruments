@@ -56,6 +56,9 @@ function lineupGlyphs(voices: Voice[]): HTMLElement {
     return row;
   }
   row.classList.add('sm-many');
+  // (more kinds than one row of the item holds, thirteen: two rows of eight, "Pass It On"'s sixteen as winds
+  // and brass over percussion, harp, piano and strings)
+  if (new Set(voices).size > 13) row.classList.add('sm-two');
   for (let i = 0; i < voices.length; ) {
     let j = i;
     while (j < voices.length && voices[j] === voices[i]) j++;
@@ -239,7 +242,7 @@ export class MidiPlayer {
       });
       return b;
     });
-    // (the typesettings are Mutopia's; Toward Morning and Everything So Far are this project's own, CC0)
+    // (the typesettings are Mutopia's; Toward Morning, Everything So Far and Pass It On are this project's own, CC0)
     const credit = h('a', { class: 'sm-credit', href: '/notes', 'data-route': 'notes' }, 'public domain · Mutopia, Fable 5.2');
     credit.addEventListener('click', () => this.closePieces());
     const m = h('div', { class: 'score-menu', role: 'menu', 'aria-label': 'Pieces' }, ...items, credit);

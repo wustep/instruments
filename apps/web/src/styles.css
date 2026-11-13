@@ -1944,6 +1944,12 @@ figure[title] {
   width: 15px;
   height: 17px;
 }
+/* more kinds than a row holds (sixteen, "Pass It On"'s): two rows of eight, 8 × 15 + 8 px */
+.sm-two {
+  flex-wrap: wrap;
+  max-width: 130px;
+  row-gap: 3px;
+}
 .sm-n {
   position: absolute;
   top: -3px;

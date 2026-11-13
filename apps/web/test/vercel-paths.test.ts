@@ -15,8 +15,8 @@ const served = (path: string) => vercel.rewrites.some((r) => r.destination === '
 describe('vercel.json serves every address the app writes', () => {
   it('every instrument and alias, alone and with a sub-path; the Orchestra, measurements and notes', () => {
     const paths = [...Object.keys(INSTRUMENT_PATHS), ...Object.keys(PIECE_PATHS), 'orchestra', 'ensemble', 'measurements', 'notes'];
-    // (the pieces' own addresses: Toward Morning's and Everything So Far's)
-    for (const p of ['symphony', 'everything']) expect(paths, p).toContain(p);
+    // (the pieces' own addresses: Toward Morning's, Everything So Far's and Pass It On's)
+    for (const p of ['symphony', 'everything', 'passiton']) expect(paths, p).toContain(p);
     for (const id of INSTRUMENT_IDS) expect(paths, id).toContain(id);
     // (the horn: its path and its alias, named so that a rename cannot drop them unseen)
     for (const p of ['horn', 'french-horn']) expect(paths, p).toContain(p);
@@ -49,7 +49,7 @@ describe('vercel.json serves every address the app writes', () => {
 describe('an address that is none of the app’s is a 404, with the page that says so', () => {
   const web = join(import.meta.dirname, '..');
   it('no rewrite answers an unknown path; 404.html is built, and links every instrument, the Orchestra, the pieces’ own addresses and the two pages', () => {
-    for (const p of ['/sympony', '/everythings', '/pianos', '/x/y', '/favicon.png', '/orchestras']) expect(served(p), p).toBe(false);
+    for (const p of ['/sympony', '/everythings', '/pass-it-on', '/pianos', '/x/y', '/favicon.png', '/orchestras']) expect(served(p), p).toBe(false);
     const html = readFileSync(join(web, '404.html'), 'utf8');
     const config = readFileSync(join(web, 'vite.config.ts'), 'utf8');
     expect(config).toMatch(/input:\s*\{[^}]*'404':\s*'404\.html'/);

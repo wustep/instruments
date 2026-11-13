@@ -38,10 +38,10 @@ test('an unknown address: the 404 page names it and links every instrument, the 
     expect(look.loaded).toEqual(expect.arrayContaining(['Newsreader Variable', 'IBM Plex Mono']));
     expect(look.scroll, 'no horizontal scroll').toBeLessThanOrEqual(page.viewportSize()!.width);
   }
-  // the places: sixteen instruments by family, the Orchestra and the two pieces' own addresses, the two pages; each whole on the page,
+  // the places: sixteen instruments by family, the Orchestra and the three pieces' own addresses, the two pages; each whole on the page,
   // a finger's height on a phone
   const links = page.locator('.nf a');
-  await expect(links).toHaveText(['piano', 'violin', 'viola', 'cello', 'bass', 'harp', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'glockenspiel', 'orchestra', 'symphony', 'everything', 'measurements', 'notes']);
+  await expect(links).toHaveText(['piano', 'violin', 'viola', 'cello', 'bass', 'harp', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'glockenspiel', 'orchestra', 'symphony', 'everything', 'passiton', 'measurements', 'notes']);
   const vp = page.viewportSize()!;
   for (const b of await links.evaluateAll((as) => as.map((a) => a.getBoundingClientRect().toJSON() as { left: number; right: number; top: number; bottom: number; height: number }))) {
     expect(b.left).toBeGreaterThanOrEqual(0);

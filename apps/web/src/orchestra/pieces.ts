@@ -6,10 +6,11 @@
 // ensemble's pieces (PIECES, the pieces menu), and each instrument's own short piece (DEMOS), which the
 // player's play icon plays when nothing is loaded.
 //
-// Two pieces are not Mutopia's: "Toward Morning", a symphonic movement, and "Everything So Far", a
-// movement in 7/8, both written for these instruments by Fable 5.2 (Anthropic's Claude) in 2026 and
-// given to the public domain (CC0 1.0). Each has an address of its own, /symphony and /everything
-// (address.ts), which opens its orchestra with the piece loaded.
+// Three pieces are not Mutopia's: "Toward Morning", a symphonic movement, "Everything So Far", a
+// movement in 7/8, and "Pass It On", a scherzo for all sixteen instruments, written for them by
+// Fable 5.2 (Anthropic's Claude) in 2026 and given to the public domain (CC0 1.0). Each has an address
+// of its own, /symphony, /everything and /passiton (address.ts), which opens its orchestra with the
+// piece loaded.
 import type { InstrumentId } from '@piano-model/engine';
 import type { FileEvent, MidiSong } from '../midi-file.ts';
 import { capParts, planOf, shiftKey, type LineInfo, type Plan, type Shifts, type Voice } from './assign.ts';
@@ -31,7 +32,7 @@ export interface Piece {
   parts: { voice: Voice; lines: number[]; shift?: Record<number, number> }[];
   /** tempo, × the file's (a tempo the score marks, where the file has another) */
   rate?: number;
-  /** a short address of its own (/symphony, /everything): the page opens on its orchestra, the piece loaded
+  /** a short address of its own (/symphony, /everything, /passiton): the page opens on its orchestra, the piece loaded
    *  (address.ts PIECE_PATHS; vercel.json rewrites it to the page) */
   path?: string;
 }
@@ -164,6 +165,17 @@ export const PIECES: Piece[] = [
     sha256: 'c85d170c686b54f27b993b0eb3ceb67302dd079bb697508e48ba3da8af567777',
     parts: (['flute', 'clarinet', 'horn', 'glockenspiel', 'harp', 'grand', 'violin', 'violin', 'viola', 'cello', 'bass'] as Voice[]).map((voice, i) => ({ voice, lines: [i] })),
     path: 'everything',
+  },
+  {
+    id: 'pass-it-on',
+    composer: 'Fable 5.2',
+    title: 'Pass It On',
+    file: 'fable-pass-it-on.mid',
+    source: 'https://github.com/wustep/instruments#license',
+    credit: 'Pass It On, a scherzo in G major on a tune of sixteen notes that nobody can play alone at first: each of the sixteen instruments owns one note of it, and the piece is the orchestra learning to play it whole (one note each across the stage; closer, twice as fast; a round, a family to a voice; a trio in E♭ for the tuba, the harp and the glockenspiel; everyone; and one note each once more, as a run: three minutes and eight seconds), for flute, oboe, clarinet, bassoon, horn, trumpet, trombone, tuba, timpani, glockenspiel, harp, piano, two violins, viola, cello and double bass: seventeen parts, one to a seat, all at concert pitch, with their own dynamics. Written for these instruments by Fable 5.2 (Anthropic’s Claude), 2026, each note chosen for what its instrument’s model plays well and placed ahead of its beat by the time that instrument takes to speak. CC0 1.0: given to the public domain.',
+    sha256: '6619c59e89906e511a7f52d5ca671295bc4abae48400b6187f477a878650ac17',
+    parts: (['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'glockenspiel', 'harp', 'grand', 'violin', 'violin', 'viola', 'cello', 'bass'] as Voice[]).map((voice, i) => ({ voice, lines: [i] })),
+    path: 'passiton',
   },
 ];
 
