@@ -462,3 +462,96 @@ describe('the bow planned ahead (a file playing)', () => {
     }
   });
 });
+
+// The left hand's vibrato is the hand's, not each note's (VIB_HAND): in a line a file plays it goes on from
+// one long note into the next; `human` 0, the keys, a short note and a note after a rest are as they were.
+describe('the hand’s vibrato over joined notes (a file playing)', () => {
+  type Note = { t: number; dur: number; midi: number };
+  /** each note's vibrato, the widest it swings (cents, either side) in its first `first` seconds */
+  function swings(inst: 'violin' | 'viola' | 'cello' | 'bass', notes: Note[], human: number, foreseen = true, first = 0.24): number[] {
+    const core = new BowedCore({ sampleRate: FS, instrument: inst, dry: true, params: { human } as never });
+    for (const n of notes) {
+      const f = Math.round(n.t * FS);
+      if (foreseen) core.schedule({ type: 'foresee', midi: n.midi, velocity: 80, dur: n.dur }, f);
+      core.schedule({ type: 'noteOff', midi: n.midi }, Math.round((n.t + n.dur) * FS) - 1);
+      core.schedule({ type: 'noteOn', midi: n.midi, velocity: 80 }, f);
+    }
+    const block = 128;
+    const L = new Float32Array(block);
+    const R = new Float32Array(block);
+    const out = notes.map(() => ({ lo: Infinity, hi: -Infinity }));
+    const end = Math.round((notes[notes.length - 1].t + notes[notes.length - 1].dur) * FS);
+    for (let i = 0; i + block <= end; i += block) {
+      core.process(L, R, block);
+      const t = (i + block) / FS;
+      const k = notes.findIndex((n) => t > n.t + 0.02 && t < n.t + Math.min(first, n.dur - 0.02));
+      if (k < 0) continue;
+      const s = core.strings.find((q) => q.bowing && q.midi === notes[k].midi);
+      if (!s) continue;
+      // (the stopped length's glide target: the vibrato over the finger's own place)
+      const c = -1200 * Math.log2(s.Dtarget / s.D0) - s.place;
+      out[k].lo = Math.min(out[k].lo, c);
+      out[k].hi = Math.max(out[k].hi, c);
+    }
+    return out.map((o) => (o.hi - o.lo) / 2);
+  }
+  // (from B♭: no note of the line an open string, which no hand vibrates)
+  const line = (lens: number[], rest = 0, midi0 = 70): Note[] => {
+    let t = 0.05;
+    return lens.map((dur, i) => {
+      const n = { t, dur, midi: midi0 + [0, 2, 4, 5, 4, 2, 0, 2][i % 8] };
+      t += dur + rest;
+      return n;
+    });
+  };
+
+  it('a melody in crotchets is vibrated: the hand goes on from one note into the next; before, no note began with any', () => {
+    for (const inst of ['violin', 'viola', 'bass'] as const) {
+      const midi0 = inst === 'bass' ? 46 : 70;
+      const on = swings(inst, line([0.5, 0.5, 0.5, 0.5, 0.5, 0.5], 0, midi0), 1);
+      const off = swings(inst, line([0.5, 0.5, 0.5, 0.5, 0.5, 0.5], 0, midi0), 0);
+      // the first note begins as ever (plain for a quarter of a second); every later one with the hand moving
+      expect(on[0]).toBeLessThan(0.05);
+      for (const c of on.slice(1)) expect(c).toBeGreaterThan(3);
+      // `human` 0: each note begins plain, as the engine before
+      for (const c of off) expect(c).toBeLessThan(0.05);
+    }
+  });
+
+  it('the keys (nothing foreseen), a short note and a note after a rest begin plain, as they did', () => {
+    // nothing foreseen: the old path
+    for (const c of swings('violin', line([0.5, 0.5, 0.5, 0.5]), 1, false)) expect(c).toBeLessThan(0.05);
+    // a long note, then a run of short ones: the run is not vibrated
+    const run = swings('violin', line([0.9, 0.15, 0.15, 0.15, 0.15]), 1, true, 0.15);
+    for (const c of run.slice(1)) expect(c).toBeLessThan(0.05);
+    // a rest between the notes: the hand begins again
+    for (const c of swings('violin', line([0.6, 0.6, 0.6], 0.25), 1)) expect(c).toBeLessThan(0.05);
+  });
+
+  it('the same notes give the same samples, at any block length', () => {
+    const render = (block: number) => {
+      const core = new BowedCore({ sampleRate: FS, instrument: 'violin', dry: true });
+      for (const n of line([0.5, 0.5, 0.5])) {
+        const f = Math.round(n.t * FS);
+        core.schedule({ type: 'foresee', midi: n.midi, velocity: 80, dur: n.dur }, f);
+        core.schedule({ type: 'noteOff', midi: n.midi }, Math.round((n.t + n.dur) * FS) - 1);
+        core.schedule({ type: 'noteOn', midi: n.midi, velocity: 80 }, f);
+      }
+      const N = Math.round(1.6 * FS);
+      const x = new Float32Array(N);
+      const L = new Float32Array(block);
+      const R = new Float32Array(block);
+      for (let i = 0; i < N; i += block) {
+        const m = Math.min(block, N - i);
+        core.process(L.subarray(0, m), R.subarray(0, m), m);
+        x.set(L.subarray(0, m), i);
+      }
+      return x;
+    };
+    const a = render(128);
+    const b = render(37);
+    let d = 0;
+    for (let i = 0; i < a.length; i++) d = Math.max(d, Math.abs(a[i] - b[i]));
+    expect(d).toBe(0);
+  });
+});

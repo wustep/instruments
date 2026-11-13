@@ -58,6 +58,22 @@ export interface BowedParams {
  *  same notes give the same samples and `human` 0 is the engine as it was, bit for bit. */
 export const BOWED_HUMAN = { seed: 584, place: 4 };
 
+/** The left hand's vibrato is the hand's, not each note's (scaled by `human`; 0, the engine as it was).
+ *  A hand that is vibrating does not stop to begin again because the note changes: in a line a file plays
+ *  (the notes foreseen, their lengths known) a note that follows a vibrated one within `gap` s, and is itself
+ *  `long` s or more, goes on at the hand's phase and rate, from `keep` of the depth it had reached (the new
+ *  finger takes the string), rising as ever; a short note is left plain (a quaver at a walking pace and
+ *  quicker: an accompaniment's figure is not vibrated), and so is one after a rest or under the keys (the
+ *  old path). Without it no note under 0.25 s + 0.35 s was ever fully vibrated: a melody in
+ *  crotchets had none. And the violin's and the viola's hand wanders as the cello's and the bass's do
+ *  (`rate`, `depth`, fractions, 1σ, time constant `tau`: Mellody & Wakefield 2000, JASA 107, as
+ *  design.wander): their vibrato was a sine generator's, one cycle within 1–2 % of the next, and is now
+ *  within 5–6 % as the cello's (scripts/winds-vibrato.ts --instrument violin,viola --model). Its own
+ *  seeded stream. */
+export const VIB_HAND = { gap: 0.12, long: 0.4, keep: 0.5, rate: 0.06, depth: 0.2, tau: 0.3, seed: 1291 };
+/** a note's vibrato: none for `wait` s, then rising over `rise` s */
+const VIB_ONSET = { wait: 0.25, rise: 0.35 };
+
 interface StringDef {
   name: string;
   open: number;
@@ -619,6 +635,8 @@ class BowedString {
   startedAt = 0;
   vibPhase = 0;
   vibRate = 5.5;
+  /** VIB_HAND: how far into its vibrato's onset this note began (s: the hand was vibrating already) */
+  vibFrom = 0;
   level = 0;
   /** last bridge-incoming wave */
   vin = 0;
@@ -708,6 +726,10 @@ export class BowedCore implements InstrumentCore {
   private rng: () => number;
   /** the left hand's placing (BOWED_HUMAN): its stream */
   private hum: Human;
+  /** the left hand's vibrato (VIB_HAND): its wander's stream, and the hand as it last vibrated (its phase
+   *  and rate, how far its depth had risen, 0…1, and the frame) */
+  private humVib: Human;
+  private lh = { phase: 0, rate: 5.5, ramp: 0, at: -1e12 };
   private expression = 1;
   private modwheel = -1;
   /** live bow-pressure controller: mod wheel / breath / expression (1 = as the note asked) */
@@ -803,6 +825,7 @@ export class BowedCore implements InstrumentCore {
     // (the performer's randomness: vibrato phase, rate and wander, bow noise; another player's own)
     this.rng = mulberry32(playerSeed(this.design.seed, opts.player));
     this.hum = new Human(BOWED_HUMAN.seed + this.design.seed, opts.player);
+    this.humVib = new Human(VIB_HAND.seed + this.design.seed, opts.player);
     // and the player's intonation: a constant bend (0 for the first player)
     this.tune = playerCents(opts.player) / 100;
     this.bend = this.tune;
@@ -1133,6 +1156,14 @@ export class BowedCore implements InstrumentCore {
         s.startedAt = this.frame;
         s.vibPhase = this.rng() * Math.PI * 2;
         s.vibRate = 5.2 + 0.8 * this.rng();
+        s.vibFrom = 0;
+        // VIB_HAND: the hand was vibrating a moment ago and this note is long enough to vibrate: it goes on
+        const hu = clamp(this.params.human ?? 1, 0, 1);
+        if (seen && hu > 0 && ev.midi > s.def.open && this.lh.ramp > 0 && this.frame - this.lh.at < VIB_HAND.gap * this.fs && seen.off - seen.on >= VIB_HAND.long * this.fs) {
+          s.vibPhase = this.lh.phase;
+          s.vibRate = this.lh.rate;
+          s.vibFrom = hu * (VIB_ONSET.wait + VIB_ONSET.rise * VIB_HAND.keep * this.lh.ramp);
+        }
         this.bowTargets(s, ev.velocity);
         if (this.dyn) this.dynTargets(s);
         s.dynApplied = this.dyn;
@@ -1249,7 +1280,7 @@ export class BowedCore implements InstrumentCore {
 
   /** The foreseen note that begins now on this pitch (the nearest within FORESEE_TOL), marked begun;
    *  those that are over, or never came, are dropped. */
-  private match(midi: number): { on: number; vel: number; dyn: number } | null {
+  private match(midi: number): { on: number; off: number; vel: number; dyn: number } | null {
     const a = this.ahead;
     const tol = FORESEE_TOL * this.fs;
     let w = 0;
@@ -1795,6 +1826,9 @@ export class BowedCore implements InstrumentCore {
     // louder, the vibrato a little wider (MacLeod 2008, JRME 56(1): violinists' and violists' vibrato
     // is wider at forte than at piano); ×(1 ± 0.25) over ±20 velocity steps, within ×0.6…1.4
     const vibDepth = (this.modwheel >= 0 ? this.modwheel * 30 : this.params.vibrato) * (this.dyn ? clamp(1 + VIB_PER_STEP * this.dyn, 0.6, 1.4) : 1);
+    // VIB_HAND: how much of the hand's wander where the design has none of its own
+    const hw = this.design.wander ? 0 : clamp(this.params.human ?? 1, 0, 1);
+    let lhFrom = -1;
     const h = this.hand;
     if (h) {
       h.v += (h.target - h.v) * (1 - Math.exp(-dt / 0.025));
@@ -1814,6 +1848,11 @@ export class BowedCore implements InstrumentCore {
         const a = Math.exp(-dt / wd.tau);
         const b = Math.sqrt(1 - a * a) * Math.sqrt(3);
         for (let q = 0; q < 4; q++) s.wv[q] = a * s.wv[q] + b * (2 * this.rng() - 1);
+      } else if (hw > 0 && s.bowing) {
+        // VIB_HAND: the same walk for the vibrato's rate and depth alone, where the design has none
+        const a = Math.exp(-dt / VIB_HAND.tau);
+        const b = Math.sqrt(1 - a * a) * Math.sqrt(3);
+        for (let q = 0; q < 2; q++) s.wv[q] = a * s.wv[q] + b * this.humVib.even();
       }
       const sp = wd && s.bowing ? 1 + wd.speed * s.wv[2] : 1;
       const fo = wd && s.bowing ? 1 + wd.force * s.wv[3] : 1;
@@ -1830,11 +1869,21 @@ export class BowedCore implements InstrumentCore {
       // vibrato: onset after 0.25 s, depth in cents
       let cents = 0;
       if (s.bowing && s.midi > s.def.open) {
-        const age = (this.frame - s.startedAt) / fs;
-        const ramp = clamp((age - 0.25) / 0.35, 0, 1);
+        const age = (this.frame - s.startedAt) / fs + s.vibFrom;
+        const ramp = clamp((age - VIB_ONSET.wait) / VIB_ONSET.rise, 0, 1);
         const wd = this.design.wander;
-        s.vibPhase += 2 * Math.PI * s.vibRate * (wd ? 1 + wd.vibRate * s.wv[0] : 1) * dt;
-        cents = vibDepth * ramp * Math.sin(s.vibPhase) * (wd ? Math.max(0, 1 + wd.vibDepth * s.wv[1]) : 1);
+        const wr = wd ? wd.vibRate : hw * VIB_HAND.rate;
+        const wdp = wd ? wd.vibDepth : hw * VIB_HAND.depth;
+        s.vibPhase += 2 * Math.PI * s.vibRate * (wr ? 1 + wr * s.wv[0] : 1) * dt;
+        cents = vibDepth * ramp * Math.sin(s.vibPhase) * (wdp ? Math.max(0, 1 + wdp * s.wv[1]) : 1);
+        // (the hand as it vibrates now: the latest note's)
+        if (s.startedAt >= lhFrom) {
+          lhFrom = s.startedAt;
+          this.lh.phase = s.vibPhase;
+          this.lh.rate = s.vibRate;
+          this.lh.ramp = ramp;
+          this.lh.at = this.frame;
+        }
       }
       // the finger lifts from an idle string once its ring has died away, damping what is left (FINGER_LIFT)
       if (!s.bowing && s.midi !== s.def.open) {

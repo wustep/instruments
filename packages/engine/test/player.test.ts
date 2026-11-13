@@ -63,8 +63,11 @@ describe('a second player of the same instrument', () => {
     }
     // a bowed string's level on one note depends on where its stick–slip settles, which another
     // player's random stream moves (on main, five players of this G4 already spanned 5 dB): the violin
-    // is as loud on average over four notes
-    const mean = (p: number) => [59, 67, 74, 81].reduce((s, m) => s + lvl(run('violin', m, p)), 0) / 4;
+    // is as loud on average over twelve notes (over four, two players stood 1.6–1.7 dB apart at another
+    // dynamic before the hand's vibrato wandered and after it alike; over twelve, four players are within
+    // 0.8 dB of each other: one note is one draw)
+    const ms = [57, 59, 61, 64, 67, 69, 71, 74, 76, 78, 81, 83];
+    const mean = (p: number) => ms.reduce((s, m) => s + lvl(run('violin', m, p)), 0) / ms.length;
     expect(Math.abs(mean(0) - mean(1))).toBeLessThan(1);
   });
 
