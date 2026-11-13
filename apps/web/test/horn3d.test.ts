@@ -8,8 +8,9 @@
 import { describe, expect, it } from 'vitest';
 import { hornFingering, type VisualFrame } from '@piano-model/engine';
 import { Batch, type Mesh, xform } from '../src/ui/gl/gl3d.ts';
-import { BELL_RIM, HORN_BORE, HORN_HELD, HORN_SEAT, LEVER_TRAVEL, airPath, buildHornModel, hornLeverState, hornPathLength, hornSlides, poseHorn, rotorTurn, type HornModel } from '../src/ui/gl/horn3d.ts';
+import { BELL_AXIS, BELL_RIM, HORN_BORE, HORN_HELD, HORN_SEAT, HORN_VIEW, LEVER_TRAVEL, airPath, buildHornModel, hornLeverState, hornPathLength, hornSlides, poseHorn, rotorTurn, type HornModel } from '../src/ui/gl/horn3d.ts';
 import { newWindPose } from '../src/ui/gl/winds3d.ts';
+import { MOUTH_K } from '../src/ui/horn-plan.ts';
 import { ensembleSeats } from '../src/ui/gl/scenes3d.ts';
 
 const t0 = performance.now();
@@ -175,6 +176,61 @@ describe('the horn in 3D', () => {
     expect(mpY).toBeLessThan(1.3);
     expect(rimY).toBeLessThan(mpY - 0.2);
     expect(lo).toBeGreaterThan(0.25);
+  });
+
+  it('is held the right way round in its seat: the mouthpiece back to the player, the bell by the right hip with its mouth away from the hall, the caps to the hall', () => {
+    // (the seat's own frame, about the lips: the world is mirrored, the player's right is −x, the hall at −z)
+    const dir = (v: number[]) => [0, 1, 2].map((k) => HORN_HELD[k] * v[0] + HORN_HELD[4 + k] * v[1] + HORN_HELD[8 + k] * v[2]);
+    const lips = xform(HORN_HELD, hm.lips);
+    // the mouthpiece's axis out of its rim: at the player (back and up), not to either side
+    const mp = dir(hm.lipAxis as number[]);
+    expect(Math.abs(mp[0])).toBeLessThan(0.02);
+    expect(mp[2]).toBeGreaterThan(0.7);
+    expect(mp[1]).toBeGreaterThan(0.45);
+    // the bell's rim: its centre to the player's right of the lips and under them, beside the body
+    const rd = hm.rim.data;
+    const c = [0, 0, 0];
+    for (let i = 0; i < hm.rim.count; i++) {
+      const q = xform(HORN_HELD, [rd[i * 14], rd[i * 14 + 1], rd[i * 14 + 2]]);
+      for (let k = 0; k < 3; k++) c[k] += q[k] / hm.rim.count;
+    }
+    expect(lips[0] - c[0], 'the bell to the right').toBeGreaterThan(0.25);
+    expect(lips[1] - c[1], 'the bell under the lips').toBeGreaterThan(0.25);
+    expect(lips[1] - c[1]).toBeLessThan(0.5);
+    expect(Math.abs(c[2] - lips[2]), 'the bell beside the player').toBeLessThan(0.15);
+    // its mouth: back and to the right, away from the hall
+    const ax = dir(BELL_AXIS);
+    expect(ax[2]).toBeGreaterThan(0.7);
+    expect(ax[0]).toBeLessThan(-0.2);
+    // the valves' caps (the model's +z side) towards the hall, the levers' side to the player
+    expect(dir([0, 0, 1])[2]).toBeLessThan(-0.3);
+    // and the whole horn over its seat's middle (no player is drawn: the seat is the instrument's)
+    const lo = [Infinity, Infinity, Infinity];
+    const hi = [-Infinity, -Infinity, -Infinity];
+    for (const m of all())
+      for (let i = 0; i < m.count; i += 5) {
+        const q = xform(HORN_HELD, [m.data[i * 14], m.data[i * 14 + 1], m.data[i * 14 + 2]]);
+        for (let k = 0; k < 3; k++) {
+          lo[k] = Math.min(lo[k], q[k]);
+          hi[k] = Math.max(hi[k], q[k]);
+        }
+      }
+    expect(Math.abs(lo[0] + hi[0]) / 2).toBeLessThan(0.05);
+    expect(Math.abs(lo[2] + hi[2]) / 2).toBeLessThan(0.05);
+    expect(Math.max(hi[0], -lo[0], hi[2], -lo[2])).toBeLessThan(0.42);
+  });
+
+  it('is first seen from the hall’s side, as the 2D stage draws it: the caps towards us, the bell’s rim showing as much of its mouth', () => {
+    // (the camera's place from its target: stage3d's orbit)
+    const cam = [Math.cos(HORN_VIEW.pitch) * Math.sin(HORN_VIEW.yaw), Math.sin(HORN_VIEW.pitch), -Math.cos(HORN_VIEW.pitch) * Math.cos(HORN_VIEW.yaw)];
+    // the caps' side is the model's +z
+    expect(cam[2]).toBeGreaterThan(0.6);
+    // the rim's ellipse, minor over major: the bell's axis along the line of sight (level), against the plan's
+    const flat = [Math.sin(HORN_VIEW.yaw), 0, -Math.cos(HORN_VIEW.yaw)];
+    const k = BELL_AXIS[0] * flat[0] + BELL_AXIS[2] * flat[2];
+    expect(Math.abs(k - MOUTH_K)).toBeLessThan(0.05);
+    // a narrow stage's swing never comes round to the player's side
+    expect(-Math.cos(HORN_VIEW.yaw + HORN_VIEW.swing)).toBeGreaterThan(0.5);
   });
 
   it('stands clear of the floor on its own, inside its bounds', () => {

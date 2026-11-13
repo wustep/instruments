@@ -381,12 +381,13 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
     // through its top and bottom edges
     return { target: [c[0], c[1] - 0.025, c[2]], dist: id === 'viola' ? 0.95 : 0.86, yaw: -0.5, pitch: 0.42 };
   }
-  // the horn: from the player's side (the levers, the linkage), round towards the bell's mouth, a little
-  // above, whole on every stage (horn3d.ts sets its pose)
+  // the horn: from the hall's side (the valves' caps towards us, the bell at the left, the mouthpiece at
+  // the upper right: as it is seen when it is played, and as the 2D stage draws it), a little above, whole
+  // on every stage (horn3d.ts sets its pose)
   if (si.family === 'brass' && si.brass === 'horn') {
     const c = st.horn ? st.horn.bounds.c : ([0.06, 0.33, 0] as Vec3);
-    // (on a phone held upright it may turn round towards the bell's mouth, which shortens the bell across
-    // the picture: horn3d.ts HORN_VIEW.swing)
+    // (on a phone held upright it may turn back past square on, which brings the bell behind the coil and
+    // shortens it across the picture: horn3d.ts HORN_VIEW.swing)
     return { target: [c[0], c[1], c[2]], dist: 1.1, yaw: HORN_VIEW.yaw, pitch: HORN_VIEW.pitch, swing: HORN_VIEW.swing, whole: true };
   }
   // the harp: three-quarter from the audience's side, the strings fanned across the picture, whole on every
@@ -486,8 +487,9 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
     // (a bassoon is held diagonally, its boot by the seated player's right thigh, its bell up past the
     // left shoulder: bassoon3d.ts BASSOON_SEAT)
     if (p.family === 'reed' && p.reed === 'bassoon') return { T: chain(translate(x, y + BASSOON_SEAT.y, z), rotY(face + BASSOON_SEAT.turn), rotZ(BASSOON_SEAT.lean)), c: [x, y, z], r: 0.42, top: y + BASSOON_SEAT.top };
-    // (a horn is held as a seated player holds it: the valves up under the left hand, the bell down by
-    // the right thigh, its mouth back: horn3d.ts HORN_SEAT)
+    // (a horn is held as a seated player holds it: the mouthpiece back to the lips, the valves under the
+    // left hand, the bell down by the right hip, its mouth back, away from the hall: horn3d.ts HORN_SEAT,
+    // HORN_HELD)
     if (p.family === 'brass' && p.brass === 'horn') return { T: chain(translate(x, y + HORN_SEAT.y, z), rotY(face + HORN_SEAT.turn)), c: [x, y, z], r: 0.42, top: y + HORN_SEAT.top };
     // (a glockenspiel stands on its stand by the timpani, its player behind it facing the audience: glock3d.ts)
     if (p.family === 'mallet') return { T: chain(translate(x, y, z), rotY(face + Math.PI)), c: [x, y, z], r: GLOCK_SEAT.r, top: y + GLOCK_SEAT.top };
