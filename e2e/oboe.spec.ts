@@ -45,7 +45,9 @@ test('the oboe: “oboe” under its glyph; the keys B♭3–A6; at concert pitc
   for (const [rate, midi, vel] of [[22050, 69, 70], [44100, 58, 70], [48000, 74, 30], [48000, 81, 112], [96000, 64, 70]] as const) {
     const out = await page.evaluate(async ([fs, m, v]) => {
       const { renderOffline } = (window as any).__engine;
-      const buf: AudioBuffer = await renderOffline({ instrument: 'oboe', sampleRate: fs, duration: 1.4, params: { room: 0, vibrato: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: v } }] });
+      // (the tube's own tuning and register at each rate: the model alone, `human` 0. Its player puts each note a few
+      // cents either side, and reshuffles which of the low notes' two regimes a note from silence takes)
+      const buf: AudioBuffer = await renderOffline({ instrument: 'oboe', sampleRate: fs, duration: 1.4, params: { room: 0, vibrato: 0, human: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: v } }] });
       const L = buf.getChannelData(0);
       const R = buf.getChannelData(1);
       const x = L.map((s, i) => 0.5 * (s + R[i]));
