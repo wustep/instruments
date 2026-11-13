@@ -30,7 +30,7 @@
 // faintly along the air's own path (the side and the valves pressed choose it: through the pressed
 // valves' slides, not the others), with the standing wave the engine computes (lips → bell); the breath
 // goes into the mouthpiece as on every wind (winds3d breathIn: faint steel streams), pulsing with the lips'
-// opening (`fr.lips`); the bell's mouth shimmers with the level.
+// opening (`fr.lips`). The bell is never lit, sounding or not.
 // Approximations: the plumbing inside the valve cluster (the rotors' passages, the knuckles) is not traced
 // tube by tube, and the slides' lengths are the photographs' shapes (each within a fifth of the valve's
 // own lengthening; the open F path is 3.74 m). No hand in the bell, here or in 2D: the engine has none (no
@@ -764,7 +764,7 @@ export interface HornModel {
   segs: HornSeg[];
   /** the routes' lengths (mm) */
   lengths: Record<string, number>;
-  /** the bell's rim and mouth (shimmers with the level) */
+  /** the bell's rim and mouth */
   rim: Mesh;
   /** per valve (the change valve, 1, 2, 3): the rotor's turning part, the lever, the link */
   valves: { rotor: Mesh; lever: Mesh; link: Mesh; L0: number; table: Float32Array; axis: Vec3; pivot: Vec3; leverAxis: Vec3; leverPivot: Vec3; ball: Vec3 }[];
@@ -1214,8 +1214,8 @@ export function poseHorn(b: Batch, hm: HornModel, fr: VisualFrame | null, pose: 
     }
     b.mesh(s.mesh, T, setGlow(g));
   }
-  // the bell's mouth: a faint shimmer with the level
-  b.mesh(hm.rim, T, lvl > 0.02 ? setGlow(0.09 * lvl * (0.75 + 0.25 * Math.sin(now * 0.021))) : null);
+  // the bell's mouth as it is, sounding or not: no light on it (the bells of the winds are never lit)
+  b.mesh(hm.rim, T);
   // the breath into the mouthpiece while the note is blown (winds3d breathIn), pulsing with the engine's
   // lips: their opening eased, the buzz drawn slowed (a few times a second, as on the 2D stage)
   const open = lips ? Math.min(1.6, lips.open) : 0;

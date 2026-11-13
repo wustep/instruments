@@ -33,6 +33,7 @@ import type { PianoEvent } from './piano-core.ts';
 import { biquadHighpass, biquadHighShelf, biquadLowShelf, biquadLowpass, biquadPeaking } from './filters.ts';
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { clamp, interp, mulberry32, playerCents, playerSeed, playerVibrato } from './util.ts';
+import { WindPlayer, type WindHuman } from './winds-human.ts';
 import clarinetTuning from './clarinet-tuning.json';
 
 export interface ClarinetParams {
@@ -48,9 +49,42 @@ export interface ClarinetParams {
   volume: number;
   /** orchestra mode: where it sits on the stage (post.ts Seat); none, the single instrument's place */
   seat?: Seat | null;
+  /** how much of a player: 0 the model alone (what is fitted and judged: every note of one pitch and
+   *  strength the same, a held note dead still) … 1 a player's breath, embouchure and tongue (CLARINET_HUMAN,
+   *  winds-human.ts) */
+  human?: number;
   /** fitting only (scripts/fit-clarinet.ts): the voicing below, overridden */
   voice?: Partial<ClarinetVoice>;
 }
+
+/** The clarinettist (winds-human.ts), from the University of Iowa MIS B♭ clarinet (analysis only). From one
+ *  note to the next: its pitch ±6.5 ¢ (the model's ±0.1–0.9; half of it here: those notes were played
+ *  alone, with nothing to tune to), its strength ±1.4–3 dB (the model's ±0.07), its attack's length ±28–74 %
+ *  (the model's ±15–28 %). Let go, it is 10 dB down in 40 ms (the model's 14). No vibrato, as a clarinettist
+ *  in an orchestra plays (the model's is 0 unless asked for); a held note's pitch and level wander as the
+ *  oboe's (the recorded runs do not come apart into held notes to read). */
+export const CLARINET_HUMAN: WindHuman = {
+  seed: 757,
+  wander: 2,
+  slow: 1.5,
+  slowTau: 1.2,
+  place: 3.5,
+  breath: 0.12,
+  breathSlow: 0.2,
+  breathTau: 1.5,
+  strength: 0.6,
+  bright: 1.5,
+  // (the breath's rise as the model has it: a soft low note is near its threshold, and with its rise varied by
+  // ±30 % one 50 ms C4 pp of sixteen did not speak, 22 dB down)
+  rise: 0,
+  push: 0.25,
+  release: 5,
+  taperFrom: 0.15,
+  taperFull: 0.5,
+  vibrato: null,
+};
+/** the vibrato parameter's default: the player's vibrato is scaled by the parameter over it */
+const CLARINET_VIBRATO = 0;
 
 const C_AIR = 343;
 const BUF = 1 << 12;
@@ -266,7 +300,10 @@ export class ClarinetCore implements InstrumentCore {
   private tongueAt = 0;
   private boostNow = 1;
   private velocity = 80;
-  private noteStart = 0;
+  /** when this breath began (frame): a note from silence. The vibrato comes in over the breath, not over
+   *  each note of it: a note tongued over the breath is in the same breath (it used to begin the vibrato
+   *  again, 0.3 s in: a file's notes, which mostly end where the next begins, never had one) */
+  private breathStart = 0;
   /** frame until which a tongued note keeps its breath (MIN_BLOW), and a key let go before it */
   private blowUntil = 0;
   private releasePending = false;
@@ -290,6 +327,8 @@ export class ClarinetCore implements InstrumentCore {
   private modeAmps = new Float32Array(16);
   private modeFreqs = new Float64Array(16);
   private gain = 1;
+  /** the player (CLARINET_HUMAN) */
+  private pl: WindPlayer;
   private zetaNote = 1;
   /** the round trip's gain at audio frequencies for the note, and its whole gain at the note (the walls
    *  and the lattice: for the threshold) */
@@ -313,13 +352,14 @@ export class ClarinetCore implements InstrumentCore {
   constructor(opts: { sampleRate: number; params?: Partial<ClarinetParams>; dry?: boolean; player?: number }) {
     this.fs = opts.sampleRate;
     this.dry = !!opts.dry;
-    this.params = { breath: 1, embouchure: 1, noise: 1, vibrato: 0, room: 0.3, volume: 1, ...opts.params };
+    this.params = { breath: 1, embouchure: 1, noise: 1, vibrato: CLARINET_VIBRATO, room: 0.3, volume: 1, ...opts.params };
     this.V = { ...CLARINET_VOICE, ...this.params.voice };
     this.keys = new MonoKeys(this.fs);
     this.rng = mulberry32(playerSeed(71, opts.player));
     const pv = playerVibrato(opts.player);
     this.vib0 = this.vibPhase = pv.phase;
     this.vibRate = pv.rate;
+    this.pl = new WindPlayer(CLARINET_HUMAN, this.fs, opts.player, 5, pv.rate);
     this.tune = playerCents(opts.player) / 100;
     if (this.tune) this.bendFactor = Math.pow(2, -this.tune / 12);
     this.room = new Room(this.fs);
@@ -329,6 +369,11 @@ export class ClarinetCore implements InstrumentCore {
   }
 
   /** everything the voicing fixes: the end's reflection, the radiation */
+  /** how much of a player there is (0: none, the model alone) */
+  private get human(): number {
+    return clamp(this.params.human ?? 1, 0, 1);
+  }
+
   private voiced(): void {
     const fs = this.fs;
     const V = this.V;
@@ -471,10 +516,12 @@ export class ClarinetCore implements InstrumentCore {
     this.releasePending = false;
     // (a stroke made ahead for a note that came otherwise lets go)
     if (this.lick.down && !(a.kind === 'retongue' && a.struck)) this.lick.release(this.tongueOpen(m));
+    this.pl.H = this.human;
     if (a.kind === 'slur') {
       this.setNote(m, false);
       // (back to a note still held: the fingers only)
       if (a.velocity) {
+        this.pl.note(this.frame, m, a.len, false, false);
         this.pTarget = 1;
         this.attackTau = 0.01;
       }
@@ -489,10 +536,13 @@ export class ClarinetCore implements InstrumentCore {
       this.tongueLen = this.tongueOpen(m);
       this.tongueI = 0;
       this.vibPhase = this.vib0;
-      this.noteStart = this.frame;
+      this.breathStart = this.frame;
       this.tongueAt = this.frame;
       this.boostNow = 1;
       this.afterStop = false;
+      // (the player's own: this note's rise and the tongue's release)
+      this.pl.note(this.frame, m, a.len, true, true);
+      if (this.pl.H > 0) this.ownAttack();
       this.blowUntil = this.frame + Math.round((MIN_BLOW_PP + (MIN_BLOW - MIN_BLOW_PP) * (vel / 127)) * this.fs);
     } else {
       // tongued over the breath: the fingers move, the tongue stops the reed and lets it go again
@@ -503,10 +553,19 @@ export class ClarinetCore implements InstrumentCore {
       this.tongueAt = this.frame + this.lick.retongue(a.struck, this.fs, same, this.tongueOpen(m));
       this.boostNow = this.afterStop ? 1 : LICK_BOOST;
       this.afterStop = false;
-      this.noteStart = this.frame;
+      this.pl.note(this.frame, m, a.len, true, false);
+      if (this.pl.H > 0) this.ownAttack();
       this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
     }
     if (a.tap) this.release();
+  }
+
+  /** a tongued note's own first moments, once the model's are set (the player's draw, winds-human.ts): the
+   *  breath's rise a little quicker or slower, the reed's wider opening as the tongue lets it go a little
+   *  more or less */
+  private ownAttack(): void {
+    this.attackTau *= this.pl.rise;
+    this.boostNow *= this.pl.push;
   }
 
   private release(): void {
@@ -537,6 +596,7 @@ export class ClarinetCore implements InstrumentCore {
     this.keys.clear();
     this.keys.forget();
     this.lick.reset();
+    this.pl.reset();
     this.room.reset();
     this.eq.reset();
     this.limiter.reset();
@@ -610,18 +670,28 @@ export class ClarinetCore implements InstrumentCore {
     const dt = n / fs;
     const P = this.params;
     const V = this.V;
-    const k = 1 - Math.exp(-dt / (this.pTarget > this.pressure ? this.attackTau : 0.03));
+    // (the player: a long note's breath let go slower before a rest, winds-human.ts)
+    const H = this.human;
+    this.pl.H = H;
+    const k = 1 - Math.exp(-dt / (this.pTarget > this.pressure ? this.attackTau : H > 0 ? this.pl.releaseTau(0.03, this.frame, this.keys) : 0.03));
     this.pressure += (this.pTarget - this.pressure) * k;
     if (this.pressure < 1e-5 && this.pTarget === 0) this.pressure = 0;
-    const age = (this.frame - this.noteStart) / fs;
-    this.vibPhase += 2 * Math.PI * 5 * this.vibRate * dt;
-    const vib = 1 + P.vibrato * clamp((age - 0.3) / 0.4, 0, 1) * Math.sin(this.vibPhase);
-    this.vibNow = vib - 1;
+    const age = (this.frame - this.breathStart) / fs;
     if (this.dyn !== this.dynTarget) {
       this.dyn += (this.dynTarget - this.dyn) * (1 - Math.exp(-dt / DYN_TAU));
       if (Math.abs(this.dynTarget - this.dyn) < 1e-3) this.dyn = this.dynTarget;
     }
     const v01 = this.dyn ? clamp(this.velocity + this.dyn, 1, 127) / 127 : this.velocity / 127;
+    this.vibPhase += 2 * Math.PI * 5 * this.vibRate * dt;
+    const vibEnv = clamp((age - 0.3) / 0.4, 0, 1);
+    let vibShape = Math.sin(this.vibPhase);
+    if (H > 0) {
+      // the player's vibrato (no cycle like the last), the pitch's wander, the breath's level
+      this.pl.step(dt, v01, vibEnv, CLARINET_VIBRATO > 0 ? P.vibrato / CLARINET_VIBRATO : 0);
+      vibShape = this.pl.shape;
+    }
+    const vib = H > 0 ? 1 + P.vibrato * this.pl.breathVib * vibEnv * vibShape : 1 + P.vibrato * vibEnv * vibShape;
+    this.vibNow = vib - 1;
     const vc = Math.pow(v01, V.gammaCurve);
     const open = V.openPp + (1 - V.openPp) * vc;
     // the note's threshold with the reed as the lips hold it: ζ(3γ − 1) / 2√γ = (1 − r) / (1 + r), in
@@ -643,7 +713,8 @@ export class ClarinetCore implements InstrumentCore {
     // (Newton's method below needs ζ < 1: the flow's slope never turns the solution back)
     const zh = Math.min(0.95, zeta);
     const nz = V.noise * P.noise;
-    const DT = this.D1target * this.bendFactor;
+    // (the player's pitch: the embouchure, a few cents either way, and the vibrato's)
+    const DT = H > 0 ? this.D1target * this.bendFactor * this.pl.delayFactor : this.D1target * this.bendFactor;
     // (a time constant, not a per-block fraction: a slur's glide must not depend on block length)
     const ease = 1 - Math.exp(-1 / (0.004 * fs));
     const rc = this.rc;
@@ -754,6 +825,9 @@ export class ClarinetCore implements InstrumentCore {
     }
     this.sPrev = s;
     this.level = Math.max(peak, this.level * 0.9);
+    // (the player's breath and vibrato in what leaves the instrument: its level, the harmonics above the
+    // fundamental further)
+    if (H > 0) this.pl.out(oL, oR, n, et(this.note));
     // (in pascals: the swing in units of pM, times pM ∝ the reed's opening; eased across the block)
     const g0 = this.gain * this.openOut * this.tiltOut;
     const g1 = this.gain * open * this.tiltNote;

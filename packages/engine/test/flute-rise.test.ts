@@ -2,8 +2,9 @@
 // length used to be glided to every new note, its standing wave carried along: C♯5→D5 then began on the D4
 // tube's first mode and took 150–250 ms to overblow (a crack on every step up), and a rise to the third
 // register took whichever mode the last note's ring was nearest (audio audit 3: 526 of 1008 rises not on
-// their note; scripts/flute-rise.ts). Now a fingering that changes register replaces the tube, and the
-// notes fingered with a vent have one (flute.ts FINGER, VENT).
+// their note; scripts/flute-rise.ts). Then a fingering that changed register replaced the tube and the notes
+// fingered with a vent had one: the rises arrived, late. Now the tube's wave goes with the note (flute.ts
+// CARRY, VENT; packages/engine/test/legato.test.ts for how soon).
 import { describe, expect, it } from 'vitest';
 import { renderInstrument } from '../src/core/index.ts';
 import type { TimedEvent } from '../src/core/render.ts';
@@ -25,7 +26,8 @@ function rise(from: number, to: number, slur: boolean, len: number, vel = 80, qu
     ...(slur ? [{ time: t1 + over, event: { type: 'noteOff', midi: from } } as TimedEvent] : []),
     { time: t1 + len, event: { type: 'noteOff', midi: to } },
   ];
-  const r = renderInstrument({ instrument: 'flute', sampleRate: FS, events, duration: t1 + len + 0.1, dry: true, quantum });
+  // (the model alone: the player (human) puts its own few cents and its vibrato on every note: the tube's mechanism is what is tested; scripts/flute-rise.ts reads the same with the player)
+  const r = renderInstrument({ instrument: 'flute', sampleRate: FS, events, duration: t1 + len + 0.1, dry: true, quantum, params: { human: 0 } });
   return { x: r.left, a: Math.round(t1 * FS), b: Math.round((t1 + len) * FS) };
 }
 
@@ -58,7 +60,7 @@ function onPitch(x: Float32Array, f0: number, a: number, b: number): { own: numb
 
 /** the same note held alone: its power on its own harmonics once it has settled */
 function held(m: number, vel = 80): number {
-  const r = renderInstrument({ instrument: 'flute', sampleRate: FS, events: [{ time: 0.05, event: { type: 'noteOn', midi: m, velocity: vel } }], duration: 1, dry: true });
+  const r = renderInstrument({ instrument: 'flute', sampleRate: FS, events: [{ time: 0.05, event: { type: 'noteOn', midi: m, velocity: vel } }], duration: 1, dry: true, params: { human: 0 } });
   return onPitch(r.left, et(m), Math.round(0.6 * FS), Math.round(0.9 * FS)).own;
 }
 

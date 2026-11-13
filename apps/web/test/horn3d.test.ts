@@ -4,7 +4,7 @@
 // frames — the levers follow the engine's own double-horn fingering (hornFingering: the thumb's lever on
 // the B♭ side, the fingers' for the valves) on springs, their linkages turning the rotors a quarter turn,
 // back to rest after the note; the bore glows along the air's own path (the side and the pressed valves'
-// slides, not the others); the bell shimmers with the level — and seated in the Orchestra without moving
+// slides, not the others); the bell is never lit — and seated in the Orchestra without moving
 // anyone else.
 import { describe, expect, it } from 'vitest';
 import { hornFingering, type VisualFrame } from '@piano-model/engine';
@@ -140,7 +140,7 @@ describe('the horn in 3D', () => {
     expect(Math.hypot(linkEnd[0] - ball[0], linkEnd[1] - ball[1], linkEnd[2] - ball[2])).toBeLessThan(0.0003);
   });
 
-  it('glows along the air’s path while it sounds: the pressed valves’ slides of the side played, nothing else; the bell shimmers', () => {
+  it('glows along the air’s path while it sounds: the pressed valves’ slides of the side played, nothing else; the bell is not lit', () => {
     const segsOf = (route: string) => hm.segs.filter((s) => s.route === route).map((s) => s.mesh);
     const lit = (b: Batch, route: string) => Math.max(...segsOf(route).map((m) => glowOf(b, m)));
     // A2: F side, 1+2
@@ -154,9 +154,9 @@ describe('the horn in 3D', () => {
     // silent: nothing glows
     const quiet = play(frame(null), 90, newWindPose(), new Batch(), 0).b;
     for (const s of hm.segs) expect(glowOf(quiet, s.mesh)).toBe(0);
-    // the rim, loud
+    // the rim, loud: not lit either
     const loud = play(frame(45), 5, newWindPose(), new Batch(), 0.2).b;
-    expect(glowOf(loud, hm.rim)).toBeGreaterThan(0.02);
+    expect(glowOf(loud, hm.rim)).toBe(0);
     expect(glowOf(quiet, hm.rim)).toBe(0);
   });
 

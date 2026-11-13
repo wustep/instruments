@@ -88,7 +88,7 @@ for (const which of shots) {
   await view(which === 'hero' ? null : V[which]);
   await shoot(which);
 }
-// a note sounding: the keys down for it, the reed beating, the bore and the bell alight
+// a note sounding: the keys down for it, the reed beating, the bell alight
 if (want('actuated')) {
   await view(null);
   await page.evaluate((m) => window.__piano.noteOn(m, 110, 'keys'), NOTE);

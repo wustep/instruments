@@ -1,0 +1,263 @@
+[
+ {
+  "clip": "flute-swaps",
+  "what": "The flute alone over both its register breaks: slurred steps up and back, leaps, octaves on one fingering, steps over the upper break, the first steps tongued, a slow slurred line",
+  "seconds": 19.7,
+  "notes": 56,
+  "before": {
+   "notes joined to the last": 50,
+   "across a register": 18,
+   "late (over 40 ms)": 0,
+   "on a wrong register over 10 ms": 0,
+   "speak ms (median)": 9,
+   "speak ms (90th percentile)": 13,
+   "neither note, ms (90th percentile)": 14,
+   "hole dB (10th percentile)": -5.9,
+   "worst click ×": 1.56,
+   "which": ""
+  },
+  "after": {
+   "notes joined to the last": 50,
+   "across a register": 18,
+   "late (over 40 ms)": 0,
+   "on a wrong register over 10 ms": 0,
+   "speak ms (median)": 9,
+   "speak ms (90th percentile)": 13,
+   "neither note, ms (90th percentile)": 13,
+   "hole dB (10th percentile)": -6.6,
+   "worst click ×": 1.48,
+   "which": ""
+  }
+ },
+ {
+  "clip": "winds",
+  "what": "The woodwinds of beethoven5-ii together (flute 1, flute 2, oboe 1, oboe 2, clarinet 1, clarinet 2, bassoon 1, bassoon 2), from 284 s for 20 s: the stretch where its flutes cross a register most (10 times)",
+  "piece": "beethoven5-ii",
+  "from": 284,
+  "seconds": 20,
+  "before": {
+   "flutes": {
+    "notes joined to the last": 34,
+    "across a register": 10,
+    "late (over 40 ms)": 0,
+    "on a wrong register over 10 ms": 0,
+    "speak ms (median)": 9,
+    "speak ms (90th percentile)": 15,
+    "neither note, ms (90th percentile)": 16,
+    "hole dB (10th percentile)": -8.7,
+    "worst click ×": 0.38,
+    "which": ""
+   },
+   "parts": {
+    "beethoven5-ii flute 1": {
+     "notes joined to the last": 18,
+     "across a register": 3,
+     "late (over 40 ms)": 0,
+     "on a wrong register over 10 ms": 0,
+     "speak ms (median)": 9,
+     "speak ms (90th percentile)": 13,
+     "neither note, ms (90th percentile)": 13,
+     "hole dB (10th percentile)": -8.7,
+     "worst click ×": 0.26,
+     "which": ""
+    },
+    "beethoven5-ii flute 2": {
+     "notes joined to the last": 16,
+     "across a register": 7,
+     "late (over 40 ms)": 0,
+     "on a wrong register over 10 ms": 0,
+     "speak ms (median)": 6,
+     "speak ms (90th percentile)": 16,
+     "neither note, ms (90th percentile)": 17,
+     "hole dB (10th percentile)": -8.7,
+     "worst click ×": 0.38,
+     "which": ""
+    },
+    "beethoven5-ii oboe 1": {
+     "notes joined to the last": 18,
+     "across a register": 0,
+     "late (over 40 ms)": 0,
+     "on a wrong register over 10 ms": 0,
+     "speak ms (median)": 0,
+     "speak ms (90th percentile)": 1,
+     "neither note, ms (90th percentile)": 7,
+     "hole dB (10th percentile)": -3,
+     "worst click ×": 0.85,
+     "which": ""
+    },
+    "beethoven5-ii oboe 2": {
+     "notes joined to the last": 16,
+     "across a register": 0,
+     "late (over 40 ms)": 2,
+     "on a wrong register over 10 ms": 2,
+     "speak ms (median)": 1,
+     "speak ms (90th percentile)": 121,
+     "neither note, ms (90th percentile)": 131,
+     "hole dB (10th percentile)": -3,
+     "worst click ×": 1.01,
+     "which": "E4→B4 B4→C5"
+    },
+    "beethoven5-ii clarinet 1": {
+     "notes joined to the last": 16,
+     "across a register": 0,
+     "late (over 40 ms)": 0,
+     "on a wrong register over 10 ms": 0,
+     "speak ms (median)": 4,
+     "speak ms (90th percentile)": 7,
+     "neither note, ms (90th percentile)": 10,
+     "hole dB (10th percentile)": -5.1,
+     "worst click ×": 0.29,
+     "which": ""
+    },
+    "beethoven5-ii clarinet 2": {
+     "notes joined to the last": 13,
+     "across a register": 0,
+     "late (over 40 ms)": 0,
+     "on a wrong register over 10 ms": 0,
+     "speak ms (median)": 1,
+     "speak ms (90th percentile)": 7,
+     "neither note, ms (90th percentile)": 8,
+     "hole dB (10th percentile)": -4.9,
+     "worst click ×": 0.34,
+     "which": ""
+    },
+    "beethoven5-ii bassoon 1": {
+     "notes joined to the last": 18,
+     "across a register": 0,
+     "late (over 40 ms)": 0,
+     "on a wrong register over 10 ms": 0,
+     "speak ms (median)": 0,
+     "speak ms (90th percentile)": 1,
+     "neither note, ms (90th percentile)": 10,
+     "hole dB (10th percentile)": -4.7,
+     "worst click ×": 1.25,
+     "which": ""
+    },
+    "beethoven5-ii bassoon 2": {
+     "notes joined to the last": 16,
+     "across a register": 0,
+     "late (over 40 ms)": 0,
+     "on a wrong register over 10 ms": 0,
+     "speak ms (median)": 0,
+     "speak ms (90th percentile)": 1,
+     "neither note, ms (90th percentile)": 11,
+     "hole dB (10th percentile)": -3.3,
+     "worst click ×": 1.07,
+     "which": ""
+    }
+   }
+  },
+  "after": {
+   "flutes": {
+    "notes joined to the last": 34,
+    "across a register": 10,
+    "late (over 40 ms)": 0,
+    "on a wrong register over 10 ms": 0,
+    "speak ms (median)": 7,
+    "speak ms (90th percentile)": 15,
+    "neither note, ms (90th percentile)": 16,
+    "hole dB (10th percentile)": -7.6,
+    "worst click ×": 0.37,
+    "which": ""
+   },
+   "parts": {
+    "beethoven5-ii flute 1": {
+     "notes joined to the last": 18,
+     "across a register": 3,
+     "late (over 40 ms)": 0,
+     "on a wrong register over 10 ms": 0,
+     "speak ms (median)": 8,
+     "speak ms (90th percentile)": 12,
+     "neither note, ms (90th percentile)": 13,
+     "hole dB (10th percentile)": -7.6,
+     "worst click ×": 0.37,
+     "which": ""
+    },
+    "beethoven5-ii flute 2": {
+     "notes joined to the last": 16,
+     "across a register": 7,
+     "late (over 40 ms)": 0,
+     "on a wrong register over 10 ms": 0,
+     "speak ms (median)": 6,
+     "speak ms (90th percentile)": 16,
+     "neither note, ms (90th percentile)": 16,
+     "hole dB (10th percentile)": -7.6,
+     "worst click ×": 0.34,
+     "which": ""
+    },
+    "beethoven5-ii oboe 1": {
+     "notes joined to the last": 18,
+     "across a register": 0,
+     "late (over 40 ms)": 0,
+     "on a wrong register over 10 ms": 0,
+     "speak ms (median)": 0,
+     "speak ms (90th percentile)": 1,
+     "neither note, ms (90th percentile)": 10,
+     "hole dB (10th percentile)": -3.5,
+     "worst click ×": 0.87,
+     "which": ""
+    },
+    "beethoven5-ii oboe 2": {
+     "notes joined to the last": 16,
+     "across a register": 0,
+     "late (over 40 ms)": 2,
+     "on a wrong register over 10 ms": 2,
+     "speak ms (median)": 1,
+     "speak ms (90th percentile)": 652.2,
+     "neither note, ms (90th percentile)": 161,
+     "hole dB (10th percentile)": -3,
+     "worst click ×": 0.9,
+     "which": "E4→B4 B4→C5"
+    },
+    "beethoven5-ii clarinet 1": {
+     "notes joined to the last": 16,
+     "across a register": 0,
+     "late (over 40 ms)": 0,
+     "on a wrong register over 10 ms": 0,
+     "speak ms (median)": 4,
+     "speak ms (90th percentile)": 7,
+     "neither note, ms (90th percentile)": 10,
+     "hole dB (10th percentile)": -6.4,
+     "worst click ×": 0.29,
+     "which": ""
+    },
+    "beethoven5-ii clarinet 2": {
+     "notes joined to the last": 13,
+     "across a register": 0,
+     "late (over 40 ms)": 0,
+     "on a wrong register over 10 ms": 0,
+     "speak ms (median)": 1,
+     "speak ms (90th percentile)": 7,
+     "neither note, ms (90th percentile)": 9,
+     "hole dB (10th percentile)": -5.3,
+     "worst click ×": 0.35,
+     "which": ""
+    },
+    "beethoven5-ii bassoon 1": {
+     "notes joined to the last": 18,
+     "across a register": 0,
+     "late (over 40 ms)": 0,
+     "on a wrong register over 10 ms": 0,
+     "speak ms (median)": 1,
+     "speak ms (90th percentile)": 1,
+     "neither note, ms (90th percentile)": 11,
+     "hole dB (10th percentile)": -5.3,
+     "worst click ×": 1.24,
+     "which": ""
+    },
+    "beethoven5-ii bassoon 2": {
+     "notes joined to the last": 16,
+     "across a register": 0,
+     "late (over 40 ms)": 0,
+     "on a wrong register over 10 ms": 0,
+     "speak ms (median)": 0,
+     "speak ms (90th percentile)": 1,
+     "neither note, ms (90th percentile)": 10,
+     "hole dB (10th percentile)": -3.7,
+     "worst click ×": 0.83,
+     "which": ""
+    }
+   }
+  }
+ }
+]

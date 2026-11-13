@@ -2,7 +2,7 @@
 // to a rim 0.48 m across), every tube as long as the plan's (so the engine's), inside its budget; posed from
 // the engine's frames: the pistons follow the engine's own four-valve fingering on springs, 21 mm down, and
 // come back up after the note; the bore glows along the air's own path (the pressed valves' loops, not the
-// others); the bell shimmers with the level; and seated in the Orchestra without moving anyone else.
+// others); the bell is never lit; and seated in the Orchestra without moving anyone else.
 import { describe, expect, it } from 'vitest';
 import { TUBA_HI, TUBA_LENGTH, TUBA_LO, tubaFingering, valvesDown, type VisualFrame } from '@piano-model/engine';
 import { Batch, type Mesh, xform } from '../src/ui/gl/gl3d.ts';
@@ -119,14 +119,14 @@ describe('the tuba in 3D', () => {
     for (const p of after.st) expect(p).toBeLessThan(0.1);
   });
 
-  it('glows along the air’s path while it sounds: the pressed valves’ loops, not the others; the bell shimmers', () => {
+  it('glows along the air’s path while it sounds: the pressed valves’ loops, not the others; the bell is not lit', () => {
     const f1 = play(frame(29)).b; // F1: 1+4
     for (const r of ['lead', 'L1', 'L4', 'slide', 'body', 'bell']) expect(lit(f1, r), r).toBeGreaterThan(0.004);
     for (const r of ['L2', 'L3']) expect(lit(f1, r), r).toBe(0);
     const open = play(frame(36)).b;
     for (const r of ['L1', 'L2', 'L3', 'L4']) expect(lit(open, r), r).toBe(0);
     expect(lit(open, 'body')).toBeGreaterThan(0.004);
-    expect(glowOf(open, tm.rim)).toBeGreaterThan(0);
+    expect(glowOf(open, tm.rim)).toBe(0);
     const quiet = play(frame(null), 10, newWindPose(), new Batch(), 0).b;
     for (const s of tm.segs) expect(glowOf(quiet, s.mesh)).toBe(0);
     expect(glowOf(quiet, tm.rim)).toBe(0);

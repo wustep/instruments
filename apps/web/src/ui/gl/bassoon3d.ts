@@ -30,16 +30,14 @@
 //
 // Live: the keys and rings follow the bassoon's Heckel fingering for the engine's note (bassoon-
 // fingering.ts, the chart the 2D stage uses), on springs, back to rest a moment after it stops; the
-// closed holes (a seated pad, a pressed ring, a finger hole under its finger) glow faintly with the
-// standing wave in the bore under them (the engine's pressure shape, reed → open end, the bore folded
-// down the wing and the boot and up the long joint and the bell); the reed's blades close with its
-// opening (`fr.reed.open`) and shimmer; the bell shimmers with the level.
+// reed's blades close with its opening (`fr.reed.open`) and shimmer. The keys, the rings, their pads, the
+// tone holes and the bell are never lit or tinted: silver, leather and wood, sounding or not.
 // Approximations: the linkages are shown, not simulated (each pad springs to the state its touches give
 // it); the trill keys never move (the chart has no trills); the keys' places are the photograph's where
 // it shows them and the bassoon diagram's order elsewhere.
 import type { VisualFrame } from '@piano-model/engine';
-import { FA, FB, FD, HALF, L1, L2, L3, LB, LBB, LC, LCS, LD, LEB, PF, PFS, PGS, R1, R2, R3, RBB, RE, RFS, RGS, SEB, TCS, W, bassoonFingersFor } from '../bassoon-fingering.ts';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cross, dot, mulInto, norm, rotY, rotZ, scale, sub, translate, xform } from './gl3d.ts';
+import { FA, FB, FD, L3, LB, LBB, LC, LCS, LD, LEB, PF, PFS, PGS, R2, R3, RBB, RE, RFS, RGS, SEB, TCS, W, bassoonFingersFor } from '../bassoon-fingering.ts';
+import { type Batch, type Mat4, type Mesh, type Vec3, add, chain, cross, dot, mulInto, norm, rotY, rotZ, scale, sub, translate, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, ellipsoid, grid, variant, type Mat } from './mesh.ts';
 import { aboutAxis, fillet, frameY, lx, pchip, revolve, spline3, springTo, sweep } from './oboe3d.ts';
 import type { WindPose } from './winds3d.ts';
@@ -585,9 +583,9 @@ const NEEDLES: [Rod, number, number][] = [
 // the boot's (the photograph's places: the wing's three holes in a line 26 mm across from its axis)
 const TH_WH = 44;
 const PLAIN = [
-  { name: 'L1', p: 'wing' as Part, y: 640, th: TH_WH - 1, hole: 0.0023, lining: 0.0012, bit: L1 | HALF },
-  { name: 'L2', p: 'wing' as Part, y: 598, th: TH_WH, hole: 0.0032, lining: 0.0013, bit: L2 },
-  { name: 'R1', p: 'boot' as Part, y: 348, th: 12, hole: 0.0021, lining: 0.0011, bit: R1 },
+  { name: 'L1', p: 'wing' as Part, y: 640, th: TH_WH - 1, hole: 0.0023, lining: 0.0012 },
+  { name: 'L2', p: 'wing' as Part, y: 598, th: TH_WH, hole: 0.0032, lining: 0.0013 },
+  { name: 'R1', p: 'boot' as Part, y: 348, th: 12, hole: 0.0021, lining: 0.0011 },
 ];
 
 /** a point on a part (helper for the touches' paths) */
@@ -759,8 +757,6 @@ export interface BassoonKey {
   closed: boolean;
   open: (f: number) => boolean;
   mesh: Mesh;
-  /** how far down the bore its hole is from the reed's tip (m), for the glow (-1: none) */
-  s: number;
   p0: Vec3;
   u: Vec3;
   sign: number;
@@ -772,15 +768,13 @@ export interface BassoonModel {
   /** leaned across as a player holds it (a wide stage) */
   Tw: Mat4;
   statics: Mesh[];
-  /** the bell: its wood, its bead ring and its throat (it shimmers with the level) */
+  /** the bell: its wood, its bead ring and its throat */
   bell: Mesh;
   keys: BassoonKey[];
   /** the reed's two blades (each turns at the first wire towards the other) */
   blades: { mesh: Mesh; s: 1 | -1 }[];
   /** the reed's frame in the model (x along it from its butt, z through the blades) */
   reedF: Mat4;
-  /** the finger holes with no key: drawn when the finger closes them, to glow */
-  plain: { mesh: Mesh; s: number; bit: number; half: number }[];
   bounds: { c: Vec3; r: number };
   boundsW: { c: Vec3; r: number };
   /** the tone holes the keys and fingers cover: name, height (mm) and place along the bore (m) */
@@ -869,19 +863,13 @@ export function buildBassoonModel(): BassoonModel {
     const d = sub(ref, p0);
     const armL = len3(sub(d, scale(u, dot(d, u))));
     const travel = (k.lift ?? 2) * mm;
-    const s = k.y !== undefined ? boreS(p, k.y, k.th!) * mm : -1;
-    return { name: k.name, kind: k.kind, closed: !!k.closed, open: k.open, mesh: kb.build(), s, p0, u, sign, maxAng: travel / Math.max(0.002, armL) };
+    return { name: k.name, kind: k.kind, closed: !!k.closed, open: k.open, mesh: kb.build(), p0, u, sign, maxAng: travel / Math.max(0.002, armL) };
   });
   const blades = ([1, -1] as const).map((s) => ({ mesh: bladeIn(reedF, s), s }));
-  const plain = PLAIN.map((h) => {
-    const pb = new MeshBuilder();
-    grid(pb, 3, 36, (u, v) => wrapped(h.p, h.y, h.th, h.hole * u, v * TAU, -0.25), DARK, { wrapV: true });
-    return { mesh: pb.build(), s: boreS(h.p, h.y, h.th) * mm, bit: h.bit, half: h.bit & HALF };
-  });
   const T = poseT(BASSOON_POSE.tall);
   const Tw = poseT(BASSOON_POSE.wide);
   const holes = [...ALL.filter((k) => k.y !== undefined).map((k) => ({ name: k.name, y: k.y!, s: boreS(k.on ?? k.rod.p, k.y!, k.th!) * mm })), ...PLAIN.map((h) => ({ name: h.name, y: h.y, s: boreS(h.p, h.y, h.th) * mm }))];
-  return { T, Tw, statics: [mb.build()], bell: bellMesh(), keys, blades, reedF, plain, bounds: { c: xform(T, V(-30 * MIR, BASSOON_H / 2, 0)), r: 0.74 }, boundsW: { c: xform(Tw, V(-30 * MIR, BASSOON_H / 2, 0)), r: 0.74 }, holes };
+  return { T, Tw, statics: [mb.build()], bell: bellMesh(), keys, blades, reedF, bounds: { c: xform(T, V(-30 * MIR, BASSOON_H / 2, 0)), r: 0.74 }, boundsW: { c: xform(Tw, V(-30 * MIR, BASSOON_H / 2, 0)), r: 0.74 }, holes };
 }
 /** a blade, built in the reed's frame */
 function bladeIn(F: Mat4, s: 1 | -1): Mesh {
@@ -915,7 +903,6 @@ interface BassoonPose {
   open: number;
   R: Float32Array;
   W: Float32Array;
-  glow: RGBA;
 }
 /** each seat's own springs (the shared WindPose carries the flute's and the trumpet's) */
 const poses = new WeakMap<WindPose, BassoonPose>();
@@ -923,7 +910,7 @@ function bassoonPose(pose: WindPose, bm: BassoonModel): BassoonPose {
   let p = poses.get(pose);
   if (!p || p.pos.length !== bm.keys.length) {
     const pos = Float32Array.from(bm.keys, (k) => (k.kind === 'cup' && k.open(0) ? 1 : 0));
-    p = { pos, vel: new Float32Array(bm.keys.length), quiet: 10, open: 1, R: new Float32Array(16), W: new Float32Array(16), glow: [0, 0, 0, 0] };
+    p = { pos, vel: new Float32Array(bm.keys.length), quiet: 10, open: 1, R: new Float32Array(16), W: new Float32Array(16) };
     poses.set(pose, p);
   }
   return p;
@@ -938,42 +925,21 @@ export function poseBassoon(b: Batch, bm: BassoonModel, fr: VisualFrame | null, 
   for (const s of bm.statics) b.mesh(s, T);
   const br = fr?.breath;
   const blow = br ? br.pressure : 0;
-  const vib = br ? br.vib : 0;
   const focus = fr?.focus ?? null;
   // the fingers for the note the engine plays, held while it sounds and for a moment after
   st.quiet = blow > 0.015 ? 0 : Math.min(9, st.quiet + dt);
   const midi = focus && st.quiet < 0.8 ? (focus.midi ?? null) : null;
   const fingers = midi === null ? 0 : bassoonFingersFor(midi);
-  // the standing wave in the bore (reed → open end), for the closed keys' glow
-  const shape = focus?.shapes?.[0] ?? null;
-  const Lb = focus?.lengthM ?? 0;
-  let peak = 0;
-  if (shape) for (let i = 0; i < shape.length; i++) peak = Math.max(peak, Math.abs(shape[i]));
-  const sounding = blow > 0.02 && !!shape && peak > 0 && Lb > 0;
-  const glowAt = (s: number): number => {
-    if (!sounding || s < 0 || s >= Lb) return 0;
-    const j = Math.min(shape!.length - 1, Math.round((s / Lb) * (shape!.length - 1)));
-    return (0.09 + 0.06 * vib) * Math.min(1, blow * 1.5) * (Math.abs(shape![j]) / peak);
-  };
   const lvl = Math.min(1, Math.sqrt(rms) * 3);
-  const setGlow = (a: number): RGBA | null => {
-    if (a <= 0.003) return null;
-    st.glow[0] = 1;
-    st.glow[1] = 0.72;
-    st.glow[2] = 0.45;
-    st.glow[3] = a;
-    return st.glow;
-  };
+  // the keys and rings, each turned on its rod to where its spring has it: drawn as built, with no light
+  // on them
   for (let i = 0; i < bm.keys.length; i++) {
     const k = bm.keys[i];
     const p = springTo(st.pos, st.vel, i, k.open(fingers) ? 1 : 0, dt, 24, 0.62);
     aboutAxis(st.R, k.p0, k.u, k.sign * k.maxAng * p);
     mulInto(st.W, 0, T, st.R);
-    const closed = k.kind === 'cup' ? p < 0.5 : k.kind === 'ring' && p > 0.5;
-    b.mesh(k.mesh, st.W, closed ? setGlow(glowAt(k.s)) : null);
+    b.mesh(k.mesh, st.W);
   }
-  // the finger holes under their fingers (L1 half covered for the half-hole)
-  for (const h of bm.plain) if (fingers & h.bit) b.mesh(h.mesh, T, setGlow(glowAt(h.s) * (fingers & ~HALF & h.bit ? 1 : 0.5)));
   // the reed: its blades close with its opening (blown shut once a cycle when loud), and shimmer
   const want = fr?.reed ? Math.min(1.3, fr.reed.open) : 1;
   st.open += (want - st.open) * (1 - Math.exp(-dt / 0.05));
@@ -989,9 +955,8 @@ export function poseBassoon(b: Batch, bm: BassoonModel, fr: VisualFrame | null, 
     mulInto(st.W, 0, T, st.R);
     b.mesh(bl.mesh, st.W);
   }
-  // the bell shimmers with the level
-  if (lvl > 0.02) b.mesh(bm.bell, T, setGlow(0.07 * lvl * (0.75 + 0.25 * Math.sin(now * 0.021))));
-  else b.mesh(bm.bell, T);
+  // the bell as it is, sounding or not: wood and its bead ring, no light on it
+  b.mesh(bm.bell, T);
 }
 
 /** tests: the measures the model is built to (mm from the boot's foot) */

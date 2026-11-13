@@ -15,7 +15,7 @@ const rmsDb = (x: Float32Array, a: number, b: number) => {
   return 10 * Math.log10(s / (i1 - i0) + 1e-20);
 };
 const held = (m: number, vel: number, dur = 1.2, player?: number) =>
-  renderInstrument({ sampleRate: FS, instrument: 'oboe', dry: true, params: { vibrato: 0 } as never, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: vel } }] as never, duration: dur, player }).left;
+  renderInstrument({ sampleRate: FS, instrument: 'oboe', dry: true, params: { vibrato: 0, human: 0 } as never, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: vel } }] as never, duration: dur, player }).left;
 
 describe('oboe', () => {
   it('plays at concert pitch from B♭3 to A6 (within 6 ¢ at 44.1 and 48 kHz)', () => {

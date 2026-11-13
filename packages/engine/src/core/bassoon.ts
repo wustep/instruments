@@ -41,6 +41,7 @@ import type { PianoEvent } from './piano-core.ts';
 import { biquadHighpass, biquadHighShelf, biquadLowShelf, biquadLowpass, biquadPeaking } from './filters.ts';
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { clamp, interp, mulberry32, playerCents, playerSeed, playerVibrato } from './util.ts';
+import { WindPlayer, type WindHuman } from './winds-human.ts';
 import bassoonTuning from './bassoon-tuning.json';
 
 export interface BassoonParams {
@@ -56,9 +57,45 @@ export interface BassoonParams {
   volume: number;
   /** orchestra mode: where it sits on the stage (post.ts Seat); none, the single instrument's place */
   seat?: Seat | null;
+  /** how much of a player: 0 the model alone (what is fitted and judged: every note of one pitch and
+   *  strength the same, a held note dead still) … 1 a player's breath, embouchure and tongue (BASSOON_HUMAN,
+   *  winds-human.ts) */
+  human?: number;
   /** fitting only (scripts/fit-bassoon.ts): the voicing below, overridden */
   voice?: Partial<BassoonVoice>;
 }
+
+/** The bassoonist (winds-human.ts), from the University of Iowa MIS bassoon (analysis only). Its vibrato: 3.9 ¢
+ *  pp, 2.7 mf, 0.9 ff in pitch, the level ±0.35, 0.13, 0.05 dB (the harmonics above the fundamental a little
+ *  more), at 3.95 Hz, ±0.27 Hz from note to note, 7–19 % from one cycle's length to the next and 23–38 % in
+ *  its swing (the model's breath vibrato, 0.035 of the pressure at 5.2 Hz, does not show in its sound: 0.1 ¢).
+ *  A held note: its pitch wanders 1–3.5 ¢ from one tenth of a second to the next (the model's 0.1), its level
+ *  0.07–0.17 dB (the model's 0.04). From one note to the next: its pitch ±5–7 ¢ (the model's ±0.2–0.3; half
+ *  of it here: those notes were played alone, with nothing to tune to), its attack's length ±48–76 % (the
+ *  model's ±58–75 %, much of it its two regimes: the attack varies less here). Let go, it is 10 dB down in
+ *  about 150 ms (three notes the recordings let ring; the model's 44). */
+export const BASSOON_HUMAN: WindHuman = {
+  seed: 829,
+  wander: 2.5,
+  slow: 2,
+  slowTau: 1.2,
+  place: 3.5,
+  breath: 0.08,
+  breathSlow: 0.15,
+  breathTau: 1.5,
+  strength: 0.6,
+  bright: 1.3,
+  rise: 0.2,
+  push: 0.2,
+  release: 3.5,
+  taperFrom: 0.15,
+  taperFull: 0.5,
+  // (cents and the breath's depth set so that the vibrato read as the recordings are is theirs: 3.7 / 2.6 / 0.9 ¢,
+  // 0.35 / 0.12 / 0.05 dB, 10–11 % and 23–26 % from cycle to cycle; scripts/winds-vibrato.ts)
+  vibrato: { rate: 3.95, breathRate: 0.27, cents: [5.3, 3.6, 1.2], fundDb: [0, 0, 0], upperDb: [0, 0, 0], breath: [1.3, 0.5, 0.23], rateWander: 0.25, depthWander: 0.3 },
+};
+/** the vibrato parameter's default: the player's vibrato is scaled by the parameter over it */
+const BASSOON_VIBRATO = 0.035;
 
 const C_AIR = 343;
 const BUF = 1 << 12;
@@ -293,7 +330,10 @@ export class BassoonCore implements InstrumentCore {
   private tongueAt = 0;
   private boostNow = 1;
   private velocity = 80;
-  private noteStart = 0;
+  /** when this breath began (frame): a note from silence. The vibrato comes in over the breath, not over
+   *  each note of it: a note tongued over the breath is in the same breath (it used to begin the vibrato
+   *  again, 0.3 s in: a file's notes, which mostly end where the next begins, never had one) */
+  private breathStart = 0;
   /** frame until which a tongued note keeps its breath (MIN_BLOW), and a key let go before it */
   private blowUntil = 0;
   private releasePending = false;
@@ -317,6 +357,8 @@ export class BassoonCore implements InstrumentCore {
   private modeAmps = new Float32Array(16);
   private modeFreqs = new Float64Array(16);
   private gain = 1;
+  /** the player (BASSOON_HUMAN) */
+  private pl: WindPlayer;
   /** ζ for the note (BassoonVoice zeta … zetaTop) */
   private zetaNote = 1;
   /** the radiation's corner for the note at ff (Hz), and the corner its section now has */
@@ -338,13 +380,14 @@ export class BassoonCore implements InstrumentCore {
   constructor(opts: { sampleRate: number; params?: Partial<BassoonParams>; dry?: boolean; player?: number }) {
     this.fs = opts.sampleRate;
     this.dry = !!opts.dry;
-    this.params = { breath: 1, embouchure: 1, noise: 1, vibrato: 0.035, room: 0.3, volume: 1, ...opts.params };
+    this.params = { breath: 1, embouchure: 1, noise: 1, vibrato: BASSOON_VIBRATO, room: 0.3, volume: 1, ...opts.params };
     this.V = { ...BASSOON_VOICE, ...this.params.voice };
     this.keys = new MonoKeys(this.fs);
     this.rng = mulberry32(playerSeed(70, opts.player));
     const pv = playerVibrato(opts.player);
     this.vib0 = this.vibPhase = pv.phase;
     this.vibRate = pv.rate;
+    this.pl = new WindPlayer(BASSOON_HUMAN, this.fs, opts.player, 5.2, pv.rate);
     this.tune = playerCents(opts.player) / 100;
     if (this.tune) this.bendFactor = Math.pow(2, -this.tune / 12);
     this.room = new Room(this.fs);
@@ -354,6 +397,11 @@ export class BassoonCore implements InstrumentCore {
   }
 
   /** everything the voicing fixes: the ends' reflection, the apex, the radiation */
+  /** how much of a player there is (0: none, the model alone) */
+  private get human(): number {
+    return clamp(this.params.human ?? 1, 0, 1);
+  }
+
   private voiced(): void {
     const fs = this.fs;
     const V = this.V;
@@ -501,10 +549,12 @@ export class BassoonCore implements InstrumentCore {
     this.releasePending = false;
     // (a stroke made ahead for a note that came otherwise lets go)
     if (this.lick.down && !(a.kind === 'retongue' && a.struck)) this.lick.release(this.tongueOpen(m));
+    this.pl.H = this.human;
     if (a.kind === 'slur') {
       this.setNote(m, false);
       // (back to a note still held: the fingers only)
       if (a.velocity) {
+        this.pl.note(this.frame, m, a.len, false, false);
         this.pTarget = 1;
         this.attackTau = 0.01;
       }
@@ -519,10 +569,13 @@ export class BassoonCore implements InstrumentCore {
       this.tongueLen = this.tongueOpen(m);
       this.tongueI = 0;
       this.vibPhase = this.vib0;
-      this.noteStart = this.frame;
+      this.breathStart = this.frame;
       this.tongueAt = this.frame;
       this.boostNow = 1;
       this.afterStop = false;
+      // (the player's own: this note's rise and the tongue's release)
+      this.pl.note(this.frame, m, a.len, true, true);
+      if (this.pl.H > 0) this.ownAttack();
       this.blowUntil = this.frame + Math.round((MIN_BLOW_PP + (MIN_BLOW - MIN_BLOW_PP) * (vel / 127)) * this.fs);
     } else {
       // tongued over the breath: the fingers move, the tongue stops the reed and lets it go again
@@ -533,10 +586,19 @@ export class BassoonCore implements InstrumentCore {
       this.tongueAt = this.frame + this.lick.retongue(a.struck, this.fs, same, this.tongueOpen(m));
       this.boostNow = this.afterStop ? 1 : LICK_BOOST;
       this.afterStop = false;
-      this.noteStart = this.frame;
+      this.pl.note(this.frame, m, a.len, true, false);
+      if (this.pl.H > 0) this.ownAttack();
       this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
     }
     if (a.tap) this.release();
+  }
+
+  /** a tongued note's own first moments, once the model's are set (the player's draw, winds-human.ts): the
+   *  breath's rise a little quicker or slower, the reed's wider opening as the tongue lets it go a little
+   *  more or less */
+  private ownAttack(): void {
+    this.attackTau *= this.pl.rise;
+    this.boostNow *= this.pl.push;
   }
 
   /** The key is up: stop blowing, but not before the tongued note has had its minimum breath. */
@@ -569,6 +631,7 @@ export class BassoonCore implements InstrumentCore {
     this.keys.clear();
     this.keys.forget();
     this.lick.reset();
+    this.pl.reset();
     this.room.reset();
     this.eq.reset();
     this.limiter.reset();
@@ -654,19 +717,29 @@ export class BassoonCore implements InstrumentCore {
     const dt = n / fs;
     const P = this.params;
     const V = this.V;
-    const k = 1 - Math.exp(-dt / (this.pTarget > this.pressure ? this.attackTau : 0.03));
+    // (the player: a long note's breath let go slower before a rest, winds-human.ts)
+    const H = this.human;
+    this.pl.H = H;
+    const k = 1 - Math.exp(-dt / (this.pTarget > this.pressure ? this.attackTau : H > 0 ? this.pl.releaseTau(0.03, this.frame, this.keys) : 0.03));
     this.pressure += (this.pTarget - this.pressure) * k;
     if (this.pressure < 1e-5 && this.pTarget === 0) this.pressure = 0;
-    const age = (this.frame - this.noteStart) / fs;
-    this.vibPhase += 2 * Math.PI * 5.2 * this.vibRate * dt;
-    const vib = 1 + P.vibrato * clamp((age - 0.3) / 0.4, 0, 1) * Math.sin(this.vibPhase);
-    this.vibNow = vib - 1;
+    const age = (this.frame - this.breathStart) / fs;
     // CC_DYNAMICS: the breath goes on as a note begun that much harder or softer would (a time constant)
     if (this.dyn !== this.dynTarget) {
       this.dyn += (this.dynTarget - this.dyn) * (1 - Math.exp(-dt / DYN_TAU));
       if (Math.abs(this.dynTarget - this.dyn) < 1e-3) this.dyn = this.dynTarget;
     }
     const v01 = this.dyn ? clamp(this.velocity + this.dyn, 1, 127) / 127 : this.velocity / 127;
+    this.vibPhase += 2 * Math.PI * 5.2 * this.vibRate * dt;
+    const vibEnv = clamp((age - 0.3) / 0.4, 0, 1);
+    let vibShape = Math.sin(this.vibPhase);
+    if (H > 0) {
+      // the player's vibrato (no cycle like the last), the pitch's wander, the breath's level
+      this.pl.step(dt, v01, vibEnv, BASSOON_VIBRATO > 0 ? P.vibrato / BASSOON_VIBRATO : 0);
+      vibShape = this.pl.shape;
+    }
+    const vib = H > 0 ? 1 + P.vibrato * this.pl.breathVib * vibEnv * vibShape : 1 + P.vibrato * vibEnv * vibShape;
+    this.vibNow = vib - 1;
     const vc = Math.pow(v01, V.gammaCurve);
     // the reed's rest opening (of a loud note's): the swing scales with it, ζ with its root, and the
     // mouth's pressure counts for more against a reed set nearer shut
@@ -693,7 +766,8 @@ export class BassoonCore implements InstrumentCore {
     // (Newton's method below needs zeta/2 < 1: the flow's slope never turns the solution back)
     const zh = Math.min(0.95, 0.5 * zeta);
     const nz = V.noise * P.noise;
-    const DT = this.D1target * this.bendFactor;
+    // (the player's pitch: the embouchure, a few cents either way, and the vibrato's)
+    const DT = H > 0 ? this.D1target * this.bendFactor * this.pl.delayFactor : this.D1target * this.bendFactor;
     // (a time constant, not a per-block fraction: a slur's glide must not depend on block length)
     const ease = 1 - Math.exp(-1 / (0.004 * fs));
     const D2 = this.D2;
@@ -821,6 +895,9 @@ export class BassoonCore implements InstrumentCore {
     }
     this.sPrev = s;
     this.level = Math.max(peak, this.level * 0.9);
+    // (the player's breath and vibrato in what leaves the instrument: its level, the harmonics above the
+    // fundamental further)
+    if (H > 0) this.pl.out(oL, oR, n, et(this.note));
     // (in pascals: the swing in units of pM, times pM ∝ the reed's opening; eased across the block, so a
     // swell's steps never click)
     const g0 = this.gain * this.openOut * this.tiltOut;

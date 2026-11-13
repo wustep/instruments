@@ -10,8 +10,9 @@
 // mode: blowing harder shortens τj, raising pitch slightly, brightening the tone
 // and eventually overblowing to the next register, as on a real flute. Notes
 // above C5 are fingered as overblown 2nd (octave) and 3rd (twelfth) modes; a
-// fingering that goes up a register replaces the tube (FINGER), and the notes
-// fingered with a vent hole have one (VENT). Turbulence noise scales with jet speed.
+// note joined to one of another register takes the tube's wave with it (CARRY),
+// and the notes fingered with a vent hole have one (VENT). Turbulence noise
+// scales with jet speed.
 
 import { Pump } from './pump.ts';
 import { MonoKeys, quickness, quickRise, Tongue } from './mono.ts';
@@ -21,6 +22,7 @@ import type { PianoEvent } from './piano-core.ts';
 import { biquadBandpass, biquadHighpass, biquadPeaking, biquadHighShelf } from './filters.ts';
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { clamp, interp, mulberry32, playerCents, playerSeed, playerVibrato } from './util.ts';
+import { WindPlayer, type WindHuman } from './winds-human.ts';
 import fluteTuning from './flute-tuning.json';
 
 export interface FluteParams {
@@ -36,7 +38,43 @@ export interface FluteParams {
   volume: number;
   /** orchestra mode: where it sits on the stage (post.ts Seat); none, the single instrument's place */
   seat?: Seat | null;
+  /** how much of a player: 0 the model alone (what is fitted and judged: every note of one pitch and
+   *  strength the same, a held note dead still, its breath vibrato hardly heard) … 1 a flautist's vibrato,
+   *  breath, lips and tongue (FLUTE_HUMAN, winds-human.ts) */
+  human?: number;
 }
+
+/** The flautist (winds-human.ts), from the University of Iowa MIS flute (non-vibrato and vibrato runs, analysis
+ *  only). Its vibrato: 12 ¢ in pitch at mf (10.7 pp, 15.6 ff), the fundamental's level ±1.0–1.3 dB and the
+ *  harmonics' above it ±2.7–5.3 dB (Fletcher 1975, JASA 57, 233–237: a flute's vibrato is mostly in its upper
+ *  harmonics), at 4.9 Hz, ±0.23 Hz from note to note, 11 % from one cycle's length to the next and 22 % in
+ *  its swing. A held note: its pitch wanders 1.1–1.6 ¢ from one tenth of a second to the next (the model's
+ *  0.3), its level 0.1–0.5 dB (the model's 0.04–0.3). From one note to the next: its pitch ±3–5 ¢ (the
+ *  model's 0.3; half of it here: those notes were played alone, with nothing to tune to), its attack's
+ *  length ±70 % and more (the model's ±14–27 %). Let go, it is 10 dB down in 68 ms (the model's 30). */
+export const FLUTE_HUMAN: WindHuman = {
+  seed: 313,
+  wander: 3,
+  slow: 2,
+  slowTau: 1.2,
+  place: 2.5,
+  breath: 0.25,
+  breathSlow: 0.4,
+  breathTau: 1.5,
+  strength: 0.6,
+  bright: 3.5,
+  rise: 0.2,
+  push: 0.25,
+  release: 3,
+  taperFrom: 0.15,
+  taperFull: 0.5,
+  // (each set so that the vibrato read as the recordings are, its irregularity included, is theirs: pitch
+  // 10.5 / 12.1 / 15.5 ¢, the fundamental 1.0 / 1.3 / 1.0 dB, the harmonics above 5.5 / 2.6 / 3.8, 11 % and 20 %
+  // from cycle to cycle, 64 % one sine; scripts/winds-vibrato.ts --instrument flute [--model])
+  vibrato: { rate: 4.9, breathRate: 0.23, cents: [12.4, 14.1, 18.1], fundDb: [0.95, 1.3, 1.0], upperDb: [6.7, 3.6, 5.0], breath: [1, 1, 1], rateWander: 0.3, depthWander: 0.22 },
+};
+/** the vibrato parameter's default: the player's vibrato is scaled by the parameter over it */
+const FLUTE_VIBRATO = 0.06;
 
 const RHO = 1.2;
 const C_AIR = 343;
@@ -63,57 +101,64 @@ const MIN_BLOW = 0.12;
  *  held note's level at pp, the lowest notes of each register least; with this, −1…+3 dB, speaking in
  *  30–65 ms. */
 const QUICK_AIM = 2;
-/** A note joined to one of a higher register (the last note overblown at the twelfth, this one at the octave;
- *  or the octave, then a fundamental): the jet is let fall for a moment, this fraction slower, back with
- *  FALL_TAU (s). Blown straight on, the tube stayed on the mode it had (a flute's registers overlap: coming
- *  down, the upper one holds), and so did every note of that register after it until one of the lowest:
- *  Beethoven's Fifth, I, bars 303 on, 12 of 86 flute notes at a wrong pitch. Measured on eleven falls across
- *  the breaks at 139 and 278 ms, pp/mf/ff (scripts/winds-midi-bench.ts): the note or the one after it off its
- *  pitch in 62 of 162 tongued and 106 of 198 slurred; with this, 4 and 26 of 198. A player lets the air
- *  drop to come down a register (Fletcher 1975, JASA 57: blowing pressure follows the note). (Rising across
- *  a break: FINGER and VENT, below.) */
-const FALL = 0.45;
-const FALL_TAU = 0.05;
-/** …and a tongued note of the third register after one of a lower is let go with a first attack's push, its
- *  aim this many times a long tone's. Ten rises across the two breaks at the same lengths and dynamics
- *  (scripts/winds-midi-joined.ts --seq rises): 25 of 120 joined notes off their pitch, where the stroke's
- *  lighter push left 32 (A5→E6 alone 12 of 12) and the engine before, which never stopped the jet, 20.
- *  (Since then the tube itself does most of it: FINGER and VENT, below; the same rises now 3 of 120.) */
-const RISE_AIM = 2;
-/** Rising to another register the fingering is another tube, not the old one made longer. The tube's length
- *  used to be glided to every new note (as a finger shading one hole does bend the pitch, and that is kept
- *  within a register): C♯5→D5 is then the C♯5 tube stretched to the D4 tube with its standing wave carried
- *  along, 554 Hz bent down to 294 Hz, the new tube's first mode, which the jet then had to overblow again:
- *  150–250 ms on the octave below, a crack on every step up across a break (scripts/flute-rise.ts: 526 of
- *  1008 rises not on their note, both breaks, slurred and tongued, pp–ff, 100–600 ms; 100 and 150 ms notes
- *  396 of 504). Now the wave is turned back from both places while the fingers move, the new tube's share
- *  growing over FINGER (s): what rings on is the old note at its own pitch, a step under the new tube's next
- *  mode, and the jet, already set for that mode, takes it there. A key is closed or opened in about 10 ms
- *  (Almeida, Chow, Smith & Wolfe 2009, "The kinetics and acoustics of fingering and note transitions on the
- *  flute", JASA 126, 1521–1529). */
-const FINGER = 0.01;
+/** A note joined to one of another register takes the wave in the tube with it.
+ *
+ *  At a register break the same standing wave fits both fingerings: C♯5 is the first mode of a short tube,
+ *  D5 the second mode of one twice as long, and the short tube's half-wave is the upper half of the long
+ *  one's whole wave. The fingers change the tube under a wave that goes on. This model keeps a tube's wave
+ *  as its history (a delay line as long as the tube's round trip), and three earlier ways of changing the
+ *  tube all lost it: stretched to the new length, the wave was bent to a mode of the new tube that is not
+ *  the note (C♯5 → D5 arrived an octave low and had to be overblown again: 150–250 ms); turned back from the
+ *  old place and the new while the fingers moved, it fed the new tube's fundamental as much as the mode that
+ *  was wanted, and the jet, already saturated by it, could not raise the note until it had died; with the
+ *  air let fall or the jet aimed sharper to hurry that, the note still came late, behind a hole, and often
+ *  after the octave below or the twelfth above had sounded first. Measured on 3024 pairs of notes over the
+ *  compass, slurred, tongued and after a short rest, pp–ff, 120–500 ms (scripts/winds-legato.ts): of the
+ *  1242 across a break, 753 spoke later than 40 ms (47 ms the median, 105 the 90th percentile) and 257
+ *  sounded a wrong register for over 10 ms; a slur across a break had a hole of 9.6 dB (the median). Of the
+ *  1782 within a register none was late (12 ms) and a slur had no hole.
+ *
+ *  Now the history is written once more at the new note's pitch: the same wave (its shape, its level, where
+ *  it is in its cycle) in so many periods of the new note as the new tube's round trip holds, and the jet's
+ *  own history with it, its delay kept at the same share of a period. Nothing has to die and nothing has to
+ *  grow: the jet finds the mode it is set for already sounding. What is heard goes from the old note to the
+ *  new over CARRY (s), the old note's last period carried on under the new one coming in, as long as a key
+ *  takes to close or open (about 10 ms: Almeida, Chow, Smith & Wolfe 2009, "The kinetics and acoustics of
+ *  fingering and note transitions on the flute", JASA 126, 1521–1529). The same pairs across a break: none
+ *  later than 40 ms (7 ms the median, 14 the latest), none on a wrong register, a slur's hole 1.1 dB (4 at
+ *  the worst); and the rises and falls of the audit before (scripts/flute-rise.ts --also falls: 28 of 1008
+ *  rises and 4 of 360 falls not on their note) all arrive, in 7.5 ms (the median; 10 at the 90th percentile,
+ *  where it was 57). After a slur across a break the note has its own spectrum within 60 ms (each harmonic
+ *  within 1 dB of the note held alone), where it was 15 dB under for the first of them and then 4–13 dB
+ *  over in its upper harmonics for a fifth of a second (the jet's sharper aim).
+ *
+ *  A leap across a break (A4 → E5) is carried the same way. On a flute the old wave fits the new tube less
+ *  well the wider the leap, and a player's lips do the rest in some tens of milliseconds; this model's jet
+ *  alone took over a hundred, on the wrong octave. Within a register nothing is changed: the tube's length
+ *  is glided, as a finger shading a hole bends the pitch. */
+const CARRY = 0.01;
 /** The vent. Every note of a flute's third register, and D5 and E♭5 of its second, is fingered with a hole
  *  open part-way up the tube, where the mode that is wanted has a pressure node: that mode does not feel it,
  *  the others leak through it (Wolfe & Smith 2003, "Cutoff frequencies and cross fingerings in baroque,
  *  classical, and modern flutes", JASA 114, 2263–2272; the register hole as a junction in a waveguide:
- *  Scavone 1997, thesis, CCRMA, Stanford). Without it the tube here was as ready to sound its second or fourth
- *  mode as its third, and a rise to the third register took whichever the last note's ring was nearest:
- *  G5→D6 and A5→E6 (one tube, no finger moves in this model) never arrived, 48 of 48. The hole is a leak
- *  across the bore one period of the note from the foot's reflection: the pressure there (the wave going
- *  down and the wave coming back) loses this share (the junction's 1 − 2Z_hole/(2Z_hole + Z_0), taken as a
- *  resistance: the mass of the air in the hole is left out), sent back both ways inverted. On its own mode the two waves cancel there and it takes nothing, so it is only
- *  computed for a note joined to another (a note from silence speaks on its mode without it and stays
- *  bit-identical). */
+ *  Scavone 1997, thesis, CCRMA, Stanford). The hole is a leak across the bore one period of the note from the
+ *  foot's reflection: the pressure there (the wave going down and the wave coming back) loses this share (the
+ *  junction's 1 − 2Z_hole/(2Z_hole + Z_0), taken as a resistance: the mass of the air in the hole is left
+ *  out), sent back both ways inverted. On its own mode the two waves cancel there and it takes nothing. It
+ *  opens over VENT_OPEN (s) under a note joined to another; with the wave carried (CARRY) such a note arrives
+ *  on its mode without it, and it keeps it there (of the falls from the third register to the octave below,
+ *  tongued or after a rest, one in ten took 40–50 ms without it and none more than 10 with).
+ *
+ *  A note from silence that a file told of has it from its first sample. Without it a short note of the third
+ *  register sounded a second mode of its tube beside its own for a hundred milliseconds and more (the quick
+ *  attack a short note is given, QUICK_AIM, raises them both): every note of the compass alone, at six
+ *  dynamics, told ahead as lasting 140, 280 and 500 ms, at 44.1 and 48 kHz (1332 notes), 21 were not on
+ *  their pitch over their second half (F6 and G6 of 140 ms at every dynamic, 40–180 ¢ sharp and half
+ *  periodic; E♭6 pp of 280 ms on its tube's fourth mode at 44.1 kHz), and none is with it. A note from
+ *  silence that nothing told of (a key in the hand, the long tone the recordings were fitted on and the
+ *  judge hears) is played without it, as before, bit-identical. */
 const VENT = 0.2;
-/** A note joined to one of another register, slurred either way or tongued coming down: the jet is aimed as
- *  for a long tone's attack (ATTACK_BOOST, this many times; RISE_AIM up to a note with a vent, slurred as
- *  tongued), since nothing but the jet's own gain raises the new mode. A slur had none and a stroke over the
- *  breath half (LICK_BOOST): slurred up, the note took 130–300 ms to grow; coming down across a break, 105–
- *  230 ms slurred and 50–90 ms tongued (the last note's mode has to die first: FALL), which the rises, once
- *  they arrived, laid bare (a note after a rise that failed had no register to come down from). Fifteen
- *  falls, pp–ff, 100–600 ms (scripts/flute-rise.ts --also falls): 71 of 180 slurred and 11 of 180 tongued
- *  not on their note in time, now 1 and 3. */
-const CROSS_AIM = 1;
+const VENT_OPEN = 0.01;
 /** tongued over the breath (mono.ts): the tongue lets the air go again in this long (s) */
 const LICK_OPEN = 0.003;
 /** …and the jet's push and sharper aim as it does are this much of a first attack's */
@@ -158,6 +203,9 @@ export function fluteFingering(m: number): { mode: number; boreMidi: number } {
   if (m <= 85) return { mode: 2, boreMidi: m - 12 };
   return { mode: 3, boreMidi: m - 19 };
 }
+
+/** is the note fingered with a vent hole (VENT)? The third register, and D5 and E♭5 */
+const vented = (m: number): boolean => m >= 86 || m === 74 || m === 75;
 
 export class FluteCore implements InstrumentCore {
   readonly id = 'flute' as const;
@@ -238,16 +286,19 @@ export class FluteCore implements InstrumentCore {
   private modeFreqs = new Float64Array(16);
   private Uj = 0;
   private gain = 1;
+  /** the player (FLUTE_HUMAN) */
+  private pl: WindPlayer;
 
   constructor(opts: { sampleRate: number; params?: Partial<FluteParams>; dry?: boolean; player?: number }) {
     this.fs = opts.sampleRate;
     this.dry = !!opts.dry;
-    this.params = { breath: 1, embouchure: 1, noise: 1, vibrato: 0.06, room: 0.35, volume: 1, ...opts.params };
+    this.params = { breath: 1, embouchure: 1, noise: 1, vibrato: FLUTE_VIBRATO, room: 0.35, volume: 1, ...opts.params };
     this.keys = new MonoKeys(this.fs);
     this.rng = mulberry32(playerSeed(31, opts.player));
     const pv = playerVibrato(opts.player);
     this.vib0 = this.vibPhase = pv.phase;
     this.vibRate = pv.rate;
+    this.pl = new WindPlayer(FLUTE_HUMAN, this.fs, opts.player, 5.0, pv.rate);
     this.tune = playerCents(opts.player) / 100;
     if (this.tune) this.bendFactor = Math.pow(2, -this.tune / 12);
     this.room = new Room(this.fs);
@@ -256,6 +307,11 @@ export class FluteCore implements InstrumentCore {
     this.noiseBp.set([nb[0], nb[1], nb[2], nb[3], nb[4]]);
     this.updatePost();
     this.setNote(69, true);
+  }
+
+  /** how much of a player there is (0: none, the model alone) */
+  private get human(): number {
+    return clamp(this.params.human ?? 1, 0, 1);
   }
 
   private updatePost(): void {
@@ -290,19 +346,18 @@ export class FluteCore implements InstrumentCore {
     this.tanhOff = Math.tanh(this.off);
     this.jetGainNote = V.jetGain * (1 + (V.jetGainTop - 1) * clamp((m - 88) / 8, 0, 1));
     this.jetK = (2 * this.jetGainNote) / (1 - this.tanhOff * this.tanhOff);
-    this.modeStep = immediate ? 0 : mode - this.mode;
-    this.mode = mode;
     if (immediate) {
-      this.fingNow = false;
-      this.fing = 1;
+      this.carryFrom = -1;
+      this.fadeN = 0;
       this.ventTo = this.ventG = 0;
       this.ventLive = 0;
     } else {
-      // up to another register on another tube: the fingering is replaced (FINGER); the note's vent (VENT)
-      if (this.modeStep > 0 && boreMidi !== this.tube) this.fingNow = true;
-      this.ventTo = mode === 3 || m === 74 || m === 75 ? VENT : 0;
+      // to another register: the tube's wave goes with the note (CARRY), from the note it is on (a second
+      // change before the first was made: still from that one); the note's vent (VENT)
+      const from = this.carryFrom >= 0 ? this.carryFrom : this.note;
+      this.carryFrom = fluteFingering(from).mode !== mode ? from : -1;
+      this.ventTo = vented(m) ? VENT : 0;
     }
-    this.tube = boreMidi;
     this.fTarget = et(m);
     this.boreNominal = (mode * fs) / et(m);
     // jet receptivity falls off above a Strouhal-limited frequency (the player's lip
@@ -324,12 +379,19 @@ export class FluteCore implements InstrumentCore {
     this.note = m;
     for (let k = 0; k < 16; k++) this.modeFreqs[k] = (k + 1) * fb;
   }
-  /** the tube fingered (its fundamental's note), and a fingering being replaced (FINGER): the old tube's
-   *  length, the new one's share of the reflection (1: done) */
-  private tube = -1;
-  private fingNow = false;
-  private fing = 1;
-  private Dold = 100;
+  /** the note whose wave is in the tube when the next render carries it to another register's (CARRY); −1:
+   *  nothing to carry */
+  private carryFrom = -1;
+  private scratch = new Float64Array(BUF);
+  /** what was radiated (the left channel's sum, and the jet's flow), kept to carry the old note's last
+   *  period on over a change of register: samples left of that, its length, the old note's period (samples)
+   *  and the frame the change was made at */
+  private outHist = new Float64Array(BUF);
+  private qHist = new Float64Array(BUF);
+  private fadeN = 0;
+  private fadeLen = 1;
+  private fadeP = 100;
+  private fadeAt = 0;
   /** the vent (VENT): what it has sent back (its history), its share now and asked, the foot's filter as
    *  the wave coming back meets it, its distance from the foot and back (samples), samples left to compute */
   private vent = new Float64Array(BUF);
@@ -405,7 +467,6 @@ export class FluteCore implements InstrumentCore {
     return best - 0.5; // linear interpolation read adds ~half a sample
   }
   private lj = 0.005;
-  private mode = 1;
 
   schedule(ev: unknown, frame?: number): void {
     const f = frame === undefined ? this.frame : Math.max(this.frame, Math.floor(frame));
@@ -489,23 +550,23 @@ export class FluteCore implements InstrumentCore {
       this.velocity = was;
     }
     this.releasePending = false;
+    this.pl.H = this.human;
     if (a.kind === 'slur') {
       this.setNote(m, false);
+      this.pl.note(this.frame, m, a.len, false, false);
       this.pTarget = 1;
       this.attackTau = 0.015;
       this.chiff = 0.3;
       this.tongueAmp = TONGUE_PUSH * 0.3;
       this.tongueLen = Math.max(4, Math.round((0.5 * this.fs) / et(m)));
       this.tongueN = this.tongueLen;
-      // (to another register: the jet aimed for it, CROSS_AIM)
-      this.attackBoost = this.modeStep ? ATTACK_BOOST * (0.6 + 0.4 * v) * (this.modeStep > 0 && this.ventTo > 0 ? RISE_AIM : CROSS_AIM) : 0;
-      this.noteStart = this.frame;
+      this.attackBoost = 0;
       this.tongueAt = this.frame;
-      this.fallNow = this.modeStep < 0;
     } else if (a.kind === 'tongue') {
-      // (begun while the last note of a higher register still rings: the air let fall, as when joined)
-      this.fallNow = this.modeStep < 0;
-      this.setNote(m, this.level < 1e-3);
+      const fresh = this.level < 1e-3;
+      this.setNote(m, fresh);
+      // (a file's note, told ahead: its vent is open from its first sample, VENT)
+      if (fresh && a.len < Infinity && vented(m)) this.ventTo = this.ventG = VENT;
       this.pTarget = 1;
       this.lick.reset();
       // a note known to be short is tongued to speak within a share of its length (mono.ts): the breath
@@ -521,9 +582,12 @@ export class FluteCore implements InstrumentCore {
       this.tongueLen = Math.max(4, Math.round((0.5 * this.fs) / et(m)));
       this.tongueN = this.tongueLen;
       this.attackBoost = ATTACK_BOOST * (0.6 + 0.4 * v) * (1 + (QUICK_AIM - v) * quick);
+      // (the player's own: this note's rise, and the tongue's push with its sharper aim)
+      this.pl.note(this.frame, m, a.len, true, true);
+      if (this.pl.H > 0) this.ownAttack();
       this.afterStop = false;
       this.vibPhase = this.vib0;
-      this.noteStart = this.frame;
+      this.breathStart = this.frame;
       this.tongueAt = this.frame;
       this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
     } else {
@@ -536,31 +600,39 @@ export class FluteCore implements InstrumentCore {
       // held the tube silent over a rest: then a short note's)
       const first = this.afterStop;
       this.afterStop = false;
-      this.fallNow = this.modeStep < 0;
-      // (…and a note of the third register after one of a lower: the tongue lets the jet go with a first
-      // attack's push, aimed RISE_AIM sharper, or the tube stays with the old note's ring)
-      const up = this.modeStep > 0 && this.mode === 3 && !first;
       const wait = this.lick.retongue(a.struck, this.fs, same, LICK_OPEN * this.fs);
       this.tongueAt = this.frame + wait;
-      this.chiff = first || up ? 0.6 + 0.8 * v : 0.3 + 0.4 * v;
-      this.tongueAmp = TONGUE_PUSH * (first || up ? 1 : LICK_BOOST) * (0.5 + 0.5 * v);
+      this.chiff = first ? 0.6 + 0.8 * v : 0.3 + 0.4 * v;
+      this.tongueAmp = TONGUE_PUSH * (first ? 1 : LICK_BOOST) * (0.5 + 0.5 * v);
       this.tongueLen = Math.max(4, Math.round((0.5 * this.fs) / et(m)));
       this.tongueN = this.tongueLen;
       this.tongueWait = wait;
-      this.attackBoost = ATTACK_BOOST * (0.6 + 0.4 * v) * (first ? 1 + QUICK_AIM - v : up ? RISE_AIM : this.modeStep < 0 ? CROSS_AIM : LICK_BOOST);
-      this.noteStart = this.frame;
+      this.attackBoost = ATTACK_BOOST * (0.6 + 0.4 * v) * (first ? 1 + QUICK_AIM - v : LICK_BOOST);
+      this.pl.note(this.frame, m, a.len, true, false);
+      if (this.pl.H > 0) this.ownAttack();
       this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
     }
     if (a.tap) this.release();
   }
+
+  /** a tongued note's own first moments, once the model's are set (the player's draw, winds-human.ts): the
+   *  breath's rise a little quicker or slower, the tongue's push and the chiff with it a little more or less.
+   *  The jet's sharper aim is the model's: aimed sharper still, a note after a short rest an octave and a fifth
+   *  below sounded its twelfth (E♭5 → C6, twice in 1008 such pairs, 12 ms) */
+  private ownAttack(): void {
+    const pl = this.pl;
+    this.attackTau *= pl.rise;
+    this.tongueAmp *= pl.push;
+    this.chiff *= pl.push;
+  }
   /** samples before the jet's push begins (the tongue is still across the air), and the decay of its
    *  sharper aim (s) */
   private tongueWait = 0;
-  /** the note's register against the last note's (its fingering's mode, less the last one's), and whether
-   *  the air is let fall for it (FALL) */
-  private modeStep = 0;
-  private fallNow = false;
-  private noteStart = 0;
+  /** when this breath began (frame): a note from silence. The vibrato comes in over the breath, not over
+   *  each note of it: slurred or tongued over the breath, the notes of a phrase share one vibrato. (It used
+   *  to begin again with every note, 0.3 s in and 0.4 s to its depth: in a slurred line of notes under 0.7 s
+   *  there was none at all, and in a slower one each note went straight before it came back.) */
+  private breathStart = 0;
   /** frame until which a tongued note keeps its breath (MIN_BLOW), and a key let go before it */
   private blowUntil = 0;
   private releasePending = false;
@@ -593,9 +665,10 @@ export class FluteCore implements InstrumentCore {
     this.keys.clear();
     this.keys.forget();
     this.lick.reset();
+    this.pl.reset();
     this.tongueWait = 0;
-    this.fingNow = false;
-    this.fing = 1;
+    this.carryFrom = -1;
+    this.fadeN = 0;
     this.vent.fill(0);
     this.ventG = this.ventTo = this.ventLp = 0;
     this.ventLive = 0;
@@ -667,13 +740,13 @@ export class FluteCore implements InstrumentCore {
     const P = this.params;
     // breath envelope and vibrato (control rate)
     const sinceOn = Math.max(0, this.frame - this.tongueAt) / fs;
-    const k = 1 - Math.exp(-dt / (this.pTarget > this.pressure ? this.attackTau : 0.035));
+    // (the player: a long note's breath let go slower before a rest, winds-human.ts)
+    const H = this.human;
+    this.pl.H = H;
+    const k = 1 - Math.exp(-dt / (this.pTarget > this.pressure ? this.attackTau : H > 0 ? this.pl.releaseTau(0.035, this.frame, this.keys) : 0.035));
     this.pressure += (this.pTarget - this.pressure) * k;
     if (this.pressure < 1e-5 && this.pTarget === 0) this.pressure = 0;
-    const age = (this.frame - this.noteStart) / fs;
-    this.vibPhase += 2 * Math.PI * 5.0 * this.vibRate * dt;
-    const vib = 1 + P.vibrato * clamp((age - 0.3) / 0.4, 0, 1) * Math.sin(this.vibPhase);
-    this.vibNow = vib - 1;
+    const age = (this.frame - this.breathStart) / fs;
     // CC_DYNAMICS: the breath goes on as a note begun that much harder or softer would (a time constant)
     if (this.dyn !== this.dynTarget) {
       this.dyn += (this.dynTarget - this.dyn) * (1 - Math.exp(-dt / DYN_TAU));
@@ -682,25 +755,28 @@ export class FluteCore implements InstrumentCore {
     // velocity: mostly loudness (jet flow amplitude), a little blowing pressure
     const V = FLUTE_VOICE;
     const v01 = this.dyn ? clamp(this.velocity + this.dyn, 1, 127) / 127 : this.velocity / 127;
+    this.vibPhase += 2 * Math.PI * 5.0 * this.vibRate * dt;
+    const vibEnv = clamp((age - 0.3) / 0.4, 0, 1);
+    let vibShape = Math.sin(this.vibPhase);
+    if (H > 0) {
+      // the player's vibrato (no cycle like the last), the pitch's wander, the breath's level
+      this.pl.step(dt, v01, vibEnv, P.vibrato / FLUTE_VIBRATO);
+      vibShape = this.pl.shape;
+    }
+    const vib = H > 0 ? 1 + P.vibrato * this.pl.breathVib * vibEnv * vibShape : 1 + P.vibrato * vibEnv * vibShape;
+    this.vibNow = vib - 1;
     const velScale = V.driveLo + (V.driveHi - V.driveLo) * Math.pow(v01, V.driveCurve);
     const pBlow = this.nominalPressure(this.note) * this.pressure * vib * P.breath * (V.pressLo + (V.pressHi - V.pressLo) * v01) * this.expression;
     const Uj = Math.sqrt((2 * Math.max(pBlow, 1)) / RHO);
     this.Uj = Uj;
     const ljEff = this.lj * P.embouchure;
-    // (a note joined to one of a higher register: the air let fall for a moment, see FALL)
-    const fall = this.fallNow ? 1 - FALL * Math.exp(-sinceOn / FALL_TAU) : 1;
-    this.jetDTarget = clamp((fs * ljEff) / (0.45 * Math.max(Uj, 4) * fall), 2, BUF / 2);
+    this.jetDTarget = clamp((fs * ljEff) / (0.45 * Math.max(Uj, 4)), 2, BUF / 2);
     // players "lip" the pitch back as they blow harder; compensate 75 % of the drift
     this.Dtarget = (this.Dnom + 0.75 * (this.boreDelayFor(this.jetDTarget) * this.tuningCorrection(this.note) - this.Dnom)) * this.bendFactor;
-    if (this.fingNow) {
-      // the fingering is replaced: the new tube from here, the old one's reflection fading (a change begun
-      // before the last was over starts from whichever tube had the larger share)
-      this.fingNow = false;
-      if (this.fing >= 0.5) this.Dold = this.D;
-      this.D = this.Dtarget;
-      this.fing = 0;
-    }
-    const fingStep = 1 / (FINGER * fs);
+    // (the player's pitch: the lips over the hole, a few cents either way, and the vibrato's)
+    if (H > 0) this.Dtarget *= this.pl.delayFactor;
+    if (this.carryFrom >= 0) this.carry();
+    const ventStep = VENT / (VENT_OPEN * fs);
     if (this.ventTo > 0 && this.ventLive <= 0) {
       this.vent.fill(0);
       this.ventLp = 0;
@@ -751,21 +827,13 @@ export class FluteCore implements InstrumentCore {
       const Di = Math.floor(this.D);
       const fr = this.D - Di;
       let r = this.bore[(w - Di) & mask] * (1 - fr) + this.bore[(w - Di - 1) & mask] * fr;
-      if (this.fing < 1) {
-        // (a fingering being replaced: the old tube's reflection beside the new one's)
-        const Do = Math.floor(this.Dold);
-        const fo = this.Dold - Do;
-        const r0 = this.bore[(w - Do) & mask] * (1 - fo) + this.bore[(w - Do - 1) & mask] * fo;
-        this.fing = Math.min(1, this.fing + fingStep);
-        r = r0 + (r - r0) * (0.5 - 0.5 * Math.cos(Math.PI * this.fing));
-      }
       // the vent: the pressure at it is the wave going down and the wave back from the foot; the share it
       // lets out goes back both ways, inverted: to the foot and round (into r), and straight to the embouchure
       let vUp = 0;
       if (venting) {
         if (this.ventG !== this.ventTo) {
           const d = this.ventTo - this.ventG;
-          this.ventG += d > fingStep ? fingStep : d < -fingStep ? -fingStep : d;
+          this.ventG += d > ventStep ? ventStep : d < -ventStep ? -ventStep : d;
         }
         const d1 = Math.max(1, 0.5 * (this.D - ventSpan));
         let vi = Math.floor(d1);
@@ -838,9 +906,26 @@ export class FluteCore implements InstrumentCore {
       this.outHpX = r;
       const dq = q - this.qPrev;
       this.qPrev = q;
-      const out = dqScale * (V.radFoot * dr + V.radDflow * dq) + V.radFlow * q + V.noiseOut * noise;
+      let out = dqScale * (V.radFoot * dr + V.radDflow * dq) + V.radFlow * q + V.noiseOut * noise;
+      let qOut = q;
+      if (this.fadeN > 0) {
+        // (a change of register: the old note's last period, carried on, under the new note coming in)
+        const j = this.fadeLen - this.fadeN;
+        const x = this.fadeAt - this.fadeP + (j % this.fadeP);
+        const xi = Math.floor(x);
+        const xf = x - xi;
+        const x2 = xi + 1 >= this.fadeAt ? xi + 1 - Math.round(this.fadeP) : xi + 1;
+        const g = 0.5 - 0.5 * Math.cos((Math.PI * (j + 1)) / (this.fadeLen + 1));
+        const oOld = this.outHist[xi & mask] * (1 - xf) + this.outHist[x2 & mask] * xf;
+        const qOld = this.qHist[xi & mask] * (1 - xf) + this.qHist[x2 & mask] * xf;
+        out = oOld + (out - oOld) * g;
+        qOut = qOld + (q - qOld) * g;
+        this.fadeN--;
+      }
+      this.outHist[w & mask] = out;
+      this.qHist[w & mask] = qOut;
       oL[t] = out;
-      oR[t] = 0.9 * out + 0.4 * q;
+      oR[t] = 0.9 * out + 0.4 * qOut;
       this.trQ[this.trI] = q;
       this.trP[this.trI] = pRet;
       this.trI = (this.trI + 1) & (TRACE - 1);
@@ -854,6 +939,9 @@ export class FluteCore implements InstrumentCore {
     this.offPrev = off;
     this.tOffPrev = tOff;
     this.level = Math.max(peak, this.level * 0.9);
+    // (the player's breath and vibrato in what leaves the flute: its level, the harmonics above the
+    // fundamental further)
+    if (H > 0) this.pl.out(oL, oR, n, this.fTarget);
     const g = this.gain;
     for (let t = 0; t < n; t++) {
       oL[t] *= g;
@@ -870,6 +958,44 @@ export class FluteCore implements InstrumentCore {
       this.jet.fill(0);
       this.level = 0;
     }
+  }
+
+  /** The tube's wave goes with the note to another register (CARRY): the bore's history and the jet's are
+   *  written again at the new note's pitch (the wave as it was `rho` times as far back), the tube and the
+   *  jet's delay are the new note's at once, and what was radiated is carried on for CARRY. Called between
+   *  blocks, from the block's first sample. */
+  private carry(): void {
+    const fs = this.fs;
+    const rho = Math.pow(2, (this.note - this.carryFrom) / 12);
+    this.carryFrom = -1;
+    const w1 = this.frame - 1;
+    const mask = BUF - 1;
+    const sc = this.scratch;
+    const jetD = clamp(this.jetD / rho, 2, BUF / 2);
+    for (let pass = 0; pass < 2; pass++) {
+      const buf = pass ? this.jet : this.bore;
+      // (as far back as the new tube, or the jet, will read; and no further than there is history for)
+      const want = pass ? 1.5 * jetD + 8 : 1.05 * this.Dtarget + 8;
+      const N = Math.min(Math.ceil(want), Math.floor((BUF - 8) / Math.max(1, rho)));
+      for (let i = 0; i < N; i++) {
+        const x = i * rho;
+        const xi = Math.floor(x);
+        const xf = x - xi;
+        sc[i] = buf[(w1 - xi) & mask] * (1 - xf) + buf[(w1 - xi - 1) & mask] * xf;
+      }
+      for (let i = 0; i < N; i++) buf[(w1 - i) & mask] = sc[i];
+    }
+    this.D = this.Dtarget;
+    this.jetD = jetD;
+    // (the old note's vent is shut with its tube: on its own mode it held nothing)
+    if (this.ventG > 0 || this.ventLive > 0) {
+      this.vent.fill(0);
+      this.ventLp = 0;
+      this.ventG = 0;
+    }
+    this.fadeLen = this.fadeN = Math.max(1, Math.round(CARRY * fs));
+    this.fadeP = Math.max(2, (fs / this.fTarget) * rho * this.bendFactor);
+    this.fadeAt = this.frame;
   }
 
   keySummary(): KeySummary[] {

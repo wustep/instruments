@@ -34,11 +34,11 @@
 // its frames), the levers of the valves the engine's chart takes go down on their springs (a small bounce
 // off their stops) and their links turn the rotors a quarter turn, back a moment after the note; the breath
 // goes into the mouthpiece as on every wind (winds3d breathIn: faint steel streams), pulsing with the lips'
-// opening (`fr.lips`); the bell's rim shimmers with the level.
+// opening (`fr.lips`). The bell is never lit, sounding or not.
 // Approximations: the rotors' passages and the knuckles inside the valve are not traced tube by tube; the
 // bell section's turn in the hand is one angle (players set their own); the player's hands are left out.
 import { TROMBONE_SIZES, tromboneFingering, tromboneSlideOut, tromboneTubeLength, type TromboneBore, type TromboneSize, type VisualFrame } from '@piano-model/engine';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cross, dot, mulInto, norm, rotX, scale, sub, translate, xform } from './gl3d.ts';
+import { type Batch, type Mat4, type Mesh, type Vec3, add, chain, cross, dot, mulInto, norm, rotX, scale, sub, translate, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, ellipsoid, grid, type Mat } from './mesh.ts';
 import { aboutAxis, fillet, springTo } from './oboe3d.ts';
 import { F3, FLIP, arcLen, bend, bezier, boxOf, brace, ferrule, latheOn, make, refine, tubeAlong, tubeAlongBar } from './horn3d.ts';
@@ -375,7 +375,7 @@ export interface TromboneModel {
   /** the slide's statics (the inner slide, the mouthpiece) and the outer slide (moves along x by the slide) */
   slideStatics: Mesh[];
   outer: Mesh;
-  /** the bell section's statics, its rim (shimmers with the level), placed by `bellT` (solo) or `bellHeld` */
+  /** the bell section's statics, its rim, placed by `bellT` (solo) or `bellHeld` */
   bellStatics: Mesh[];
   rim: Mesh;
   bellT: Mat4;
@@ -964,14 +964,13 @@ interface TromPoseState {
   R: Float32Array;
   L: Float32Array;
   S: Float32Array;
-  glow: RGBA;
   lipGap: number;
 }
 const poses = new WeakMap<WindPose, TromPoseState>();
 function tromPose(pose: WindPose): TromPoseState {
   let p = poses.get(pose);
   if (!p) {
-    p = { pos: new Float32Array(2), vel: new Float32Array(2), quiet: 10, s: 0, last: null, from: 0, dur: 33, tFrame: 0, base: 0, W: new Float32Array(16), R: new Float32Array(16), L: new Float32Array(16), S: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]), glow: [0, 0, 0, 0], lipGap: 0 };
+    p = { pos: new Float32Array(2), vel: new Float32Array(2), quiet: 10, s: 0, last: null, from: 0, dur: 33, tFrame: 0, base: 0, W: new Float32Array(16), R: new Float32Array(16), L: new Float32Array(16), S: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]), lipGap: 0 };
     poses.set(pose, p);
   }
   return p;
@@ -1085,17 +1084,9 @@ export function poseTrombone(b: Batch, tm: TromboneModel, fr: VisualFrame | null
     mulInto(st.W, 0, TB, Lm);
     b.mesh(v.link, st.W);
   });
-  // ---- the bell's mouth: a faint shimmer with the level
+  // ---- the bell's mouth as it is, sounding or not: no light on it (the bells of the winds are never lit)
   const lvl = Math.min(1, Math.sqrt(rms) * 3);
-  let g: RGBA | null = null;
-  if (lvl > 0.02) {
-    st.glow[0] = 1;
-    st.glow[1] = 0.7;
-    st.glow[2] = 0.42;
-    st.glow[3] = 0.09 * lvl * (0.75 + 0.25 * Math.sin(now * 0.021));
-    g = st.glow;
-  }
-  b.mesh(tm.rim, TB, g);
+  b.mesh(tm.rim, TB);
   // ---- the breath into the mouthpiece while the note is blown (winds3d breathIn), pulsing with the engine's
   // lips: their opening eased, the buzz drawn slowed (a few times a second, as on the 2D stage)
   const open = lips ? Math.min(1.6, lips.open) : 0;

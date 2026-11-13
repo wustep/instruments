@@ -175,9 +175,9 @@ describe('the trombone in 3D', () => {
     expect(tromboneSlideState(pose)!).toBeCloseTo(tromboneSlideOut(tromboneFingering(42, 'tenor'), 'tenor'), 3);
   });
 
-  it('shimmers at the bell’s mouth with the level, and only then', () => {
+  it('never lights the bell’s mouth, loud or silent', () => {
     const glow = (b: Batch) => b.inst.get(tenor.rim)?.a[19] ?? 0;
-    expect(glow(play(tenor, () => frame('tenor', 53), 5, newWindPose(), new Batch(), 0.2).b)).toBeGreaterThan(0.02);
+    expect(glow(play(tenor, () => frame('tenor', 53), 5, newWindPose(), new Batch(), 0.2).b)).toBe(0);
     expect(glow(play(tenor, () => frame('tenor', null), 5, newWindPose(), new Batch(), 0).b)).toBe(0);
   });
 

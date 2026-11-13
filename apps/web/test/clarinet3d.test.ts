@@ -1,8 +1,9 @@
 // The clarinet in 3D (clarinet3d.ts), without WebGL: built to the real instrument's measures (docs/
 // 3d-reference.md, "Clarinet": within 3 %), a key or ring over every tone hole, posed from the engine's
 // frames — its rings and keys follow the Boehm fingering for the note sounding (clarinet-fingering.ts) and
-// go back to rest after it, the reed's tip closes onto the lay with its opening, the closed holes glow
-// with the bore's standing wave — and seated in the Orchestra beside the oboe without moving anyone else.
+// go back to rest after it, the reed's tip closes onto the lay with its opening, no ring, key, pad or
+// tone hole, nor the bell, is lit or tinted while it sounds — and seated in the Orchestra
+// beside the oboe without moving anyone else.
 import { describe, expect, it } from 'vitest';
 import type { VisualFrame } from '@piano-model/engine';
 import { Batch, type Mesh, xform } from '../src/ui/gl/gl3d.ts';
@@ -88,7 +89,8 @@ describe('the clarinet in 3D', () => {
     for (const name of ['reg', 'A', 'gs', 'T', 'L1', 'rpad', 'L2', 'bridgeU', 'seb', 'csgs', 'bridge', 'R1', 'R2', 'R3', 'tE_L', 'tFs_L', 'tAb', 'tF_R', 'tE_R', 'gsd', 'fs', 'f', 'e'])
       expect(cm.keys.some((k) => k.name === name), name).toBe(true);
     expect(cm.keys.filter((k) => k.kind === 'ring').length).toBe(6);
-    expect(cm.plain.length).toBe(1);
+    // L3 is the plain hole: on the list of holes, no ring or key over it
+    expect(cm.keys.some((k) => k.name === 'L3')).toBe(false);
     for (const h of cm.holes) {
       expect(h.x).toBeGreaterThan(CM.barrel[1] / 1000);
       expect(h.x).toBeLessThan(CM.lower[1] / 1000);
@@ -165,7 +167,7 @@ describe('the clarinet in 3D', () => {
     expect(path[path.length - 1]).toBeLessThan(0.005);
   });
 
-  it('the reed’s tip closes onto the lay with its opening; the closed holes glow with the standing wave; the bell shimmers', () => {
+  it('the reed’s tip closes onto the lay with its opening; the bell is not lit, loud or soft', () => {
     // the reed's tip (its middle, on the table side) as posed, and how far it has moved towards the axis
     const tipMove = (b: Batch) => {
       const W4 = b.inst.get(cm.reed[0].mesh)!.a.subarray(0, 16);
@@ -180,19 +182,46 @@ describe('the clarinet in 3D', () => {
     expect(Math.abs(tipMove(rest))).toBeLessThan(0.08);
     expect(tipMove(shut)).toBeGreaterThan(0.85 * CM.tipOpening);
     expect(tipMove(shut)).toBeLessThan(1.15 * CM.tipOpening);
-    // a pressed ring's instance carries a glow while the clarinet sounds; the plain hole (L3) is shown
-    // glowing under its finger; nothing glows at rest
-    const glowOf = (b: Batch, m: Mesh) => b.inst.get(m)?.a[19] ?? 0;
-    const ring = (name: string) => cm.keys.find((x) => x.name === name)!.mesh;
-    expect(glowOf(rest, ring('L1'))).toBeGreaterThan(0.01);
-    expect(glowOf(rest, cm.plain[0].mesh)).toBeGreaterThan(0.01);
-    const quiet = play(frame(null), 90).b;
-    expect(glowOf(quiet, ring('L1'))).toBe(0);
-    expect(quiet.inst.get(cm.plain[0].mesh)?.n ?? 0).toBe(0);
-    // the bell, loud
+    // the bell, loud: drawn as it is (no glow: rgb and amount all 0)
     const b = new Batch();
     poseClarinet(b, cm, frame(W(55)), newWindPose(), 1 / 60, 0, 0.2);
-    expect(b.inst.get(cm.bell)!.a[19]).toBeGreaterThan(0.02);
+    expect(Array.from(b.inst.get(cm.bell)!.a.subarray(16, 20))).toEqual([0, 0, 0, 0]);
+  });
+
+  it('no ring, key, pad, tone hole or bell is lit or tinted while it sounds: plain silver, pad skin and wood', () => {
+    // what a batch draws with a light on it (an instance's glow: rgb and amount, any of them not 0), by name
+    const name = (m: Mesh) => (m === cm.bell ? 'bell' : cm.statics.includes(m) ? 'body' : (cm.keys.find((k) => k.mesh === m)?.name ?? 'reed'));
+    const lit = (b: Batch) =>
+      b.meshes().filter((m) => {
+        const { a, n } = b.inst.get(m)!;
+        for (let o = 0; o < n; o += 20) if (a[o + 16] !== 0 || a[o + 17] !== 0 || a[o + 18] !== 0 || a[o + 19] !== 0) return true;
+        return false;
+      }).map(name);
+    // loud, the breath's vibrato on its upswing, pressure all along the bore: written G3 (the thumb and
+    // all six fingers: every ring down, the plain hole covered), E3 (the low pads closed too), B4 (the
+    // register key open), A4 (every ring up)
+    for (const written of [55, 52, 71, 69]) {
+      const fr = frame(W(written));
+      (fr.breath as { vib: number }).vib = 0.1;
+      const pose = newWindPose();
+      const b = new Batch();
+      for (let k = 0; k < 45; k++) {
+        b.clear();
+        poseClarinet(b, cm, fr, pose, 1 / 60, k * 16.7, 0.2);
+      }
+      // the rings and keys are drawn, each once, the rings of the fingering pressed onto their holes
+      const st = clarinetKeyState(pose)!;
+      for (const k of cm.keys) expect(b.inst.get(k.mesh)!.n, k.name).toBe(20);
+      expect(cm.keys.filter((k, i) => k.kind === 'ring' && st[i] > 0.92).length, `${written}: rings down`).toBe(written === 69 ? 0 : 6);
+      expect(cm.keys.filter((k, i) => k.kind === 'cup' && st[i] < 0.08).length, `${written}: seated pads`).toBeGreaterThan(3);
+      // nothing else is drawn (no disc in a covered hole), and nothing is lit, the bell included
+      expect(b.meshes().length, `${written}`).toBe(cm.statics.length + 1 + cm.keys.length + cm.reed.length);
+      expect(lit(b), `${written}`).toEqual([]);
+    }
+    // silent, nothing is
+    const quiet = new Batch();
+    poseClarinet(quiet, cm, frame(null), newWindPose(), 1 / 60, 0, 0);
+    expect(lit(quiet)).toEqual([]);
   });
 
   it('takes its own seat in the Orchestra beside the oboe (the others’ seats as they were), and is framed whole there', () => {

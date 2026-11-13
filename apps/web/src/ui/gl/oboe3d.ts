@@ -26,16 +26,15 @@
 //
 // Live: the keys follow the oboe's standard fingering for the engine's note (oboe-fingering.ts, the
 // chart the 2D stage uses): each plate seats with a small bounce or overshoots a little off its stop
-// as it opens (the flute's springs); the closed keys glow faintly with the standing wave in the bore
-// under them (the engine's own pressure shape, reed → open end); the reed's blades close and shimmer
-// with its opening (`fr.reed.open`: blown shut once a cycle when loud); the bell's rim shimmers with
-// the level. A moment after the oboe stops sounding the keys go back to rest.
+// as it opens (the flute's springs); the reed's blades close and shimmer with its opening
+// (`fr.reed.open`: blown shut once a cycle when loud). The keys, their pads, the tone holes and the bell
+// are never lit or tinted: silver, cork, leather and wood, sounding or not. A moment after the oboe stops sounding the keys go back to rest.
 // Approximations: the linkages are shown, not simulated (each key springs to the state the mechanism
 // gives it), the trill keys never open (the chart has no trills), and the half-hole is the small
 // plate below L1 lifting.
 import type { VisualFrame } from '@piano-model/engine';
 import { HALF, L1, L2, L3, LB, LBB, LEB, LGS, OCT1, OCT2, R1, R2, R3, RC, RCS, REB, RF, oboeFingersFor } from '../oboe-fingering.ts';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cross, dot, mulInto, norm, rotX, rotY, rotZ, scale, sub, translate, xform } from './gl3d.ts';
+import { type Batch, type Mat4, type Mesh, type Vec3, add, chain, cross, dot, mulInto, norm, rotX, rotY, rotZ, scale, sub, translate, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, ellipsoid, grid, spline, variant, type Mat } from './mesh.ts';
 import type { WindPose } from './winds3d.ts';
 
@@ -681,8 +680,6 @@ export interface OboeKey {
   /** a cup: open for these fingers; a touch: pressed */
   open: (f: number) => boolean;
   mesh: Mesh;
-  /** model x of the point that travels (the glow's place along the bore) */
-  x: number;
   /** its rod line (a point and the unit direction), and the turn that opens or presses it */
   p0: Vec3;
   u: Vec3;
@@ -692,7 +689,7 @@ export interface OboeKey {
 export interface OboeModel {
   T: Mat4;
   statics: Mesh[];
-  /** the bell: its flare, rim and throat (it shimmers with the level) */
+  /** the bell: its flare, rim and throat */
   rim: Mesh;
   keys: OboeKey[];
   /** the reed's two blades (they close with its opening): the side each is on (±1 along y) */
@@ -914,7 +911,7 @@ export function buildOboeModel(): OboeModel {
     const sign = (k.kind === 'cup') === out ? 1 : -1;
     const d = sub(ref, p0);
     const arm = len3(sub(d, scale(u, dot(d, u))));
-    return { name: k.name, kind: k.kind, closed: !!k.closed, open: k.open, mesh: kb.build(), x: ref[0], p0, u, sign, maxAng: (k.lift ?? 0.0016) / Math.max(0.002, arm) };
+    return { name: k.name, kind: k.kind, closed: !!k.closed, open: k.open, mesh: kb.build(), p0, u, sign, maxAng: (k.lift ?? 0.0016) / Math.max(0.002, arm) };
   });
   const blades = ([1, -1] as const).map((s) => ({ mesh: blade(s), s }));
   const { tilt, lean, turn, swing, y } = OBOE_POSE;
@@ -933,7 +930,6 @@ interface OboePose {
   open: number;
   R: Float32Array;
   W: Float32Array;
-  glow: RGBA;
 }
 /** each seat's own springs (the shared WindPose carries the flute's and the trumpet's) */
 const poses = new WeakMap<WindPose, OboePose>();
@@ -942,7 +938,7 @@ function oboePose(pose: WindPose, om: OboeModel): OboePose {
   if (!p || p.pos.length !== om.keys.length) {
     // every key where it rests
     const pos = Float32Array.from(om.keys, (k) => (k.kind === 'cup' && k.open(0) ? 1 : 0));
-    p = { pos, vel: new Float32Array(om.keys.length), quiet: 10, open: 1, R: new Float32Array(16), W: new Float32Array(16), glow: [0, 0, 0, 0] };
+    p = { pos, vel: new Float32Array(om.keys.length), quiet: 10, open: 1, R: new Float32Array(16), W: new Float32Array(16) };
     poses.set(pose, p);
   }
   return p;
@@ -956,38 +952,19 @@ export function poseOboe(b: Batch, om: OboeModel, fr: VisualFrame | null, pose: 
   for (const s of om.statics) b.mesh(s, T);
   const br = fr?.breath;
   const blow = br ? br.pressure : 0;
-  const vib = br ? br.vib : 0;
   const focus = fr?.focus ?? null;
   // the fingers for the note the engine plays, held while it sounds and for a moment after
   st.quiet = blow > 0.015 ? 0 : Math.min(9, st.quiet + dt);
   const midi = focus && st.quiet < 0.8 ? (focus.midi ?? null) : null;
   const fingers = midi === null ? 0 : oboeFingersFor(midi);
-  // the standing wave in the bore (reed → open end), for the closed keys' glow
-  const shape = focus?.shapes?.[0] ?? null;
-  const Lb = focus?.lengthM ?? 0;
-  let peak = 0;
-  if (shape) for (let i = 0; i < shape.length; i++) peak = Math.max(peak, Math.abs(shape[i]));
-  const sounding = blow > 0.02 && !!shape && peak > 0 && Lb > 0;
   const lvl = Math.min(1, Math.sqrt(rms) * 3);
+  // the keys, each turned on its rod to where its spring has it: drawn as built, with no light on them
   for (let i = 0; i < om.keys.length; i++) {
     const k = om.keys[i];
     const p = springTo(st.pos, st.vel, i, k.open(fingers) ? 1 : 0, dt, 26, 0.62);
     aboutAxis(st.R, k.p0, k.u, k.sign * k.maxAng * p);
     mulInto(st.W, 0, T, st.R);
-    let g: RGBA | null = null;
-    // a closed key glows faintly with the pressure in the bore under it (up to the open end)
-    if (sounding && k.kind === 'cup' && p < 0.5 && k.x < Lb) {
-      const j = Math.min(shape!.length - 1, Math.round((k.x / Lb) * (shape!.length - 1)));
-      const a = (0.09 + 0.06 * vib) * Math.min(1, blow * 1.5) * (Math.abs(shape![j]) / peak);
-      if (a > 0.003) {
-        st.glow[0] = 1;
-        st.glow[1] = 0.72;
-        st.glow[2] = 0.45;
-        st.glow[3] = a;
-        g = st.glow;
-      }
-    }
-    b.mesh(k.mesh, st.W, g);
+    b.mesh(k.mesh, st.W);
   }
   // the reed: its blades close with its opening (blown shut once a cycle when loud), and shimmer
   const want = fr?.reed ? Math.min(1.3, fr.reed.open) : 1;
@@ -1013,12 +990,6 @@ export function poseOboe(b: Batch, om: OboeModel, fr: VisualFrame | null, pose: 
     mulInto(st.W, 0, T, R);
     b.mesh(bl.mesh, st.W);
   }
-  // the bell's rim shimmers with the level
-  if (lvl > 0.02) {
-    st.glow[0] = 1;
-    st.glow[1] = 0.7;
-    st.glow[2] = 0.42;
-    st.glow[3] = 0.16 * lvl * (0.75 + 0.25 * Math.sin(now * 0.021));
-    b.mesh(om.rim, T, st.glow);
-  } else b.mesh(om.rim, T);
+  // the bell's rim as it is, sounding or not: no light on it
+  b.mesh(om.rim, T);
 }

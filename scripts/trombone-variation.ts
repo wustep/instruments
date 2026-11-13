@@ -4,7 +4,9 @@
 // pitch starts against where it settles (cents: the lips and the slide finding the note); within a held note,
 // the level's shape (where it peaks, how it falls) and how far the level, the brightness and the pitch wander.
 // These are what the engine's player is given to vary by (core/trombone.ts TROMBONE_HUMAN).
-//   npx tsx scripts/trombone-variation.ts [--model [--human 0]] [--bass] [--detached]
+//   npx tsx scripts/trombone-variation.ts [--model [--human 0]] [--bass] [--detached] [--instrument flute]
+// --instrument: another wind read the same way (flute, oboe, clarinet, bassoon: their players, core/winds-human.ts;
+// horn, trumpet, tuba), the trombone if none
 // --model: the engine's own notes (a run of them in one sitting, so its player's stream runs on), read the
 // same way; --human 0: the model alone (what is fitted and judged)
 // --detached: what a player's variation must not cost. A scale of 70 ms notes with 70 ms rests, as a file
@@ -13,7 +15,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { analyzeSustained, decodeWav, segmentNotes, spectrum } from '../packages/engine/src/analysis/index.ts';
-import { createCore, renderInstrument, type TimedEvent } from '../packages/engine/src/core/index.ts';
+import { createCore, INSTRUMENT_INFO, renderInstrument, type InstrumentId, type TimedEvent } from '../packages/engine/src/core/index.ts';
 import { ENS_CACHE, REF_FILES, analyseFile } from './ensemble-refs.ts';
 import { look, q, sd, type Row } from './variation-lib.ts';
 
@@ -21,6 +23,7 @@ const args = process.argv.slice(2);
 const MODEL = args.includes('--model');
 const HUMAN = args.includes('--human') ? Number(args[args.indexOf('--human') + 1]) : 1;
 const BASS = args.includes('--bass');
+const ID = (args.includes('--instrument') ? args[args.indexOf('--instrument') + 1] : 'trombone') as InstrumentId;
 const hz = (m: number) => 440 * 2 ** ((m - 69) / 12);
 
 interface NoteRow extends Row { midi: number; run: string; cents: number; rms: number; attack: number; scoop: number }
@@ -59,7 +62,8 @@ function scoopOf(x: ArrayLike<number>, fs: number, a: number, b: number, f0: num
 
 if (args.includes('--detached')) {
   const FS = 48000;
-  const seq = [53, 55, 57, 58, 60, 58, 57, 55];
+  const lo = ID === 'trombone' ? 53 : Math.round((INSTRUMENT_INFO[ID].lo + INSTRUMENT_INFO[ID].hi) / 2) - 4;
+  const seq = [0, 2, 4, 5, 7, 5, 4, 2].map((d) => lo + d);
   /** the level at a pitch (its first six harmonics) over [t0, t1] */
   const at = (x: Float32Array, midi: number, t0: number, t1: number) => {
     const f0 = hz(midi);
@@ -84,7 +88,7 @@ if (args.includes('--detached')) {
     let lost = 0;
     let worst = 0;
     for (let player = 0; player < 12; player++) {
-      const core = createCore({ sampleRate: FS, instrument: 'trombone', dry: true, params: { human }, player });
+      const core = createCore({ sampleRate: FS, instrument: ID, dry: true, params: { human }, player });
       seq.forEach((m, i) => core.schedule({ type: 'foresee', midi: m, velocity: 80, dur: 0.07 } as never, Math.round((0.1 + i * 0.139) * FS)));
       seq.forEach((m, i) => {
         core.schedule({ type: 'noteOn', midi: m, velocity: 80 }, Math.round((0.1 + i * 0.139) * FS));
@@ -124,17 +128,18 @@ if (MODEL) {
   // a run as the recordings are: each note 2 s, a breath between, the three dynamics
   for (const [dyn, vel] of [['pp', 30], ['mf', 70], ['ff', 112]] as const) {
     const notes: number[] = [];
-    for (let m = BASS ? 34 : 40; m <= (BASS ? 65 : 72); m++) notes.push(m);
+    if (ID === 'trombone') for (let m = BASS ? 34 : 40; m <= (BASS ? 65 : 72); m++) notes.push(m);
+    else for (let m = INSTRUMENT_INFO[ID].lo + 1; m <= INSTRUMENT_INFO[ID].hi - 1; m++) notes.push(m);
     const events: TimedEvent[] = [];
     notes.forEach((m, i) => {
       events.push({ time: 0.05 + 3 * i, event: { type: 'noteOn', midi: m, velocity: vel } });
       events.push({ time: 2.05 + 3 * i, event: { type: 'noteOff', midi: m } });
     });
-    const out = renderInstrument({ sampleRate: fs, instrument: 'trombone', dry: true, params: { human: HUMAN, ...(BASS ? { size: 'bass' } : {}) }, events, duration: 3 * notes.length });
+    const out = renderInstrument({ sampleRate: fs, instrument: ID, dry: true, params: { human: HUMAN, ...(BASS ? { size: 'bass' } : {}) }, events, duration: 3 * notes.length });
     notes.forEach((m, i) => take(out.left, fs, Math.round((0.05 + 3 * i) * fs), Math.round((2.2 + 3 * i) * fs), dyn, dyn, m));
   }
 } else {
-  for (const f of REF_FILES.filter((r) => r.instrument === 'trombone' && (BASS ? r.variant === 'bass' : !r.variant))) {
+  for (const f of REF_FILES.filter((r) => r.instrument === ID && (BASS ? r.variant === 'bass' : !r.variant))) {
     const a = decodeWav(new Uint8Array(readFileSync(join(ENS_CACHE, 'wav', f.file.replace(/\.aiff$/, '.wav')))));
     const x = a.channels[0];
     // (the notes as the fit takes them: one segment a note, its pitch known)
@@ -161,7 +166,8 @@ function own(rs: NoteRow[], key: (r: NoteRow) => number): number[] {
   }
   return out;
 }
-console.log(MODEL ? `the engine's ${BASS ? 'bass' : 'tenor'} trombone, human ${HUMAN}` : `the recorded ${BASS ? 'bass' : 'tenor'} trombone (University of Iowa MIS)`);
+const NAME = ID === 'trombone' ? `${BASS ? 'bass' : 'tenor'} trombone` : ID;
+console.log(MODEL ? `the engine's ${NAME}, human ${HUMAN}` : `the recorded ${NAME} (University of Iowa MIS)`);
 for (const dyn of ['pp', 'mf', 'ff']) {
   const rs = rows.filter((r) => r.dyn === dyn);
   if (!rs.length) continue;
