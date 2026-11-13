@@ -2988,7 +2988,8 @@ test('the vector display: off by default; the toggle redraws every family in blu
   }
   // each knob wears its slot colour
   const slots = await page.evaluate(() => Array.from(document.querySelectorAll('.knob')).map((k) => (k as HTMLElement).style.getPropertyValue('--slot')));
-  expect(slots).toEqual(['#5be381', '#ff5d40', '#ff73cf']);
+  // (the trumpet's four: breath, lips, noise, vibrato, as the horn's)
+  expect(slots).toEqual(['#5be381', '#ff5d40', '#ff73cf', '#eef6f8']);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 'no horizontal scroll').toBeLessThanOrEqual(1);
   // the other pages keep their own look; back on the stage the choice is remembered (and across a reload)
   await page.goto('/#/notes');
