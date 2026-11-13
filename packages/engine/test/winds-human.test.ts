@@ -170,4 +170,81 @@ describe('a player on the woodwinds (winds-human.ts)', () => {
       expect(sd(diff), id).toBeGreaterThan(0.3);
     }
   });
+
+  // (FLUTE_HUMAN's vibrato entry. As first written the vibrato was the breath's alone: once a breath was 0.7 s
+  // old every note had all of it, and a run's notes sat 8–10 ¢ apart, each bent 11–22 ¢: scripts/flute-ab.ts)
+  describe('the flute’s vibrato belongs to the notes long enough to carry one', () => {
+    /** how far the pitch moves inside the note of pitch `m` sounding over [a, b] s (cents, highest less lowest) */
+    const moves = (x: Float32Array, m: number, a: number, b: number) => {
+      const c: number[] = [];
+      for (let t = a; t + 0.04 <= b + 1e-9; t += 0.01) c.push(cents(x, Math.round(t * FS), Math.round(0.04 * FS), hz(m)));
+      return Math.max(...c) - Math.min(...c);
+    };
+    /** a long note, a run joined to it, and the long note the run ends on: [pitch, seconds] */
+    const LINE: [number, number][] = [[76, 1.6], ...[77, 79, 81, 79, 77, 76, 77, 79, 81, 79, 77, 79].map((m): [number, number] => [m, 0.2]), [76, 1.8]];
+    const line = (told: boolean, slur: boolean, human = 1) => {
+      const ev: { time: number; event: Record<string, unknown> }[] = [];
+      const at: number[] = [];
+      let t = 0.05;
+      LINE.forEach(([m, len], i) => {
+        at.push(t);
+        if (told) ev.push({ time: t, event: { type: 'foresee', midi: m, velocity: 76, dur: len } });
+        ev.push({ time: t, event: { type: 'noteOn', midi: m, velocity: 76 } }, { time: t + len + (slur && i < LINE.length - 1 ? 0.03 : 0), event: { type: 'noteOff', midi: m } });
+        t += len;
+      });
+      ev.sort((a, b) => a.time - b.time || (a.event.type === 'noteOff' ? 0 : 1) - (b.event.type === 'noteOff' ? 0 : 1));
+      return { x: renderInstrument({ instrument: 'flute', sampleRate: FS, dry: true, params: { human }, events: ev, duration: t + 0.5 } as never).left, at };
+    };
+
+    it('a file’s run has none, slurred or tongued: its notes are straight and on their pitch; the long notes either side have it', () => {
+      for (const slur of [true, false]) {
+        const { x, at } = line(true, slur);
+        const tag = slur ? 'slurred' : 'tongued';
+        // the first long note has it by its second half, the last by its end
+        expect(moves(x, 76, at[0] + 0.9, at[0] + 1.5), `${tag}: the first long note`).toBeGreaterThan(15);
+        expect(moves(x, 76, at[13] + 1.0, at[13] + 1.7), `${tag}: the last long note`).toBeGreaterThan(15);
+        // …which comes into it: its first third of a second is straighter than its end
+        expect(moves(x, 76, at[13] + 0.08, at[13] + 0.3), `${tag}: the last long note’s beginning`).toBeLessThan(10);
+        const inside: number[] = [];
+        const off: number[] = [];
+        for (let i = 2; i <= 12; i++) {
+          const m = LINE[i][0];
+          inside.push(moves(x, m, at[i] + 0.07, at[i] + 0.19));
+          off.push(cents(x, Math.round((at[i] + 0.08) * FS), Math.round(0.1 * FS), hz(m)));
+        }
+        // (with the breath's vibrato on every note: 11–22 ¢ inside a note, the notes up to 20 ¢ off)
+        expect(Math.max(...inside), `${tag}: inside a run’s note`).toBeLessThan(5);
+        expect(Math.max(...off.map(Math.abs)), `${tag}: a run’s note off its pitch`).toBeLessThan(8);
+      }
+    });
+
+    it('by hand (no length told) a run sheds it in two notes; a note held on gets it back', () => {
+      const { x, at } = line(false, true);
+      expect(moves(x, 76, at[0] + 0.9, at[0] + 1.5)).toBeGreaterThan(15);
+      for (let i = 3; i <= 12; i++) expect(moves(x, LINE[i][0], at[i] + 0.07, at[i] + 0.19), `note ${i}`).toBeLessThan(8);
+      expect(moves(x, 76, at[13] + 1.0, at[13] + 1.7)).toBeGreaterThan(15);
+    });
+
+    it('a slow slurred line is one vibrato: a long note joined to a long note has it from its beginning', () => {
+      const ev = [
+        { time: 0.05, event: { type: 'foresee', midi: 76, velocity: 76, dur: 1.5 } },
+        { time: 0.05, event: { type: 'noteOn', midi: 76, velocity: 76 } },
+        { time: 1.55, event: { type: 'foresee', midi: 79, velocity: 76, dur: 1.5 } },
+        { time: 1.55, event: { type: 'noteOn', midi: 79, velocity: 76 } },
+        { time: 1.58, event: { type: 'noteOff', midi: 76 } },
+        { time: 3.05, event: { type: 'noteOff', midi: 79 } },
+      ];
+      const x = renderInstrument({ instrument: 'flute', sampleRate: FS, dry: true, params: { human: 1 }, events: ev, duration: 3.6 } as never).left;
+      expect(moves(x, 79, 1.65, 2.1)).toBeGreaterThan(15);
+    });
+
+    it('the model alone is as it was: its breath vibrato over the breath, not the note', () => {
+      // (human 0 is bit-identical to the engine before: scripts/winds-human-same.ts; here, that the entry is not in it)
+      const a = line(true, true, 0).x;
+      const b = line(false, true, 0).x;
+      // told ahead or not, the model's run differs only by what a file's notes are given (the quick attack),
+      // and neither has a vibrato to shed
+      for (const x of [a, b]) expect(moves(x, 76, 0.95, 1.55)).toBeLessThan(3);
+    });
+  });
 });

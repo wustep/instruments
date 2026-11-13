@@ -54,10 +54,16 @@ export interface FluteParams {
  *  length ±70 % and more (the model's ±14–27 %). Let go, it is 10 dB down in 68 ms (the model's 30). */
 export const FLUTE_HUMAN: WindHuman = {
   seed: 313,
-  wander: 3,
-  slow: 2,
+  // (the pitch's walk: set first by its roughness from one tenth of a second to the next alone (3 and 2), it
+  // put stretches of 0.15 s of one held note 2.4 ¢ apart and of 0.5 s 1.5, where the flautist's are 1.4 and
+  // 0.9: scripts/flute-pitch-walk.ts. A quick note is such a stretch; now 1.5 and 1.0)
+  wander: 1.8,
+  slow: 1.2,
   slowTau: 1.2,
+  // (where a note is put: the recorded notes' ±3–5 ¢ are long tones played alone. A quick note keeps 0.4 of
+  // it: with all of it a run's notes sat 3.2–3.5 ¢ apart, the same pitch 3 ¢ from itself two notes on)
   place: 2.5,
+  placeQuick: 0.4,
   breath: 0.25,
   breathSlow: 0.4,
   breathTau: 1.5,
@@ -71,7 +77,28 @@ export const FLUTE_HUMAN: WindHuman = {
   // (each set so that the vibrato read as the recordings are, its irregularity included, is theirs: pitch
   // 10.5 / 12.1 / 15.5 ¢, the fundamental 1.0 / 1.3 / 1.0 dB, the harmonics above 5.5 / 2.6 / 3.8, 11 % and 20 %
   // from cycle to cycle, 64 % one sine; scripts/winds-vibrato.ts --instrument flute [--model])
-  vibrato: { rate: 4.9, breathRate: 0.23, cents: [12.4, 14.1, 18.1], fundDb: [0.95, 1.3, 1.0], upperDb: [6.7, 3.6, 5.0], breath: [1, 1, 1], rateWander: 0.3, depthWander: 0.22 },
+  //
+  // Its entry, note by note. As first written the vibrato was the breath's alone: 0.7 s into a breath every
+  // note had all of it from its first millisecond, and the flute was worse for it than with none. A run's
+  // notes each caught the swing where it stood: notes under 0.3 s sat 8–10 ¢ apart (the worst 20), the same
+  // pitch 7–8 ¢ from itself a moment later, each bent 11–22 ¢ and its harmonics 2–3 dB while it lasted
+  // (scripts/flute-ab.ts; without the vibrato: 0.5 ¢ apart). The recordings are long tones and say when it
+  // comes into one: half its depth 0.6 s in at mf and ff (the quartiles 0.53–0.77), sooner pp. They say
+  // nothing of quick notes, which no flautist puts a vibrato on. So: a note a file says is short has none
+  // (under 0.3 s; all of it from 0.8 s), a note from silence gets it over 0.3–0.9 s, and a note joined to a
+  // line already carrying one keeps what the line had, up to its own share: a slow slurred line is one
+  // vibrato, a run has none, and it comes back on the long note the run ends on.
+  vibrato: {
+    rate: 4.9,
+    breathRate: 0.23,
+    cents: [12.4, 14.1, 18.1],
+    fundDb: [0.95, 1.3, 1.0],
+    upperDb: [6.7, 3.6, 5.0],
+    breath: [1, 1, 1],
+    rateWander: 0.3,
+    depthWander: 0.22,
+    entry: { len: [0.3, 0.8], fresh: [0.3, 0.9], joined: [0.12, 0.5], hand: 0.35, out: 0.06 },
+  },
 };
 /** the vibrato parameter's default: the player's vibrato is scaled by the parameter over it */
 const FLUTE_VIBRATO = 0.06;
@@ -763,7 +790,8 @@ export class FluteCore implements InstrumentCore {
       this.pl.step(dt, v01, vibEnv, P.vibrato / FLUTE_VIBRATO);
       vibShape = this.pl.shape;
     }
-    const vib = H > 0 ? 1 + P.vibrato * this.pl.breathVib * vibEnv * vibShape : 1 + P.vibrato * vibEnv * vibShape;
+    // (the player's vibrato is each note's own, FLUTE_HUMAN's entry: pl.env; the model's, the breath's)
+    const vib = H > 0 ? 1 + P.vibrato * this.pl.breathVib * this.pl.env * vibShape : 1 + P.vibrato * vibEnv * vibShape;
     this.vibNow = vib - 1;
     const velScale = V.driveLo + (V.driveHi - V.driveLo) * Math.pow(v01, V.driveCurve);
     const pBlow = this.nominalPressure(this.note) * this.pressure * vib * P.breath * (V.pressLo + (V.pressHi - V.pressLo) * v01) * this.expression;

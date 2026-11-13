@@ -50,6 +50,28 @@ export interface WindVibrato {
    *  cycle): no cycle like the last */
   rateWander: number;
   depthWander: number;
+  /** how it comes into each note (the flute's). Without it the vibrato is the breath's alone: once a breath is
+   *  0.7 s old every note of it has the whole vibrato from its first millisecond, a run's sixteenths as a
+   *  long tone (the reeds', whose few cents hide it) */
+  entry?: VibratoEntry;
+}
+
+/** A vibrato belongs to the notes long enough to carry one. Measured on the recordings it comes into a note
+ *  some way in; what no long-tone recording says, and every flautist does: a quick note has none.
+ *  All in seconds but `hand`. */
+export interface VibratoEntry {
+  /** a note known to last len[0] or less (a file's) has none; from len[1], the whole of it */
+  len: [number, number];
+  /** a note from silence: none before fresh[0], the whole from fresh[1] */
+  fresh: [number, number];
+  /** a note joined to the last (slurred, or tongued over the breath): what the line had carries on, up to
+   *  this note's own; the rest of its own comes in from joined[0] to joined[1] */
+  joined: [number, number];
+  /** a joined note nothing told the length of (a key in the hand): this share of what the line had carries
+   *  on, so that a run played by hand sheds it in two notes and a slow line keeps most of it */
+  hand: number;
+  /** it leaves over this long (a time constant) */
+  out: number;
 }
 
 export interface WindHuman {
@@ -60,6 +82,9 @@ export interface WindHuman {
   slow: number;
   slowTau: number;
   place: number;
+  /** of that placing, the share a note known to be quick keeps (mono.ts quickness; 1 if not given): a run's
+   *  notes are fingered, not each put by ear */
+  placeQuick?: number;
   /** the breath's level (dB, standard deviations): its wander over a held note (quick, and slow over
    *  breathTau s), the more the softer (at mf as given, about twice that pp and half ff: the Iowa players' held
    *  notes wander 3–14 times as far pp as ff), and a tongued note's own strength */
@@ -97,6 +122,11 @@ const TAPER_GAP = [0.15, 0.4];
  *  the rate over a note stays (the Iowa flautist: 11 % from one cycle's length to the next, and 67 % of the
  *  pitch's movement one sine; a walk over a cycle and more drifts the rate itself: 12 % and 53 %) */
 const RATE_TAU = 0.03;
+/** 0 … 1, eased at both ends */
+const ease = (x: number): number => {
+  const c = clamp(x, 0, 1);
+  return c * c * (3 - 2 * c);
+};
 /** a value given at pp, mf and ff (velocities 30, 70, 112), at the dynamic v01 */
 const atDyn = (t: readonly [number, number, number], v01: number): number =>
   v01 < 70 / 127 ? t[0] + (t[1] - t[0]) * clamp((v01 - 30 / 127) / (40 / 127), 0, 1) : t[1] + (t[2] - t[1]) * clamp((v01 - 70 / 127) / (42 / 127), 0, 1);
@@ -112,6 +142,15 @@ export class WindPlayer {
   cents = 0;
   shape = 0;
   breathVib = 1;
+  /** how much of the vibrato there is now (0 … 1): the core's own entry over the breath, or this note's
+   *  (VibratoEntry) */
+  env = 0;
+  /** the note's own vibrato (VibratoEntry): the share it has when it is whole, what it took over from the
+   *  line, when it comes in, and how long the note has sounded (s) */
+  private vibFull = 1;
+  private vibCarry = 0;
+  private vibIn: [number, number] = [0, 1];
+  private vibAge = 0;
   private hum: Human;
   private fs: number;
   private placeC = 0;
@@ -172,6 +211,14 @@ export class WindPlayer {
     this.noteAt = frame;
     this.heldFor = -1;
     this.told = len < Infinity;
+    const e = this.spec.vibrato?.entry;
+    if (e) {
+      const whole = (len - e.len[0]) / (e.len[1] - e.len[0]);
+      this.vibFull = this.told ? ease(whole) : 1;
+      this.vibCarry = breath ? 0 : Math.min(this.env, this.vibFull) * (this.told ? 1 : e.hand);
+      this.vibIn = breath ? e.fresh : e.joined;
+      this.vibAge = 0;
+    }
     const H = this.H;
     if (!(H > 0)) {
       this.rise = this.push = 1;
@@ -185,7 +232,7 @@ export class WindPlayer {
     const d = h.near();
     if (tongued) this.strengthDb = H * s.strength * a;
     if (midi !== this.placeOf) {
-      this.placeC = H * s.place * b;
+      this.placeC = H * s.place * b * (1 - (1 - (s.placeQuick ?? 1)) * quickness(len));
       this.placeOf = midi;
     }
     // (a note known to be short: less of the attack's variation, not none: a run's notes are not stamped)
@@ -220,6 +267,13 @@ export class WindPlayer {
     let dB = this.strengthNow + H * soft * (s.breath * this.bFastS + s.breathSlow * this.bSlow);
     let dBu = s.bright * dB;
     const V = s.vibrato;
+    if (V?.entry) {
+      // this note's own share of the vibrato: what it took over, and its own coming in; out quickly
+      this.vibAge += dt;
+      const to = Math.max(this.vibCarry, this.vibFull * ease((this.vibAge - this.vibIn[0]) / (this.vibIn[1] - this.vibIn[0])));
+      this.env = to < this.env ? to + (this.env - to) * Math.exp(-dt / V.entry.out) : to;
+      vibEnv = this.env;
+    } else this.env = vibEnv;
     if (V) {
       // the rate a walk over less than a cycle (each cycle its own length, the rate over a note steady), the
       // swing over about a cycle
@@ -320,6 +374,7 @@ export class WindPlayer {
 
   /** silence at once (a panic): the filter's state, the gains back to the model's */
   reset(): void {
+    this.env = this.vibCarry = 0;
     this.sL.fill(0);
     this.sR.fill(0);
     this.gF = this.gF0 = this.gU = this.gU0 = 1;
