@@ -43,8 +43,8 @@
 // (the corner of the fall moves up with the dynamic too).
 
 import { clamp } from './util.ts';
-import { LipConeCore, type ConeFingering, type LipConeParams, type LipConeVoice, type TuningTable } from './lipcone.ts';
-import { valveFingering, VALVES3 } from './valves.ts';
+import { LipConeCore, type ConeFingering, type LipConeHuman, type LipConeParams, type LipConeVoice, type TuningTable } from './lipcone.ts';
+import { partialCents, valveFingering, valveSharp, VALVES3 } from './valves.ts';
 import hornTuning from './horn-tuning.json';
 
 export type HornParams = LipConeParams;
@@ -97,6 +97,45 @@ export function hornFingering(m: number): HornFingering {
 
 /** the tube's length (m) for a fingering: the side's open tube lengthened by its valves */
 export const hornTubeLength = (f: HornFingering): number => (f.side === 'F' ? HORN_F_LENGTH : HORN_BB_LENGTH) * Math.pow(2, f.lower / 12);
+
+/** What a horn player leaves of a fingering's own intonation (cents; + sharp), as the tuba's (tuba.ts
+ *  tubaIntonation): 15 % of the valves' sharpness when two or more are down, never more than 12 ¢, and half
+ *  of a partial's distance from equal temperament (the Iowa hornist's tenth-partial notes, C♯5 and D5, are
+ *  20 ¢ under their neighbours at mf and ff: he leaves more than that; his fifth-partial ones are not flat). */
+export function hornIntonation(f: HornFingering): number {
+  return Math.min(12, 0.15 * valveSharp(f.valves)) + 0.5 * partialCents(f.partial);
+}
+
+/** The horn's player (lipcone.ts LipConeHuman), by what the University of Iowa MIS hornist's notes differ by
+ *  (scripts/trombone-variation.ts --instrument horn; the model alone in brackets). A held note's level
+ *  peaks an eighth to a quarter of the way through a two-second note (at once) and then falls 0.2–0.3 dB/s
+ *  (not at all), wandering 0.05–0.09 dB (0.02–0.03); its pitch wanders 2–4 ¢ (0.0). From one note to the
+ *  next the pitch stands ±6–10 ¢ from the run's own tuning (±0.1: his were played alone with nothing to tune
+ *  to, so less of it is given here: the fingering's own intonation and ±3 ¢ by ear), the strength ±0.5–0.8
+ *  dB (±0.06), the attack's length ±40–50 % (±7 %). No vibrato (he has none). A note known to be short
+ *  gets less of the attack's variation, a quick one none. */
+export const HORN_HUMAN: LipConeHuman<HornFingering> = {
+  seed: 581,
+  bloom: 0.18,
+  bloomTau: 0.22,
+  sag: 0.1,
+  sagTau: 2.5,
+  drift: 0.02,
+  wander: 5,
+  slow: 3,
+  slowTau: 1.2,
+  place: 3,
+  hold: 0.25,
+  kick: 0.12,
+  rise: 0.3,
+  vel: 4,
+  scoop: 8,
+  scoopTau: 0.05,
+  puff: 3,
+  puffTau: 0.03,
+  quick: true,
+  intonation: hornIntonation,
+};
 
 /** The voicing (lipcone.ts LipConeVoice): the lips, the bore's losses and the radiation's colour. Fitted to
  *  the University of Iowa MIS horn (pp/mf/ff, B♭1–F5) with scripts/fit-horn.ts on the fit half of its notes
@@ -163,6 +202,7 @@ export class HornCore extends LipConeCore<HornFingering> {
         // it; its ff, −17.5 dB, sits with the Iowa trumpet's −16.9 and bassoon's −18.1)
         gain: 0.5617,
         seed: 60,
+        human: HORN_HUMAN,
         fingering: hornFingering,
         tubeLength: hornTubeLength,
         prep: (fg) => `${fg.side === 'Bb' ? 'B♭ side' : 'F side'}, valves ${fg.valves}, partial ${fg.partial}`,

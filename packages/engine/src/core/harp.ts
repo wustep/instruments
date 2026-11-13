@@ -329,7 +329,11 @@ export const HARP_VOICE: HarpVoice = {
   w1: 21.68,
   wPow: 2.308,
   wCorner: 0.25,
-  wGain: -8.82,
+  // (−8.82 as fitted with everything else; set by its own measure since: the wire strings' plucks then stood
+  // 3.2 dB further under their recordings than the gut strings' did, mean level error −0.1 dB against +3.1,
+  // a step of 9 dB down from A2 to G2 where the recorded harp's is 5–6: scripts/calibrate-harp.ts --table;
+  // the judge: NO CLEAR CHANGE, held-out level error 3.50 → 3.43)
+  wGain: -5.6,
   stiff: 0.000109,
   stiffOct: 2.816,
   stiffWire: 4.69e-05,

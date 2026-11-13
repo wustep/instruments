@@ -26,8 +26,9 @@
 //
 // Live: the keys follow the oboe's standard fingering for the engine's note (oboe-fingering.ts, the
 // chart the 2D stage uses): each plate seats with a small bounce or overshoots a little off its stop
-// as it opens (the flute's springs); the reed's blades close and shimmer with its opening
-// (`fr.reed.open`: blown shut once a cycle when loud). The keys, their pads, the tone holes and the bell
+// as it opens (the flute's springs); the reed's blades close with its opening
+// (`fr.reed.open`: blown shut once a cycle when loud, a hair's tremor with the level) and the breath goes into
+// the reed's tip (winds3d breathIn: faint steel streams, as on the brass). The keys, their pads, the tone holes and the bell
 // are never lit or tinted: silver, cork, leather and wood, sounding or not. A moment after the oboe stops sounding the keys go back to rest.
 // Approximations: the linkages are shown, not simulated (each key springs to the state the mechanism
 // gives it), the trill keys never open (the chart has no trills), and the half-hole is the small
@@ -36,7 +37,7 @@ import type { VisualFrame } from '@piano-model/engine';
 import { HALF, L1, L2, L3, LB, LBB, LEB, LGS, OCT1, OCT2, R1, R2, R3, RC, RCS, REB, RF, oboeFingersFor } from '../oboe-fingering.ts';
 import { type Batch, type Mat4, type Mesh, type Vec3, add, chain, cross, dot, mulInto, norm, rotX, rotY, rotZ, scale, sub, translate, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, ellipsoid, grid, spline, variant, type Mat } from './mesh.ts';
-import type { WindPose } from './winds3d.ts';
+import { breathIn, type WindPose } from './winds3d.ts';
 
 type P2 = [number, number];
 const TAU = Math.PI * 2;
@@ -992,4 +993,6 @@ export function poseOboe(b: Batch, om: OboeModel, fr: VisualFrame | null, pose: 
   }
   // the bell's rim as it is, sounding or not: no light on it
   b.mesh(om.rim, T);
+  // the breath into the reed's tip while the note is blown, as on the brass (the reed's tip is the model's x = 0)
+  if (blow > 0.02) breathIn(b, T, [0, 0, 0], [-1, 0, 0], [0, 0, 1], Math.min(1, 0.35 + lvl) * (0.7 + 0.3 * Math.min(1, st.open)), now);
 }

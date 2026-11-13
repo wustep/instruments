@@ -530,7 +530,8 @@ test('all sixteen instruments: selectable in the UI and rendered through the wor
   for (const [id, midi] of [['violin', 69], ['viola', 62], ['cello', 48], ['bass', 40], ['harp', 60], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['bassoon', 50], ['horn', 53], ['trumpet', 65], ['trombone', 53], ['tuba', 41], ['timpani', 48], ['glockenspiel', 84]] as const) {
     const out = await page.evaluate(async ([inst, m]) => {
       const { renderOffline } = (window as any).__engine;
-      const buf: AudioBuffer = await renderOffline({ instrument: inst, sampleRate: 48000, duration: 1.6, params: { room: 0, vibrato: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: 90 } }] });
+      // (the instrument's own pitch: `human` 0, no player putting the note a few cents off by ear)
+      const buf: AudioBuffer = await renderOffline({ instrument: inst, sampleRate: 48000, duration: 1.6, params: { room: 0, vibrato: 0, human: 0 }, events: [{ time: 0.02, event: { type: 'noteOn', midi: m, velocity: 90 } }] });
       const x = buf.getChannelData(0);
       // autocorrelation pitch over 0.9–1.4 s
       const fs = 48000, f = 440 * 2 ** ((m - 69) / 12), s0 = Math.round(0.9 * fs), W = Math.round(0.4 * fs);
@@ -2987,7 +2988,8 @@ test('the vector display: off by default; the toggle redraws every family in blu
   }
   // each knob wears its slot colour
   const slots = await page.evaluate(() => Array.from(document.querySelectorAll('.knob')).map((k) => (k as HTMLElement).style.getPropertyValue('--slot')));
-  expect(slots).toEqual(['#5be381', '#ff5d40', '#ff73cf']);
+  // (the trumpet's four: breath, lips, noise, vibrato, as the horn's)
+  expect(slots).toEqual(['#5be381', '#ff5d40', '#ff73cf', '#eef6f8']);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 'no horizontal scroll').toBeLessThanOrEqual(1);
   // the other pages keep their own look; back on the stage the choice is remembered (and across a reload)
   await page.goto('/#/notes');

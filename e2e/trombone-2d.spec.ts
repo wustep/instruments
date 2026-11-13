@@ -67,6 +67,9 @@ test('the trombone alone in 2D, both styles: whole on the stage (its slide all t
   await page.goto('/trombone');
   await startAudio(page);
   await page.evaluate(() => (window as any).__piano.setInstrument('trombone'));
+  // (the chart's positions: the slide where the model has it, not where a player puts it by ear, a few
+  // millimetres either side: `human` 0. Main failed here since the trombone was given its player: 6.9 mm)
+  await page.evaluate(() => (window as any).__piano.setParams({ human: 0 }));
   // (the phone: the Pixel 7, then 390×844, the narrowest the layout is kept for)
   for (const size of phone ? [null, { width: 390, height: 844 }] : [null]) {
     if (size) await page.setViewportSize(size);

@@ -12,7 +12,7 @@
 //     button (or the cello's endpin), a chinrest; the strings as wound and plain steel, with silk;
 //   the bow: an octagonal cambered stick, the head with its face plate, the hair ribbon, the ebony
 //     frog with ferrule, slide and pearl eye, the winding, the thumb leather and the button.
-// Live: the top lit by the body's modes, the strings glowing with their levels, the stopping point a
+// Live: the strings glowing with their levels, the stopping point a
 // glowing bar on the fingerboard under its string (rocking with the vibrato), the bowed string's
 // shape moving in the bowing direction, and the bow at its contact point and hair position.
 //

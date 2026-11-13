@@ -32,7 +32,7 @@
 
 import { clamp } from './util.ts';
 import { LipConeCore, type ConeFingering, type LipConeHuman, type LipConeParams, type LipConeVoice, type TuningTable } from './lipcone.ts';
-import { valveFingering, VALVES4 } from './valves.ts';
+import { partialCents, valveFingering, valveSharp, VALVES4 } from './valves.ts';
 import tubaTuning from './tuba-tuning.json';
 
 export type TubaParams = LipConeParams;
@@ -69,24 +69,9 @@ export function tubaFingering(m: number): TubaFingering {
 /** the tube's length (m) for a fingering: the open tube lengthened by its valves */
 export const tubaTubeLength = (f: TubaFingering): number => TUBA_LENGTH * Math.pow(2, f.lower / 12);
 
-/** each valve's loop lowers the open tube by this many semitones (valves 1–4) */
-const VALVE_SEMIS = [2, 1, 3, 5];
-/** How sharp a fingering stands before the player does anything about it (cents): its valves' loops, each
- *  cut to lower the open tube by its own interval, add up to less than the note's tube when two or more
- *  are down. One valve, or none: 0. */
-export function tubaValveSharp(valves: string): number {
-  let add = 0;
-  let semis = 0;
-  for (const v of valves.split('+')) {
-    const k = Number.parseInt(v, 10);
-    if (!(k >= 1 && k <= 4)) continue;
-    add += Math.pow(2, VALVE_SEMIS[k - 1] / 12) - 1;
-    semis += VALVE_SEMIS[k - 1];
-  }
-  return 1200 * Math.log2(Math.pow(2, semis / 12) / (1 + add));
-}
-/** how far the tube's n-th partial lies from equal temperament's nearest note (cents: the 5th, −14) */
-export const partialCents = (n: number): number => 1200 * Math.log2(n) - 100 * Math.round(12 * Math.log2(n));
+export { partialCents };
+/** how sharp a fingering's valves stand together (valves.ts valveSharp) */
+export const tubaValveSharp = valveSharp;
 /** What a player leaves of it (cents; + sharp). The valves' sharpness is pulled out with a slide and the
  *  lips: all but 15 % of it, and never more than 12 ¢ left (the Iowa tubist's notes with two valves or more
  *  stand within a few cents of the open ones; his E♭1 at fortissimo, 2+3+4 unpulled, is 76 ¢ sharp). Half of

@@ -30,7 +30,8 @@
 //
 // Live: the keys and rings follow the bassoon's Heckel fingering for the engine's note (bassoon-
 // fingering.ts, the chart the 2D stage uses), on springs, back to rest a moment after it stops; the
-// reed's blades close with its opening (`fr.reed.open`) and shimmer. The keys, the rings, their pads, the
+// reed's blades close with its opening (`fr.reed.open`, a hair's tremor with the level) and the breath goes
+// into the reed's tip (winds3d breathIn: faint steel streams, as on the brass). The keys, the rings, their pads, the
 // tone holes and the bell are never lit or tinted: silver, leather and wood, sounding or not.
 // Approximations: the linkages are shown, not simulated (each pad springs to the state its touches give
 // it); the trill keys never move (the chart has no trills); the keys' places are the photograph's where
@@ -40,7 +41,7 @@ import { FA, FB, FD, L3, LB, LBB, LC, LCS, LD, LEB, PF, PFS, PGS, R2, R3, RBB, R
 import { type Batch, type Mat4, type Mesh, type Vec3, add, chain, cross, dot, mulInto, norm, rotY, rotZ, scale, sub, translate, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, ellipsoid, grid, variant, type Mat } from './mesh.ts';
 import { aboutAxis, fillet, frameY, lx, pchip, revolve, spline3, springTo, sweep } from './oboe3d.ts';
-import type { WindPose } from './winds3d.ts';
+import { breathIn, type WindPose } from './winds3d.ts';
 
 type P2 = [number, number];
 const TAU = Math.PI * 2;
@@ -957,6 +958,8 @@ export function poseBassoon(b: Batch, bm: BassoonModel, fr: VisualFrame | null, 
   }
   // the bell as it is, sounding or not: wood and its bead ring, no light on it
   b.mesh(bm.bell, T);
+  // the breath into the reed's tip while the note is blown, as on the brass (the reed's own frame: x runs butt to tip)
+  if (blow > 0.02) breathIn(b, T, xform(F, [REED_L * mm, 0, 0]), [F[0], F[1], F[2]], [F[4], F[5], F[6]], Math.min(1, 0.35 + lvl) * (0.7 + 0.3 * Math.min(1, st.open)), now);
 }
 
 /** tests: the measures the model is built to (mm from the boot's foot) */

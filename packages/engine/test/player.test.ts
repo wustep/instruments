@@ -71,8 +71,10 @@ describe('a second player of the same instrument', () => {
   it('its intonation is a few cents off the first player’s (+4, −4, +8 ¢), the trumpet’s too', () => {
     expect([0, 1, 2, 3, 4].map(playerCents)).toEqual([0, 4, -4, 8, -8]);
     const f = 440 * Math.pow(2, (67 - 69) / 12);
-    const a = measurePeak(run('trumpet', 67, 0, 1.4), f, 0.5, 0.6)!;
-    const b = measurePeak(run('trumpet', 67, 1, 1.4), f, 0.5, 0.6)!;
+    // (the players' own tuning, not where each happens to put this note: `human` 0)
+    const tpt = (player: number) => renderInstrument({ sampleRate: FS, instrument: 'trumpet', events: note(67, 1.4), duration: 1.4, dry: true, player, params: { human: 0 } as never }).left;
+    const a = measurePeak(tpt(0), f, 0.5, 0.6)!;
+    const b = measurePeak(tpt(1), f, 0.5, 0.6)!;
     expect(cents(b.f, a.f)).toBeGreaterThan(2.5);
     expect(cents(b.f, a.f)).toBeLessThan(5.5);
   });

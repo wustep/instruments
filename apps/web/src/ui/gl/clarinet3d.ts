@@ -28,7 +28,8 @@
 // Live: the rings and keys follow the clarinet's Boehm fingering for the engine's note (clarinet-
 // fingering.ts, the chart the 2D stage uses): each pad seats with a small bounce or overshoots a little
 // off its stop as it opens (the oboe's springs); the reed's tip curls onto the lay with its opening
-// (`fr.reed.open`: blown shut once a cycle when loud) and shimmers. The rings, the keys, their pads, the
+// (`fr.reed.open`: blown shut once a cycle when loud, a hair's tremor with the level), and the breath goes
+// into the mouthpiece (winds3d breathIn: faint steel streams, as on the brass). The rings, the keys, their pads, the
 // tone holes and the bell are never lit or tinted: silver, pad skin and wood, sounding or not. A moment after the clarinet stops sounding the keys go back to rest.
 // Approximations: the linkages are shown, not simulated (each key springs to the state the mechanism
 // gives it: the low pads close with the little fingers' touches through their clutches, the bridge and
@@ -38,7 +39,7 @@ import { L1, L2, LA, LCS, LE, LFS, LGS, R1, R2, R3, RAB, RE, REG, RF, SEB, T, cl
 import { type Batch, type Mat4, type Mesh, type Vec3, chain, cross, dot, mulInto, norm, rotX, rotY, rotZ, scale, sub, translate, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, ellipsoid, extrude, grid, spline, variant, type Mat } from './mesh.ts';
 import { aboutAxis, dome, fillet, frameY, lx, pchip, pipe, revolve, spline3, springTo, sweep } from './oboe3d.ts';
-import type { WindPose } from './winds3d.ts';
+import { breathIn, type WindPose } from './winds3d.ts';
 
 type P2 = [number, number];
 const TAU = Math.PI * 2;
@@ -973,6 +974,8 @@ export function poseClarinet(b: Batch, cm: ClarinetModel, fr: VisualFrame | null
   }
   // the bell as it is, sounding or not: no light on it
   b.mesh(cm.bell, T);
+  // the breath into the mouthpiece's tip while the note is blown, as on the brass (the tip is the model's x = 0)
+  if (blow > 0.02) breathIn(b, T, [0, 0, 0], [-1, 0, 0], [0, 0, 1], Math.min(1, 0.35 + lvl) * (0.7 + 0.3 * Math.min(1, st.open)), now);
 }
 
 /** tests: the measures the model is built to (mm from the mouthpiece's tip) */

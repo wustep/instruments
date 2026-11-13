@@ -19,7 +19,7 @@ import type { KeySummary } from '../api/messages.ts';
 import type { PianoEvent } from './piano-core.ts';
 import { designLossFilter, onePolePhaseDelay, biquadHighpass, biquadLowpass, biquadPeaking, biquadHighShelf } from './filters.ts';
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
-import { LN1000, clamp, gauss, mulberry32, nextPow2, playerCents, playerSeed } from './util.ts';
+import { Human, LN1000, clamp, gauss, mulberry32, nextPow2, playerCents, playerSeed } from './util.ts';
 import bowedFit from './bowed-fit.json';
 
 export interface BowedParams {
@@ -41,7 +41,22 @@ export interface BowedParams {
   bowChangeTime: number;
   /** orchestra mode: where it sits on the stage (post.ts Seat); none, the single instrument's place */
   seat?: Seat | null;
+  /** how much of the left hand's own placing (BOWED_HUMAN): 0 every stopped note on the model's own pitch
+   *  (what is fitted and judged; the engine before the hand had it) … 1 a finger put down by ear */
+  human?: number;
 }
+
+/** The left hand. A string player has no frets: a finger is put down where the ear expects the note, a few
+ *  cents either side of it (`place`, cents, a standard deviation), stays there while the note is bowed again,
+ *  and is put down anew once it has been lifted; an open string is the string. (The cello's finger then
+ *  follows its ear: design.byEar.) The rest of what no two notes have alike was the strings' already: each
+ *  note's vibrato begins at its own phase and rate and wanders, with the bow's speed and force (design.wander),
+ *  and the bow's strokes are planned from what is to come (foresee). Players' intonation scatters by 5–10 ¢
+ *  and more on isolated notes (the Iowa string runs' notes stand ±13–22 ¢ from their runs' own tuning, read
+ *  roughly: scripts/trombone-variation.ts --instrument violin); less is given here, as to the winds: those
+ *  notes were played alone with nothing to tune to. Scaled by `human`; a seeded stream of its own, so the
+ *  same notes give the same samples and `human` 0 is the engine as it was, bit for bit. */
+export const BOWED_HUMAN = { seed: 584, place: 4 };
 
 interface StringDef {
   name: string;
@@ -412,7 +427,11 @@ const BASS: BowedDesign = {
   // to 10 dB louder than its neighbours (median step between neighbouring notes 6.4 dB at mf; the
   // Iowa bass's 3.0 dB; 2.5×: 4.5 dB). A bass's large, thin plates radiate their low modes away fast.
   signature: [
-    { f: 60, eta: 0.1, m: 4.2, rad: 1.0 },
+    // (the air mode radiated at 1.0 at first: B1–C♯2, whose fundamentals lie on it, then stood 6–11 dB over
+    // the Iowa bass's beside its other notes at every dynamic, C♯2 10 dB over its neighbours as played:
+    // scripts/levels-vs-refs.ts --only bass --notes, scripts/levels-compass.ts. At 0.5: +1…+4 dB. The judge:
+    // NO CLEAR CHANGE, held-out 1.89 → 1.83, its level error 7.46 → 6.75 dB)
+    { f: 60, eta: 0.1, m: 4.2, rad: 0.5 },
     { f: 88, eta: 0.075, m: 6.8, rad: 0.1 },
     { f: 105, eta: 0.055, m: 3.4, rad: 0.3 },
     { f: 125, eta: 0.055, m: 3.6, rad: 1.0 },
@@ -627,6 +646,9 @@ class BowedString {
    *  slip that began the last period, the loop length summed per sample since, the last period's
    *  length, and this control block's period errors (sounding − intended, cents) */
   ear = 0;
+  /** where the finger was put for this note (cents: BOWED_HUMAN), and the note it was put for (−1: lifted) */
+  place = 0;
+  placeMidi = -1;
   Pn = 100;
   relAt = -1;
   dSum = 0;
@@ -684,6 +706,8 @@ export class BowedCore implements InstrumentCore {
   private room: Room;
   private limiter: Limiter;
   private rng: () => number;
+  /** the left hand's placing (BOWED_HUMAN): its stream */
+  private hum: Human;
   private expression = 1;
   private modwheel = -1;
   /** live bow-pressure controller: mod wheel / breath / expression (1 = as the note asked) */
@@ -778,6 +802,7 @@ export class BowedCore implements InstrumentCore {
     };
     // (the performer's randomness: vibrato phase, rate and wander, bow noise; another player's own)
     this.rng = mulberry32(playerSeed(this.design.seed, opts.player));
+    this.hum = new Human(BOWED_HUMAN.seed + this.design.seed, opts.player);
     // and the player's intonation: a constant bend (0 for the first player)
     this.tune = playerCents(opts.player) / 100;
     this.bend = this.tune;
@@ -923,6 +948,14 @@ export class BowedCore implements InstrumentCore {
   private setStopped(s: BowedString, m: number, immediate = false): void {
     s.midi = m;
     s.lifting = false;
+    // the finger is put down by ear (BOWED_HUMAN): anew for a new note, where it was for the same one
+    if (m <= s.def.open) {
+      s.place = 0;
+      s.placeMidi = -1;
+    } else if (m !== s.placeMidi) {
+      s.placeMidi = m;
+      s.place = clamp(this.params.human ?? 1, 0, 1) * BOWED_HUMAN.place * this.hum.near();
+    }
     // design.byEar: a new note, a new finger
     s.ear = 0;
     s.relAt = -1;
@@ -1826,7 +1859,7 @@ export class BowedCore implements InstrumentCore {
         s.errN = 0;
         s.errT = 0;
       }
-      s.Dtarget = s.D0 * Math.pow(2, -(cents + bendC + s.ear) / 1200);
+      s.Dtarget = s.D0 * Math.pow(2, -(cents + bendC + s.ear + s.place) / 1200);
       s.Dtap = s.D0 * Math.pow(2, -bendC / 1200);
     }
     this.bowControl(dt);

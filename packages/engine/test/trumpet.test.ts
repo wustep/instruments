@@ -5,7 +5,7 @@ import { analyzeSustained, segmentNotes } from '../src/analysis/index.ts';
 
 const FS = 44100;
 const play = (m: number, v: number) => {
-  const r = renderInstrument({ sampleRate: FS, instrument: 'trumpet', dry: true, params: { vibrato: 0 } as never, events: [{ time: 0.1, event: { type: 'noteOn', midi: m, velocity: v } }, { time: 1.5, event: { type: 'noteOff', midi: m } }] as never, duration: 1.9 });
+  const r = renderInstrument({ sampleRate: FS, instrument: 'trumpet', dry: true, params: { vibrato: 0, human: 0 } as never, events: [{ time: 0.1, event: { type: 'noteOn', midi: m, velocity: v } }, { time: 1.5, event: { type: 'noteOff', midi: m } }] as never, duration: 1.9 });
   const x = r.left;
   const seg = segmentNotes(x, FS).reduce((a, b) => (b.end - b.start > a.end - a.start ? b : a));
   return analyzeSustained(x, FS, seg, m);

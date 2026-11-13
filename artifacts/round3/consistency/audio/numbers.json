@@ -1,0 +1,561 @@
+{
+ "horn": {
+  "instrument": "horn",
+  "seconds": 16.278260869565216,
+  "notes": 20,
+  "before": {
+   "peakDb": -8.3,
+   "peakAt": 11.55,
+   "lufs": -20.3,
+   "repeats": [
+    {
+     "midi": 55,
+     "n": 8,
+     "levelSdDb": 0.18,
+     "centroidSdCents": 32,
+     "levelsDb": [
+      -22.9,
+      -23,
+      -22.7,
+      -22.9,
+      -23.1,
+      -23.3,
+      -23,
+      -23.1
+     ]
+    }
+   ],
+   "held": [
+    {
+     "midi": 53,
+     "seconds": 2.6,
+     "centroidMoveCents": 28,
+     "levelMoveDb": 0.41
+    },
+    {
+     "midi": 60,
+     "seconds": 2.6,
+     "centroidMoveCents": 22,
+     "levelMoveDb": 0.21
+    }
+   ]
+  },
+  "after": {
+   "peakDb": -8.6,
+   "peakAt": 11.21,
+   "lufs": -20.7,
+   "repeats": [
+    {
+     "midi": 55,
+     "n": 8,
+     "levelSdDb": 0.53,
+     "centroidSdCents": 40,
+     "levelsDb": [
+      -24.6,
+      -24.3,
+      -24.1,
+      -23.9,
+      -24.7,
+      -23.5,
+      -24.5,
+      -25.2
+     ]
+    }
+   ],
+   "held": [
+    {
+     "midi": 53,
+     "seconds": 2.6,
+     "centroidMoveCents": 72,
+     "levelMoveDb": 0.47
+    },
+    {
+     "midi": 60,
+     "seconds": 2.6,
+     "centroidMoveCents": 81,
+     "levelMoveDb": 0.26
+    }
+   ]
+  }
+ },
+ "trumpet": {
+  "instrument": "trumpet",
+  "seconds": 14.973913043478255,
+  "notes": 20,
+  "before": {
+   "peakDb": -5.2,
+   "peakAt": 10.59,
+   "lufs": -18.3,
+   "repeats": [
+    {
+     "midi": 65,
+     "n": 8,
+     "levelSdDb": 0.12,
+     "centroidSdCents": 20,
+     "levelsDb": [
+      -21.6,
+      -21.7,
+      -21.6,
+      -21.5,
+      -21.7,
+      -21.8,
+      -21.6,
+      -21.9
+     ]
+    }
+   ],
+   "held": [
+    {
+     "midi": 67,
+     "seconds": 2.6,
+     "centroidMoveCents": 52,
+     "levelMoveDb": 0.35
+    },
+    {
+     "midi": 72,
+     "seconds": 2.6,
+     "centroidMoveCents": 58,
+     "levelMoveDb": 0.41
+    }
+   ]
+  },
+  "after": {
+   "peakDb": -4.6,
+   "peakAt": 10.59,
+   "lufs": -18.6,
+   "repeats": [
+    {
+     "midi": 65,
+     "n": 8,
+     "levelSdDb": 0.19,
+     "centroidSdCents": 25,
+     "levelsDb": [
+      -21.6,
+      -21.5,
+      -21.2,
+      -21.3,
+      -21.5,
+      -21.9,
+      -21.5,
+      -21.5
+     ]
+    }
+   ],
+   "held": [
+    {
+     "midi": 67,
+     "seconds": 2.6,
+     "centroidMoveCents": 31,
+     "levelMoveDb": 0.45
+    },
+    {
+     "midi": 72,
+     "seconds": 2.6,
+     "centroidMoveCents": 71,
+     "levelMoveDb": 0.35
+    }
+   ]
+  }
+ },
+ "timpani": {
+  "instrument": "timpani",
+  "seconds": 13.240000000000002,
+  "notes": 23,
+  "before": {
+   "peakDb": -8.1,
+   "peakAt": 5.01,
+   "lufs": -25.4,
+   "repeats": [
+    {
+     "midi": 43,
+     "n": 8,
+     "levelSdDb": 0.67,
+     "centroidSdCents": 168,
+     "levelsDb": [
+      -27.8,
+      -26.5,
+      -26.1,
+      -25.8,
+      -25.8,
+      -25.9,
+      -26.1,
+      -26
+     ]
+    },
+    {
+     "midi": 48,
+     "n": 4,
+     "levelSdDb": 0.14,
+     "centroidSdCents": 226,
+     "levelsDb": [
+      -21.2,
+      -21.3,
+      -21.2,
+      -21.5
+     ]
+    }
+   ],
+   "held": []
+  },
+  "after": {
+   "peakDb": -7.1,
+   "peakAt": 5.01,
+   "lufs": -25.1,
+   "repeats": [
+    {
+     "midi": 43,
+     "n": 8,
+     "levelSdDb": 0.97,
+     "centroidSdCents": 194,
+     "levelsDb": [
+      -28.2,
+      -26,
+      -26.3,
+      -25.8,
+      -26.5,
+      -25.8,
+      -25.6,
+      -27.8
+     ]
+    },
+    {
+     "midi": 48,
+     "n": 4,
+     "levelSdDb": 0.67,
+     "centroidSdCents": 232,
+     "levelsDb": [
+      -21.2,
+      -21.6,
+      -20.2,
+      -21.7
+     ]
+    }
+   ],
+   "held": []
+  }
+ },
+ "violin": {
+  "instrument": "violin",
+  "seconds": 15.299999999999992,
+  "notes": 21,
+  "before": {
+   "peakDb": -13.8,
+   "peakAt": 9.79,
+   "lufs": -24.4,
+   "repeats": [
+    {
+     "midi": 74,
+     "n": 8,
+     "levelSdDb": 2.14,
+     "centroidSdCents": 161,
+     "levelsDb": [
+      -34.2,
+      -28.8,
+      -29.4,
+      -29.4,
+      -29.8,
+      -33.5,
+      -28.5,
+      -30.5
+     ]
+    }
+   ],
+   "held": [
+    {
+     "midi": 71,
+     "seconds": 2.6,
+     "centroidMoveCents": 167,
+     "levelMoveDb": 0.31
+    },
+    {
+     "midi": 78,
+     "seconds": 2.6,
+     "centroidMoveCents": 53,
+     "levelMoveDb": 0.55
+    }
+   ]
+  },
+  "after": {
+   "peakDb": -14.5,
+   "peakAt": 13.69,
+   "lufs": -24.3,
+   "repeats": [
+    {
+     "midi": 74,
+     "n": 8,
+     "levelSdDb": 0.72,
+     "centroidSdCents": 32,
+     "levelsDb": [
+      -29,
+      -28.2,
+      -30.3,
+      -29,
+      -29.3,
+      -29,
+      -30,
+      -28.3
+     ]
+    }
+   ],
+   "held": [
+    {
+     "midi": 71,
+     "seconds": 2.6,
+     "centroidMoveCents": 102,
+     "levelMoveDb": 0.22
+    },
+    {
+     "midi": 78,
+     "seconds": 2.6,
+     "centroidMoveCents": 236,
+     "levelMoveDb": 1.07
+    }
+   ]
+  }
+ },
+ "cello": {
+  "instrument": "cello",
+  "seconds": 15.299999999999992,
+  "notes": 21,
+  "before": {
+   "peakDb": -8,
+   "peakAt": 13.21,
+   "lufs": -23.5,
+   "repeats": [
+    {
+     "midi": 54,
+     "n": 8,
+     "levelSdDb": 0.36,
+     "centroidSdCents": 635,
+     "levelsDb": [
+      -32.9,
+      -32.6,
+      -31.7,
+      -32.1,
+      -32.3,
+      -32.5,
+      -32.6,
+      -32.4
+     ]
+    }
+   ],
+   "held": [
+    {
+     "midi": 52,
+     "seconds": 2.6,
+     "centroidMoveCents": 60,
+     "levelMoveDb": 0.32
+    },
+    {
+     "midi": 59,
+     "seconds": 2.6,
+     "centroidMoveCents": 464,
+     "levelMoveDb": 0.98
+    }
+   ]
+  },
+  "after": {
+   "peakDb": -8.2,
+   "peakAt": 13.95,
+   "lufs": -23.3,
+   "repeats": [
+    {
+     "midi": 54,
+     "n": 8,
+     "levelSdDb": 0.28,
+     "centroidSdCents": 604,
+     "levelsDb": [
+      -32.3,
+      -32.6,
+      -32.6,
+      -32.2,
+      -32.7,
+      -32,
+      -32,
+      -32.1
+     ]
+    }
+   ],
+   "held": [
+    {
+     "midi": 52,
+     "seconds": 2.6,
+     "centroidMoveCents": 57,
+     "levelMoveDb": 0.21
+    },
+    {
+     "midi": 59,
+     "seconds": 2.6,
+     "centroidMoveCents": 39,
+     "levelMoveDb": 0.27
+    }
+   ]
+  }
+ },
+ "bass": {
+  "instrument": "bass",
+  "seconds": 16.27826086956522,
+  "notes": 18,
+  "before": {
+   "peakDb": -5.9,
+   "peakAt": 10.46,
+   "lufs": -16.7,
+   "repeats": [
+    {
+     "midi": 36,
+     "n": 8,
+     "levelSdDb": 1.74,
+     "centroidSdCents": 244,
+     "levelsDb": [
+      -29.7,
+      -26.4,
+      -25.1,
+      -25.9,
+      -24.9,
+      -25,
+      -24.3,
+      -27.3
+     ]
+    }
+   ],
+   "held": [
+    {
+     "midi": 37,
+     "seconds": 2.6,
+     "centroidMoveCents": 12,
+     "levelMoveDb": 1.15
+    },
+    {
+     "midi": 35,
+     "seconds": 2.6,
+     "centroidMoveCents": 36,
+     "levelMoveDb": 1.19
+    }
+   ]
+  },
+  "after": {
+   "peakDb": -13,
+   "peakAt": 10.42,
+   "lufs": -23.8,
+   "repeats": [
+    {
+     "midi": 36,
+     "n": 8,
+     "levelSdDb": 1.44,
+     "centroidSdCents": 147,
+     "levelsDb": [
+      -33.9,
+      -29.1,
+      -32.2,
+      -30.4,
+      -31.2,
+      -32.3,
+      -31.6,
+      -32.3
+     ]
+    }
+   ],
+   "held": [
+    {
+     "midi": 37,
+     "seconds": 2.6,
+     "centroidMoveCents": 50,
+     "levelMoveDb": 1
+    },
+    {
+     "midi": 35,
+     "seconds": 2.6,
+     "centroidMoveCents": 37,
+     "levelMoveDb": 1.03
+    }
+   ]
+  }
+ },
+ "harp": {
+  "instrument": "harp",
+  "seconds": 17.705999999999996,
+  "notes": 110,
+  "before": {
+   "peakDb": -6.7,
+   "peakAt": 14.39,
+   "lufs": -22.4,
+   "repeats": [
+    {
+     "midi": 60,
+     "n": 6,
+     "levelSdDb": 1.12,
+     "centroidSdCents": 57,
+     "levelsDb": [
+      -28.6,
+      -28.2,
+      -29.1,
+      -25.9,
+      -27.9,
+      -27.9
+     ]
+    },
+    {
+     "midi": 36,
+     "n": 4,
+     "levelSdDb": 1.57,
+     "centroidSdCents": 216,
+     "levelsDb": [
+      -35.2,
+      -38.2,
+      -38.2,
+      -38.6
+     ]
+    }
+   ],
+   "held": [
+    {
+     "midi": 60,
+     "seconds": 2.4,
+     "centroidMoveCents": 193,
+     "levelMoveDb": 0.9
+    }
+   ]
+  },
+  "after": {
+   "peakDb": -6.7,
+   "peakAt": 14.39,
+   "lufs": -22.5,
+   "repeats": [
+    {
+     "midi": 60,
+     "n": 6,
+     "levelSdDb": 1.12,
+     "centroidSdCents": 57,
+     "levelsDb": [
+      -28.6,
+      -28.2,
+      -29.1,
+      -25.9,
+      -27.9,
+      -27.9
+     ]
+    },
+    {
+     "midi": 36,
+     "n": 4,
+     "levelSdDb": 0.86,
+     "centroidSdCents": 166,
+     "levelsDb": [
+      -33.7,
+      -35.4,
+      -35.1,
+      -35.5
+     ]
+    }
+   ],
+   "held": [
+    {
+     "midi": 60,
+     "seconds": 2.4,
+     "centroidMoveCents": 201,
+     "levelMoveDb": 0.95
+    }
+   ]
+  }
+ }
+}

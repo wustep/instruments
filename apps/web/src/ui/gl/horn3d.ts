@@ -26,9 +26,8 @@
 //
 // Live: the fingering of the engine's note (hornFingering, the engine's own: the F side to C4, the B♭
 // side from C♯4) presses the levers on springs (a tiny bounce off their stops), the linkages turning the
-// rotors a quarter turn; they spring back a moment after the note stops. While it sounds the bore glows
-// faintly along the air's own path (the side and the valves pressed choose it: through the pressed
-// valves' slides, not the others), with the standing wave the engine computes (lips → bell); the breath
+// rotors a quarter turn; they spring back a moment after the note stops. The tubing and the bell are never lit,
+// sounding or not; the breath
 // goes into the mouthpiece as on every wind (winds3d breathIn: faint steel streams), pulsing with the lips'
 // opening (`fr.lips`). The bell is never lit, sounding or not.
 // Approximations: the plumbing inside the valve cluster (the rotors' passages, the knuckles) is not traced
@@ -36,7 +35,7 @@
 // own lengthening; the open F path is 3.74 m). No hand in the bell, here or in 2D: the engine has none (no
 // stopping, no hand position: its fitted colour is fixed), so a hand would follow nothing that is played.
 import { hornFingering, type HornFingering, type VisualFrame } from '@piano-model/engine';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cross, dot, mulInto, norm, rotX, rotY, rotZ, scale, scaleM, sub, translate, xform } from './gl3d.ts';
+import { type Batch, type Mat4, type Mesh, type Vec3, add, chain, cross, dot, mulInto, norm, rotX, rotY, rotZ, scale, scaleM, sub, translate, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, ellipsoid, grid, variant, type Mat } from './mesh.ts';
 import { aboutAxis, fillet, frameY, revolve, springTo } from './oboe3d.ts';
 import { breathIn, type WindPose } from './winds3d.ts';
@@ -1118,16 +1117,13 @@ interface HornPoseState {
   W: Float32Array;
   R: Float32Array;
   L: Float32Array;
-  glow: RGBA;
   lipGap: number;
-  /** where each route of the air's path starts along it (mm), this frame */
-  at: Map<string, number>;
 }
 const poses = new WeakMap<WindPose, HornPoseState>();
 function hornPose(pose: WindPose): HornPoseState {
   let p = poses.get(pose);
   if (!p) {
-    p = { pos: new Float32Array(4), vel: new Float32Array(4), quiet: 10, midi: null, W: new Float32Array(16), R: new Float32Array(16), L: new Float32Array(16), glow: [0, 0, 0, 0], lipGap: 0, at: new Map() };
+    p = { pos: new Float32Array(4), vel: new Float32Array(4), quiet: 10, midi: null, W: new Float32Array(16), R: new Float32Array(16), L: new Float32Array(16), lipGap: 0 };
     poses.set(pose, p);
   }
   return p;
@@ -1182,38 +1178,9 @@ export function poseHorn(b: Batch, hm: HornModel, fr: VisualFrame | null, pose: 
     mulInto(st.W, 0, T, Lm);
     b.mesh(v.link, st.W);
   }
-  // the bore: the standing wave along the air's path (lips → bell), on the tubing the air goes through
-  const shape = focus?.shapes?.[0] ?? null;
-  let peak = 0;
-  if (shape) for (let i = 0; i < shape.length; i++) peak = Math.max(peak, Math.abs(shape[i]));
-  const sounding = blow > 0.02 && !!shape && peak > 0 && !!fg;
+  // the bore's tubing as it is, sounding or not: no light on it (no wind or brass body is lit by its sound)
+  for (const s of hm.segs) b.mesh(s.mesh, T);
   const lvl = Math.min(1, Math.sqrt(rms) * 3);
-  const setGlow = (a: number): RGBA | null => {
-    if (a <= 0.003) return null;
-    st.glow[0] = 1;
-    st.glow[1] = 0.7;
-    st.glow[2] = 0.42;
-    st.glow[3] = a;
-    return st.glow;
-  };
-  const at = st.at;
-  at.clear();
-  let total = 0;
-  if (sounding)
-    for (const p of airPath(fg!, hm.lengths)) {
-      at.set(p.route, total);
-      total += p.len;
-    }
-  for (const s of hm.segs) {
-    const off = at.get(s.route);
-    let g = 0;
-    if (off !== undefined && total > 0) {
-      const f = clamp01((off + (s.s0 + s.s1) / 2) / total);
-      const j = Math.min(shape!.length - 1, Math.round(f * (shape!.length - 1)));
-      g = 0.095 * Math.min(1, blow * 1.4) * (Math.abs(shape![j]) / peak);
-    }
-    b.mesh(s.mesh, T, setGlow(g));
-  }
   // the bell's mouth as it is, sounding or not: no light on it (the bells of the winds are never lit)
   b.mesh(hm.rim, T);
   // the breath into the mouthpiece while the note is blown (winds3d breathIn), pulsing with the engine's
