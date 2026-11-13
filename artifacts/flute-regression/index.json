@@ -1,0 +1,812 @@
+[
+ {
+  "clip": "held",
+  "what": "Long notes alone (2.6 s each, a file’s): G4 pp, A4 mf, D5 mf, A5 mf, E6 mf, C6 ff",
+  "seconds": 20.2,
+  "notes": 6,
+  "before": {
+   "long (0.7 s and more)": {
+    "notes": 6,
+    "pitch off, cents (sd over the notes)": 0.5,
+    "pitch off, cents (worst)": 1.1,
+    "the same pitch again, cents apart (sd)": null,
+    "pitch moves inside a note, cents (median, 90th)": [
+     2.5,
+     10.8
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     2.4,
+     27.7
+    ]
+   }
+  },
+  "now": {
+   "long (0.7 s and more)": {
+    "notes": 6,
+    "pitch off, cents (sd over the notes)": 5,
+    "pitch off, cents (worst)": 6.1,
+    "the same pitch again, cents apart (sd)": null,
+    "pitch moves inside a note, cents (median, 90th)": [
+     31.8,
+     36.3
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     4.4,
+     34.4
+    ]
+   }
+  },
+  "fixed": {
+   "long (0.7 s and more)": {
+    "notes": 6,
+    "pitch off, cents (sd over the notes)": 4.5,
+    "pitch off, cents (worst)": 5.7,
+    "the same pitch again, cents apart (sd)": null,
+    "pitch moves inside a note, cents (median, 90th)": [
+     29.9,
+     35.2
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     4.3,
+     33.1
+    ]
+   }
+  }
+ },
+ {
+  "clip": "swaps",
+  "what": "The flute over both register breaks: slurred steps, leaps, octaves, the upper break, the steps tongued, a slow slurred line",
+  "seconds": 20,
+  "notes": 56,
+  "before": {
+   "short (under 0.3 s)": {
+    "notes": 44,
+    "pitch off, cents (sd over the notes)": 0.3,
+    "pitch off, cents (worst)": 1.3,
+    "the same pitch again, cents apart (sd)": 0.2,
+    "pitch moves inside a note, cents (median, 90th)": [
+     0.4,
+     1.4
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     0.2,
+     1.3
+    ]
+   },
+   "middling": {
+    "notes": 8,
+    "pitch off, cents (sd over the notes)": 0.3,
+    "pitch off, cents (worst)": 0.7,
+    "the same pitch again, cents apart (sd)": 0.2,
+    "pitch moves inside a note, cents (median, 90th)": [
+     4.2,
+     13.9
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     1,
+     14.7
+    ]
+   },
+   "long (0.7 s and more)": {
+    "notes": 4,
+    "pitch off, cents (sd over the notes)": 0.2,
+    "pitch off, cents (worst)": 0.4,
+    "the same pitch again, cents apart (sd)": null,
+    "pitch moves inside a note, cents (median, 90th)": [
+     1.5,
+     2.8
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     1.6,
+     18.6
+    ]
+   }
+  },
+  "now": {
+   "short (under 0.3 s)": {
+    "notes": 44,
+    "pitch off, cents (sd over the notes)": 8.2,
+    "pitch off, cents (worst)": 18.5,
+    "the same pitch again, cents apart (sd)": 7.2,
+    "pitch moves inside a note, cents (median, 90th)": [
+     21.5,
+     32.6
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     2.3,
+     3.2
+    ]
+   },
+   "middling": {
+    "notes": 8,
+    "pitch off, cents (sd over the notes)": 5,
+    "pitch off, cents (worst)": 9.3,
+    "the same pitch again, cents apart (sd)": 4.3,
+    "pitch moves inside a note, cents (median, 90th)": [
+     23,
+     33.6
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     3,
+     3.6
+    ]
+   },
+   "long (0.7 s and more)": {
+    "notes": 4,
+    "pitch off, cents (sd over the notes)": 4.3,
+    "pitch off, cents (worst)": 4.9,
+    "the same pitch again, cents apart (sd)": null,
+    "pitch moves inside a note, cents (median, 90th)": [
+     32.2,
+     33
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     3.8,
+     8.5
+    ]
+   }
+  },
+  "fixed": {
+   "short (under 0.3 s)": {
+    "notes": 44,
+    "pitch off, cents (sd over the notes)": 2.5,
+    "pitch off, cents (worst)": 7.3,
+    "the same pitch again, cents apart (sd)": 2.1,
+    "pitch moves inside a note, cents (median, 90th)": [
+     1.5,
+     2.7
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     0.3,
+     0.6
+    ]
+   },
+   "middling": {
+    "notes": 8,
+    "pitch off, cents (sd over the notes)": 1.8,
+    "pitch off, cents (worst)": 3.5,
+    "the same pitch again, cents apart (sd)": 1.5,
+    "pitch moves inside a note, cents (median, 90th)": [
+     2.1,
+     3.6
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     0.5,
+     1.3
+    ]
+   },
+   "long (0.7 s and more)": {
+    "notes": 4,
+    "pitch off, cents (sd over the notes)": 3.2,
+    "pitch off, cents (worst)": 3.6,
+    "the same pitch again, cents apart (sd)": null,
+    "pitch moves inside a note, cents (median, 90th)": [
+     31.2,
+     31.8
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     3.9,
+     9
+    ]
+   }
+  }
+ },
+ {
+  "clip": "tune",
+  "what": "Quick notes: the Badinerie’s opening tongued (twice), then Morning Mood’s opening slurred in eighths of 0.3 s",
+  "seconds": 18.6,
+  "notes": 72,
+  "before": {
+   "short (under 0.3 s)": {
+    "notes": 47,
+    "pitch off, cents (sd over the notes)": 0.6,
+    "pitch off, cents (worst)": 2.5,
+    "the same pitch again, cents apart (sd)": 0.5,
+    "pitch moves inside a note, cents (median, 90th)": [
+     0.6,
+     4.3
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     0.3,
+     1
+    ]
+   },
+   "middling": {
+    "notes": 24,
+    "pitch off, cents (sd over the notes)": 0.1,
+    "pitch off, cents (worst)": 0.4,
+    "the same pitch again, cents apart (sd)": 0,
+    "pitch moves inside a note, cents (median, 90th)": [
+     0.4,
+     0.9
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     0.1,
+     1.7
+    ]
+   },
+   "long (0.7 s and more)": {
+    "notes": 1,
+    "pitch off, cents (sd over the notes)": 0,
+    "pitch off, cents (worst)": 0.3,
+    "the same pitch again, cents apart (sd)": null,
+    "pitch moves inside a note, cents (median, 90th)": [
+     1.3,
+     1.3
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     0.2,
+     0.2
+    ]
+   }
+  },
+  "now": {
+   "short (under 0.3 s)": {
+    "notes": 47,
+    "pitch off, cents (sd over the notes)": 9.5,
+    "pitch off, cents (worst)": 20.1,
+    "the same pitch again, cents apart (sd)": 7.9,
+    "pitch moves inside a note, cents (median, 90th)": [
+     10.7,
+     27
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     1.1,
+     2.6
+    ]
+   },
+   "middling": {
+    "notes": 24,
+    "pitch off, cents (sd over the notes)": 5.3,
+    "pitch off, cents (worst)": 14.7,
+    "the same pitch again, cents apart (sd)": 5.1,
+    "pitch moves inside a note, cents (median, 90th)": [
+     22.3,
+     28.9
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     2.6,
+     3.6
+    ]
+   },
+   "long (0.7 s and more)": {
+    "notes": 1,
+    "pitch off, cents (sd over the notes)": 0,
+    "pitch off, cents (worst)": 2.8,
+    "the same pitch again, cents apart (sd)": null,
+    "pitch moves inside a note, cents (median, 90th)": [
+     30,
+     30
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     3.4,
+     3.4
+    ]
+   }
+  },
+  "fixed": {
+   "short (under 0.3 s)": {
+    "notes": 47,
+    "pitch off, cents (sd over the notes)": 2.2,
+    "pitch off, cents (worst)": 6.2,
+    "the same pitch again, cents apart (sd)": 2,
+    "pitch moves inside a note, cents (median, 90th)": [
+     1,
+     1.9
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     0.3,
+     0.9
+    ]
+   },
+   "middling": {
+    "notes": 24,
+    "pitch off, cents (sd over the notes)": 2,
+    "pitch off, cents (worst)": 5.4,
+    "the same pitch again, cents apart (sd)": 1.8,
+    "pitch moves inside a note, cents (median, 90th)": [
+     1.6,
+     3.1
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     0.5,
+     1.2
+    ]
+   },
+   "long (0.7 s and more)": {
+    "notes": 1,
+    "pitch off, cents (sd over the notes)": 0,
+    "pitch off, cents (worst)": 1,
+    "the same pitch again, cents apart (sd)": null,
+    "pitch moves inside a note, cents (median, 90th)": [
+     27.5,
+     27.5
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     3.1,
+     3.1
+    ]
+   }
+  }
+ },
+ {
+  "clip": "slow",
+  "what": "A slow slurred line, twice (mf across the upper break, then p in the low and middle registers): long notes joined in one breath",
+  "seconds": 19.1,
+  "notes": 18,
+  "before": {
+   "middling": {
+    "notes": 10,
+    "pitch off, cents (sd over the notes)": 0.1,
+    "pitch off, cents (worst)": 0.5,
+    "the same pitch again, cents apart (sd)": 0,
+    "pitch moves inside a note, cents (median, 90th)": [
+     0.4,
+     0.5
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     0.1,
+     2.5
+    ]
+   },
+   "long (0.7 s and more)": {
+    "notes": 8,
+    "pitch off, cents (sd over the notes)": 0.2,
+    "pitch off, cents (worst)": 0.7,
+    "the same pitch again, cents apart (sd)": 0.1,
+    "pitch moves inside a note, cents (median, 90th)": [
+     1.7,
+     2.4
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     0.8,
+     26.6
+    ]
+   }
+  },
+  "now": {
+   "middling": {
+    "notes": 10,
+    "pitch off, cents (sd over the notes)": 4,
+    "pitch off, cents (worst)": 8,
+    "the same pitch again, cents apart (sd)": 2.7,
+    "pitch moves inside a note, cents (median, 90th)": [
+     27,
+     31.1
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     3.2,
+     4.3
+    ]
+   },
+   "long (0.7 s and more)": {
+    "notes": 8,
+    "pitch off, cents (sd over the notes)": 4.6,
+    "pitch off, cents (worst)": 6.4,
+    "the same pitch again, cents apart (sd)": 3.8,
+    "pitch moves inside a note, cents (median, 90th)": [
+     27.9,
+     33.5
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     3.5,
+     28.3
+    ]
+   }
+  },
+  "fixed": {
+   "middling": {
+    "notes": 10,
+    "pitch off, cents (sd over the notes)": 2.1,
+    "pitch off, cents (worst)": 4.9,
+    "the same pitch again, cents apart (sd)": 1.4,
+    "pitch moves inside a note, cents (median, 90th)": [
+     18.8,
+     22.9
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     2.2,
+     3.4
+    ]
+   },
+   "long (0.7 s and more)": {
+    "notes": 8,
+    "pitch off, cents (sd over the notes)": 3.7,
+    "pitch off, cents (worst)": 5.3,
+    "the same pitch again, cents apart (sd)": 2.6,
+    "pitch moves inside a note, cents (median, 90th)": [
+     25.8,
+     30.9
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     3.3,
+     27.8
+    ]
+   }
+  }
+ },
+ {
+  "clip": "toward",
+  "what": "toward-morning flute 1 alone, as the Orchestra plays it, from 45 s for 20 s (18 notes)",
+  "seconds": 17.9,
+  "notes": 18,
+  "before": {
+   "middling": {
+    "notes": 5,
+    "pitch off, cents (sd over the notes)": 0.3,
+    "pitch off, cents (worst)": 0.8,
+    "the same pitch again, cents apart (sd)": null,
+    "pitch moves inside a note, cents (median, 90th)": [
+     0.6,
+     0.9
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     2.6,
+     3.1
+    ]
+   },
+   "long (0.7 s and more)": {
+    "notes": 13,
+    "pitch off, cents (sd over the notes)": 0.3,
+    "pitch off, cents (worst)": 0.7,
+    "the same pitch again, cents apart (sd)": 0,
+    "pitch moves inside a note, cents (median, 90th)": [
+     0.8,
+     0.9
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     2.4,
+     3.1
+    ]
+   }
+  },
+  "now": {
+   "middling": {
+    "notes": 5,
+    "pitch off, cents (sd over the notes)": 3.8,
+    "pitch off, cents (worst)": 6,
+    "the same pitch again, cents apart (sd)": null,
+    "pitch moves inside a note, cents (median, 90th)": [
+     35.7,
+     48.1
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     3.7,
+     5.1
+    ]
+   },
+   "long (0.7 s and more)": {
+    "notes": 13,
+    "pitch off, cents (sd over the notes)": 2.8,
+    "pitch off, cents (worst)": 6.6,
+    "the same pitch again, cents apart (sd)": 1.8,
+    "pitch moves inside a note, cents (median, 90th)": [
+     32.3,
+     36.7
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     4.4,
+     5.6
+    ]
+   }
+  },
+  "fixed": {
+   "middling": {
+    "notes": 5,
+    "pitch off, cents (sd over the notes)": 1.1,
+    "pitch off, cents (worst)": 3.6,
+    "the same pitch again, cents apart (sd)": null,
+    "pitch moves inside a note, cents (median, 90th)": [
+     1.8,
+     5.4
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     2.7,
+     3.4
+    ]
+   },
+   "long (0.7 s and more)": {
+    "notes": 13,
+    "pitch off, cents (sd over the notes)": 2,
+    "pitch off, cents (worst)": 4.9,
+    "the same pitch again, cents apart (sd)": 1.5,
+    "pitch moves inside a note, cents (median, 90th)": [
+     30.6,
+     32.2
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     4.4,
+     5.6
+    ]
+   }
+  }
+ },
+ {
+  "clip": "passiton",
+  "what": "pass-it-on flute 1 alone, as the Orchestra plays it, from 150 s for 20 s (50 notes)",
+  "seconds": 22.3,
+  "notes": 50,
+  "before": {
+   "short (under 0.3 s)": {
+    "notes": 19,
+    "pitch off, cents (sd over the notes)": 0.4,
+    "pitch off, cents (worst)": 1,
+    "the same pitch again, cents apart (sd)": 0.1,
+    "pitch moves inside a note, cents (median, 90th)": [
+     0.8,
+     1.2
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     1,
+     1.5
+    ]
+   },
+   "middling": {
+    "notes": 31,
+    "pitch off, cents (sd over the notes)": 0.4,
+    "pitch off, cents (worst)": 1.3,
+    "the same pitch again, cents apart (sd)": 0,
+    "pitch moves inside a note, cents (median, 90th)": [
+     0.5,
+     0.6
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     0.4,
+     2.6
+    ]
+   }
+  },
+  "now": {
+   "short (under 0.3 s)": {
+    "notes": 19,
+    "pitch off, cents (sd over the notes)": 6.3,
+    "pitch off, cents (worst)": 14.4,
+    "the same pitch again, cents apart (sd)": 6.1,
+    "pitch moves inside a note, cents (median, 90th)": [
+     2.7,
+     13.9
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     1.2,
+     3.4
+    ]
+   },
+   "middling": {
+    "notes": 31,
+    "pitch off, cents (sd over the notes)": 4.6,
+    "pitch off, cents (worst)": 9.1,
+    "the same pitch again, cents apart (sd)": 3.5,
+    "pitch moves inside a note, cents (median, 90th)": [
+     24.5,
+     32.7
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     2.9,
+     4.5
+    ]
+   }
+  },
+  "fixed": {
+   "short (under 0.3 s)": {
+    "notes": 19,
+    "pitch off, cents (sd over the notes)": 2.8,
+    "pitch off, cents (worst)": 7.2,
+    "the same pitch again, cents apart (sd)": 2.8,
+    "pitch moves inside a note, cents (median, 90th)": [
+     1.5,
+     2.1
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     1,
+     1.7
+    ]
+   },
+   "middling": {
+    "notes": 31,
+    "pitch off, cents (sd over the notes)": 1.9,
+    "pitch off, cents (worst)": 4.6,
+    "the same pitch again, cents apart (sd)": 1.5,
+    "pitch moves inside a note, cents (median, 90th)": [
+     3.5,
+     5.7
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     0.8,
+     2.7
+    ]
+   }
+  }
+ },
+ {
+  "clip": "everything",
+  "what": "everything-so-far flute 1 alone, as the Orchestra plays it, from 110 s for 20 s (8 notes)",
+  "seconds": 20.2,
+  "notes": 8,
+  "before": {
+   "middling": {
+    "notes": 1,
+    "pitch off, cents (sd over the notes)": 0,
+    "pitch off, cents (worst)": 0.5,
+    "the same pitch again, cents apart (sd)": null,
+    "pitch moves inside a note, cents (median, 90th)": [
+     0.5,
+     0.5
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     0.1,
+     0.1
+    ]
+   },
+   "long (0.7 s and more)": {
+    "notes": 7,
+    "pitch off, cents (sd over the notes)": 1,
+    "pitch off, cents (worst)": 3,
+    "the same pitch again, cents apart (sd)": 0,
+    "pitch moves inside a note, cents (median, 90th)": [
+     1,
+     6.9
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     2.6,
+     4.1
+    ]
+   }
+  },
+  "now": {
+   "middling": {
+    "notes": 1,
+    "pitch off, cents (sd over the notes)": 0,
+    "pitch off, cents (worst)": 8.6,
+    "the same pitch again, cents apart (sd)": null,
+    "pitch moves inside a note, cents (median, 90th)": [
+     28.1,
+     28.1
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     2.9,
+     2.9
+    ]
+   },
+   "long (0.7 s and more)": {
+    "notes": 7,
+    "pitch off, cents (sd over the notes)": 3.2,
+    "pitch off, cents (worst)": 5.9,
+    "the same pitch again, cents apart (sd)": 4,
+    "pitch moves inside a note, cents (median, 90th)": [
+     24.7,
+     30.7
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     3.5,
+     7.8
+    ]
+   }
+  },
+  "fixed": {
+   "middling": {
+    "notes": 1,
+    "pitch off, cents (sd over the notes)": 0,
+    "pitch off, cents (worst)": 5.3,
+    "the same pitch again, cents apart (sd)": null,
+    "pitch moves inside a note, cents (median, 90th)": [
+     16,
+     16
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     1.6,
+     1.6
+    ]
+   },
+   "long (0.7 s and more)": {
+    "notes": 7,
+    "pitch off, cents (sd over the notes)": 2.5,
+    "pitch off, cents (worst)": 4.6,
+    "the same pitch again, cents apart (sd)": 2.7,
+    "pitch moves inside a note, cents (median, 90th)": [
+     23.3,
+     30.1
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     3.5,
+     7.4
+    ]
+   }
+  }
+ },
+ {
+  "clip": "demo",
+  "what": "demo flute alone, as the Orchestra plays it, from 35 s for 20 s (104 notes)",
+  "seconds": 22.3,
+  "notes": 104,
+  "before": {
+   "short (under 0.3 s)": {
+    "notes": 85,
+    "pitch off, cents (sd over the notes)": 1.5,
+    "pitch off, cents (worst)": 8.4,
+    "the same pitch again, cents apart (sd)": 0.7,
+    "pitch moves inside a note, cents (median, 90th)": [
+     0.7,
+     6.2
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     0.6,
+     1.6
+    ]
+   },
+   "middling": {
+    "notes": 19,
+    "pitch off, cents (sd over the notes)": 0.2,
+    "pitch off, cents (worst)": 0.5,
+    "the same pitch again, cents apart (sd)": 0,
+    "pitch moves inside a note, cents (median, 90th)": [
+     0.3,
+     1.9
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     1.1,
+     1.6
+    ]
+   }
+  },
+  "now": {
+   "short (under 0.3 s)": {
+    "notes": 85,
+    "pitch off, cents (sd over the notes)": 12,
+    "pitch off, cents (worst)": 23.5,
+    "the same pitch again, cents apart (sd)": 11,
+    "pitch moves inside a note, cents (median, 90th)": [
+     16.2,
+     25.8
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     1.5,
+     3
+    ]
+   },
+   "middling": {
+    "notes": 19,
+    "pitch off, cents (sd over the notes)": 7.8,
+    "pitch off, cents (worst)": 15.7,
+    "the same pitch again, cents apart (sd)": 7.4,
+    "pitch moves inside a note, cents (median, 90th)": [
+     29.7,
+     38.1
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     2.6,
+     4.4
+    ]
+   }
+  },
+  "fixed": {
+   "short (under 0.3 s)": {
+    "notes": 85,
+    "pitch off, cents (sd over the notes)": 2.6,
+    "pitch off, cents (worst)": 7.5,
+    "the same pitch again, cents apart (sd)": 2.3,
+    "pitch moves inside a note, cents (median, 90th)": [
+     0.8,
+     1.7
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     0.6,
+     0.8
+    ]
+   },
+   "middling": {
+    "notes": 19,
+    "pitch off, cents (sd over the notes)": 2.4,
+    "pitch off, cents (worst)": 3.9,
+    "the same pitch again, cents apart (sd)": 1.9,
+    "pitch moves inside a note, cents (median, 90th)": [
+     1.7,
+     7.3
+    ],
+    "level moves inside a note, dB (median, 90th)": [
+     1.1,
+     1.4
+    ]
+   }
+  }
+ }
+]
