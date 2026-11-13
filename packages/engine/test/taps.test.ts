@@ -5,8 +5,11 @@ import { renderInstrument } from '../src/core/index.ts';
 
 const FS = 48000;
 const T0 = 0.05;
+// (the woodwinds' minimum blow as the model has it: their player draws each note's attack, and one note is one
+// draw; winds-human.test.ts compares taps with and without it over eight players)
+const WOODS = ['flute', 'oboe', 'clarinet', 'bassoon'];
 const play = (instrument: 'trumpet' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trombone', midi: number, vel: number, hold: number, quantum = 128) =>
-  renderInstrument({ sampleRate: FS, instrument, dry: true, quantum, events: [{ time: T0, event: { type: 'noteOn', midi, velocity: vel } }, { time: T0 + hold, event: { type: 'noteOff', midi } }] as never, duration: 0.7 }).left;
+  renderInstrument({ sampleRate: FS, instrument, dry: true, quantum, params: WOODS.includes(instrument) ? { human: 0 } : undefined, events: [{ time: T0, event: { type: 'noteOn', midi, velocity: vel } }, { time: T0 + hold, event: { type: 'noteOff', midi } }] as never, duration: 0.7 }).left;
 const peak = (x: Float32Array, from = 0, to = x.length) => {
   let p = 0;
   for (let i = from; i < to; i++) p = Math.max(p, Math.abs(x[i]));

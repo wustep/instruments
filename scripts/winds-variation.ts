@@ -23,12 +23,17 @@ for (const id of IDS) {
   if (MODEL) {
     const fs = 44100;
     const { lo, hi } = INSTRUMENT_INFO[id];
-    for (const [dyn, vel] of [['pp', 30], ['mf', 70], ['ff', 112]] as const)
-      for (let m = lo + 1; m <= hi - 1; m += 2) {
-        const out = renderInstrument({ sampleRate: fs, instrument: id, dry: true, params: PARAMS, events: [{ time: 0.05, event: { type: 'noteOn', midi: m, velocity: vel } }, { time: 2.25, event: { type: 'noteOff', midi: m } }], duration: 2.6 } as never);
-        const r = look(out.left, fs, Math.round(0.05 * fs), Math.round(2.35 * fs), dyn);
+    // (each dynamic's notes in one sitting, as the recordings' runs are: a player's stream runs on)
+    for (const [dyn, vel] of [['pp', 30], ['mf', 70], ['ff', 112]] as const) {
+      const ms: number[] = [];
+      for (let m = lo + 1; m <= hi - 1; m += 2) ms.push(m);
+      const events = ms.flatMap((m, i) => [{ time: 0.05 + 2.8 * i, event: { type: 'noteOn', midi: m, velocity: vel } }, { time: 2.25 + 2.8 * i, event: { type: 'noteOff', midi: m } }]);
+      const out = renderInstrument({ sampleRate: fs, instrument: id, dry: true, params: PARAMS, events, duration: 2.8 * ms.length } as never);
+      ms.forEach((_, i) => {
+        const r = look(out.left, fs, Math.round((0.05 + 2.8 * i) * fs), Math.round((2.35 + 2.8 * i) * fs), dyn);
         if (r) rows.push(r);
-      }
+      });
+    }
   } else {
     for (const f of REF_FILES.filter((r) => r.instrument === id)) {
       const a = decodeWav(readFileSync(join(ENS_CACHE, 'wav', f.file.replace(/\.aiff$/, '.wav'))));

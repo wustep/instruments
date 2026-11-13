@@ -19,8 +19,8 @@ const off = (t: number, midi: number): Ev => ({ t, e: { type: 'noteOff', midi } 
 /** what a file player tells of a note before it sounds */
 const see = (t: number, midi: number, dur: number, velocity = 84): Ev => ({ t, e: { type: 'foresee', midi, velocity, dur } });
 
-function play(id: InstrumentId, events: Ev[], seconds: number, block = 128): Float32Array {
-  const core = createCore({ sampleRate: FS, instrument: id, dry: true });
+function play(id: InstrumentId, events: Ev[], seconds: number, block = 128, params?: Record<string, unknown>): Float32Array {
+  const core = createCore({ sampleRate: FS, instrument: id, dry: true, params } as never);
   // (in the order given: two events at one instant reach the core in that order)
   for (const ev of events) core.schedule(ev.e, Math.round(ev.t * FS));
   const n = Math.round(seconds * FS);
@@ -310,8 +310,12 @@ describe('a file’s notes on each wind and brass instrument', () => {
       const seen = notes.map((n) => see(n.t, m, n.end - n.t));
       const offFirst = [...seen, ...notes.flatMap((n) => [off(n.t, m), on(n.t, m)]).slice(1), off(notes[3].end, m)];
       const onFirst = [...seen, ...notes.flatMap((n) => [on(n.t, m), off(n.t, m)]).filter((_, i) => i !== 1), off(notes[3].end, m)];
-      const a = play(id, offFirst, 1.4);
-      const b = play(id, onFirst, 1.4);
+      // (the woodwinds' tongue as the model has it: their player's ±0.6 dB from one note to the next moves
+      // this measure, the stroke against the weaker of the two notes either side, by up to 1 dB; the trombone's
+      // and the tuba's players were tuned with it on)
+      const P = ['flute', 'oboe', 'clarinet', 'bassoon'].includes(id) ? { human: 0 } : undefined;
+      const a = play(id, offFirst, 1.4, 128, P);
+      const b = play(id, onFirst, 1.4, 128, P);
       // (a note-on written before the last note's off at one instant used to end the new note at once)
       let same = true;
       for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) same = false;

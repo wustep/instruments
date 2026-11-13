@@ -20,7 +20,8 @@ const FS = 48000;
 
 function join(from: number, to: number, art: Join, vel: number, len: number, hand: boolean, fs = FS) {
   const { events, t0, t1, end } = pairEvents(from, to, art, vel, len, hand);
-  const r = renderInstrument({ instrument: 'flute', sampleRate: fs, events, duration: end + 0.1, dry: true });
+  // (the model alone: the player (human) puts its own few cents and its vibrato on every note: the joins are what is tested)
+  const r = renderInstrument({ instrument: 'flute', sampleRate: fs, events, duration: end + 0.1, dry: true, params: { human: 0 } });
   return measureJoin(r.left, fs, from, to, t0, t1, end).m;
 }
 
@@ -93,7 +94,7 @@ describe('a fresh note a file told of, fingered with a vent', () => {
     // periodic; E♭6 pp at 44.1 kHz stayed a fourth high. flute.ts VENT)
     for (const [fs, m, vel, len] of [[48000, 89, 80, 0.14], [48000, 89, 30, 0.14], [48000, 91, 60, 0.14], [48000, 74, 30, 0.14], [48000, 87, 100, 0.28], [44100, 87, 30, 0.28], [44100, 87, 44, 0.28], [44100, 96, 118, 0.14]] as [number, number, number, number][]) {
       const events = [{ time: 0.1, event: { type: 'foresee', midi: m, velocity: vel, dur: len } }, { time: 0.1, event: { type: 'noteOn', midi: m, velocity: vel } }, { time: 0.1 + len, event: { type: 'noteOff', midi: m } }];
-      const r = renderInstrument({ instrument: 'flute', sampleRate: fs, events: events as never, duration: len + 0.2, dry: true });
+      const r = renderInstrument({ instrument: 'flute', sampleRate: fs, events: events as never, duration: len + 0.2, dry: true, params: { human: 0 } });
       const fr = trackFrames(r.left, fs, 0.1 + 0.5 * len, 0.1 + 0.95 * len, et(m), et(m), 0.003);
       const off = med(fr.map((q) => cents(q.f, et(m))));
       const clear = med(fr.map((q) => q.clear));
@@ -107,7 +108,7 @@ describe('the vibrato belongs to the breath', () => {
   /** the vibrato's swing (the largest |deviation| of the breath) over a stretch of seconds, read from the
    *  stage's telemetry every 5 ms */
   function swings(inst: InstrumentId, events: { t: number; e: unknown }[], spans: [number, number][]): number[] {
-    const core = createCore({ instrument: inst, sampleRate: FS, dry: true, params: { vibrato: 0.06 } } as never);
+    const core = createCore({ instrument: inst, sampleRate: FS, dry: true, params: { vibrato: 0.06, human: 0 } } as never);
     for (const ev of events) core.schedule(ev.e, Math.round(ev.t * FS));
     const out = spans.map(() => 0);
     const L = new Float32Array(240);

@@ -324,6 +324,11 @@ export class MonoKeys {
     this.aHit[i] = 0;
     this.an++;
   }
+  /** the frame the next note foreseen begins at, after `frame` (−1: none is) */
+  nextAfter(frame: number): number {
+    for (let i = 0; i < this.an; i++) if (this.aOn[i] > frame) return this.aOn[i];
+    return -1;
+  }
   /** What was foreseen is forgotten (the file paused or stopped). True if the breath was being kept over
    *  a rest for a note that will now not come: the core lets it go. */
   forget(): boolean {

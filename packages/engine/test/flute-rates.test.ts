@@ -8,7 +8,8 @@ import { createCore, FluteCore } from '../src/core/index.ts';
 /** the sounding pitch's offset from equal temperament (cents), as scripts/tune-flute.ts measures it */
 function cents(fs: number, m: number, viaFactory = false): number {
   // (the factory runs the flute at twice the rate under 32 kHz: core/oversample.ts)
-  const c = viaFactory ? createCore({ sampleRate: fs, instrument: 'flute', dry: true, params: { vibrato: 0, noise: 0.3 } }) : new FluteCore({ sampleRate: fs, dry: true, params: { vibrato: 0, noise: 0.3 } });
+  // (the model alone: the player (human) puts its own few cents and its vibrato on every note)
+  const c = viaFactory ? createCore({ sampleRate: fs, instrument: 'flute', dry: true, params: { vibrato: 0, noise: 0.3, human: 0 } }) : new FluteCore({ sampleRate: fs, dry: true, params: { vibrato: 0, noise: 0.3, human: 0 } });
   c.schedule({ type: 'noteOn', midi: m, velocity: 80 }, 64);
   const n = Math.round((1.3 * fs) / 128) * 128;
   const L = new Float32Array(n);
@@ -56,7 +57,7 @@ describe('the flute in tune at 96 and 22.05 kHz', () => {
   });
   it('22.05 kHz, run at twice the rate: the same sound whatever the host block size', () => {
     const run = (block: number) => {
-      const c = createCore({ sampleRate: 22050, instrument: 'flute', params: { vibrato: 0 } });
+      const c = createCore({ sampleRate: 22050, instrument: 'flute', params: { vibrato: 0, human: 0 } });
       c.schedule({ type: 'noteOn', midi: 88, velocity: 90 }, 100);
       c.schedule({ type: 'noteOff', midi: 88 }, 9000);
       const out = new Float32Array(12000);

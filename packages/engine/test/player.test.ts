@@ -13,6 +13,13 @@ const note = (m: number, dur: number) => [
 ];
 const run = (instrument: 'piano' | 'violin' | 'flute' | 'trumpet', m: number, player?: number, dur = 1.6) => renderInstrument({ sampleRate: FS, instrument, preset: 'grand', events: note(m, dur), duration: dur, dry: true, player }).left;
 const lvl = (x: Float32Array) => 10 * Math.log10(x.subarray(Math.round(0.4 * FS), Math.round(1.2 * FS)).reduce((s, v) => s + v * v, 0));
+/** the flute's mean level over eight notes in one sitting (dB), as player `player` plays them */
+const sitting = (player: number) => {
+  const ms = [72, 74, 76, 77, 79, 77, 76, 74];
+  const ev = ms.flatMap((m, i) => [{ time: 0.02 + 1.2 * i, event: { type: 'noteOn' as const, midi: m, velocity: 90 } }, { time: 1.02 + 1.2 * i, event: { type: 'noteOff' as const, midi: m } }]);
+  const x = renderInstrument({ sampleRate: FS, instrument: 'flute', events: ev, duration: 1.2 * ms.length, dry: true, player }).left;
+  return ms.reduce((s, _, i) => s + 10 * Math.log10(x.subarray(Math.round((0.3 + 1.2 * i) * FS), Math.round((1.0 + 1.2 * i) * FS)).reduce((a, v) => a + v * v, 0)), 0) / ms.length;
+};
 /** normalised correlation over [t0, t1] s */
 const corr = (a: Float32Array, b: Float32Array, t0: number, t1: number) => {
   let xy = 0;
@@ -46,6 +53,12 @@ describe('a second player of the same instrument', () => {
       expect(r, inst).toBeLessThan(most);
       // as loud (within 1 dB): the same instrument, played as well
       if (inst === 'violin') continue;
+      // (the flute's player puts its own breath on each note, ±0.6 dB: its two players are compared over eight
+      // notes in one sitting, where one note is one draw)
+      if (inst === 'flute') {
+        expect(Math.abs(sitting(0) - sitting(1)), inst).toBeLessThan(1);
+        continue;
+      }
       expect(Math.abs(lvl(a) - lvl(b)), inst).toBeLessThan(1);
     }
     // a bowed string's level on one note depends on where its stick–slip settles, which another

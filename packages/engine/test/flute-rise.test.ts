@@ -26,7 +26,8 @@ function rise(from: number, to: number, slur: boolean, len: number, vel = 80, qu
     ...(slur ? [{ time: t1 + over, event: { type: 'noteOff', midi: from } } as TimedEvent] : []),
     { time: t1 + len, event: { type: 'noteOff', midi: to } },
   ];
-  const r = renderInstrument({ instrument: 'flute', sampleRate: FS, events, duration: t1 + len + 0.1, dry: true, quantum });
+  // (the model alone: the player (human) puts its own few cents and its vibrato on every note: the tube's mechanism is what is tested; scripts/flute-rise.ts reads the same with the player)
+  const r = renderInstrument({ instrument: 'flute', sampleRate: FS, events, duration: t1 + len + 0.1, dry: true, quantum, params: { human: 0 } });
   return { x: r.left, a: Math.round(t1 * FS), b: Math.round((t1 + len) * FS) };
 }
 
@@ -59,7 +60,7 @@ function onPitch(x: Float32Array, f0: number, a: number, b: number): { own: numb
 
 /** the same note held alone: its power on its own harmonics once it has settled */
 function held(m: number, vel = 80): number {
-  const r = renderInstrument({ instrument: 'flute', sampleRate: FS, events: [{ time: 0.05, event: { type: 'noteOn', midi: m, velocity: vel } }], duration: 1, dry: true });
+  const r = renderInstrument({ instrument: 'flute', sampleRate: FS, events: [{ time: 0.05, event: { type: 'noteOn', midi: m, velocity: vel } }], duration: 1, dry: true, params: { human: 0 } });
   return onPitch(r.left, et(m), Math.round(0.6 * FS), Math.round(0.9 * FS)).own;
 }
 

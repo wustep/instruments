@@ -138,7 +138,8 @@ describe('bowed strings', () => {
 describe('flute', () => {
   it('every note from C4 to C7 speaks at pitch (±3 cents) on its intended register', () => {
     for (let m = 60; m <= 96; m += 3) {
-      const r = play('flute', [m], 1.5, { vibrato: 0 });
+      // (the model alone: the player puts its own few cents on every note)
+      const r = play('flute', [m], 1.5, { vibrato: 0, human: 0 });
       expect(finite(r.left), `m${m}`).toBe(true);
       expect(Math.abs(pitchCents(r.left, et(m))), `m${m}`).toBeLessThan(3);
     }

@@ -22,6 +22,7 @@ import type { PianoEvent } from './piano-core.ts';
 import { biquadBandpass, biquadHighpass, biquadPeaking, biquadHighShelf } from './filters.ts';
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { clamp, interp, mulberry32, playerCents, playerSeed, playerVibrato } from './util.ts';
+import { WindPlayer, type WindHuman } from './winds-human.ts';
 import fluteTuning from './flute-tuning.json';
 
 export interface FluteParams {
@@ -37,7 +38,43 @@ export interface FluteParams {
   volume: number;
   /** orchestra mode: where it sits on the stage (post.ts Seat); none, the single instrument's place */
   seat?: Seat | null;
+  /** how much of a player: 0 the model alone (what is fitted and judged: every note of one pitch and
+   *  strength the same, a held note dead still, its breath vibrato hardly heard) … 1 a flautist's vibrato,
+   *  breath, lips and tongue (FLUTE_HUMAN, winds-human.ts) */
+  human?: number;
 }
+
+/** The flautist (winds-human.ts), from the University of Iowa MIS flute (non-vibrato and vibrato runs, analysis
+ *  only). Its vibrato: 12 ¢ in pitch at mf (10.7 pp, 15.6 ff), the fundamental's level ±1.0–1.3 dB and the
+ *  harmonics' above it ±2.7–5.3 dB (Fletcher 1975, JASA 57, 233–237: a flute's vibrato is mostly in its upper
+ *  harmonics), at 4.9 Hz, ±0.23 Hz from note to note, 11 % from one cycle's length to the next and 22 % in
+ *  its swing. A held note: its pitch wanders 1.1–1.6 ¢ from one tenth of a second to the next (the model's
+ *  0.3), its level 0.1–0.5 dB (the model's 0.04–0.3). From one note to the next: its pitch ±3–5 ¢ (the
+ *  model's 0.3; half of it here: those notes were played alone, with nothing to tune to), its attack's
+ *  length ±70 % and more (the model's ±14–27 %). Let go, it is 10 dB down in 68 ms (the model's 30). */
+export const FLUTE_HUMAN: WindHuman = {
+  seed: 313,
+  wander: 3,
+  slow: 2,
+  slowTau: 1.2,
+  place: 2.5,
+  breath: 0.25,
+  breathSlow: 0.4,
+  breathTau: 1.5,
+  strength: 0.6,
+  bright: 3.5,
+  rise: 0.2,
+  push: 0.25,
+  release: 3,
+  taperFrom: 0.15,
+  taperFull: 0.5,
+  // (each set so that the vibrato read as the recordings are, its irregularity included, is theirs: pitch
+  // 10.5 / 12.1 / 15.5 ¢, the fundamental 1.0 / 1.3 / 1.0 dB, the harmonics above 5.5 / 2.6 / 3.8, 11 % and 20 %
+  // from cycle to cycle, 64 % one sine; scripts/winds-vibrato.ts --instrument flute [--model])
+  vibrato: { rate: 4.9, breathRate: 0.23, cents: [12.4, 14.1, 18.1], fundDb: [0.95, 1.3, 1.0], upperDb: [6.7, 3.6, 5.0], breath: [1, 1, 1], rateWander: 0.3, depthWander: 0.22 },
+};
+/** the vibrato parameter's default: the player's vibrato is scaled by the parameter over it */
+const FLUTE_VIBRATO = 0.06;
 
 const RHO = 1.2;
 const C_AIR = 343;
@@ -249,16 +286,19 @@ export class FluteCore implements InstrumentCore {
   private modeFreqs = new Float64Array(16);
   private Uj = 0;
   private gain = 1;
+  /** the player (FLUTE_HUMAN) */
+  private pl: WindPlayer;
 
   constructor(opts: { sampleRate: number; params?: Partial<FluteParams>; dry?: boolean; player?: number }) {
     this.fs = opts.sampleRate;
     this.dry = !!opts.dry;
-    this.params = { breath: 1, embouchure: 1, noise: 1, vibrato: 0.06, room: 0.35, volume: 1, ...opts.params };
+    this.params = { breath: 1, embouchure: 1, noise: 1, vibrato: FLUTE_VIBRATO, room: 0.35, volume: 1, ...opts.params };
     this.keys = new MonoKeys(this.fs);
     this.rng = mulberry32(playerSeed(31, opts.player));
     const pv = playerVibrato(opts.player);
     this.vib0 = this.vibPhase = pv.phase;
     this.vibRate = pv.rate;
+    this.pl = new WindPlayer(FLUTE_HUMAN, this.fs, opts.player, 5.0, pv.rate);
     this.tune = playerCents(opts.player) / 100;
     if (this.tune) this.bendFactor = Math.pow(2, -this.tune / 12);
     this.room = new Room(this.fs);
@@ -267,6 +307,11 @@ export class FluteCore implements InstrumentCore {
     this.noiseBp.set([nb[0], nb[1], nb[2], nb[3], nb[4]]);
     this.updatePost();
     this.setNote(69, true);
+  }
+
+  /** how much of a player there is (0: none, the model alone) */
+  private get human(): number {
+    return clamp(this.params.human ?? 1, 0, 1);
   }
 
   private updatePost(): void {
@@ -505,8 +550,10 @@ export class FluteCore implements InstrumentCore {
       this.velocity = was;
     }
     this.releasePending = false;
+    this.pl.H = this.human;
     if (a.kind === 'slur') {
       this.setNote(m, false);
+      this.pl.note(this.frame, m, a.len, false, false);
       this.pTarget = 1;
       this.attackTau = 0.015;
       this.chiff = 0.3;
@@ -535,6 +582,9 @@ export class FluteCore implements InstrumentCore {
       this.tongueLen = Math.max(4, Math.round((0.5 * this.fs) / et(m)));
       this.tongueN = this.tongueLen;
       this.attackBoost = ATTACK_BOOST * (0.6 + 0.4 * v) * (1 + (QUICK_AIM - v) * quick);
+      // (the player's own: this note's rise, and the tongue's push with its sharper aim)
+      this.pl.note(this.frame, m, a.len, true, true);
+      if (this.pl.H > 0) this.ownAttack();
       this.afterStop = false;
       this.vibPhase = this.vib0;
       this.breathStart = this.frame;
@@ -558,9 +608,22 @@ export class FluteCore implements InstrumentCore {
       this.tongueN = this.tongueLen;
       this.tongueWait = wait;
       this.attackBoost = ATTACK_BOOST * (0.6 + 0.4 * v) * (first ? 1 + QUICK_AIM - v : LICK_BOOST);
+      this.pl.note(this.frame, m, a.len, true, false);
+      if (this.pl.H > 0) this.ownAttack();
       this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
     }
     if (a.tap) this.release();
+  }
+
+  /** a tongued note's own first moments, once the model's are set (the player's draw, winds-human.ts): the
+   *  breath's rise a little quicker or slower, the tongue's push and the chiff with it a little more or less.
+   *  The jet's sharper aim is the model's: aimed sharper still, a note after a short rest an octave and a fifth
+   *  below sounded its twelfth (E♭5 → C6, twice in 1008 such pairs, 12 ms) */
+  private ownAttack(): void {
+    const pl = this.pl;
+    this.attackTau *= pl.rise;
+    this.tongueAmp *= pl.push;
+    this.chiff *= pl.push;
   }
   /** samples before the jet's push begins (the tongue is still across the air), and the decay of its
    *  sharper aim (s) */
@@ -602,6 +665,7 @@ export class FluteCore implements InstrumentCore {
     this.keys.clear();
     this.keys.forget();
     this.lick.reset();
+    this.pl.reset();
     this.tongueWait = 0;
     this.carryFrom = -1;
     this.fadeN = 0;
@@ -676,13 +740,13 @@ export class FluteCore implements InstrumentCore {
     const P = this.params;
     // breath envelope and vibrato (control rate)
     const sinceOn = Math.max(0, this.frame - this.tongueAt) / fs;
-    const k = 1 - Math.exp(-dt / (this.pTarget > this.pressure ? this.attackTau : 0.035));
+    // (the player: a long note's breath let go slower before a rest, winds-human.ts)
+    const H = this.human;
+    this.pl.H = H;
+    const k = 1 - Math.exp(-dt / (this.pTarget > this.pressure ? this.attackTau : H > 0 ? this.pl.releaseTau(0.035, this.frame, this.keys) : 0.035));
     this.pressure += (this.pTarget - this.pressure) * k;
     if (this.pressure < 1e-5 && this.pTarget === 0) this.pressure = 0;
     const age = (this.frame - this.breathStart) / fs;
-    this.vibPhase += 2 * Math.PI * 5.0 * this.vibRate * dt;
-    const vib = 1 + P.vibrato * clamp((age - 0.3) / 0.4, 0, 1) * Math.sin(this.vibPhase);
-    this.vibNow = vib - 1;
     // CC_DYNAMICS: the breath goes on as a note begun that much harder or softer would (a time constant)
     if (this.dyn !== this.dynTarget) {
       this.dyn += (this.dynTarget - this.dyn) * (1 - Math.exp(-dt / DYN_TAU));
@@ -691,6 +755,16 @@ export class FluteCore implements InstrumentCore {
     // velocity: mostly loudness (jet flow amplitude), a little blowing pressure
     const V = FLUTE_VOICE;
     const v01 = this.dyn ? clamp(this.velocity + this.dyn, 1, 127) / 127 : this.velocity / 127;
+    this.vibPhase += 2 * Math.PI * 5.0 * this.vibRate * dt;
+    const vibEnv = clamp((age - 0.3) / 0.4, 0, 1);
+    let vibShape = Math.sin(this.vibPhase);
+    if (H > 0) {
+      // the player's vibrato (no cycle like the last), the pitch's wander, the breath's level
+      this.pl.step(dt, v01, vibEnv, P.vibrato / FLUTE_VIBRATO);
+      vibShape = this.pl.shape;
+    }
+    const vib = H > 0 ? 1 + P.vibrato * this.pl.breathVib * vibEnv * vibShape : 1 + P.vibrato * vibEnv * vibShape;
+    this.vibNow = vib - 1;
     const velScale = V.driveLo + (V.driveHi - V.driveLo) * Math.pow(v01, V.driveCurve);
     const pBlow = this.nominalPressure(this.note) * this.pressure * vib * P.breath * (V.pressLo + (V.pressHi - V.pressLo) * v01) * this.expression;
     const Uj = Math.sqrt((2 * Math.max(pBlow, 1)) / RHO);
@@ -699,6 +773,8 @@ export class FluteCore implements InstrumentCore {
     this.jetDTarget = clamp((fs * ljEff) / (0.45 * Math.max(Uj, 4)), 2, BUF / 2);
     // players "lip" the pitch back as they blow harder; compensate 75 % of the drift
     this.Dtarget = (this.Dnom + 0.75 * (this.boreDelayFor(this.jetDTarget) * this.tuningCorrection(this.note) - this.Dnom)) * this.bendFactor;
+    // (the player's pitch: the lips over the hole, a few cents either way, and the vibrato's)
+    if (H > 0) this.Dtarget *= this.pl.delayFactor;
     if (this.carryFrom >= 0) this.carry();
     const ventStep = VENT / (VENT_OPEN * fs);
     if (this.ventTo > 0 && this.ventLive <= 0) {
@@ -863,6 +939,9 @@ export class FluteCore implements InstrumentCore {
     this.offPrev = off;
     this.tOffPrev = tOff;
     this.level = Math.max(peak, this.level * 0.9);
+    // (the player's breath and vibrato in what leaves the flute: its level, the harmonics above the
+    // fundamental further)
+    if (H > 0) this.pl.out(oL, oR, n, this.fTarget);
     const g = this.gain;
     for (let t = 0; t < n; t++) {
       oL[t] *= g;
