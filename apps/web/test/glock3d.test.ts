@@ -7,7 +7,7 @@ import type { VisualFrame } from '@piano-model/engine';
 import { Batch, xform } from '../src/ui/gl/gl3d.ts';
 import { buildGlockModel, poseGlock, type GlockModel } from '../src/ui/gl/glock3d.ts';
 import { ensembleSeats } from '../src/ui/gl/scenes3d.ts';
-import { BARS } from '../src/ui/glock-plan.ts';
+import { BARS, BAR_W, barNodes } from '../src/ui/glock-plan.ts';
 
 (globalThis as unknown as { window: unknown }).window ??= globalThis;
 const t0 = performance.now();
@@ -66,14 +66,16 @@ describe('the glockenspiel in 3D', () => {
     // the heads over their bars (each bar's own mesh says where it is), the left one on the bar, the right
     // one lifted
     const at = (i: number) => {
+      // (its box's middle: a bevelled bar's vertices are not spread evenly over it)
       const m = gm.bars[i];
-      let x = 0;
-      let z = 0;
-      for (let k = 0; k < m.count; k++) {
-        x += m.data[k * 14] / m.count;
-        z += m.data[k * 14 + 2] / m.count;
-      }
-      return xform(gm.T, [x, 0, z]);
+      const lo = [Infinity, Infinity];
+      const hi = [-Infinity, -Infinity];
+      for (let k = 0; k < m.count; k++)
+        [m.data[k * 14], m.data[k * 14 + 2]].forEach((v, a) => {
+          lo[a] = Math.min(lo[a], v);
+          hi[a] = Math.max(hi[a], v);
+        });
+      return xform(gm.T, [(lo[0] + hi[0]) / 2, 0, (lo[1] + hi[1]) / 2]);
     };
     expect(s.heads[0][0]).toBeCloseTo(at(5)[0], 2);
     expect(s.heads[0][2]).toBeCloseTo(at(5)[2], 2);
@@ -81,6 +83,33 @@ describe('the glockenspiel in 3D', () => {
     expect(s.heads[0][1]).toBeGreaterThan(0.86);
     expect(s.heads[0][1]).toBeLessThan(0.89);
     expect(s.heads[1][1]).toBeGreaterThan(s.heads[0][1] + 0.05);
+  });
+
+  it('each bar is its own size still (bevelled, not shrunk), and a pin stands through each of its two nodes, its head just over the bar', () => {
+    const st = gm.statics[0];
+    for (const i of [0, 7, 13, 29]) {
+      const m = gm.bars[i];
+      const lo = [Infinity, Infinity, Infinity];
+      const hi = [-Infinity, -Infinity, -Infinity];
+      for (let k = 0; k < m.count; k++)
+        for (let a = 0; a < 3; a++) {
+          lo[a] = Math.min(lo[a], m.data[k * 14 + a]);
+          hi[a] = Math.max(hi[a], m.data[k * 14 + a]);
+        }
+      expect(hi[0] - lo[0]).toBeCloseTo(BAR_W, 4);
+      expect(hi[1] - lo[1]).toBeCloseTo(0.0095, 4);
+      expect(hi[2] - lo[2]).toBeCloseTo(BARS[i].length, 4);
+      // the pins: the statics' vertices within a pin's radius of each node, over the bar's top by 1–3 mm
+      for (const [nx, ny] of barNodes(i)) {
+        let top = -Infinity;
+        for (let k = 0; k < st.count; k++) {
+          const [x, y, z] = [st.data[k * 14], st.data[k * 14 + 1], st.data[k * 14 + 2]];
+          if (Math.hypot(x - nx, Math.abs(z) - ny) < 0.003 && y > hi[1] - 0.001) top = Math.max(top, y);
+        }
+        expect(top - hi[1], `bar ${i}`).toBeGreaterThan(0.001);
+        expect(top - hi[1]).toBeLessThan(0.003);
+      }
+    }
   });
 
   it('in an orchestra it stands in the back row beside the timpani, and nobody else has moved for it but along that row', () => {

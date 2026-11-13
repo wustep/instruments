@@ -80,6 +80,10 @@ const P: Record<string, Phys> = {
   ebony: { color: '#0d0b0a', roughness: 0.42, clearcoat: 0.25, clearcoatRoughness: 0.2, tex: 4, axis: [0, 0, 1] },
   steel: { color: '#d4d7dc', metalness: 1, roughness: 0.2, anisotropy: 0.6, tex: 8 },
   darkSteel: { color: '#6a6d72', metalness: 1, roughness: 0.38, tex: 8 },
+  // the glockenspiel's bars (glock3d.ts): tool steel ground along the bar and polished, a satin's long
+  // highlight across the grain
+  glockBar: { color: '#b9bdc3', metalness: 0.85, roughness: 0.4, tex: 8, axis: [0, 0, 1] },
+  glockHead: { color: '#d7b065', metalness: 1, roughness: 0.24, envMapIntensity: 1.4 },
   nickel: { color: '#dddcd6', metalness: 1, roughness: 0.1 },
   copper: { color: '#c4794a', metalness: 1, roughness: 0.3, anisotropy: 0.5, tex: 8 },
   brass: { color: '#e6bb62', metalness: 1, roughness: 0.14, clearcoat: 0.8, clearcoatRoughness: 0.04 },

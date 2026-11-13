@@ -69,6 +69,29 @@ export const CASE: P[] = [
   [GK_X1, taper(1, 1, GK_X1) + MARGIN * 0.6],
   [GK_X0, GK_Y1],
 ];
+/** the case's wall (its rim's width), and the tray inside it: the case's outline set in by the wall */
+export const WALL = 0.012;
+export const TRAY: P[] = (() => {
+  const n = CASE.length;
+  // each side moved in by the wall (the outline runs anticlockwise: in is to its left), then the corners
+  const lines = CASE.map((a, i) => {
+    const b = CASE[(i + 1) % n];
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const nx = -(b[1] - a[1]) / L;
+    const ny = (b[0] - a[0]) / L;
+    return { p: [a[0] + nx * WALL, a[1] + ny * WALL] as P, d: [(b[0] - a[0]) / L, (b[1] - a[1]) / L] as P };
+  });
+  return lines.map((l, i) => {
+    const k = lines[(i + n - 1) % n];
+    const det = k.d[0] * l.d[1] - k.d[1] * l.d[0];
+    const t = ((l.p[0] - k.p[0]) * l.d[1] - (l.p[1] - k.p[1]) * l.d[0]) / det;
+    return [k.p[0] + k.d[0] * t, k.p[1] + k.d[1] * t] as P;
+  });
+})();
+/** a rail's width (a wooden strip, felt on it), a pin's head and the hole it stands in (radii) */
+export const RAIL_W = 0.012;
+export const PIN_R = 0.0022;
+export const HOLE_R = 0.0038;
 /** the four rails (felt strips under the nodes), each from the row's first bar to its last */
 export const RAILS: [P, P][] = [0, 1].flatMap((row) => {
   const bs = row ? sharps : naturals;
