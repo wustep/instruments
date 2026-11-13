@@ -4,6 +4,10 @@
 // and `after` name the two sets of one change, taken from the same views, so they can be laid side by
 // side.
 //   node scripts/shots-winds-holes.mjs <base URL> <out dir> <before|after>
+//   BELL=1 node scripts/shots-winds-holes.mjs <base URL> <out dir>: the reeds' bells instead, close up, silent and
+//   with a loud note held (the warmest of FRAMES pictures): <instrument>-3d-bell-{silent,sounding}.png, and
+//   printed, the bell's mean colour in each (a box over its wood) and the most any of its pixels gains
+//   sounding (none is lit: only the breath's and the light's noise)
 //   (ONLY=flute,oboe: some of them; FRAMES=16: how many frames are taken of each)
 // Writes <out dir>/<instrument>-3d-holes-<tag>.png and, once both sets are there,
 // <instrument>-3d-holes-diff.png: what `before` has over `after`, eight times as bright (black where the
@@ -38,6 +42,14 @@ const SHOTS = {
   clarinet: { note: 55, size: [960, 560], view: { yaw: -0.304, pitch: 0.38, dist: 0.14, target: [-0.0534, 0.3418, 0.0543] } },
   // F2: both hands down; the boot from the fingers' side: R1's hole, R2's ring, the G and F keys' pads
   bassoon: { note: 41, size: [700, 860], view: { yaw: -0.6, pitch: 0.15, dist: 0.45, target: [0.04, 0.33, 0] } },
+};
+
+// the bells: from below the oboe's and the clarinet's, the bassoon's from the side (its bead ring at the top);
+// `box` is over the bell's wood (x, y, w, h in the picture's pixels)
+const BELLS = {
+  oboe: { note: 62, size: [640, 460], view: { yaw: 0.22, pitch: 0.16, dist: 0.28, target: [0.185, 0.115, 0.03] }, box: [220, 220, 220, 130] },
+  clarinet: { note: 55, size: [640, 460], view: { yaw: 0.22, pitch: 0.16, dist: 0.28, target: [0.2, 0.1, 0.03] }, box: [150, 110, 280, 260] },
+  bassoon: { note: 41, size: [640, 460], view: { yaw: 0, pitch: 0.12, dist: 0.55, target: [0.78, 1.1, 0.02] }, box: [190, 160, 150, 200] },
 };
 
 const browser = await chromium.launch({ channel: 'chrome', args: ['--autoplay-policy=no-user-gesture-required', '--use-angle=metal', '--enable-gpu'] });
@@ -84,8 +96,25 @@ const over = (a, b, gain) =>
     return { png: btoa(s), most };
   }, [a.toString('base64'), b.toString('base64'), gain]);
 
-/** one instrument: its page, its note held, the warmest of FRAMES pictures */
-async function shoot(id, s) {
+/** the mean colour of a picture over a box, and the most picture a has over picture b there (of 255) */
+const inBox = (a, b, box) =>
+  bench.evaluate(async ([a64, b64, [x0, y0, w, h]]) => {
+    const px = async (b64) => {
+      const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
+      const g = new OffscreenCanvas(bmp.width, bmp.height).getContext('2d');
+      g.drawImage(bmp, 0, 0);
+      return g.getImageData(x0, y0, w, h).data;
+    };
+    const A = await px(a64);
+    const B = await px(b64);
+    const mean = (d) => [0, 1, 2].map((j) => { let s = 0; for (let i = j; i < d.length; i += 4) s += d[i]; return +(s / (d.length / 4)).toFixed(1); });
+    let most = 0;
+    for (let i = 0; i < A.length; i += 4) for (let j = 0; j < 3; j++) most = Math.max(most, A[i + j] - B[i + j]);
+    return { a: mean(A), b: mean(B), most };
+  }, [a.toString('base64'), b.toString('base64'), box]);
+
+/** one instrument: its page, its note held, the warmest of FRAMES pictures (and, `silent`, one before it) */
+async function shoot(id, s, silent = false) {
   const ctx = await browser.newContext({ viewport: { width: s.size[0], height: s.size[1] }, deviceScaleFactor: 1 });
   try {
     const page = await ctx.newPage();
@@ -104,7 +133,12 @@ async function shoot(id, s) {
       // (the engine's own frames, as the stage is given them: the note and the breath)
       window.__piano.piano.onVisual((f) => (window.__vf = f));
     }, s.view);
-    await page.evaluate((m) => window.__piano.noteOn(m, 110, 'keys'), s.note);
+    let quiet = null;
+    if (silent) {
+      await page.waitForTimeout(600);
+      quiet = await page.screenshot({ type: 'png' });
+    }
+    await page.evaluate(([m, v]) => window.__piano.noteOn(m, v, 'keys'), [s.note, silent ? 124 : 110]);
     await page.waitForTimeout(1200);
     let best = null;
     let lo = Infinity;
@@ -122,10 +156,23 @@ async function shoot(id, s) {
     const st = await page.evaluate(() => ({ midi: window.__vf?.focus?.midi ?? null, breath: +(window.__vf?.breath?.pressure ?? 0).toFixed(3) }));
     if (loads !== 1 || st.midi !== s.note || !(st.breath > 0.5)) throw new Error(`the page was reloaded or the note is not sounding (${JSON.stringify({ loads, ...st })})`);
     await page.evaluate((m) => window.__piano.noteOff(m, 'keys'), s.note);
-    return { png: best, st, warmth: [+lo.toFixed(3), +hi.toFixed(3)], errors };
+    return { png: best, quiet, st, warmth: [+lo.toFixed(3), +hi.toFixed(3)], errors };
   } finally {
     await ctx.close();
   }
+}
+
+if (process.env.BELL) {
+  for (const [id, s] of Object.entries(BELLS)) {
+    if (ONLY.length && !ONLY.includes(id)) continue;
+    const r = await shoot(id, s, true);
+    writeFileSync(join(OUT, `${id}-3d-bell-silent.png`), r.quiet);
+    writeFileSync(join(OUT, `${id}-3d-bell-sounding.png`), r.png);
+    const m = await inBox(r.png, r.quiet, s.box);
+    console.log(`${id} bell: note ${r.st.midi}, breath ${r.st.breath}; its wood's mean RGB silent ${m.b.join(' ')}, sounding ${m.a.join(' ')}; the most a pixel of it gains sounding ${m.most} of 255; WebGL errors ${r.errors.length}`);
+  }
+  await browser.close();
+  process.exit(0);
 }
 
 for (const [id, s] of Object.entries(SHOTS)) {
