@@ -157,4 +157,8 @@ here under 1.5 and 4.5).
 
 ## The gate
 
-See the pull request.
+* `pnpm typecheck`: clean. `pnpm build`: built; the worklet parses in Safari 14.1 (297 kB).
+* `pnpm test` (Vitest): 102 files, 1054 tests pass (4 new: the flute's vibrato by note length).
+* Playwright, the whole suite (Chrome desktop and Pixel 7, the WebKit smoke test) on port 4611, served by this
+  worktree's own build: 376 passed, 32 skipped, none failed, no rerun needed.
+* `git ls-files` gains no recording; no banned font.
