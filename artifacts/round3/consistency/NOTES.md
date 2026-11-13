@@ -143,9 +143,25 @@ model's level less its own recording's, by octave and by note) are new. Tables: 
 * The flute's top notes meet its limiter at fortissimo (2.9 dB at C7), the viola's D♯3 at velocity 127 (5.4 dB).
 * The vibrato knobs read differently by family (the quantities differ: breath, lips, cents).
 * The timpani's strokes land on the instant (the glockenspiel's hands are up to a millisecond late).
+* `git ls-files | grep -iE '\.(aiff?|wav|flac)$'` prints three files on main already (`artifacts/audio/*.wav`:
+  the engine's own early renders, not reference recordings). Not touched.
 * The bundled pieces were not re-balanced: their double bass is 5–8 dB softer on B1–C♯2 and their harp's wire
   strings 3 dB louder.
 
+## Found on the way
+
+* `e2e/trombone-2d.spec.ts` "the slide back in" fails on main itself (fc111db built in a scratch worktree, twice
+  running: the slide drawn 6.9 mm out against the test's 5 mm) since the trombone has a player, who puts the
+  slide by ear. The test means the chart's positions and now asks for `human` 0, as the other mechanism tests do.
+* The e2e "at pitch" checks (all sixteen; the horn's, the bass's, the timpani's own) ask for `human` 0 too, and
+  the test that lists the trumpet's knob colours has its fourth.
+
 ## The gate
 
-See the pull request for the run's counts.
+On the final tree (2026-11-12), all local (the repo has no Actions):
+
+* `pnpm typecheck`: clean.
+* `pnpm build`: built; the worklet bundle parses for Safari 14.1+ (`processor-CYyhjJT3.js`, 296 kB).
+* `pnpm test` (Vitest): 102 files, 1050 tests passed.
+* Playwright (`E2E_PORT=4290 npx playwright test`, its own build and server on a port nothing else held): 376 passed, 32 skipped, 0 failed, no flake (neither `.av-speed` nor "the bow in the hand" fired).
+* A first Playwright pass, begun before the last test edits, had 373 passed and 3 failed: the two "at pitch" / knob-colour checks this branch's changes called for, and the trombone's slide test, which fails on main itself. All three pass now, alone and in the clean pass.
