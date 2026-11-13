@@ -51,7 +51,8 @@ describe('cello (v2)', () => {
   it('bowed notes sound at pitch within ±3 ¢ across the four strings (no vibrato), at 44.1 and 48 kHz', () => {
     for (const fs of [44100, 48000])
       for (const m of [36, 40, 43, 47, 50, 55, 57, 62]) {
-        const x = mono(play(m, 1.5, { vibrato: 0 }, fs));
+        // (the string's own pitch: the finger where the model has it, `human` 0)
+        const x = mono(play(m, 1.5, { vibrato: 0, human: 0 }, fs));
         expect(x.every((v) => Number.isFinite(v) && Math.abs(v) < 20)).toBe(true);
         const c = analyzeSustained(x, fs, { start: Math.round(0.6 * fs), end: x.length }, m).cents;
         expect(Math.abs(c), `fs ${fs} m${m}`).toBeLessThan(3);

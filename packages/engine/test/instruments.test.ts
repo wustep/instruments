@@ -58,7 +58,8 @@ describe('bowed strings', () => {
     // high positions on very short vibrating lengths run a few cents sharp under the bow
     it(`${inst}: bowed notes sound at pitch (±5 cents below C6, ±8 above; no vibrato)`, () => {
       for (const m of notes) {
-        const r = play(inst, [m], 1.5, { vibrato: 0 });
+        // (the string's own pitch: the finger where the model has it, `human` 0)
+        const r = play(inst, [m], 1.5, { vibrato: 0, human: 0 });
         expect(finite(r.left), `${inst} m${m}`).toBe(true);
         // pitch from the harmonic series (sub-cent on synthetic tests, sustained.test.ts):
         // time-domain autocorrelation over a ~27-sample period (A6) is biased by several cents

@@ -7,14 +7,14 @@
 // instrument. The bell reflects the lows and radiates the highs.
 
 import { Pump } from './pump.ts';
-import { LICK_CLOSE, MonoKeys, Tongue } from './mono.ts';
+import { LICK_CLOSE, MonoKeys, quickness, Tongue } from './mono.ts';
 import type { KeySummary } from '../api/messages.ts';
 import { CC_DYNAMICS, DYN_TAU, type ExciteTrace, type InstrumentCore } from './instrument.ts';
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { biquadHighpass, biquadLowpass, biquadPeaking, biquadHighShelf } from './filters.ts';
 import type { PianoEvent } from './piano-core.ts';
-import { clamp, playerCents, playerSeed, playerVibrato } from './util.ts';
-import { valveFingering } from './valves.ts';
+import { clamp, Human, playerCents, playerSeed, playerVibrato } from './util.ts';
+import { partialCents, valveFingering, valveSharp } from './valves.ts';
 import tuning from './brass-tuning.json';
 /** measured per-note correction (cents the bare model plays sharp; scripts/tune-trumpet.ts) */
 const TUNING = tuning as Record<string, number>;
@@ -26,11 +26,79 @@ export interface TrumpetParams {
   lip: number;
   /** lip vibrato depth (fraction of the lip frequency, cents/100-ish) */
   vibrato: number;
+  /** turbulence noise amount (× the voicing's: the knob the horn, the trombone and the tuba have) */
+  noise?: number;
   room: number;
   volume: number;
   /** orchestra mode: where it sits on the stage (post.ts Seat); none, the single instrument's place */
   seat?: Seat | null;
+  /** how much of a player: 0 the model alone (what is tuned and judged: every note of one pitch and
+   *  strength the same, a held note held still) … 1 a player's breath, lips and tongue (TRUMPET_HUMAN) */
+  human?: number;
 }
+
+/** A player on the trumpet: what no two notes of his have alike, and what a held note does, as the
+ *  trombone's (trombone.ts TROMBONE_HUMAN) and the horn's (horn.ts HORN_HUMAN). From one note of the
+ *  University of Iowa MIS trumpeter's runs to the next the pitch stands ±5–7 ¢ from the run's own tuning and
+ *  the strength ±0.5–0.9 dB from its own line (scripts/trombone-variation.ts --instrument trumpet; the model
+ *  alone: ±0.1–0.2 ¢, ±0.03–0.11 dB). His runs do not come apart into held notes there, so what a held note
+ *  does is the other brass players': the breath sagging once its support is spent and wandering, the pitch
+ *  wandering a few cents (the horn's 2–4 ¢, the trombone's 1.3–2.5 ¢). All of it is scaled by the `human`
+ *  parameter, and a seeded stream: the same notes give the same samples. */
+export interface TrumpetHuman {
+  seed: number;
+  /** the breath over a held note: supported for `sagAfter` s, then sagging by `sag` (a share of the mouth
+   *  pressure) over `sagTau` s; and wandering by `drift` (a share, a standard deviation) */
+  sag: number;
+  sagAfter: number;
+  sagTau: number;
+  drift: number;
+  /** the pitch's wander (cents, standard deviations): from one fifth of a second to the next, and slowly
+   *  (over `slowTau` s) */
+  wander: number;
+  slow: number;
+  slowTau: number;
+  /** where the lips put a note, found by ear (cents, a standard deviation): a note's own for as long as it
+   *  sounds, and the same again while its pitch is struck again. Under the recordings' ±5–7 ¢: those notes
+   *  were played alone, with nothing to tune to */
+  place: number;
+  /** what is left of a fingering's own intonation: this share of its valves' sharpness together (never more
+   *  than `valveMax` ¢: the third valve's slide takes the rest; the Iowa trumpeter's 1+3 and 1+2+3 notes
+   *  stand some 15 ¢ over their neighbours) and of its partial's distance from equal temperament (his
+   *  fifth-partial notes are not flat: a little) */
+  valve: number;
+  valveMax: number;
+  partial: number;
+  /** from one tongued note to the next (standard deviations): the lips' kick and the breath's rise (shares),
+   *  the breath's strength (velocity steps: ±0.5 dB) */
+  kick: number;
+  rise: number;
+  vel: number;
+  /** the air: the tongue's release lets a puff through (× the breath noise at the release, dying over
+   *  `puffTau` s) */
+  puff: number;
+  puffTau: number;
+}
+
+export const TRUMPET_HUMAN: TrumpetHuman = {
+  seed: 582,
+  sag: 0.06,
+  sagAfter: 0.4,
+  sagTau: 1.6,
+  drift: 0.015,
+  wander: 4,
+  slow: 2.5,
+  slowTau: 1.2,
+  place: 3,
+  valve: 0.25,
+  valveMax: 12,
+  partial: 0.15,
+  kick: 0.15,
+  rise: 0.25,
+  vel: 4,
+  puff: 3,
+  puffTau: 0.03,
+};
 
 const BUF = 8192;
 const TRACE = 2048;
@@ -180,6 +248,22 @@ export class TrumpetCore implements InstrumentCore {
   private fingerNote = 70;
   private fingeredFor = -1;
   private velocity = 80;
+  /** the player (TRUMPET_HUMAN): his stream; the breath's and the pitch's wander (walks drawn back to rest,
+   *  the quick ones smoothed); this note's own strength (velocity steps; one waiting for the tongue, as the
+   *  velocity does), and where its pitch is put (cents: by ear, and its fingering's intonation) */
+  private hum: Human;
+  private driftRaw = 0;
+  private drift = 0;
+  private wanderRaw = 0;
+  private wander = 0;
+  private slowRaw = 0;
+  private velJit = 0;
+  private jitNext = 0;
+  private place = 0;
+  private placeRaw = 0;
+  /** this note's kick and rise against the model's (1: the model's) */
+  private kickVar = 1;
+  private riseVar = 1;
   private eq = new BiquadChain();
   private room: Room;
   private limiter: Limiter;
@@ -210,8 +294,9 @@ export class TrumpetCore implements InstrumentCore {
   constructor(opts: { sampleRate: number; params?: Partial<TrumpetParams>; dry?: boolean; player?: number }) {
     this.fs = opts.sampleRate;
     this.dry = !!opts.dry;
-    this.params = { breath: 1, lip: 0, vibrato: 0.004, room: 0.3, volume: 1, ...opts.params };
+    this.params = { breath: 1, lip: 0, vibrato: 0.004, noise: 1, room: 0.3, volume: 1, ...opts.params };
     this.keys = new MonoKeys(this.fs);
+    this.hum = new Human(TRUMPET_HUMAN.seed, opts.player);
     this.nzSeed = playerSeed(12345, opts.player);
     const pv = playerVibrato(opts.player);
     this.vib0 = this.vibPhase = pv.phase;
@@ -229,6 +314,33 @@ export class TrumpetCore implements InstrumentCore {
     // the bell's radiation: a rising presence region and a gentle top
     this.eq.set([biquadHighpass(120, 0.7, fs), biquadPeaking(1300, 1.0, 3, fs), biquadHighShelf(7000, -6, fs)]);
     this.room.configure(this.params.room, this.params.seat);
+  }
+
+  private get human(): number {
+    return clamp(this.params.human ?? 1, 0, 1);
+  }
+
+  /** A player's new note: where its pitch is put (by ear: where it was while the pitch is struck again; and
+   *  what he leaves of the fingering's own intonation), and, tongued, its own strength, kick and rise. A
+   *  note known to be short (`len` s; mono.ts quickness) gets less of the attack's variation, a quick one
+   *  none. `waits`: the strength is taken up once the tongue is down (velNext). */
+  private newNote(m: number, tongued: boolean, len: number, waits: boolean): void {
+    const H = this.human;
+    if (!(H > 0)) {
+      this.velJit = this.jitNext = this.place = 0;
+      return;
+    }
+    const hu = TRUMPET_HUMAN;
+    const fg = trumpetFingering(m);
+    if (m !== this.note || !(this.pTarget > 0)) this.placeRaw = hu.place * this.hum.near();
+    this.place = H * (this.placeRaw + Math.min(hu.valveMax, hu.valve * valveSharp(fg.valves)) + hu.partial * partialCents(fg.partial));
+    if (!tongued) return;
+    const A = H * (1 - quickness(len));
+    const j = H * hu.vel * this.hum.near();
+    if (waits) this.jitNext = j;
+    else this.velJit = j;
+    this.kickVar = Math.max(0.3, 1 + A * hu.kick * this.hum.near());
+    this.riseVar = Math.max(0.4, 1 + A * hu.rise * this.hum.near());
   }
 
   /** the valves and the lips set for a note: where the bore's length and the lips' tension are heading */
@@ -368,6 +480,7 @@ export class TrumpetCore implements InstrumentCore {
     if (letGo) this.lick.release(LICK_OPEN * this.fs);
     if (a.kind === 'slur' && !a.velocity) {
       // back to a note still held: the valves and the lips only
+      this.newNote(m, false, Infinity, false);
       this.setNote(m, false);
       return;
     }
@@ -379,6 +492,8 @@ export class TrumpetCore implements InstrumentCore {
       this.velNext = vel;
       this.velocity = was;
     }
+    this.kickVar = this.riseVar = 1;
+    this.newNote(m, a.kind !== 'slur', a.len, this.velNext > 0);
     this.releasePending = false;
     const XA = (globalThis as { __tpt?: Record<string, number> }).__tpt ?? (KNOBS ??= knobs());
     // (the partial of the bore the last note is on: the lips have a new one to find if this note's is another)
@@ -402,9 +517,9 @@ export class TrumpetCore implements InstrumentCore {
       this.lickKick = false;
       this.kickNow = false;
       // tongued attacks are quick; louder ones quicker
-      this.attackTau = (0.03 - 0.02 * (vel / 127)) * (XA.att ?? 1);
+      this.attackTau = (0.03 - 0.02 * (vel / 127)) * (XA.att ?? 1) * this.riseVar;
       // the tongue releases the lips: they start from a kick, not from rest
-      this.y1 = (XA.kick ?? TONGUE_KICK) * (0.5 + 0.5 * (vel / 127));
+      this.y1 = (XA.kick ?? TONGUE_KICK) * (0.5 + 0.5 * (vel / 127)) * this.kickVar;
       this.vibPhase = this.vib0;
       this.noteStart = this.frame;
       this.tongueAt = this.frame;
@@ -419,7 +534,7 @@ export class TrumpetCore implements InstrumentCore {
       this.attackTau = Math.min(this.attackTau, (0.03 - 0.02 * (vel / 127)) * (XA.att ?? 1));
       const wait = this.lick.retongue(a.struck, this.fs, same, LICK_OPEN * this.fs);
       this.tongueAt = this.frame + wait;
-      this.boostNow = this.afterStop ? 1 : LICK_BOOST;
+      this.boostNow = (this.afterStop ? 1 : LICK_BOOST) * this.kickVar;
       // The lips are kicked as the tongue lets go. A stroke made ahead of its note (a file playing) lets go
       // now, with the note: the kick is given with the next sample. It never was: the stroke under way was
       // let go from here, and the kick waited for the tongue to come off by itself, so a note joined to
@@ -547,6 +662,7 @@ export class TrumpetCore implements InstrumentCore {
     if (this.velNext && this.lick.landed) {
       this.velocity = this.velNext;
       this.velNext = 0;
+      this.velJit = this.jitNext;
     }
     const X = (globalThis as { __tpt?: Record<string, number> }).__tpt ?? (KNOBS ??= knobs());
     const fs = this.fs;
@@ -563,13 +679,35 @@ export class TrumpetCore implements InstrumentCore {
       this.dyn += (this.dynTarget - this.dyn) * (1 - Math.exp(-dt / DYN_TAU));
       if (Math.abs(this.dynTarget - this.dyn) < 1e-3) this.dyn = this.dynTarget;
     }
-    const v01 = this.dyn ? clamp(this.velocity + this.dyn, 1, 127) / 127 : this.velocity / 127;
+    // the player: his breath's and his pitch's wander, this note's own strength and place
+    const H = this.human;
+    let breath = 1;
+    let off = 1;
+    let jit = 0;
+    if (H > 0) {
+      const hu = TRUMPET_HUMAN;
+      // (each a walk drawn back to rest, a fifth of a second for the quick ones, then smoothed: time
+      // constants, whatever the block)
+      const a = Math.exp(-dt / 0.2);
+      const sgm = Math.sqrt(1 - a * a) * 1.25;
+      this.driftRaw = a * this.driftRaw + sgm * this.hum.near();
+      this.wanderRaw = a * this.wanderRaw + sgm * this.hum.near();
+      const as = Math.exp(-dt / hu.slowTau);
+      this.slowRaw = as * this.slowRaw + Math.sqrt(1 - as * as) * this.hum.near();
+      const ks = 1 - Math.exp(-dt / 0.05);
+      this.drift += (this.driftRaw - this.drift) * ks;
+      this.wander += (this.wanderRaw - this.wander) * ks;
+      breath = 1 - H * (hu.sag * (1 - Math.exp(-Math.max(0, age - hu.sagAfter) / hu.sagTau)) - hu.drift * this.drift);
+      off = Math.pow(2, (H * (hu.wander * this.wander + hu.slow * this.slowRaw) + this.place) / 1200);
+      jit = this.velJit;
+    }
+    const v01 = this.dyn || jit ? clamp(this.velocity + this.dyn + jit, 1, 127) / 127 : this.velocity / 127;
     // mouth pressure (normalised): louder notes blow harder
     const pLo = X.pLo ?? 0.42;
-    const pMouth = this.pressure * P.breath * this.expression * (pLo + (1 - pLo) * v01);
+    const pMouth = this.pressure * P.breath * this.expression * (pLo + (1 - pLo) * v01) * breath;
     // the lips follow the note (with the player's tension offset and vibrato)
     // the lips buzz a little below the note: the bore mode just above them takes over
-    const lipTarget = this.lipFTarget * Math.pow(2, (P.lip - LIP_BELOW) / 12) * vib / this.bendFactor;
+    const lipTarget = (this.lipFTarget * off * Math.pow(2, (P.lip - LIP_BELOW) / 12) * vib) / this.bendFactor;
     // (a time constant, not a per-block fraction: the glide must not depend on block length)
     this.lipF += (lipTarget - this.lipF) * (1 - Math.exp(-dt / 0.006));
     const r = 0.997;
@@ -585,7 +723,8 @@ export class TrumpetCore implements InstrumentCore {
     // bell loss in the loop: higher notes lose a little more at the bell
     const lpA = X.bell ? Math.exp((-2 * Math.PI * (X.bellFc ?? 1500)) / fs) : 0.12 + 0.18 * clamp((this.lipF - 200) / 800, 0, 1);
     const hpA = Math.exp((-2 * Math.PI * (X.bellFc ?? 1500)) / fs);
-    const nz = X.noise ?? BREATH_NOISE;
+    // (the player's air: a puff as the tongue lets go)
+    const nz = (X.noise ?? BREATH_NOISE) * (P.noise ?? 1) * (H > 0 ? 1 + H * TRUMPET_HUMAN.puff * Math.exp(-ageT / TRUMPET_HUMAN.puffTau) : 1);
     // dynamic brightness: the bore's nonlinear steepening brightens loud playing; soft playing
     // has none (the cutoff falls as the blowing pressure does)
     const bN = pMouth / Math.max(1e-6, P.breath * this.expression);
@@ -605,7 +744,7 @@ export class TrumpetCore implements InstrumentCore {
       const hp = biquadHighpass(this.radFcSet, 0.707, fs);
       this.radC = [hp[0], hp[1], hp[2], hp[3], hp[4]];
     }
-    const DT = this.Dtarget * this.bendFactor;
+    const DT = (this.Dtarget * this.bendFactor) / off;
     const bore = this.bore;
     const mask = BUF - 1;
     const oL = this.oL;

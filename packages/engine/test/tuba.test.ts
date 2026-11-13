@@ -233,13 +233,6 @@ describe('tuba', () => {
     let d = 0;
     for (let i = 0; i < l1.length; i++) d = Math.max(d, Math.abs(l1[i] - again[i]));
     expect(d).toBe(0);
-    // the horn has no player of its own: `human` changes nothing there
-    const horn = (human: number) => renderInstrument({ sampleRate: FS, instrument: 'horn', dry: true, params: { human } as never, events: [{ time: 0.05, event: { type: 'noteOn', midi: 55, velocity: 80 } }] as never, duration: 0.6 }).left;
-    const h0 = horn(0);
-    const h1 = horn(1);
-    let dh = 0;
-    for (let i = 0; i < h0.length; i++) dh = Math.max(dh, Math.abs(h0[i] - h1[i]));
-    expect(dh).toBe(0);
   });
 
   it('a second player of the same part is another player: other noise, a few cents off', () => {

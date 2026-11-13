@@ -69,6 +69,43 @@ export function polish(id) {
     for (const m of [39, 51, 58, 63, 67, 75]) ev.push(on(t, m, 96), off(t + 0.5, m));
     return done(t + 3.4);
   }
+  // the consistency pass: the instruments given a player after those three (the horn, the trumpet, the
+  // timpani, the bowed strings' left hand), and the double bass's walk over its air mode: two long notes,
+  // one note eight times, a passage (the strings' on stopped notes: an open string is the string)
+  const SUSTAINED = {
+    horn: { long: [[53, 70], [60, 46]], rep: 55, line: [[48, 1], [55, 1], [60, 1], [64, 0.5], [62, 0.5], [60, 1], [55, 1], [52, 0.5], [55, 0.5], [48, 2]] },
+    trumpet: { long: [[67, 70], [72, 46]], rep: 65, line: [[60, 0.5], [60, 0.25], [60, 0.25], [64, 0.5], [67, 0.5], [72, 1], [67, 0.5], [64, 0.5], [67, 1], [60, 2]] },
+    violin: { long: [[71, 70], [78, 46]], rep: 74, line: [[62, 0.5], [64, 0.5], [66, 0.5], [67, 0.5], [69, 0.5], [71, 0.5], [73, 0.5], [74, 1], [69, 0.5], [66, 0.5], [62, 2]] },
+    viola: { long: [[64, 70], [71, 46]], rep: 66, line: [[55, 0.5], [57, 0.5], [59, 0.5], [60, 0.5], [62, 0.5], [64, 0.5], [66, 0.5], [67, 1], [62, 0.5], [59, 0.5], [55, 2]] },
+    cello: { long: [[52, 70], [59, 46]], rep: 54, line: [[43, 0.5], [45, 0.5], [47, 0.5], [48, 0.5], [50, 0.5], [52, 0.5], [54, 0.5], [55, 1], [50, 0.5], [47, 0.5], [43, 2]] },
+    bass: { long: [[37, 70], [35, 46]], rep: 36, line: [[33, 1], [35, 1], [36, 1], [37, 1], [38, 1], [40, 1], [36, 1], [33, 2]] },
+  }[id];
+  if (SUSTAINED) {
+    const q = 60 / 92;
+    for (const [m, v] of SUSTAINED.long) {
+      held.push([t, 2.6, m]);
+      note(t, m, 2.6, v);
+      t += 3.0;
+    }
+    repeats.push([t, 8, 0.5 * q, SUSTAINED.rep]);
+    for (let i = 0; i < 8; i++) { note(t, SUSTAINED.rep, 0.5 * q * 0.62, 88); t += 0.5 * q; }
+    t += 0.4;
+    for (const [m, n] of SUSTAINED.line) { note(t, m, n * q * (n < 1 ? 0.8 : 0.9), 82); t += n * q; }
+    return done(t + 1.2);
+  }
+  if (id === 'timpani') {
+    // one drum eight times, another four times louder, a figure on two drums, and a last stroke left to ring
+    repeats.push([t, 8, 0.4, 43]);
+    for (let i = 0; i < 8; i++) { note(t, 43, 0.3, 84, false); t += 0.4; }
+    t += 0.4;
+    repeats.push([t, 4, 0.6, 48]);
+    for (let i = 0; i < 4; i++) { note(t, 48, 0.4, 104, false); t += 0.6; }
+    t += 0.4;
+    for (const [m, n] of [[43, 1], [43, 0.5], [43, 0.5], [48, 1], [43, 1], [48, 0.5], [48, 0.5], [43, 0.5], [43, 0.5], [48, 1]]) { note(t, m, 0.25, 92, false); t += n * 0.42; }
+    t += 0.2;
+    note(t, 43, 0.4, 110, false);
+    return done(t + 3.5);
+  }
   // glockenspiel: one bar eight times, another in sixteenths …
   repeats.push([t, 8, 0.25, 91]);
   for (let i = 0; i < 8; i++) { note(t, 91, 0.15, 84, false); t += 0.25; }

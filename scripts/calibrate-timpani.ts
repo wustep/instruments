@@ -48,7 +48,8 @@ export function modelStroke(r: Pick<TimpRef, 'midi' | 'dyn' | 'f11'>, params?: R
     sampleRate: fs,
     instrument: 'timpani',
     dry: true,
-    params: { detune: r.midi - m, ...params } as never,
+    // (the voicing itself, every stroke on the spot: `human` 0)
+    params: { detune: r.midi - m, human: 0, ...params } as never,
     events: [{ time: 0.05, event: { type: 'noteOn', midi: m, velocity: DYN_VEL[r.dyn] } }],
     duration: DUR,
   });

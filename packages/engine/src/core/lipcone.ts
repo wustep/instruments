@@ -144,6 +144,18 @@ export interface LipConeHuman<F extends ConeFingering = ConeFingering> {
   /** how sharp (+) or flat a fingering is left by the player (cents): the valves' loops are cut for the open
    *  tube and fall short together, and the series' own partials are not equal temperament's */
   intonation: (f: F) => number;
+  /** where the lips (and the hand in the bell) put a note, found by ear (cents, a standard deviation): a
+   *  note's own for as long as it sounds, and the same again while its pitch is struck again. The horn's
+   *  (the tuba's player has none, and draws nothing for it) */
+  place?: number;
+  /** the pitch's slower wander (cents, a standard deviation, over `slowTau` s): the horn's */
+  slow?: number;
+  slowTau?: number;
+  /** the breath's rise from one tongued note to the next (a share, a standard deviation): the horn's */
+  rise?: number;
+  /** a note known to be short (a file's: mono.ts quickness) gets less of the attack's variation, a quick one
+   *  none, as the trombone's: a player must not cost a run its notes */
+  quick?: boolean;
 }
 
 /** The voicing: the lips, the bore's losses and the radiation's colour, each instrument's fitted to its
@@ -379,6 +391,9 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
   private velJit = 0;
   private scoopNow = 0;
   private bloomNow = 1;
+  /** where this note's pitch was put (cents), and the pitch's slow wander (a walk drawn back to rest) */
+  private place = 0;
+  private slowRaw = 0;
 
   constructor(spec: LipConeSpec<F>, opts: { sampleRate: number; params?: Partial<LipConeParams>; dry?: boolean; player?: number }) {
     this.spec = spec;
@@ -445,7 +460,7 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
     this.fingering = fg;
     // (the player's intonation on this fingering: the tube is that much short or long, and the lips with it)
     const H = this.human;
-    const f = H > 0 ? et(m) * Math.pow(2, (H * this.spec.human!.intonation(fg)) / 1200) : et(m);
+    const f = H > 0 ? et(m) * Math.pow(2, (H * this.spec.human!.intonation(fg) + this.place) / 1200) : et(m);
     // the tube's round trip and the apex's are one period of the tube's fundamental (the note over its
     // partial), less each end's reflection's phase delay at the note (so that its n-th resonance is the
     // note) and the interpolation
@@ -557,6 +572,9 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
       return;
     }
     const m = clamp(a.midi, this.spec.lo, this.spec.hi);
+    // (the player puts the note by ear: where it was while its pitch is struck again, somewhere new otherwise)
+    const hu = this.spec.human;
+    if (hu?.place && this.hum && (m !== this.note || !(this.pTarget > 0))) this.place = this.human * hu.place * this.hum.near();
     const was = this.velocity;
     const vel = a.velocity || this.velocity;
     this.velocity = vel;
@@ -592,7 +610,7 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
       this.noteStart = this.frame;
       this.tongueAt = this.frame;
       this.quickLips(quickness(a.len));
-      this.newNote(1);
+      this.newNote(1, a.len);
       this.afterStop = false;
       this.blowUntil = this.frame + Math.round((this.minBlowPp + (this.minBlow - this.minBlowPp) * (vel / 127)) * this.fs);
     } else {
@@ -612,7 +630,7 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
       this.afterStop = false;
       this.lickKick = true;
       this.noteStart = this.frame;
-      this.newNote(1 / 3);
+      this.newNote(1 / 3, a.len);
       this.blowUntil = this.frame + Math.round(this.minBlow * this.fs);
     }
     if (a.tap) this.release();
@@ -621,7 +639,7 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
   /** A player's new note (tongued from silence: `bloom` 1; over the breath: less): no two alike. Its tongue
    *  holds a little longer or shorter, its lips are kicked a little more or less and set a few cents off for
    *  their first moments, its breath is a little stronger or weaker. */
-  private newNote(bloom: number): void {
+  private newNote(bloom: number, len?: number): void {
     const hu = this.spec.human;
     const H = this.human;
     if (!hu || !this.hum || !(H > 0)) {
@@ -630,11 +648,14 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
       return;
     }
     const hum = this.hum;
+    // (the attack's own variation: less of it on a note known to be short, where the spec says so)
+    const A = hu.quick ? H * (1 - quickness(len ?? Infinity)) : H;
     this.bloomNow = bloom;
     this.velJit = H * hu.vel * hum.near();
-    this.scoopNow = H * hu.scoop * hum.near();
-    this.kickNow *= Math.max(0.3, 1 + H * hu.kick * hum.near());
-    if (this.tongueN > 0 && bloom === 1) this.tongueN = Math.max(1, Math.round(this.tongueN * Math.max(0.4, 1 + H * hu.hold * hum.near())));
+    this.scoopNow = A * hu.scoop * hum.near();
+    this.kickNow *= Math.max(0.3, 1 + A * hu.kick * hum.near());
+    if (this.tongueN > 0 && bloom === 1) this.tongueN = Math.max(1, Math.round(this.tongueN * Math.max(0.4, 1 + A * hu.hold * hum.near())));
+    if (hu.rise) this.attackTau *= Math.max(0.4, 1 + A * hu.rise * hum.near());
   }
 
   /** The key is up: stop blowing, but not before the tongued note has had its minimum breath. */
@@ -773,7 +794,13 @@ export class LipConeCore<F extends ConeFingering = ConeFingering> implements Ins
       this.drift += (this.driftRaw - this.drift) * ks;
       this.wander += (this.wanderRaw - this.wander) * ks;
       breath = 1 - H * (hu.bloom * this.bloomNow * Math.exp(-age / hu.bloomTau) + hu.sag * (1 - Math.exp(-age / hu.sagTau)) - hu.drift * this.drift);
-      off = Math.pow(2, (H * hu.wander * this.wander) / 1200);
+      let cents = hu.wander * this.wander;
+      if (hu.slow) {
+        const as = Math.exp(-dt / (hu.slowTau ?? 1.2));
+        this.slowRaw = as * this.slowRaw + Math.sqrt(1 - as * as) * this.hum.near();
+        cents += hu.slow * this.slowRaw;
+      }
+      off = Math.pow(2, (H * cents) / 1200);
       jit = this.velJit;
     }
     const v01 = this.dyn || jit ? clamp(this.velocity + this.dyn + jit, 1, 127) / 127 : this.velocity / 127;

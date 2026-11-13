@@ -65,7 +65,7 @@ import { CC_DYNAMICS, DYN_TAU, PLAYBACK_DB, type ExciteTrace, type InstrumentCor
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { biquadHighpass, biquadHighShelf, biquadPeaking } from './filters.ts';
 import type { PianoEvent } from './piano-core.ts';
-import { clamp, mulberry32, playerCents, playerSeed } from './util.ts';
+import { clamp, Human, mulberry32, playerCents, playerSeed } from './util.ts';
 
 export interface TimpaniParams {
   /** the felt's hardness, × the general mallet's (below 1 a soft "cartwheel" mallet, above 1 a staccato one) */
@@ -82,9 +82,29 @@ export interface TimpaniParams {
   detune?: number;
   /** orchestra mode: where it sits on the stage (post.ts Seat); none, the single instrument's place */
   seat?: Seat | null;
+  /** how much of a player: 0 every stroke on the fitted spot, at the dynamic's own speed, with one mallet
+   *  (the voicing itself: what is fitted and judged) … 1 a timpanist's two hands (TIMPANI_HUMAN) */
+  human?: number;
   /** fitting only (scripts/fit-timpani.ts): the voicing below, overridden */
   voice?: Partial<TimpaniVoice>;
 }
+
+/** The timpanist's hands: what no two strokes have alike. Two takes of one drum at one dynamic (VSCO 2 CE:
+ *  scripts/timpani-variation.ts) differ, a stroke from its like, by ±2 dB in level (±0.7 at fortissimo), and
+ *  in the head's partials against its principal by ±2.6 dB ((2,1), (3,1)) to ±5 dB ((4,1)): more the more
+ *  nodal diameters a mode has, which is where round the head the mallet landed (a mode of m diameters is
+ *  heard, opposite the player, by cos mδ of a stroke δ round from the axis). The model's strokes: ±0.00 dB,
+ *  all of them. Here the two hands land `apart` (rad) either side of the axis, a hand's width between them,
+ *  each stroke `round` (rad, a standard deviation) from its hand's place along the playing arc and `place`
+ *  (a share of the radius) nearer the rim or the centre, `hand` dB harder or softer; the two mallets are
+ *  never quite a pair (`pair`: one's felt that share harder, the other's softer) and no stroke meets the felt
+ *  quite as the last did (`felt`, a share). Under the recordings' spread (theirs are separate takes, each set
+ *  up anew; a passage's strokes follow one another). All of it is scaled by `human`, on a seeded stream: the
+ *  same notes give the same samples. */
+export const TIMPANI_HUMAN = { seed: 583, place: 0.035, apart: 0.15, round: 0.09, hand: 0.8, pair: 0.04, felt: 0.04 };
+/** how far from the fitted spot a stroke may land (a share of the radius): the shapes are kept at the spot
+ *  and this far either side of it */
+const PLACE_MAX = 0.09;
 
 /** The voicing: physical constants of the drums, mallet and listener (the start design: from the literature;
  *  the fitted values replace it in TIMPANI_VOICE). */
@@ -323,6 +343,11 @@ class Drum {
   readonly mass: Float64Array;
   /** per mode, by tuning: the shape at the strike point, radiation damping (1/s), the far-field weights */
   readonly phi: Float64Array;
+  /** the shapes PLACE_MAX nearer the centre and nearer the rim than the strike point, and this stroke's
+   *  drive against a stroke's on the spot (1: on the spot; the hands', TIMPANI_HUMAN) */
+  readonly phiIn: Float64Array;
+  readonly phiOut: Float64Array;
+  readonly drive: Float64Array;
   readonly aRad: Float64Array;
   readonly sL: Float64Array;
   readonly sR: Float64Array;
@@ -396,6 +421,9 @@ class Drum {
     this.nrm = new Float64Array(n);
     this.mass = new Float64Array(n);
     this.phi = new Float64Array(n);
+    this.phiIn = new Float64Array(n);
+    this.phiOut = new Float64Array(n);
+    this.drive = new Float64Array(n).fill(1);
     this.aRad = new Float64Array(n);
     this.sL = new Float64Array(n);
     this.sR = new Float64Array(n);
@@ -490,7 +518,40 @@ class Drum {
 
   /** the modes' shapes at the strike point (fraction `spot` of the radius out from the centre, θ = 0) */
   strikeAt(spot: number): void {
-    for (let i = 0; i < this.n; i++) this.phi[i] = besselJ(this.mm[i], this.jj[i] * spot);
+    for (let i = 0; i < this.n; i++) {
+      this.phi[i] = besselJ(this.mm[i], this.jj[i] * spot);
+      this.phiIn[i] = besselJ(this.mm[i], this.jj[i] * Math.max(0.02, spot - PLACE_MAX));
+      this.phiOut[i] = besselJ(this.mm[i], this.jj[i] * Math.min(0.98, spot + PLACE_MAX));
+    }
+    this.cExtra = -1;
+  }
+
+  /** A stroke that lands `u` × PLACE_MAX out from the strike point (−1…1: towards the centre, the rim) and
+   *  `round` rad along the arc from the axis, by a hand whose place is `apart` rad from it: what it gives
+   *  each mode against the voicing's stroke. The shape there is read between the three kept (a parabola
+   *  through them), never more than twice the spot's nor under half (a mode with a node near the spot). The
+   *  pitched partials (the first mode of 1 to 5 nodal diameters: (1,1) … (5,1)) are heard by cos m·round of
+   *  themselves opposite the player, against cos m·apart (the voicing is fitted to strokes of such hands).
+   *  Only those: the sum of all the modes has a null on that axis, which no hall has, and a stroke a hand's
+   *  width off it came 13 dB louder when every mode was turned. `plain`: the voicing's stroke, every
+   *  drive 1. */
+  land(plain: boolean, u: number, round: number, apart: number): void {
+    let seen = 0;
+    for (let i = 0; i < this.n; i++) {
+      if (plain) {
+        this.drive[i] = 1;
+        continue;
+      }
+      const p0 = this.phi[i];
+      const p = p0 + 0.5 * u * (this.phiOut[i] - this.phiIn[i]) + 0.5 * u * u * (this.phiOut[i] + this.phiIn[i] - 2 * p0);
+      let d = Math.abs(p0) > 1e-9 ? clamp(p / p0, 0.5, 2) : 1;
+      const m = this.mm[i];
+      if (m >= 1 && m <= 5 && !(seen & (1 << m))) {
+        seen |= 1 << m;
+        d *= clamp(Math.cos(m * round) / Math.cos(m * apart), 0.25, 1.6);
+      }
+      this.drive[i] = d;
+    }
     this.cExtra = -1;
   }
 
@@ -524,7 +585,7 @@ class Drum {
       this.c1[i] = 2 * r * Math.cos(th);
       this.c2[i] = r * r;
       // impulse invariant: h(t) = e^{−αt} sin(ω_d t)/(M ω_d), sampled ×dt, driven by the force's share φ
-      this.g[i] = ((dt * r * Math.sin(th)) / (this.mass[i] * wd)) * this.phi[i];
+      this.g[i] = ((dt * r * Math.sin(th)) / (this.mass[i] * wd)) * this.phi[i] * this.drive[i];
       // the radiated pressure is the mode's acceleration (−ω² y) through the far field
       this.wL[i] = -w2 * this.sL[i];
       this.wR[i] = -w2 * this.sR[i];
@@ -610,6 +671,8 @@ interface Mallet {
   prev: number;
   start: number;
   touched: boolean;
+  /** this stroke's felt against the voicing's (1: the voicing's; the hands', TIMPANI_HUMAN) */
+  hard: number;
   /** the pictures: the drum it last struck, when, and how hard */
   shown: number;
   at: number;
@@ -634,7 +697,9 @@ export class TimpaniCore implements InstrumentCore {
   private queue: { frame: number; ev: PianoEvent | { type: 'control'; cc: number; value: number } }[] = [];
   private rng: () => number;
   /** the two mallets (left hand, right hand) */
-  private mallets: Mallet[] = [0, 1].map((h) => ({ drum: -1, x: 0, v: 0, F: 0, prev: 0, start: 0, touched: false, shown: h + 1, at: -1e12, vel: 0 }));
+  private mallets: Mallet[] = [0, 1].map((h) => ({ drum: -1, x: 0, v: 0, F: 0, prev: 0, start: 0, touched: false, hard: 1, shown: h + 1, at: -1e12, vel: 0 }));
+  /** the player's hands (TIMPANI_HUMAN): their stream */
+  private hum: Human;
   private nextHand = 0;
   /** the stroke the trace follows */
   private traced = -1;
@@ -664,6 +729,7 @@ export class TimpaniCore implements InstrumentCore {
     this.params = { mallet: 1, spot: TIMPANI_SPOT, damp: 0, roll: 0, room: 0.3, volume: 1, ...opts.params };
     this.V = { ...TIMPANI_VOICE, ...this.params.voice };
     this.rng = mulberry32(playerSeed(47, opts.player));
+    this.hum = new Human(TIMPANI_HUMAN.seed, opts.player);
     this.tune = playerCents(opts.player) / 100;
     this.room = new Room(this.fs);
     this.limiter = new Limiter(this.fs);
@@ -732,7 +798,16 @@ export class TimpaniCore implements InstrumentCore {
     const d = this.drums[di];
     const V = this.V;
     const v01 = clamp(vel, 1, 127) / 127;
-    const speed = V.vLo * Math.pow(V.vHi / V.vLo, Math.pow(v01, V.vCurve));
+    // the hands: where this stroke lands, how hard, how it meets the felt (the stream runs on whatever
+    // `human` is; 0: the spot, the dynamic's own speed, the voicing's felt)
+    const hum = this.hum;
+    const H = clamp(this.params.human ?? 1, 0, 1);
+    const HU = TIMPANI_HUMAN;
+    const place = clamp((HU.place * hum.near() * H) / PLACE_MAX, -1, 1);
+    const scatter = HU.round * hum.near();
+    const hand01 = HU.hand * hum.near() * H;
+    const felt = HU.felt * hum.near() * H;
+    const speed = V.vLo * Math.pow(V.vHi / V.vLo, Math.pow(v01, V.vCurve)) * (hand01 ? Math.pow(10, hand01 / 20) : 1);
     const other = this.mallets[this.nextHand ^ 1];
     let hand = (this.frame - other.at) / this.fs > 0.6 ? (di < 2 ? 0 : 1) : this.nextHand;
     // a mallet still on a head (a double stop): the other hand
@@ -747,6 +822,9 @@ export class TimpaniCore implements InstrumentCore {
     ml.prev = 0;
     ml.start = this.frame;
     ml.touched = false;
+    ml.hard = H > 0 ? Math.max(0.5, (1 + H * HU.pair * (hand ? 1 : -1)) * (1 + felt)) : 1;
+    // (with less of a player the hands' places close on the axis the voicing was fitted for)
+    d.land(!(H > 0), place, (hand ? 1 : -1) * HU.apart + H * scatter, HU.apart);
     ml.shown = di;
     ml.at = this.frame;
     ml.vel = vel;
@@ -992,6 +1070,8 @@ export class TimpaniCore implements InstrumentCore {
         let F = ml.F;
         let prev = ml.prev;
         const traced = this.mallets[this.traced] === ml;
+        // (this stroke's felt: the hands')
+        const Kf = K * ml.hard;
         for (let t = 0; t < n; t++) force[t] = 0;
         for (; t0 < n; ) {
           let w = 0;
@@ -1014,7 +1094,7 @@ export class TimpaniCore implements InstrumentCore {
           if (dlt > 0) {
             const rate = (dlt - prev) * fs;
             const c = dlt - thick;
-            F = (K * Math.pow(dlt, p) + (c > 0 ? Kc * c * Math.sqrt(c) : 0)) * Math.max(0, 1 + hy * rate);
+            F = (Kf * Math.pow(dlt, p) + (c > 0 ? Kc * c * Math.sqrt(c) : 0)) * Math.max(0, 1 + hy * rate);
             ml.touched = true;
           } else F = 0;
           prev = dlt;

@@ -5,9 +5,12 @@
 // at the multiples of the tube's own fundamental (the note over its partial): a note on partial n has its
 // energy at n, 2n, 3n …, its lowest strong one n.
 // The tuba is the same engine (lipcone.ts) and is surveyed the same way: --instrument tuba (C1–F4).
-//   npx tsx scripts/horn-regimes.ts [--instrument horn|tuba] [--fs 22050,44100,48000,96000] [--voice '{"lipQ":8}'] [--dur 2]
+//   npx tsx scripts/horn-regimes.ts [--human 1] [--instrument horn|tuba] [--fs 22050,44100,48000,96000] [--voice '{"lipQ":8}'] [--dur 2]
 import { HornCore, hornFingering, HORN_HI, HORN_LO } from '../packages/engine/src/core/horn.ts';
 import { TubaCore, tubaFingering, TUBA_HI, TUBA_LO } from '../packages/engine/src/core/tuba.ts';
+
+/** the model alone (`human` 0: what is tuned and fitted), or with its player: --human 1 */
+const HUMAN = process.argv.includes('--human') ? Number(process.argv[process.argv.indexOf('--human') + 1]) : 0;
 
 /** the instruments on the lips-and-cone engine */
 export const LIPCONE = {
@@ -18,7 +21,7 @@ export type LipConeName = keyof typeof LIPCONE;
 
 export function regime(m: number, vel: number, fs: number, voice?: object, dur = 2, inst: LipConeName = 'horn'): string {
   const I = LIPCONE[inst];
-  const c = new I.Core({ sampleRate: fs, dry: true, params: { vibrato: 0, ...(voice ? { voice } : {}) } as never });
+  const c = new I.Core({ sampleRate: fs, dry: true, params: { vibrato: 0, human: HUMAN, ...(voice ? { voice } : {}) } as never });
   c.schedule({ type: 'noteOn', midi: m, velocity: vel }, 0);
   const bl = new Float32Array(128);
   const br = new Float32Array(128);

@@ -48,3 +48,22 @@ export function valvesDown(valves: string, n = 3): boolean[] {
   }
   return out;
 }
+
+/** each valve's loop lowers the open tube by this many semitones (valves 1–4) */
+const VALVE_SEMIS = [2, 1, 3, 5];
+/** How sharp a fingering stands before the player does anything about it (cents): its valves' loops, each
+ *  cut to lower the open tube by its own interval, add up to less than the note's tube when two or more
+ *  are down. One valve, or none: 0. */
+export function valveSharp(valves: string): number {
+  let add = 0;
+  let semis = 0;
+  for (const v of valves.split('+')) {
+    const k = Number.parseInt(v, 10);
+    if (!(k >= 1 && k <= 4)) continue;
+    add += Math.pow(2, VALVE_SEMIS[k - 1] / 12) - 1;
+    semis += VALVE_SEMIS[k - 1];
+  }
+  return 1200 * Math.log2(Math.pow(2, semis / 12) / (1 + add));
+}
+/** how far the tube's n-th partial lies from equal temperament's nearest note (cents: the 5th, −14) */
+export const partialCents = (n: number): number => 1200 * Math.log2(n) - 100 * Math.round(12 * Math.log2(n));

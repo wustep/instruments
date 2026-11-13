@@ -15,10 +15,11 @@ const level = (r: { left: Float32Array; right: Float32Array; sampleRate: number 
 };
 
 describe('the viola’s idle open strings (loosely coupled to the bridge, its bands refitted)', () => {
-  // as the judge holds a note: mf, dry, 44.1 kHz, no vibrato, the level once the note has settled
+  // as the judge holds a note: mf, dry, 44.1 kHz, no vibrato, the finger on the model's own pitch (`human` 0),
+  // the level once the note has settled
   const held = new Map<number, number>();
   const lv = (m: number) => {
-    if (!held.has(m)) held.set(m, level(renderInstrument({ sampleRate: 44100, instrument: 'viola', events: [on(0.1, m, 70)] as never, duration: 2.6, dry: true, params: { vibrato: 0 } }), 1, 2.6));
+    if (!held.has(m)) held.set(m, level(renderInstrument({ sampleRate: 44100, instrument: 'viola', events: [on(0.1, m, 70)] as never, duration: 2.6, dry: true, params: { vibrato: 0, human: 0 } }), 1, 2.6));
     return held.get(m)!;
   };
   it('A♯4 stands no more than 7.5 dB over A4 and B4 (it was 9.8 dB: they played 9–11 dB under the recording’s)', () => {
@@ -28,7 +29,7 @@ describe('the viola’s idle open strings (loosely coupled to the bridge, its ba
     expect(lv(67) - (lv(66) + lv(68)) / 2).toBeGreaterThan(-6);
   });
   it('after D5, which rings the open D, the sound is 25 dB under the note 0.3–0.5 s after the bow has left (it was 13 dB)', () => {
-    const r = renderInstrument({ sampleRate: 48000, instrument: 'viola', events: [on(0.05, 74, 100), off(0.65, 74)] as never, duration: 1.2, dry: true, params: { vibrato: 0 } });
+    const r = renderInstrument({ sampleRate: 48000, instrument: 'viola', events: [on(0.05, 74, 100), off(0.65, 74)] as never, duration: 1.2, dry: true, params: { vibrato: 0, human: 0 } });
     expect(level(r, 0.95, 1.15) - level(r, 0.35, 0.65)).toBeLessThan(-25);
   });
 });

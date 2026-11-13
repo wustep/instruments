@@ -43,7 +43,7 @@ for (let pass = 0; pass < passes; pass++) {
   const { renderInstrument } = await import(`../packages/engine/src/core/index.ts?pass=${pass}`);
   const errs: number[] = [];
   for (let m = 52; m <= 86; m++) {
-    const r = renderInstrument({ sampleRate: fs, instrument: 'trumpet', dry: true, params: { vibrato: 0 }, events: [{ time: 0.05, event: { type: 'noteOn', midi: m, velocity: 80 } }, { time: 1.9, event: { type: 'noteOff', midi: m } }], duration: 2.1 });
+    const r = renderInstrument({ sampleRate: fs, instrument: 'trumpet', dry: true, params: { vibrato: 0, human: 0 } as never, events: [{ time: 0.05, event: { type: 'noteOn', midi: m, velocity: 80 } }, { time: 1.9, event: { type: 'noteOff', midi: m } }], duration: 2.1 });
     const c = pitch(r.left, m);
     errs.push(c);
     table[m] = +((table[m] ?? 0) + c).toFixed(2);
