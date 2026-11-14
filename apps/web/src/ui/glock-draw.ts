@@ -10,7 +10,7 @@
 // springs back up.
 import type { VisualFrame } from '@piano-model/engine';
 import { barShape } from '@piano-model/engine';
-import { BARS, BAR_W, CASE, GK_X0, GK_X1, GK_Y0, GK_Y1, HEAD_R, HOLE_R, PIN_R, RAILS, RAIL_W, SHAFT, TRAY, barBox, barCentre, barNodes, type P, strokePlace } from './glock-plan.ts';
+import { BARS, BAR_W, CASE, GK_X0, GK_X1, GK_Y0, GK_Y1, HEAD_R, HOLE_R, PIN_R, RAILS, RAIL_W, SHAFT, TRAY, barBox, barCentre, barNodes, type P, strokePlace, HOVER, malletHeight } from './glock-plan.ts';
 import { INK, rgba } from './stage-draw.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
@@ -117,7 +117,8 @@ export function glockLive(fr: VisualFrame | null, st: GlockState, now: number): 
     const to = last && last.bar === bar ? strokePlace(bar, last.along, last.across) : barCentre(bar);
     head[h] = [head[h][0] + (to[0] - head[h][0]) * kGo, head[h][1] + (to[1] - head[h][1]) * kGo];
     const ago = last ? last.ago : 9;
-    lift[h] = ago < 0.03 ? 0 : Math.min(1, 1 - Math.exp(-(ago - 0.03) / 0.07));
+    // (its height over the bar in units of where it waits: 1 at rest, past it on a hard stroke's rebound)
+    lift[h] = malletHeight(ago, last ? last.vel : 80) / HOVER;
     if (last && ago < 0.12) hit = last.bar;
   }
   return { amp, head, lift, hit };
@@ -328,12 +329,12 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
     const ey = Y(end[1]) - up * 0.012 * sc;
     const sx = up * 0.01 * sc;
     const sy = up * 0.014 * sc;
-    ctx.fillStyle = `rgba(0,0,0,${(0.32 * (1 - 0.5 * up)).toFixed(3)})`;
+    ctx.fillStyle = `rgba(0,0,0,${(0.32 * Math.max(0.2, 1 - 0.5 * up)).toFixed(3)})`;
     ctx.beginPath();
     ctx.arc(X(head[0]) + sx, Y(head[1]) + sy, r, 0, 2 * Math.PI);
     ctx.fill();
     if (!small) {
-      ctx.strokeStyle = `rgba(0,0,0,${(0.22 * (1 - 0.5 * up)).toFixed(3)})`;
+      ctx.strokeStyle = `rgba(0,0,0,${(0.22 * Math.max(0.2, 1 - 0.5 * up)).toFixed(3)})`;
       ctx.lineWidth = Math.max(1.2, 0.006 * sc);
       ctx.beginPath();
       ctx.moveTo(X(head[0]) + sx, Y(head[1]) + sy);

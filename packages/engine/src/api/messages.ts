@@ -173,6 +173,8 @@ export interface HarpVisual {
   /** every string: seconds since a finger plucked it (−1: not plucked, or died away since; a string only
    *  answering another has −1 and a swing) */
   plucked: number[];
+  /** every string: where the finger took it at its last pluck, a share of its length from the soundboard */
+  where?: number[];
   /** the loudest strings' shapes now (at most eight): displacement along the string, the soundboard at 0 and
    *  the neck at 1, in the units of `amp` */
   shapes: { string: number; shape: Float32Array }[];

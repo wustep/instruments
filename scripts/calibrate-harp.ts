@@ -1,6 +1,6 @@
 // The harp against the VCSL recordings (scripts/harp-refs.ts: twenty-three strings, each at two dynamics):
 // each recorded pluck made by the model (dry, the same string, at the recording's dynamic, the voicing itself:
-// `human` 0), both analysed with analyzeRing(), and compared measure by measure. Every second recorded string
+// `human` 0 and `own` 0: no player, and the voicing's one string, not this harp's forty-seven), both analysed with analyzeRing(), and compared measure by measure. Every second recorded string
 // is held out, both its plucks (the judge's held-out half).
 //   npx tsx scripts/calibrate-harp.ts [--engine <path to an engine's core/index.ts>] [--table] [--write]
 // --write: apps/web/public/data/harp.json (the Measurements page), every string model against recording.
@@ -20,6 +20,10 @@ const FS = 44100;
 /** how long the model's pluck is left to ring (s): the wire strings fall 20 dB in 5–8 s */
 const durOf = (midi: number) => (midi < 45 ? 9.6 : 4.6);
 
+/** HARP_OWN=1: this harp's own strings (as it is played), not the voicing's one string: for the record only.
+ *  A string that wavers in its own way stands further from the recorded string's own waver than one that
+ *  does not waver at all, measure by measure; scripts/harp-waver.ts is the measure of the wavering itself. */
+const OWN = Number(process.env.HARP_OWN ?? 0);
 let RENDER = renderInstrument;
 export async function useEngine(path?: string): Promise<void> {
   RENDER = path ? (await import(pathToFileURL(path).href)).renderInstrument : renderInstrument;
@@ -31,7 +35,7 @@ export function modelPluck(r: Pick<HarpRef, 'midi' | 'mark'>, params?: Record<st
     sampleRate: fs,
     instrument: 'harp' as never,
     dry: true,
-    params: { human: 0, ...params } as never,
+    params: { human: 0, own: OWN, ...params } as never,
     events: [{ time: 0.05, event: { type: 'noteOn', midi: r.midi, velocity: MARK_VEL[r.mark] ?? 70 } }],
     duration: durOf(r.midi),
   });

@@ -7,7 +7,7 @@
 // pedal stands in its notch (up flat, middle natural, down sharp) and moves when the engine moves it, and
 // the discs on the neck close on the strings of a pedal that is down.
 import type { VisualFrame } from '@piano-model/engine';
-import { BASE, BOARD_A, BOARD_B, BODY, COLUMN_R, COLUMN_X, COLUMN_Y0, COLUMN_Y1, CROWN_Y, DISC_DY, FEET, HP_X0, HP_X1, HP_Y0, HP_Y1, PEDAL_LEN, PEDAL_X, PEDAL_Y, STRINGS, STRING_X, STRING_Y0, STRING_Y1, neckLower, neckUpper, pedalFoot, pedalOf, stopY, type P } from './harp-plan.ts';
+import { BASE, BOARD_A, BOARD_B, BODY, COLUMN_R, COLUMN_X, COLUMN_Y0, COLUMN_Y1, CROWN_Y, DISC_DY, FEET, HP_X0, HP_X1, HP_Y0, HP_Y1, PEDAL_LEN, PEDAL_X, PEDAL_Y, PIN_DY, STRINGS, STRING_X, STRING_Y0, STRING_Y1, discScale, neckLower, neckUpper, pedalFoot, pedalOf, plateLower, stopY, type P } from './harp-plan.ts';
 import { INK, rgba } from './stage-draw.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
@@ -20,7 +20,7 @@ export interface HarpState {
   t?: number;
   /** what was drawn last (px in the box drawn): the whole harp, the strings' band, the pedals' row; how many
    *  strings swing, the widest's index and its swing (px), each pedal's foot (px, y), the pedals' notches */
-  drawn?: { body: Box; strings: Box; pedals: Box; ringing: number; widest: number; swing: number; pedalY: number[]; set: number[] };
+  drawn?: { body: Box; strings: Box; pedals: Box; ringing: number; widest: number; swing: number; pedalY: number[]; set: number[]; plucks: { string: number; x: number; y: number; at: number }[] };
 }
 export const newHarpState = (): HarpState => ({});
 /** the harp's box on the stage, m (its plan with the margins its drawing keeps) */
@@ -40,6 +40,9 @@ export interface HpLayout {
   board: Path2D;
   base: Path2D;
   slots: Path2D;
+  /** the brass action plate under the neck, the column's flutes */
+  plate: Path2D;
+  flutes: Path2D;
 }
 const layouts = new Map<string, HpLayout>();
 const poly = (pts: P[], X: (x: number) => number, Y: (y: number) => number, close = true): Path2D => {
@@ -74,7 +77,13 @@ export function harpLayout(W: number, H: number, top = 0): HpLayout {
   const crown = poly([[COLUMN_X - 0.05, COLUMN_Y1], [COLUMN_X - 0.058, COLUMN_Y1 + 0.02], [COLUMN_X - 0.04, CROWN_Y - 0.012], [COLUMN_X - 0.012, CROWN_Y + 0.012], [COLUMN_X + 0.03, CROWN_Y], [COLUMN_X + 0.06, COLUMN_Y1 + 0.03], [COLUMN_X + 0.05, COLUMN_Y1]], X, Y);
   const neck = poly([...neckLower, ...[...neckUpper].reverse()], X, Y);
   const neckEdge = poly(neckLower, X, Y, false);
-  const L: HpLayout = { key, sc, ox, oy, top, column, crown, neck, neckEdge, body: poly(BODY, X, Y), board: poly([BOARD_A, BOARD_B], X, Y, false), base: poly(BASE, X, Y), slots: new Path2D() };
+  const plate = poly([...plateLower, ...[...neckLower].slice(1, -1).reverse()], X, Y);
+  const flutes = new Path2D();
+  for (const dx of [-0.45, 0.05, 0.5]) {
+    flutes.moveTo(X(COLUMN_X + COLUMN_R * dx), Y(COLUMN_Y0 + 0.1));
+    flutes.lineTo(X(COLUMN_X + COLUMN_R * dx * 0.94), Y(COLUMN_Y1 - 0.1));
+  }
+  const L: HpLayout = { key, sc, ox, oy, top, column, crown, neck, neckEdge, body: poly(BODY, X, Y), board: poly([BOARD_A, BOARD_B], X, Y, false), base: poly(BASE, X, Y), slots: new Path2D(), plate, flutes };
   for (const f of FEET) L.base.addPath(poly(f, X, Y));
   PEDAL_X.forEach((x) => {
     L.slots.moveTo(X(x), Y(PEDAL_Y + 0.034));
@@ -87,7 +96,9 @@ export function harpLayout(W: number, H: number, top = 0): HpLayout {
 
 /** the frame into what both styles draw: each string's swing (0…1, eased so a pluck swells in a frame and
  *  dies as the engine's does), each pedal's place (the engine's, −1 … 1), the engine's pedal notches */
-export function harpLive(fr: VisualFrame | null, st: HarpState, now: number): { amp: Float32Array; ped: Float32Array; set: number[]; shapes: Map<number, Float32Array> } {
+/** how long a pluck's mark shows (s) */
+export const PLUCK_SHOWN = 0.28;
+export function harpLive(fr: VisualFrame | null, st: HarpState, now: number): { amp: Float32Array; ped: Float32Array; set: number[]; shapes: Map<number, Float32Array>; plucks: { string: number; age: number; at: number }[] } {
   const hv = fr?.harp ?? null;
   const amp = (st.amp ??= new Float32Array(STRINGS.length));
   const ped = (st.ped ??= new Float32Array(7));
@@ -103,7 +114,10 @@ export function harpLive(fr: VisualFrame | null, st: HarpState, now: number): { 
   for (let k = 0; k < 7; k++) ped[k] = hv ? hv.pedals[k] : ped[k] * (1 - kDn);
   const shapes = new Map<number, Float32Array>();
   if (hv) for (const s of hv.shapes) shapes.set(s.string, s.shape);
-  return { amp, ped, set: hv ? hv.set : [0, 0, 0, 0, 0, 0, 0], shapes };
+  // the fingers' marks: each string plucked within the last moments, where the engine's finger took it
+  const plucks: { string: number; age: number; at: number }[] = [];
+  if (hv) for (let i = 0; i < hv.plucked.length; i++) if (hv.plucked[i] >= 0 && hv.plucked[i] < PLUCK_SHOWN) plucks.push({ string: i, age: hv.plucked[i], at: hv.where?.[i] ?? 0.45 });
+  return { amp, ped, set: hv ? hv.set : [0, 0, 0, 0, 0, 0, 0], shapes, plucks };
 }
 
 /** a string's swing in px for its amplitude (a hard pluck at the middle of a long string swings about 12 mm
@@ -132,8 +146,15 @@ export function harpRecord(L: HpLayout, st: HarpState, lv: ReturnType<typeof har
     swing,
     pedalY: Array.from(lv.ped, (p, k) => Y(pedalFoot(k, p)[1])),
     set: lv.set.slice(),
+    plucks: lv.plucks.map((p) => ({ string: p.string, at: p.at, ...pluckXY(L, p.string, p.at, lv.ped[pedalOf(p.string)]) })),
   };
   st.src = { x: X(0.5 * (BOARD_A[0] + BOARD_B[0]) + 0.05), y: Y(0.5 * (BOARD_A[1] + BOARD_B[1])) };
+}
+
+/** where a pluck's mark is drawn (px): on its string, the finger's share of the sounding length up from the board */
+export function pluckXY(L: HpLayout, i: number, at: number, ped: number): { x: number; y: number } {
+  const y0 = STRING_Y0[i];
+  return { x: L.ox + STRING_X[i] * L.sc, y: L.oy - (y0 + (stopY(i, ped) - y0) * at) * L.sc };
 }
 
 const STRING_INK = { red: '214,72,58', black: '96,112,150', gut: '236,226,206', nylon: '244,240,232', wire: '196,168,120' };
@@ -181,6 +202,10 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     ctx.fill(L.column);
     ctx.strokeStyle = rgba(INK.amber, 0.55);
     ctx.stroke(L.column);
+    // (the shaft's flutes)
+    ctx.strokeStyle = 'rgba(40,26,10,0.45)';
+    ctx.lineWidth = Math.max(0.8, 0.004 * sc);
+    ctx.stroke(L.flutes);
     ctx.fillStyle = '#b8924a';
     ctx.fill(L.crown);
     ctx.fillStyle = 'rgba(255,236,190,0.18)';
@@ -198,11 +223,15 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     ctx.strokeStyle = rgba(INK.amber, 0.55);
     ctx.lineWidth = 1;
     ctx.stroke(L.neck);
-    ctx.strokeStyle = 'rgba(214,176,101,0.75)';
-    ctx.lineWidth = Math.max(1.2, 0.016 * sc);
-    ctx.lineCap = 'butt';
-    ctx.stroke(L.neckEdge);
-    ctx.lineCap = 'round';
+    // (the action plate: brass, from the neck's lower edge down past the discs)
+    const gp = ctx.createLinearGradient(0, Y(CROWN_Y), 0, Y(1.2));
+    gp.addColorStop(0, 'rgba(186,150,82,0.9)');
+    gp.addColorStop(1, 'rgba(120,94,48,0.9)');
+    ctx.fillStyle = gp;
+    ctx.fill(L.plate);
+    ctx.strokeStyle = 'rgba(232,200,130,0.7)';
+    ctx.lineWidth = 1;
+    ctx.stroke(L.plate);
   }
   // ---- the strings: each from the board to its sounding top (under its discs when its pedal is down)
   const small = sc < 260;
@@ -262,15 +291,37 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
       ctx.lineTo(x, y1);
       ctx.stroke();
     }
-    // the discs on the neck: the upper closes for the natural, the lower too for the sharp
-    if (!small)
+    // the discs on the plate: the upper closes for the natural, the lower too for the sharp; over them the
+    // bridge pin at the string's sounding top, and its tuning pin in the neck
+    if (!small) {
       for (let d = 0; d < 2; d++) {
         const on = acc >= d;
-        ctx.fillStyle = on ? 'rgba(236,206,140,0.95)' : 'rgba(150,120,70,0.5)';
+        ctx.fillStyle = on ? 'rgba(255,232,170,0.98)' : 'rgba(84,62,28,0.85)';
         ctx.beginPath();
-        ctx.arc(x + (on ? 0 : 0.004 * sc), yTop + DISC_DY[d] * Math.min(1, s.length / 0.12) * sc, Math.max(0.9, 0.0032 * sc), 0, 2 * Math.PI);
+        ctx.arc(x + (on ? 0 : 0.004 * sc), yTop + DISC_DY[d] * discScale(i) * sc, Math.max(0.9, 0.0032 * sc), 0, 2 * Math.PI);
         ctx.fill();
       }
+      ctx.strokeStyle = rgba(ink, 0.3);
+      ctx.lineWidth = lw;
+      ctx.beginPath();
+      ctx.moveTo(x, yTop);
+      ctx.lineTo(x, yTop - PIN_DY * sc);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(206,210,216,0.9)';
+      ctx.beginPath();
+      ctx.arc(x, yTop - PIN_DY * sc, Math.max(0.8, 0.0026 * sc), 0, 2 * Math.PI);
+      ctx.fill();
+    }
+  }
+  // ---- the fingers: where each string plucked a moment ago was taken (the engine's own place: no two alike)
+  for (const p of lv.plucks) {
+    const { x, y } = pluckXY(L, p.string, p.at, lv.ped[pedalOf(p.string)]);
+    const u = p.age / PLUCK_SHOWN;
+    ctx.strokeStyle = `rgba(255,240,212,${(0.9 * (1 - u) * (1 - u)).toFixed(3)})`;
+    ctx.lineWidth = Math.max(1, 0.003 * sc);
+    ctx.beginPath();
+    ctx.arc(x, y, (0.006 + 0.022 * u) * sc, 0, 2 * Math.PI);
+    ctx.stroke();
   }
   // ---- the pedals: seven levers in their slots, each at its notch (up flat, middle natural, down sharp)
   ctx.strokeStyle = 'rgba(0,0,0,0.6)';

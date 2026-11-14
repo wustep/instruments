@@ -6,7 +6,8 @@
 import { describe, expect, it } from 'vitest';
 import { HARP_PEDALS, harpStrings, type VisualFrame } from '@piano-model/engine';
 import { BOARD_A, BOARD_B, COLUMN_X, CROWN_Y, HP_X0, HP_X1, HP_Y0, HP_Y1, PEDAL_STEP, PEDAL_X, STRINGS, STRING_X, STRING_Y0, STRING_Y1, boardY, neckLower, neckUpper, pedalFoot, pedalOf, stopY } from '../src/ui/harp-plan.ts';
-import { drawHarp, harpBox, harpLayout, newHarpState, stringInk, swingPx } from '../src/ui/harp-draw.ts';
+import { PLUCK_SHOWN, drawHarp, harpBox, harpLayout, harpLive, newHarpState, pluckXY, stringInk, swingPx } from '../src/ui/harp-draw.ts';
+import { DISC_DY, PIN_DY, discScale, plateLower } from '../src/ui/harp-plan.ts';
 import { drawHarpV } from '../src/ui/vector/harp.ts';
 import { installCanvas, recorder } from './recording-ctx.ts';
 
@@ -140,4 +141,62 @@ describe('the 2D harp draws, both styles', () => {
       draw(ctx, Math.round(b.w * 60), Math.round(b.h * 60), frame({ 5: 0.5 }), st, 0);
       expect(st.drawn!.body.x1).toBeLessThanOrEqual(Math.round(b.w * 60));
     });
+});
+
+describe('the harp’s action and the finger’s mark', () => {
+  it('the action plate hangs under the neck past both discs of every string; each string has its tuning pin in the neck', () => {
+    for (let i = 0; i < STRINGS.length; i++) {
+      // the plate's lower edge is under the lower disc, the neck's lower edge over the string's top
+      const lower = STRING_Y1[i] - DISC_DY[1] * discScale(i);
+      expect(plateLower[i][0]).toBe(STRING_X[i]);
+      expect(plateLower[i][1]).toBeLessThan(lower);
+      expect(plateLower[i][1]).toBeGreaterThan(STRING_Y1[i] - 0.09);
+      // the tuning pin: in the neck's wood (between its lower and upper edges)
+      const y = STRING_Y1[i] + PIN_DY;
+      expect(y).toBeGreaterThan(neckLower[i + 1][1]);
+      expect(y).toBeLessThan(neckUpper[i + 1][1]);
+      // the discs stay on the string's sounding length (a top string is short)
+      expect(DISC_DY[1] * discScale(i)).toBeLessThan(STRINGS[i].length);
+    }
+  });
+
+  it('a pluck leaves its mark where the engine’s finger took the string, for a quarter of a second, in both styles', () => {
+    const W = 900;
+    const H = 700;
+    const plucked = (age: number, at: number): VisualFrame => {
+      const f = frame({ 21: 0.7 });
+      const hv = (f as unknown as { harp: { plucked: number[]; where: number[] } }).harp;
+      hv.plucked[21] = age;
+      hv.where = Array.from({ length: 47 }, () => 0.45);
+      hv.where[21] = at;
+      return f;
+    };
+    for (const draw of [drawHarp, drawHarpV]) {
+      const st = newHarpState();
+      const { ctx } = recorder();
+      draw(ctx as unknown as CanvasRenderingContext2D, W, H, plucked(0.05, 0.3), st);
+      expect(st.drawn!.plucks.length).toBe(1);
+      const L = harpLayout(W, H);
+      const p = st.drawn!.plucks[0];
+      expect(p.string).toBe(21);
+      // on its string, three tenths of the way up from the soundboard
+      expect(p.x).toBeCloseTo(L.ox + STRING_X[21] * L.sc, 3);
+      const y0 = L.oy - STRING_Y0[21] * L.sc;
+      const y1 = L.oy - stopY(21, 0) * L.sc;
+      expect(p.y).toBeCloseTo(y0 + (y1 - y0) * 0.3, 3);
+      expect(pluckXY(L, 21, 0.3, 0)).toEqual({ x: p.x, y: p.y });
+      // nearer the middle, higher up the string
+      draw(ctx as unknown as CanvasRenderingContext2D, W, H, plucked(0.05, 0.48), st);
+      expect(st.drawn!.plucks[0].y).toBeLessThan(p.y);
+      // gone when the moment has passed; a string that only answers has none
+      draw(ctx as unknown as CanvasRenderingContext2D, W, H, plucked(PLUCK_SHOWN + 0.01, 0.3), st);
+      expect(st.drawn!.plucks.length).toBe(0);
+      draw(ctx as unknown as CanvasRenderingContext2D, W, H, frame({ 21: 0.7 }), st);
+      expect(st.drawn!.plucks.length).toBe(0);
+    }
+    // an engine that does not say where: the string's middle, near enough
+    const f = frame({ 3: 0.5 });
+    (f as unknown as { harp: { plucked: number[] } }).harp.plucked[3] = 0.01;
+    expect(harpLive(f, newHarpState(), 0).plucks).toEqual([{ string: 3, age: 0.01, at: 0.45 }]);
+  });
 });

@@ -69,7 +69,7 @@ export function drawGlockV(ctx: CanvasRenderingContext2D, W: number, H: number, 
     const head = lv.head[h];
     const up = lv.lift[h];
     const end = shaftEnd(head, h);
-    const c = mix(V.white, V.blue, up);
+    const c = mix(V.white, V.blue, Math.min(1, up));
     seg(ctx, X(head[0]), Y(head[1]), X(end[0]), Y(end[1]), c, lw, { alpha: 0.9 });
     ring(ctx, X(head[0]), Y(head[1]), HEAD_R * sc * (1 + 0.18 * up), c, lw + 0.3, { hot: up < 0.3 });
   }

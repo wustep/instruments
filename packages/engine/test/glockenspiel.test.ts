@@ -337,4 +337,73 @@ describe('glockenspiel', () => {
     expect(pk).toBeLessThan(0.97);
     expect(rmsDb(played.left, 1, 2.9) - rmsDb(played.left, 0.1, 0.5)).toBeLessThan(6);
   });
+
+  it('the contact’s click: a moment across 3–8 kHz on every bar, more of it the harder the stroke, and no louder than the limiter leaves alone', () => {
+    // the top bars (F7, G7, A7: their pitches under 3.6 kHz, their next partials over 8): the stroke's first
+    // 4 ms between 4.2 and 8 kHz
+    const band = (x: Float32Array) => {
+      let e = 0;
+      for (let f = 4200; f < 8000; f += 250) e += 10 ** (at(x, f, 0.0195, 0.0235) / 10);
+      return 10 * Math.log10(e);
+    };
+    const P = { human: 0 };
+    const none = { ...GLOCK_VOICE, click: undefined };
+    for (const m of [101, 103, 105]) {
+      const on = strike(m, 75, 0.3, P);
+      const off = strike(m, 75, 0.3, { ...P, voice: none });
+      expect(band(on) - band(off), `MIDI ${m}`).toBeGreaterThan(3);
+      // … and it is over with the contact: the same sound 20 ms on
+      expect(Math.abs(rmsDb(on, 0.045, 0.2) - rmsDb(off, 0.045, 0.2)), `MIDI ${m}`).toBeLessThan(0.05);
+    }
+    // harder, more of it; a soft stroke has little
+    expect(band(strike(103, 106, 0.3, P)) - band(strike(103, 75, 0.3, P))).toBeGreaterThan(0.5);
+    expect(band(strike(103, 75, 0.3, P)) - band(strike(103, 30, 0.3, P))).toBeGreaterThan(12);
+    // the same at every rate (its energy is the contact's, not the samples')
+    const at44 = renderInstrument({ sampleRate: 44100, instrument: 'glockenspiel', dry: true, params: P as never, events: [{ time: 0.02, event: { type: 'noteOn', midi: 96, velocity: 75 } }] as never, duration: 0.2 }).left;
+    let e44 = 0;
+    for (let i = Math.round(0.0195 * 44100); i < Math.round(0.0235 * 44100); i++) e44 += at44[i] ** 2;
+    const x48 = strike(96, 75, 0.2, P);
+    let e48 = 0;
+    for (let i = Math.round(0.0195 * FS); i < Math.round(0.0235 * FS); i++) e48 += x48[i] ** 2;
+    expect(Math.abs(10 * Math.log10(e44 / 44100 / (e48 / FS)))).toBeLessThan(1.5);
+    // the recorded fortissimo (velocity 106), a player's strokes: no bar's peak reaches the limiter's threshold
+    for (const m of [79, 84, 89, 96, 103, 108]) {
+      const x = renderInstrument({ sampleRate: FS, instrument: 'glockenspiel', dry: true, events: [0, 0.3, 0.6].map((t) => ({ time: 0.02 + t, event: { type: 'noteOn', midi: m, velocity: 106 } })) as never, duration: 0.9 });
+      let pk = 0;
+      for (let i = 0; i < x.left.length; i++) pk = Math.max(pk, Math.abs(x.left[i]), Math.abs(x.right[i]));
+      expect(pk, `MIDI ${m}`).toBeLessThan(0.89);
+    }
+  });
+
+  it('a bar’s own ring (`human`): its pitch has a small twin a cycle or two a second off, so it wavers a few tenths of a decibel as it dies; the voicing’s does not', () => {
+    const waver = (x: Float32Array, f: number) => {
+      const lv: number[] = [];
+      for (let t = 0.1; t < 1.9; t += 0.05) lv.push(at(x, f, t, t + 0.1));
+      const n = lv.length;
+      const mt = (n - 1) / 2;
+      const my = lv.reduce((a, b) => a + b, 0) / n;
+      let sxy = 0;
+      let sxx = 0;
+      lv.forEach((y, i) => {
+        sxy += (i - mt) * (y - my);
+        sxx += (i - mt) ** 2;
+      });
+      return Math.sqrt(lv.reduce((a, y, i) => a + (y - my - (sxy / sxx) * (i - mt)) ** 2, 0) / n);
+    };
+    const ws: number[] = [];
+    for (const m of [79, 84, 88, 91, 96]) {
+      expect(waver(strike(m, 80, 2.1, { human: 0 }), et(m)), `MIDI ${m}: the voicing`).toBeLessThan(0.05);
+      // (a player's bar is its own pitch within a cent or two: read where it is strongest)
+      const x = strike(m, 80, 2.1, { human: 1 });
+      let best = 0;
+      for (let c = -4; c <= 4; c += 0.5) best = Math.max(best, waver(x, et(m) * 2 ** (c / 1200)));
+      ws.push(best);
+      expect(best, `MIDI ${m}`).toBeLessThan(1.6);
+    }
+    expect(Math.max(...ws)).toBeGreaterThan(0.15);
+    // the same every time
+    const a = strike(84, 80, 0.5, { human: 1 });
+    const b = strike(84, 80, 0.5, { human: 1 });
+    expect(a).toEqual(b);
+  });
 });

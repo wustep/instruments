@@ -7,7 +7,7 @@ import type { VisualFrame } from '@piano-model/engine';
 import { Batch, type Mesh, xform } from '../src/ui/gl/gl3d.ts';
 import { HARP_SEAT, buildHarpModel, poseHarp, type HarpModel } from '../src/ui/gl/harp3d.ts';
 import { ensembleSeats } from '../src/ui/gl/scenes3d.ts';
-import { PEDAL_STEP } from '../src/ui/harp-plan.ts';
+import { PEDAL_STEP, STRING_X, STRING_Y0, stopY } from '../src/ui/harp-plan.ts';
 
 const t0 = performance.now();
 const hm: HarpModel = buildHarpModel();
@@ -17,7 +17,7 @@ const frame = (amps: Record<number, number>, pedals = [0, 0, 0, 0, 0, 0, 0]): Vi
   for (const [i, a] of Object.entries(amps)) amp[+i] = a;
   return { focus: null, harp: { pedals, set: pedals, amp, last: 21, ago: 0.1, vel: 80, plucked: [], shapes: Object.keys(amps).map((i) => ({ string: +i, shape: Float32Array.from({ length: 32 }, (_, k) => Math.sin((Math.PI * k) / 31)) })) } } as unknown as VisualFrame;
 };
-const state = () => (globalThis as unknown as { window?: { __harp3d?: { state: () => { swing: number[]; pedals: number[]; ringing: number } | null } } }).window?.__harp3d?.state() ?? null;
+const state = () => (globalThis as unknown as { window?: { __harp3d?: { state: () => { swing: number[]; pedals: number[]; ringing: number; plucks: { string: number; at: [number, number, number] }[] } | null } } }).window?.__harp3d?.state() ?? null;
 
 describe('the harp in 3D', () => {
   it('is a concert grand harp’s size: 1.9 m tall, a soundboard 0.42 m wide at its foot, 47 strings', () => {
@@ -110,5 +110,39 @@ describe('the harp in 3D', () => {
     expect(lowY).toBeGreaterThanOrEqual(-1e-6);
     expect(lowY).toBeLessThan(0.01);
     expect(far).toBeLessThan(hm.bounds.r);
+  });
+
+  it('has its action on it (a bridge pin, two discs and a tuning pin a string), and shows where the finger took a string for a moment', () => {
+    // (47 strings: a bridge pin, two discs with two prongs each, two ends of a tuning pin: nine small parts a
+    // string, and the column's twelve flutes, on top of the frame)
+    const verts = hm.statics.reduce((s, m) => s + m.count, 0);
+    expect(verts).toBeGreaterThan(30_000);
+    const b = new Batch();
+    (globalThis as unknown as { window: unknown }).window ??= globalThis;
+    const m2 = buildHarpModel();
+    const f = frame({ 21: 0.8 });
+    const hv = (f as unknown as { harp: { plucked: number[]; where: number[] } }).harp;
+    hv.plucked = Array.from({ length: 47 }, () => -1);
+    hv.plucked[21] = 0.04;
+    hv.where = Array.from({ length: 47 }, () => 0.45);
+    hv.where[21] = 0.35;
+    const glow0 = b.glow.nv;
+    poseHarp(b, m2, f, 1 / 60, 16);
+    let s = state()!;
+    expect(s.plucks.length).toBe(1);
+    expect(s.plucks[0].string).toBe(21);
+    expect(s.plucks[0].at[0]).toBeCloseTo(STRING_X[21], 5);
+    expect(s.plucks[0].at[1]).toBeCloseTo(STRING_Y0[21] + (stopY(21, 0) - STRING_Y0[21]) * 0.35, 5);
+    // the mark and the ringing string's light are glowing lines
+    expect(b.glow.nv).toBeGreaterThan(glow0);
+    // … gone a third of a second on; a string at rest is not lit
+    b.clear();
+    hv.plucked[21] = 0.4;
+    poseHarp(b, m2, f, 1 / 60, 32);
+    s = state()!;
+    expect(s.plucks.length).toBe(0);
+    b.clear();
+    poseHarp(b, m2, frame({}), 1 / 60, 48);
+    expect(b.glow.nv).toBe(0);
   });
 });

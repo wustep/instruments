@@ -12,11 +12,11 @@
 // springs back up.
 import type { VisualFrame } from '@piano-model/engine';
 import { GLOCK_BAR_THICK } from '@piano-model/engine';
-import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, mulInto, rotY, translate, xform } from './gl3d.ts';
-import { M, bbox, cyl, ellipsoid, extrude, tube, variant } from './mesh.ts';
+import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, mulInto, rotX, rotY, translate, xform } from './gl3d.ts';
+import { M, bbox, cyl, ellipsoid, extrude, grid, tube, variant } from './mesh.ts';
 import { boxOf, make } from './horn3d.ts';
 import { ringGlow, ringRGBA } from './ring-glow.ts';
-import { BARS, CASE, GK_X0, GK_X1, GK_Y0, GK_Y1, HEAD_R, HOLE_R, PIN_R, RAILS, RAIL_W, SHAFT, TRAY as TRAY_IN, WALL, barBox, barCentre, barNodes, strokePlace } from '../glock-plan.ts';
+import { BARS, CASE, GK_X0, GK_X1, GK_Y0, GK_Y1, HEAD_R, HOLE_R, PIN_R, RAILS, RAIL_W, SHAFT, TRAY as TRAY_IN, WALL, barBox, barCentre, barNodes, strokePlace, HOVER, malletHeight } from '../glock-plan.ts';
 
 /** the bars' top above the floor, the case's depth under them, the far row's step up */
 const TOP = 0.86;
@@ -24,6 +24,8 @@ const TRAY = 0.05;
 const STEP = 0.012;
 /** the bars' bevel, the pins' heads above the bars */
 const BEVEL = 0.0012;
+/** how far the middle of a bar's top stands over its edges (m) */
+const CROWN = 0.0008;
 const PIN_UP = 0.0022;
 // (the case: rosewood under a thin coat, its grain along the case; the tray's floor the same wood, in shadow)
 const WOOD = M.rosewood;
@@ -167,7 +169,10 @@ export function buildGlockModel(): GlockModel {
     make((mb) => {
       const [x0, y0, x1, y1] = barBox(i);
       const h = barY(i);
-      bbox(mb, [x0, h, -y1], [x1, h + GLOCK_BAR_THICK, -y0], BAR, BEVEL);
+      // (its top is ground a little round across the bar, CROWN at its middle: a flat face turned up mirrors
+      // one patch of a dark room and reads as grey paint; a crowned one carries the lamp along its length)
+      bbox(mb, [x0, h, -y1], [x1, h + GLOCK_BAR_THICK - CROWN, -y0], BAR, BEVEL);
+      grid(mb, 1, 10, (u, v) => [x0 + BEVEL + (x1 - x0 - 2 * BEVEL) * v, h + GLOCK_BAR_THICK - CROWN * (2 * v - 1) ** 2, -y1 + BEVEL + (y1 - y0 - 2 * BEVEL) * u], BAR);
     }),
   );
   const mallet = make((mb) => {
@@ -194,6 +199,19 @@ export function buildGlockModel(): GlockModel {
  *  model's frame, m) and how far it is lifted */
 let stageState: { glow: number[]; heads: Vec3[]; lift: number[]; ringing: number } | null = null;
 const PM = new Float32Array(16);
+const PA = new Float32Array(16);
+const PB = new Float32Array(16);
+/** where the hand holds a mallet, in the mallet's own frame (its head at the origin: glock3d's `mallet`) */
+// (the mesh is stored mirrored: its shaft, built along +z, runs along −z here, towards the player)
+const GRIP: Vec3 = [0, 0.06, -SHAFT];
+/** which way round the grip lifts the head (the frame's handedness, found once) */
+const TILT = (() => {
+  const m = new Float32Array(16);
+  const n = new Float32Array(16);
+  mulInto(m, 0, translate(GRIP[0], GRIP[1], GRIP[2]), rotX(0.2));
+  mulInto(n, 0, m, translate(-GRIP[0], -GRIP[1], -GRIP[2]));
+  return xform(n, [0, 0, 0])[1] > 0 ? 1 : -1;
+})();
 const GLOW: RGBA = [0, 0, 0, 0];
 /** each scene's mallets: where their heads are (plan x, y), eased from frame to frame */
 const hands = new WeakMap<GlockModel, { p: [number, number][]; t: number }>();
@@ -225,17 +243,21 @@ export function poseGlock(b: Batch, gm: GlockModel, fr: VisualFrame | null, _dt:
     h.p[hand][0] += (to[0] - h.p[hand][0]) * k;
     h.p[hand][1] += (to[1] - h.p[hand][1]) * k;
     const ago = last ? last.ago : 9;
-    const up = ago < 0.03 ? 0 : Math.min(1, 1 - Math.exp(-(ago - 0.03) / 0.07));
-    lift.push(up);
+    // (its height over the bar: thrown back by the stroke, the higher the harder, then back to where it waits)
+    const hgt = malletHeight(ago, last ? last.vel : 80);
+    lift.push(hgt / HOVER);
     const bar = gv ? gv.hands[hand] : hand ? 20 : 8;
-    const y = TOP + (BARS[Math.max(0, Math.min(BARS.length - 1, bar))].sharp ? STEP : 0) + HEAD_R + 0.07 * up;
+    const y = TOP + (BARS[Math.max(0, Math.min(BARS.length - 1, bar))].sharp ? STEP : 0) + HEAD_R;
+    // The mallet turns about the hand that holds it: the head goes up and down on the end of the shaft, the
+    // grip hardly moves (a quarter of the head's travel: the wrist gives a little). Its shaft runs back
+    // towards the player, fanned out a little from the instrument's middle.
     // (the meshes are built with plan y away from the player as −z and stored mirrored, as every model's is:
     // in the frame the instances are placed in, away from the player is +z)
-    const p: Vec3 = [h.p[hand][0], y, h.p[hand][1]];
-    heads.push(p);
-    // (the shaft back towards the player, fanned out a little from the instrument's middle)
-    const m = translate(p[0], p[1], p[2]);
-    mulInto(PM, 0, m, rotY((hand ? -0.16 : 0.16) - (p[0] - (GK_X0 + GK_X1) / 2) * 0.25));
+    mulInto(PA, 0, translate(h.p[hand][0], y + 0.25 * hgt, h.p[hand][1]), rotY((hand ? -0.16 : 0.16) - (h.p[hand][0] - (GK_X0 + GK_X1) / 2) * 0.25));
+    mulInto(PB, 0, PA, translate(GRIP[0], GRIP[1], GRIP[2]));
+    mulInto(PA, 0, PB, rotX(TILT * Math.asin(Math.min(0.9, (0.75 * hgt) / SHAFT))));
+    mulInto(PM, 0, PA, translate(-GRIP[0], -GRIP[1], -GRIP[2]));
+    heads.push(xform(PM, [0, 0, 0]));
     const W = new Float32Array(16);
     mulInto(W, 0, T, PM);
     b.mesh(gm.mallet, W);

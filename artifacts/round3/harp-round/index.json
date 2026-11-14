@@ -1,0 +1,87 @@
+{
+ "instrument": "harp",
+ "seconds": 17.705999999999996,
+ "notes": 110,
+ "before": {
+  "peakDb": -6.7,
+  "peakAt": 14.39,
+  "lufs": -22.5,
+  "repeats": [
+   {
+    "midi": 60,
+    "n": 6,
+    "levelSdDb": 1.12,
+    "centroidSdCents": 57,
+    "levelsDb": [
+     -28.6,
+     -28.2,
+     -29.1,
+     -25.9,
+     -27.9,
+     -27.9
+    ]
+   },
+   {
+    "midi": 36,
+    "n": 4,
+    "levelSdDb": 0.86,
+    "centroidSdCents": 166,
+    "levelsDb": [
+     -33.7,
+     -35.4,
+     -35.1,
+     -35.5
+    ]
+   }
+  ],
+  "held": [
+   {
+    "midi": 60,
+    "seconds": 2.4,
+    "centroidMoveCents": 201,
+    "levelMoveDb": 0.95
+   }
+  ]
+ },
+ "after": {
+  "peakDb": -5.7,
+  "peakAt": 14.34,
+  "lufs": -22.6,
+  "repeats": [
+   {
+    "midi": 60,
+    "n": 6,
+    "levelSdDb": 1.19,
+    "centroidSdCents": 73,
+    "levelsDb": [
+     -28.4,
+     -28,
+     -29.1,
+     -25.6,
+     -27.7,
+     -27.7
+    ]
+   },
+   {
+    "midi": 36,
+    "n": 4,
+    "levelSdDb": 0.51,
+    "centroidSdCents": 153,
+    "levelsDb": [
+     -33.8,
+     -34.6,
+     -34.7,
+     -35
+    ]
+   }
+  ],
+  "held": [
+   {
+    "midi": 60,
+    "seconds": 2.4,
+    "centroidMoveCents": 221,
+    "levelMoveDb": 1.16
+   }
+  ]
+ }
+}

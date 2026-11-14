@@ -4,8 +4,8 @@
 // bright, as the hand finds them. Amber is what sounds: each ringing string's envelope and, for the loudest,
 // its own shape. The pedals are seven levers in their slots, bright when they are off the middle notch.
 import type { VisualFrame } from '@piano-model/engine';
-import { harpLayout, harpLive, harpRecord, swingPx, type HarpState } from '../harp-draw.ts';
-import { PEDAL_LEN, PEDAL_X, PEDAL_Y, STRINGS, STRING_X, STRING_Y0, STRING_Y1, pedalFoot, pedalOf, stopY } from '../harp-plan.ts';
+import { PLUCK_SHOWN, harpLayout, harpLive, harpRecord, pluckXY, swingPx, type HarpState } from '../harp-draw.ts';
+import { DISC_DY, PEDAL_LEN, PEDAL_X, PEDAL_Y, PIN_DY, STRINGS, STRING_X, STRING_Y0, STRING_Y1, discScale, pedalFoot, pedalOf, stopY } from '../harp-plan.ts';
 import { V, beam, heat, seg } from './kit.ts';
 
 /** The harp from its side, as lines. `top`: the file player's px over the box's top. */
@@ -69,6 +69,29 @@ export function drawHarpV(ctx: CanvasRenderingContext2D, W: number, H: number, f
   }
   mask(L.neck);
   beam(ctx, L.neck, V.blue, lw);
+  // (the action plate under it; each string's discs as ticks, bright when its pedal has closed them; its
+  // tuning pin a point in the neck)
+  beam(ctx, L.plate, V.blueDim, 1);
+  if (!small)
+    for (let i = 0; i < STRINGS.length; i++) {
+      const x = X(STRING_X[i]);
+      const yTop = Y(STRING_Y1[i]);
+      const acc = lv.set[pedalOf(i)] ?? 0;
+      for (let d = 0; d < 2; d++) {
+        const y = yTop + DISC_DY[d] * discScale(i) * sc;
+        const on = acc >= d;
+        seg(ctx, x - 0.004 * sc, y, x + 0.004 * sc, y, on ? V.white : V.blueDim, 1, { alpha: on ? 0.95 : 0.6, butt: true });
+      }
+      seg(ctx, x, yTop - PIN_DY * sc - 1, x, yTop - PIN_DY * sc + 1, V.blue, 1.4, { alpha: 0.9 });
+    }
+  // ---- the fingers: where each string plucked a moment ago was taken
+  for (const p of lv.plucks) {
+    const { x, y } = pluckXY(L, p.string, p.at, lv.ped[pedalOf(p.string)]);
+    const u = p.age / PLUCK_SHOWN;
+    const ring = new Path2D();
+    ring.arc(x, y, (0.006 + 0.022 * u) * sc, 0, 2 * Math.PI);
+    beam(ctx, ring, V.white, 1, { alpha: 0.9 * (1 - u) * (1 - u) });
+  }
   // ---- the pedals in their slots: up flat, the middle natural, down sharp
   beam(ctx, L.slots, V.blueDim, 1);
   for (let k = 0; k < 7; k++) {

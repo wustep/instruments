@@ -78,6 +78,10 @@ export interface HarpParams {
   /** the player's hands: 0 the voicing itself (every pluck at one place, as hard as asked, on the instant;
    *  what is fitted and judged) … 1 a player's */
   human: number;
+  /** this harp's own strings: 0 the voicing's one string made 47 times over (each partial's two polarisations
+   *  all but at one pitch: what is fitted and judged) … 1 each string's partials with their own split and
+   *  their own share of the slow polarisation, so each wavers as it falls in its own way (HarpVoice.polSplit) */
+  own: number;
   /** the pedals, each −1 (up: flat), 0 (middle: natural) or 1 (down: sharp); a note that needs another moves it */
   pedalD: number;
   pedalC: number;
@@ -220,6 +224,11 @@ export interface HarpVoice {
   /** where the finger takes the string, from the soundboard (a fraction of its length), at C1 and at G7 */
   beta: number;
   betaTop: number;
+  /** a harder pluck is taken further from the string's middle: the place less by this per unit of the
+   *  velocity/127 over mezzo-forte's 0.55 (a string drawn further is let go off its middle, and its even
+   *  partials, all but absent from a soft pluck there, come up: the recordings' forte second partial stands
+   *  8 dB nearer the first than their mezzo-forte's, their fourth 7 dB) */
+  betaVel: number;
   /** the pluck's force on the board falls as n^−slope up the partials (1: the ideal pluck of a point) */
   slope: number;
   /** the finger letting go: a low-pass on the pluck, its corner (Hz) at middle C, × cornerOct per octave up,
@@ -260,11 +269,19 @@ export interface HarpVoice {
   q2: number;
   shelfF: number;
   shelfG: number;
-  /** each pluck knocks the board: its own modes (Hz, four of them from knockF up, a fourth apart), how hard
-   *  (re the pluck), how long they ring (s, a time constant) */
+  /** Each pluck knocks the board: the finger's pull on it is let go at once, and the board's own modes ring
+   *  for a few hundredths of a second (KNOCK_F: the recorded harp's). `knock`: how hard (re the pluck);
+   *  `knockF`, `knockTop`: the middle (Hz) of the modes a string knocks, at C1 and at G7 (a string moves the
+   *  board where it is fastened to it: the long strings its wide foot and low modes, the top strings its
+   *  narrow head: under the recorded D6–F7 the modes from 460 to 800 Hz stand 2–10 dB under the tone itself
+   *  for the first 30 ms); `knockTau`: how long they ring (s, a time constant); `knockPow`: how it follows
+   *  the dynamic, × (velocity/127 over 0.55)^knockPow re the pluck's force (the recorded knock grows by half
+   *  the decibels the tone does from the softer pluck to the forte: −1) */
   knock: number;
   knockF: number;
+  knockTop: number;
   knockTau: number;
+  knockPow: number;
   /** the other strings answering: the share of a partial's motion a string's partial on the same pitch takes */
   symp: number;
   /** the octave the string's own tension adds: it swings twice a cycle, whatever the pluck's place, and pulls
@@ -283,6 +300,14 @@ export interface HarpVoice {
   pol: number;
   polDecay: number;
   polCents: number;
+  /** … and how far apart the two lie on each string and partial of this harp (cents: what the board's give
+   *  does to the pitch of the swing across it; each string's partials have their own share of it, most a
+   *  small one and a few three times it, some sharp and some flat, never over POL_MOST). So a partial is two
+   *  near pitches dying at two rates: it wavers as it falls, each string in its own way (the recorded
+   *  strings' partials stand 1.7 dB from a straight fall, a median: scripts/harp-waver.ts). In cents, so
+   *  that no string is heard off its pitch: the top strings waver a few times a second, the long ones
+   *  hardly within their note. `own` 0: none of it. */
+  polSplit: number;
   /** the velocity's curve: the pluck's force ∝ (velocity/127)^velPow */
   velPow: number;
   /** a harder pluck is brighter: the slope less by this per unit of the velocity/127 over mezzo-forte's 0.55 */
@@ -314,6 +339,7 @@ export interface HarpVoice {
 export const HARP_VOICE: HarpVoice = {
   beta: 0.485,
   betaTop: 0.485,
+  betaVel: 0.08,
   slope: 0.8814,
   corner: 4036,
   cornerOct: 1.754,
@@ -347,14 +373,17 @@ export const HARP_VOICE: HarpVoice = {
   q2: 0.4,
   shelfF: 9000,
   shelfG: -0.6206,
-  knock: 0.01097,
-  knockF: 171.6,
-  knockTau: 0.0122,
+  knock: 0.026,
+  knockF: 230,
+  knockTop: 620,
+  knockTau: 0.026,
+  knockPow: 0.5,
   symp: 0.01419,
   octave: 0.09671,
   pol: 0.2671,
   polDecay: 0.4045,
   polCents: 0.3029,
+  polSplit: 1.8,
   velPow: 2,
   slopeVel: 0.6,
   knockVel: 2,
@@ -364,7 +393,9 @@ export const HARP_VOICE: HarpVoice = {
   wNoise: 2,
   buzz: 4,
   buzzAt: 2.2,
-  gainDb: -18,
+  // (−18 until each string had its own polarisations: apart in pitch they are no longer summed in step, and
+  // the harp as played stood 0.5 dB lower: scripts/render-polish.ts, −22.5 → −23.1 LUFS on one phrase)
+  gainDb: -17.5,
 };
 
 /** the most partials a string is given: the wire strings of the bass (a C1's 64th is at 2.1 kHz), the rest */
@@ -377,6 +408,8 @@ const F_TOP = 14000;
 /** a partial this far under a hard pluck (−90 dB; −116 dBFS at the output) is dropped: nothing hears it, and a
  *  piece left to ring keeps forty strings sounding at once */
 const QUIET = 1e-5;
+/** the most a partial's two polarisations stand apart (cents) */
+const POL_MOST = 2.5;
 /** a pedal's travel from notch to notch, and the string's retuning under its disc (s, time constants) */
 const PEDAL_TAU = 0.035;
 const RETUNE_TAU = 0.012;
@@ -417,8 +450,12 @@ const BUZZ_TOP = 3500;
 /** notes known to be coming are kept this long and this many (a file playing: `foresee`) */
 const AHEAD = 4;
 const NAHEAD = 24;
-/** the board's modes knocked by a pluck, their frequencies over knockF (a fourth, an octave, an eleventh up) */
-const KNOCK_RATIOS = [1, 1.335, 2, 2.67];
+/** The board's own modes a pluck knocks (Hz): the peaks of the VCSL harp's first 80 ms that are no partial of
+ *  the plucked string, the same from string to string (scripts/harp-knock.ts --modes: each seen under nine to
+ *  sixteen of the plucks from G3 up; under the wire strings the partials stand too close to see between). */
+const KNOCK_F = [216, 324, 372, 408, 468, 552, 612, 660, 720, 804, 912, 1008];
+/** how wide the band of modes a string knocks is (octaves, a standard deviation) */
+const KNOCK_WIDE = 0.45;
 const TRACE = 2048;
 /** the strings whose shapes the pictures are given (the loudest) */
 const NSHAPE = 8;
@@ -484,6 +521,11 @@ export class HarpCore implements InstrumentCore {
   private s1 = new Float64Array(HARP_STRINGS * NPOL);
   private s2 = new Float64Array(HARP_STRINGS * NPOL);
   private liveP = new Int32Array(HARP_STRINGS);
+  /** each string's partials' own share of the polarisations' split (POL_OWN: this harp's, the same every time) */
+  private polOwn = new Float32Array(HARP_STRINGS * NPOL);
+  /** the pluck's first twelve partials as they were set going (what the other strings take their share of) */
+  private set = new Float64Array(12);
+  private give = new Float64Array(12);
   /** per string: its partials in use (those under F_TOP), those still ringing, its pitch now and where it is
    *  going (semitones: MIDI), its level and that level's peak since the pluck, its pan */
   private np = new Int32Array(HARP_STRINGS);
@@ -497,16 +539,18 @@ export class HarpCore implements InstrumentCore {
   /** when it was last plucked (frame; −1: never), how hard, and whether a key holds it; the hand stopping it */
   private pluckedAt = new Float64Array(HARP_STRINGS).fill(-1);
   private vel = new Float64Array(HARP_STRINGS);
+  /** where the finger took it at that pluck (a share of its length from the soundboard): for the pictures */
+  private took = new Float32Array(HARP_STRINGS);
   private held = new Uint8Array(HARP_STRINGS);
   /** the hand on it: this much more decay (dB/s; 0: none) */
   private stopRate = new Float64Array(HARP_STRINGS);
   /** which string each key (MIDI note) plucked (−1: none): its note-off finds it though a pedal has moved */
   private keyString = new Int8Array(128).fill(-1);
   /** the board's modes knocked by the plucks */
-  private k1 = new Float64Array(KNOCK_RATIOS.length);
-  private k2 = new Float64Array(KNOCK_RATIOS.length);
-  private kc1 = new Float64Array(KNOCK_RATIOS.length);
-  private kc2 = new Float64Array(KNOCK_RATIOS.length);
+  private k1 = new Float64Array(KNOCK_F.length);
+  private k2 = new Float64Array(KNOCK_F.length);
+  private kc1 = new Float64Array(KNOCK_F.length);
+  private kc2 = new Float64Array(KNOCK_F.length);
   /** notes known to be coming: frames and MIDI notes, in order */
   private aheadAt = new Float64Array(NAHEAD);
   private aheadM = new Int16Array(NAHEAD);
@@ -534,10 +578,17 @@ export class HarpCore implements InstrumentCore {
     this.fs = opts.sampleRate;
     this.dry = !!opts.dry;
     this.V = { ...HARP_VOICE, ...opts.params?.voice };
-    this.params = { pluck: this.V.beta, finger: 1, damp: 0, resonance: 1, human: 1, pedalD: 0, pedalC: 0, pedalB: 0, pedalE: 0, pedalF: 0, pedalG: 0, pedalA: 0, room: 0.3, volume: 1, ...opts.params };
+    this.params = { pluck: this.V.beta, finger: 1, damp: 0, resonance: 1, human: 1, own: 1, pedalD: 0, pedalC: 0, pedalB: 0, pedalE: 0, pedalF: 0, pedalG: 0, pedalA: 0, room: 0.3, volume: 1, ...opts.params };
     this.tune = playerCents(opts.player) / 100;
     this.hum = new Human(47, opts.player);
     this.nrng = mulberry32(playerSeed(4747, opts.player));
+    // this harp's strings: each partial's two polarisations stand apart by its own share of the split, sharp
+    // or flat (a quarter of it to twice it); the instrument's, not the player's: the same on every desk
+    const own = mulberry32(0x48415250);
+    for (let k = 0; k < this.polOwn.length; k++) {
+      const m = 0.03 + 3.5 * Math.pow(own(), 4);
+      this.polOwn[k] = own() < 0.5 ? -m : m;
+    }
     this.room = new Room(this.fs);
     this.limiter = new Limiter(this.fs);
     for (let li = 0; li < 7; li++) this.acc[li] = this.pedalParam(li);
@@ -565,8 +616,8 @@ export class HarpCore implements InstrumentCore {
     // (the board's low cut twice over: 24 dB an octave, a C1's fundamental 40 dB and more under its third)
     this.eq.set([biquadHighpass(V.hp, 0.7, fs), biquadHighpass(V.hp, 0.7, fs), biquadPeaking(V.f1, V.q1, V.g1, fs), biquadPeaking(V.f2, V.q2, V.g2, fs), biquadHighShelf(Math.min(0.4 * fs, V.shelfF), V.shelfG, fs)]);
     this.room.configure(this.params.room, this.params.seat);
-    for (let k = 0; k < KNOCK_RATIOS.length; k++) {
-      const w = (2 * Math.PI * Math.min(0.4 * fs, V.knockF * KNOCK_RATIOS[k])) / fs;
+    for (let k = 0; k < KNOCK_F.length; k++) {
+      const w = (2 * Math.PI * Math.min(0.4 * fs, KNOCK_F[k])) / fs;
       const r = Math.exp(-1 / (Math.max(0.003, V.knockTau) * fs));
       this.kc1[k] = 2 * r * Math.cos(w);
       this.kc2[k] = r * r;
@@ -583,6 +634,10 @@ export class HarpCore implements InstrumentCore {
     this.nDecay = Math.exp(-1 / (Math.max(0.0005, V.noiseTau) * fs));
   }
 
+  /** how much each string is its own (0 … 1) */
+  private get strung(): number {
+    return clamp(Number(this.params.own) || 0, 0, 1);
+  }
   /** how much of a player there is (0 … 1) */
   private get human(): number {
     return clamp(Number(this.params.human) || 0, 0, 1);
@@ -612,7 +667,6 @@ export class HarpCore implements InstrumentCore {
     const max = wire ? MAXP_WIRE : MAXP;
     const o = i * MAXP_WIRE;
     const op = i * NPOL;
-    const detune = Math.pow(2, V.polCents / 1200);
     let n = count ? max : this.np[i];
     for (let k = 0; k < n; k++) {
       const h = k + 1;
@@ -635,11 +689,20 @@ export class HarpCore implements InstrumentCore {
       if (k < NPOL) {
         // the other polarisation: a little off the pitch, losing less to the board
         const rs = Math.pow(10, -(own * V.polDecay + stop) / (20 * fs));
-        this.s1[op + k] = 2 * rs * Math.cos((2 * Math.PI * f * detune) / fs);
+        this.s1[op + k] = 2 * rs * Math.cos((2 * Math.PI * f * this.split(i, k)) / fs);
         this.s2[op + k] = rs * rs;
       }
     }
     if (count) this.np[i] = n;
+  }
+
+  /** the other polarisation's pitch over the first's, for string i's partial k at f (Hz) */
+  private split(i: number, k: number): number {
+    const V = this.V;
+    const base = Math.pow(2, V.polCents / 1200);
+    const own = this.strung;
+    if (!(V.polSplit > 0) || !(own > 0)) return base;
+    return base * Math.pow(2, clamp(own * V.polSplit * this.polOwn[i * NPOL + k], -POL_MOST, POL_MOST) / 1200);
   }
 
   private freqsOf(i: number): void {
@@ -815,7 +878,7 @@ export class HarpCore implements InstrumentCore {
     const place = H > 0 ? clamp(1 + H * (PLACE_SD * hum.near() + FINGER_PLACE[fg]), 0.7, 1.3) : 1;
     const pad = H > 0 ? Math.pow(2, H * (PAD_SD * hum.near() + FINGER_PAD[fg])) : 1;
     const hard = H > 0 ? H * (HAND_SD * hum.near() + FINGER_DB[fg]) : 0;
-    const beta = clamp((P.pluck + (V.betaTop - V.beta) * u) * place, 0.04, 0.5);
+    const beta = clamp((P.pluck + (V.betaTop - V.beta) * u - V.betaVel * (v - 0.55)) * place, 0.04, 0.5);
     const wire = i < WIRES;
     const oct = (STRINGS[i].midi - 60) / 12;
     const fc = V.corner * Math.pow(V.cornerOct, oct) * Math.pow(0.45 + v, V.cornerVel) * clamp(P.finger, 0.1, 10) * (wire ? V.wCorner : 1) * pad;
@@ -832,7 +895,6 @@ export class HarpCore implements InstrumentCore {
     const was = this.live[i];
     const wasP = this.liveP[i];
     const pol = clamp(V.pol, 0, 0.95);
-    const detune = Math.pow(2, V.polCents / 1200);
     let last = 0;
     let lastP = 0;
     for (let k = 0; k < n; k++) {
@@ -841,6 +903,7 @@ export class HarpCore implements InstrumentCore {
       let a = (A * Math.sin(h * Math.PI * beta)) / Math.pow(h, slope) / Math.sqrt(1 + Math.pow(f / fc, 2 * V.order));
       // (the tension's octave, on the second partial)
       if (k === 1) a += (V.octave * A * v) / 0.55;
+      if (k < 12) this.set[k] = a;
       const w = (2 * Math.PI * f) / fs;
       const r = Math.sqrt(this.c2[o + k]) || 1;
       // (the board answers the string's pull with its velocity: each partial of what is heard starts from
@@ -853,7 +916,7 @@ export class HarpCore implements InstrumentCore {
       if (Math.abs(a) > QUIET) last = k + 1;
       if (k < NPOL) {
         const as = a * pol;
-        const ws = w * detune;
+        const ws = w * this.split(i, k);
         const rs = Math.sqrt(this.s2[op + k]) || 1;
         const keepP = k < wasP ? REPLUCK_KEEP : 0;
         this.z1[op + k] = keepP * this.z1[op + k] - (as * Math.sin(ws)) / rs;
@@ -861,6 +924,7 @@ export class HarpCore implements InstrumentCore {
         if (Math.abs(as) > QUIET) lastP = k + 1;
       }
     }
+    for (let k = n; k < 12; k++) this.set[k] = 0;
     for (let k = n; k < was; k++) this.y1[o + k] = this.y2[o + k] = 0;
     for (let k = Math.min(n, NPOL); k < wasP; k++) this.z1[op + k] = this.z2[op + k] = 0;
     this.liveP[i] = lastP;
@@ -869,12 +933,20 @@ export class HarpCore implements InstrumentCore {
     this.level[i] = Math.abs(A);
     this.pluckedAt[i] = this.frame;
     this.vel[i] = velocity;
+    this.took[i] = beta;
     this.last = i;
     this.trN = 0;
     this.freqsOf(i);
-    // the board knocked: more by a long heavy string than by a short light one
-    const kn = V.knock * A * sharp * Math.pow(10, (-V.tilt * oct) / 40);
-    for (let k = 0; k < KNOCK_RATIOS.length; k++) this.k1[k] += kn / (k + 1);
+    // the board knocked where the string is fastened to it: the modes about its place's own pitch, one up and
+    // the next down (their shapes change sign along the board), together as hard as the pluck asks
+    const kn = V.knock * A * Math.pow(v / 0.55, V.knockPow) * Math.pow(10, (-V.tilt * oct) / 40);
+    const mid = Math.log2(V.knockF) + u * Math.log2(V.knockTop / V.knockF);
+    let wsum = 0;
+    for (let k = 0; k < KNOCK_F.length; k++) wsum += Math.exp(-Math.pow((Math.log2(KNOCK_F[k]) - mid) / KNOCK_WIDE, 2));
+    for (let k = 0; k < KNOCK_F.length; k++) {
+      const wk = Math.exp(-0.5 * Math.pow((Math.log2(KNOCK_F[k]) - mid) / KNOCK_WIDE, 2)) / Math.sqrt(wsum);
+      this.k1[k] += (k & 1 ? -kn : kn) * wk;
+    }
     // the finger leaving the string: a moment's noise (the winding's scrape on a wire string)
     if (V.noise > 0) this.nEnv += V.noise * A * sharp * (wire ? V.wNoise : 1) * (H > 0 ? Math.pow(2, 0.4 * H * hum.near()) : 1);
     if (wire) {
@@ -952,9 +1024,10 @@ export class HarpCore implements InstrumentCore {
   private answer(i: number, f0: number, B: number, A: number): void {
     const eps = this.V.symp * clamp(this.params.resonance, 0, 4);
     if (!(eps > 0) || !this.sympatheticAllowed) return;
-    const V = this.V;
     const fs = this.fs;
     const top = Math.min(0.45 * fs, F_TOP);
+    const give = this.give;
+    give.fill(0);
     for (let s = 0; s < HARP_STRINGS; s++) {
       if (s === i) continue;
       const g0 = et(this.pitch[s] + this.tune + this.bend);
@@ -981,8 +1054,12 @@ export class HarpCore implements InstrumentCore {
           fresh = false;
         }
         if (k >= this.np[s]) break;
-        const a = (eps * A * (1 - off / 12)) / Math.pow(h, V.slope);
-        const w = (2 * Math.PI * fk * Math.pow(2, V.polCents / 1200)) / fs;
+        // (its share of the plucked string's partial as that was set going: a partial the pluck's place
+        // leaves out has nothing to hand on)
+        const a = eps * this.set[h - 1] * (1 - off / 12);
+        if (a === 0) continue;
+        give[h - 1] += a;
+        const w = (2 * Math.PI * fk * this.split(s, k)) / fs;
         // (it starts from rest, as the plucked string's partial does; no finger holds it to the board's
         // plane: it rings on in its slow polarisation)
         this.z1[ops + k] -= a * Math.sin(w);
@@ -991,6 +1068,19 @@ export class HarpCore implements InstrumentCore {
         if (this.live[s] === 0) this.live[s] = 1;
       }
     }
+    // What the others took, the plucked string has not: its partial begins that much the less (never under
+    // half of itself), so nothing is added at the pluck. The answer is heard as the two drift apart and the
+    // plucked string dies under it: the halo blooms after the pluck, and the partial wavers against it.
+    const o = i * MAXP_WIRE;
+    for (let k = 0; k < Math.min(12, this.np[i]); k++) {
+      if (give[k] === 0) continue;
+      const g = Math.abs(give[k]) > 0.5 * Math.abs(this.set[k]) ? 0.5 * this.set[k] : give[k];
+      const w = (2 * Math.PI * (k + 1) * f0 * stretch(B, k + 1)) / fs;
+      const r = Math.sqrt(this.c2[o + k]) || 1;
+      this.y1[o + k] += (g * Math.sin(w)) / r;
+      this.y2[o + k] += (g * Math.sin(2 * w)) / (r * r);
+    }
+    void A;
   }
 
   private apply(ev: PianoEvent | { type: 'control'; cc: number; value: number } | Own): void {
@@ -1287,7 +1377,7 @@ export class HarpCore implements InstrumentCore {
       }
     }
     // the board's own modes
-    for (let k = 0; k < KNOCK_RATIOS.length; k++) {
+    for (let k = 0; k < KNOCK_F.length; k++) {
       let u1 = this.k1[k];
       let u2 = this.k2[k];
       if (u1 === 0 && u2 === 0) continue;
@@ -1462,6 +1552,7 @@ export class HarpCore implements InstrumentCore {
         ago: (this.frame - this.pluckedAt[i]) / this.fs,
         vel: this.vel[i],
         plucked: Array.from(this.pluckedAt, (f) => (f < 0 ? -1 : (this.frame - f) / this.fs)),
+        where: Array.from(this.took),
         shapes,
       },
       sustain: this.sustain,
