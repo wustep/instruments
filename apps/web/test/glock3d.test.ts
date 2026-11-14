@@ -7,7 +7,7 @@ import type { VisualFrame } from '@piano-model/engine';
 import { Batch, xform } from '../src/ui/gl/gl3d.ts';
 import { buildGlockModel, poseGlock, type GlockModel } from '../src/ui/gl/glock3d.ts';
 import { ensembleSeats } from '../src/ui/gl/scenes3d.ts';
-import { BARS, BAR_W, barNodes, HOVER, malletHeight } from '../src/ui/glock-plan.ts';
+import { BARS, BAR_W, barNodes, HOVER, malletHeight, barBox } from '../src/ui/glock-plan.ts';
 
 (globalThis as unknown as { window: unknown }).window ??= globalThis;
 const t0 = performance.now();
@@ -126,6 +126,31 @@ describe('the glockenspiel in 3D', () => {
     expect(glock.c[0]).toBeLessThan(horn.c[0]);
     // the strings and the woodwinds are where they were; the brass too (the percussion hangs off their row's end)
     for (const i of [0, 1, 2, 3, 4, 5, 6, 7]) for (const k of [0, 1, 2]) expect(b[i].c[k], `seat ${i} axis ${k}`).toBeCloseTo(a[i].c[k], 6);
+  });
+
+  it('a bar’s top is ground a little round across it: its middle under a millimetre over its edges, the same along its length', () => {
+    for (const i of [0, 13, 29]) {
+      const m = gm.bars[i];
+      let top = -Infinity;
+      let cx = 0;
+      let n = 0;
+      for (let k = 0; k < m.count; k++) top = Math.max(top, m.data[k * 14 + 1]);
+      // the highest vertices lie along the bar's middle line; the top at the bar's edges is lower
+      const xs: number[] = [];
+      for (let k = 0; k < m.count; k++) if (m.data[k * 14 + 1] > top - 1e-6) xs.push(m.data[k * 14]);
+      for (const x of xs) {
+        cx += x;
+        n++;
+      }
+      cx /= n;
+      const [x0, , x1] = barBox(i);
+      expect(cx).toBeCloseTo((x0 + x1) / 2, 4);
+      expect(Math.max(...xs) - Math.min(...xs)).toBeLessThan(0.001);
+      let edge = -Infinity;
+      for (let k = 0; k < m.count; k++) if (Math.abs(m.data[k * 14] - x0) < 0.0015) edge = Math.max(edge, m.data[k * 14 + 1]);
+      expect(top - edge).toBeGreaterThan(0.0004);
+      expect(top - edge).toBeLessThan(0.001);
+    }
   });
 
   it('a stroke throws the mallet back, the higher the harder, and it turns about the hand that holds it', () => {

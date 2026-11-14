@@ -68,5 +68,8 @@ a ringing string lit (3D). `harp-*-before-after.jpg`, `harp-3d-{close,neck,behin
 
 Pictures: a stroke throws its mallet back, the higher the harder (4 cm for a soft stroke, 14 for a
 fortissimo, then back to 7 cm over the bar), in 2D, vector lines and 3D; in 3D the mallet turns about the
-hand that holds it (`../glock-round/glock-3d-rebound.jpg`). **The bars' material and light in 3D are as they
-were:** that pass was to follow the ring-glow change (#85), which had not merged when this was gated.
+hand that holds it (`../glock-round/glock-3d-rebound.jpg`). After the ring-glow change (#85) merged, on top of
+it: each 3D bar's top is ground a little round across it (0.8 mm at its middle), so a bar carries the lamp along
+its length where a flat face mirrored one patch of the dark room and read as grey paint
+(`../glock-round/glock-3d-bars-flat-over-crowned.jpg`: flat above, crowned below). The bars' material, the glow
+and the scene's light are as #85 left them.

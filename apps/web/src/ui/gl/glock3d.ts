@@ -13,7 +13,7 @@
 import type { VisualFrame } from '@piano-model/engine';
 import { GLOCK_BAR_THICK } from '@piano-model/engine';
 import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, mulInto, rotX, rotY, translate, xform } from './gl3d.ts';
-import { M, bbox, cyl, ellipsoid, extrude, tube, variant } from './mesh.ts';
+import { M, bbox, cyl, ellipsoid, extrude, grid, tube, variant } from './mesh.ts';
 import { boxOf, make } from './horn3d.ts';
 import { ringGlow, ringRGBA } from './ring-glow.ts';
 import { BARS, CASE, GK_X0, GK_X1, GK_Y0, GK_Y1, HEAD_R, HOLE_R, PIN_R, RAILS, RAIL_W, SHAFT, TRAY as TRAY_IN, WALL, barBox, barCentre, barNodes, strokePlace, HOVER, malletHeight } from '../glock-plan.ts';
@@ -24,6 +24,8 @@ const TRAY = 0.05;
 const STEP = 0.012;
 /** the bars' bevel, the pins' heads above the bars */
 const BEVEL = 0.0012;
+/** how far the middle of a bar's top stands over its edges (m) */
+const CROWN = 0.0008;
 const PIN_UP = 0.0022;
 // (the case: rosewood under a thin coat, its grain along the case; the tray's floor the same wood, in shadow)
 const WOOD = M.rosewood;
@@ -167,7 +169,10 @@ export function buildGlockModel(): GlockModel {
     make((mb) => {
       const [x0, y0, x1, y1] = barBox(i);
       const h = barY(i);
-      bbox(mb, [x0, h, -y1], [x1, h + GLOCK_BAR_THICK, -y0], BAR, BEVEL);
+      // (its top is ground a little round across the bar, CROWN at its middle: a flat face turned up mirrors
+      // one patch of a dark room and reads as grey paint; a crowned one carries the lamp along its length)
+      bbox(mb, [x0, h, -y1], [x1, h + GLOCK_BAR_THICK - CROWN, -y0], BAR, BEVEL);
+      grid(mb, 1, 10, (u, v) => [x0 + BEVEL + (x1 - x0 - 2 * BEVEL) * v, h + GLOCK_BAR_THICK - CROWN * (2 * v - 1) ** 2, -y1 + BEVEL + (y1 - y0 - 2 * BEVEL) * u], BAR);
     }),
   );
   const mallet = make((mb) => {
