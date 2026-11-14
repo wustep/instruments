@@ -70,6 +70,15 @@ struck or plucked). The 404 page's families are the picker's now.
 
 ![the 404 page](07-not-found-families.jpg)
 
+**8. A follow-up (Stephen, the same day): the piano beside an orchestra had no keys.** With the piano at the
+orchestra's left (1 above) its strings stand away from the keys on the screen, and strings with no keyboard
+are half an instrument. That piano is now drawn with its own 88 keys under its strings, at the plan's key
+pitch, a held key lit as the screen's keys are, in 2D and in vector lines. In its band across the stage (a
+phone, a tablet, a few players with a piano) it is over the screen's keys and has none, as the piano alone.
+
+![After You, 2D](08-orchestra-piano-keys-tango.jpg)
+![Pass It On, vector lines](08-orchestra-piano-keys-passiton-vector.jpg)
+
 ## Looked at and left
 
 * The three looks of each instrument agree on which way round it is (but for the timpani, above), and each is

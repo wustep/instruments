@@ -15,7 +15,7 @@ import { ensemble, type PartLive } from '../orchestra/ensemble.ts';
 import { isKeyboard, planOf, VOICE_INFO, type Voice } from '../orchestra/assign.ts';
 import { enterOrchestra, leaveOrchestra } from '../orchestra/setup.ts';
 import { look } from '../look.ts';
-import { drawEnsemble, ensembleCells, newPartDraw, syncPianoState, type Cell, type PartDraw } from '../ui/ensemble-draw.ts';
+import { drawEnsemble, ensembleCells, newPartDraw, ownKeys, syncPianoState, type Cell, type PartDraw } from '../ui/ensemble-draw.ts';
 import type { EnsPartIn } from '../ui/gl/scenes3d.ts';
 import type { MidiPlayer } from '../ui/player.ts';
 import { AutoScale, INK as STAGE_INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, type BowedGeom, type BowedState } from '../ui/stage-draw.ts';
@@ -820,8 +820,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     draws = ensemble.parts.map((p, i) => (draws[i]?.voice === p.voice ? draws[i] : newPartDraw(p.voice)));
     cellsKey = '';
   };
-  // tests: the ensemble on the 2D stage, each part's cell (and the group's px/m) and where its bow's
-  // hair was last drawn (client px: the frog's end, the tip's end; the contact point along it; the
+  // tests: the ensemble on the 2D stage, each part's cell (and the group's px/m), a piano's own keys, and where
+  // its bow's hair was last drawn (client px: the frog's end, the tip's end; the contact point along it; the
   // hair's real length, m)
   (window as unknown as { __ens2d?: () => unknown }).__ens2d = () => {
     const r = canvas.getBoundingClientRect();
@@ -832,7 +832,9 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       const l = b?.st.bowLine;
       if (!c) return null;
       const [x, y] = [r.left + c.x, y0 + c.y];
-      return { voice: p.voice, cell: { x, y, w: c.w, h: c.h, sc: c.sc ?? null }, bow: l && b ? { fx: x + l.fx, fy: y + l.fy, tx: x + l.tx, ty: y + l.ty, pos: l.pos, hair: b.geom.bowLength } : null };
+      // (a piano away from the screen's keys: its own, each key's box)
+      const keys = c.keys ? ownKeys(c).map((k) => ({ midi: k.midi, black: k.black, x: x + k.x, y: y + k.y, w: k.w, h: k.h })) : null;
+      return { voice: p.voice, cell: { x, y, w: c.w, h: c.h, sc: c.sc ?? null }, keys, bow: l && b ? { fx: x + l.fx, fy: y + l.fy, tx: x + l.tx, ty: y + l.ty, pos: l.pos, hair: b.geom.bowLength } : null };
     });
   };
   /** the ensemble's seat drawn under a point on the 2D stage (client px), if any */

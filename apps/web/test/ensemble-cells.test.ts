@@ -9,7 +9,7 @@ import { bowedGeometry, type VisualFrame } from '@piano-model/engine';
 import { isKeyboard, VOICE_INFO, type Voice } from '../src/orchestra/assign.ts';
 import { isOrchestral, seatKinds } from '../src/orchestra/seats.ts';
 import type { PartLive } from '../src/orchestra/ensemble.ts';
-import { drawable, drawEnsemble, ensembleCells, newPartDraw, type Cell } from '../src/ui/ensemble-draw.ts';
+import { drawable, drawEnsemble, drawOwnKeys, ensembleCells, newPartDraw, ownKeys, ownKeysHeight, type Cell } from '../src/ui/ensemble-draw.ts';
 import { PIECES } from '../src/orchestra/pieces.ts';
 import { BOWED_PLAN, FL_LEN, bowReach, bowedShapes, bowedSpan, type BowedGeom } from '../src/ui/stage-draw.ts';
 import { installCanvas, recorder } from './recording-ctx.ts';
@@ -408,5 +408,97 @@ describe('every seat of an orchestra is drawn', () => {
         expect(inside.length, `${v} on ${W}×${H} (its cell ${c.w.toFixed(1)}×${c.h.toFixed(1)})`).toBeGreaterThan(0);
       }
     }
+  });
+});
+
+// A piano beside an orchestra stands away from the keys on the screen: it is drawn with its own keys, so the
+// whole instrument is there (strings with no keyboard were half of one). In its band across the stage, over
+// the screen's keys, it has none, as the piano alone has none.
+describe('an orchestra’s piano away from the screen’s keys has its own', () => {
+  const WHITE = [0, 2, 4, 5, 7, 9, 11];
+  const lineup = PIECES.find((p) => p.id === 'pass-it-on')!.parts.map((q) => q.voice);
+  const pianoOf = (W: number, H: number) => ensembleCells(lineup, W, H)[lineup.findIndex(isKeyboard)];
+
+  it('88 keys under its strings, inside its cell: 52 white side by side, 36 black over their partings, at the plan’s key pitch', () => {
+    for (const [W, H] of [[1440, 505], [1440, 550], [1280, 400], [2245, 918]]) {
+      const c = pianoOf(W, H);
+      const who = `${W}×${H}`;
+      expect(c.keys, who).toBe(true);
+      const keys = ownKeys(c);
+      const kh = ownKeysHeight(c);
+      expect(keys.map((k) => k.midi).sort((a, b) => a - b), who).toEqual(Array.from({ length: 88 }, (_, i) => 21 + i));
+      const white = keys.filter((k) => !k.black);
+      const black = keys.filter((k) => k.black);
+      expect([white.length, black.length], who).toEqual([52, 36]);
+      for (const k of keys) expect(k.black, `${who} key ${k.midi}`).toBe(!WHITE.includes(k.midi % 12));
+      // the whites: one row along the cell's foot, each against the next, inside the cell
+      for (let i = 1; i < 52; i++) expect(white[i].x, who).toBeCloseTo(white[i - 1].x + white[i - 1].w, 6);
+      expect(white[0].x, who).toBeGreaterThanOrEqual(0);
+      expect(white[51].x + white[51].w, who).toBeLessThanOrEqual(c.w);
+      for (const k of white) expect([k.y, k.h], who).toEqual([c.h - kh, kh]);
+      // wide enough to see (the plan draws its wires from 6 px a key), a key longer than wide, the strings
+      // keeping three quarters of the cell
+      expect(white[0].w, who).toBeGreaterThanOrEqual(6);
+      expect(kh / white[0].w, who).toBeGreaterThan(3);
+      expect(kh, who).toBeLessThanOrEqual(c.h * 0.26 + 1);
+      // the blacks: shorter and narrower, each over the parting of the two whites it lies between
+      for (const k of black) {
+        expect(k.h, who).toBeLessThan(kh * 0.7);
+        expect(k.w, who).toBeLessThan(white[0].w);
+        const left = white.find((w) => w.midi === k.midi - 1)!;
+        expect(Math.abs(k.x + k.w / 2 - (left.x + left.w)), `${who} key ${k.midi}`).toBeLessThan(0.01);
+        expect(k.y, who).toBe(c.h - kh);
+      }
+    }
+  });
+
+  it('a held key is lit, in the drawn look and in vector lines; the others are not', () => {
+    const c = pianoOf(1440, 505);
+    for (const vector of [false, true]) {
+      const fills: { style: string; x: number; y: number; w: number; h: number }[] = [];
+      const strokes: { style: string; x: number }[] = [];
+      const ctx = {
+        fillStyle: '',
+        strokeStyle: '',
+        lineWidth: 1,
+        save() {},
+        restore() {},
+        fillRect(x: number, y: number, w: number, h: number) {
+          fills.push({ style: String(this.fillStyle), x, y, w, h });
+        },
+        strokeRect(x: number) {
+          strokes.push({ style: String(this.strokeStyle), x });
+        },
+      };
+      const keys = ownKeys(c);
+      const of = (m: number) => keys.find((k) => k.midi === m)!;
+      const at = (m: number) => [...fills.filter((f) => Math.abs(f.x - of(m).x) < 1e-6 && Math.abs(f.w - of(m).w) < 1e-6).map((f) => f.style), ...strokes.filter((f) => Math.abs(f.x - 0.5 - of(m).x) < 1e-6).map((f) => f.style)];
+      drawOwnKeys(ctx as unknown as CanvasRenderingContext2D, c, new Set([60, 61]), vector);
+      const lit = [at(60), at(61)];
+      fills.length = 0;
+      strokes.length = 0;
+      drawOwnKeys(ctx as unknown as CanvasRenderingContext2D, c, new Set(), vector);
+      const plain = [at(60), at(61)];
+      // (a held white key has a fill of its own; a held black key another colour than at rest)
+      expect(lit[0], `vector ${vector}: C4`).not.toEqual(plain[0]);
+      expect(lit[1], `vector ${vector}: C♯4`).not.toEqual(plain[1]);
+      // every fill inside the keys' strip of the cell
+      const kh = ownKeysHeight(c);
+      for (const f of fills) {
+        expect(f.y, `vector ${vector}`).toBeGreaterThanOrEqual(c.h - kh - 1e-6);
+        expect(f.y + f.h, `vector ${vector}`).toBeLessThanOrEqual(c.h + 1e-6);
+        expect(f.x, `vector ${vector}`).toBeGreaterThanOrEqual(0);
+        expect(f.x + f.w, `vector ${vector}`).toBeLessThanOrEqual(c.w);
+      }
+    }
+  });
+
+  it('the band’s piano, over the keys on the screen, has none: a phone, a tablet, a few players with a piano', () => {
+    for (const [W, H] of [[390, 422], [820, 700]]) {
+      const c = pianoOf(W, H);
+      expect([c.keys ?? false, ownKeysHeight(c), ownKeys(c).length], `${W}×${H}`).toEqual([false, 0, 0]);
+    }
+    const duo = ensembleCells(['violin', 'grand'], 1440, 505)[1];
+    expect([duo.keys ?? false, ownKeysHeight(duo)]).toEqual([false, 0]);
   });
 });
