@@ -1,6 +1,6 @@
 # The pieces' levels
 
-Every bundled piece is now played at about one loudness, and each piece's parts are in the balance its score asks for. Before this, the 27 pieces ran from −31.7 to −13.8 LUFS, a spread of 17.9 LU. Pressing play on the clarinet's own piece after the trombone's gave a piece 18 dB quieter. After You came in 14 dB under the Handel. Now they run from −21.4 to −19.6 LUFS, and each is within 0.9 LU of the middle.
+Every bundled piece is now played at about one loudness, and each piece's parts are in the balance its score asks for. Before this, the 26 pieces ran from −31.7 to −13.8 LUFS, a spread of 17.9 LU. Pressing play on the clarinet's own piece after the trombone's gave a piece 18 dB quieter. After You came in 14 dB under the Handel. Now they run from −21.4 to −19.6 LUFS, and each is within 0.9 LU of the middle.
 
 ## How it is measured
 
@@ -26,7 +26,7 @@ The numbers it gives:
   - *in mix*: the median, over the 400 ms blocks where the part is within 20 dB of its own loudest, of its loudness less the whole's. This is how far under the whole the part stands while it plays.
   - *loudest*: the same, over the blocks within 6 dB of the part's 95th percentile. This catches a stroke or an entry.
 
-The script works in two steps. `render --tag t` caches each part's audio, about 2 minutes for all 27 pieces with 14 processes. `measure --tag t` then mixes those parts with the gains the code has now, so a level can be tried without rendering again.
+The script works in two steps. `render --tag t` caches each part's audio, about 2 minutes for all 26 pieces with 14 processes. `measure --tag t` then mixes those parts with the gains the code has now, so a level can be tried without rendering again.
 
 ## The mechanism (`orchestra/pieces.ts` `gain`, in dB)
 
@@ -38,15 +38,15 @@ Nothing in the synthesis changed. Every gain is 0 dB unless it is set.
 
 ## Every piece, before → after
 
-"Before" is main at d3003a1, with the scores' dynamics (#91), the tuba 4.5 dB under (#84), After You (#86) and Zephyr (#88). The first column is the morning's main (3f486c6) for comparison.
+"Before" is main at 39387b0, with the scores' dynamics (#91), the tuba 4.5 dB under (#84) and After You (#86). The first column is the morning's main (3f486c6) for comparison.
 
-| piece | 3f486c6 LUFS | before (main d3003a1) LUFS / peak dBFS | gain | after LUFS / peak dBFS | bus limiter |
+| piece | 3f486c6 LUFS | before (main 39387b0) LUFS / peak dBFS | gain | after LUFS / peak dBFS | bus limiter |
 |---|---|---|---|---|---|
 | haydn | -19.8 | -22.2 / -7.0 | +2 dB | -20.2 / -5.0 | 0.0 dB |
 | bach | -19.8 | -19.8 / -3.8 | +0 dB | -19.8 / -3.8 | 0.0 dB |
 | handel | -13.5 | -15.9 / -1.9 | -4 dB | -19.9 / -5.9 | 0.0 dB |
 | air | -19.0 | -23.5 / -7.2 | +3.5 dB | -20.0 / -3.7 | 0.0 dB |
-| beethoven5-i | -20.0 | -17.4 / -2.4 | -4.5 dB | -20.4 / -3.2 | 0.0 dB |
+| beethoven5-i | -20.0 | -17.4 / -2.4 | -4.5 dB | -20.2 / -3.4 | 0.0 dB |
 | beethoven5-ii | -21.9 | -21.9 / -4.3 | +0 dB | -19.6 / -1.6 | 0.0 dB |
 | toward-morning | -22.0 | -22.0 / -6.9 | +2.5 dB | -20.0 / -4.7 | 0.0 dB |
 | everything-so-far | -27.2 | -27.3 / -10.6 | +7.5 dB | -19.8 / -3.1 | 0.0 dB |
@@ -59,7 +59,6 @@ Nothing in the synthesis changed. Every gain is 0 dB unless it is set.
 | demo:bass | -25.5 | -25.5 / -10.1 | +5.5 dB | -20.0 / -4.6 | 0.0 dB |
 | demo:harp | -27.2 | -27.2 / -14.2 | +7 dB | -20.2 / -7.2 | 0.0 dB |
 | demo:glockenspiel | -16.7 | -16.7 / -5.3 | -3.5 dB | -20.2 / -8.8 | 0.0 dB |
-| demo:zephyr | — | -17.2 / -1.3 | -2.5 dB | -19.8 / -3.8 | 0.0 dB |
 | demo:flute | -16.5 | -16.5 / -6.5 | -3.5 dB | -20.0 / -10.0 | 0.0 dB |
 | demo:oboe | -18.2 | -18.2 / -7.6 | -2 dB | -20.2 / -9.6 | 0.0 dB |
 | demo:clarinet | -31.7 | -31.7 / -22.6 | +11.5 dB | -20.4 / -13.8 | 0.0 dB |
@@ -84,10 +83,10 @@ How far under the whole each part stands while it plays (in mix), before → aft
 ### Beethoven 5 (both movements: one orchestra, `BEETHOVEN_5`)
 
 - **Basses an octave down** (the line's `shift`, 11: −12). The Mutopia files write the basses where they are read: in unison with the cellos at 416 of the 503 onsets the two lines share in the first movement, and 436 of 538 in the second. A double bass sounds an octave under its written note. In unison, the bass was lost inside the cellos at −22.1 dB and −20.8 dB. The pieces' credits now say so, as the second movement's already did for its horns. `beethoven5.test.ts` says so too. A Mutopia file dropped on the symphony's address is still read as written.
-- **Basses +5 dB:** −22.1 → −15.3 (I), −20.8 → −13.2 (II). Under the cellos (−10.9 and −8.4), and present.
-- **Strings +3 dB** (violins I and II, violas, cellos): each part stands for a section of eight to fourteen players, against winds that are one to a part. Violin I goes −11.2 → −9.9 (I) and −8.2 → −7.4 (II): level with the first flute (−9.6 and −9.5), where before the flute was 3 dB over it.
-- **Timpani +10 dB:** −23.7 → −15.1 (I) and −26.4 → −18.3 (II). At its strokes, −22.4 → −13.7 and −24.1 → −16.2. Before, the timpani's ff strokes in the tutti were not heard.
-- **Second trumpet +3 dB:** −22.5 → −20.8 (I), low in its compass under the first. In the second movement it stays under the first (−13.6 against −13.0).
+- **Basses +5 dB:** −22.1 → −15.5 (I), −20.8 → −13.2 (II). Under the cellos (−11.1 and −8.4), and present.
+- **Strings +3 dB** (violins I and II, violas, cellos): each part stands for a section of eight to fourteen players, against winds that are one to a part. Violin I goes −11.2 → −9.9 (I) and −8.2 → −7.4 (II): level with the first flute (−9.7 and −9.5), where before the flute was 3 dB over it.
+- **Timpani +10 dB:** −23.7 → −15.2 (I) and −26.4 → −18.3 (II). At its strokes, −22.4 → −13.9 and −24.1 → −16.2. Before, the timpani's ff strokes in the tutti were not heard.
+- **Second trumpet +3 dB:** −22.5 → −21.0 (I), low in its compass under the first. In the second movement it stays under the first (−13.6 against −13.0).
 
 ### Toward Morning
 
@@ -104,7 +103,7 @@ How far under the whole each part stands while it plays (in mix), before → aft
 
 These are under `artifacts/round3/rebalance/`, with more in the run's out folder. Each is 30 s at its played level:
 
-- `beethoven5-i-before-matched.mp3`, `beethoven5-i-after.mp3`: from 3:45, the coda's tutti. The before is brought to the after's loudness (−3 dB), so only the balance differs: the basses an octave under and the timpani heard.
+- `beethoven5-i-before-matched.mp3`, `beethoven5-i-after.mp3`: from 3:45, the coda's tutti. The before is brought to the after's loudness (−2.8 dB), so only the balance differs: the basses an octave under and the timpani heard.
 - `toward-morning-before-matched.mp3`, `toward-morning-after.mp3`: from 0:45, where the trombone is busiest. The before is +2 dB.
 - `beethoven5-i-spectrogram.png`: the same excerpt's first 12 s, before (top) and after. The after has a line an octave under the cellos.
 

@@ -53,10 +53,10 @@ export interface Piece {
  *  Each part's level, measured (scripts/levels-pieces.ts: how far under the whole a part stands while it
  *  plays, first movement then second, before → after): each string part stands for a section of eight to
  *  fourteen against winds one to a part, 3 dB up (the first violins −11.2 and −8.2 dB → −9.9 and −7.4,
- *  level with the first flute's −9.6 and −9.5); the basses, an octave down, 5 dB up (−22.1 and −20.8 →
- *  −15.3 and −13.2: under the cellos, no longer lost in them); the timpani 10 dB up (−23.7 and −26.4,
- *  at their loudest −22.4 and −24.1: not heard → −15.1 and −18.3, at their loudest −13.7 and −16.2);
- *  the second trumpet, low in its compass under the first, 3 dB (−22.5 → −20.8 in the first movement). */
+ *  level with the first flute's −9.7 and −9.5); the basses, an octave down, 5 dB up (−22.1 and −20.8 →
+ *  −15.5 and −13.2: under the cellos, no longer lost in them); the timpani 10 dB up (−23.7 and −26.4,
+ *  at their loudest −22.4 and −24.1: not heard → −15.2 and −18.3, at their loudest −13.9 and −16.2);
+ *  the second trumpet, low in its compass under the first, 3 dB (−22.5 → −21.0 in the first movement). */
 const BEETHOVEN_5: Piece['parts'] = [
   { voice: 'flute', lines: [0] },
   { voice: 'flute', lines: [0] },

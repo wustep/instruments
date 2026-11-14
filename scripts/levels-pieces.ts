@@ -292,6 +292,7 @@ async function renderAll(): Promise<void> {
   console.log(`${units.length} parts to render, ${jobs} at a time`);
   let next = 0;
   let done = 0;
+  const failed: string[] = [];
   const t0 = Date.now();
   await Promise.all(
     Array.from({ length: jobs }, async () => {
@@ -301,12 +302,21 @@ async function renderAll(): Promise<void> {
           const c = spawn('npx', ['tsx', 'scripts/levels-pieces.ts', 'part', '--tag', TAG, '--unit', u], { stdio: ['ignore', 'pipe', 'inherit'] });
           let out = '';
           c.stdout.on('data', (d) => (out += d));
-          c.on('exit', (code) => (code ? rej(new Error(`${u}: exit ${code}`)) : res()));
-          c.on('exit', () => console.log(`  [${++done}/${units.length}, ${((Date.now() - t0) / 1000).toFixed(0)} s] ${out.trim()}`));
+          c.on('exit', (code) => {
+            console.log(`  [${++done}/${units.length}, ${((Date.now() - t0) / 1000).toFixed(0)} s] ${out.trim()}${code ? ` FAILED (exit ${code})` : ''}`);
+            if (code) failed.push(u);
+            res();
+          });
         });
       }
     }),
   );
+  // (a part that did not write its sound is never left for measure to mix without it)
+  const missing = units.filter((u) => !existsSync(partFile(u.split('#')[0], Number(u.split('#')[1]))));
+  if (failed.length || missing.length) {
+    console.error(`not rendered: ${[...new Set([...failed, ...missing])].join(' ')} (render again: only what is missing is done)`);
+    process.exit(1);
+  }
 }
 function renderUnit(u: string): void {
   const [id, ks] = u.split('#');
@@ -338,7 +348,8 @@ function measureOne(id: string): { row: PieceRow; L: Float32Array; R: Float32Arr
   const parts: { k: number; L: Float32Array; R: Float32Array; g: number; trim: number }[] = [];
   let n = 0;
   for (let k = 0; k < job.plan.parts.length; k++) {
-    if (!job.plan.parts[k].lines.length || !existsSync(partFile(id, k))) continue;
+    if (!job.plan.parts[k].lines.length) continue;
+    if (!existsSync(partFile(id, k))) throw new Error(`${id}: part ${k} (${job.plan.parts[k].voice}) not rendered (render --tag ${TAG} again)`);
     const p = readPart(id, k);
     // the gain after the rendered part: a piece's bus (and its own gain on it); the change of a trim or
     // of a demo's gain since the render (they were the engine's volume: its limiter is left as rendered)
