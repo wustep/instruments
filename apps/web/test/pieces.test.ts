@@ -122,8 +122,9 @@ describe('orchestra: the pieces', () => {
     expect(song.duration).toBeLessThan(191);
     expect(song.bars).toHaveLength(98);
     const seats = ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'glockenspiel', 'harp', 'grand', 'violin', 'violin', 'viola', 'cello', 'bass'];
-    // every instrument of the page but the upright (the grand is the piano), the violin twice
-    expect([...new Set(seats.map((v) => VOICE_INFO[v as never].instrument))].sort()).toEqual([...INSTRUMENT_IDS].sort());
+    // every acoustic instrument of the page but the upright (the grand is the piano), the violin twice (the
+    // zephyr, which does not exist yet, came after it)
+    expect([...new Set(seats.map((v) => VOICE_INFO[v as never].instrument))].sort()).toEqual(INSTRUMENT_IDS.filter((id) => id !== 'zephyr').sort());
     const plan = piecePlan(po, song.lines, 17);
     expect(lineupOf(plan)).toEqual(seats);
     // each line on its own seat, as written (no transposition, nothing folded by octaves)
@@ -251,13 +252,15 @@ describe('orchestra: the pieces', () => {
 });
 
 describe('each instrument’s own piece (the play icon)', () => {
-  it('every instrument has one: Mutopia’s file byte for byte, public domain, short, every note in its range', () => {
+  it('every instrument has one: Mutopia’s file byte for byte (the zephyr’s the page’s own), public domain, short, every note in its range', () => {
     for (const id of INSTRUMENT_IDS) {
       const d = DEMOS[id];
       expect(d?.instrument, id).toBe(id);
       const { b, song } = load(d.file);
       expect(createHash('sha256').update(b).digest('hex'), id).toBe(d.sha256);
-      expect(d.source).toMatch(/^https:\/\/www\.mutopiaproject\.org\/cgibin\/piece-info\.cgi\?id=\d+$/);
+      // (the zephyr's is the page's own, there being nothing written for it: its licence is the repository's)
+      if (id === 'zephyr') expect(d.source).toBe('https://github.com/wustep/instruments#license');
+      else expect(d.source).toMatch(/^https:\/\/www\.mutopiaproject\.org\/cgibin\/piece-info\.cgi\?id=\d+$/);
       // public domain, or a Creative Commons licence that lets the file be passed on with its credit
       // (the oboe's Brandenburg: CC BY 3.0; the symphony brief allows a CC licence that permits redistribution)
       expect(d.credit).toMatch(/public domain|Creative Commons Attribution(-ShareAlike)? \d\.\d/);
