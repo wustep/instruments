@@ -10,9 +10,10 @@ strings, tubes, membranes and bars.
 
 **Play it:** [instruments-wustep.vercel.app](https://instruments-wustep.vercel.app).
 **Hear the orchestra:** [/symphony](https://instruments-wustep.vercel.app/symphony) (*Toward Morning*, thirteen
-seats), [/everything](https://instruments-wustep.vercel.app/everything) (*Everything So Far*, eleven) or
+seats), [/everything](https://instruments-wustep.vercel.app/everything) (*Everything So Far*, eleven),
 [/passiton](https://instruments-wustep.vercel.app/passiton) (*Pass It On*, all sixteen instruments on seventeen
-seats). Each opens with its piece loaded and silent. Press play.
+seats) or [/tango](https://instruments-wustep.vercel.app/tango) (*After You*, a tango for twelve). Each opens
+with its piece loaded and silent. Press play.
 
 ## Instruments
 
@@ -44,6 +45,7 @@ pieces menu loads a piece and seats the orchestra it needs:
 | Fable 5.2, *Toward Morning* ([/symphony](https://instruments-wustep.vercel.app/symphony)) | 13: flute, oboe, clarinet, bassoon, horn, trumpet, trombone, timpani, two violins, viola, cello, double bass |
 | Fable 5.2, *Everything So Far* ([/everything](https://instruments-wustep.vercel.app/everything)) | 11: flute, clarinet, horn, glockenspiel, harp, grand piano, two violins, viola, cello, double bass |
 | Fable 5.2, *Pass It On* ([/passiton](https://instruments-wustep.vercel.app/passiton)) | 17: all sixteen instruments, with two violins |
+| Fable 5.2, *After You* ([/tango](https://instruments-wustep.vercel.app/tango)) | 12: oboe, clarinet, bassoon, horn, trumpet, trombone, grand piano, two violins, viola, cello, double bass |
 
 When nothing is loaded, the play button plays the instrument's own short piece:
 
@@ -124,11 +126,11 @@ The address always describes the page, so it can be shared:
 
 * `?view=2d|vector|3d` sets the view on any address.
 * The Orchestra writes its whole setup into the query, versioned: `/orchestra?v=1&seats=violin,violin,viola,cello&lines=…&keys=…&expr=on|off`.
-* A piece's own address (`/symphony`, `/everything`, `/passiton`) stays in the bar until the orchestra is
+* A piece's own address (`/symphony`, `/everything`, `/passiton`, `/tango`) stays in the bar until the orchestra is
   rearranged. After that the address becomes the Orchestra's.
 * For filming, `keys=0` hides the keys and `ui=0` shows the stage alone (a 2D piano keeps its keys; `keys=1` keeps them on any one instrument).
 * `?debug` shows the start-up log.
-* Any other path gets a 404 page that links every instrument, the Orchestra, the three pieces and the two
+* Any other path gets a 404 page that links every instrument, the Orchestra, the four pieces and the two
   pages.
 
 ## How it works
@@ -216,8 +218,8 @@ Claude Fable 5.2, Anthropic's models, working in Claude Code.
 * **Pieces:** the [Mutopia Project](https://www.mutopiaproject.org)'s typesettings of Bach, Handel, Haydn,
   Mozart, Beethoven, Chopin, and a ground from Playford's *The Division Violin*. The files are bundled
   byte for byte. What a player would change (which lines play, a transposition, a tempo) is set beside
-  them in `pieces.ts`. *Toward Morning*, *Everything So Far* and *Pass It On* were written for these
-  instruments by Fable 5.2 (2026).
+  them in `pieces.ts`. *Toward Morning*, *Everything So Far*, *Pass It On* and *After You* were written for
+  these instruments by Fable 5.2 (2026).
 * **3D:** [three.js](https://threejs.org) (MIT).
 * **The vector view** is after [Chimera](https://github.com/jamesondh/chimera-vocal-synth), Jameson
   Hodge's vocal synth. Its screens were the inspiration; none of its code is used. The vector type is
@@ -235,8 +237,9 @@ The code is under the [MIT License](LICENSE). Bundled third-party files keep the
   `bach-bwv1046-adagio-oboe.mid` (typeset by Ben Stewart, Mutopia-2008/10/29-1577), which is under Creative
   Commons Attribution 3.0.
 * **Toward Morning** (`apps/web/public/pieces/fable-toward-morning.mid`), **Everything So Far**
-  (`apps/web/public/pieces/fable-everything-so-far.mid`) and **Pass It On**
-  (`apps/web/public/pieces/fable-pass-it-on.mid`), this project's own pieces, are dedicated to the public
+  (`apps/web/public/pieces/fable-everything-so-far.mid`), **Pass It On**
+  (`apps/web/public/pieces/fable-pass-it-on.mid`) and **After You**
+  (`apps/web/public/pieces/fable-after-you.mid`), this project's own pieces, are dedicated to the public
   domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
 * **Reference excerpts** (`apps/web/public/ref/*.mp3`): University of Iowa MIS; see
   `apps/web/public/ref/LICENSE.txt`.

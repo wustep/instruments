@@ -1,7 +1,8 @@
 // Orchestra mode's built-in pieces: the files are Mutopia's own (checksums), they parse, and each
 // piece sets out its parts as listed (orchestra/pieces.ts), fitted to a smaller stage when needed.
-// Three are this project's own (Fable 5.2, CC0): "Toward Morning", thirteen parts on thirteen seats,
-// "Everything So Far", eleven on eleven, and "Pass It On", every instrument, seventeen on seventeen.
+// Four are this project's own (Fable 5.2, CC0): "Toward Morning", thirteen parts on thirteen seats,
+// "Everything So Far", eleven on eleven, "Pass It On", every instrument, seventeen on seventeen, and
+// "After You", a tango, twelve on twelve.
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -18,14 +19,14 @@ const load = (file: string) => {
 };
 
 describe('orchestra: the pieces', () => {
-  it('each file is Mutopia’s, byte for byte (three this project’s own, CC0), and parses into the lines its plan names', () => {
+  it('each file is Mutopia’s, byte for byte (four this project’s own, CC0), and parses into the lines its plan names', () => {
     for (const p of PIECES) {
       const { b, song } = load(p.file);
       expect(createHash('sha256').update(b).digest('hex'), p.id).toBe(p.sha256);
       expect(song.duration, p.id).toBeGreaterThan(30);
       for (const part of p.parts) for (const l of part.lines) expect(l, p.id).toBeLessThan(song.lines.length);
       expect(p.credit).toMatch(/public domain/);
-      if (p.id === 'toward-morning' || p.id === 'everything-so-far' || p.id === 'pass-it-on') {
+      if (p.id === 'toward-morning' || p.id === 'everything-so-far' || p.id === 'pass-it-on' || p.id === 'after-you') {
         // not Mutopia's: written for this page, and said so, with its licence
         expect(p.source).toBe('https://github.com/wustep/instruments#license');
         expect(p.credit).toMatch(/Fable 5\.2/);
@@ -33,7 +34,7 @@ describe('orchestra: the pieces', () => {
       } else expect(p.source).toMatch(/^https:\/\/www\.mutopiaproject\.org\/cgibin\/piece-info\.cgi\?id=\d+$/);
     }
     // the only pieces that are not Mutopia's are those named here
-    expect(PIECES.filter((p) => !/mutopiaproject/.test(p.source)).map((p) => p.id)).toEqual(['toward-morning', 'everything-so-far', 'pass-it-on']);
+    expect(PIECES.filter((p) => !/mutopiaproject/.test(p.source)).map((p) => p.id)).toEqual(['toward-morning', 'everything-so-far', 'pass-it-on', 'after-you']);
   });
 
   it('Toward Morning: thirteen lines, one to a seat by its own names; every note in its instrument’s compass, one voice to a wind; its own dynamics; the thirteen’s play icon plays it', () => {
@@ -65,7 +66,7 @@ describe('orchestra: the pieces', () => {
     const fifth = PIECES.find((p) => p.id === 'beethoven5-i')!;
     expect(PIECES[pieceForLineup(fifth.parts.map((q) => q.voice))].id).toBe('beethoven5-i');
     // (the page's own pieces come last, in the order they were written)
-    expect(PIECES.slice(-3).map((p) => p.id)).toEqual(['toward-morning', 'everything-so-far', 'pass-it-on']);
+    expect(PIECES.slice(-4).map((p) => p.id)).toEqual(['toward-morning', 'everything-so-far', 'pass-it-on', 'after-you']);
   });
 
   it('Everything So Far: eleven lines (the conductor track is none), one to a seat by its own names; every note in its instrument’s compass; its own dynamics; the eleven’s play icon plays it', () => {
@@ -155,6 +156,74 @@ describe('orchestra: the pieces', () => {
     // the play icon: seventeen seats play it; the others' orchestras still play their own
     expect(PIECES[pieceForLineup(seats as never)].id).toBe('pass-it-on');
     for (const id of ['toward-morning', 'everything-so-far', 'beethoven5-i']) {
+      const other = PIECES.find((p) => p.id === id)!;
+      expect(PIECES[pieceForLineup(other.parts.map((q) => q.voice))].id, id).toBe(id);
+    }
+  });
+
+  it('After You: twelve lines (the conductor track is none), one to a seat by its own names; every note in its instrument’s compass, one voice to a wind; its own dynamics on every line, a hairpin (CC11) inside the held notes; the clarinet follows the violin a bar behind; it fits a phone’s stage; the twelve’s play icon plays it', () => {
+    const ay = PIECES.find((p) => p.id === 'after-you')!;
+    const { song } = load(ay.file);
+    expect(`${ay.composer}, ${ay.title}`).toBe('Fable 5.2, After You');
+    expect(ay.path).toBe('tango');
+    expect(song.lines.map((l) => `${l.name}~${l.program}`)).toEqual(['Oboe~68', 'Clarinet~71', 'Bassoon~70', 'Horn~60', 'Trumpet~56', 'Trombone~57', 'Grand Piano~0', 'Violin I~40', 'Violin II~40', 'Viola~41', 'Cello~42', 'Double Bass~43']);
+    expect(new Set(song.lines.map((l) => l.channel)).size).toBe(12);
+    // two minutes and fifty-six seconds (first note to the end of the last), 88 bars of 2/4 (the last is empty)
+    expect(song.duration).toBeGreaterThan(173);
+    expect(song.duration).toBeLessThan(179);
+    expect(song.bars).toHaveLength(87);
+    const seats = ['oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'grand', 'violin', 'violin', 'viola', 'cello', 'bass'];
+    const plan = piecePlan(ay, song.lines, 12);
+    expect(lineupOf(plan)).toEqual(seats);
+    // each line on its own seat, as written (no transposition, nothing folded by octaves)
+    expect(plan.lines.map((rs) => rs.map((r) => [r.part, r.shift]))).toEqual(seats.map((_, i) => [[i, 0]]));
+    const ons = (i: number) => song.events.filter((e) => e.kind === 'on' && e.line === i) as { t: number; midi: number; vel: number }[];
+    song.lines.forEach((l, i) => {
+      const v = VOICE_INFO[plan.parts[i].voice];
+      expect(l.lo, `${l.name} low`).toBeGreaterThanOrEqual(v.lo);
+      expect(l.hi, `${l.name} high`).toBeLessThanOrEqual(v.hi);
+      expect(l.poly, `${l.name} voices`).toBeLessThanOrEqual(v.poly);
+      expect(l.notes, l.name).toBeGreaterThanOrEqual(40);
+      // real dynamics: each line's velocities are many, and far apart
+      const vels = ons(i).map((e) => e.vel);
+      expect(new Set(vels).size, `${l.name} velocities`).toBeGreaterThanOrEqual(12);
+      expect(Math.max(...vels) - Math.min(...vels), `${l.name} velocity range`).toBeGreaterThanOrEqual(36);
+      // and hairpins: every wind and every bow moves its expression (CC11) inside its held notes; the piano's dynamics are its hammers' (and its pedal's)
+      const cc = song.events.filter((e) => e.kind === 'cc' && e.cc === 11 && e.line === i) as { value: number }[];
+      if (plan.parts[i].voice === 'grand') expect(cc.length, l.name).toBeLessThanOrEqual(1);
+      else {
+        expect(cc.length, `${l.name} hairpins`).toBeGreaterThan(100);
+        expect(Math.min(...cc.map((e) => e.value)), l.name).toBeLessThan(0.75);
+        expect(Math.max(...cc.map((e) => e.value)), l.name).toBeGreaterThan(0.8);
+      }
+    });
+    expect(song.events.filter((e) => e.kind === 'pedal' && e.cc === 64 && e.line === 6).length).toBeGreaterThan(40);
+    // the whole of it on a phone's stage and a computer's
+    expect(fitsStage(seats as never, 6)).toBe(true);
+    expect(fitsStage(seats as never, 8)).toBe(true);
+    // dropped as a plain file on a stage with room, its names seat the same orchestra
+    expect(lineupOf(autoPlan(song.lines, { cap: 12 }))).toEqual(seats);
+    // its own dynamics on every line: automatic expression phrases none; its lines are written apart (each
+    // note ahead of its beat by the time its instrument takes to speak): they are not moved again
+    const ex = express(song);
+    expect(ex.shapes.map((sh, i) => (sh.flat ? song.lines[i].name : null)).filter(Boolean)).toEqual([]);
+    expect(ex.timed).toBe(false);
+    // the tempo is part of the playing: the middle strain's bars are a fifth longer than the first strain's
+    const bar = (n: number) => song.bars![n] - song.bars![n - 1];
+    expect(bar(42) / bar(8)).toBeGreaterThan(1.12);
+    // the idea: the violin leads (G5 F5 E♭5 D5 C5 after its upbeat), the clarinet follows with the same an
+    // octave under, a bar behind (about two seconds)
+    const lead = ons(7).slice(3, 8);
+    const follow = ons(1).filter((e) => e.t > 7.5).slice(0, 5);
+    expect(lead.map((e) => e.midi)).toEqual([79, 77, 75, 74, 72]);
+    expect(follow.map((e) => e.midi)).toEqual([67, 65, 63, 62, 60]);
+    lead.forEach((e, k) => {
+      expect(follow[k].t - e.t, `note ${k}`).toBeGreaterThan(1.6);
+      expect(follow[k].t - e.t, `note ${k}`).toBeLessThan(2.3);
+    });
+    // the play icon: twelve seats play it; the others' orchestras still play their own
+    expect(PIECES[pieceForLineup(seats as never)].id).toBe('after-you');
+    for (const id of ['toward-morning', 'everything-so-far', 'pass-it-on', 'beethoven5-i']) {
       const other = PIECES.find((p) => p.id === id)!;
       expect(PIECES[pieceForLineup(other.parts.map((q) => q.voice))].id, id).toBe(id);
     }

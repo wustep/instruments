@@ -146,9 +146,9 @@ test('/passiton is kept by a reload and by back and forward; reorganised, the ad
   await expect.poll(async () => (await state(page)).playing, { timeout: 90_000 }).toBe(true);
   expect((await state(page)).lines).toEqual(SEATS.map((_, i) => [i]));
   await page.evaluate(() => (window as any).__player.stop());
-  // the pieces menu: the last of them, with its instruments
+  // the pieces menu: the third of the page's own, after Mutopia's six, Toward Morning and Everything So Far, with its instruments
   await page.locator('.player .pl-pieces').click();
-  const last = page.locator('.score-menu .sm-item').last();
+  const last = page.locator('.score-menu .sm-item').nth(8);
   await expect(last).toHaveAttribute('data-piece', 'pass-it-on');
   await expect(last).toContainText('Fable 5.2');
   await expect(last).toContainText('Pass It On');
