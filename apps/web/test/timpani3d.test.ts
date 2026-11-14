@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import { TIMPANI_DRUMS, type VisualFrame } from '@piano-model/engine';
 import { Batch, type Mesh, xform } from '../src/ui/gl/gl3d.ts';
-import { GAUGE, MALLET_BALL, MALLET_LEN, PEDAL, TIMPANI_SEAT, TIMPANI_SET, bowlR, buildTimpaniModel, malletLift, newTimpaniPose, pedalTilt, pointerAngle, poseTimpani, strikePoint, type TimpaniModel, type TimpaniPose } from '../src/ui/gl/timpani3d.ts';
+import { GAUGE, MALLET_BALL, MALLET_LEN, PEDAL, TIMPANI_SEAT, TIMPANI_SET, TIMPANI_VIEW, bowlR, buildTimpaniModel, malletLift, newTimpaniPose, pedalTilt, pointerAngle, poseTimpani, strikePoint, type TimpaniModel, type TimpaniPose } from '../src/ui/gl/timpani3d.ts';
 import { ensembleSeats } from '../src/ui/gl/scenes3d.ts';
 
 const t0 = performance.now();
@@ -122,6 +122,26 @@ describe('the timpani in 3D', () => {
     const x0 = Math.min(...tm.drums.map((d, k) => c[k][0] - d.spec.d / 2));
     const x1 = Math.max(...tm.drums.map((d, k) => c[k][0] + d.spec.d / 2));
     near(x1 - x0, 2.5, 0.1);
+  });
+
+  it('are first seen from behind the player, as the 2D stage draws them: the pedals towards us, the 32″ at the left', () => {
+    // (the camera's place from its target: stage3d's orbit)
+    const at = (yaw: number) => [Math.cos(TIMPANI_VIEW.pitch) * Math.sin(yaw), Math.sin(TIMPANI_VIEW.pitch), -Math.cos(TIMPANI_VIEW.pitch) * Math.cos(yaw)];
+    const c = tm.drums.map((d) => xform(d.T, [0, 0, 0]));
+    const mid = [(c[0][0] + c[3][0]) / 2, (c[1][2] + c[2][2]) / 2];
+    // the player's side of the set: where the player stands from its middle (and so the pedals and gauges)
+    const side = [tm.player[0] - mid[0], tm.player[1] - mid[1]];
+    const n = Math.hypot(side[0], side[1]);
+    for (const yaw of [TIMPANI_VIEW.yaw, TIMPANI_VIEW.yaw + TIMPANI_VIEW.swing, TIMPANI_VIEW.yaw - TIMPANI_VIEW.swing]) {
+      const cam = at(yaw);
+      // (a narrow stage's swing never comes round to the hall's side)
+      expect((cam[0] * side[0] + cam[2] * side[1]) / n, `yaw ${yaw.toFixed(2)}`).toBeGreaterThan(0.75);
+    }
+    // from there the player's left is the picture's left (the renderer mirrors x: +x is the player's left),
+    // so the drums run low to high left to right as the 2D plan's do; and above, the heads open to the eye
+    for (let k = 1; k < 4; k++) expect(c[k][0]).toBeLessThan(c[k - 1][0]);
+    expect(TIMPANI_VIEW.pitch).toBeGreaterThan(0.4);
+    expect(TIMPANI_VIEW.pitch).toBeLessThan(0.7);
   });
 
   it('pose the pedals at the engine’s travel and the gauges’ pointers at each drum’s note', () => {

@@ -79,8 +79,12 @@ describe('the ensemble’s cells', () => {
         const cells = ensembleCells(lineup, W, H);
         expect(cells).toHaveLength(lineup.length);
         const orch = isOrchestral(seatKinds(lineup.filter((v) => !isKeyboard(v)).map((v) => VOICE_INFO[v])));
-        // the band above the pianos (the strings' bows lie in it)
-        const band = Math.min(H, ...cells.filter((_, i) => isKeyboard(lineup[i])).map((c) => c.y));
+        // the band above the pianos (the strings' bows lie in it), or, the pianos at an orchestra's left on a
+        // wide stage, the stage to their right at its full height
+        const pianos = cells.filter((_, i) => isKeyboard(lineup[i]));
+        const beside = pianos.length > 0 && pianos.every((c) => c.x === 0 && c.w < W - 1);
+        const band = beside ? H : Math.min(H, ...pianos.map((c) => c.y));
+        const X0 = beside ? Math.max(...pianos.map((c) => c.x + c.w)) : 0;
         const mel = lineup.map((v, i) => i).filter((i) => !isKeyboard(lineup[i]));
         cells.forEach((c, i) => {
           const who = `${lineup[i]} ${i}`;
@@ -129,7 +133,7 @@ describe('the ensemble’s cells', () => {
           const s = bowSpan(v, cells[i]);
           spans.push(s);
           const who = `${v} ${i}'s bow`;
-          expect(s.x0, `${who}: on the stage`).toBeGreaterThanOrEqual(3);
+          expect(s.x0, `${who}: on the stage`).toBeGreaterThanOrEqual(X0 + 3);
           expect(s.x1, `${who}: on the stage`).toBeLessThanOrEqual(W - 3);
           expect(s.y0, `${who}: on the stage`).toBeGreaterThanOrEqual(0);
           expect(s.y1, `${who}: above the pianos`).toBeLessThanOrEqual(band + 1);
@@ -137,13 +141,13 @@ describe('the ensemble’s cells', () => {
         }
         // the group's box (its instruments and their bows at full reach) in the middle of the band
         const all = [...mel.map((i) => box(cells[i])), ...spans];
-        const L = Math.min(...all.map((b) => b.x0));
+        const L = Math.min(...all.map((b) => b.x0)) - X0;
         const R = W - Math.max(...all.map((b) => b.x1));
         const T = Math.min(...all.map((b) => b.y0));
         const B = band - Math.max(...all.map((b) => b.y1));
         // (an orchestra's middle, its strings' row, in the stage's middle, unless the timpani past the brass
         // row's left end would run off the stage: then a side of the group at the stage's margin)
-        const m0 = Math.max(6, Math.round(0.02 * Math.min(W, band)));
+        const m0 = Math.max(6, Math.round(0.02 * Math.min(W - X0, band)));
         if (orch) {
           const mids = mel.filter((i) => isBowed(lineup[i])).map((i) => cells[i].y + cells[i].h / 2);
           const front = mel.filter((i) => isBowed(lineup[i]) && cells[i].y + cells[i].h / 2 >= Math.max(...mids) - 1.5);
@@ -151,13 +155,51 @@ describe('the ensemble’s cells', () => {
             const fb = [...front.map((i) => box(cells[i])), ...front.map((i) => bowSpan(lineup[i] as Id, cells[i]))];
             const fmid = (Math.min(...fb.map((b) => b.x0)) + Math.max(...fb.map((b) => b.x1))) / 2;
             // (or, on a stage too short for its rows, the one line centred as before)
-            expect(Math.abs(fmid - W / 2) <= 3 || Math.min(L, R) <= m0 + 3 || Math.abs(L - R) <= 3, `the strings' middle ${fmid.toFixed(1)} px, the stage's ${W / 2}`).toBe(true);
+            expect(Math.abs(fmid - (X0 + W) / 2) <= 3 || Math.min(L, R) <= m0 + 3 || Math.abs(L - R) <= 3, `the strings' middle ${fmid.toFixed(1)} px, the stage's ${(X0 + W) / 2}`).toBe(true);
           }
         } else expect(Math.abs(L - R), `left ${L.toFixed(1)} px, right ${R.toFixed(1)} px`).toBeLessThanOrEqual(3);
         expect(Math.abs(T - B), `top ${T.toFixed(1)} px, bottom ${B.toFixed(1)} px`).toBeLessThanOrEqual(3);
         // and as large as the band allows: it reaches the margin on one side or the other
-        expect(Math.min(L + R - 2 * Math.max(6, Math.round(0.02 * Math.min(W, band))), T + B - 2 * Math.max(6, Math.round(0.02 * Math.min(W, band)))), 'the group fills the band one way').toBeLessThanOrEqual(4);
+        expect(Math.min(L + R - 2 * m0, T + B - 2 * m0), 'the group fills the band one way').toBeLessThanOrEqual(4);
       });
+
+  it('an orchestra with a piano on a wide stage: the piano at the left, where the 3D stage seats it, the rows at the stage’s full height; a phone keeps the piano’s band', () => {
+    const scale = (L: Voice[], W: number, H: number) => ensembleCells(L, W, H).find((c) => c.sc)!.sc!;
+    for (const id of ['everything-so-far', 'pass-it-on', 'after-you', 'bach']) {
+      const L = PIECES.find((p) => p.id === id)!.parts.map((q) => q.voice);
+      const others = L.filter((v) => !isKeyboard(v));
+      for (const [W, H] of [[1440, 505], [1440, 550], [1280, 400], [2245, 918]]) {
+        const cells = ensembleCells(L, W, H);
+        const who = `${id} ${W}×${H}`;
+        const piano = cells[L.findIndex(isKeyboard)];
+        const mel = cells.filter((_, i) => !isKeyboard(L[i]));
+        // the piano at the left, whole on the stage, its plan no flatter than the solo piano's; every other
+        // instrument to its right
+        expect(piano.x, who).toBe(0);
+        expect(piano.w, who).toBeLessThan(W * 0.4);
+        expect(piano.w / piano.h, who).toBeLessThan(2.8);
+        expect(piano.y, who).toBeGreaterThanOrEqual(0);
+        expect(piano.y + piano.h, who).toBeLessThanOrEqual(H);
+        expect(Math.min(...mel.map((c) => c.x)), who).toBeGreaterThanOrEqual(piano.x + piano.w);
+        // the rows over the stage's height (the band left them 54 % of it), and so drawn larger: within a
+        // quarter of what the same players are drawn at with no piano on the stage (they were at 0.4 of it)
+        expect(Math.max(...mel.map((c) => c.y + c.h)) - Math.min(...mel.map((c) => c.y)), who).toBeGreaterThan(H * 0.6);
+        expect(scale(L, W, H) / scale(others, W, H), who).toBeGreaterThan(0.6);
+      }
+      // a phone held upright, a tablet: the band under the others, across the stage, as it was
+      for (const [W, H] of [[390, 422], [412, 400], [820, 700]]) {
+        const cells = ensembleCells(L, W, H);
+        const piano = cells[L.findIndex(isKeyboard)];
+        expect([piano.x, piano.w, piano.y + piano.h], `${id} ${W}×${H}`).toEqual([0, W, H]);
+      }
+    }
+    // a few players with a piano (no orchestra) keep the band on every stage
+    for (const L of [['violin', 'grand'], ['trumpet', 'cello', 'upright'], ['violin', 'violin', 'viola', 'cello', 'grand']] as Voice[][]) {
+      const cells = ensembleCells(L, 1440, 505);
+      const piano = cells[L.findIndex(isKeyboard)];
+      expect([piano.x, piano.w, piano.y + piano.h], L.join(' ')).toEqual([0, 1440, 505]);
+    }
+  });
 
   it('an orchestra in its rows: the strings at the front (the bottom), the woodwinds above them, the brass and the timpani at the back (the top)', () => {
     const mid = (c: Cell) => c.y + c.h / 2;

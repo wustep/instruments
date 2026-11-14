@@ -5,7 +5,7 @@
      orchestra; at the far end the piano's kind, the view (one choice of three) and the two pages.
    · The band under it (views/stage.ts .stage-top) is what is sounding: the readout (every note, not one of
      them), the spectrum, and one instrument's excitation or an ensemble's parts.
-   Where thirteen instruments cannot sit side by side at a size to read and to touch, one button names what
+   Where the instruments cannot all sit side by side at a size to read and to touch, one button names what
    is on the stage and opens them as a sheet (COMPACT in views/stage.ts: the same query as below). */
 
 :root {
@@ -64,6 +64,11 @@
   text-overflow: clip;
 }
 .status[data-fit='none'] .lamp-text {
+  display: none;
+}
+/* (Measurements and Notes have no keys to tap: there the lamp alone; its title still says how sound starts) */
+:root:not([data-route='stage'])[data-audio='idle'] .lamp-text,
+:root:not([data-route='stage'])[data-audio='suspended'] .lamp-text {
   display: none;
 }
 .top-pick:empty,
@@ -395,10 +400,14 @@
   width: 100%;
   height: 42px;
 }
-/* an ensemble: its instruments in the scope's place, each lit while it sounds, its notes under it */
+/* an ensemble: its instruments in the scope's place, each lit while it sounds, its notes under it. A long
+   lineup in a window with no room for it (sixteen kinds beside the readout on a tablet held upright: 578 px
+   of them in 304) stands closer, each instrument its share of the room: the strip never widens the page
+   (at 768 px Pass It On's scrolled it sideways by 200 px) */
 .parts {
   display: none;
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
   align-items: flex-start;
   gap: 2px;
   height: 58px;
@@ -414,7 +423,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  flex: 0 1 auto;
   width: 40px;
+  min-width: 0;
   color: var(--muted);
   opacity: 0.45;
   transition: opacity 0.12s;
@@ -425,6 +436,7 @@
 }
 .part .glyph {
   width: 28px;
+  max-width: 100%;
   height: 28px;
 }
 .part[data-on] .glyph {

@@ -1,7 +1,8 @@
 // Orchestra mode in 2D: every instrument of the ensemble in a cell of its own, each drawn as the
 // single instrument is (stage-draw.ts, piano-draw.ts: the same plans, strings and waves), from its own
 // engine's frames. The pianos take a band across the whole width (their plan is as wide as their
-// keyboard); the others share the rest: with bowed strings among them, all at one scale, their true
+// keyboard), or beside an orchestra on a wide stage the left of it (SIDE_WIDE); the others share the rest:
+// with bowed strings among them, all at one scale, their true
 // sizes, spaced so that no bow reaches another instrument, the group centred; the bows are drawn last,
 // over the whole stage.
 
@@ -379,6 +380,18 @@ function orchestraCells(voices: Voice[], mel: number[], W: number, H: number): C
   return out;
 }
 
+/** An orchestra with a piano on a wide stage. Under the piano's band (below) its rows had 54 % of the stage's
+ *  height and were drawn at 0.4 of the scale the same players have without a piano: Pass It On's sixteen stood
+ *  in a fifth of a 1440 px stage's width, a violin 30 px long, over a piano 1440 px wide. There the piano
+ *  stands at the left, where the 3D stage seats an orchestra's keyboards (orchestra/seats.ts), and the rows
+ *  have the rest of the stage at its full height. Taken where the stage is this much wider than tall, and
+ *  only if it draws the orchestra this much larger than the band does. */
+const SIDE_WIDE = 1.6;
+const SIDE_GAIN = 1.2;
+/** the piano's share of the stage's width there, and its plan's width over its height */
+const SIDE_SHARE = 0.34;
+const SIDE_ASPECT = 2.3;
+
 /** the cells for a lineup on a W×H stage, in the lineup's order */
 export function ensembleCells(voices: Voice[], W: number, H: number): Cell[] {
   const kb = voices.map((v, i) => (isKeyboard(v) ? i : -1)).filter((i) => i >= 0);
@@ -397,8 +410,21 @@ export function ensembleCells(voices: Voice[], W: number, H: number): Cell[] {
     // an orchestra in its rows; with bowed strings: the group at one scale, its bows clear of the others, centred
     // (a stage too short for rows, a phone on its side, keeps the one line: no instrument under 24 px long)
     if (isOrchestral(seatKinds(melV.map((v) => VOICE_INFO[v])))) {
+      const whole = (c: Cell[] | null): c is Cell[] => !!c && mel.every((i) => Math.max(c[i].w, c[i].h) >= MIN_PX);
       const oc = orchestraCells(voices, mel, W, mh);
-      if (oc && mel.every((i) => Math.max(oc[i].w, oc[i].h) >= MIN_PX)) {
+      if (kb.length && W >= SIDE_WIDE * H) {
+        // (the pianos one over the other at the left, their column in the middle of the stage's height)
+        const pw = Math.round(W * SIDE_SHARE);
+        const side = orchestraCells(voices, mel, W - pw, H);
+        if (whole(side) && (!whole(oc) || side[mel[0]].sc! > oc[mel[0]].sc! * SIDE_GAIN)) {
+          const ph = Math.min(Math.floor(H / kb.length), Math.round(pw / SIDE_ASPECT));
+          const y0 = Math.round((H - ph * kb.length) / 2);
+          kb.forEach((i, k) => (out[i] = { x: 0, y: y0 + k * ph, w: pw, h: ph }));
+          mel.forEach((i) => (out[i] = { ...side[i], x: side[i].x + pw }));
+          return out;
+        }
+      }
+      if (whole(oc)) {
         mel.forEach((i) => (out[i] = oc[i]));
         return out;
       }

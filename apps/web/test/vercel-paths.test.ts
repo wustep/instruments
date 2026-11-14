@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { INSTRUMENT_IDS } from '@piano-model/engine';
+import { INSTRUMENT_IDS, INSTRUMENT_INFO } from '@piano-model/engine';
 import { INSTRUMENT_PATHS, PIECE_PATHS, formatAddress, emptyAddress } from '../src/address.ts';
 
 const vercel = JSON.parse(readFileSync(join(import.meta.dirname, '../../../vercel.json'), 'utf8')) as { rewrites: { source: string; destination: string }[] };
@@ -56,7 +56,13 @@ describe('an address that is none of the app’s is a 404, with the page that sa
     expect(html).toContain('<title>Not Found · Instruments</title>');
     expect(html).toContain('<meta name="robots" content="noindex" />');
     const links = [...html.matchAll(/<a href="\/([a-z-]+)">([a-z]+)<\/a>/g)].map((m) => m[1]);
-    expect(links).toEqual([...INSTRUMENT_IDS, 'orchestra', ...Object.keys(PIECE_PATHS), 'measurements', 'notes']);
+    // (the instruments in the picker's families and their order, views/stage.ts `groupOf`: what is struck or
+    // plucked first, the harp beside the piano; then the strings, the woodwinds, the brass, the percussion)
+    const rank = (f: string) => (f === 'piano' || f === 'plucked' ? 0 : f === 'bowed' ? 1 : f === 'brass' ? 3 : f === 'percussion' || f === 'mallet' ? 4 : 2);
+    const picker = [...INSTRUMENT_IDS].sort((x, y) => rank(INSTRUMENT_INFO[x].family) - rank(INSTRUMENT_INFO[y].family));
+    expect(links).toEqual([...picker, 'orchestra', ...Object.keys(PIECE_PATHS), 'measurements', 'notes']);
+    const fams = [...html.matchAll(/<span class="nf-fam">(.*?)<\/span>/g)].map((m) => [...m[1].matchAll(/href="\/([a-z-]+)"/g)].map((x) => x[1]));
+    expect(fams.slice(0, 5)).toEqual([0, 1, 2, 3, 4].map((r) => picker.filter((id) => rank(INSTRUMENT_INFO[id].family) === r)));
     for (const l of links) expect(served(`/${l}`), l).toBe(true);
   });
 });

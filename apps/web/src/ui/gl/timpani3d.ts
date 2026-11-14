@@ -576,15 +576,21 @@ export function buildTimpaniModel(): TimpaniModel {
   if (typeof window !== 'undefined')
     (window as unknown as { __timpani3d?: unknown }).__timpani3d = {
       views: timpaniViews(model),
+      // (each head's middle and the player's place, world m: where the set is seen from)
+      layout: { heads: drums.map((d) => xform(d.T, [0, d.spec.h, 0])), player: model.player },
       pose: () => (stageState ? { mallets: stageState.ball.map((b) => [...b]), alpha: Array.from(stageState.alpha), pedal: Array.from(stageState.tilt), pointer: Array.from(stageState.needle), heads: stageState.heads.map((h) => peakOf(h)) } : null),
     };
   return model;
 }
 
 // ---------------------------------------------------------------- posing
-/** the hero bearing (scenes3d viewFor): from the audience's side, round towards the big drums' end, a
- *  little above, so the heads read as ellipses and the end drum's pedal and gauge show past its kettle */
-export const TIMPANI_VIEW = { yaw: 0.62, pitch: 0.42, swing: 0.35 };
+/** the hero bearing (scenes3d viewFor): from behind the player and above, as the 2D stage draws the set
+ *  (timpani-plan.ts): the 32″ at the left and the 23″ at the right, low to high like the keys under the
+ *  stage, the pedals and the tuning gauges towards us, each mallet meeting its head in full view. (It was
+ *  first seen from the audience's side, the set the other way round from its own 2D picture: a change of
+ *  view put the drum that was struck on the other side of the stage. In the Orchestra the hall still sees
+ *  it from the hall.) */
+export const TIMPANI_VIEW = { yaw: Math.PI, pitch: 0.5, swing: 0.35 };
 /** its seat in the Orchestra (scenes3d ensembleSeats): the set's half-width for the framing, and its
  *  height (the mallets at rest over the heads) */
 export const TIMPANI_SEAT = { r: 1.3, top: 1.05 };
