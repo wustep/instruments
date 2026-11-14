@@ -103,3 +103,15 @@ export const RAILS: [P, P][] = [0, 1].flatMap((row) => {
  *  its shaft runs back towards the player */
 export const HEAD_R = 0.014;
 export const SHAFT = 0.3;
+/** where a mallet's head waits over its bar (m) */
+export const HOVER = 0.07;
+/** A mallet's stroke as it is seen, from what the engine says of it (how long ago it landed, s, and how hard,
+ *  velocity 1–127): the head's height over the bar (m). On the bar for 30 ms; then the bar throws it back,
+ *  the higher the harder the stroke (a soft one 4 cm, a fortissimo 14: a player lets a loud stroke rebound),
+ *  in a twentieth of a second; and it comes back to where it waits, HOVER over the bar, in a few tenths. */
+export function malletHeight(ago: number, vel: number): number {
+  if (!(ago >= 0.03)) return 0;
+  const t = ago - 0.03;
+  const top = 0.04 + 0.1 * Math.pow(Math.min(1, Math.max(0, vel / 127)), 1.5);
+  return (1 - Math.exp(-t / 0.045)) * (HOVER + (top - HOVER) * Math.exp(-Math.max(0, t - 0.1) / 0.2));
+}

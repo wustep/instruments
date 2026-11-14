@@ -7,7 +7,7 @@ import type { VisualFrame } from '@piano-model/engine';
 import { Batch, xform } from '../src/ui/gl/gl3d.ts';
 import { buildGlockModel, poseGlock, type GlockModel } from '../src/ui/gl/glock3d.ts';
 import { ensembleSeats } from '../src/ui/gl/scenes3d.ts';
-import { BARS, BAR_W, barNodes } from '../src/ui/glock-plan.ts';
+import { BARS, BAR_W, barNodes, HOVER, malletHeight } from '../src/ui/glock-plan.ts';
 
 (globalThis as unknown as { window: unknown }).window ??= globalThis;
 const t0 = performance.now();
@@ -126,5 +126,35 @@ describe('the glockenspiel in 3D', () => {
     expect(glock.c[0]).toBeLessThan(horn.c[0]);
     // the strings and the woodwinds are where they were; the brass too (the percussion hangs off their row's end)
     for (const i of [0, 1, 2, 3, 4, 5, 6, 7]) for (const k of [0, 1, 2]) expect(b[i].c[k], `seat ${i} axis ${k}`).toBeCloseTo(a[i].c[k], 6);
+  });
+
+  it('a stroke throws the mallet back, the higher the harder, and it turns about the hand that holds it', () => {
+    const head = (vel: number, ago: number) => {
+      const b = new Batch();
+      const m = buildGlockModel();
+      // (settled over the bar first, then the stroke)
+      for (let k = 1; k <= 30; k++) {
+        b.clear();
+        poseGlock(b, m, frame({ 5: 0.5 }, [5, 26], [{ bar: 5, ago, vel, hand: 0 }]), 1 / 60, k * 16);
+      }
+      const s = state()!;
+      return { y: s.heads[0][1], lift: s.lift[0] };
+    };
+    const down = head(110, 0.01);
+    const loud = head(110, 0.12);
+    const soft = head(30, 0.12);
+    const rest = head(110, 5);
+    expect(down.lift).toBe(0);
+    // a tenth of a second on: a hard stroke's head is well over where it waits, a soft one's under it
+    expect(loud.lift).toBeGreaterThan(1.3);
+    expect(soft.lift).toBeLessThan(0.9);
+    expect(soft.lift).toBeGreaterThan(0.3);
+    expect(rest.lift).toBeCloseTo(1, 2);
+    // (the head's own height, to half a centimetre: it swings on the shaft's end, not straight up)
+    expect(loud.y - down.y).toBeCloseTo(malletHeight(0.12, 110), 2);
+    expect(rest.y - down.y).toBeCloseTo(HOVER, 2);
+    expect(malletHeight(0.02, 127)).toBe(0);
+    expect(malletHeight(0.13, 127)).toBeGreaterThan(malletHeight(0.13, 64));
+    expect(malletHeight(0.13, 127)).toBeLessThan(0.16);
   });
 });
