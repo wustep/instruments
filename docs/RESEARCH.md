@@ -266,73 +266,47 @@ described once, for every instrument, in [`CALIBRATION.md`](CALIBRATION.md).
     −12 / −14 / −20 dB by register against the recordings' −4 / −12 / −19; the low register's second
     harmonic is still about 10 dB short.
 
-## 10. The zephyr (an invented instrument)
-
-`packages/engine/src/core/zephyr.ts`. Nothing is fitted: there is no recording. What it stands on:
-
-* **Galloping** (the wind's push). A bluff section moving across a steady flow at ẏ sees the flow at an
-  angle α = ẏ/U; where dC_L/dα + C_D < 0 the lateral force is in the direction of the motion, a negative
-  damping (Den Hartog 1932). Its size and its limit for a square prism, quasi-steady:
-  F = ½ρU²D·C(ẏ/U), C(α) = A₁α − A₃α³ + A₅α⁵ − A₇α⁷, A₁ = 2.69 (Parkinson & Smith 1964). The model keeps
-  the slope and a cubic whose top is at α = 0.2, and reads the curve from where a tilted ribbon rests (an
-  even part in the force: even harmonics). Quasi-steady theory wants U/fD ≫ 10 (Blevins 1990, ch. 4); the
-  model gives the force a lag of one width's travel in the wind.
-* **Still air** (the drag). A cylinder of radius a oscillating at ω in a viscous fluid, a ≫ √(2ν/ω), is
-  damped by 2πρa√(2νω) per length and carries ρπa² of the fluid with it (Stokes 1851). For a ribbon 12 g/m²
-  this is nearly all of its damping: Q 15 at C2, 65 at C7.
-* **The balance.** Push over drag on the fundamental, U·A₁·(w/L)·sin²(πβ) / (π√(2νω)), has no mass in it:
-  what the mass sets is how fast a note speaks. The zephyr is voiced at a ratio of 4.5–6.5 at fortissimo
-  and 1.2 at the softest key, which puts the wind at 8 m/s in the bass and 23 at the top.
-* **What came before.** The aeolian harp (Rayleigh 1915, on the aeolian tone and Strouhal's number); the
-  kite hummers (the Japanese *unari*, the Indonesian *sendaren*: a ribbon on a bow, sounded by the kite's
-  wind); J. J. Schnell's *anémocorde* (Paris, 1789), a keyboard of strings blown from bellows.
-
 ## References
 
 * Abel, J. S., Välimäki, V., & Smith, J. O. (2010). Robust, efficient design of allpass filters for dispersive string sound synthesis. *IEEE Signal Processing Letters*, 17(4), 406–409.
 * Askenfelt, A., & Jansson, E. V. (1990). From touch to string vibrations. I: Timing in the grand piano action. *JASA*, 88(1), 52–63.
 * Askenfelt, A., & Jansson, E. V. (1991). From touch to string vibrations. II: The motion of the key and hammer. *JASA*, 90(5), 2383–2393.
 * Bank, B. (2000). *Physics-based sound synthesis of the piano.* M.Sc. thesis, Budapest University of Technology and Economics (Helsinki University of Technology, Laboratory of Acoustics and Audio Signal Processing, Report 54).
-* Bank, B., & Sujbert, L. (2005). Generation of longitudinal vibrations in piano strings: From physics to sound synthesis. *JASA*, 117(4), 2268–2278.
 * Bank, B., Avanzini, F., Borin, G., De Poli, G., Fontana, F., & Rocchesso, D. (2003). Physically informed signal processing methods for piano sound synthesis: a research overview. *EURASIP Journal on Applied Signal Processing*, 2003(10), 941–952.
+* Bank, B., & Sujbert, L. (2005). Generation of longitudinal vibrations in piano strings: From physics to sound synthesis. *JASA*, 117(4), 2268–2278.
 * Bank, B., Zambon, S., & Fontana, F. (2010). A modal-based real-time piano synthesizer. *IEEE Transactions on Audio, Speech, and Language Processing*, 18(4), 809–821.
 * Bensa, J., Bilbao, S., Kronland-Martinet, R., & Smith, J. O. (2003). The simulation of piano string vibration: From physical models to finite difference schemes and digital waveguides. *JASA*, 114(2), 1095–1107.
-* Bissinger, G. (2008). Structural acoustics of good and bad violins. *JASA*, 124(3), 1764–1773.
-* Blevins, R. D. (1990). *Flow-Induced Vibration* (2nd ed.). Van Nostrand Reinhold.
 * Borin, G., De Poli, G., & Rocchesso, D. (2000). Elimination of delay-free loops in discrete-time models of nonlinear acoustic systems. *IEEE Transactions on Speech and Audio Processing*, 8(5), 597–605.
 * Chabassier, J., Chaigne, A., & Joly, P. (2013). Modeling and simulation of a grand piano. *JASA*, 134(1), 648–665.
 * Chaigne, A., & Askenfelt, A. (1994). Numerical simulations of piano strings. I. A physical model for a struck string using finite difference methods. *JASA*, 95(2), 1112–1118.
 * Conklin, H. A. (1996). Design and tone in the mechanoacoustic piano. Part I: Piano hammers and tonal effects. *JASA*, 99(6), 3286–3296; Part II: Piano structure, *JASA*, 100(2), 695–708; Part III: Piano strings and scale design, *JASA*, 100(3), 1286–1298.
 * Conklin, H. A. (1999). Generation of partials due to nonlinear mixing in a stringed instrument. *JASA*, 105(1), 536–545.
-* Cook, P. R. (1992). A meta-wind-instrument physical model, and a meta-controller for real-time performance control. *Proc. ICMC*, San Jose. (STK Flute.)
-* Den Hartog, J. P. (1932). Transmission line vibration due to sleet. *Transactions of the AIEE*, 51(4), 1074–1076.
 * Ege, K., Boutillon, X., & Rébillat, M. (2013). Vibroacoustics of the piano soundboard: (Non)linearity and modal properties in the low- and mid-frequency ranges. *Journal of Sound and Vibration*, 332(5), 1288–1305.
 * Fletcher, H. (1964). Normal vibration frequencies of a stiff piano string. *JASA*, 36(1), 203–209.
 * Fletcher, N. H., & Rossing, T. D. (1998). *The Physics of Musical Instruments* (2nd ed.). Springer.
 * Giordano, N. (1998). Mechanical impedance of a piano soundboard. *JASA*, 103(4), 2128–2133.
 * Giordano, N., & Winans, J. P. (2000). Piano hammers and their force compression characteristics: Does a power law make sense? *JASA*, 107(4), 2248–2255.
 * Hunt, K. H., & Crossley, F. R. E. (1975). Coefficient of restitution interpreted as damping in vibroimpact. *Journal of Applied Mechanics*, 42(2), 440–445.
-* Jansson, E. V. (2002). *Acoustics for Violin and Guitar Makers.* KTH, Stockholm.
-* Jot, J.-M., & Chaigne, A. (1991). Digital delay networks for designing artificial reverberators. *90th AES Convention*, Paris.
 * Järveläinen, H., Välimäki, V., & Karjalainen, M. (2001). Audibility of the timbral effects of inharmonicity in stringed instrument tones. *Acoustics Research Letters Online*, 2(3), 79–84.
+* Jot, J.-M., & Chaigne, A. (1991). Digital delay networks for designing artificial reverberators. *90th AES Convention*, Paris.
 * Laakso, T. I., Välimäki, V., Karjalainen, M., & Laine, U. K. (1996). Splitting the unit delay. *IEEE Signal Processing Magazine*, 13(1), 30–60.
 * Lang, M., & Laakso, T. I. (1994). Simple and robust method for the design of allpass filters using least-squares phase error criterion. *IEEE Transactions on Circuits and Systems II*, 41(1), 40–48.
 * Lehtonen, H.-M., Penttinen, H., Rauhala, J., & Välimäki, V. (2007). Analysis and modeling of piano sustain-pedal effects. *JASA*, 122(3), 1787–1797.
-* McIntyre, M. E., Schumacher, R. T., & Woodhouse, J. (1983). On the oscillations of musical instruments. *JASA*, 74(5), 1325–1345.
-* Parkinson, G. V., & Smith, J. D. (1964). The square prism as an aeroelastic non-linear oscillator. *Quarterly Journal of Mechanics and Applied Mathematics*, 17(2), 225–239.
 * Rauhala, J., & Välimäki, V. (2006). Tunable dispersion filter design for piano synthesis. *IEEE Signal Processing Letters*, 13(5), 253–256.
-* Rayleigh, Lord (1915). Æolian tones. *Philosophical Magazine*, 29(172), 433–444.
 * Rigaud, F., David, B., & Daudet, L. (2013). A parametric model and estimation techniques for the inharmonicity and tuning of the piano. *JASA*, 133(5), 3107–3118.
-* Schelleng, J. C. (1973). The bowed string and the player. *JASA*, 53(1), 26–41.
-* Smith, J. H., & Woodhouse, J. (2000). The tribology of rosin. *Journal of the Mechanics and Physics of Solids*, 48(8), 1633–1681.
 * Smith, J. O. (1992). Physical modeling using digital waveguides. *Computer Music Journal*, 16(4), 74–91.
 * Smith, J. O., & Van Duyne, S. A. (1995). Commuted piano synthesis. *Proc. International Computer Music Conference*, Banff.
-* Stokes, G. G. (1851). On the effect of the internal friction of fluids on the motion of pendulums. *Transactions of the Cambridge Philosophical Society*, 9(2), 8–106.
 * Stulov, A. (1995). Hysteretic model of the grand piano hammer felt. *JASA*, 97(4), 2577–2585.
-* Van Duyne, S. A., & Smith, J. O. (1994). A simplified approach to modeling dispersion caused by stiffness in strings and plates. *Proc. ICMC*, Aarhus.
-* Van Duyne, S. A., Pierce, J. R., & Smith, J. O. (1994). Traveling wave implementation of a lossless mode-coupling filter and the wave digital hammer. *Proc. ICMC*, Aarhus.
-* Verge, M.-P., Fabre, B., Hirschberg, A., & Wijnands, A. P. J. (1997). Sound production in recorderlike instruments. I. Dimensionless amplitude of the internal acoustic field. *JASA*, 101(5), 2914–2924.
 * Välimäki, V., Pakarinen, J., Erkut, C., & Karjalainen, M. (2006). Discrete-time modelling of musical instruments. *Reports on Progress in Physics*, 69(1), 1–78.
+* Van Duyne, S. A., Pierce, J. R., & Smith, J. O. (1994). Traveling wave implementation of a lossless mode-coupling filter and the wave digital hammer. *Proc. ICMC*, Aarhus.
+* Van Duyne, S. A., & Smith, J. O. (1994). A simplified approach to modeling dispersion caused by stiffness in strings and plates. *Proc. ICMC*, Aarhus.
 * Weinreich, G. (1977). Coupled piano strings. *JASA*, 62(6), 1474–1484.
+* Bissinger, G. (2008). Structural acoustics of good and bad violins. *JASA*, 124(3), 1764–1773.
+* Cook, P. R. (1992). A meta-wind-instrument physical model, and a meta-controller for real-time performance control. *Proc. ICMC*, San Jose. (STK Flute.)
+* Jansson, E. V. (2002). *Acoustics for Violin and Guitar Makers.* KTH, Stockholm.
+* McIntyre, M. E., Schumacher, R. T., & Woodhouse, J. (1983). On the oscillations of musical instruments. *JASA*, 74(5), 1325–1345.
+* Schelleng, J. C. (1973). The bowed string and the player. *JASA*, 53(1), 26–41.
+* Smith, J. H., & Woodhouse, J. (2000). The tribology of rosin. *Journal of the Mechanics and Physics of Solids*, 48(8), 1633–1681.
+* Verge, M.-P., Fabre, B., Hirschberg, A., & Wijnands, A. P. J. (1997). Sound production in recorderlike instruments. I. Dimensionless amplitude of the internal acoustic field. *JASA*, 101(5), 2914–2924.
 * Woodhouse, J., & Galluzzo, P. M. (2004). The bowed string as we know it today. *Acta Acustica united with Acustica*, 90(4), 579–589.
 * Zambon, S., Lehtonen, H.-M., & Bank, B. (2008). Simulation of piano sustain-pedal effect by parallel second-order filters. *Proc. DAFx-08*, Espoo.

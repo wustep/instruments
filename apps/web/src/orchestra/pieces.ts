@@ -340,15 +340,6 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     rate: 1.3,
     vel: 0.8,
   },
-  zephyr: {
-    instrument: 'zephyr',
-    composer: 'Fable 5.2',
-    title: 'Still Air',
-    file: 'fable-still-air.mid',
-    source: 'https://github.com/wustep/instruments#license',
-    credit: 'Still Air, for the zephyr alone (E♭ major, a minute and a quarter): voices come in one at a time and are held, a tune is passed over a slow bass, the harmony steps aside to C♭ at the top of a long crescendo, and the voices leave as they came. Written for this instrument by Fable 5.2 (Anthropic’s Claude), 2026, as it is played: a chord’s notes from the bottom up, the bass a moment ahead. CC0 1.0: given to the public domain.',
-    sha256: '95e890f94394e6f6a1c58841d8e24706176497a4b05ea1b06a85cf6f46b35feb',
-  },
   flute: {
     instrument: 'flute',
     composer: 'Bach',
