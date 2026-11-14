@@ -13,7 +13,10 @@ const { FRAME } = await import('./cam.mjs');
 const TAG = process.env.TAG ?? 'before';
 const INST = process.env.INSTRUMENT ?? 'violin';
 const OWN = process.env.PIECE === 'own';
-const NAME = process.env.NAME ?? `solo-${INST}-3d-${TAG}`;
+const LOOK = process.env.LOOK ?? '3d';
+const NAME = process.env.NAME ?? `solo-${INST}-${LOOK}-${TAG}`;
+/** PIN: the camera exactly (a view as the stage takes it: the before take's, so the two clips match) */
+const PIN = process.env.PIN ? JSON.parse(process.env.PIN) : null;
 const DIR = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const FILE = join(DIR, `${NAME}.mp4`);
 const MID = join(DIR, 'etude-violin.mid');
@@ -31,9 +34,9 @@ async function ready(page) {
   await page.evaluate(async () => {
     await window.__piano.start();
   });
-  await page.waitForFunction(() => window.__stage3d && window.__stage3d.stats.frames > 60);
+  if (LOOK === '3d') await page.waitForFunction(() => window.__stage3d && window.__stage3d.stats.frames > 60);
   return page.evaluate(
-    async ([bytes, S, VIEW, F, INST]) => {
+    async ([bytes, S, VIEW, F, INST, PIN]) => {
       const lv = window.__lv;
       const pl = window.__player;
       if (bytes) await pl.load(new Uint8Array(bytes).buffer, null, false, false);
@@ -49,15 +52,16 @@ async function ready(page) {
       pl.seek(Math.max(0, S - 0.005));
       await new Promise((r) => setTimeout(r, 3500));
       const s3 = window.__stage3d;
+      if (!s3) return { loaded: !!pl.loaded };
       s3.stats.ao = true;
-      const v = await lv.fit(VIEW.yaw, VIEW.pitch, { fillW: VIEW.fillW, fillH: VIEW.fillH, F, shiftX: VIEW.shiftX ?? 0, shiftY: VIEW.shiftY ?? 0 });
-      const view = { target: v.target, yaw: v.yaw, pitch: v.pitch, dist: (v.dist * (VIEW.zoom ?? 1)) / F };
+      const v = PIN ?? (await lv.fit(VIEW.yaw, VIEW.pitch, { fillW: VIEW.fillW, fillH: VIEW.fillH, F, shiftX: VIEW.shiftX ?? 0, shiftY: VIEW.shiftY ?? 0 }));
+      const view = PIN ?? { target: v.target, yaw: v.yaw, pitch: v.pitch, dist: (v.dist * (VIEW.zoom ?? 1)) / F };
       lv.cam = () => view;
       await lv.frames(6);
       s3.stats.ao = true;
       return { view, loaded: !!pl.loaded };
     },
-    [bytes, S, VIEW, FRAME, INST],
+    [bytes, S, VIEW, FRAME, INST, PIN],
   );
 }
 
@@ -65,7 +69,7 @@ if (want('scout')) {
   const { open } = await import('./rec.mjs');
   const dir = join(DIR, 'scout');
   mkdirSync(dir, { recursive: true });
-  const t = await open({ url: `/${INST}?view=3d&ui=0`, view: { w: 1440, h: 810, dsf: 1 } });
+  const t = await open({ url: `/${INST}?view=${LOOK}&ui=0`, view: { w: 1440, h: 810, dsf: 1 } });
   await new Promise((r) => setTimeout(r, 1500));
   await conductor(t.page);
   console.log(JSON.stringify(await ready(t.page)));
@@ -91,7 +95,7 @@ if (want('scout')) {
 if (want('take')) {
   await take({
     name: NAME,
-    url: `/${INST}?view=3d&ui=0`,
+    url: `/${INST}?view=${LOOK}&ui=0`,
     half: FPS === 30,
     async prepare({ page }) {
       console.log('stage', JSON.stringify(await ready(page)));
