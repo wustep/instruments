@@ -4,11 +4,11 @@
 // come back up after the note; nothing is lit by the sound (the bore, the bell and the pistons are as they are); and seated in the Orchestra without moving anyone else.
 import { describe, expect, it } from 'vitest';
 import { TUBA_HI, TUBA_LENGTH, TUBA_LO, tubaFingering, valvesDown, type VisualFrame } from '@piano-model/engine';
-import { Batch, type Mesh, xform } from '../src/ui/gl/gl3d.ts';
+import { Batch, type Mesh, chain, rotY, xform } from '../src/ui/gl/gl3d.ts';
 import { TUBA_HELD, TUBA_SEAT, VALVE_Z, buildTubaModel, poseTuba, tubaPistonState, type TubaModel } from '../src/ui/gl/tuba3d.ts';
 import { newWindPose } from '../src/ui/gl/winds3d.ts';
 import { ensembleSeats } from '../src/ui/gl/scenes3d.ts';
-import { BELL_LEN, TRAVEL, TUBE_LEN, BELL_TOP_X, BELL_X, VALVE_X } from '../src/ui/tuba-plan.ts';
+import { BELL_LEN, BUTTON_Y, RIM_Y, TRAVEL, TUBE_LEN, BELL_TOP_X, BELL_X, VALVE_X } from '../src/ui/tuba-plan.ts';
 
 const t0 = performance.now();
 const tm: TubaModel = buildTubaModel();
@@ -59,7 +59,11 @@ describe('the tuba in 3D', () => {
     expect(tm.lips[0]).toBeLessThan(BELL_TOP_X - 0.1);
     expect(tm.lips[1]).toBeGreaterThan(0.53);
     expect(tm.lips[1]).toBeLessThan(0.63);
-    expect(tm.lipAxis[0]).toBeLessThan(-0.9);
+    // its axis out of the rim: out at the left, and turned out of the body's plane on the side away from the
+    // valves (MP_TURN: held, it goes back into the lips; the model is built mirrored, F3, its valves at −z)
+    expect(tm.lipAxis[0]).toBeLessThan(-0.6);
+    expect(tm.lipAxis[2]).toBeGreaterThan(0.6);
+    expect(tm.lipAxis[0] * VALVE_Z).toBeLessThan(0);
     // every piston's button stands up and to the mouthpiece's side of its casing's foot
     for (let k = 0; k < 4; k++) {
       const m = tm.pistons[k];
@@ -150,6 +154,39 @@ describe('the tuba in 3D', () => {
     expect(mpY).toBeLessThan(1.3);
     expect(lo).toBeGreaterThan(0.28);
     expect(hi).toBeGreaterThan(mpY + 0.05);
+  });
+
+  it('is held the right way round in its seat: the mouthpiece back into the lips, the bell beside the head at the left, the body and valves in front, half to the hall', () => {
+    // (the seat's own frame: the world is mirrored, the player's right is −x, the hall at −z; the seat turns
+    // the tuba by TUBA_SEAT.turn, then holds it so)
+    const T = chain(rotY(TUBA_SEAT.turn), TUBA_HELD);
+    const dir = (v: ArrayLike<number>) => [0, 1, 2].map((k) => T[k] * v[0] + T[4 + k] * v[1] + T[8 + k] * v[2]);
+    const at = (v: ArrayLike<number>) => Array.from(xform(T, [v[0], v[1], v[2]]));
+    /** as the player has it: to his right, up, back towards him (m, or a direction) */
+    const rub = (v: number[]) => ({ right: -v[0], up: v[1], back: v[2] });
+    const lips = at(tm.lips);
+    const from = (p: number[]) => rub([p[0] - lips[0], p[1] - lips[1], p[2] - lips[2]]);
+    // the mouthpiece's axis out of its rim: at the player, not to either side (it was 47° to his right)
+    const mp = rub(dir(tm.lipAxis));
+    expect(Math.abs(mp.right)).toBeLessThan(0.1);
+    expect(mp.back).toBeGreaterThan(0.95);
+    // the bell's rim over the head, its stack beside the head at the left and a little in front
+    const rim = from(at([BELL_TOP_X, RIM_Y, 0]));
+    expect(rim.up).toBeGreaterThan(0.3);
+    expect(rim.right).toBeLessThan(-0.08);
+    expect(rim.back).toBeLessThan(0);
+    const stack = from(at([BELL_X, 0.5, 0]));
+    expect(stack.right).toBeLessThan(-0.08);
+    expect(stack.back).toBeLessThan(0);
+    // the pistons in front of the player, at his chest, under the hand that comes round the front
+    const btn = from(at([VALVE_X[1], BUTTON_Y, -VALVE_Z]));
+    expect(btn.back).toBeLessThan(-0.2);
+    expect(btn.up).toBeLessThan(0.05);
+    expect(btn.up).toBeGreaterThan(-0.35);
+    // the valves' side (the model's −z: built mirrored) turned half towards the hall
+    const valves = rub(dir([0, 0, -1]));
+    expect(valves.back).toBeLessThan(-0.4);
+    expect(valves.right).toBeGreaterThan(0.4);
   });
 
   it('stands on the floor on its own, inside its bounds', () => {
