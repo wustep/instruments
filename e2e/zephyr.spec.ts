@@ -80,9 +80,11 @@ test('the zephyr through the worklet at 22.05, 44.1, 48 and 96 kHz: at pitch, lo
         for (let i = 0; i < n; i++) e += x[a + i] ** 2;
         return 10 * Math.log10(e / n + 1e-20);
       };
-      // the period by autocorrelation over as many periods as fit a lag near 20 ms, searched 3 % each way
+      // the period by autocorrelation over as many periods as fit a lag near 20 ms, searched 3 % each way (or
+      // 0.4 of a period, where that is less: a held note is as like itself one period on as at the lag asked)
       const per = fs / f;
       const k = Math.max(1, Math.round((0.02 * fs) / per));
+      const span = Math.min(0.03, 0.4 / k);
       const ac = (lag: number) => {
         let s = 0;
         for (let i = 0; i < W; i++) s += x[s0 + i] * x[s0 + i + lag];
@@ -90,7 +92,7 @@ test('the zephyr through the worklet at 22.05, 44.1, 48 and 96 kHz: at pitch, lo
       };
       let best = -Infinity;
       let bl = 0;
-      for (let lag = Math.floor(k * per * 0.97); lag <= Math.ceil(k * per * 1.03); lag++) {
+      for (let lag = Math.floor(k * per * (1 - span)); lag <= Math.ceil(k * per * (1 + span)); lag++) {
         const v2 = ac(lag);
         if (v2 > best) [best, bl] = [v2, lag];
       }
