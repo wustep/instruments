@@ -55,7 +55,7 @@ export interface VisualFrame extends Stats {
   excite: ExciteTrace | null;
   /** the bow (strings): direction (+1 down, −1 up), contact point along the hair 0 (frog)…1 (tip);
    *  planned: the stroke under way was planned ahead (a file playing told the notes to come) */
-  bow?: { dir: number; pos: number; changing: boolean; speed: number; planned?: boolean } | null;
+  bow?: { dir: number; pos: number; changing: boolean; speed: number; planned?: boolean; lift?: number } | null;
   modes: Float32Array;
   /** piano: per-key level of the struck strings (A0…C8) */
   levels?: Float32Array;

@@ -10,7 +10,7 @@ export * from './precompute.ts';
 export { DispersionCache, type DesignEntry } from './voice.ts';
 export * from './instrument.ts';
 export * from './factory.ts';
-export { BowedCore, BOWED, BOWED_HUMAN, CC_HAND_BOW_OFF, CC_HAND_BOW_POS, CC_HAND_BOW_SPEED, type BowedParams } from './bowed.ts';
+export { BowedCore, BOWED, BOWED_HUMAN, BOW_AIR, BOW_PLAYER, CC_HAND_BOW_OFF, CC_HAND_BOW_POS, CC_HAND_BOW_SPEED, type BowedParams } from './bowed.ts';
 export { FluteCore, fluteFingering, type FluteParams } from './flute.ts';
 export { TrumpetCore, TRUMPET_HUMAN, trumpetFingering, type TrumpetHuman, type TrumpetParams } from './brass.ts';
 export { OboeCore, OBOE_VOICE, oboeRegister, type OboeParams, type OboeVoice } from './oboe.ts';

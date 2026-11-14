@@ -71,6 +71,44 @@ export const BOWED_HUMAN = { seed: 584, place: 4 };
  *  within 5–6 % as the cello's (scripts/winds-vibrato.ts --instrument violin,viola --model). Its own
  *  seeded stream. */
 export const VIB_HAND = { gap: 0.12, long: 0.4, keep: 0.5, rate: 0.06, depth: 0.2, tau: 0.3, seed: 1291 };
+/** The bow in the hand of a player who reads the part (a file playing: the notes foreseen), and the left hand
+ *  under it. Scaled or switched by `human`: at 0 the engine is as it was, bit for bit, foreseen or not; and
+ *  nothing here touches a note that was not foreseen (the keys, a keyboard, the bow in the hand).
+ *
+ *  Slurs. A typed file's notes end as the next begin, with no word of which share a bow (a score's slurs are
+ *  not in its MIDI), and a bow that turns on every one of them is a machine's. Given an unmarked part a
+ *  player slurs what runs by step and bows what leaps (the rule of thumb of Baroque bowing: Leopold Mozart,
+ *  Versuch einer gründlichen Violinschule, 1756, ch. 4 and 7, on notes "that lie close together"): notes
+ *  joined within `join` s, each no longer than `quick` s, a step apart (`step` semitones at most, never the
+ *  same pitch: a repeated note is bowed again), go on one bow, about `span` s of them and never more than
+ *  `most`; a run is shared out evenly (six notes at three to a bow, not four and two). Longer notes, leaps
+ *  and repeated notes keep a bow each.
+ *  One string. Inside a slur the hand stays on its string where it can: a note up to the next string's open
+ *  pitch is the fourth finger's (not a crossing to the open string), a hand already up the string stays
+ *  there, the top string is shifted on. Before, a note written over the end of the last (how a file writes
+ *  a slur: the two overlap by a moment) always went to another string, the last one's being busy: a slurred
+ *  scale hopped from string to string. A note still sounding that is to end within `overlap` s is not a
+ *  double stop.
+ *  The change of bow. A note joined to the last one is a change of bow on the string, not a note begun from
+ *  rest: the bow comes back up to speed within `turn` s (a time constant: the violin's own attack), not in
+ *  the long tone's attack the recordings were fitted on (the viola's and the cello's 0.1–0.25 s, the bass's
+ *  0.13–0.4 s: in a line of quavers no note reached the level it has when held; over a scale in 0.12 s
+ *  notes each stood 14, 9 and 13 dB from it, RMS, and now 5, 3 and 4: scripts/strings-speak.ts). And a note
+ *  known to be short speaks within `speak` of its length, from a rest too (as the winds' do: mono.ts), but
+ *  never faster than `speakMin` (quicker, the violin's notes began worse: 30 ms against 40, a scale's notes
+ *  4.0 dB from their held levels against 2.9).
+ *  A shift. Under a slur a finger put down beside the last is there at once; the hand moved along the string
+ *  (`shift.from` semitones or more) takes its time: the pitch travels there with a time constant of
+ *  `shift.tau` s a semitone, `shift.max` at most (short: a shift is heard, not a glissando). */
+export const BOW_PLAYER = { join: 0.012, quick: 0.26, step: 2, span: 0.72, most: 8, overlap: 0.09, turn: 0.045, speak: 0.3, speakMin: 0.03, shift: { from: 3, tau: 0.003, max: 0.018 } };
+/** The bow as it is seen (BowedCore.sight; never heard: nothing of it reaches a string). In a rest it is
+ *  off the string: up within `up` s of a rest known to be coming (at once: the stroke ends in the air), to a
+ *  height that grows with the rest (`hop` of the whole for the shortest in which it is lifted at all, the
+ *  whole from `full` s), and down again over the last `down` s before the next note, on the place its stroke
+ *  begins. With nothing foreseen (the keys, the end of a piece) it stays on the string `hold` s, in case
+ *  another note comes, is then taken off, and after `idle` s of silence is laid back across the strings,
+ *  where it lies when nothing has been played. Heights are fractions of the height the pictures give it. */
+export const BOW_AIR = { up: 0.09, down: 0.2, hop: 0.3, full: 1.2, hold: 0.35, idle: 6, settle: 0.6, land: 0.03 };
 /** a note's vibrato: none for `wait` s, then rising over `rise` s */
 const VIB_ONSET = { wait: 0.25, rise: 0.35 };
 
@@ -605,6 +643,13 @@ class BowedString {
   kBow = 1;
   /** bow-speed attack time constant of the current note, s (design.attackTau) */
   tauA = 0.045;
+  /** BOW_PLAYER: the attack's time constant as the player has it for this note, s (0: the note's own) */
+  tauP = 0;
+  /** BOW_PLAYER: the frame at which the note on this string is to end, as foreseen (−1: not foreseen) */
+  offAt = -1;
+  /** BOW_PLAYER.shift: how far the finger still is from its note (cents), and its time constant (s) */
+  slide = 0;
+  slideTau = 0.01;
   /** design.wander: smoothed random walks (rate, depth, speed, force), each ~N(0, 1) */
   wv = new Float64Array(4);
   fBow = 0;
@@ -771,7 +816,7 @@ export class BowedCore implements InstrumentCore {
    *  begins and ends (frames), its pitch and strength, and whether it has begun. With them the bow is
    *  planned as by a player who reads the part; without them (the keys, a keyboard plugged in) each
    *  note is met as it comes (newStroke, and the change when the hair runs out). */
-  private ahead: { on: number; off: number; midi: number; vel: number; dyn: number; hit: boolean }[] = [];
+  private ahead: { on: number; off: number; midi: number; vel: number; dyn: number; hit: boolean; tie: number }[] = [];
   /** the stroke as planned: whether the one under way was (a note that was foreseen began it), its
    *  speed factor and the strength it was planned for, the frame at which the bow is to change inside
    *  it (−1: no change), whether what is left is planned again once a change is done, how many
@@ -781,8 +826,13 @@ export class BowedCore implements InstrumentCore {
   /** the lifted bow on its way to where the next stroke begins: that note's frame (−1: none), the
    *  place on the hair (m) */
   private retake = { on: -1, pos: 0 };
-  /** when the bow last left every string (frame) */
+  /** when the bow last left every string (frame), and when it had before that (a note slurred onto the
+   *  last one takes the bow back: it never left) */
   private bowOff = -1e12;
+  private bowOffWas = -1e12;
+  /** the bow as it is seen (BOW_AIR): how far it is lifted (0 on the string … 1), where along the hair it
+   *  is over the string (m), and whether a note has been played yet */
+  private air = { lift: 0, pos: 0, played: false };
   /** scratch of the planner: a group of notes on one bow (its end, the frame and strength of the note
    *  after it, −1 if none is known), the starts of the notes inside it, and a stroke as designed */
   private g0 = { end: 0, next: -1, nextVel: 80, top: 0 };
@@ -790,6 +840,8 @@ export class BowedCore implements InstrumentCore {
   private ons = new Float64Array(48);
   private nOns = 0;
   private sp = { dir: 1, start: 0, k: 1, room: 0 };
+  /** BOW_PLAYER: the stroke now beginning follows the last with no time to lift the bow (strokeStart) */
+  private joined = false;
   private run = new Float64Array(16);
   /** no note yet: the hand's bow starts on the second-highest string, not the lowest */
   private unplayed = true;
@@ -1128,14 +1180,19 @@ export class BowedCore implements InstrumentCore {
     switch (ev.type) {
       case 'noteOn': {
         if (ev.velocity <= 0) return this.apply({ type: 'noteOff', midi: ev.midi });
-        const s = this.pickString(ev.midi);
-        if (!s) return;
+        const s0 = this.pickString(ev.midi);
+        if (!s0) return;
+        // was it foreseen (a file playing)? then its stroke is planned; in the hand, never
+        const seen = this.hand || !this.ahead.length ? null : this.match(ev.midi);
+        const hu = clamp(this.params.human ?? 1, 0, 1);
+        // BOW_PLAYER: a note that goes on in the stroke under way, and on its string if the hand can stay
+        const on = seen && hu > 0 ? this.goesOn(seen) : null;
+        const s = on && this.stays(on, ev.midi) ? on : s0;
         for (const t of this.strings) t.displaced = t.displaced.filter((d) => d.midi !== ev.midi);
         if (s.bowing && s.held && s.midi !== ev.midi) s.displaced.push({ midi: s.midi, velocity: s.velocity });
         s.velocity = ev.velocity;
         const legato = s.bowing;
-        // was it foreseen (a file playing)? then its stroke is planned; in the hand, never
-        const seen = this.hand || !this.ahead.length ? null : this.match(ev.midi);
+        const was = s.midi;
         this.setStopped(s, ev.midi, !legato && s.level < 1e-4);
         if (!legato) {
           s.stick = true;
@@ -1153,12 +1210,30 @@ export class BowedCore implements InstrumentCore {
         s.kBow = seen && this.plan.on ? this.plan.k : 1;
         s.bowing = true;
         s.held = true;
+        // (BOW_PLAYER: the bow has rolled onto this string inside its slur; the one it left is let go again)
+        if (on && on !== s && !on.held) this.lift(on);
+        s.offAt = seen ? seen.off : -1;
+        s.tauP = 0;
+        s.slide = 0;
+        if (seen && hu > 0) {
+          const P = BOW_PLAYER;
+          if (!legato) {
+            // the change of bow of a joined note; a short note speaks within a share of its length
+            const base = this.design.attackTau ? this.design.attackTau[0] * Math.pow(this.design.attackTau[1] / this.design.attackTau[0], clamp((ev.velocity - 1) / 126, 0, 1)) : 0.045;
+            let tau = this.joined ? Math.min(base, P.turn) : base;
+            tau = Math.min(tau, Math.max(P.speakMin, (P.speak * (seen.off - seen.on)) / this.fs));
+            if (tau < base) s.tauP = base + (tau - base) * hu;
+          } else if (was > s.def.open && ev.midi > s.def.open && Math.abs(was - ev.midi) >= P.shift.from) {
+            // a shift under the bow: the finger travels there
+            s.slide = 100 * (was - ev.midi);
+            s.slideTau = Math.max(1e-4, hu * Math.min(P.shift.max, P.shift.tau * Math.abs(was - ev.midi)));
+          }
+        }
         s.startedAt = this.frame;
         s.vibPhase = this.rng() * Math.PI * 2;
         s.vibRate = 5.2 + 0.8 * this.rng();
         s.vibFrom = 0;
         // VIB_HAND: the hand was vibrating a moment ago and this note is long enough to vibrate: it goes on
-        const hu = clamp(this.params.human ?? 1, 0, 1);
         if (seen && hu > 0 && ev.midi > s.def.open && this.lh.ramp > 0 && this.frame - this.lh.at < VIB_HAND.gap * this.fs && seen.off - seen.on >= VIB_HAND.long * this.fs) {
           s.vibPhase = this.lh.phase;
           s.vibRate = this.lh.rate;
@@ -1169,6 +1244,7 @@ export class BowedCore implements InstrumentCore {
         s.dynApplied = this.dyn;
         this.focus = this.strings.indexOf(s);
         this.unplayed = false;
+        this.air.played = true;
         break;
       }
       case 'noteOff': {
@@ -1267,7 +1343,7 @@ export class BowedCore implements InstrumentCore {
     if (a.length >= 512) a.shift();
     let i = a.length;
     while (i > 0 && a[i - 1].on > frame) i--;
-    a.splice(i, 0, { on: frame, off: frame + Math.max(1, Math.round(dur * this.fs)), midi, vel: velocity, dyn: dyn === undefined ? NaN : clamp(dyn, -DYN_MAX, DYN_MAX), hit: false });
+    a.splice(i, 0, { on: frame, off: frame + Math.max(1, Math.round(dur * this.fs)), midi, vel: velocity, dyn: dyn === undefined ? NaN : clamp(dyn, -DYN_MAX, DYN_MAX), hit: false, tie: 0 });
   }
 
   /** What was foreseen is forgotten (the file paused or stopped): the bow meets the notes as they come. */
@@ -1280,7 +1356,7 @@ export class BowedCore implements InstrumentCore {
 
   /** The foreseen note that begins now on this pitch (the nearest within FORESEE_TOL), marked begun;
    *  those that are over, or never came, are dropped. */
-  private match(midi: number): { on: number; off: number; vel: number; dyn: number } | null {
+  private match(midi: number): { on: number; off: number; vel: number; dyn: number; tie: number } | null {
     const a = this.ahead;
     const tol = FORESEE_TOL * this.fs;
     let w = 0;
@@ -1313,8 +1389,10 @@ export class BowedCore implements InstrumentCore {
       const e = a[i];
       if (e.off <= from || (!e.hit && e.on < from - tol)) continue;
       if (e.on > far) break;
+      // (BOW_PLAYER: the first note met that no bow has been given begins one; those slurred onto it are its)
+      if (!e.tie) this.bowOf(i);
       // (a note that begins as the last ends, to within a rounding of their two times, does not overlap it)
-      if (e.on <= from + tol || e.on < g.end - 0.002 * this.fs) {
+      if (e.on <= from + tol || e.on < g.end - 0.002 * this.fs || (e.tie === 2 && e.on <= g.end + BOW_PLAYER.join * this.fs)) {
         if (keep && e.on > from + tol && this.nOns < this.ons.length) this.ons[this.nOns++] = e.on;
         if (e.off > g.end) g.end = e.off;
         if (e.midi > g.top) g.top = e.midi;
@@ -1324,6 +1402,61 @@ export class BowedCore implements InstrumentCore {
         break;
       }
     }
+  }
+
+  /** BOW_PLAYER: the note foreseen at `i` begins a bow (tie 1), and the notes after it that run on from it
+   *  by step, quick and joined, are slurred onto it (tie 2): as many as a bow of them holds, the run shared
+   *  out evenly. Decided once, when the bow that begins there is first planned. */
+  private bowOf(i: number): void {
+    const a = this.ahead;
+    const P = BOW_PLAYER;
+    a[i].tie = 1;
+    if (!(clamp(this.params.human ?? 1, 0, 1) > 0) || !this.params.bowChanges) return;
+    const tol = FORESEE_TOL * this.fs;
+    let n = 1;
+    while (i + n < a.length && n < 2 * P.most && !a[i + n].tie && this.slurs(a[i + n - 1], a[i + n])) {
+      // (a note of a chord is not one of a run)
+      if (i + n + 1 < a.length && a[i + n + 1].on - a[i + n].on < tol) break;
+      n++;
+    }
+    if (n < 2) return;
+    const each = (a[i + n - 1].off - a[i].on) / (n * this.fs);
+    const per = clamp(Math.floor(P.span / each), 2, P.most);
+    const size = Math.ceil(n / Math.ceil(n / per));
+    for (let k = 1; k < size; k++) a[i + k].tie = 2;
+  }
+
+  /** BOW_PLAYER: does the note `e` run on from `p` (the one before it) as a slur would have it? */
+  private slurs(p: { on: number; off: number; midi: number }, e: { on: number; off: number; midi: number }): boolean {
+    const P = BOW_PLAYER;
+    const d = Math.abs(e.midi - p.midi);
+    return d >= 1 && d <= P.step && Math.abs(e.on - p.off) <= P.join * this.fs && p.off - p.on <= P.quick * this.fs && e.off - e.on <= P.quick * this.fs;
+  }
+
+  /** BOW_PLAYER: the string the bow is on, if the note now beginning (foreseen: `seen`) goes on in its
+   *  stroke: slurred onto the note just let go (whose string then has its bow back: it never left), or
+   *  written over the end of one that is about to be. null: the note is met as ever. */
+  private goesOn(seen: { tie: number }): BowedString | null {
+    const p = this.strings[this.focus];
+    const P = BOW_PLAYER;
+    if (seen.tie === 2) {
+      if (p.bowing) return p;
+      if (this.frame - p.releasedAt <= P.join * this.fs && this.bowOff === p.releasedAt && !this.strings.some((q) => q.bowing)) {
+        p.bowing = true;
+        this.bowOff = this.bowOffWas;
+        return p;
+      }
+      return null;
+    }
+    return p.bowing && p.held && p.offAt > this.frame && p.offAt - this.frame <= P.overlap * this.fs ? p : null;
+  }
+
+  /** BOW_PLAYER: inside a slur, is the note m played on the string the hand is on? Up to the next string's
+   *  open pitch (the fourth finger), anywhere if the hand is already up the string, or on the top string. */
+  private stays(p: BowedString, m: number): boolean {
+    if (m < p.def.open || m > p.def.open + 26) return false;
+    const up = this.strings[this.strings.indexOf(p) + 1];
+    return !up || m <= up.def.open || p.midi > up.def.open;
   }
 
   /** a foreseen note's strength with the dynamics over it (velocity steps: as foreseen, else as they stand) */
@@ -1509,6 +1642,8 @@ export class BowedCore implements InstrumentCore {
     if (this.strings.some((q) => q.bowing)) return;
     const first = b.lastStroke < -1e11;
     const rest = this.frame - this.bowOff;
+    // (BOW_PLAYER: the bow has not left the string: this stroke begins with a change of bow)
+    this.joined = !first && rest < RETAKE_MIN * this.fs;
     this.design1(this.frame, velocity, pv, first || rest >= RETAKE_MIN * this.fs, first || rest >= PHRASE_REST * this.fs);
     b.lastStroke = this.frame;
     b.changing = false;
@@ -1560,6 +1695,53 @@ export class BowedCore implements InstrumentCore {
       r.pos = this.sp.start;
     }
     this.bow.pos += (r.pos - this.bow.pos) * (1 - Math.exp(-dt / RETAKE_TAU));
+  }
+
+  /** BOW_AIR: the bow as it is seen, moved at the control rate (time constants: the same at any block
+   *  length). Nothing here is read by what sounds. */
+  private sight(dt: number): void {
+    const A = BOW_AIR;
+    const v = this.air;
+    const b = this.bow;
+    const fs = this.fs;
+    let bowing = !!this.hand;
+    for (const s of this.strings) if (s.bowing) bowing = true;
+    if (bowing) {
+      // on the string (a landing that was not foreseen comes down at once)
+      const k = 1 - Math.exp(-dt / A.land);
+      v.lift -= v.lift * k;
+      if (v.lift < 1e-3) v.lift = 0;
+      v.pos = v.lift > 0 ? v.pos + (b.pos - v.pos) * k : b.pos;
+      return;
+    }
+    const a = this.ahead;
+    let next = -1;
+    for (let i = 0; i < a.length; i++) if (!a[i].hit && a[i].on > this.frame) {
+      next = a[i].on;
+      break;
+    }
+    const off = (this.frame - this.bowOff) / fs;
+    let target = 0;
+    let tau = A.settle;
+    if (next >= 0) {
+      // a rest whose end is known: up at once, down onto the next note
+      const left = (next - this.frame) / fs;
+      const rest = b.lastStroke < -1e11 ? A.full : (next - this.bowOff) / fs;
+      if (rest >= RETAKE_MIN) {
+        const h = clamp(A.hop + ((1 - A.hop) * (rest - RETAKE_MIN)) / (A.full - RETAKE_MIN), A.hop, 1);
+        const x = clamp(left / A.down, 0, 1);
+        target = h * x * x * (3 - 2 * x);
+      }
+      tau = target > v.lift ? A.up : A.land;
+      // and along the hair to where the next stroke begins (airborne has designed it), there as it lands
+      if (this.retake.on === next) v.pos += (this.retake.pos - v.pos) * (1 - Math.exp(-dt / Math.max(1e-3, Math.min(RETAKE_TAU, left / 4))));
+    } else if (v.played) {
+      // nothing known to come: on the string a moment, then off it; laid back down after a long silence
+      target = off < A.hold || off >= A.idle ? 0 : 1;
+      tau = target > v.lift ? 2 * A.up : A.settle;
+    }
+    v.lift += (target - v.lift) * (1 - Math.exp(-dt / tau));
+    if (v.lift < 1e-4) v.lift = 0;
   }
 
   /** The hand lets go of the bow: held keys bow their strings again, the others are left. */
@@ -1715,7 +1897,10 @@ export class BowedCore implements InstrumentCore {
     s.fBowTarget = 0;
     s.releasedAt = this.frame;
     s.releasedLevel = s.level;
-    if (!this.strings.some((q) => q.bowing)) this.bowOff = this.frame;
+    if (!this.strings.some((q) => q.bowing)) {
+      this.bowOffWas = this.bowOff;
+      this.bowOff = this.frame;
+    }
   }
 
   noteOn(midi: number, velocity: number): void {
@@ -1841,7 +2026,7 @@ export class BowedCore implements InstrumentCore {
         s.dynApplied = this.dyn;
       }
       // bow speed attack ~ 50 ms, release 15 ms; force follows faster
-      const ka = 1 - Math.exp(-dt / (s.bowing ? (this.design.attackTau ? s.tauA : 0.045) : 0.012));
+      const ka = 1 - Math.exp(-dt / (s.bowing ? (s.tauP > 0 ? s.tauP : this.design.attackTau ? s.tauA : 0.045) : 0.012));
       const wd = this.design.wander;
       if (wd && s.bowing) {
         // an Ornstein–Uhlenbeck walk per quantity (unit variance at time constant tau)
@@ -1908,10 +2093,16 @@ export class BowedCore implements InstrumentCore {
         s.errN = 0;
         s.errT = 0;
       }
-      s.Dtarget = s.D0 * Math.pow(2, -(cents + bendC + s.ear + s.place) / 1200);
+      // BOW_PLAYER.shift: the finger on its way along the string
+      if (s.slide !== 0) {
+        s.slide *= Math.exp(-dt / s.slideTau);
+        if (Math.abs(s.slide) < 0.5) s.slide = 0;
+      }
+      s.Dtarget = s.D0 * Math.pow(2, -(cents + bendC + s.ear + s.place + s.slide) / 1200);
       s.Dtap = s.D0 * Math.pow(2, -bendC / 1200);
     }
     this.bowControl(dt);
+    this.sight(dt);
     if (this.design.body) this.cornerControl();
     const kc = this.design.idleCoupling;
     if (kc !== undefined) {
@@ -2358,7 +2549,7 @@ export class BowedCore implements InstrumentCore {
       },
       strike: null,
       excite,
-      bow: { dir: this.bow.dir, pos: this.bow.pos / this.design.bowLength, changing: this.bow.changing, speed: s.vSigned, planned: this.plan.on },
+      bow: { dir: this.bow.dir, pos: this.air.pos / this.design.bowLength, changing: this.bow.changing, speed: s.vSigned, planned: this.plan.on, lift: this.air.lift },
       // all four strings: open note, sounding length (fraction of the open string), level, bowed
       strings: this.strings.map((x) => {
         const stop = x.fOpen / et(Math.max(x.midi < 0 ? x.def.open : x.midi, x.def.open));

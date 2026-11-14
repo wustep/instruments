@@ -1604,6 +1604,18 @@ export interface BowedLive {
   vhi: number[];
   /** the bowed string's running envelope (fractions of the displayed amplitude) */
   env: Float32Array;
+  /** how long no string has been bowed (s) */
+  quiet?: number;
+}
+
+/** How far the 2D bow is off the string (0…1; both styles fade it by this), as it is to be this frame.
+ *  With nothing bowed for a while it is off it (the stage at rest, as ever). Inside a phrase it is where
+ *  the engine has it (bowed.ts BOW_AIR: up in a rest, the higher the longer the rest, down onto the next
+ *  note; never up in a gap too short to lift it in, where it used to begin to fade after every note). */
+export function bowLift(lv: BowedLive, playing: boolean, engine: number | undefined, dt: number): number {
+  lv.quiet = playing ? 0 : (lv.quiet ?? 0) + dt;
+  if (playing) return 0;
+  return engine === undefined || lv.quiet > 0.6 ? 1 : engine;
 }
 
 /** the frame's bow force (N), from the bow trace's caption (the visual frame carries it nowhere else) */
@@ -1868,7 +1880,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
   lv.cx += (cxT - lv.cx) * (snap ? 1 : ease(0.05));
   lv.cz += (czT - lv.cz) * (snap ? 1 : ease(0.06));
   lv.incl += (inclT - lv.incl) * (snap ? 1 : ease(0.06));
-  lv.lift += ((playing ? 0 : 1) - lv.lift) * ease(0.15);
+  lv.lift += (bowLift(lv, playing, bow?.lift, dt) - lv.lift) * ease(playing || bow?.lift === undefined || lv.quiet! > 0.6 ? 0.15 : 0.05);
   const Hh = g.bowLength;
   const S2 = bowFit(g);
   const pos = bow ? bwClamp(bow.pos, 0, 1) : 0.5;

@@ -10,8 +10,10 @@
 // note only as it begins, as from the keys. The numbers printed: strokes, changes of bow inside a note
 // (not at a note's start), strokes that could not alternate (the same way twice), the share of the
 // bowed time spent within 4 % of the frog or the tip, the level (dB RMS of the dry output).
+// --engine <core/index.ts>: another checkout's engine (the bow before a change). --human <0…1>.
 import { readFileSync, writeFileSync } from 'node:fs';
-import { BowedCore } from '../packages/engine/src/core/index.ts';
+import { resolve } from 'node:path';
+import type * as Engine from '../packages/engine/src/core/index.ts';
 import { parseMidi } from '../apps/web/src/midi-file.ts';
 import { placeNote } from '../apps/web/src/orchestra/assign.ts';
 
@@ -30,6 +32,9 @@ interface Trace {
   changing: number[];
   bowing: number[];
   speed: number[];
+  /** how far the bow is lifted (0 on the string … 1), and the string it is on (0 the lowest) */
+  lift?: number[];
+  string?: number[];
   notes: { t: number; dur: number; midi: number; vel: number }[];
   metrics: Record<string, number>;
 }
@@ -66,7 +71,8 @@ for (const e of ev) {
     if (n) n.dur = e.t - from - n.t;
   }
 }
-const core = new BowedCore({ sampleRate: FS, instrument: inst, dry: true });
+const { BowedCore } = (await import(arg('engine') ? resolve(arg('engine')) : '../packages/engine/src/core/index.ts')) as typeof Engine;
+const core = new BowedCore({ sampleRate: FS, instrument: inst, dry: true, ...(arg('human') ? { params: { human: Number(arg('human')) } } : {}) });
 const plan = has('plan');
 const T0 = 0.1;
 // (in the order the file has them: a note let go as the next begins is let go first)
@@ -85,14 +91,16 @@ for (const e of ev) {
 const dur = to - from + 0.6;
 const L = new Float32Array(480);
 const R = new Float32Array(480);
-const tr: Trace = { title: `${arg('file').split('/').pop()} line ${lineArg} on the ${inst}, ${from}–${to} s`, plan, dt: 0.01, pos: [], dir: [], changing: [], bowing: [], speed: [], notes: notes.map((n) => ({ ...n, t: n.t + T0 })), metrics: {} };
+const tr: Trace = { title: `${arg('file').split('/').pop()} line ${lineArg} on the ${inst}, ${from}–${to} s`, plan, dt: 0.01, pos: [], dir: [], changing: [], bowing: [], speed: [], lift: [], string: [], notes: notes.map((n) => ({ ...n, t: n.t + T0 })), metrics: {} };
 let sq = 0;
 let nsq = 0;
 for (let i = 0; i < Math.round(dur * 100); i++) {
   core.process(L, R, 480);
   for (let k = 0; k < 480; k++) sq += L[k] * L[k];
   nsq += 480;
-  const v = core.getVisual(8) as { bow: { dir: number; pos: number; changing: boolean; speed: number } };
+  const v = core.getVisual(8) as { bow: { dir: number; pos: number; changing: boolean; speed: number; lift?: number } };
+  tr.lift!.push(Math.round((v.bow.lift ?? 0) * 1e3) / 1e3);
+  tr.string!.push(core.strings.findIndex((s) => s.bowing));
   tr.pos.push(Math.round(v.bow.pos * 1e4) / 1e4);
   tr.dir.push(v.bow.dir);
   tr.changing.push(v.bow.changing ? 1 : 0);
@@ -123,7 +131,23 @@ for (let i = 1; i < tr.pos.length; i++) {
     lastDir = tr.dir[i];
   }
 }
-tr.metrics = { notes: tr.notes.length, strokes, midNoteChanges: mid, sameWayTwice: same, atAnEndPct: Math.round((1000 * ends) / Math.max(1, bowed)) / 10, rmsDb: Math.round(100 * 10 * Math.log10(sq / nsq + 1e-20)) / 100 };
+// the strings the bow went to (a crossing: the bowed string another than the last one bowed), and the share
+// of the silent time the bow is off the string
+let cross = 0;
+let lastS = -1;
+let silent = 0;
+let up = 0;
+for (let i = 0; i < tr.pos.length; i++) {
+  const q = tr.string![i];
+  if (q >= 0) {
+    if (lastS >= 0 && q !== lastS) cross++;
+    lastS = q;
+  } else if (i * tr.dt > T0 && i * tr.dt < T0 + to - from) {
+    silent++;
+    if (tr.lift![i] > 0.1) up++;
+  }
+}
+tr.metrics = { notes: tr.notes.length, strokes, crossings: cross, liftedPctOfRests: silent ? Math.round((100 * up) / silent) : 0, midNoteChanges: mid, sameWayTwice: same, atAnEndPct: Math.round((1000 * ends) / Math.max(1, bowed)) / 10, rmsDb: Math.round(100 * 10 * Math.log10(sq / nsq + 1e-20)) / 100 };
 if (arg('out')) writeFileSync(arg('out'), JSON.stringify(tr));
 console.log(tr.title, plan ? '(lookahead)' : '(as from the keys)', JSON.stringify(tr.metrics));
 
@@ -160,6 +184,17 @@ function plot(trs: Trace[], names: string[], title: string, flat = false): strin
       if (seg) out += `<polyline points="${seg}" fill="none" stroke="${d > 0 ? '#e8e0d0' : '#e2573a'}" stroke-width="2"/>`;
       seg = '';
     };
+    // (the bow in the air: where it is over the hair, the fainter the higher it is)
+    let airS = '';
+    const flushAir = () => {
+      if (airS) out += `<polyline points="${airS}" fill="none" stroke="#7fb4c9" stroke-width="1.5" stroke-dasharray="3 3"/>`;
+      airS = '';
+    };
+    for (let i = 0; i < t.pos.length; i++) {
+      if (!t.bowing[i] && t.lift && t.lift[i] > 0.02) airS += `${airS ? ' ' : ''}${X(i).toFixed(1)},${Y(t.pos[i]).toFixed(1)}`;
+      else flushAir();
+    }
+    flushAir();
     for (let i = 0; i < t.pos.length; i++) {
       if (!t.bowing[i]) {
         flush();
@@ -179,6 +214,6 @@ function plot(trs: Trace[], names: string[], title: string, flat = false): strin
       if (t.bowing[i] && t.bowing[i - 1] && t.dir[i] !== t.dir[i - 1] && !ons.some((o) => Math.abs(o - i * t.dt) < 0.08)) out += `<circle cx="${X(i).toFixed(1)}" cy="${Y(t.pos[i]).toFixed(1)}" r="5" fill="none" stroke="#f2c14e" stroke-width="2"/>`;
     for (let s = 0; s * 100 < n; s += n > 3000 ? 5 : 1) out += `<text x="${X(s * 100)}" y="${y0 + h + 16}" fill="#8a8072" text-anchor="middle">${s}s</text>`;
   });
-  out += `<text x="${W - M.r}" y="20" fill="#8a8072" text-anchor="end">white: down-bow · red: up-bow · ring: a change inside a note</text></svg>`;
+  out += `<text x="${W - M.r}" y="20" fill="#8a8072" text-anchor="end">white: down-bow · red: up-bow · dashed blue: off the string · ring: a change inside a note</text></svg>`;
   return out;
 }
