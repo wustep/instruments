@@ -1,0 +1,8 @@
+tuba: before → this checkout: BETTER
+  score (mean |error| / spread): fit 5.52 → 4.71 (n=55); held-out 5.81 → 5.00 (n=52, Δ 0.81 ± 0.00)
+  harmonics  held-out |err| 5.69 → 5.69 (spread 1.85)
+  centroid   held-out |err| 0.33 → 0.33 (spread 0.06)
+  noise      held-out |err| 3.87 → 3.87 (spread 1.16)
+  attack     held-out |err| 0.95 → 0.95 (spread 0.50)
+  pitch      held-out |err| 0.16 → 0.16 (spread 8.24)
+  level      held-out |err| 19.45 → 14.96 (spread 0.93)
