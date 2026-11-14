@@ -14,8 +14,9 @@ test('a piece’s level is on the bus and each of its parts’ on its engine; an
     const pc = o.pieces.find((p: any) => p.id === 'toward-morning');
     return { bus: e.busNow as number, gain: (pc.gain ?? 0) as number, parts: pc.parts.map((p: any) => p.gain ?? 0) as number[], trims: e.parts.map((p: any) => p.trim ?? 1) as number[], n: e.parts.length as number };
   });
-  // thirteen parts, a trombone among them: 1/√Σwᵢ² (mix.ts), times the piece's own level
-  const w2 = 12 + Math.pow(10, 9 / 10);
+  // thirteen parts, a trombone and the timpani among them (played 9 and 7 dB over their sessions:
+  // PLAYBACK_DB): 1/√Σwᵢ² (mix.ts), times the piece's own level
+  const w2 = 11 + Math.pow(10, 9 / 10) + Math.pow(10, 7 / 10);
   expect(s.bus).toBeCloseTo(Math.pow(10, s.gain / 20) / Math.sqrt(w2), 6);
   expect(s.trims.length).toBe(13);
   s.trims.forEach((t, i) => expect(t).toBeCloseTo(Math.pow(10, s.parts[i] / 20), 9));

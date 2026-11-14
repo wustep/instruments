@@ -67,7 +67,7 @@ describe('the pieces’ levels', () => {
 
   it('the measured table is the code’s: every piece and every instrument’s own piece, at the gains set now', () => {
     const ids = [...PIECES.map((p) => p.id), ...Object.keys(DEMOS).map((k) => `demo:${k}`)];
-    expect(rows.map((r) => r.id).sort()).toEqual([...ids].sort());
+    expect(rows.map((r) => r.id).sort(), 'measure again: npx tsx scripts/levels-pieces.ts render --tag now; … measure --tag now --json artifacts/round3/rebalance/levels.json').toEqual([...ids].sort());
     for (const r of rows) {
       const pc = PIECES.find((p) => p.id === r.id);
       const gain = pc ? (pc.gain ?? 0) : (DEMOS[r.id.slice(5) as keyof typeof DEMOS].gain ?? 0);
