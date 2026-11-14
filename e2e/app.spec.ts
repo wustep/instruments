@@ -2866,8 +2866,10 @@ test('orchestra routing, many to many: a tune on two instruments, the whole file
   expect(g.lineup.slice(6)).toEqual(['grand', 'grand']);
   expect(g.players.slice(6)).toEqual([0, 1]);
   expect((await ens(page)).kinds.slice(6)).toEqual(['piano', 'piano']);
-  // the bus at 1/√n of the instruments that play
-  await expect.poll(() => page.evaluate(() => (window as any).__orchestra.ensemble.bus.gain.value), { timeout: 2000 }).toBeCloseTo(1 / Math.sqrt(8), 2);
+  // the bus at 1/√n of the instruments that play, and the piece's own level (pieces.ts `gain`: it stays
+  // with its file, however the stage is organised)
+  const pieceGain = await page.evaluate(() => Math.pow(10, ((window as any).__orchestra.pieces[0].gain ?? 0) / 20));
+  await expect.poll(() => page.evaluate(() => (window as any).__orchestra.ensemble.bus.gain.value), { timeout: 2000 }).toBeCloseTo(pieceGain / Math.sqrt(8), 2);
   if (info.project.name !== 'phone') {
     // in 3D: every seat drawn, both grands' open lids mirror the strings
     await page.keyboard.press('Escape');

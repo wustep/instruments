@@ -316,6 +316,7 @@ class AudioApp {
         return;
       }
       this.piano = piano;
+      if (this.fileVolume !== 1) piano.setParams({ volume: this.fileVolume });
       diag('engine node up', `${Math.round(performance.now() - t0)} ms after start, context ${ctx.state}`);
       piano.ready.then(
         () => {
@@ -654,6 +655,15 @@ class AudioApp {
   setParams(p: Record<string, unknown>): void {
     this.piano?.setParams(p);
     this.route?.setParams(p);
+  }
+
+  /** an instrument's own piece's level (pieces.ts Demo `gain`): the single instrument's volume while
+   *  it is loaded, 1 otherwise */
+  private fileVolume = 1;
+  setFileVolume(v: number): void {
+    if (v === this.fileVolume) return;
+    this.fileVolume = v;
+    this.piano?.setParams({ volume: v });
   }
 
   // ------------------------------------------------------------- MIDI

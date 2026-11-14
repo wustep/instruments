@@ -15,7 +15,7 @@ import type { FileEvent, MidiLine, MidiSong } from '../midi-file.ts';
 import { addPart, autoPlan, deskOf, fitLineup, fitsStage, isKeyboard, lineupOf, lineupPlan, mayBecome, placeNote, planOf, playersOf, playsNote, reassign, removePart, setPartLines, setPartVoice, setRoute, shiftsOf, tromboneSizeOf, voiceFromName, voiceFromProgram, VOICE_INFO, VOICES, type Plan, type TromboneSize, type Voice } from './assign.ts';
 import { carryKeys, defaultKeys, keyParts, keysFor, keyTargets, setSplit, toggleKey, toggleKeys, type KeysChoice, type KeyTarget } from './keys.ts';
 import { busGain } from './mix.ts';
-import { piecePlan, type Piece } from './pieces.ts';
+import { dbGain, piecePlan, pieceTrims, type Piece } from './pieces.ts';
 import { planByRules, remapRules, rulesOf, type LineRule, type Setup } from './rules.ts';
 import { soundSeats } from './seats.ts';
 import { addDesk, addSeat, removeSeats, rulesThrough, sectionsOf, seatRules, setSeatsLines, setSeatsRoute, setSeatsVoice, type Reseat, type Section } from './sections.ts';
@@ -84,6 +84,8 @@ export interface PartLive {
   levels: PartLevels | null;
   /** a trombone's size for its lines (assign.ts tromboneSizeOf): alto, tenor or bass */
   size?: TromboneSize;
+  /** its level in the piece (pieces.ts pieceTrims: its engine's volume), 1 for any other */
+  trim?: number;
   unsubs: (() => void)[];
 }
 
@@ -155,6 +157,8 @@ class Ensemble implements Route {
     this.ref = song ? volumeRef(song) : 1;
     this.wheels = song ? modLines(song) : new Set();
     this.piece = piece;
+    // (the piece's level stays with its file, however the stage is then organised)
+    this.songGain = song && piece ? dbGain(piece.gain) : 1;
     this.silenced.clear();
     this.active = true;
     audio.route = this;
@@ -175,6 +179,7 @@ class Ensemble implements Route {
     this.keys = keysFor([]);
     this.song = null;
     this.piece = null;
+    this.songGain = 1;
     this.byUser = false;
     this.rules = null;
     this.silenced.clear();
@@ -523,6 +528,7 @@ class Ensemble implements Route {
         p.engine = e;
         e.connect(this.bus!);
         e.setParams({ bus: this.busNow });
+        if (p.trim !== undefined && p.trim !== 1) e.setParams({ volume: p.trim });
         if (info.preset === 'upright') {
           if (uprights) e.addDesigns(uprights);
           void e.setPreset('upright');
@@ -564,14 +570,23 @@ class Ensemble implements Route {
   }
 
   /** the bus over the parts that can sound (mix.ts): with a file, those given a line (one waiting for a
-   *  line is silent); played by hand, all of them. Each part's own limiter is told the share (the
-   *  engine's Limiter.bus), so that it works on the level the bus hears. */
+   *  line is silent); played by hand, all of them; a piece's own level on it (pieces.ts `gain`), and each
+   *  of its parts' (their engines' volume) while it is seated as it came. Each part's own limiter is told
+   *  the share (the engine's Limiter.bus), so that it works on the level the bus hears. */
   private applyGain(): void {
     const sounding = this.song ? this.parts.filter((_, i) => (this.plan.parts[i]?.lines.length ?? 0) > 0) : this.parts;
-    this.busNow = busGain(sounding.map((p) => PLAYBACK_DB[VOICE_INFO[p.voice].instrument] ?? 0));
+    this.busNow = busGain(sounding.map((p) => PLAYBACK_DB[VOICE_INFO[p.voice].instrument] ?? 0)) * (this.song ? this.songGain : 1);
     if (this.bus && audio.ctx) this.bus.gain.setTargetAtTime(this.busNow, audio.ctx.currentTime, 0.02);
-    for (const p of this.parts) p.engine?.setParams({ bus: this.busNow });
+    const trims = this.piece && this.song ? pieceTrims(this.piece, this.plan) : null;
+    this.parts.forEach((p, i) => {
+      const t = trims?.[i] ?? 1;
+      if (t !== (p.trim ?? 1)) p.engine?.setParams({ volume: t });
+      p.trim = t;
+      p.engine?.setParams({ bus: this.busNow });
+    });
   }
+  /** a loaded piece's own level (pieces.ts `gain`), kept with its file */
+  private songGain = 1;
   /** the bus's gain as last set (applyGain) */
   private busNow = 1;
 

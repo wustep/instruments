@@ -33,9 +33,13 @@ export interface Piece {
   /** the instruments in seating order, the lines each plays (others are silent), and any line's own
    *  transposition (semitones) on that instrument. Two winds of a kind on one line (a pair on one staff)
    *  divide it: the first plays its top voice (assign.ts deskOf) */
-  parts: { voice: Voice; lines: number[]; shift?: Record<number, number> }[];
+  parts: { voice: Voice; lines: number[]; shift?: Record<number, number>; gain?: number }[];
   /** tempo, × the file's (a tempo the score marks, where the file has another) */
   rate?: number;
+  /** the piece's level, dB, on the ensemble's bus: every piece played at about one loudness, and a
+   *  part's `gain` (dB, its engine's volume) where it stands out of the balance the score asks for
+   *  (scripts/levels-pieces.ts measures both) */
+  gain?: number;
   /** a short address of its own (/symphony, /everything, /passiton, /tango): the page opens on its orchestra, the piece loaded
    *  (address.ts PIECE_PATHS; vercel.json rewrites it to the page) */
   path?: string;
@@ -43,7 +47,16 @@ export interface Piece {
 
 /** the symphony's orchestra, in the score's order: two each of flutes, oboes, clarinets, bassoons, horns
  *  and trumpets on their staff's two voices, the timpani, the first and second violins, the violas, the
- *  cellos and the basses (Mutopia's files: one staff, one line each, in this order) */
+ *  cellos and the basses (Mutopia's files: one staff, one line each, in this order). The files write the
+ *  basses where they are read, in unison with the cellos (at 416 of the 503 onsets they share in the
+ *  first movement, 436 of 538 in the second): they sound an octave under.
+ *  Each part's level, measured (scripts/levels-pieces.ts: how far under the whole a part stands while it
+ *  plays, first movement then second, before → after): each string part stands for a section of eight to
+ *  fourteen against winds one to a part, 3 dB up (the first violins −11.2 and −8.2 dB → −9.9 and −7.4,
+ *  level with the first flute's −9.7 and −9.5); the basses, an octave down, 5 dB up (−22.1 and −20.8 →
+ *  −15.5 and −13.2: under the cellos, no longer lost in them); the timpani 10 dB up (−23.7 and −26.4,
+ *  at their loudest −22.4 and −24.1: not heard → −15.2 and −18.3, at their loudest −13.9 and −16.2);
+ *  the second trumpet, low in its compass under the first, 3 dB (−22.5 → −21.0 in the first movement). */
 const BEETHOVEN_5: Piece['parts'] = [
   { voice: 'flute', lines: [0] },
   { voice: 'flute', lines: [0] },
@@ -56,13 +69,13 @@ const BEETHOVEN_5: Piece['parts'] = [
   { voice: 'horn', lines: [4] },
   { voice: 'horn', lines: [4] },
   { voice: 'trumpet', lines: [5] },
-  { voice: 'trumpet', lines: [5] },
-  { voice: 'timpani', lines: [6] },
-  { voice: 'violin', lines: [7] },
-  { voice: 'violin', lines: [8] },
-  { voice: 'viola', lines: [9] },
-  { voice: 'cello', lines: [10] },
-  { voice: 'bass', lines: [11] },
+  { voice: 'trumpet', lines: [5], gain: 3 },
+  { voice: 'timpani', lines: [6], gain: 10 },
+  { voice: 'violin', lines: [7], gain: 3 },
+  { voice: 'violin', lines: [8], gain: 3 },
+  { voice: 'viola', lines: [9], gain: 3 },
+  { voice: 'cello', lines: [10], gain: 3 },
+  { voice: 'bass', lines: [11], shift: { 11: -12 }, gain: 5 },
 ];
 
 export const PIECES: Piece[] = [
@@ -74,6 +87,7 @@ export const PIECES: Piece[] = [
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=385',
     credit: 'String Quartet in C, Op. 76 No. 3, II. Poco adagio, cantabile (the "Kaiserhymne" and four variations: the tune passes from the first violin to the second, the cello and the viola). Typeset by Maurizio Tomasi from the Kalmus edition; Mutopia-2015/10/16-385; public domain. The file came with almost no dynamics: the score’s (piano, the fz on the tune’s last line, pianissimo at the close) are written into it here, and the tune’s own rise and fall, which is an editor’s.',
     sha256: 'bed9a3ef39737f86dc2700167a8696dca3de85e2d62f4739daf99fcfe5b11852',
+    gain: 2,
     parts: [
       { voice: 'violin', lines: [0] },
       { voice: 'violin', lines: [1] },
@@ -106,6 +120,7 @@ export const PIECES: Piece[] = [
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1864',
     credit: 'La Réjouissance from the Music for the Royal Fireworks, HWV 351, for trumpet and organ (here a grand piano). The file gives the B♭ trumpet its written pitch, a tone above the organ; it plays a tone lower here, at concert pitch. Typeset by Cyprien Lecourt from IMSLP; Mutopia-2013/09/01-1864; public domain. Handel’s score has no dynamics, and the file had none: its forte and its phrasing here are an editor’s.',
     sha256: 'a5ff3d9ae71779e768fe4af829ede50239442a146130f9277d5d6691c770412e',
+    gain: -4,
     parts: [
       { voice: 'trumpet', lines: [0], shift: { 0: -2 } },
       { voice: 'grand', lines: [1, 2] },
@@ -119,6 +134,7 @@ export const PIECES: Piece[] = [
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=461',
     credit: 'Air from the Orchestral Suite No. 3 in D, BWV 1068, arranged for trombone quartet: alto, two tenors and bass trombone, each seat the size of its line. Arranged and typeset by Ross Keenum; Mutopia-2008/10/28-461; public domain. Neither Bach nor the arrangement marks a dynamic, and the file played every note at full force: its mezzo-piano and its phrasing here are an editor’s.',
     sha256: '310be87b30e693839e522432c58098b957b10516b84cf9fc47d513e9a106f051',
+    gain: 3.5,
     parts: [
       { voice: 'trombone', lines: [0] },
       { voice: 'trombone', lines: [1] },
@@ -132,8 +148,9 @@ export const PIECES: Piece[] = [
     title: 'Symphony No. 5, I',
     file: 'beethoven-op67-i.mid',
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=941',
-    credit: 'Symphony No. 5 in C minor, Op. 67, I. Allegro con brio, for two each of flutes, oboes, clarinets in B♭, bassoons, horns in E♭ and trumpets in C, timpani and strings. Each wind staff of the file holds its pair, divided here between two players; the file names its staves "one" to "twelve" and calls its horns and trumpets "english horn". Played at Beethoven’s own metronome mark (half note = 108; the file’s 96), without the exposition’s repeat. Typeset by Stelios Samelis (adapted by Johannes Heinecke) from the Breitkopf & Härtel edition (1862–1865); Mutopia-2017/11/05-941; public domain. The file was made with its dynamics left out: the edition’s, as the typesetting has them staff by staff (ff, p, cresc., sf), are written into it here.',
+    credit: 'Symphony No. 5 in C minor, Op. 67, I. Allegro con brio, for two each of flutes, oboes, clarinets in B♭, bassoons, horns in E♭ and trumpets in C, timpani and strings. Each wind staff of the file holds its pair, divided here between two players; the file names its staves "one" to "twelve" and calls its horns and trumpets "english horn", and gives the basses their written pitch, in unison with the cellos: they play an octave lower here, where they sound. Played at Beethoven’s own metronome mark (half note = 108; the file’s 96), without the exposition’s repeat. Typeset by Stelios Samelis (adapted by Johannes Heinecke) from the Breitkopf & Härtel edition (1862–1865); Mutopia-2017/11/05-941; public domain. The file was made with its dynamics left out: the edition’s, as the typesetting has them staff by staff (ff, p, cresc., sf), are written into it here.',
     sha256: 'c6511b9233493c24766a671224e086f2e3f8bdc5ea782b1a14c069ce3b8abf43',
+    gain: -4.5,
     parts: BEETHOVEN_5,
     rate: 108 / 96,
   },
@@ -143,7 +160,7 @@ export const PIECES: Piece[] = [
     title: 'Symphony No. 5, II',
     file: 'beethoven-op67-ii.mid',
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1437',
-    credit: 'Symphony No. 5 in C minor, Op. 67, II. Andante con moto, for the same orchestra, its horns and trumpets in C. The file gives the horns their written pitch, an octave above their sound (the horn in C basso); they play an octave lower here. Played at Beethoven’s own metronome mark (eighth note = 92; the file’s 62). Typeset by Stelios Samelis (adapted by Johannes Heinecke) from the Breitkopf & Härtel edition (1862–1865); Mutopia-2017/12/08-1437; public domain.',
+    credit: 'Symphony No. 5 in C minor, Op. 67, II. Andante con moto, for the same orchestra, its horns and trumpets in C. The file gives the horns their written pitch, an octave above their sound (the horn in C basso), and the basses theirs; both play an octave lower here. Played at Beethoven’s own metronome mark (eighth note = 92; the file’s 62). Typeset by Stelios Samelis (adapted by Johannes Heinecke) from the Breitkopf & Härtel edition (1862–1865); Mutopia-2017/12/08-1437; public domain.',
     sha256: '3f360acfb2e3c4608fb396d0b2ca82d06921ea9fc3946ece46294f24461d7bac',
     parts: BEETHOVEN_5.map((p) => (p.voice === 'horn' ? { ...p, shift: { 4: -12 } } : p)),
     rate: 92 / 62,
@@ -156,7 +173,12 @@ export const PIECES: Piece[] = [
     source: 'https://github.com/wustep/instruments#license',
     credit: 'Toward Morning, a symphonic movement in D minor that ends in D major (Adagio, Allegro appassionato, a coda marked Maestoso; four minutes and twenty seconds), for one each of flute, oboe, clarinet, bassoon, horn, trumpet and trombone, timpani and strings: thirteen parts, one to a seat, all at concert pitch, with their own dynamics. Written for these instruments by Fable 5.2 (Anthropic’s Claude), 2026, each note chosen for what its instrument’s model plays well. CC0 1.0: given to the public domain.',
     sha256: 'ab73e45a117f3499e34cd7ca0e50ceb2ee8051e44cb302cc4d9a8ca9c34ae352',
-    parts: (['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'timpani', 'violin', 'violin', 'viola', 'cello', 'bass'] as Voice[]).map((voice, i) => ({ voice, lines: [i] })),
+    gain: 2.5,
+    // (levels, measured, how far under the whole a part stands while it plays: the trombone, written
+    // fortissimo throughout and played 9 dB over its session, stood 7.7 dB under, over the violins' 9.7 and
+    // 8 dB over the horn and trumpet; 4 dB down, 11.2. The bass, the line under everything, 16.7; 3 dB up,
+    // 13.4, by the cellos' 12.9)
+    parts: (['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'timpani', 'violin', 'violin', 'viola', 'cello', 'bass'] as Voice[]).map((voice, i) => ({ voice, lines: [i], gain: ({ trombone: -4, bass: 3 } as Partial<Record<Voice, number>>)[voice] })),
     path: 'symphony',
   },
   {
@@ -167,6 +189,7 @@ export const PIECES: Piece[] = [
     source: 'https://github.com/wustep/instruments#license',
     credit: 'Everything So Far, a movement in 7/8 that begins in A major, slips to F major and to D♭ major, and finds its way home to A (three minutes), for flute, clarinet, horn, glockenspiel, harp, piano, two violins, viola, cello and double bass: eleven parts, one to a seat, all at concert pitch, with their own dynamics. Written for these instruments by Fable 5.2 (Anthropic’s Claude), 2026, each note chosen for what its instrument’s model plays well. CC0 1.0: given to the public domain.',
     sha256: '813274507e7c0708fe45498b95ca7727fae0969b52e189224e934871fdbf6dc9',
+    gain: 7.5,
     parts: (['flute', 'clarinet', 'horn', 'glockenspiel', 'harp', 'grand', 'violin', 'violin', 'viola', 'cello', 'bass'] as Voice[]).map((voice, i) => ({ voice, lines: [i] })),
     path: 'everything',
   },
@@ -178,6 +201,7 @@ export const PIECES: Piece[] = [
     source: 'https://github.com/wustep/instruments#license',
     credit: 'Pass It On, a scherzo in G major on a tune of sixteen notes that nobody can play alone at first: each of the sixteen instruments owns one note of it, and the piece is the orchestra learning to play it whole (one note each across the stage; closer, twice as fast; a round, a family to a voice; a trio in E♭ for the tuba, the harp and the glockenspiel; everyone; and one note each once more, as a run: three minutes and eight seconds), for flute, oboe, clarinet, bassoon, horn, trumpet, trombone, tuba, timpani, glockenspiel, harp, piano, two violins, viola, cello and double bass: seventeen parts, one to a seat, all at concert pitch, with their own dynamics. Written for these instruments by Fable 5.2 (Anthropic’s Claude), 2026, each note chosen for what its instrument’s model plays well and placed ahead of its beat by the time that instrument takes to speak. CC0 1.0: given to the public domain.',
     sha256: '6619c59e89906e511a7f52d5ca671295bc4abae48400b6187f477a878650ac17',
+    gain: 7,
     parts: (['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'glockenspiel', 'harp', 'grand', 'violin', 'violin', 'viola', 'cello', 'bass'] as Voice[]).map((voice, i) => ({ voice, lines: [i] })),
     path: 'passiton',
   },
@@ -189,6 +213,7 @@ export const PIECES: Piece[] = [
     source: 'https://github.com/wustep/instruments#license',
     credit: 'After You, a tango in C minor in which every phrase is led by one player and followed by another, a step behind: the violin and the clarinet a bar apart; the cello and the horn a beat apart; a slower strain in the major (the tune turned upside down) where the followers lead; the piano alone, its left hand a beat behind its right; and a last strain, with its variación, where the couples move at the same instant (two minutes and fifty-six seconds, in 2/4), for oboe, clarinet, bassoon, horn, trumpet, trombone, piano, two violins, viola, cello and double bass: twelve parts, one to a seat, all at concert pitch, with their own dynamics (each note its own velocity, and a hairpin inside every held one). Written for these instruments by Fable 5.2 (Anthropic’s Claude), 2026, each note chosen for what its instrument’s model plays well and placed ahead of its beat by the time that instrument takes to speak. CC0 1.0: given to the public domain.',
     sha256: 'f5b7c594fe6833e037647f639c368555dd7f33c04bd542d5a918a445cb9ff81a',
+    gain: 9.5,
     parts: (['oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'grand', 'violin', 'violin', 'viola', 'cello', 'bass'] as Voice[]).map((voice, i) => ({ voice, lines: [i] })),
     path: 'tango',
   },
@@ -211,6 +236,20 @@ export function piecePlan(piece: Piece, lines: LineInfo[], cap: number): Plan {
     cap,
   );
   return planOf(parts, lines, shifts);
+}
+
+/** dB as a gain */
+export const dbGain = (db: number | undefined): number => Math.pow(10, (db ?? 0) / 20);
+
+/** each of a plan's parts' own level in a piece (× its engine's volume): the piece's part of the same
+ *  voice on its lines (the second of two on one line, the second's), else 1 */
+export function pieceTrims(piece: Piece, plan: Plan): number[] {
+  return plan.parts.map((q, k) => {
+    const on = (s: Piece['parts'][number]) => s.voice === q.voice && s.lines.some((l) => q.lines.includes(l));
+    const mine = piece.parts.filter(on);
+    const before = plan.parts.slice(0, k).filter((r) => r.voice === q.voice && r.lines.some((l) => q.lines.includes(l))).length;
+    return dbGain(mine[Math.min(before, mine.length - 1)]?.gain);
+  });
 }
 
 /** the built-in piece whose instruments best match a lineup (the play icon, in an ensemble with
@@ -264,6 +303,9 @@ export interface Demo {
   end?: number;
   /** velocity, × the file's */
   vel?: number;
+  /** its level, dB (the engine's volume while it is loaded): every piece played at about one loudness
+   *  (scripts/levels-pieces.ts) */
+  gain?: number;
 }
 
 export const DEMOS: Record<InstrumentId, Demo> = {
@@ -275,6 +317,7 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=472',
     credit: 'Prelude in C minor, Op. 28 No. 20 (Largo): thirteen bars of chords, fortissimo to pianissimo, with the pedal as marked. Typeset by Magnus Lewis-Smith from the Peters edition; Mutopia-2011/06/19-472; public domain.',
     sha256: '9cc6c417d4bb261644f6bd3d00033025e675a25694fd172be2f98e93efc1fcfe',
+    gain: -1.5,
   },
   violin: {
     instrument: 'violin',
@@ -305,6 +348,7 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=517',
     credit: 'Cello Suite No. 1 in G, BWV 1007, Prélude. Typeset by Andreas Scherer from the Schirmer edition (1916); Mutopia-2018/01/19-517; public domain.',
     sha256: 'c55a2eae5e8d2e7a9570fe7ec8325c8825656893249878b946e6a2ead288a272',
+    gain: 2,
   },
   bass: {
     instrument: 'bass',
@@ -314,6 +358,7 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=517',
     credit: 'Cello Suite No. 1 in G, BWV 1007, Menuet II, as bassists play the suites: read an octave down in solo tuning, which sounds a tone higher (here, a seventh below the cello, in A minor, from the open E). A little slower than the file. Typeset by Andreas Scherer from the Schirmer edition (1916); Mutopia-2018/01/19-517; public domain.',
     sha256: '9c752a6b0df99982f2e9002ba9c72b3558e95f8fb9f10f7a1255a159f802e152',
+    gain: 5.5,
     shift: -10,
     rate: 0.9,
   },
@@ -325,6 +370,7 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=517',
     credit: 'Cello Suite No. 1 in G, BWV 1007, Prélude, as harpists play it: an octave above the cello, every string left to ring (its broken chords are the harp’s own figure, and the pedals move for its accidentals as they come). Typeset by Andreas Scherer from the Schirmer edition (1916); Mutopia-2018/01/19-517; public domain.',
     sha256: 'c55a2eae5e8d2e7a9570fe7ec8325c8825656893249878b946e6a2ead288a272',
+    gain: 7,
     shift: 12,
     vel: 0.8,
   },
@@ -336,6 +382,7 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1528',
     credit: 'Partita in A minor for flute alone, BWV 1013, Bourrée anglaise, a twelfth above the flute (in E minor: the whole of it inside the glockenspiel’s two and a half octaves), its bars left to ring over each other. The file has no tempo (LilyPond’s default, ♩ = 60); it is played at ♩ = 78. Typeset by Jacob Shapiro from the manuscript (c. 1722–23, via IMSLP); Mutopia-2017/10/31-1528; public domain.',
     sha256: 'dd000c559a8b62a92306187d20353213362201651338a689626571bd62ec4725',
+    gain: -3.5,
     shift: 19,
     rate: 1.3,
     vel: 0.8,
@@ -348,6 +395,7 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1528',
     credit: 'Partita in A minor for flute alone, BWV 1013, Bourrée anglaise. The file has no tempo (LilyPond’s default, ♩ = 60); it is played at ♩ = 96. Typeset by Jacob Shapiro from the manuscript (c. 1722–23, via IMSLP); Mutopia-2017/10/31-1528; public domain.',
     sha256: 'dd000c559a8b62a92306187d20353213362201651338a689626571bd62ec4725',
+    gain: -3.5,
     rate: 1.6,
   },
   oboe: {
@@ -358,6 +406,7 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1577',
     credit: 'Brandenburg Concerto No. 1 in F, BWV 1046, II. Adagio: the first oboe’s line alone, its solo that opens the movement and the long notes it holds under the violino piccolo’s answer. The file plays every note at full force (here at about mezzo-forte) at ♩ = 60 (here ♩ = 51). Typeset by Ben Stewart from the Bach-Gesellschaft edition (Rust, 1871, vol. 19); Mutopia-2008/10/29-1577; Creative Commons Attribution 3.0.',
     sha256: '4cf21a61e66770577cac40ad388a58f59d32dbe9be52e617ca60a8ba343b2a82',
+    gain: -2,
     // to the end of the tenth bar, the oboe's three answering figures after its held A (each bar of 3/4
     // is 3 s in the file)
     end: 33,
@@ -372,6 +421,7 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=337',
     credit: 'Clarinet Quintet in A, K. 581, II. Larghetto: the clarinet’s line alone, the melody that opens the movement over the muted strings, to the close of its thirteenth bar. The file plays every note at full force (here at about mezzo-forte); the clarinet in A sounds a minor third below its part, as the file has it. Typeset by Maurizio Tomasi from the Breitkopf & Härtel edition (1883); Mutopia-2008/06/09-337; public domain.',
     sha256: 'a696d72d9a1baa84a68a236ae996964de3f23ca83be223dfbc5164f91a008c1a',
+    gain: 11.5,
     lines: [0],
     // to the end of bar 13, the phrase's close on B (each bar of 3/4 is 3.27 s in the file, ♩ = 55)
     end: 42.4,
@@ -398,6 +448,7 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=919',
     credit: 'Sonata for Piano with Horn in F, Op. 17, I. Allegro moderato: the horn’s line alone, from its second call (after the piano has answered the first) through the theme that follows, down to the low C. The file gives the horn in F its sounding pitch, a fifth below its part, and plays every note at full force (here at about mezzo-forte, with the file’s own swells). Typeset by Jay Anderson from the Mollo edition (1801); Mutopia-2007/02/01-919; public domain.',
     sha256: '0afbde78131c6523cbbcec4f26cf79382edf35c3cf6f7cd904f1ae6888160538',
+    gain: 3.5,
     lines: [0],
     // from bar 11, the call again (each bar of 4/4 is 2 s in the file), to the end of bar 29, the phrase's
     // close on the low C
@@ -414,6 +465,7 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1864',
     credit: 'La Réjouissance from the Music for the Royal Fireworks, HWV 351: the trumpet’s line alone, at concert pitch (the file gives the B♭ trumpet its written pitch), from its first note (the organ’s two bars of introduction left out). The ensemble’s piece of the same name plays it with the organ. Typeset by Cyprien Lecourt from IMSLP; Mutopia-2013/09/01-1864; public domain.',
     sha256: 'a5ff3d9ae71779e768fe4af829ede50239442a146130f9277d5d6691c770412e',
+    gain: -6,
     lines: [0],
     shift: -2,
   },
@@ -425,6 +477,7 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=461',
     credit: 'Air from the Orchestral Suite No. 3 in D, BWV 1068, in an arrangement for trombone quartet: its top line (the tune) alone, both strains, with the dynamics given to the ensemble’s piece (an editor’s: the score has none). Arranged and typeset by Ross Keenum; Mutopia-2008/10/28-461; public domain.',
     sha256: '310be87b30e693839e522432c58098b957b10516b84cf9fc47d513e9a106f051',
+    gain: -6,
     lines: [0],
   },
   tuba: {
@@ -435,6 +488,7 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=461',
     credit: 'Air from the Orchestral Suite No. 3 in D, BWV 1068, in an arrangement for trombone quartet: its bass line alone (the walking bass in octaves, written for the bass trombone), an octave lower, where a tuba plays it: D♭1 to D3, with the dynamics given to the ensemble’s piece (an editor’s: the score has none). Arranged and typeset by Ross Keenum; Mutopia-2008/10/28-461; public domain.',
     sha256: '310be87b30e693839e522432c58098b957b10516b84cf9fc47d513e9a106f051',
+    gain: 4.5,
     lines: [3],
     shift: -12,
   },
@@ -446,6 +500,7 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=364',
     credit: 'Requiem in D minor, K. 626, Sequentia, Dies irae: the timpani’s line alone, a pair of drums tuned to the tonic and the dominant (D3 and A2), from the first bar to the end of bar 27 (the strokes on every beat, the measured rolls of sixteenths). Typeset by Martin Norbäck from the Breitkopf & Härtel edition (1877); Mutopia-2014/03/24-364; public domain.',
     sha256: '988faf187f2a661bfbfe7d6ef5a53241b96c21394969f23c01d000dc9796a399',
+    gain: 2.5,
     lines: [3],
     // (bars of 4/4 are 1.33 s in the file: to the end of bar 27, after the second roll on A)
     end: 36,
