@@ -40,8 +40,8 @@ Run these from the repo root (`pnpm@10`):
 | `pnpm preview` | preview the build |
 | `pnpm test` | Vitest unit suite (engine and `apps/web/test`, including `vercel-paths.test.ts`) |
 | `pnpm e2e` | `pnpm build && playwright test` (Chrome desktop and Pixel 7, the WebKit smoke test, default port 4199) |
-| `pnpm refs:fetch` / `pnpm calibrate` | Iowa MIS references and the piano calibration |
-| `pnpm refs:ensemble` / `pnpm calibrate:ensemble` | the same for the ensemble instruments |
+| `pnpm refs:fetch` / `pnpm calibrate` | Iowa MIS references and the piano calibration (`refs:fetch --all`: every key, for the piano's judge) |
+| `pnpm refs:ensemble` / `pnpm calibrate:ensemble` | the same for the strings, woodwinds and brass (`scripts/calibrate-{timpani,harp,glock}.ts --write` for those three). [`docs/CALIBRATION.md`](docs/CALIBRATION.md) is the guide to all of it |
 
 A second checkout's Playwright run can use another port: `E2E_PORT=<port> npx playwright test` (after a build; `playwright.config.ts` reads `E2E_PORT`).
 
@@ -75,7 +75,7 @@ One pull request, the same shape each time:
 
 * Pieces bundled under `apps/web/public/pieces` must be public domain (Mutopia and the like), with their source, credit and sha256 in `orchestra/pieces.ts`. Never commit a copyrighted MIDI. Local-only files stay local (they are not in the repo).
 * Three bundled pieces are the project's own, written for these instruments by Fable 5.2 and given to the public domain (CC0 1.0): `fable-toward-morning.mid`, "Toward Morning", a symphonic movement; `fable-everything-so-far.mid`, "Everything So Far", a movement in 7/8; and `fable-pass-it-on.mid`, "Pass It On", a scherzo for all sixteen instruments on seventeen seats (45.1 of a phone's 45.6: `fitLineup`). Stephen allowed these three alone: any other original stays local unless he says so, and nothing copyrighted (the Daylight quintet) is ever bundled. Their addresses are `/symphony`, `/everything` and `/passiton`; the thirteen seats' play icon plays Toward Morning, the eleven's Everything So Far and the seventeen's Pass It On (`pieceForLineup`), the symphony's eighteen still play Beethoven.
-* University of Iowa MIS reference recordings are for analysis only: never played as the instrument, never committed. They live in `.cache/` (typically `.cache/iowa` and `.cache/iowa-ens`). `git ls-files | grep -iE '\.(aiff?|wav|flac)$'` prints nothing.
+* University of Iowa MIS reference recordings are for analysis only: never played as the instrument, never committed. They live in `.cache/` (`iowa`, `iowa-ens`, `iowa-bells`, `vsco-timpani`, `vcsl-harp`). `git ls-files | grep -iE '\.(aiff?|wav|flac)$'` prints only the engine's own renders under `artifacts/audio/`.
 
 ## Rules, each with the check that enforces it
 
@@ -86,9 +86,9 @@ Run the check before you push.
 | Tests stay fast. No new test over ~10 s; build one instrument and reuse it. | `pnpm test` (unit, a few minutes), `pnpm e2e` (build plus Playwright desktop and Pixel 7, several minutes) |
 | The host's block size never changes the sound. Cores render their own blocks (`core/pump.ts`). Smoothing is a time constant, never a fraction per block. | `packages/engine/test/blocksize.test.ts`: bit-identical at 128/37/500 frames per call |
 | A refactor must not silently change the sound. A deliberate change is blessed, with before/after audio in the commit. | `packages/engine/test/golden.test.ts`; bless with `UPDATE_GOLDEN=1 npx vitest run packages/engine/test/golden.test.ts` |
-| Calibration is measured, not tuned by ear. A change is kept only with a verdict against the recordings, held-out notes included. | `npx tsx scripts/judge.ts --instrument <i> --before <old engine>` (BETTER / WORSE / NO CLEAR CHANGE); `scripts/calibrate.ts`, `scripts/attack-judge.ts` for the piano |
+| Calibration is measured, not tuned by ear. A change is kept only with a verdict against the recordings, held-out notes included: BETTER, or, for a fault the judge cannot see, another measurement with no guard broken and the verdict said as it was. A fitted constant on its bound, or one filter band standing far from its neighbours, is a fit imitating the recording: look again. | `npx tsx scripts/judge.ts --instrument <i> --before <old engine>` (BETTER / WORSE / NO CLEAR CHANGE; the piano's on the 65 keys its fit never sees, after `pnpm refs:fetch --all`); `scripts/judge-all.ts` (all sixteen); `scripts/calibrate.ts`, `scripts/attack-judge.ts` for the piano; `docs/CALIBRATION.md` |
 | Every audible engine change ships before/after MP3s and spectrograms with its numbers, under `artifacts/round3/<topic>/`. | `scripts/render-*.ts --before <engine>`; `scripts/spectrogram.ts` |
-| Reference recordings (University of Iowa MIS) are for analysis only: never played as an instrument, never committed. They live in `.cache/`. | `git ls-files \| grep -iE '\.(aiff?\|wav\|flac)$'` prints nothing |
+| Reference recordings (University of Iowa MIS) are for analysis only: never played as an instrument, never committed. They live in `.cache/`. | `git ls-files \| grep -iE '\.(aiff?\|wav\|flac)$'` prints only `artifacts/audio/*.wav` (the engine's own renders) |
 | The worklet bundle parses in Safari 14.1 (the first WebKit with AudioWorklet). | `pnpm build` runs `scripts/check-worklet-syntax.mjs` |
 | Start-up never waits on a worklet round trip, keeps one AudioContext per page, and never retries outside a gesture. | e2e "start-up …" tests; `?debug` on the site shows each step |
 | The audio thread never fails silently: a constructor or `process()` that throws posts one error, then silence. | `packages/engine/test/worklet.test.ts` (fake `AudioWorkletGlobalScope`) |

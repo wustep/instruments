@@ -152,12 +152,15 @@ The address always describes the page, so it can be shared:
   * **glockenspiel:** thirty steel bars, each with its pitch and five families of partials regressed from
     recordings, struck by two mallets.
 
-  Each model is fitted to the University of Iowa MIS recordings, except the timpani (VSCO 2 CE) and the
-  harp (VSCO 2 CE, then VCSL). Every change is judged on notes held out of the fit (`scripts/judge.ts`)
-  and kept on a verdict of better. The harp is the exception: the judge cannot tell its fitted voicing
-  from the hand-set one (no clear change), and its numbers say so. The players (`human`) are measured on
-  the same recordings. At `human` 0 each engine is bit for bit the model that is fitted and judged. Citations are in [`docs/RESEARCH.md`](docs/RESEARCH.md), and the numbers
-  in [`docs/CALIBRATION.md`](docs/CALIBRATION.md).
+  Each model is set against recordings: the University of Iowa MIS for fourteen of them, VSCO 2 CE for
+  the timpani and VCSL for the harp. A change is judged on notes held out of the fit (`scripts/judge.ts`:
+  better, worse or no clear change) and kept on a verdict of better; the few kept without one fix a fault
+  the judge cannot see, and say so (the harp's voicing is one: the judge cannot tell it from the hand-set
+  one). The players (`human`) are measured on the same recordings. At `human` 0 each engine is bit for
+  bit the model that is fitted and judged. [`docs/CALIBRATION.md`](docs/CALIBRATION.md) is the guide: how
+  the judge works, each instrument's recordings, where each stands and what the method cannot tell. The
+  physics' citations are in the engine's comments, on the Notes page and, for the piano, the strings and
+  the flute, in [`docs/RESEARCH.md`](docs/RESEARCH.md).
 * **Engine.** The core has no Web Audio dependency, so the same TypeScript runs in an AudioWorklet
   (`src/worklet`, which parses in Safari 14.1 and later) and in Node for tests, calibration and offline
   renders. Cores render their own blocks, so the host's block size never changes the sound. The page talks
@@ -192,9 +195,10 @@ git clone --filter=blob:none --sparse https://github.com/wustep/instruments.git
 cd instruments && git sparse-checkout set --no-cone '/*' '!/artifacts/'
 ```
 
-Calibration needs the reference recordings in `.cache/`, which are never committed. Fetch and fit them with
-`pnpm refs:fetch`, `pnpm calibrate`, `pnpm refs:ensemble`, `pnpm calibrate:ensemble`, and the per-instrument
-`scripts/fit-*.ts`.
+Calibration needs the reference recordings in `.cache/`, which are never committed. Fetch and measure them
+with `pnpm refs:fetch`, `pnpm calibrate`, `pnpm refs:ensemble`, `pnpm calibrate:ensemble`; judge a change
+with `npx tsx scripts/judge.ts --instrument <id> --before <old engine>`. The rest is in
+[`docs/CALIBRATION.md`](docs/CALIBRATION.md).
 
 ## Credits
 

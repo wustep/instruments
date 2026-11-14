@@ -1,5 +1,5 @@
-// Reference recordings for the violin, viola, cello, double bass and flute, used ONLY for
-// analysis (never as the instruments' sound): University of Iowa Musical
+// Reference recordings for the twelve bowed and blown instruments, used ONLY for
+// analysis (never as the instruments' sound; docs/CALIBRATION.md, "Reference recordings"): University of Iowa Musical
 // Instrument Samples (pre-2012 sets), anechoic chamber, Neumann KM 84 at ~5 ft,
 // 16-bit/44.1 kHz mono. Violin: J. Jean-Francois; viola: C. Taylor (1996);
 // cello: J. Montes on a 1736 Stradivarius (2001); double bass: the MIS "Double Bass" arco set
@@ -13,6 +13,7 @@
 // 1997), E2–C5, pp/mf/ff; bass trombone: the MIS "Bass Trombone" set (https://theremin.music.uiowa.edu/MISbasstrombone.html;
 // 1997, played with vibrato), C1 (pp; D♭1 mf/ff) to B♭4 (pp), G4 (mf), F4 (ff). Both at concert pitch.
 // Tuba: the MIS "Tuba" set (https://theremin.music.uiowa.edu/MIStuba.html; 1997), C1–C4 as it sounds, pp/mf/ff.
+// Trumpet: the MIS "B♭ Trumpet" set, played without vibrato, E3–E♭6 at concert pitch, pp/mf/ff.
 // Terms: "may be downloaded and used for any projects, without restrictions" —
 // https://theremin.music.uiowa.edu/MIS.html
 //

@@ -1407,7 +1407,7 @@
   }
  },
  {
-  "label": "R9 round-1 final (voicing clamped \u00b16 dB)",
+  "label": "R9 round-1 final (voicing clamped ±6 dB)",
   "date": "2026-11-08T05:48:20.328Z",
   "summary": {
    "tuningRmsCents": 4.1194484656032015,
@@ -1466,7 +1466,7 @@
   }
  },
  {
-  "label": "R10 round 2: horizontal polarisation (\u03ba 0.32, hammer share 0.2), fit iteration 1",
+  "label": "R10 round 2: horizontal polarisation (κ 0.32, hammer share 0.2), fit iteration 1",
   "date": "2026-11-08T06:17:14.129Z",
   "summary": {
    "tuningRmsCents": 4.067164249491778,
@@ -1525,7 +1525,7 @@
   }
  },
  {
-  "label": "R10 round 2: horizontal polarisation (\u03ba 0.32, hammer share 0.2), fit iteration 2",
+  "label": "R10 round 2: horizontal polarisation (κ 0.32, hammer share 0.2), fit iteration 2",
   "date": "2026-11-08T06:18:38.209Z",
   "summary": {
    "tuningRmsCents": 3.8260402801603726,
@@ -1584,7 +1584,7 @@
   }
  },
  {
-  "label": "R10 round 2: horizontal polarisation (\u03ba 0.32, hammer share 0.2), fit iteration 3",
+  "label": "R10 round 2: horizontal polarisation (κ 0.32, hammer share 0.2), fit iteration 3",
   "date": "2026-11-08T06:20:08.772Z",
   "summary": {
    "tuningRmsCents": 3.792038760441633,
@@ -1820,7 +1820,7 @@
   }
  },
  {
-  "label": "R13 round 3 audit: each unison string its own stiffness (B \u00b12 %), action knock tick, 2 decay-only refits",
+  "label": "R13 round 3 audit: each unison string its own stiffness (B ±2 %), action knock tick, 2 decay-only refits",
   "date": "2026-11-08T20:43:49.026Z",
   "summary": {
    "tuningRmsCents": 3.8570352641712002,
@@ -1876,6 +1876,65 @@
    "attackDiffMs": 1.9954648526077108,
    "ltasBandRmsDb": 4.6297891255805865,
    "gainOffsetDb": 0.001085143894670182
+  }
+ },
+ {
+  "label": "R14 2026-11-14: re-measured after the board's HF path changed (#2, never logged); the output EQ smoothed over neighbouring bands (judge BETTER on the 65 held-out keys, 3.10 → 3.00)",
+  "date": "2026-11-14T17:29:24.200Z",
+  "summary": {
+   "tuningRmsCents": 3.739235873397134,
+   "refPitchOffsetCents": 4.8749723401856935,
+   "bLog10Rms": 0.061615927892334034,
+   "bMedianRatio": 0.98581825680523,
+   "t60EarlyLog2Rms": 1.2165177675181829,
+   "t60LateLog2Rms": 0.7637403853067783,
+   "t60EarlyP1MedianRatio": 0.9835809228114286,
+   "t60LateP1MedianRatio": 1.2633022885253367,
+   "levelErrDb": {
+    "pp": 8.581554199763495,
+    "mf": 4.998524889563743,
+    "ff": 5.732478846677766
+   },
+   "levelBiasDb": {
+    "pp": 0.1774955466108139,
+    "mf": 0.2195353353603835,
+    "ff": -1.7709069957498649
+   },
+   "spectralShapeRmsDb": {
+    "pp": 8.33134553845396,
+    "mf": 8.913743864182193,
+    "ff": 8.809029192407085
+   },
+   "centroidRatio": {
+    "pp": 1.4587995733765784,
+    "mf": 1.1346553438703357,
+    "ff": 1.2004988983459597
+   },
+   "brightnessContrastErr": {
+    "rmsDbPerPartial": 4.394216862153646,
+    "biasDbPerPartial": -0.39620787828414006
+   },
+   "decayByRegister": {
+    "A0-B1": {
+     "early": 1,
+     "late": 0.79
+    },
+    "C2-B3": {
+     "early": 1.04,
+     "late": 1.22
+    },
+    "C4-B5": {
+     "early": 0.97,
+     "late": 1
+    },
+    "C6-C8": {
+     "early": 0.78,
+     "late": 1.11
+    }
+   },
+   "attackDiffMs": -10.975056689342404,
+   "ltasBandRmsDb": 5.09149850119124,
+   "gainOffsetDb": -0.917465913206037
   }
  }
 ]

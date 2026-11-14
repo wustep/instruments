@@ -8,6 +8,7 @@
 // one off its partial costing a quarter. Pitch is left out (scripts/tune-horn.ts corrects it after), as is
 // absolute level (the gain matches it after).
 //   npx tsx scripts/fit-horn.ts [--iters 300] [--seed 1] [--from voice.json] [--out voice.json] [--sigma 0.12]
+//     [--only steep,lp,shelfG]   move these parameters alone (a refit of one part of the voicing)
 // A (1+1) evolution strategy in the parameters' normalised ranges, its step adapted by the 1/5 rule.
 // The tuba is the same engine (lipcone.ts) and is fitted the same way to the Iowa MIS tuba, within its own
 // ranges (a lower bell cutoff and colour): --instrument tuba. FIT_WORKERS=<n> caps the worker pool.
@@ -186,6 +187,7 @@ if (!isMainThread && (workerData as { fitHorn?: boolean })?.fitHorn) {
   const gauss = () => Math.sqrt(-2 * Math.log(rand() + 1e-12)) * Math.cos(2 * Math.PI * rand());
   const from = args.includes('--from') ? (JSON.parse(readFileSync(opt('--from', ''), 'utf8')) as Partial<HornVoice>) : {};
   const out = opt('--out', '');
+  const MOVE = args.includes('--only') ? KEYS.filter((k) => opt('--only', '').split(',').includes(k)) : KEYS;
   let best: Partial<HornVoice> = { ...Object.fromEntries(KEYS.map((k) => [k, VOICE0[k]])), ...from };
   let bestS = await scoreVoice(best);
   console.log('start', bestS.score.toFixed(3), JSON.stringify(Object.fromEntries(Object.entries(bestS.per).map(([k, v]) => [k, +v.toFixed(2)]))), 'missing', bestS.missing);
@@ -196,7 +198,7 @@ if (!isMainThread && (workerData as { fitHorn?: boolean })?.fitHorn) {
     const cand: Partial<HornVoice> = { ...best };
     const n = 1 + Math.floor(rand() * 4);
     for (let j = 0; j < n; j++) {
-      const k = KEYS[Math.floor(rand() * KEYS.length)];
+      const k = MOVE[Math.floor(rand() * MOVE.length)];
       cand[k] = denorm(k, norm(k, best[k] as number) + sigma * gauss());
     }
     const s = await scoreVoice(cand);

@@ -18,6 +18,8 @@ const ROOT = join(import.meta.dirname, '..');
 const FIT_PATH = join(ROOT, 'packages/engine/src/core/calibration-fit.json');
 const OUT = join(ROOT, 'apps/web/public/data/calibration.json');
 const REF_CACHE = join(CACHE, 'analysis-v3.json');
+/** the output EQ's bound, dB a band */
+const EQ_MAX = 12;
 
 interface Job {
   kind: 'ref' | 'model';
@@ -391,6 +393,7 @@ function doFit(
     next.outputGain = +(cal.outputGain * Math.pow(10, summary.gainOffsetDb / 20)).toPrecision(4);
     writeFileSync(FIT_PATH, JSON.stringify(next, null, 2) + '\n');
     console.log(`updated ${FIT_PATH} (decay levers only)`);
+    onBounds(next);
     return;
   }
 
@@ -408,9 +411,16 @@ function doFit(
   // overall level), otherwise EQ and gain drift against each other into the clamps
   const meanUpd = upd.length ? upd.reduce((s, [, u]) => s + u, 0) / upd.length : 0;
   for (const [fq, u] of upd) {
-    const g = Math.max(-12, Math.min(12, (prevEq.get(fq) ?? 0) + u - meanUpd));
+    const g = Math.max(-EQ_MAX, Math.min(EQ_MAX, (prevEq.get(fq) ?? 0) + u - meanUpd));
     eq.push([fq, +g.toFixed(2), 1.4]);
   }
+  // Only what is broad is kept: each band is averaged with its neighbours (the ends with their one). The
+  // board's radiation and the microphones are smooth over two-thirds of an octave; a band standing alone
+  // is these 23 keys' own partials. Unsmoothed, the fit had put +12 dB at 4 kHz beside −5 dB at 2.5 kHz and
+  // +10.7 dB at 100 Hz between two bands at +2: on the 65 keys it never sees the smoothed EQ is BETTER
+  // (scripts/judge.ts --instrument piano: 3.10 → 3.00, Δ 0.09 ± 0.02), and no EQ at all was better than
+  // the unsmoothed one (3.03).
+  smoothEq(eq);
   next.eq = eq;
   next.outputGain = +(cal.outputGain * Math.pow(10, summary.gainOffsetDb / 20)).toPrecision(4);
 
@@ -463,8 +473,39 @@ function doFit(
 
   writeFileSync(FIT_PATH, JSON.stringify(next, null, 2) + '\n');
   console.log(`updated ${FIT_PATH}`);
+  onBounds(next);
   void keys;
   void get;
+}
+
+/** the output EQ's bands averaged with their neighbours, in place (½ own, ¼ each neighbour; an end band ½
+ *  own, ½ its neighbour) */
+export function smoothEq(eq: [number, number, number][]): void {
+  const g = eq.map((e) => e[1]);
+  const n = g.length;
+  if (n < 2) return;
+  eq.forEach((e, i) => {
+    e[1] = +(i === 0 ? 0.5 * g[0] + 0.5 * g[1] : i === n - 1 ? 0.5 * g[i] + 0.5 * g[i - 1] : 0.5 * g[i] + 0.25 * (g[i - 1] + g[i + 1])).toFixed(2);
+  });
+}
+
+/** A fitted constant that ends on its bound is a fit pushing against something the model cannot do (or
+ *  imitating the recording: the 4 kHz EQ band stood at +12 dB beside −5 dB at 2.5 kHz until 2026-11-14).
+ *  Said aloud, every time. */
+export function onBounds(c: Partial<Calibration>): string[] {
+  const out: string[] = [];
+  const at = (name: string, b: { midi: number[]; val: number[] } | undefined, lo: number, hi: number) =>
+    b?.val.forEach((v, i) => {
+      if (v <= lo * 1.0001 || v >= hi * 0.9999) out.push(`${name} at key ${b.midi[i]}: ${v} (bounds ${lo}…${hi})`);
+    });
+  at('t60Low', c.t60Low, 1, 120);
+  at('t60High', c.t60High, 0.2, 30);
+  at('bridgeY', c.bridgeY, 1e-5, 2e-3);
+  at('hammerP', c.hammerP, 2, 4);
+  c.voicing?.val.forEach((v, i) => Math.abs(v) >= 6 && out.push(`voicing at key ${c.voicing!.midi[i]}: ${v} dB (bounds ±6)`));
+  c.eq?.forEach(([f, g]) => Math.abs(g) >= EQ_MAX && out.push(`eq ${f} Hz: ${g} dB (bounds ±${EQ_MAX})`));
+  if (out.length) console.log(`on their bounds (look again at each):\n  ${out.join('\n  ')}`);
+  return out;
 }
 
 function nelderMead(f: (p: number[]) => number, x0: number[], iters: number): number[] {

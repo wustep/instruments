@@ -65,7 +65,7 @@ const REG_JOBS = Array.from({ length: 36 }, (_, i) => 58 + i).flatMap((m) => [30
 let regimes: string[] = [];
 async function render(voice: Partial<OboeVoice>): Promise<{ ref: RefNote; model: SustainedAnalysis | null }[]> {
   if (!refs.length) refs = (await referenceNotes()).filter((r) => r.instrument === 'oboe');
-  if (!pool.length) pool = Array.from({ length: Math.max(1, Math.min(refs.length, cpus().length - 2)) }, () => new Worker(new URL(import.meta.url), { workerData: { fitOboe: true }, execArgv: ['--import', 'tsx'] }));
+  if (!pool.length) pool = Array.from({ length: Math.max(1, Math.min(refs.length, +(process.env.FIT_WORKERS ?? 0) || cpus().length - 2)) }, () => new Worker(new URL(import.meta.url), { workerData: { fitOboe: true }, execArgv: ['--import', 'tsx'] }));
   const out: (SustainedAnalysis | null)[] = new Array(refs.length).fill(null);
   await Promise.all(
     pool.map(
@@ -139,6 +139,9 @@ if (!isMainThread && (workerData as { fitOboe?: boolean })?.fitOboe) {
   const gauss = () => Math.sqrt(-2 * Math.log(rand() + 1e-12)) * Math.cos(2 * Math.PI * rand());
   const from = args.includes('--from') ? (JSON.parse(readFileSync(opt('--from', ''), 'utf8')) as Partial<OboeVoice>) : {};
   const out = opt('--out', '');
+  // --only a,b,c: move these parameters alone (a refit of one part of the voicing, e.g. the radiated colour,
+  // which is outside the loop and can move neither a note's register nor its pitch)
+  const MOVE = args.includes('--only') ? KEYS.filter((k) => opt('--only', '').split(',').includes(k)) : KEYS;
   let best: Partial<OboeVoice> = { ...Object.fromEntries(KEYS.map((k) => [k, OBOE_VOICE[k]])), ...from };
   let bestS = await scoreVoice(best);
   console.log('start', bestS.score.toFixed(3), JSON.stringify(bestS.per), 'missing', bestS.missing);
@@ -149,7 +152,7 @@ if (!isMainThread && (workerData as { fitOboe?: boolean })?.fitOboe) {
     const cand: Partial<OboeVoice> = { ...best };
     const n = 1 + Math.floor(rand() * 4);
     for (let j = 0; j < n; j++) {
-      const k = KEYS[Math.floor(rand() * KEYS.length)];
+      const k = MOVE[Math.floor(rand() * MOVE.length)];
       cand[k] = denorm(k, norm(k, best[k] as number) + sigma * gauss());
     }
     const s = await scoreVoice(cand);

@@ -1,405 +1,490 @@
-# Calibration log
+# Calibration guide
 
-## How calibration works
+How the sixteen instruments are compared with recordings, how a change to one is judged, what each is
+compared with, where each stands, and what the method cannot tell. This is the one place for it: the
+Measurements page shows the same numbers as charts, the Notes page tells the physics, and each pull request's
+own notes (`artifacts/…/NOTES.md`) keep the detail of what it tried.
 
-**Reference.**
-- **Source:** University of Iowa MIS, Steinway & Sons model B, 2001.
-- **Microphones:** two KM 84s, 8″ above the bass and treble strings.
-- **Format and gain:** 16/44.1, with input gain fixed across dynamics.
-- **Notes used:** 23 keys (every 4th key from A0, plus C8) at pp, mf and ff, 67 files.
-- **Storage:** downloaded on demand into `.cache/iowa` (gitignored) with `pnpm refs:fetch`.
-- **Use:** the recordings are only analysed. The model never plays them back.
+Contents: [the idea](#the-idea) · [running it](#running-it) · [how a comparison is made](#how-a-comparison-is-made) ·
+[the judge](#the-judge) · [reference recordings](#reference-recordings) · [current scores](#current-scores) ·
+[instrument by instrument](#instrument-by-instrument) · [players](#players) · [levels](#levels) ·
+[known limits](#known-limits) · [history](#history)
 
-**Analysis.** `packages/engine/src/analysis/note.ts` runs identically on the
-reference and on dry model renders (44.1 kHz, same keys, pp/mf/ff → MIDI velocity
-30/70/112, key held). It measures:
-- **Partials and tuning:** partial frequencies, from which stiff-string f₀ and B
-  are fitted, plus partial 1 in cents versus equal temperament.
-- **Decay:** per-partial decay by Schroeder backward integration with noise-floor
-  subtraction. EDT (0 → −10 dB) gives the prompt T60; the −15 → −35 dB span
-  gives the late (aftersound) T60.
-- **Spectrum:** partial levels 60–160 ms after onset, third-octave spectrum of the
-  first second, and a noise-floor estimate from the recording tail.
-- **Level and attack:** RMS level, peak level and 10–90 % attack time.
+## The idea
 
-**Metrics reported per round** (`pnpm calibrate`, history in `docs/calibration-rounds.json`):
-- **Tuning:** RMS of model minus reference stretch, in cents. The reference
-  piano's global offset is removed: it sits +4.9 ¢ sharp of A440.
-- **Inharmonicity:** RMS of log₁₀(B_model / B_ref).
-- **Decay by register:** median model/reference T60 ratio over partials 1–3, for
-  the early and late slopes. Single-note comparisons are not meaningful, because
-  even neighbouring reference notes differ 10× in EDT.
-- **Level error:** RMS level error per dynamic after one global gain set at mf.
-- **Spectrum:** third-octave spectral error at mf, only in bands ≥ 12 dB above
-  the recording's noise floor. Above ~4 kHz the reference is mostly hiss.
-- **Brightness contrast:** the slope of the ff − pp partial-level gain against
-  partial number (dB per partial), model minus reference.
+Every instrument here is a physical model: a string, a reed, a pair of lips, a membrane, computed sample by
+sample. A model has constants nobody can look up exactly (how much a soundboard radiates at 2 kHz, how fast
+a reed closes), so they are set by comparison with recordings of real instruments. Four rules keep that
+honest.
 
-**Fitting** (`pnpm calibrate --fit` → `packages/engine/src/core/calibration-fit.json`):
-- **B curve:** the two-asymptote model of Rigaud et al. 2013, fitted by Nelder–Mead.
-- **Everything else:** damped (×0.7), bounded (≤ ×2 per step) multiplicative
-  corrections at register breakpoints:
-  - intrinsic loss (late T60 of partials 1–2 and 3–4);
-  - bridge admittance (prompt T60);
-  - felt exponent (brightness contrast);
-  - hammer velocity range (pp/ff level);
-  - register voicing (level at mf, smoothed, ±6 dB);
-  - output EQ (third-octave difference).
+1. **Recordings are measured, never played.** They are downloaded into `.cache/` (never committed), analysed,
+   and that is all. No sample is ever the instrument's sound.
+2. **Like with like.** The model plays the same note at the same dynamic, dry, as a note alone, and both
+   sides go through the same analysis code. Where the recorded player used no vibrato, neither does the
+   model. What is compared is the model alone (`human: 0`), not the player in the engine (see
+   [Players](#players)).
+3. **A change is kept on a verdict, not by ear.** `scripts/judge.ts` says BETTER, WORSE or NO CLEAR CHANGE,
+   on notes the fit never saw.
+4. **Realism over the number.** A fit will imitate whatever is in the recording, the room and the hiss
+   included. A change that wins on a measure by a trick (a narrow EQ peak, noise added to match a noise
+   floor, a decay stretched to stand in for a hall) is not kept, and a change that is plainly right but that
+   the judge cannot see is kept and said to be so.
 
-## Round 1 (literature defaults → fitted)
+## Running it
 
-| # | change | tuning ¢ RMS | B log₁₀ RMS | T60 early model/ref (A0–B1, C2–B3, C4–B5, C6–C8) | T60 late model/ref | level err dB pp/mf/ff | ⅓-oct err dB | brightness contrast err dB/partial |
-|---|---|---|---|---|---|---|---|---|
-| 0 | literature defaults (+ hammer-position fix) | 18.1* | 0.092 | median 0.73 | median 0.68 | 10.1 / 5.1 / 4.3 | 6.6 | – |
-| 1 | Schroeder decay metrics; B fitted | 18.2* | 0.056 | median 0.28 | median 0.74 | 10.1 / 5.1 / 4.3 | 6.2 | – |
-| 2–5 | first unbounded fit iterations | 17.7* | 0.060 | median 0.70 | median 1.09 | 8.4 / 3.9 / 4.7 | 5.3 | – |
-| 6–8 | register-binned decay metric, contrast-slope felt fit | 18.0* | 0.059 | 0.71, 3.47, 1.56, 0.84 | 0.59, 0.80, 1.14, 1.36 | 8.0 / 4.1 / 5.1 | 4.6 | 4.1 (−0.7) |
-| 9 | reset; two-point loss filter design; board modal mass ×2 | 18.1* | 0.060 | 0.24, 0.66, 0.25, 0.31 | 0.21, 0.49, 0.45, 0.53 | 10.1 / 4.9 / 4.2 | 5.6 | 4.0 (−0.9) |
-| 10–15 | bounded fit (6 iterations) | 18.1* | 0.057 | 1.08, 2.54, 1.36, 0.60 | 0.80, 0.71, 1.09, 1.02 | 8.2 / 4.4 / 5.6 | 5.5 | 3.5 (−0.3) |
-| 16–20 | per-zone board coupling; fixed HF radiation mobility | 18.2* | 0.070 | 1.17, 2.60, 1.26, 0.61 | 0.68, 0.82, 1.15, 1.05 | 8.3 / 4.5 / 5.7 | 4.9 | 3.7 (+0.1) |
-| 21–24 | radiation corner 140 → 70 Hz; HF crossover 4th-order 1.2 kHz → 2nd-order 700 Hz | 18.1* | 0.068 | 1.16, 2.58, 1.22, 0.61 | 0.68, 0.91, 1.17, 0.98 | 8.0 / 4.2 / 5.5 | 3.3 | 4.6 (−0.7) |
-| 25–26 | final: smoothed, clamped voicing; tuning metric excludes analysis failures* | **4.1** | **0.070** | **1.16, 2.57, 1.22, 0.66** | **0.68, 0.93, 1.18, 1.21** | **9.4 / 5.2 / 5.2** | **4.4** | **4.6 (−0.8)** |
+```sh
+pnpm refs:fetch            # the Steinway keys the fit uses (67 files, .cache/iowa)
+pnpm refs:fetch --all      # every key (261 files, about 2.6 GB): the piano's held-out keys
+pnpm calibrate             # the piano: measure, write the Measurements data   [--table] [--fit] [--decay-only] [--log "label"]
+pnpm refs:ensemble         # strings, woodwinds, brass (172 files, about 1.4 GB, .cache/iowa-ens)
+pnpm calibrate:ensemble    # those twelve: measure, write the Measurements data [--only horn,oboe] [--table] [--log "label"]
+npx tsx scripts/calibrate-timpani.ts --write    # timpani      (each of these three fetches its own
+npx tsx scripts/calibrate-harp.ts --write       # harp          recordings on its first run:
+npx tsx scripts/calibrate-glock.ts --write      # glockenspiel  .cache/vsco-timpani, vcsl-harp, iowa-bells)
 
-\* The tuning metric before row 25 was dominated by two analysis failures. The
-reference A0 partial fit returns +82 ¢, and the model's B fails at C♯7, where only
-two partials are detectable. From row 25 these keys are excluded (fit residual
-> 3 ¢ or < 4 partials). The model's tuning did not change; the stretch was already
-within a few cents.
+# a change, judged: this checkout's engine against an older one
+npx tsx scripts/judge.ts --instrument horn --before <old checkout>/packages/engine/src/core/index.ts
+npx tsx scripts/judge-all.ts --before <old checkout>/packages/engine/src/core/index.ts   # all sixteen, one row each
+npx tsx scripts/judge-voice.ts --instrument horn --voice '{"shelfG":-10}'                 # a voicing tried before it is written in
+```
 
-### What each step taught us
+An "old checkout" is any other copy of the repo: `git worktree add --detach /tmp/before <commit>`.
+`ffmpeg` is needed (the recordings are AIFF). The first run analyses the recordings and caches the result
+beside them; later runs take seconds (the piano's every-key judge, two minutes).
 
-1. **Hammer position bug.** The hammer tap was placed as a fraction of the delay
-   line, but in the bass the dispersion filter holds a large share of the loop
-   delay. The strike-position comb was therefore in the wrong place: the
-   reference shows the expected weak 8th partial for β ≈ 1/8. Fixed by placing
-   the tap at β·(fs/f₁)/2 from the agraffe.
-2. **Most of the "missing high frequencies" is the reference's noise floor.**
-   Comparisons now only use bands ≥ 12 dB above the floor.
-3. **Single-note decay comparison is meaningless.** The reference's EDT jumps
-   between 1.4 s and 19 s on neighbouring keys, because some partials sit on
-   soundboard resonances. Register medians are stable.
-4. **An unbounded fit runs away** on any lever the metric is insensitive to
-   (intrinsic T60 of C4 → 564 s). Sweeps (`scripts/sweep.ts`) showed that:
-   - at C♯4 the late decay is controlled by **soundboard coupling**, not string loss;
-   - unison detune and hammer imbalance matter much less than expected.
-5. **The one-pole least-squares loss fit was broken for steep σ(f).** It left C4's
-   fundamental almost lossless (131 s). It was replaced by an exact two-point
-   design: partial 1 plus a high reference partial.
-6. **Decay and loudness had to be decoupled.** The HF radiation path had been
-   scaled by the loss-calibrated bridge admittance, so lowering admittance for
-   longer decay also starved 1–1.6 kHz. It now uses a fixed radiation mobility.
+What the commands write:
 
-### Where round 1 leaves the model
+| file | what it is |
+|---|---|
+| `apps/web/public/data/{calibration,ensemble,timpani,harp,glockenspiel}.json` | what the Measurements page draws |
+| `docs/calibration-rounds.json`, `docs/ensemble-rounds.json` | one summary per logged round (`--log`) |
+| `packages/engine/src/core/calibration-fit.json` | the piano's fitted constants (`pnpm calibrate --fit`) |
+| `packages/engine/src/core/*-tuning.json` | each wind's pitch correction, per sample rate (`scripts/tune-*.ts`) |
+| `packages/engine/src/core/bowed-fit.json`, the `*_VOICE` blocks in each core | the fitted voicings (`scripts/fit-*.ts`, written with `scripts/set-voice.py`) |
 
-* **Inharmonicity:** within ≈ 17 % RMS of the measured B across the compass.
-* **Stretch tuning:** within 4 ¢ RMS of the reference piano's stretch.
-* **Decay, C4–C8:** within ×1.2 of the reference for both slopes.
-* **Decay, bass and tenor.** Three problems remain:
-  * The A0–B1 aftersound is ×0.68 too short, even with intrinsic string T60 at its
-    120 s clamp.
-  * The C2–B3 prompt decay is **×2.6 too slow**.
-  * The C6–C8 prompt decay is ×0.66 too fast.
-  * The bass and tenor share one bridge-admittance lever per region, which cannot
-    fix the prompt and late slopes at once. A second string polarisation (not
-    modelled) is the physical mechanism most likely missing.
-* **Loudness:** ≈ 5 dB RMS per note at mf and ff, 9 dB at pp. The reference pp
-  notes themselves vary by ±10 dB, being single human performances.
-* **Brightness:** the model brightens less from pp to ff than the Steinway, by
-  ≈ 0.8 dB per partial. The felt exponent is near its plausible upper bound in the
-  bass. Velocity-dependent felt stiffness (Stulov's relaxation) would help.
+## How a comparison is made
 
-## Round 2 (horizontal polarisation)
+**The render.** One note, from silence, held: dry (no room, no limiter), 44.1 kHz (the recordings' rate),
+at the recorded pitch and dynamic. The dynamics pp, mf and ff are MIDI velocities 30, 70 and 112. The engine
+is asked for the model alone (`human: 0`) and for no vibrato where the recorded note has none.
 
-Round 1 left the tenor's prompt decay ×2.6 too slow while its aftersound was
-right. One bridge admittance per register cannot set both slopes. Each struck
-string now has a horizontal twin waveguide:
-- coupled to the bridge through a transformer ratio κ = 0.32 (0.25 at C6, none
-  above), so it loses energy to the board about 10× more slowly;
-- excited by 20 % of the hammer force (the felt never pushes perfectly
-  vertically);
-- detuned by ±0.3 ¢.
+**The analysis** (`packages/engine/src/analysis`) is the same code for the recording and the render.
 
-It is the mechanism Weinreich (1977) identified alongside unison coupling, and
-the only source of double decay for the bass unichords. Sweeps
-(`scripts/sweep.ts pol`) showed it was the first lever to move the tenor without
-breaking the other registers; three bounded fit iterations followed.
+| family | analysis | what it reads |
+|---|---|---|
+| piano | `analyzeNote` (`note.ts`) | each partial's frequency (so the string's stiffness B and its tuning); each partial's decay, early (the first 10 dB: the "prompt" sound) and late (−15 to −35 dB: the "aftersound"); the partials' levels 60–160 ms after the attack; the third-octave spectrum of the first second and of the recording's own noise floor; level, attack time, brightness |
+| bowed and blown (twelve instruments) | `analyzeSustained` (`sustained.ts`) | the steady middle of the note (25–85 %): harmonics 1–16, the balance of even and odd ones, harmonics over the noise between them (HNR), the third-octave spectrum and its centroid (brightness), the 10–90 % attack, pitch, vibrato rate and depth, level |
+| timpani | `analyzeStruck` (`struck.ts`) | the modes' frequencies and levels, the two main modes' decay, ring time, brightness, attack, level, spectrum |
+| harp, glockenspiel | `analyzeRing` (`ring.ts`) | the partials' frequencies (stretch, or their ratio to the pitch), levels and decays, the time to fall 20 dB, brightness at the start and later, the attack's knock, level, spectrum |
 
-| # | change | tuning ¢ RMS | B log₁₀ RMS | T60 early model/ref (A0–B1, C2–B3, C4–B5, C6–C8) | T60 late model/ref | level err dB pp/mf/ff | ⅓-oct err dB |
-|---|---|---|---|---|---|---|---|
-| R9 | round-1 final | 4.1 | 0.070 | 1.16, 2.57, 1.22, 0.66 | 0.68, 0.93, 1.18, 1.21 | 9.4 / 5.2 / 5.2 | 4.4 |
-| R10 | polarisation κ 0.32, fit iteration 3 | **3.8** | **0.063** | **1.14, 2.17, 0.81, 0.60** | **0.68, 0.95, 1.35, 0.98** | **8.0 / 4.4 / 5.2** | **4.5** |
+The Iowa files are chromatic runs, many notes to a file. `scripts/ensemble-refs.ts` cuts each run into notes,
+names each by its pitch, and keeps the ones the model plays the same way (for a string instrument: on the
+same string).
 
-Net effect:
-* The tenor's prompt-decay error fell from ×2.57 to ×2.17.
-* The middle register is now slightly fast early (×0.81) and long late (×1.35)
-  instead of the reverse.
-* The bass aftersound is unchanged at ×0.68. Its loss is dominated by the
-  soundboard modes near the bass bridge.
+**The summary numbers** on the Measurements page and in the tables below:
 
-The piano work stops here for this pass (see the README's limitations). Next steps
-would be:
-* zone-specific modal damping instead of a single loss-factor curve;
-* a measured, per-key bridge admittance;
-* a velocity-dependent felt law (Stulov) for the brightness range.
+* *harmonics*: for each note, the RMS difference of harmonics 1–12 (each relative to the note's strongest,
+  down to 45 dB under it); the median over notes.
+* *spectrum*: all of an instrument's notes pooled into one long-term third-octave spectrum, 100 Hz–10 kHz,
+  model against recording, RMS over the bands within 45 dB of the recording's peak.
+* *brightness*: the median ratio of spectral centroids, model over recording (×1.00 is a match).
+* *noise*: the median difference in harmonics-over-noise, dB (positive: the model is cleaner).
+* *attack*: the median ratio of 10–90 % attack times.
+* *pp→ff*: the median level of the ff notes less that of the pp notes, beside the recording's.
+* *pitch*: RMS of the model's pitch error in cents.
+* the piano's own: *tuning* (RMS cents against the recorded piano's stretch, its overall +4.9 ¢ removed),
+  *stiffness* (RMS of log₁₀ B), *decay by register* (the median model/recording ratio of T60 over partials
+  1–3, early and late), *level error* per dynamic after one overall gain, *spectrum* (third-octave, only in
+  bands 12 dB over the recording's noise floor), *brightness contrast* (how much more the upper partials
+  gain from pp to ff than the lower, dB per partial).
 
-## Round 2 (2026-11): bridge-aware decay fit, unison beat rate
+## The judge
 
-The round-2 audit (`pnpm calibrate --table`, 41 s) found the tenor's prompt
-decay error ×2.17 concentrated on the **bass-bridge bichords C♯2–A2**:
-- their partials 2–4 had almost no prompt decay (model EDT 46–75 s, reference 1–8 s);
-- the fit had driven the bass-bridge admittance down to 6.6e-5 s/kg;
-- its ±8-key windows straddled the bass/treble bridge break, so keys on the
-  treble bridge were steering the last bass-bridge breakpoint.
+`scripts/judge.ts` answers one question: against the recordings, is engine B better than engine A?
 
-Separately, the treble breakpoints sat at the 1e-5 floor while the top octave
-still decayed ×0.6 too fast, so something other than the bridge was draining
-it.
+* **Each error in units of the recording's own variation.** A real instrument's neighbouring notes differ:
+  one is 2 dB louder, one a little brighter. For every measure the judge finds that spread in the recordings
+  (the median difference between adjacent notes at one dynamic, ÷ √2) and divides the model's error by it. A
+  score of 1 means the model is as far from a recorded note as that note's neighbour is; 2 means twice as
+  far. A note's score is the mean over the measures.
+* **Fit half and held-out half.** A fit only ever sees half the notes; the verdict comes from the other
+  half. For most instruments the halves are the even and the odd MIDI notes. The timpani holds out two of its
+  five drums, the harp and the glockenspiel every second string or bar, the piano the 65 keys between the 23
+  the fit uses.
+* **The verdict** compares the two engines note by note on the held-out half:
+  * **BETTER**: the mean score fell by more than two standard errors, and by more than 0.05, and no guard broke;
+  * **WORSE**: it rose as clearly;
+  * **NO CLEAR CHANGE**: anything else.
+* **Guards.** Every measure but level is a guard: if its held-out error grows by more than half a spread,
+  the verdict cannot be BETTER, however much the others gained. This is what stops a fit from buying
+  harmonics with brightness, or brightness with noise. (Level is scored but not guarded: a note's level in
+  a recording is partly the player's.)
+* **Two folds** (`--folds a.json,b.json`; harp, glockenspiel): with few strings, each half is judged by the
+  voicing fitted on the other, so every string is held out once.
 
-Sweeps (`scripts/sweep2.ts`, a JSON list of calibration/design patches, per-key
-and register medians) showed:
+The measures: for the bowed and blown instruments *harmonics, centroid, noise, attack, pitch, level*; for
+the piano *level, partials, centroid, prompt decay, late decay, tuning, stiffness*; for the timpani, harp and
+glockenspiel their own (partials' frequencies and levels, spectrum, decays, ring time, centroid, attack,
+level).
 
-* **Bichords (C♯2–A2):** the prompt decay follows the bridge admittance while
-  the aftersound barely moves (Weinreich: the anti-phase unison mode is
-  protected).
-* **Unichords (A0–F♯1):** both slopes scale with the admittance, and the weakly
-  coupled horizontal polarisation (κ 0.12–0.32) changes nothing measurable.
-* **Treble (C6–C8):**
-  * with the unisons tuned exactly, the register median is ×0.94 / ×0.99 —
-    the model's fast "prompt decay" up there was **unison beating** at 2–3 Hz;
-  * the cause is a constant cents spread: 1 ¢ at 4 kHz is 2.3 Hz;
-  * tuners set unisons by beat rate, so the spread is now scaled by
-    `min(1, 500 Hz / f₁)`, which keeps the outer strings within about 0.3 Hz
-    (`PianoDesign.unisonBeatCapHz`; the honky-tonk preset keeps a constant
-    cents spread).
+**Reading a verdict**
 
-Fit changes:
-* **Admittance breakpoints by bridge segment.** They are now
-  21/30 (unichords), 31/45 (bass-bridge bichords) and 46…108 (treble bridge).
-  Each learns only from keys on its own segment, using partials 1–3.
-* **Zero-mean EQ updates.** An EQ update moving every band one way is the
-  output gain's job; without this, EQ and gain drifted into the ±12 dB clamps
-  within three iterations.
-* **`--decay-only` mode.** It updates only the string losses, the bridge
-  admittance and the global gain.
-* **Contrast metric.** The pp→ff contrast slope now skips partials not found
-  (< −98 dB) on either side, not just on the reference side. One C♯1 outlier
-  had read −51 dB/partial. The baseline value is identical under both
-  definitions (4.27 vs 4.28).
+* A score is only comparable inside one run. The spreads and the notes paired come from that run's "before"
+  engine, so the same engine can read 4.3 in one pull request and 4.6 in the next. Compare before with
+  after, not one report with another, and never one instrument with another (the tuba's 5.0 carries a
+  15 dB level offset: its recording session's gain against the level it is played at).
+* The bowed strings are chaotic: a different random seed moves a string's score about as far as a small
+  change does. The reeds can settle on two different regimes; whether a reed note is right is counted over
+  many players and start times (`scripts/reeds-regimes-mc.ts`), not read from one render.
+* The judge hears long notes alone. It cannot see short notes, joins between notes, releases, the delay
+  before a note speaks, or a note's level against a neighbour that was never recorded. Those have their own
+  tools (the rules table in `AGENTS.md` lists them) and their own tests.
+* **Kept without BETTER.** The rule is BETTER or not kept, with one stated kind of exception: a change that
+  fixes a fault the judge cannot see (a register 8 dB too loud, a string that rang a second too long, a
+  short note that did not speak), measured some other way, with no guard broken and the verdict printed as
+  it was. These are: the harp's voicing (the judge cannot tell the fitted one from the hand-set one), the
+  glockenspiel's upper partials' levels, the cello's two polish rounds, the violin's and viola's low body
+  mode, the viola's idle strings, the double bass's air mode, the trumpet's and trombone's tongued onsets.
 
-Iterations: four decay-only fits, then one full fit. The state reported is
-the one measured after those five; two further full fits oscillated
-(±0.5 dB in level and spectrum on noisy single-performance targets) and were
-not kept.
+**The piano's attack** has a judge of its own, `scripts/attack-judge.ts`: the burst at 6–12 kHz in the first
+12 ms over the sustain, and how fast it dies, against the Steinway, on the notes whose recorded burst clears
+the hiss by 10 dB, half of them held out.
 
-| # | change | tuning ¢ RMS | B log₁₀ RMS | T60 early model/ref (A0–B1, C2–B3, C4–B5, C6–C8) | T60 late model/ref | per-partial log₂ RMS early / late | level err dB pp/mf/ff | ⅓-oct err dB | brightness contrast err dB/partial (bias) |
+## Reference recordings
+
+All are used under terms that allow it, for analysis only.
+
+| instrument | recording | what is used | cache | held out |
+|---|---|---|---|---|
+| piano | University of Iowa MIS: Steinway & Sons model B (211 cm), November 2001; two Neumann KM 84 8″ over the strings, 16-bit/44.1 kHz stereo, one gain for all dynamics | 23 keys (every fourth from A0, and C8) × pp, mf, ff = 67 notes for the fit; all 88 keys = 261 notes for the judge | `.cache/iowa` | the 65 keys between |
+| violin, viola, cello, double bass | Iowa MIS, arco: violin (J. Jean-Francois), viola (C. Taylor, 1996), cello (J. Montes on a 1736 Stradivarius, 2001), double bass; anechoic chamber, one KM 84 at about 5 ft, mono | 79 / 78 / 67 / 112 notes, pp mf ff, the notes the model plays on the same string | `.cache/iowa-ens` | odd MIDI notes |
+| flute | Iowa MIS (S. Feig, 2000), played without vibrato | 109 notes C4–C7 | `.cache/iowa-ens` | odd notes |
+| oboe, B♭ clarinet, bassoon | Iowa MIS | 103 notes B♭3–A♭6 / 135 notes D3–B♭6 (concert pitch) / 116 notes B♭1–D5 | `.cache/iowa-ens` | odd notes |
+| horn | Iowa MIS (J. Wiskus, 1997), a double horn, concert pitch | 87 notes B♭1–F5 | `.cache/iowa-ens` | odd notes |
+| trumpet | Iowa MIS B♭ trumpet, without vibrato | 105 notes E3–E♭6 | `.cache/iowa-ens` | odd notes |
+| trombone | Iowa MIS tenor and bass trombones (1997); the bass played with vibrato | 107 + 111 notes, E2–C5 and C1–B♭4 | `.cache/iowa-ens` | odd notes |
+| tuba | Iowa MIS (1997) | 107 notes C1–C4 | `.cache/iowa-ens` | odd notes |
+| timpani | VSCO 2 Community Edition (Versilian Studios, CC0): five pedal drums, three dynamics, two takes; close and room microphones summed | 24 strokes | `.cache/vsco-timpani` | drums 2 and 4 |
+| harp | Versilian Community Sample Library (VCSL, CC0): a concert pedal harp, 23 strings E1–F7, each at two dynamics | 45 plucks | `.cache/vcsl-harp` | every second string |
+| glockenspiel | Iowa MIS "Bells" (2001), anechoic, plastic mallets | 84 clean strokes on the bars G5–C8, pp mf ff | `.cache/iowa-bells` | odd bars |
+
+The Iowa terms: "may be downloaded and used for any projects, without restrictions"
+(https://theremin.music.uiowa.edu/MIS.html). Six five-second Steinway excerpts are shipped
+(`apps/web/public/ref/`) for the Measurements page's side-by-side listening; nothing else is. Iowa has no
+timpani and no harp. The flautist's vibrato runs (`.cache/iowa-vib`, fetched by hand) are used only to
+measure a player's vibrato.
+
+**What is odd about each set**, and matters when reading its numbers:
+
+* *Every set*: its absolute level is its session's microphone gain. The Iowa viola was recorded 17 dB under
+  the violin, the trombones 9 dB under the horn, the tuba 19 dB under it. Levels are compared inside an
+  instrument, never across.
+* *Piano*: one take a key, by hand, so a pianissimo note can stand 10 dB from its neighbour. Above about
+  4 kHz the recording is mostly its own hiss. Neighbouring keys' early decay differs by a factor of ten
+  (some partials sit on a soundboard resonance), so decays are compared by register, never note by note.
+  A0's partials cannot be fitted. No note is released: there is no reference for the dampers.
+* *Violin, viola*: no C4 or C♯4 in the sets, where their lowest body resonance lies. Vibrato on a fifth of
+  the violin's notes and almost none of the viola's.
+* *Cello*: vibrato on four notes in five (17 ¢ at 5.4 Hz).
+* *Oboe, clarinet, bassoon*: the runs leave 50–100 ms between notes and need their own segmentation.
+  Above 10 kHz (the clarinet's pianissimo: above 3 kHz) the recordings are room and microphone.
+* *Horn*: the runs are uneven. Fortissimo covers the compass; mezzo-forte lacks C3–B3; pianissimo is only
+  B♭1–B1 and C4–F5. The "pp→ff" figure (4 dB) compares different notes and says little.
+* *Tuba*: its three lowest notes have no measurable fundamental, and its pianissimo is brighter than its
+  mezzo-forte: session hiss, not tone.
+* *Timpani*: a room, not an anechoic chamber, and the files end in a fade (only their first 60 % is read).
+  The softest layer of drums 1 and 5 is in the noise and left out.
+* *Harp*: each string plucked once at each dynamic, each pluck at its own place under the finger, so the
+  recordings scatter more from string to string than any smooth voicing can follow.
+* *Glockenspiel*: the recorded instrument is 10–30 ¢ sharp (the model is compared at the recorded bar's own
+  pitch). A pianissimo stroke's upper partials are in the noise. The brass-mallet run is not usable.
+
+## Current scores
+
+As of 2026-11-14 (`npx tsx scripts/judge-all.ts`; the Measurements page's summaries beside them). The score
+is the judge's on the held-out notes: 1 would be "as far from a recorded note as its neighbour". The other
+columns are plain units, model against recording, over all notes ([what each is](#how-a-comparison-is-made)).
+
+| instrument | notes (held out) | judge score, held-out | harmonics dB | spectrum dB | brightness × | noise dB | attack × | pp→ff dB (recorded) | pitch ¢ |
 |---|---|---|---|---|---|---|---|---|---|
-| R10 | round-1/2 final (baseline, 6812c18) | 3.79 | 0.063 | 1.14, 2.17, 0.81, 0.60 | 0.68, 0.95, 1.35, 0.98 | 1.72 / 0.67 | 8.0 / 4.4 / 5.2 | 4.54 | 4.28 (+0.46) |
-| R11 | bridge-segment fit, 500 Hz beat cap (7e05885) | 4.10 | 0.068 | **1.00, 1.14, 0.93, 0.90** | **0.67, 0.95, 1.11, 1.03** | **1.21** / 0.82 | 8.3 / 4.7 / 5.4 | 4.64 | **2.13 (−0.40)** |
+| violin | 79 (41) | 2.97 | 8.6 | 2.8 | 1.00 | −3.3 | 0.30 | 18.8 (19.1) | 2.0 |
+| viola | 78 (37) | 4.30 | 8.6 | 3.4 | 0.97 | −2.5 | 0.85 | 16.2 (9.9) | 1.6 |
+| cello | 67 (32) | 1.85 | 11.1 | 4.2 | 0.94 | +0.5 | 0.93 | 14.2 (12.5) | 2.5 |
+| double bass | 112 (56) | 1.83 | 7.0 | 5.0 | 0.97 | +1.6 | 1.33 | 13.8 (11.0) | 2.0 |
+| flute | 109 (53) | 3.30 | 7.1 | 4.7 | 0.97 | +5.4 | 1.06 | 10.2 (12.6) | 1.0 |
+| oboe | 103 (50) | 2.34 | 8.0 | 10.5 | 0.92 | +2.0 | 1.31 | 14.2 (14.1) | 0.8 |
+| clarinet | 135 (66) | 1.95 | 8.8 | 4.0 | 0.99 | −0.3 | 0.80 | 12.3 (13.8) | 1.2 |
+| bassoon | 116 (55) | 2.07 | 8.6 | 8.7 | 1.05 | +1.6 | 0.87 | 11.9 (12.8) | 0.3 |
+| horn | 87 (44) | 2.09 | 3.8 | 11.2 | 1.01 | +0.5 | 1.17 | 4.8 (4.4) | 0.2 |
+| trumpet | 105 (51) | 3.49 | 4.2 | 3.3 | 0.93 | +1.0 | 0.64 | 9.2 (9.6) | 2.7 |
+| trombone | 218 (109) | 3.97 | 6.7 | 5.5 | 1.05 | +0.3 | 0.79 | 22.0 (21.7) | 0.5 |
+| tuba | 107 (52) | 5.00 | 5.7 | 14.4 | 0.97 | 0.0 | 1.17 | 21.7 (25.4) | 0.2 |
 
-**What improved:**
-* every register's prompt decay is now within ×0.90–1.14;
-* the tenor gained most (×2.17 → ×1.14) and the top octave went from ×0.60 to ×0.90;
-* the per-partial early-decay error fell by 30 %;
-* the brightness-contrast error halved.
+| instrument | strokes (held out) | judge score, held-out | what the Measurements page shows (mean error over all strokes) |
+|---|---|---|---|
+| piano | 261 notes (194) | 3.00 | tuning 3.7 ¢; stiffness within 15 %; level 8.6 / 5.0 / 5.7 dB at pp / mf / ff; third-octave spectrum 5.1 dB; held-out keys: level 4.2 dB, partials 8.6 dB, brightness 0.45 octave, early decay 1.0 octave, late decay 0.9 octave |
+| timpani | 24 (12) | 3.50 | modes' frequencies 31 ¢, their levels 8.1 dB, spectrum 14.8 dB, decay 0.18 octave, brightness 0.24 octave, attack 2.1 dB |
+| harp | 45 (22) | 1.28 | partials' levels 8.7 dB, spectrum 11.5 dB, decay 0.54 octave, time to fall 20 dB 0.51 octave, brightness 0.23 octave, stretch 6.1 ¢ |
+| glockenspiel | 84 (42) | 1.28 | partials' ratios 21 ¢, their levels 7.6 dB, spectrum 5.5 dB, the pitch's decay 0.42 octave, brightness 0.12 octave |
 
-**What got slightly worse:**
-* tuning, by 0.3 ¢ (the mid-register partial-1 frequencies moved about 2 ¢
-  with the changed unison coupling);
-* the per-partial late-decay spread;
-* level at mf and ff, by 0.2–0.3 dB.
+The piano, by register (median ratio of the model's decay time to the recording's, partials 1–3, on the 23
+fit keys):
 
-**What is unchanged:** the bass aftersound (×0.67).
+| | A0–B1 | C2–B3 | C4–B5 | C6–C8 |
+|---|---|---|---|---|
+| early decay (prompt sound), model / recording | ×1.00 | ×1.04 | ×0.97 | ×0.78 |
+| late decay (aftersound), model / recording | ×0.79 | ×1.22 | ×1.00 | ×1.11 |
 
-The felt-relaxation (Stulov) item on the round-2 plan was not implemented:
-after this fit the remaining pp→ff contrast bias is −0.4 dB/partial, smaller
-than the per-note scatter of the reference.
+Steps in level between neighbouring keys (median, dB; the Steinway's beside the model's, all 88 keys), at
+mf: A0–B2 1.3 | 2.5, C3–B4 1.9 | 1.8, C5–F6 3.6 | 2.4, F♯6–C8 2.6 | 4.2. A real piano is not even from key
+to key at a close microphone, and the model is about as uneven as the Steinway, except above F♯6, where it
+is rougher.
 
-## Strings and flute against recordings (round 2)
+Read with [the oddities](#reference-recordings) in mind: the horn's and tuba's large spectrum errors are
+mostly bands 30–45 dB under the peak, where a recording has hiss and breath and a dry model has nothing;
+the tuba's and the viola's level terms are session gain and one player's dynamics.
 
-**Reference.** University of Iowa MIS pre-2012 sets, recorded in an anechoic
-chamber with a Neumann KM 84 at about 5 ft, 16/44.1 mono:
-- violin;
-- viola (1996);
-- cello (Stradivarius 1736, 2001);
-- flute, non-vibrato (2000).
+## Instrument by instrument
 
-All are at pp, mf and ff. `scripts/ensemble-refs.ts` downloads 56 files on
-demand into `.cache/iowa-ens` (gitignored, ~500 MB) and segments each
-chromatic run into notes (envelope gate plus harmonic-sum pitch
-identification). It keeps only the notes the model plays on the same string
-(first position), giving 333 notes:
-- violin 79;
-- viola 78;
-- cello 64;
-- flute 109 (C4–C7).
+For each: how it is fitted, where the fitted values live, the verdicts that put it where it is, and what is
+known to be off. The pull request notes named hold the tables and the audio.
 
-The recordings are analysed, never played or shipped.
+### Piano
 
-**Analysis.** `analyzeSustained`, unit-tested on synthetic signals, works on
-the steady part of each note (25 %…85 %). It measures:
-- the harmonic band levels H1–H16 (median over frames), relative to the
-  strongest;
-- the even/odd power ratio, k ≤ 10;
-- the harmonic-to-noise ratio (±0.15 f₀ around each harmonic vs the
-  inter-harmonic bands, k ≤ 8);
-- the third-octave long-term spectrum and centroid;
-- the 10–90 % attack;
-- vibrato rate and depth from a 10 ms f₀ track;
-- RMS level.
+* **Fit.** `pnpm calibrate --fit` → `calibration-fit.json`. The stiffness curve B(key) is fitted directly
+  (the two-asymptote model of Rigaud et al. 2013). Everything else moves by damped, bounded steps at a few
+  breakpoints across the keyboard: string loss (late decay), bridge admittance per bridge segment (early
+  decay), felt exponent (how much brighter loud is than soft), hammer velocity range (the pp and ff levels),
+  register voicing (level at mf, ±6 dB), and an output EQ (third-octave, for the board's radiation and the
+  microphones). `--decay-only` moves the decay levers alone.
+* **Verdicts.** The decay, tuning and stiffness were fitted over thirteen logged rounds
+  (`docs/calibration-rounds.json`) before the judge existed. Since 2026-11-14 the piano has a judge like the
+  others (`scripts/piano-judge.ts`, `judge.ts --instrument piano`: all 88 recorded keys, the 65 the fit never
+  sees held out). Its first verdicts:
+  * The **output EQ** had been fitted band by band and stood at +12 dB at 4 kHz (its bound) beside −5 dB
+    at 2.5 kHz, and +10.7 dB at 100 Hz between two bands at +2. On the held-out keys *no EQ at all* scored
+    better than it (3.10 → 3.03). Each band averaged with its neighbours: **BETTER**, held-out 3.10 → 3.00
+    (Δ 0.09 ± 0.02), fit keys 3.41 → 3.26; partials 8.82 → 8.60 dB, brightness 0.49 → 0.45 octave, no
+    guard broken. Kept, and the fit now smooths its EQ by rule and prints every constant that ends on its
+    bound.
+  * A whole refit (`--fit`, one step, before the EQ was smoothed): NO CLEAR CHANGE (3.10 → 3.12). Not kept.
+  * The share of the board's high-frequency path that is direct (0.6; the rest a 30 ms diffuse tail)
+    raised to 0.8 or 0.9: NO CLEAR CHANGE (Δ 0.00). It does even the top keys (see "Level, note by note"
+    below) but changes the character of every treble note, and the judge gives no reason: left as designed.
+  * The attack (`attack-judge.ts`, whose sustain window was being cut short until this round: fixed): the
+    6–12 kHz burst over the sustain is +1.5 dB against the Steinway on the fit half and +8.2 dB on the
+    held-out half; its decay −0.8 and −1.9 dB. The two halves disagree, so the tick's level was left.
+* **Known limits.**
+  * *Bass aftersound*: about four-fifths as long as the Steinway's (×0.79 in A0–B1), with the string's own
+    loss already at its limit; the board near the bass bridge sets it.
+  * *Level, note by note*: 5 dB RMS from the recording at mf and ff, 7–8 at pp. Much of that is the
+    recording (one take a key). Between neighbouring keys the model steps by 2–4 dB (median), about
+    what the Steinway does, but above F♯6 by 4–5 dB where the Steinway steps by 2–3: a steady treble
+    partial reads the diffuse part of the board's high-frequency path at one frequency, and that part is
+    as large as the direct one.
+  * *Brightness at the attack*: the first quarter-second is about a sixth of an octave brighter than the
+    Steinway's in the median (it was a quarter before the EQ was smoothed), more at pianissimo.
+  * *From pp to ff* the model brightens 0.4 dB per partial less than the Steinway. A felt whose stiffness
+    depends on how fast it is struck (Stulov) is the missing piece.
+  * *The soundboard* is about 150 plausible modes and a statistical path above them, not this board; the
+    EQ stands in for its radiation and for the microphones.
+  * *The upright* has no recording: it is the grand's model at an upright's measures.
+* **Lessons.** Most "missing highs" were the recording's noise floor. A fit left unbounded runs away on any
+  lever the measure does not feel. The treble's fast early decay was unison beating (a tuner sets unisons by
+  beat rate, not by cents: the spread is capped at about 0.3 Hz). Render the model exactly as long as the
+  recording that is analysed, or long decays read short.
 
-`scripts/calibrate-ensemble.ts` renders the same notes with the model:
-- dry, at 44.1 kHz;
-- velocity 30 / 70 / 112 for pp / mf / ff;
-- held 2.6 s;
-- **without vibrato where the player used none**.
+### Violin, viola
 
-It then analyses both sides identically and logs to
-`docs/ensemble-rounds.json`. Matching the vibrato matters: model vibrato on a
-non-vibrato reference moves the measured HNR by 4–12 dB and the harmonic
-levels by up to 10 dB. The rounds before R2-5 were measured without it and are
-labelled so; the baseline was re-measured on the round-1 engine (6812c18) with
-the matched method.
+* **Fit.** `scripts/fit-bodies.ts` (and `fit-half.ts` for single values), into `bowed-fit.json`: the body's
+  radiation as fifteen half-octave bands fitted to every harmonic of the fit half's notes, with each note's
+  level kept; a corner that rounds the bowed string's sawtooth more at soft dynamics; rosin noise; the bow's
+  speed range.
+* **Verdicts.** Bodies fitted note by note (#18): violin BETTER 3.86 → 3.03 (Δ 0.83 ± 0.22), viola BETTER
+  5.20 → 4.34 (Δ 0.85 ± 0.20). Later level and ring fixes (the lowest body mode damped; the viola's idle
+  strings coupled more loosely) were NO CLEAR CHANGE and kept as measured faults fixed.
+* **Known limits.** Harmonic profiles are still 8–9 dB per note from the recordings (whose own neighbours
+  differ by about 5.5). The violin's long tones start in a third of the recorded time (×0.30): the Iowa
+  violinist eases into each note. The viola's dynamics are wider than the violist's (16 dB against 10). The
+  violin's idle strings ring on about a second after a note (the recording: 0.4 s) and pull a short A5 flat.
 
-**Metrics:**
-- **Harmonic-profile error:** the median over notes of the per-note RMS of the
-  H1–H12 difference, using harmonics within 45 dB of the strongest.
-- **Spectrum:** the RMS of the third-octave difference between pooled,
-  normalised long-term spectra (100 Hz–10 kHz, bands within 45 dB of the
-  reference peak).
-- **Even/odd and HNR:** median differences, model minus recording.
-- **Dynamic spread:** median ff minus median pp level.
+### Cello
 
-| instrument | harmonic err dB | spectrum err dB | centroid ratio | HNR diff dB | pp→ff spread dB | even/odd err dB | pitch ¢ RMS | attack ratio |
-|---|---|---|---|---|---|---|---|---|
-| violin | 12.08 → **11.81** | 17.45 → **14.57** | 0.65 → **0.70** | +4.35 → **−1.69** | 12.49 → **17.14** (rec. 19.14) | −2.03 → −1.27 | 2.58 → 2.53 | 0.25 → 0.24 |
-| viola | 11.06 → 11.09 | 14.17 → **10.97** | 0.63 → **0.85** | +1.83 → −1.69 | 11.24 → 10.90 (rec. 9.86) | −3.58 → **−2.86** | 2.12 → 1.67 | 0.31 → 0.42 |
-| cello | 13.14 → **11.55** | 20.82 → **17.00** | 0.60 → **0.73** | −0.85 → *−3.86* | 11.62 → **12.38** (rec. 12.48) | +0.32 → +1.08 | 2.78 → *4.25* | 0.72 → 0.86 |
-| flute | 8.74 → **7.08** | 8.15 → **4.51** | 0.91 → **0.97** | +21.63 → **+5.28** | 5.14 → **10.49** (rec. 12.55) | −15.1 → **−5.16** | 0.82 → 0.92 | 0.92 → *1.67* |
+* **Fit.** `scripts/fit-cello.ts`, fit half, the judge's own score plus the long-term spectrum and the
+  pp→ff spread; into `bowed-fit.json`. A bow of finite width, torsion, a bridge hill.
+* **Verdicts.** BETTER 2.68 → 1.91 (Δ 0.77 ± 0.15) for the rebuilt chain; two polish rounds NO CLEAR CHANGE
+  and kept for what they targeted (brightness at pp, the sample rate, noise). A body fit like the violin's
+  was tried twice and judged WORSE (the centroid guard): not kept.
+* **Known limits.** Pianissimo is too bright (×1.35) and fortissimo too dark (×0.76): the real cello's
+  brightness doubles from pp to ff, the model's hardly moves. Soft attacks take about 0.3 s to settle.
 
-Before = round-1 engine (6812c18) and after = R2-6 final, both measured with
-the matched method. Bold marks improvements; italics mark regressions.
+### Double bass
+
+* **Fit.** `scripts/fit-bodies.ts bass --levels`, into `bowed-fit.json`.
+* **Verdicts.** BETTER against its unfitted start, 3.68 → 1.98 (Δ 1.70 ± 0.16). The air mode's radiation
+  halved in #75 (B1–C♯2 stood 6–11 dB over the recording): NO CLEAR CHANGE, kept as a level fix.
+* **Known limits.** Pianissimo is 5–10 dB short between 600 Hz and 4 kHz. D2 at mf is 9 dB under its
+  recording. A few notes start on the wrong regime (about 4 %, most settling within a second).
 
 ### Flute
 
-The jet saturated into a near-square wave at about 50 % duty cycle, so the
-offset made almost no even harmonics: the model's even/odd balance was −30 dB,
-against −4…−19 dB in the recordings. Changes:
-- **Vortex-shedding loss.** A passive loss at the labium: the reflection
-  R/(1 + γ|y|) weakens with amplitude.
-- **Monopole radiation.** Both openings radiate as the time derivative of
-  their volume flow.
-- **Explicit voicing.** `FLUTE_VOICE` holds the jet gain, the jet offset by
-  register, the vortex loss, the jet receptivity, the radiation, the breath
-  noise and the velocity→flow/pressure map (pressure may only rise with
-  loudness).
+* **Fit.** `scripts/fit-flute.ts` (an evolution strategy on medians per register and dynamic; it predates
+  the judge and holds nothing out) into `FLUTE_VOICE`; pitch by `scripts/tune-flute.ts` →
+  `flute-tuning.json`.
+* **Verdicts.** None for the voicing itself. Every change since (#59, #74, #77, #80) has been checked
+  identical on the judge's notes (3.30 → 3.30).
+* **Known limits.** In the low register at mf and ff the recording's second harmonic is about as strong as
+  its first; the model's is about 10 dB short. The model is 5 dB cleaner than the recording (less breath
+  between the harmonics). Dynamics 10 dB against the flautist's 12.5.
 
-`scripts/fit-flute.ts` fits these parameters with a (1+λ) evolution strategy
-to per-register × per-dynamic medians:
-- H1–H8;
-- even/odd balance;
-- HNR;
-- level spread and register balance.
+### Oboe, clarinet, bassoon
 
-Penalties enforce pitch (±35 ¢ before the tuning table) and the octave
-overblow at 2.5× breath. The top notes then needed a lip-opening gain ramp
-(×1.5 at C7). The tuning table was re-measured, and all 37 notes are within
-1.2 ¢ at 44.1 and 48 kHz.
+* **Fit.** `scripts/fit-oboe.ts`, `fit-clarinet.ts`, `fit-bassoon.ts`: a (1+1) evolution strategy over about
+  thirty voicing constants on the fit half, scored with the judge's formula for harmonics, centroid, noise
+  and attack, plus the steps between dynamics, the level across the compass, and a survey that every note
+  of the compass stays on its own register at four sample rates. Into `OBOE_VOICE`, `CLARINET_VOICE`,
+  `BASSOON_VOICE`; pitch by `scripts/tune-*.ts`. `--only a,b,c` refits a part of the voicing.
+* **Verdicts.** Each BETTER against its start design: oboe 4.88 → 2.34 (Δ 2.54 ± 0.15), clarinet 4.77 →
+  2.14 (Δ 2.62 ± 0.17), bassoon 3.68 → 2.07 (Δ 1.61 ± 0.12). This round a refit of the oboe's radiated colour alone gained only on the level term (the
+  session's gain: 8.3 → 6.9 dB; harmonics 8.37 → 8.50 dB) and cut the low fundamental further: not kept.
+* **Known limits.**
+  * The *lowest notes' fundamental* is too weak on the oboe (B♭3–E♭4 at mf and ff: 20–30 dB under the
+    strongest harmonic, the recordings 9–14) and on the bassoon (B♭1–F2). On the double reeds the reed
+    shuts several times a period down there instead of once. A shelf to lift the fundamental was tried on
+    the bassoon and judged WORSE. It needs a new reed model, not a filter.
+  * *Regimes*: a double reed's held note sits near its octave. Counted over many players and start times,
+    about 2 % of the oboe's and 1 % of the bassoon's notes land on the wrong one.
+  * The *clarinet's* top third is about 17 dB short of even harmonics and its low register has about 9 dB
+    too much of them; its pianissimo spectrum error (12 dB) is mostly the recording's noise above 3 kHz.
+  * Soft low notes speak sooner than the players' (who swell in over up to a second).
 
-The even/odd balance by register (C4–B4, C5–B5, C6–C7) was −30 / −28 / −22 dB
-in the model, and is now −12 / −14 / −20 dB. The recordings measure −4 / −12 /
-−19 dB.
+### Horn, tuba
 
-**Remaining gap.** At mf and ff in the low register the recording's H2 is
-about as strong as H1, and the model stays about 10 dB short. The attack also
-got slower (×1.7), set by the oscillation's lower small-signal gain rather
-than the breath envelope.
+One engine (`lipcone.ts`: lips on a conical bore), two voicings.
 
-### Violin, viola, cello
+* **Fit.** `scripts/fit-horn.ts` (`--instrument tuba` for the tuba; `--only` for a part of the voicing),
+  as the reeds': fit half, the judge's score, dynamics, compass level, and every note on its own partial at
+  four sample rates (`scripts/horn-regimes.ts`). Into `HORN_VOICE`, `TUBA_VOICE`; pitch by
+  `scripts/tune-horn.ts`.
+* **Verdicts.** Horn BETTER 7.77 → 2.26 (Δ 5.51 ± 0.23) against its start. Its radiated colour and steepening were refitted on 2026-11-14 (the fortissimo's harmonics above
+  2 kHz stood 8–30 dB under the recordings'): BETTER 2.26 → 2.09 (Δ 0.17 ± 0.04); harmonics 4.96 → 4.58 dB,
+  noise 2.40 → 1.98 dB, the ff spectrum 14.4 → 11.2 dB, every note still on its partial. Tuba BETTER 10.83
+  → 5.89 (Δ 4.93 ± 0.24), then its breath noise refitted, BETTER 5.89 → 5.81. Its level was
+  then set 4.5 dB lower for its limiter's sake (#84), which the judge's level term reads as 5.81 → 5.00.
+* **Known limits.** The lips' fitted sharpness (Q about 50) is far above what is measured on players
+  (3–10). The horn's soft middle register (no pp C2–B3 was recorded) is the model's own extrapolation. The
+  tuba's pianissimo recordings are brighter than its mezzo-forte's (hiss) and the model does not follow
+  them. Its level is set by its limiter and its place beside the horn, not by its recording.
 
-The bodies' radiation was missing above the modal range: model spectra fell
-20–40 dB below the recordings above about 3 kHz. The low-string fundamentals
-were also about 10 dB weak.
+### Trumpet
 
-`scripts/fit-strings.ts` fits each instrument with the same evolution strategy.
-The parameters are:
-- the statistical high-frequency body path (gain and corner);
-- the bridge-hill formant and low shelf gains;
-- the bow-speed range across velocity;
-- the string loss at 3 kHz.
+* **Fit.** By hand, each step judged (`scripts/trumpet-iter.ts`); the constants are in `brass.ts`. Pitch by
+  `scripts/tune-trumpet.ts`.
+* **Verdicts.** Three steps, each BETTER: the bell's radiation (12.93 → 7.24), breath noise at the lips
+  (→ 4.11), level (→ 3.25). Eleven other attempts were NO CLEAR CHANGE or WORSE and dropped. The tongued
+  onset was NO CLEAR CHANGE, kept for short notes.
+* **Known limits.** Pianissimo is too bright in its upper harmonics (the lips close every cycle at every
+  dynamic; a real player's do not when soft). Long tones start faster than the recorded ones (×0.64). The
+  bore is an ideal harmonic series.
 
-The loss combines:
-- the per-dynamic long-term spectrum;
-- harmonic profiles by register and dynamic;
-- the pp→ff spread;
-- HNR deficit and pitch, both added after a first fit made the violin
-  scratchy (HNR 17 dB at ff against the recording's 36 dB).
+### Trombone
 
-It uses three notes per group, with matched vibrato.
+* **Fit.** `scripts/fit-trombone.ts`: as the horn's, with the bore's own measures left alone. Into
+  `TROMBONE_VOICE`; pitch by `scripts/tune-trombone.ts`. Tenor and bass are one model at two sizes, each
+  compared with its own recording. The alto has none.
+* **Verdicts.** BETTER 7.70 → 3.97 (Δ 3.73 ± 0.25).
+* **Known limits.** Pianissimo ×1.29 too bright, fortissimo ×0.75 too dark: the same one-mass lips. It is
+  played 9 dB over its calibrated level in an ensemble (`PLAYBACK_DB`), its session having been recorded low.
 
-**Dynamics now come from the bow position, not runaway bow speed.** The
-first fits reached the recordings' pp→ff spread with bow speeds up to
-1.5 m/s. That is three times round 1's, and with 64 cm of hair it forced a bow
-change every 0.6 s on a sustained ff note, so the motion never settled. The
-Look-inside view showed several slips per period. The Iowa players held 7 s
-ff notes, which caps their speed near 0.1 m/s.
+### Timpani
 
-Players play louder mostly by moving the bow towards the bridge with more
-weight (Schelleng), so velocity now also scales the bow position:
-- violin: ×1.25 at pp to ×0.6 at ff;
-- viola: ×1.1 to ×0.85;
-- cello: ×1.15 to ×0.75.
+* **Fit.** `scripts/fit-timpani.ts` then `polish-timpani.ts`, thirty constants, on drums 1, 3 and 5. Into
+  `TIMPANI_VOICE`. Compared at the recorded drum's own pitch.
+* **Verdicts.** BETTER 9.25 → 3.50 (Δ 5.75 ± 0.34, twelve held-out strokes).
+* **Known limits.** Fortissimo is darker than recorded (272 Hz against 363) and the second mode 3–7 dB
+  low. The 15 dB spectrum error is largely the recording's room: the fit once tried to make the drum ring
+  like the hall, and that was held back by hand.
 
-At a fixed fraction of Schelleng's maximum force this raises the force too.
-Bow speed is capped at 0.4 m/s (violin), 0.33 m/s (viola) and 0.34 m/s
-(cello). The stick fraction of the string under the bow now equals 1 − β
-(Helmholtz motion) at every analysed note and velocity, including 127.
+### Harp
 
-A fitted bow-force-versus-dynamic map was **rejected** as well. Values below 1 made
-high positions on the E string (A6, above any analysed note) fall under the
-minimum bow force: a breathy "surface sound" with the B1− body mode louder
-than the fundamental. The bow force stays a fixed fraction of Schelleng's
-maximum. Output gains were re-normalised so each instrument keeps its round-1
-median mf level (ensemble balance).
+* **Fit.** `scripts/fit-harp.ts`, on every second string, into `HARP_VOICE`.
+* **Verdicts.** NO CLEAR CHANGE against the voicing first set by hand (1.59 → 1.32, Δ 0.27 ± 0.15, eleven
+  strings), and again with the second dynamic (1.29 → 1.28). It is the one voicing shipped without BETTER:
+  a string is 1.3 spreads from any voicing fitted without it, where 1.0 is how far it is from its
+  neighbour. More strings would settle it; more plucks of the same ones do not.
+* **Known limits.** The wire strings are the least like the recordings (partials' levels 12 dB out).
 
-The cello default vibrato is now 20 ¢. The cellist's measured median is
-17 ¢ at 5.4 Hz, and the model now measures 17.4 ¢ at 5.25 Hz (8 ¢ before). The
-Iowa violinist and violist used vibrato on only 22 % and 6 % of notes, so their
-musical defaults are kept.
+### Glockenspiel
 
-**Remaining gaps:**
-- **Spectral balance:** still 11–16 dB RMS. Above about 4 kHz the modal bodies
-  plus a single statistical path cannot follow the measured bridge-hill and
-  air-radiation detail.
-- **Harmonic profiles:** within about 11–13 dB per note.
-- **Cello noise and pitch:** the cello is now 4 dB noisier than its recording
-  between harmonics (it was within 1 dB), and its pitch scatter rose to 4.3 ¢.
-- **Viola harmonic profiles:** unchanged (11.06 → 11.09 dB).
-- **Integer bow contact point.** The bow contact point is a whole-sample tap,
-  `round(β·P/2)`. A 0.2 % change of β can flip it on some notes and move their
-  level by dB: a normalisation that left β within 0.3 % moved the viola's
-  median mf level by 2.7 dB before re-normalisation. A fractional
-  (interpolated) bow junction would remove this sensitivity.
+* **Fit.** `scripts/fit-glock.ts`: not a search. Each family of partials is measured on each recorded
+  stroke and regressed over pitch and dynamic. Into `GLOCK_VOICE`.
+* **Verdicts.** BETTER against a textbook thin bar (`--before textbook`): 1.86 → 1.48 (Δ 0.38 ± 0.09), and
+  1.74 → 1.28 since the comparison was moved to the recorded bar's own pitch. The upper partials' levels
+  were later corrected (they had been read 14–18 dB low): NO CLEAR CHANGE on the whole score, kept.
+* **Known limits.** No reference for rolls or for brass mallets.
 
-### Violin and viola bodies, fitted note by note (NEXT5, 2026-11)
+The harp and the glockenspiel were measured in this round and left as they were (another piece of work
+owns them).
 
-Full notes, numbers and audio: `artifacts/realistic-3d/final-next5/1-bowed/NOTES.md`.
+## Players
 
-- **Why the top octave was missing.** The round-2 chain sent the high-frequency path to the right
-  channel inverted. It cancelled exactly in a mono sum, so the fits above never reached it. It is now
-  in phase (as the cello's v2 chain was).
-- **`design.body`** replaces the hand-set bridge hill, low shelf and 7 kHz shelf with 15 half-octave
-  sections fitted to every harmonic (k ≤ 16, < 10 kHz) of the fit half's notes (even MIDI; the
-  judge holds out the odd ones). Each note keeps its own level. The envelope sits on 3 knots per
-  octave with a curvature penalty, both chosen by cross-validation inside the fit half
-  (`scripts/fit-bodies.ts`).
-- **Brightness follows bow force.** The bridge force was a sawtooth to its 16th harmonic at every
-  dynamic: the friction law leaves the Helmholtz corner as sharp at pp as at ff. A first-order
-  low-pass on the radiated sound stands in for the corner's rounding, cutoff
-  `corner[0] · f0 · (F/Z)^corner[1]` (violin 1.61, 1.4; viola 2.67, 0.9).
-- Chosen on the fit half with `scripts/fit-half.ts`: rosin noise (violin 0.2, viola 0.08) and the
-  viola's bow-acceleration times (0.2 s pp, 0.12 s ff).
-- **Judge (held-out): violin BETTER** (3.86 → 3.03, Δ 0.83 ± 0.22), **viola BETTER** (5.20 → 4.34,
-  Δ 0.85 ± 0.20). Long-term spectrum 14.0 → 4.0 dB (violin), 10.5 → 4.0 dB (viola); violin ff
-  centroid ×0.61 → ×0.82.
-- **The cello was tried twice and judged WORSE** (centroid guard: its harmonics stop near 1 kHz on
-  the low notes, so the fit is free where the centroid lives). It is unchanged, bit for bit.
+Every instrument but the piano has a player in its engine (`human`, 0 to 1): no two notes quite alike, a
+held note that breathes and wanders, a vibrato that belongs to the hand or the breath. What a player adds
+was measured on the same recordings (how much the recorded player's notes differ from one another:
+`scripts/*-variation.ts`, `winds-vibrato.ts`, `mechanical.ts`) and is given at or under what they show.
+
+The player is never what is fitted or judged. At `human: 0` each engine is, bit for bit, the model before
+it had a player (`scripts/same-sound.ts`, `packages/engine/test/players.test.ts`), and every calibration
+script asks for exactly that. So a refit cannot be bought with a player's randomness, and a player cannot
+cost the model its verdict. A player is checked separately: it must cost no note (on its pitch, there at
+all), at any length (`scripts/player-regimes.ts`).
+
+## Levels
+
+A recording's absolute level is its session's gain, so loudness is set and checked differently:
+
+* *Inside an instrument*, register by register against its own recording:
+  `npx tsx scripts/levels-vs-refs.ts [--only bass --notes]`. A register out of line is a fault. A difference
+  the recorded players also have (the clarinet's low register is 15–20 dB under the flute's top) is not.
+* *Between instruments*, as played (room, limiter, and what each is played over its calibration,
+  `PLAYBACK_DB`): `scripts/levels-table.ts`, `levels-compass.ts` (LUFS), `limiter-table.ts`.
+* A brass level is changed only with its LUFS and peak measured at mf and ff through the room and limiter.
+
+LUFS figures in different pull requests' notes come from different tools and passages; they do not line up
+with one another.
+
+## Known limits
+
+Of the method, apart from each instrument's own:
+
+* **One instrument, one player, one microphone** for each. A fit makes the model like that Steinway, that
+  cellist. Where a set has an oddity, the model is at risk of learning it.
+* **Long notes alone.** The fit and the judge hear held notes from silence. How notes begin, join and end
+  in music is measured by other tools, against fewer or no recordings.
+* **The noise floor reads as tone.** Above 4 kHz on the piano, 10 kHz on the oboe, 3 kHz on a pianissimo
+  clarinet, and across a pianissimo tuba, the recording is hiss. The comparisons gate what they can
+  (bands 12 dB over the floor on the piano, harmonics within 45 dB of the strongest elsewhere); the pooled
+  spectrum figure does not, and overstates the error of a clean model.
+* **A room reads as decay.** The timpani's recording has a hall in it; the model is dry.
+* **Dynamics are assumed.** pp, mf and ff are taken to be velocities 30, 70 and 112. A player's mf is their
+  own.
+* **Level is not a guard**, so the judge can pass a voicing whose register balance is off. `levels-vs-refs.ts`
+  is the check.
+* **The measures are not hearing.** Each is a number that tracks something audible; none says a note sounds
+  right. Before/after audio ships with every audible change for that reason.
+
+## History
+
+The old round-by-round log is in git (`git log -- docs/CALIBRATION.md`); the per-change tables and audio are
+under `artifacts/`. In short:
+
+| when | what | where |
+|---|---|---|
+| 2026-11-07/08 | Piano rounds R0–R13: literature defaults → fitted stiffness, decays by register and bridge segment, a second string polarisation, unison beat-rate cap, like-with-like render lengths | `docs/calibration-rounds.json` |
+| 2026-11-08 | Strings and flute first measured against Iowa; matched vibrato; dynamics from bow position | `docs/ensemble-rounds.json`, `artifacts/round2` |
+| 2026-11-08/09 | The judge (round 3); trumpet rebuilt in three judged steps; piano attack and release | `artifacts/round3/{trumpet,attack,release,audit}` |
+| 2026-11-09/10 | Cello rebuilt (bow width, torsion); violin and viola bodies fitted note by note; double bass | `artifacts/realistic-3d/cello-audio`, `…/final-next5/{1-bowed,double-bass}` |
+| 2026-11-10/11 | Oboe, clarinet, bassoon, horn, timpani, trombone, each fitted and judged BETTER | `artifacts/realistic-3d/final-symphony/*` |
+| 2026-11-11 | Three audio audits (levels, releases, joins, reed regimes) | `…/final-symphony/audio-audit`, `artifacts/round3/audio-audit-{2,3}` |
+| 2026-11-11/12 | Tuba, harp, glockenspiel; players in every engine; levels against the recordings | `artifacts/round3/{tuba,harp,glockenspiel,*-polish,consistency}` |
+| 2026-11-14 | Everything re-measured; this guide; a held-out judge for the piano; the piano's output EQ smoothed (BETTER) and the horn's fortissimo refitted (BETTER); the other fourteen measured as they were | `artifacts/round3/calibration` |

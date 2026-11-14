@@ -1,5 +1,5 @@
-// The calibration judge (after Chimera's): is a model change BETTER, WORSE or NO CLEAR CHANGE
-// against the recordings? Every error is measured in units of the recording's own note-to-note
+// The calibration judge (after Chimera's; docs/CALIBRATION.md, "The judge"): is a model change BETTER, WORSE
+// or NO CLEAR CHANGE against the recordings? Every error is measured in units of the recording's own note-to-note
 // variation (how much neighbouring real notes differ on that measure), notes alternate between a
 // fit half and a held-out half, and guards keep any one measure from being traded away.
 //   npx tsx scripts/judge.ts --instrument violin --before <repo>/packages/engine/src/core/index.ts [--after <engine>]
@@ -144,6 +144,19 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   const opt = (k: string) => (args.includes(k) ? args[args.indexOf(k) + 1] : undefined);
   const inst = (opt('--instrument') ?? 'violin').split(',');
   const { resolve } = await import('node:path');
+  if (inst[0] === 'piano') {
+    // the piano: every key of the Iowa Steinway, the 65 the fit never sees held out (scripts/piano-judge.ts;
+    // `pnpm refs:fetch --all` first)
+    const t = await import('./piano-judge.ts');
+    await t.useEngine(opt('--before') ? resolve(opt('--before')!) : undefined);
+    const before = t.pianoErrors(await t.compareAll());
+    await t.useEngine(opt('--after') ? resolve(opt('--after')!) : undefined);
+    const after = t.pianoErrors(await t.compareAll());
+    const v = judge(before.errs, after.errs, before.measures);
+    printVerdict(v, `piano: ${opt('--before') ? 'before' : 'this'} → ${opt('--after') ?? 'this checkout'}`);
+    if (args.includes('--json')) console.log(JSON.stringify(v));
+    process.exit(0);
+  }
   if (inst[0] === 'timpani') {
     // the timpani: struck strokes against VSCO 2 CE (scripts/calibrate-timpani.ts)
     const t = await import('./calibrate-timpani.ts');
@@ -187,13 +200,13 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     process.exit(0);
   }
   if (inst[0] === 'harp') {
-    // the harp: plucked strings against VSCO 2 CE (scripts/calibrate-harp.ts)
+    // the harp: plucked strings against the VCSL concert harp (scripts/calibrate-harp.ts)
     const t = await import('./calibrate-harp.ts');
     await t.useEngine(opt('--before') ? resolve(opt('--before')!) : undefined);
     const before = t.harpErrors(await t.compareAll());
     await t.useEngine(opt('--after') ? resolve(opt('--after')!) : undefined);
     if (opt('--folds')) {
-      // Two folds (one recorded pluck a string leaves eleven held-out strings: few). --folds a.json,b.json:
+      // Two folds (every second string held out leaves eleven held-out strings: few). --folds a.json,b.json:
       // a the voicing fitted on the strings not held (fit-harp.ts), b the one fitted on the held ones
       // (fit-harp.ts --swap); each string is judged by the voicing that never saw it, so all twenty-three
       // are held out.
