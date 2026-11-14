@@ -7,14 +7,15 @@
 // standing player's height (0.86 m to the bars: two crossed legs at each end on a pivot, a cradle under
 // the case, two stretchers), and two mallets (a brass head on a rattan shaft, a cord grip).
 //
-// What moves is the engine's (the frame's `glock`): a bar that rings glows as far as the engine says it
-// swings, and each mallet is over the bar its hand last struck: it comes down on a bar as it is struck and
+// What moves is the engine's (the frame's `glock`): a bar that rings glows with its ring (ring-glow.ts: lit
+// on the stroke, fading as the engine's level of it falls, a stopped bar at once), and each mallet is over the bar its hand last struck: it comes down on a bar as it is struck and
 // springs back up.
 import type { VisualFrame } from '@piano-model/engine';
 import { GLOCK_BAR_THICK } from '@piano-model/engine';
 import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, mulInto, rotY, translate, xform } from './gl3d.ts';
 import { M, bbox, cyl, ellipsoid, extrude, tube, variant } from './mesh.ts';
 import { boxOf, make } from './horn3d.ts';
+import { ringGlow, ringRGBA } from './ring-glow.ts';
 import { BARS, CASE, GK_X0, GK_X1, GK_Y0, GK_Y1, HEAD_R, HOLE_R, PIN_R, RAILS, RAIL_W, SHAFT, TRAY as TRAY_IN, WALL, barBox, barCentre, barNodes, strokePlace } from '../glock-plan.ts';
 
 /** the bars' top above the floor, the case's depth under them, the far row's step up */
@@ -193,7 +194,7 @@ export function buildGlockModel(): GlockModel {
  *  model's frame, m) and how far it is lifted */
 let stageState: { glow: number[]; heads: Vec3[]; lift: number[]; ringing: number } | null = null;
 const PM = new Float32Array(16);
-const GLOW: RGBA = [1, 0.74, 0.36, 0];
+const GLOW: RGBA = [0, 0, 0, 0];
 /** each scene's mallets: where their heads are (plan x, y), eased from frame to frame */
 const hands = new WeakMap<GlockModel, { p: [number, number][]; t: number }>();
 
@@ -203,12 +204,10 @@ export function poseGlock(b: Batch, gm: GlockModel, fr: VisualFrame | null, _dt:
   const glow: number[] = [];
   let ringing = 0;
   for (let i = 0; i < BARS.length; i++) {
-    const a = gv ? Math.min(1, gv.amp[i] ?? 0) : 0;
-    const g = a > 0.004 ? Math.min(1, 0.12 + 0.9 * Math.sqrt(a)) : 0;
+    const g = gv ? ringGlow(gv.amp[i] ?? 0) : 0;
     glow.push(g);
     if (g > 0) ringing++;
-    GLOW[3] = g;
-    b.mesh(gm.bars[i], T, g > 0 ? GLOW : null);
+    b.mesh(gm.bars[i], T, ringRGBA(g, GLOW));
   }
   // the mallets: each head over its hand's bar, down on it at the stroke and up again
   let h = hands.get(gm);
