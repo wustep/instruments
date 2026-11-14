@@ -1,5 +1,6 @@
-// Orchestra mode's built-in pieces: the files are Mutopia's own (checksums), they parse, and each
-// piece sets out its parts as listed (orchestra/pieces.ts), fitted to a smaller stage when needed.
+// Orchestra mode's built-in pieces: the files are Mutopia's own (checksums; five with their scores'
+// dynamics written into them: score-dynamics.test.ts), they parse, and each piece sets out its parts as
+// listed (orchestra/pieces.ts), fitted to a smaller stage when needed.
 // Four are this project's own (Fable 5.2, CC0): "Toward Morning", thirteen parts on thirteen seats,
 // "Everything So Far", eleven on eleven, "Pass It On", every instrument, seventeen on seventeen, and
 // "After You", a tango, twelve on twelve.
@@ -19,7 +20,7 @@ const load = (file: string) => {
 };
 
 describe('orchestra: the pieces', () => {
-  it('each file is Mutopia’s, byte for byte (four this project’s own, CC0), and parses into the lines its plan names', () => {
+  it('each file is its checksum’s: Mutopia’s (five with their scores’ dynamics written in), four this project’s own (CC0); each parses into the lines its plan names', () => {
     for (const p of PIECES) {
       const { b, song } = load(p.file);
       expect(createHash('sha256').update(b).digest('hex'), p.id).toBe(p.sha256);
@@ -95,9 +96,9 @@ describe('orchestra: the pieces', () => {
     expect(fitsStage(seats as never, 8)).toBe(true);
     // dropped as a plain file on a stage with room, its names seat the same orchestra
     expect(lineupOf(autoPlan(song.lines, { cap: 11 }))).toEqual(seats);
-    // its own dynamics, but for the viola's held notes, all at one soft velocity (34): automatic
-    // expression phrases that line alone (offline, every note of it still speaks within 0.2 s)
-    expect(express(song).shapes.map((sh, i) => (sh.flat ? song.lines[i].name : null)).filter(Boolean)).toEqual(['Viola']);
+    // its own dynamics on every line (the viola's and the cello's held notes, once all at one soft velocity,
+    // swell and fade since: score-dynamics.test.ts): automatic expression phrases none of it
+    expect(express(song).shapes.map((sh, i) => (sh.flat ? song.lines[i].name : null)).filter(Boolean)).toEqual([]);
     // the play icon: eleven seats play it; the thirteen still Toward Morning, the symphony's eighteen Beethoven's Fifth
     expect(PIECES[pieceForLineup(seats as never)].id).toBe('everything-so-far');
     const tm = PIECES.find((p) => p.id === 'toward-morning')!;
@@ -252,7 +253,7 @@ describe('orchestra: the pieces', () => {
 });
 
 describe('each instrument’s own piece (the play icon)', () => {
-  it('every instrument has one: Mutopia’s file byte for byte (the zephyr’s the page’s own), public domain, short, every note in its range', () => {
+  it('every instrument has one: Mutopia’s file by its checksum (the Handel and the Air with the dynamics written into them; the zephyr’s the page’s own), public domain, short, every note in its range', () => {
     for (const id of INSTRUMENT_IDS) {
       const d = DEMOS[id];
       expect(d?.instrument, id).toBe(id);
