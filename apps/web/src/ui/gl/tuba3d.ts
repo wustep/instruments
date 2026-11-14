@@ -2,9 +2,10 @@
 // stage's own plan (ui/tuba-plan.ts: the body's flattened spiral, the valves' loops, the main tuning slide
 // and the leadpipe, every length the engine's) given its depth: the body in one plane, the bell's stack
 // leaning in it, the valve block and its loops in front of it (front-action valves stand before the body,
-// leaning, under the right hand), the leadpipe across the front of the stack from the mouthpiece beside it.
+// leaning, under the right hand), the leadpipe across the front of the stack from the mouthpiece beside it,
+// which its last bend turns out of the body's plane towards the player (MP_TURN).
 // Which way round it is (the bell and the mouthpiece at the player's side, the valves before his right
-// hand): the head of tuba-plan.ts.
+// hand): the head of tuba-plan.ts; how it is held in the Orchestra: TUBA_SEAT, TUBA_HELD.
 // Lacquered yellow brass (the horn's, handled), nickel-silver caps, stems and ferrules, pearl buttons, a
 // silver-plated mouthpiece. Measures: 0.97 m to the rim, a bell 0.48 m across with a rolled bead, a 19 mm bore
 // through the valves, casings 33 mm across and 140 mm tall, 21 mm of piston travel (the makers' figures for
@@ -13,12 +14,12 @@
 // What moves, by the engine's own state: the pistons go down for the note's fingering (tubaFingering), each
 // on its spring; the breath goes into the mouthpiece (winds3d breathIn). The tubing and the bell are never lit, sounding or not.
 import { tubaFingering, valvesDown, type VisualFrame } from '@piano-model/engine';
-import { type Batch, type Mat4, type Mesh, type Vec3, chain, cross, mulInto, norm, rotX, rotZ, translate, xform } from './gl3d.ts';
+import { type Batch, type Mat4, type Mesh, type Vec3, chain, cross, mulInto, norm, rotX, rotY, rotZ, translate, xform } from './gl3d.ts';
 import { M, cyl } from './mesh.ts';
 import { F3, boxOf, latheOn, make, tubeAlong } from './horn3d.ts';
 import { fillet, springTo } from './oboe3d.ts';
 import { breathIn, type WindPose } from './winds3d.ts';
-import { BELL_LEN, BELL_TILT, BELL_X, BORE, BUTTON_Y, CASING_R, CASING_Y0, CASING_Y1, LEAD_X, MPIECE, MP_DIR, MP_RIM, PISTON_LEAN, RIM_R, RIM_Y, STACK_Y0, TRAVEL, TUBES, VALVE_X, VALVE_Y, bellAxisX, bellR, lean } from '../tuba-plan.ts';
+import { BELL_LEN, BELL_TILT, BELL_X, BORE, BUTTON_Y, CASING_R, CASING_Y0, CASING_Y1, LEAD_X, MPIECE, MP_RIM, PISTON_LEAN, RIM_R, RIM_Y, STACK_Y0, TRAVEL, TUBES, VALVE_X, VALVE_Y, bellAxisX, bellR, lean } from '../tuba-plan.ts';
 
 type P2 = [number, number];
 const BR = M.hornBrass;
@@ -36,6 +37,32 @@ const overBell = (x: number, y: number, r: number): number => {
 const smooth = (u: number) => {
   const t = Math.min(1, Math.max(0, u));
   return t * t * (3 - 2 * t);
+};
+/** The mouthpiece turned out of the body's plane, towards the player (rad). The plan draws the tuba from its
+ *  valve side, its mouthpiece in profile pointing out at the left; held, the mouthpiece goes back into the
+ *  player's lips while the body and its valves stand half turned to the hall (seated tubists from the hall:
+ *  the bell at the right of the head, the body and the right hand on the valves in front, the mouthpiece
+ *  out of sight going back into the face). The leadpipe's last bend, at its receiver, does that: it leaves
+ *  the body's plane on the side away from the valves, so the mouthpiece points back at the player whichever
+ *  way the body is turned on the lap. Built in the body's plane (as the plan has it, #68), the mouthpiece of
+ *  the seated tuba pointed 47° to the player's right of his lips, out to the side at nobody. Seen from the
+ *  valve side (the stage's own view of the tuba alone) it now points out at the left and away. */
+export const MP_TURN = (47 * Math.PI) / 180;
+/** the mouthpiece in space: where its shank meets the leadpipe (the plan's leadpipe begins there, a little
+ *  in front of the body's plane), its axis from the rim to the shank (the air's way in), and its rim */
+const MP_VIS = MPIECE[MPIECE.length - 1][1];
+const MP_SHANK: Vec3 = [MP_RIM[0] + MP_VIS, MP_RIM[1], 0.01];
+const MP_AXIS: Vec3 = [Math.cos(MP_TURN), 0, Math.sin(MP_TURN)];
+const MP_RIM3: Vec3 = [MP_SHANK[0] - MP_VIS * MP_AXIS[0], MP_SHANK[1], MP_SHANK[2] - MP_VIS * MP_AXIS[2]];
+/** the leadpipe's first stretch, from the receiver: it leaves along the mouthpiece's axis and bends into the
+ *  plan's line over LEAD_BEND m of it, coming forward to the bell's stack it crosses in front of (−∞ past that,
+ *  or off its top run: the plan's depth takes over) */
+const LEAD_BEND = 0.12;
+const leadStart = (x: number, y: number): number => {
+  const u = x - MP_SHANK[0];
+  if (y < MP_RIM[1] - 0.004 || u < 0 || u > LEAD_BEND) return -Infinity;
+  const k = Math.tan(MP_TURN);
+  return MP_SHANK[2] + k * u - (k * u * u) / (2 * LEAD_BEND);
 };
 
 /** a plan tube's centre line in space (m): every `step`-th of its points, at the depth `z` gives it */
@@ -83,17 +110,21 @@ export interface TubaModel {
 /** the camera for the tuba alone (scenes3d viewFor): from its valve side, a little round towards the valves
  *  and above, so the valves, the leadpipe and the bell's mouth all read; a narrow stage may swing further */
 export const TUBA_VIEW = { yaw: 0.42, pitch: 0.2, swing: 0.3 };
-/** Its seat in the Orchestra (scenes3d ensembleSeats). The player sits at the mouthpiece's side, looking along
- *  the instrument, which stands on his lap at his left with its valve side to his right hand: from the hall
- *  the mouthpiece goes back to him, the bell's stack stands beside his head and the valves face half
- *  forward (`turn`, from the seat's own facing; photographs of seated tubists: the bell at the viewer's
- *  right of the head, the right hand on the valves in front). `y`: the lap (the bottom bow 0.56 m up puts
- *  the mouthpiece at a seated player's lips, 1.14 m); `top`: the height the framing allows for (the rim is
- *  1.55 m up); `r`: the footprint's radius. */
-export const TUBA_SEAT = { y: 0.56, turn: 0.75, top: 1.62, r: 0.5 };
-/** held as a seated player holds it: upright on the lap, leaning a little back towards him (the mouthpiece's
- *  side) and to his left (away from the valves) */
-export const TUBA_HELD: Mat4 = chain(rotZ(0.1), rotX(-0.07));
+/** Its seat in the Orchestra (scenes3d ensembleSeats). The tuba stands on the player's lap, its bell's stack
+ *  beside his head at his left, the body and the valves in front of him turned half towards the hall, the
+ *  mouthpiece going straight back into his lips (photographs of seated tubists: the bell at the viewer's
+ *  right of the head, the right hand across the front on the valves). `turn`, from the seat's own facing, is
+ *  what the mouthpiece's own turn (MP_TURN) leaves: turned so, it points at the player. `y`: the lap (the
+ *  bottom bow 0.56 m up puts the mouthpiece at a seated player's lips, 1.14 m); `top`: the height the
+ *  framing allows for (the rim is 1.55 m up); `r`: the footprint's radius. */
+export const TUBA_SEAT = { y: 0.56, turn: Math.PI / 2 - MP_TURN, top: 1.62, r: 0.5 };
+/** held as a seated player holds it: upright on the lap, leaning a little to his left (6°: the bell away
+ *  from the valves and his right hand) and back towards him (4°). The leans are the seat's (its frame: the
+ *  player's right is −x, back towards him +z), taken through the seat's turn: as first written they were
+ *  the model's own, before the turn, and leaned the bell to his right */
+const LEAN_LEFT = 0.1;
+const LEAN_BACK = 0.07;
+export const TUBA_HELD: Mat4 = chain(rotY(-TUBA_SEAT.turn), rotZ(-LEAN_LEFT), rotX(LEAN_BACK), rotY(TUBA_SEAT.turn));
 
 /** the bell's leaning axis in space: a point on it at profile height 0 and its direction (a profile's height
  *  is measured along it: the stack's foot stays where the plan has it) */
@@ -151,7 +182,7 @@ export function buildTubaModel(): TubaModel {
   const leadR = TUBES.lead.r as (s: number) => number;
   // (from the mouthpiece beside the bell, over the stack's front, down along it, round and up to the first
   // valve: it comes forward to the valves' depth as it rounds its lowest bow)
-  pieces('lead', lift('lead', 2, (x, y, f) => Math.max(overBell(x, y, BORE), VALVE_Z * smooth((f - 0.6) / 0.25))), leadR, 0.07, 18, 0.7);
+  pieces('lead', lift('lead', 2, (x, y, f) => Math.max(overBell(x, y, BORE), VALVE_Z * smooth((f - 0.6) / 0.25), leadStart(x, y))), leadR, 0.07, 18, 0.7);
   for (const id of ['L1', 'L2', 'L3', 'L4']) pieces(id, lift(id, 2, front), () => BORE, 0.07, 18, 0.6);
   // (the main slide leaves the fourth valve in front and comes back into the body's plane as it rises)
   pieces('slide', lift('slide', 2, (_x, _y, f) => VALVE_Z * (1 - smooth((f - 0.45) / 0.5))), () => 0.011, 0.07, 18, 0.4);
@@ -188,10 +219,11 @@ export function buildTubaModel(): TubaModel {
         }
       }
     }
-    // the mouthpiece: a deep funnel, silver plate, its rim towards the player
-    latheOn(mb, [MP_RIM[0], MP_RIM[1], 0], [MP_DIR[0], 0, 0], [[0.0128, 0.0015] as P2, ...MPIECE.map(([r, s]): P2 => [r, s])], 40, M.silverPolish);
+    // the mouthpiece: a deep funnel, silver plate, its rim towards the player (turned out of the body's plane:
+    // MP_TURN)
+    latheOn(mb, MP_RIM3, MP_AXIS, [[0.0128, 0.0015] as P2, ...MPIECE.map(([r, s]): P2 => [r, s])], 40, M.silverPolish);
     // (the cup's inside, seen through the rim)
-    latheOn(mb, [MP_RIM[0], MP_RIM[1], 0], [MP_DIR[0], 0, 0], [[0.0128, 0.0015], [0.012, 0.012], [0.008, 0.028], [0.004, 0.04]] as P2[], 32, M.boreDark);
+    latheOn(mb, MP_RIM3, MP_AXIS, [[0.0128, 0.0015], [0.012, 0.012], [0.008, 0.028], [0.004, 0.04]] as P2[], 32, M.boreDark);
   });
   // ---- the pistons' moving parts: the stem and the pearl button
   const pistons = VALVE_X.map((x, k) =>
@@ -205,7 +237,7 @@ export function buildTubaModel(): TubaModel {
   const bx = boxOf([statics, rim, ...segs.map((s) => s.mesh), ...pistons]);
   const c: Vec3 = [(bx.lo[0] + bx.hi[0]) / 2, (bx.lo[1] + bx.hi[1]) / 2, (bx.lo[2] + bx.hi[2]) / 2];
   const r = 0.5 * Math.hypot(bx.hi[0] - bx.lo[0], bx.hi[1] - bx.lo[1], bx.hi[2] - bx.lo[2]) + 0.01;
-  const model: TubaModel = { T, statics: [statics], segs, rim, pistons, lips: F3([MP_RIM[0], MP_RIM[1], 0]), lipAxis: F3([-MP_DIR[0], 0, 0]), lengths, height: bx.hi[1] - bx.lo[1], bellWidth: 2 * (RIM_R + 0.0052), bounds: { c: xform(T, c), r } };
+  const model: TubaModel = { T, statics: [statics], segs, rim, pistons, lips: F3(MP_RIM3), lipAxis: F3([-MP_AXIS[0], -MP_AXIS[1], -MP_AXIS[2]]), lengths, height: bx.hi[1] - bx.lo[1], bellWidth: 2 * (RIM_R + 0.0052), bounds: { c: xform(T, c), r } };
   // (tests and review shots: the pistons as the stage last posed them, the lengths as built)
   if (typeof window !== 'undefined') (window as unknown as { __tuba3d?: unknown }).__tuba3d = { lengths, pistons: () => (stageState ? Array.from(stageState.pos) : null), bounds: model.bounds };
   return model;
