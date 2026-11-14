@@ -17,13 +17,13 @@
 // piano; a line that goes below the cello's C is a bass line (the double bass is a candidate for it). With a lineup chosen by hand, the lines are matched to it by register instead: the highest
 // line to the highest instrument, and so on down.
 
-export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'harp' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani' | 'glockenspiel';
-export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'bass', 'harp', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'glockenspiel'];
+export type Voice = 'grand' | 'upright' | 'violin' | 'viola' | 'cello' | 'bass' | 'harp' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani' | 'glockenspiel' | 'zephyr';
+export const VOICES: Voice[] = ['grand', 'upright', 'violin', 'viola', 'cello', 'bass', 'harp', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'glockenspiel', 'zephyr'];
 
 export interface VoiceInfo {
   label: string;
   /** the engine's instrument and (pianos) preset */
-  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'harp' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani' | 'glockenspiel';
+  instrument: 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'harp' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani' | 'glockenspiel' | 'zephyr';
   preset?: 'grand' | 'upright';
   /** playable range (MIDI notes) and where the instrument sings best */
   lo: number;
@@ -61,10 +61,11 @@ export const VOICE_INFO: Record<Voice, VoiceInfo> = {
   tuba: { label: 'tuba', instrument: 'tuba', lo: 24, hi: 65, centre: 41, poly: 1 },
   timpani: { label: 'timpani', instrument: 'timpani', lo: 36, hi: 57, centre: 46, poly: 2 },
   glockenspiel: { label: 'glockenspiel', instrument: 'glockenspiel', lo: 79, hi: 108, centre: 93, poly: 30 },
+  zephyr: { label: 'zephyr', instrument: 'zephyr', lo: 36, hi: 96, centre: 64, poly: 61 },
 };
 export const isKeyboard = (v: Voice): boolean => v === 'grand' || v === 'upright';
-/** one player takes every line of the voice: a piano's staves, a harp's two hands (often two tracks) */
-export const takesAll = (v: Voice): boolean => isKeyboard(v) || v === 'harp';
+/** one player takes every line of the voice: a piano's staves, a harp's two hands (often two tracks), a zephyr's */
+export const takesAll = (v: Voice): boolean => isKeyboard(v) || v === 'harp' || v === 'zephyr';
 /** a bowed instrument: a line may join another's as a section's desk */
 const isBowed = (v: Voice): boolean => VOICE_INFO[v].poly === 4;
 
@@ -72,7 +73,7 @@ const isBowed = (v: Voice): boolean => VOICE_INFO[v].poly === 4;
  *  Mac, offline: scripts/stage-cost.ts, the busier of its own piece and idle, rounded up; a piano with 32
  *  voices, as two on the stage have): what decides how many instruments a piece or an address may seat
  *  (fitLineup) */
-export const VOICE_COST: Record<Voice, number> = { grand: 16, upright: 17, violin: 2, viola: 2, cello: 2.6, bass: 2.9, harp: 3.7, flute: 1.3, oboe: 1.3, clarinet: 1.3, bassoon: 1.3, horn: 1.2, trumpet: 1.2, trombone: 1.8, tuba: 1.2, timpani: 2, glockenspiel: 1.3 };
+export const VOICE_COST: Record<Voice, number> = { grand: 16, upright: 17, violin: 2, viola: 2, cello: 2.6, bass: 2.9, harp: 3.7, flute: 1.3, oboe: 1.3, clarinet: 1.3, bassoon: 1.3, horn: 1.2, trumpet: 1.2, trombone: 1.8, tuba: 1.2, timpani: 2, glockenspiel: 1.3, zephyr: 1.6 };
 /** a lineup's cost (VOICE_COST summed) */
 export const lineupCost = (lineup: Voice[]): number => lineup.reduce((s, v) => s + (VOICE_COST[v] ?? 0), 0);
 /** the heaviest lineup of `n` instruments the stage was sized for by count: two pianos (the most it takes)
@@ -106,7 +107,7 @@ export const mayBecome = (from: Voice[], to: Voice[], cap: number): boolean => (
 
 /** the score's order (woodwinds, brass, timpani, strings, then the keyboards): a new instrument's place in
  *  a lineup, and the order of a lineup picked by hand (the seats from the audience's left) */
-export const SCORE_ORDER: Voice[] = ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'glockenspiel', 'harp', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
+export const SCORE_ORDER: Voice[] = ['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'glockenspiel', 'harp', 'zephyr', 'violin', 'viola', 'cello', 'bass', 'grand', 'upright'];
 
 /** what assignment needs to know of a line (midi-file.ts MidiLine) */
 export interface LineInfo {
@@ -205,6 +206,8 @@ export function voiceFromName(s: string): Voice | null {
   // the glockenspiel: Glockenspiel, Glock., Glsp., orchestra bells, campanelli, jeu de timbres (tubular bells
   // and a celesta are not it)
   if (/glockenspiel|\bglock\.?(?![a-z])|\bglsp\.?(?![a-z])|\borch(estral?|\.)? ?bells\b|campanelli|jeu de timbres/.test(t)) return 'glockenspiel';
+  // the zephyr: only by its name (no file of the past asks for it)
+  if (/\bzephyrs?\b/.test(t)) return 'zephyr';
   // the harp: harp(s), Harfe(n), arpa/arpe, harpe(s), "Hp.", "Hrp." (the harpsichord is a keyboard's: below)
   if (/\bharps?\b|\bharfen?\b|\barp[ae]\b|\bharpes?\b|\bhp\.(?![a-z])|\bhrp\.?(?![a-z])/.test(t)) return 'harp';
   if (/piano|klavier|cembalo|harpsichord|clavecin|keyboard|organ|orgel|continuo|clavichord|celesta|guitar|lute/.test(t)) return 'grand';
@@ -425,9 +428,9 @@ export function guessVoice(l: LineInfo): Voice {
   // a line below the cello's C: a bass line, the double bass's
   if (l.lo < VOICE_INFO.cello.lo) cands.set('bass', 0);
   for (const [v, w] of hints) if (v && (isKeyboard(v) || v === 'glockenspiel' || fits0(l, v) >= 0.9)) cands.set(v, (cands.get(v) ?? 0) + w);
-  // chords: four notes at once are a keyboard's (a harp's, where the file says harp); three may be a
-  // string's triple stop
-  const chords: Voice = cands.has('harp') ? 'harp' : 'grand';
+  // chords: four notes at once are a keyboard's (a harp's, where the file says harp; a zephyr's, where it
+  // says that); three may be a string's triple stop
+  const chords: Voice = cands.has('zephyr') ? 'zephyr' : cands.has('harp') ? 'harp' : 'grand';
   if (l.poly >= 3) cands.set(chords, (cands.get(chords) ?? 0) + (l.poly >= 4 ? 2.5 : 0.6));
   let best: Voice = 'grand';
   let bs = -Infinity;

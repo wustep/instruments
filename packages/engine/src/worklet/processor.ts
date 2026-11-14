@@ -56,6 +56,9 @@ const TAIL_FADE_S = 0.03;
 /** the pianos still ringing at once (a kind changed back and forth: the oldest is faded off) */
 const TAILS_MAX = 2;
 
+/** the events that let go (a key up, a pedal): never forgotten once they are due */
+const LETS_GO = new Set(['noteOff', 'sustain', 'sostenuto', 'soft', 'allNotesOff']);
+
 class InstrumentProcessor extends AudioWorkletProcessor {
   private core: Core;
   private vis = false;
@@ -212,10 +215,20 @@ class InstrumentProcessor extends AudioWorkletProcessor {
         this.tails.length = 0;
         break;
       case 'clearScheduled': {
-        const q = (this.core as unknown as { queue?: unknown[] }).queue;
-        if (q) q.length = 0;
+        // What is to come is forgotten; a key let go now is not. (A file stopped is paused, then stopped: two
+        // of these, with the held notes' ends between them, due on the instant and not yet played. The second
+        // took them too, and a flute, a bow or a reed went on sounding after Stop.)
+        const forgetAhead = (core: unknown) => {
+          const c = core as { queue?: { frame: number; ev: { type?: string; velocity?: number } }[]; frame: number };
+          const q = c.queue;
+          if (!q) return;
+          let kept = 0;
+          for (const e of q) if (e.frame <= c.frame && (LETS_GO.has(e.ev.type ?? '') || (e.ev.type === 'noteOn' && !((e.ev.velocity ?? 0) > 0)))) q[kept++] = e;
+          q.length = kept;
+        };
+        forgetAhead(this.core);
         // (and what a piano still ringing was to let go: the notes' ends are sent again, stopFile)
-        for (const t of this.tails) (t.core as unknown as { queue: unknown[] }).queue.length = 0;
+        for (const t of this.tails) forgetAhead(t.core);
         // and what a bow, or a wind player, was told is to come
         (this.core as unknown as { forget?: () => void }).forget?.();
         break;
@@ -425,9 +438,10 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       timpani: (v as { timpani?: never }).timpani,
       harp: (v as { harp?: never }).harp,
       glock: (v as { glock?: never }).glock,
+      zephyr: (v as { zephyr?: never }).zephyr,
       trombone: (v as { trombone?: never }).trombone,
       strings: (v as { strings?: never }).strings,
-      modeFreqs: core.id === 'flute' || core.id === 'oboe' || core.id === 'clarinet' || core.id === 'bassoon' || core.id === 'horn' || core.id === 'trombone' || core.id === 'tuba' || core.id === 'timpani' || core.id === 'harp' || core.id === 'glockenspiel' ? Array.from(core.modeFrequencies) : undefined,
+      modeFreqs: core.id === 'flute' || core.id === 'oboe' || core.id === 'clarinet' || core.id === 'bassoon' || core.id === 'horn' || core.id === 'trombone' || core.id === 'tuba' || core.id === 'timpani' || core.id === 'harp' || core.id === 'glockenspiel' || core.id === 'zephyr' ? Array.from(core.modeFrequencies) : undefined,
     });
   }
 }

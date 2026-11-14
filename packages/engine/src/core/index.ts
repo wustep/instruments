@@ -24,3 +24,4 @@ export { VALVES3, VALVES4, valveFingering, valveSharp, valvesDown, type ValveFin
 export { HarpCore, HARP_VOICE, HARP_LO, HARP_HI, HARP_STRINGS, HARP_PEDALS, harpStrings, harpStringOf, harpStringFor, harpPedalsFor, type HarpParams, type HarpVoice, type HarpString, type HarpPedal } from './harp.ts';
 export { GlockenspielCore, GLOCK_VOICE, GLOCK_TEXTBOOK, GLOCK_LO, GLOCK_HI, GLOCK_BARS, GLOCK_FAMILIES, GLOCK_BAR_WIDTH, GLOCK_BAR_THICK, glockBars, glockBarOf, barShape, type GlockParams, type GlockVoice, type GlockBar } from './glockenspiel.ts';
 export { TimpaniCore, TIMPANI_VOICE, TIMPANI_HUMAN, TIMPANI_SPOT, TIMPANI_LO, TIMPANI_HI, TIMPANI_DRUMS, besselJ, besselZeros, type TimpaniParams, type TimpaniVoice, type TimpaniDrum } from './timpani.ts';
+export { ZephyrCore, ZEPHYR_LO, ZEPHYR_HI, ZEPHYR_STRINGS, ZEPHYR_SLOT, zephyrStrings, zephyrStringOf, type ZephyrParams, type ZephyrString } from './zephyr.ts';

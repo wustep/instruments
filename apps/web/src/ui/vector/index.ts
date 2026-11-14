@@ -11,4 +11,5 @@ export { drawTromboneV } from './trombone.ts';
 export { drawTubaV } from './tuba.ts';
 export { drawHarpV } from './harp.ts';
 export { drawGlockV } from './glock.ts';
+export { drawZephyrV } from './zephyr.ts';
 export { drawTimpaniV } from './timpani.ts';

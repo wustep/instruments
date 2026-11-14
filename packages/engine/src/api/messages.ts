@@ -77,6 +77,8 @@ export interface VisualFrame extends Stats {
   harp?: HarpVisual;
   /** the glockenspiel: every bar's swing, the last strokes and the two mallets (see GlockVisual) */
   glock?: GlockVisual;
+  /** the zephyr: every ribbon's swing, every slot's wind, the loudest ribbons' shapes (see ZephyrVisual) */
+  zephyr?: ZephyrVisual;
   /** piano: the watched key's action and strings (see `watchKey`) */
   watch?: WatchKey | null;
   /** piano: every sounding string's shape (struck first, then sympathetic) */
@@ -138,6 +140,24 @@ export type FromProcessor =
   | { type: 'preset'; instrument: InstrumentId; preset: string; params: Record<string, unknown>; modeFreqs: number[]; keys: KeySummary[] }
   | ({ type: 'stats' } & Stats)
   | ({ type: 'visual' } & VisualFrame);
+
+/** The zephyr's own part of a visual frame (core/zephyr.ts getVisual). Ribbons are numbered 0 (C2) … 60 (C7). */
+export interface ZephyrVisual {
+  /** every ribbon's swing now: 0 at rest … 1 a fortissimo's (61 values), and its width at the ribbon's middle (m) */
+  amp: Float32Array;
+  swing: Float32Array;
+  /** every slot's wind now, of its ribbon's fortissimo wind (0 shut … 1; the fall of a key goes over) */
+  wind: Float32Array;
+  /** the loudest ribbons' shapes now (at most four): displacement along the ribbon (m), the bridge at 0 and
+   *  the far end at 1 */
+  shapes: { string: number; shape: Float32Array }[];
+  /** the ribbon begun last, how long ago (s; −1: it is still) and how hard (velocity 1–127) */
+  last: number;
+  ago: number;
+  vel: number;
+  /** the reservoir's pressure (1 at rest: it sags under a chord and swings back) */
+  chest: number;
+}
 
 /** The glockenspiel's own part of a visual frame (core/glockenspiel.ts getVisual). Bars are numbered 0 (G5) … 29 (C8). */
 export interface GlockVisual {
