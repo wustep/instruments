@@ -14,9 +14,9 @@
 // square, a D, an iced cable) the lift that angle makes is in the direction of the motion: the faster it
 // moves, the harder it is pushed. That is a negative damping (Den Hartog 1932, "Transmission line vibration
 // due to sleet", Trans. AIEE 51: the section gallops when dC_L/dα + C_D < 0), and its size and its limit are
-// known: the lateral force per length is ½ρU²D·C(ẏ/U) with C(α) = A₁α − A₃α³ … (Parkinson & Smith 1964, "The
-// square prism as an aeroelastic non-linear oscillator", Q. J. Mech. Appl. Math. 17: A₁ = 2.69 for the
-// square). So the jet is a bow with no hair: a force that grows with the ribbon's speed until, near a fifth
+// known: the lateral force per length is ½ρU²D·C(ẏ/U) with C(α) = A₁α − A₃α³ … (G. V. Parkinson & J. D. Smith
+// 1964, "The square prism as an aeroelastic non-linear oscillator", Q. J. Mech. Appl. Math. 17: A₁ = 2.69 for
+// the square). So the jet is a bow with no hair: a force that grows with the ribbon's speed until, near a fifth
 // of the wind's speed, the flow lets go and the force falls. The ribbon's speed in the slot is held near
 // that limit, as a bowed string's is held to the bow's, and the string does the rest: a standing wave with
 // every harmonic the slot's place leaves room for (here 0.38 of the way up: the third is weak, as a string
@@ -103,8 +103,8 @@ const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B�
 const RHO = 1.2;
 const NU = 1.5e-5;
 /** The ribbon's lateral force curve, C(α) = A₁α − A₃α³: the slope is the square prism's (Parkinson & Smith
- *  1964), the cubic puts the curve's top at α = 0.2 (11°, where their polynomial has it), past ALPHA_C the
- *  curve goes on down in a straight line (the flow has let go: the ribbon is only dragged). */
+ *  1964), the cubic puts the curve's top at α = 0.2 (11°: near where the square's measured curve has it),
+ *  past ALPHA_C the curve goes on down in a straight line (the flow has let go: the ribbon is only dragged). */
 const A1 = 2.69;
 const ALPHA_TOP = 0.2;
 const A3 = A1 / (3 * ALPHA_TOP * ALPHA_TOP);

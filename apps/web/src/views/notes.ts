@@ -475,6 +475,7 @@ export function notesView(): View {
         'N. H. Fletcher & T. D. Rossing, The Physics of Musical Instruments, 2nd ed., Springer 1998',
         'B. Fabre, A. Hirschberg & A. P. J. Wijnands, Acta Acustica 82, 1996; R. Auvray, B. Fabre & P.-Y. Lagrée, JASA 131(4), 2012',
         'P. R. Cook, “TBone: an interactive waveguide brass instrument synthesis workbench,” ICMC 1991; the Synthesis ToolKit (STK), Brass',
+        'J. P. Den Hartog, “Transmission line vibration due to sleet,” Trans. AIEE 51(4), 1932; G. V. Parkinson & J. D. Smith, “The square prism as an aeroelastic non-linear oscillator,” Q. J. Mech. Appl. Math. 17(2), 1964; G. G. Stokes, “On the effect of the internal friction of fluids on the motion of pendulums,” Trans. Cambridge Phil. Soc. 9, 1851 (the zephyr)',
         'A. H. Benade, Fundamentals of Musical Acoustics, Oxford 1976 (the bell’s cutoff, spectral enrichment)',
         'J. B. Allen & D. A. Berkley, “Image method for efficiently simulating small-room acoustics,” JASA 65(4), 1979',
         'J.-M. Jot & A. Chaigne, “Digital delay networks for designing artificial reverberators,” AES 90th Convention, 1991',

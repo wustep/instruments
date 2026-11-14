@@ -266,7 +266,34 @@ described once, for every instrument, in [`CALIBRATION.md`](CALIBRATION.md).
     −12 / −14 / −20 dB by register against the recordings' −4 / −12 / −19; the low register's second
     harmonic is still about 10 dB short.
 
+## 10. The zephyr (an invented instrument)
+
+`packages/engine/src/core/zephyr.ts`. Nothing is fitted: there is no recording. What it stands on:
+
+* **Galloping** (the wind's push). A bluff section moving across a steady flow at ẏ sees the flow at an
+  angle α = ẏ/U; where dC_L/dα + C_D < 0 the lateral force is in the direction of the motion, a negative
+  damping (Den Hartog 1932). Its size and its limit for a square prism, quasi-steady:
+  F = ½ρU²D·C(ẏ/U), C(α) = A₁α − A₃α³ + A₅α⁵ − A₇α⁷, A₁ = 2.69 (Parkinson & Smith 1964). The model keeps
+  the slope and a cubic whose top is at α = 0.2, and reads the curve from where a tilted ribbon rests (an
+  even part in the force: even harmonics). Quasi-steady theory wants U/fD ≫ 10 (Blevins 1990, ch. 4); the
+  model gives the force a lag of one width's travel in the wind.
+* **Still air** (the drag). A cylinder of radius a oscillating at ω in a viscous fluid, a ≫ √(2ν/ω), is
+  damped by 2πρa√(2νω) per length and carries ρπa² of the fluid with it (Stokes 1851). For a ribbon 12 g/m²
+  this is nearly all of its damping: Q 15 at C2, 65 at C7.
+* **The balance.** Push over drag on the fundamental, U·A₁·(w/L)·sin²(πβ) / (π√(2νω)), has no mass in it:
+  what the mass sets is how fast a note speaks. The zephyr is voiced at a ratio of 4.5–6.5 at fortissimo
+  and 1.2 at the softest key, which puts the wind at 8 m/s in the bass and 23 at the top.
+* **What came before.** The aeolian harp (Rayleigh 1915, on the aeolian tone and Strouhal's number); the
+  kite hummers (the Japanese *unari*, the Indonesian *sendaren*: a ribbon on a bow, sounded by the kite's
+  wind); J. J. Schnell's *anémocorde* (Paris, 1789), a keyboard of strings blown from bellows.
+
 ## References
+
+* Blevins, R. D. (1990). *Flow-Induced Vibration* (2nd ed.). Van Nostrand Reinhold.
+* Den Hartog, J. P. (1932). Transmission line vibration due to sleet. *Transactions of the AIEE*, 51(4), 1074–1076.
+* Parkinson, G. V., & Smith, J. D. (1964). The square prism as an aeroelastic non-linear oscillator. *Quarterly Journal of Mechanics and Applied Mathematics*, 17(2), 225–239.
+* Rayleigh, Lord (1915). Æolian tones. *Philosophical Magazine*, 29(172), 433–444.
+* Stokes, G. G. (1851). On the effect of the internal friction of fluids on the motion of pendulums. *Transactions of the Cambridge Philosophical Society*, 9(2), 8–106.
 
 * Abel, J. S., Välimäki, V., & Smith, J. O. (2010). Robust, efficient design of allpass filters for dispersive string sound synthesis. *IEEE Signal Processing Letters*, 17(4), 406–409.
 * Askenfelt, A., & Jansson, E. V. (1990). From touch to string vibrations. I: Timing in the grand piano action. *JASA*, 88(1), 52–63.
