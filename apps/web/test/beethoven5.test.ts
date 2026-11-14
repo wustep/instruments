@@ -127,12 +127,14 @@ describe('Beethoven’s Fifth, I and II: the pieces', () => {
     }
   });
 
-  it('as it sounds: I as written; II’s horns in C an octave down (the file has their written pitch)', () => {
+  it('as it sounds: I as written but for the basses, an octave under their written pitch (the file’s); II’s horns in C an octave down too (the file has their written pitch)', () => {
     const pI = piecePlan(I, songI.lines, 18);
     const pII = piecePlan(II, songII.lines, 18);
-    expect(pI.lines.flat().every((r) => r.shift === 0)).toBe(true);
+    expect(pI.lines[11].map((r) => r.shift)).toEqual([-12]);
+    expect(pI.lines.flat().filter((r) => r.shift !== 0).length).toBe(1);
     expect(pII.lines[4].map((r) => r.shift)).toEqual([-12, -12]);
-    expect(pII.lines.flat().filter((r) => r.shift !== 0).length).toBe(2);
+    expect(pII.lines[11].map((r) => r.shift)).toEqual([-12]);
+    expect(pII.lines.flat().filter((r) => r.shift !== 0).length).toBe(3);
     // (the horns' sounding range: C3 to C5)
     const horn = songII.events.filter((e) => e.kind === 'on' && e.line === 4).map((e) => placeNote((e as { midi: number }).midi, -12, 'horn'));
     expect([Math.min(...horn), Math.max(...horn)]).toEqual([48, 72]);
@@ -195,12 +197,13 @@ describe('Beethoven’s Fifth: the address (the preset)', () => {
     }
   });
 
-  it('Mutopia’s own files dropped on it play as the pieces do, both movements', () => {
+  it('Mutopia’s own files dropped on it play as the pieces do, both movements (but for the basses’ octave, the piece’s own correction: a file dropped is read as written)', () => {
     for (const [pc, s] of [[I, songI], [II, songII]] as const) {
       const byRules = planByRules(s.lines, setup.seats, setup.lines!);
       const own = piecePlan(pc, s.lines, pc.parts.length);
       expect(routed(byRules), pc.id).toEqual(routed(own));
-      expect(byRules.lines, pc.id).toEqual(own.lines);
+      expect(byRules.lines.slice(0, 11), pc.id).toEqual(own.lines.slice(0, 11));
+      expect(byRules.lines[11], pc.id).toEqual(own.lines[11].map((r) => ({ ...r, shift: r.shift + 12 })));
     }
   });
 
