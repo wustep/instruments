@@ -1,7 +1,11 @@
 // The pieces that come with the stage: public-domain typesettings from the Mutopia Project
 // (mutopiaproject.org), each placed in the public domain by its typesetter (the oboe's alone is Creative
 // Commons Attribution 3.0: its credit says so), compositions long out of
-// copyright. The MIDI files in public/pieces/ are Mutopia's own, byte for byte (sha256 below); what
+// copyright. The MIDI files in public/pieces/ are Mutopia's own (sha256 below), byte for byte but for
+// five that came with no dynamics (the Haydn, the Brandenburg finale, La Réjouissance, the Air, the
+// Fifth's first movement: every note at one velocity, the Air's at 127): those have their scores' dynamics
+// written into them as velocities and expression (CC11), from the marks in scripts/score-dynamics/marks
+// (`npx tsx scripts/score-dynamics/build.ts`), their notes, timing and everything else Mutopia's. What
 // plays what is set here, as a player would set out the parts. Two kinds, one catalogue: the
 // ensemble's pieces (PIECES, the pieces menu), and each instrument's own short piece (DEMOS), which the
 // player's play icon plays when nothing is loaded.
@@ -68,8 +72,8 @@ export const PIECES: Piece[] = [
     title: 'Emperor Quartet, II',
     file: 'haydn-op76-3-ii.mid',
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=385',
-    credit: 'String Quartet in C, Op. 76 No. 3, II. Poco adagio, cantabile (the "Kaiserhymne" and four variations: the tune passes from the first violin to the second, the cello and the viola). Typeset by Maurizio Tomasi from the Kalmus edition; Mutopia-2015/10/16-385; public domain.',
-    sha256: '289f67299f465aede2f0729e0f861bf4ef039801bc138b45947c9b92f5f75fdc',
+    credit: 'String Quartet in C, Op. 76 No. 3, II. Poco adagio, cantabile (the "Kaiserhymne" and four variations: the tune passes from the first violin to the second, the cello and the viola). Typeset by Maurizio Tomasi from the Kalmus edition; Mutopia-2015/10/16-385; public domain. The file came with almost no dynamics: the score’s (piano, the fz on the tune’s last line, pianissimo at the close) are written into it here, and the tune’s own rise and fall, which is an editor’s.',
+    sha256: 'bed9a3ef39737f86dc2700167a8696dca3de85e2d62f4739daf99fcfe5b11852',
     parts: [
       { voice: 'violin', lines: [0] },
       { voice: 'violin', lines: [1] },
@@ -83,8 +87,8 @@ export const PIECES: Piece[] = [
     title: 'Brandenburg No. 5, III',
     file: 'bach-bwv1050-iii.mid',
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=548',
-    credit: 'Brandenburg Concerto No. 5 in D, BWV 1050, III. Allegro: flute, solo violin and harpsichord (here a grand piano) with violin, viola and cello; the violone doubles the cello and is left out. Typeset by Joshua Koo from the Bach-Gesellschaft edition; Mutopia-2015/09/29-548; public domain.',
-    sha256: '7dc1acc6d8502b99af6ea2269dd5d20d23e812a6c40d3d11a0a2abb23ae5baf1',
+    credit: 'Brandenburg Concerto No. 5 in D, BWV 1050, III. Allegro: flute, solo violin and harpsichord (here a grand piano) with violin, viola and cello; the violone doubles the cello and is left out. Typeset by Joshua Koo from the Bach-Gesellschaft edition; Mutopia-2015/09/29-548; public domain. The file came with no dynamics: the edition’s terraces in the middle section (piano, pianissimo, forte, cantabile) are written into it here; the outer sections, unmarked, are forte.',
+    sha256: '884bb1abcda3871afe9b29424b668e9d65bfee284b1ca6024f8f2ec82deda488',
     parts: [
       { voice: 'flute', lines: [0] },
       { voice: 'violin', lines: [1] },
@@ -100,8 +104,8 @@ export const PIECES: Piece[] = [
     title: 'La Réjouissance',
     file: 'handel-hwv351-rejouissance.mid',
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1864',
-    credit: 'La Réjouissance from the Music for the Royal Fireworks, HWV 351, for trumpet and organ (here a grand piano). The file gives the B♭ trumpet its written pitch, a tone above the organ; it plays a tone lower here, at concert pitch. Typeset by Cyprien Lecourt from IMSLP; Mutopia-2013/09/01-1864; public domain.',
-    sha256: '17bd0a0d48f93c04f5dd5e13c842ca1482952fb779a600a431fc6542e7eca356',
+    credit: 'La Réjouissance from the Music for the Royal Fireworks, HWV 351, for trumpet and organ (here a grand piano). The file gives the B♭ trumpet its written pitch, a tone above the organ; it plays a tone lower here, at concert pitch. Typeset by Cyprien Lecourt from IMSLP; Mutopia-2013/09/01-1864; public domain. Handel’s score has no dynamics, and the file had none: its forte and its phrasing here are an editor’s.',
+    sha256: 'a5ff3d9ae71779e768fe4af829ede50239442a146130f9277d5d6691c770412e',
     parts: [
       { voice: 'trumpet', lines: [0], shift: { 0: -2 } },
       { voice: 'grand', lines: [1, 2] },
@@ -113,8 +117,8 @@ export const PIECES: Piece[] = [
     title: 'Air, for four trombones',
     file: 'bach-bwv1068-air-trombones.mid',
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=461',
-    credit: 'Air from the Orchestral Suite No. 3 in D, BWV 1068, arranged for trombone quartet: alto, two tenors and bass trombone, each seat the size of its line. Arranged and typeset by Ross Keenum; Mutopia-2008/10/28-461; public domain.',
-    sha256: 'dc3f31aaed2970ea523fbc2038ec0093f53e5026c6292e160181e2d0c1b637f8',
+    credit: 'Air from the Orchestral Suite No. 3 in D, BWV 1068, arranged for trombone quartet: alto, two tenors and bass trombone, each seat the size of its line. Arranged and typeset by Ross Keenum; Mutopia-2008/10/28-461; public domain. Neither Bach nor the arrangement marks a dynamic, and the file played every note at full force: its mezzo-piano and its phrasing here are an editor’s.',
+    sha256: '310be87b30e693839e522432c58098b957b10516b84cf9fc47d513e9a106f051',
     parts: [
       { voice: 'trombone', lines: [0] },
       { voice: 'trombone', lines: [1] },
@@ -128,8 +132,8 @@ export const PIECES: Piece[] = [
     title: 'Symphony No. 5, I',
     file: 'beethoven-op67-i.mid',
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=941',
-    credit: 'Symphony No. 5 in C minor, Op. 67, I. Allegro con brio, for two each of flutes, oboes, clarinets in B♭, bassoons, horns in E♭ and trumpets in C, timpani and strings. Each wind staff of the file holds its pair, divided here between two players; the file names its staves "one" to "twelve" and calls its horns and trumpets "english horn". Played at Beethoven’s own metronome mark (half note = 108; the file’s 96), without the exposition’s repeat. Typeset by Stelios Samelis (adapted by Johannes Heinecke) from the Breitkopf & Härtel edition (1862–1865); Mutopia-2017/11/05-941; public domain.',
-    sha256: '0ce1bca911ba8e6234fd2e474a9b6da4c968c5cfe85b0cccfe7e56505df52046',
+    credit: 'Symphony No. 5 in C minor, Op. 67, I. Allegro con brio, for two each of flutes, oboes, clarinets in B♭, bassoons, horns in E♭ and trumpets in C, timpani and strings. Each wind staff of the file holds its pair, divided here between two players; the file names its staves "one" to "twelve" and calls its horns and trumpets "english horn". Played at Beethoven’s own metronome mark (half note = 108; the file’s 96), without the exposition’s repeat. Typeset by Stelios Samelis (adapted by Johannes Heinecke) from the Breitkopf & Härtel edition (1862–1865); Mutopia-2017/11/05-941; public domain. The file was made with its dynamics left out: the edition’s, as the typesetting has them staff by staff (ff, p, cresc., sf), are written into it here.',
+    sha256: 'c6511b9233493c24766a671224e086f2e3f8bdc5ea782b1a14c069ce3b8abf43',
     parts: BEETHOVEN_5,
     rate: 108 / 96,
   },
@@ -162,7 +166,7 @@ export const PIECES: Piece[] = [
     file: 'fable-everything-so-far.mid',
     source: 'https://github.com/wustep/instruments#license',
     credit: 'Everything So Far, a movement in 7/8 that begins in A major, slips to F major and to D♭ major, and finds its way home to A (three minutes), for flute, clarinet, horn, glockenspiel, harp, piano, two violins, viola, cello and double bass: eleven parts, one to a seat, all at concert pitch, with their own dynamics. Written for these instruments by Fable 5.2 (Anthropic’s Claude), 2026, each note chosen for what its instrument’s model plays well. CC0 1.0: given to the public domain.',
-    sha256: 'c85d170c686b54f27b993b0eb3ceb67302dd079bb697508e48ba3da8af567777',
+    sha256: '813274507e7c0708fe45498b95ca7727fae0969b52e189224e934871fdbf6dc9',
     parts: (['flute', 'clarinet', 'horn', 'glockenspiel', 'harp', 'grand', 'violin', 'violin', 'viola', 'cello', 'bass'] as Voice[]).map((voice, i) => ({ voice, lines: [i] })),
     path: 'everything',
   },
@@ -418,7 +422,7 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     file: 'handel-hwv351-rejouissance.mid',
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1864',
     credit: 'La Réjouissance from the Music for the Royal Fireworks, HWV 351: the trumpet’s line alone, at concert pitch (the file gives the B♭ trumpet its written pitch), from its first note (the organ’s two bars of introduction left out). The ensemble’s piece of the same name plays it with the organ. Typeset by Cyprien Lecourt from IMSLP; Mutopia-2013/09/01-1864; public domain.',
-    sha256: '17bd0a0d48f93c04f5dd5e13c842ca1482952fb779a600a431fc6542e7eca356',
+    sha256: 'a5ff3d9ae71779e768fe4af829ede50239442a146130f9277d5d6691c770412e',
     lines: [0],
     shift: -2,
   },
@@ -428,10 +432,9 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     title: 'Air (the alto trombone’s line, on the tenor)',
     file: 'bach-bwv1068-air-trombones.mid',
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=461',
-    credit: 'Air from the Orchestral Suite No. 3 in D, BWV 1068, in an arrangement for trombone quartet: its top line (the tune) alone, both strains. The file plays every note at full force (here at about mezzo-forte). Arranged and typeset by Ross Keenum; Mutopia-2008/10/28-461; public domain.',
-    sha256: 'dc3f31aaed2970ea523fbc2038ec0093f53e5026c6292e160181e2d0c1b637f8',
+    credit: 'Air from the Orchestral Suite No. 3 in D, BWV 1068, in an arrangement for trombone quartet: its top line (the tune) alone, both strains, with the dynamics given to the ensemble’s piece (an editor’s: the score has none). Arranged and typeset by Ross Keenum; Mutopia-2008/10/28-461; public domain.',
+    sha256: '310be87b30e693839e522432c58098b957b10516b84cf9fc47d513e9a106f051',
     lines: [0],
-    vel: 0.55,
   },
   tuba: {
     instrument: 'tuba',
@@ -439,11 +442,10 @@ export const DEMOS: Record<InstrumentId, Demo> = {
     title: 'Air (the bass line, an octave down)',
     file: 'bach-bwv1068-air-trombones.mid',
     source: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=461',
-    credit: 'Air from the Orchestral Suite No. 3 in D, BWV 1068, in an arrangement for trombone quartet: its bass line alone (the walking bass in octaves, written for the bass trombone), an octave lower, where a tuba plays it: D♭1 to D3. The file plays every note at full force (here at about mezzo-forte). Arranged and typeset by Ross Keenum; Mutopia-2008/10/28-461; public domain.',
-    sha256: 'dc3f31aaed2970ea523fbc2038ec0093f53e5026c6292e160181e2d0c1b637f8',
+    credit: 'Air from the Orchestral Suite No. 3 in D, BWV 1068, in an arrangement for trombone quartet: its bass line alone (the walking bass in octaves, written for the bass trombone), an octave lower, where a tuba plays it: D♭1 to D3, with the dynamics given to the ensemble’s piece (an editor’s: the score has none). Arranged and typeset by Ross Keenum; Mutopia-2008/10/28-461; public domain.',
+    sha256: '310be87b30e693839e522432c58098b957b10516b84cf9fc47d513e9a106f051',
     lines: [3],
     shift: -12,
-    vel: 0.6,
   },
   timpani: {
     instrument: 'timpani',
