@@ -130,6 +130,29 @@ describe('AudioWorklet processor (fake global scope)', () => {
 // engine) used to be disconnected and no more: its processor went on rendering for ever, since process()
 // returning true keeps a node alive. Told so, it stops: silence, and process() returns false, which lets
 // the browser stop calling it.
+describe('a file stopped lets go of what it held', () => {
+  // (Stop is a pause and then a stop: clear, the held notes' ends, clear again, all on one instant)
+  for (const [inst, midi] of [['flute', 76], ['cello', 50], ['oboe', 70]] as const)
+    it(`${inst}: a held note let go between two clears is let go; a note still to come is forgotten`, () => {
+      const p = new Ctor({ processorOptions: { instrument: inst } });
+      p.port.deliver({ type: 'event', event: { type: 'noteOn', midi, velocity: 90 } });
+      const held = run(p, 200).peak;
+      expect(of(p, 'sounding').at(-1).notes).toEqual([midi]);
+      // a note half a second from now, then Stop
+      p.port.deliver({ type: 'event', event: { type: 'noteOn', midi: midi + 2, velocity: 90 }, time: (g.currentFrame + 24000) / 48000 });
+      p.port.deliver({ type: 'clearScheduled' });
+      p.port.deliver({ type: 'event', event: { type: 'noteOff', midi } });
+      p.port.deliver({ type: 'event', event: { type: 'sustain', value: 0 } });
+      p.port.deliver({ type: 'clearScheduled' });
+      p.port.deliver({ type: 'event', event: { type: 'sustain', value: 0 } });
+      run(p, 500);
+      expect(of(p, 'sounding').at(-1).notes).toEqual([]);
+      expect(of(p, 'sounding').some((m) => m.notes.includes(midi + 2))).toBe(false);
+      // (a second and a third later: gone, but for what a bowed string's ring leaves)
+      expect(run(p, 40).peak).toBeLessThan(0.1 * held);
+    });
+});
+
 describe('an engine disposed of stops rendering', () => {
   it('process() returns false and gives silence; nothing sent to it afterwards is acted on', () => {
     for (const instrument of ['cello', 'piano', 'flute']) {
