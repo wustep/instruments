@@ -355,6 +355,11 @@ vec4 auxT = texture2D(tAux, pUV);
 #else
 #include <map_fragment>
 #endif
+// a part lit by its own ring (a glockenspiel's bar, a timpano's head: glow alpha −1 … 0, ring-glow.ts):
+// light falls on it, so what it reflects takes the light's colour as well as the light itself (a
+// near-white head shows a warm cast where added light alone would only clip). A glow of alpha 0 … 1 (a
+// pressed piston) is added light only, as ever.
+if (vGlow.a < 0.0) diffuseColor.rgb *= mix(vec3(1.0), vGlow.rgb, min(-vGlow.a, 1.0) * 0.6);
 float microR = 0.0;
 float wearCoat = 0.0;
 {
@@ -640,7 +645,7 @@ roughnessFactor = clamp(roughnessFactor + microR, 0.03, 1.0);`,
       .replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
-totalEmissiveRadiance += vGlow.rgb * vGlow.rgb * min(vGlow.a, 1.0) * 0.55;`,
+totalEmissiveRadiance += vGlow.rgb * vGlow.rgb * min(abs(vGlow.a), 1.0) * 0.55;`,
       )
       .replace(
         '#include <opaque_fragment>',

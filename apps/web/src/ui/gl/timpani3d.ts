@@ -21,8 +21,8 @@
 // Live (the engine's `frame.timpani`): each pedal at its own angle (`pedal`, gliding); each gauge's pointer
 // at the note the drum is tuned to; each head moving as its modes do — the engine's first fourteen (m, n),
 // their amplitudes from the head's own displacement, shown slowed and exaggerated (the strike's dent at the
-// strike point, spreading into the modes' own shapes, decaying as the drum does), a faint shimmer on a loud
-// stroke; and two mallets (birch, cream felt) driven by the engine's strokes (`hands`): the felt on the
+// strike point, spreading into the modes' own shapes, decaying as the drum does), a faint warmth over the head
+// while it rings (ring-glow.ts: lit on the stroke, fading with the drum's own level, kept up by a roll); and two mallets (birch, cream felt) driven by the engine's strokes (`hands`): the felt on the
 // head while the engine says it is, a rebound as high as the stroke was hard (lower in a roll), back to
 // rest above the drum it last struck.
 // Left out: the player (as with every instrument: a hand that reads as a hand needs a rigged, skinned
@@ -31,6 +31,7 @@ import { besselJ, type VisualFrame } from '@piano-model/engine';
 import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, cross, mulInto, norm, rotY, scale, sub, translate, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, ellipsoid, lathe, tube, type Mat } from './mesh.ts';
 import { aboutAxis, fillet } from './oboe3d.ts';
+import { TIMPANI_HARD, ringGlow, ringRGBA } from './ring-glow.ts';
 
 type P2 = [number, number];
 const TAU = Math.PI * 2;
@@ -578,7 +579,7 @@ export function buildTimpaniModel(): TimpaniModel {
       views: timpaniViews(model),
       // (each head's middle and the player's place, world m: where the set is seen from)
       layout: { heads: drums.map((d) => xform(d.T, [0, d.spec.h, 0])), player: model.player },
-      pose: () => (stageState ? { mallets: stageState.ball.map((b) => [...b]), alpha: Array.from(stageState.alpha), pedal: Array.from(stageState.tilt), pointer: Array.from(stageState.needle), heads: stageState.heads.map((h) => peakOf(h)) } : null),
+      pose: () => (stageState ? { mallets: stageState.ball.map((b) => [...b]), alpha: Array.from(stageState.alpha), pedal: Array.from(stageState.tilt), pointer: Array.from(stageState.needle), heads: stageState.heads.map((h) => peakOf(h)), glow: Array.from(stageState.shimmer) } : null),
     };
   return model;
 }
@@ -612,6 +613,7 @@ export interface TimpaniPose {
   needle: Float32Array;
   ball: Vec3[];
   lastFrame: unknown;
+  /** each head's ring glow as last drawn (0 … 1 of its strongest: ring-glow.ts) */
   shimmer: Float32Array;
   W: Float32Array;
   R: Float32Array;
@@ -827,20 +829,9 @@ export function poseTimpani(b: Batch, tm: TimpaniModel, fr: VisualFrame | null, 
     else if (dv && fresh && pose.tDrum[k] > 0.3 && Math.abs(dv.ago - pose.tDrum[k]) > 0.3) pose.tDrum[k] = dv.ago;
     else pose.tDrum[k] += dt;
     poseHead(hm, dr, dv?.head ?? null, pose.amp[k], pose.tDrum[k], spot, dt);
-    // a loud stroke: a faint shimmer across the head, quick up, settling with the drum
-    const lv = dv ? clamp01((20 * Math.log10(Math.max(1e-6, dv.level)) - 4) / 20) : 0;
-    const sh = lv * lv * Math.exp(-pose.tDrum[k] / 0.35);
-    pose.shimmer[k] += (sh - pose.shimmer[k]) * (1 - Math.exp(-dt / (sh > pose.shimmer[k] ? 0.015 : 0.12)));
-    const s = pose.shimmer[k];
-    let glow: RGBA | null = null;
-    if (s > 0.004) {
-      glow = pose.glow;
-      glow[0] = 1;
-      glow[1] = 0.9;
-      glow[2] = 0.74;
-      glow[3] = 0.13 * s * (0.85 + 0.15 * Math.sin(now * 0.037));
-    }
-    b.mesh(hm.mesh, D, glow);
+    // the head's ring: lit on the stroke, fading as the drum's own level does (a roll keeps it up)
+    pose.shimmer[k] = dv ? ringGlow(dv.level / TIMPANI_HARD) : 0;
+    b.mesh(hm.mesh, D, ringRGBA(pose.shimmer[k], pose.glow));
   }
   // the mallets: each hand from the engine's strokes
   for (let h = 0; h < 2; h++) {
