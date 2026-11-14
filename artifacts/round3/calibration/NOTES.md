@@ -152,7 +152,7 @@ round's change, +1.5 / +8.2 after. The tail measure (short windows) was never af
 |---|---|---|---|
 | piano | 3.10 | 3.00 | BETTER (Δ 0.09 ± 0.02) |
 | horn | 2.26 | 2.09 | BETTER (Δ 0.17 ± 0.04) |
-| violin 2.97, viola 4.30, cello 1.85, double bass 1.83, flute 3.30, oboe 2.34, clarinet 1.95, bassoon 2.07, trumpet 3.49, trombone 3.97, tuba 5.81, timpani 3.50, harp 1.28, glockenspiel 1.28 | | | identical |
+| violin 2.97, viola 4.30, cello 1.85, double bass 1.83, flute 3.30, oboe 2.34, clarinet 1.95, bassoon 2.07, trumpet 3.49, trombone 3.97, tuba 5.81 (5.00 on main since #84's level), timpani 3.50, harp 1.28, glockenspiel 1.28 | | | identical |
 
 (A score is in units of the recorded instrument's own note-to-note spread, and is comparable only inside
 one run: see the guide.)

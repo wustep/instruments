@@ -131,8 +131,8 @@ level).
 
 * A score is only comparable inside one run. The spreads and the notes paired come from that run's "before"
   engine, so the same engine can read 4.3 in one pull request and 4.6 in the next. Compare before with
-  after, not one report with another, and never one instrument with another (the tuba's 5.8 carries a
-  19 dB level offset that is its recording session's gain).
+  after, not one report with another, and never one instrument with another (the tuba's 5.0 carries a
+  15 dB level offset: its recording session's gain against the level it is played at).
 * The bowed strings are chaotic: a different random seed moves a string's score about as far as a small
   change does. The reeds can settle on two different regimes; whether a reed note is right is counted over
   many players and start times (`scripts/reeds-regimes-mc.ts`), not read from one render.
@@ -218,7 +218,7 @@ columns are plain units, model against recording, over all notes ([what each is]
 | horn | 87 (44) | 2.09 | 3.8 | 11.2 | 1.01 | +0.5 | 1.17 | 4.8 (4.4) | 0.2 |
 | trumpet | 105 (51) | 3.49 | 4.2 | 3.3 | 0.93 | +1.0 | 0.64 | 9.2 (9.6) | 2.7 |
 | trombone | 218 (109) | 3.97 | 6.7 | 5.5 | 1.05 | +0.3 | 0.79 | 22.0 (21.7) | 0.5 |
-| tuba | 107 (52) | 5.81 | 5.7 | 14.4 | 0.97 | 0.0 | 1.17 | 21.7 (25.4) | 0.2 |
+| tuba | 107 (52) | 5.00 | 5.7 | 14.4 | 0.97 | 0.0 | 1.17 | 21.7 (25.4) | 0.2 |
 
 | instrument | strokes (held out) | judge score, held-out | what the Measurements page shows (mean error over all strokes) |
 |---|---|---|---|
@@ -369,11 +369,12 @@ One engine (`lipcone.ts`: lips on a conical bore), two voicings.
 * **Verdicts.** Horn BETTER 7.77 → 2.26 (Δ 5.51 ± 0.23) against its start. Its radiated colour and steepening were refitted on 2026-11-14 (the fortissimo's harmonics above
   2 kHz stood 8–30 dB under the recordings'): BETTER 2.26 → 2.09 (Δ 0.17 ± 0.04); harmonics 4.96 → 4.58 dB,
   noise 2.40 → 1.98 dB, the ff spectrum 14.4 → 11.2 dB, every note still on its partial. Tuba BETTER 10.83
-  → 5.89 (Δ 4.93 ± 0.24), then its breath noise refitted, BETTER 5.89 → 5.81.
+  → 5.89 (Δ 4.93 ± 0.24), then its breath noise refitted, BETTER 5.89 → 5.81. Its level was
+  then set 4.5 dB lower for its limiter's sake (#84), which the judge's level term reads as 5.81 → 5.00.
 * **Known limits.** The lips' fitted sharpness (Q about 50) is far above what is measured on players
   (3–10). The horn's soft middle register (no pp C2–B3 was recorded) is the model's own extrapolation. The
   tuba's pianissimo recordings are brighter than its mezzo-forte's (hiss) and the model does not follow
-  them. Alone at fortissimo the tuba's bottom octave works its limiter by 4–6 dB.
+  them. Its level is set by its limiter and its place beside the horn, not by its recording.
 
 ### Trumpet
 
