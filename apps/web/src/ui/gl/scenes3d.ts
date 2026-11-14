@@ -416,8 +416,8 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
     return { target: [c[0], c[1], c[2]], dist: 1.6, yaw: TROMBONE_VIEW.yaw, pitch: TROMBONE_VIEW.pitch, swing: TROMBONE_VIEW.swing, whole: true };
   }
   if (si.family === 'brass') return { target: [0.0, 0.2, 0.0], dist: 0.6, yaw: 0.4, pitch: 0.28 };
-  // the timpani: from the audience's side, round towards the big drums' end, a little above (the heads
-  // as ellipses, the end drum's pedal and gauge past its kettle), whole on every stage (timpani3d.ts)
+  // the timpani: from behind the player and above, as the 2D stage draws them (the big drum at the left, the
+  // pedals and gauges towards us, the heads as ellipses), whole on every stage (timpani3d.ts)
   if (si.family === 'percussion') {
     const c = st.timpani ? st.timpani.bounds.c : ([0, 0.5, 0] as Vec3);
     return { target: [c[0], 0.5, c[2]], dist: 4.2, yaw: TIMPANI_VIEW.yaw, pitch: TIMPANI_VIEW.pitch, swing: TIMPANI_VIEW.swing, whole: true };
