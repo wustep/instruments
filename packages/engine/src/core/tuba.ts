@@ -107,7 +107,7 @@ export const TUBA_HUMAN: LipConeHuman<TubaFingering> = {
 };
 
 /** The voicing (lipcone.ts LipConeVoice): the lips, the bore's losses and the radiation's colour. Fitted to
- *  the University of Iowa MIS tuba (pp/mf/ff, C1–C4) with scripts/fit-tuba.ts on the fit half of its notes
+ *  the University of Iowa MIS tuba (pp/mf/ff, C1–C4) with scripts/fit-horn.ts --instrument tuba on the fit half of its notes
  *  (even MIDI numbers), judged on the held-out half (scripts/judge.ts): BETTER than the horn's voicing set
  *  to a tuba's bell by hand, held-out 10.83 → 5.89 (artifacts/round3/tuba/NOTES.md). The fit: 14.9 → 3.27. */
 export const TUBA_VOICE: TubaVoice = {
