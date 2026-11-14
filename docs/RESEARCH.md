@@ -1,6 +1,10 @@
 # Research notes and design choices
 
-Sections 1–7 cover the piano, which is calibrated against recordings. Sections 8–9 cover the bowed strings and the flute added later, which are physically modelled but not yet calibrated against recordings.
+Sections 1–7 cover the piano; sections 8–9 the bowed strings and the flute as they were first built
+(2026-11-08). They are design notes of that date: what has changed since is said where it changed. The
+later instruments' sources are cited in their engine files (`packages/engine/src/core`) and on the Notes
+page. How every instrument is measured against recordings, and where each stands, is in
+[`CALIBRATION.md`](CALIBRATION.md).
 
 This file summarises the literature the model is built on and the choices made
 for a piano that runs in real time in a browser AudioWorklet. Numbers quoted for
@@ -132,7 +136,8 @@ our implementation are measured; see `docs/CALIBRATION.md` and
 * **Radiation.**
   * Two close "microphones" over the bass and treble strings take mode-shape-weighted
     sums of modal velocity, as the Iowa recordings were made.
-  * The high-frequency local path is high-passed at 1.2 kHz and diffused by short allpasses.
+  * The high-frequency local path is crossed over at 700 Hz (second order) and diffused: a direct part
+    and a short decay of sparse (velvet) noise, which replaced a chain of allpasses that rang at key-down.
   * A first-order radiation tilt and a fitted EQ account for radiation efficiency
     and microphone response.
   * The EQ is fitted to the long-term reference spectrum (honestly labelled as such).
@@ -178,15 +183,9 @@ our implementation are measured; see `docs/CALIBRATION.md` and
 
 ## 7. Calibration data
 
-* University of Iowa Musical Instrument Samples:
-  * Steinway & Sons model B (211 cm), recorded November 2001;
-  * two Neumann KM 84 microphones 8″ above the bass and treble strings;
-  * 16-bit/44.1 kHz stereo, input gain unchanged across pp/mf/ff.
-* Terms on the MIS page: "may be downloaded and used for any projects, without
-  restrictions".
-* Used for analysis only, downloaded on demand into a gitignored cache. A few
-  labelled excerpts are shipped only for side-by-side listening on the
-  measurements page.
+The piano is set against the University of Iowa Musical Instrument Samples' Steinway & Sons model B
+(211 cm, November 2001). The recordings, their terms, how they are analysed and how a change is judged are
+described once, for every instrument, in [`CALIBRATION.md`](CALIBRATION.md).
 
 ## 8. Bowed strings (violin, viola, cello)
 
@@ -225,13 +224,15 @@ our implementation are measured; see `docs/CALIBRATION.md` and
   "bridge hill" formant. The long-term spectrum was balanced by measurement:
   violin strongest at 250–800 Hz, gentle bridge hill, about −10 dB/octave above
   4 kHz.
-* **Not modelled.**
-  * Torsional waves, bow width and bow-hair compliance.
-  * Bow changes (strokes are one-directional).
+* **Not modelled in that first pass.**
+  * Torsional waves, bow width and bow-hair compliance (the cello has had torsion and a bow of finite
+    width since its rebuild).
+  * Bow changes (strokes were one-directional; the bow now changes direction, and a file's bowing is
+    planned ahead).
   * The bridge's own rocking dynamics, which are only a formant.
-  * Measured body admittances.
-  * Calibration against recordings: no bowed-string reference analysis was done
-    in this pass.
+  * Measured body admittances (the violin's, viola's and double bass's radiation has since been fitted
+    note by note to recordings).
+  * Calibration against recordings came after this pass: see `CALIBRATION.md`.
 
 ## 9. Flute
 
@@ -255,13 +256,15 @@ our implementation are measured; see `docs/CALIBRATION.md` and
 * **Tuning.** The bore delay is solved from the small-signal loop phase. The
   saturated oscillation then runs up to 28 ¢ sharp, so a measured voicing table
   (`scripts/tune-flute.ts`, the instrument maker's adjustment) corrects each
-  note to within 0.5 ¢ at 44.1 and 48 kHz.
+  note to within 1.2 ¢ at 44.1 and 48 kHz (and has rows for 22.05 and 96 kHz).
 * **Not modelled.**
   * Tone holes, cross-fingerings and the real bore taper, so third-register
     timbre is idealised.
   * Turbulent jet structure beyond band-passed noise ∝ Uj².
-  * Even harmonics are weaker than a real flute's (≈ −25 to −33 dB at the
-    octave); the jet's directly radiated flow carries most of them.
+  * Even harmonics were far weaker than a real flute's in this first design (≈ −25 to −33 dB). The
+    fitted voicing (a vortex loss at the labium, monopole radiation) brought the even/odd balance to
+    −12 / −14 / −20 dB by register against the recordings' −4 / −12 / −19; the low register's second
+    harmonic is still about 10 dB short.
 
 ## References
 

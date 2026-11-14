@@ -1,5 +1,6 @@
-// Measurements: model vs. reference recordings, from offline analysis
-// (scripts/calibrate.ts). Reference = Iowa MIS Steinway model B.
+// Measurements: each model beside its reference recordings, from offline analysis (scripts/calibrate.ts,
+// calibrate-ensemble.ts, calibrate-{timpani,harp,glock}.ts). What the numbers are and how a change is judged:
+// docs/CALIBRATION.md.
 
 import { midiName, renderOffline } from '@piano-model/engine';
 import { chart, dataTable, legend, type Series } from '../ui/chart.ts';
@@ -208,7 +209,7 @@ function build(d: Data): HTMLElement[] {
         'Decay of the first partial',
         'T60 at mf, log scale; double decay from coupled unison strings',
         [REF_LEGEND(), mk('e'), mk('l')],
-        `Median model/recording ratio over partials 1–3 by register — ${reg}. Round 2 fixed the tenor (×2.2 too slow before) by fitting the bridge admittance per bridge segment, and the top octave (×0.6 too fast) by keeping treble unisons within a beat rate a tuner would accept. The bass aftersound is still about four-fifths as long as the recording’s; per-note scatter in the recording itself is a factor of ten.`,
+        `Median model/recording ratio over partials 1–3 by register — ${reg}. Decay is compared by register, not note by note: in the recording itself neighbouring keys differ by a factor of ten, where a partial sits on a soundboard resonance. The prompt decay is set by the bridge (fitted per bridge segment), the aftersound by the strings’ own loss and their second polarisation; treble unisons are kept within a beat rate a tuner would accept.`,
         true,
       ),
     );
@@ -335,8 +336,8 @@ interface Ens {
 }
 
 function ensembleSection(e: Ens): HTMLElement {
-  const insts = ['violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trombone', 'tuba'].filter((i) => e.summary[i]);
-  const label: Record<string, string> = { violin: 'Violin', viola: 'Viola', cello: 'Cello', bass: 'Double bass', flute: 'Flute', oboe: 'Oboe', clarinet: 'Clarinet', bassoon: 'Bassoon', horn: 'Horn', trombone: 'Trombone', tuba: 'Tuba' };
+  const insts = ['violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba'].filter((i) => e.summary[i]);
+  const label: Record<string, string> = { violin: 'Violin', viola: 'Viola', cello: 'Cello', bass: 'Double bass', flute: 'Flute', oboe: 'Oboe', clarinet: 'Clarinet', bassoon: 'Bassoon', horn: 'Horn', trumpet: 'Trumpet', trombone: 'Trombone', tuba: 'Tuba' };
   // the baseline measured the same way (vibrato matched to each recorded note)
   const first = (e.rounds.find((r) => /re-measured with matched vibrato/.test(r.label)) ?? e.rounds[0])?.summary ?? {};
   const lx = (f: number) => Math.log2(f / 1000);
@@ -411,7 +412,7 @@ function ensembleSection(e: Ens): HTMLElement {
         'Harmonic profiles',
         'steady-state harmonic levels relative to the strongest, power average over the register’s notes at mf',
         [leg(), grid],
-        'Violin-family registers are thirds of the notes analysed on each instrument (first position on each string, as the model plays them); flute, oboe, clarinet, bassoon, horn, trombone and tuba registers are thirds of their compass (the trombone’s: the Iowa tenor and bass trombones together). The flute’s low register shows its strong even harmonics; the oboe’s strongest harmonic sits near 1–1.5 kHz whatever the note (its formant); the clarinet’s low register has its odd harmonics only, up to about 1.5 kHz; the bassoon’s low notes have a weak fundamental under harmonics gathered near 500 Hz (its formant); the horn’s gather near 450–600 Hz too (the hand in its bell), its top notes nearly pure, and brassy at ff. The trombone’s (the Iowa tenor and bass trombones) keep their low notes’ fundamental weak under a flat run of harmonics, the top notes nearly pure at pp, and flatten to the tenth harmonic at ff (its bell beams the highs forward, and the wave steepens down the slide). The tuba’s lowest notes have almost no fundamental (30–40 dB under harmonics gathered near 250–450 Hz: a C1 is heard by its sixth to ninth), its middle and top the first two harmonics.',
+        'Violin-family registers are thirds of the notes analysed on each instrument (first position on each string, as the model plays them); flute, oboe, clarinet, bassoon, horn, trumpet, trombone and tuba registers are thirds of their compass (the trombone’s: the Iowa tenor and bass trombones together). The flute’s low register shows its strong even harmonics; the oboe’s strongest harmonic sits near 1–1.5 kHz whatever the note (its formant); the clarinet’s low register has its odd harmonics only, up to about 1.5 kHz; the bassoon’s low notes have a weak fundamental under harmonics gathered near 500 Hz (its formant); the horn’s gather near 450–600 Hz too (the hand in its bell), its top notes nearly pure, and brassy at ff. The trumpet’s strongest harmonic is its third in the low register (a small bell radiates the lows poorly), its top notes their first two. The trombone’s (the Iowa tenor and bass trombones) keep their low notes’ fundamental weak under a flat run of harmonics, the top notes nearly pure at pp, and flatten to the tenth harmonic at ff (its bell beams the highs forward, and the wave steepens down the slide). The tuba’s lowest notes have almost no fundamental (30–40 dB under harmonics gathered near 250–450 Hz: a C1 is heard by its sixth to ninth), its middle and top the first two harmonics.',
         true,
       ),
     );
@@ -879,6 +880,8 @@ function roundsTable(d: Data): HTMLElement {
 }
 
 function shortfalls(): HTMLElement {
+  // (the same list, at length and with its numbers: docs/CALIBRATION.md, "Instrument by instrument" and "Known limits")
+  const li = (head: string, text: string) => h('li', {}, h('strong', {}, head), text);
   return h(
     'section',
     { class: 'shortfalls' },
@@ -889,13 +892,18 @@ function shortfalls(): HTMLElement {
       h(
         'ul',
         {},
-        h('li', {}, h('strong', {}, 'Bass aftersound: '), '×0.8 of the recording’s (the string-loss filter caps it).'),
-        h('li', {}, h('strong', {}, 'Flute low register: '), 'second harmonic ~10 dB short at mf/ff.'),
-        h('li', {}, h('strong', {}, 'String bodies: '), 'modes from the literature; violin and viola radiation fitted note by note to the recordings, the cello’s by its spectrum.'),
-        h('li', {}, h('strong', {}, 'Soundboard: '), '~150 plausible modes, not a measured board.'),
-        h('li', {}, h('strong', {}, 'Action noises: '), 'short synthetic pulses; no key travel.'),
-        h('li', {}, h('strong', {}, 'Room and lid: '), 'a modelled hall and a shelf, not the instrument.'),
+        li('Piano, bass aftersound: ', 'about four-fifths as long as the recording’s (the string’s own loss is at its limit).'),
+        li('Piano, loud against soft: ', 'brightens a little less from pp to ff than the Steinway; the first quarter-second is brighter than it.'),
+        li('Soundboard: ', '~150 plausible modes and a fitted balance, not a measured board. The upright has no recording.'),
+        li('Strings: ', 'the cello is too bright at pp and too dark at ff; the violin starts a long note sooner than its player; the viola’s dynamics are wider than its player’s.'),
+        li('Flute: ', 'second harmonic of the low register ~10 dB short at mf and ff; less breath between the harmonics than the recording.'),
+        li('Reeds: ', 'the lowest notes of the oboe and the bassoon have too little fundamental; a double reed’s held note can tip to its octave (1–2 % of notes).'),
+        li('Brass: ', 'the trumpet’s and the trombone’s lips close every cycle at every dynamic, so pp is too bright and the trombone’s ff too dark.'),
+        li('Timpani, harp: ', 'the timpani’s recording is a room’s; the harp’s strings differ from one another by more than a voicing follows.'),
+        li('The recordings: ', 'one instrument, one player, one microphone each; held notes alone. Hiss reads as brightness, a hall as decay.'),
+        li('Action, room, lid: ', 'action noises are short synthetic pulses; the room is a modelled hall, the lid a shelf.'),
       ),
+      h('p', { class: 'hint', style: 'margin-top:12px' }, 'How these are measured and judged: ', h('a', { href: 'https://github.com/wustep/instruments/blob/main/docs/CALIBRATION.md', target: '_blank', rel: 'noopener' }, 'the calibration guide'), '.'),
     ),
   );
 }
