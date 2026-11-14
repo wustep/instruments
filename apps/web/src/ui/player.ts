@@ -16,7 +16,7 @@ import { express, PartLevels, type Expressed } from '../expression.ts';
 import { notesAhead, parseMidi, type FileEvent, type MidiSong } from '../midi-file.ts';
 import { canReassign, voicesOfLine, VOICE_INFO, VOICES, type Voice } from '../orchestra/assign.ts';
 import { ensemble, stageCap } from '../orchestra/ensemble.ts';
-import { DEMOS, demoSong, PIECES, pieceForLineup, pieceSong, type Demo, type Piece } from '../orchestra/pieces.ts';
+import { dbGain, DEMOS, demoSong, PIECES, pieceForLineup, pieceSong, type Demo, type Piece } from '../orchestra/pieces.ts';
 import { tidyName } from '../orchestra/rules.ts';
 import { familyOf, seatNames, sectionName, type Family, type Section } from '../orchestra/sections.ts';
 import { voiceGlyph } from './controls.ts';
@@ -281,6 +281,7 @@ export class MidiPlayer {
     const x = s ? expressOf(s) : null;
     this.events = s ? (this.auto && (x!.shaped || x!.timed) ? x!.events : s.events) : [];
     audio.fileSong(s);
+    audio.setFileVolume(dbGain(this.demo?.gain));
     this.syncExpr(x);
   }
 

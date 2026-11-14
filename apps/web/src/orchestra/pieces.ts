@@ -33,9 +33,13 @@ export interface Piece {
   /** the instruments in seating order, the lines each plays (others are silent), and any line's own
    *  transposition (semitones) on that instrument. Two winds of a kind on one line (a pair on one staff)
    *  divide it: the first plays its top voice (assign.ts deskOf) */
-  parts: { voice: Voice; lines: number[]; shift?: Record<number, number> }[];
+  parts: { voice: Voice; lines: number[]; shift?: Record<number, number>; gain?: number }[];
   /** tempo, × the file's (a tempo the score marks, where the file has another) */
   rate?: number;
+  /** the piece's level, dB, on the ensemble's bus: every piece played at about one loudness, and a
+   *  part's `gain` (dB, its engine's volume) where it stands out of the balance the score asks for
+   *  (scripts/levels-pieces.ts measures both) */
+  gain?: number;
   /** a short address of its own (/symphony, /everything, /passiton, /tango): the page opens on its orchestra, the piece loaded
    *  (address.ts PIECE_PATHS; vercel.json rewrites it to the page) */
   path?: string;
@@ -43,7 +47,14 @@ export interface Piece {
 
 /** the symphony's orchestra, in the score's order: two each of flutes, oboes, clarinets, bassoons, horns
  *  and trumpets on their staff's two voices, the timpani, the first and second violins, the violas, the
- *  cellos and the basses (Mutopia's files: one staff, one line each, in this order) */
+ *  cellos and the basses (Mutopia's files: one staff, one line each, in this order). The files write the
+ *  basses where they are read, in unison with the cellos at 416 of the 503 onsets they share in the first movement (436 of 538 in the
+ *  second): they sound an octave under. Levels, measured (scripts/levels-pieces.ts, the parts under the whole
+ *  while they play): each string part stands for a section of eight to fourteen, against winds one to a
+ *  part, so the strings are 3 dB up (the violins 12 and 11 dB under the whole, under the first flute's 8,
+ *  were 10 and 11 with it); the basses, an octave down, 5 dB up (22 dB under, now 15); the timpani 10 dB up
+ *  (24 dB under, at its strokes 22: not heard; now 15 and 14); the second trumpet, low in its compass
+ *  under the first, 3 dB (23 dB under, now 21). */
 const BEETHOVEN_5: Piece['parts'] = [
   { voice: 'flute', lines: [0] },
   { voice: 'flute', lines: [0] },
@@ -56,13 +67,13 @@ const BEETHOVEN_5: Piece['parts'] = [
   { voice: 'horn', lines: [4] },
   { voice: 'horn', lines: [4] },
   { voice: 'trumpet', lines: [5] },
-  { voice: 'trumpet', lines: [5] },
-  { voice: 'timpani', lines: [6] },
-  { voice: 'violin', lines: [7] },
-  { voice: 'violin', lines: [8] },
-  { voice: 'viola', lines: [9] },
-  { voice: 'cello', lines: [10] },
-  { voice: 'bass', lines: [11] },
+  { voice: 'trumpet', lines: [5], gain: 3 },
+  { voice: 'timpani', lines: [6], gain: 10 },
+  { voice: 'violin', lines: [7], gain: 3 },
+  { voice: 'violin', lines: [8], gain: 3 },
+  { voice: 'viola', lines: [9], gain: 3 },
+  { voice: 'cello', lines: [10], gain: 3 },
+  { voice: 'bass', lines: [11], shift: { 11: -12 }, gain: 5 },
 ];
 
 export const PIECES: Piece[] = [
@@ -156,7 +167,10 @@ export const PIECES: Piece[] = [
     source: 'https://github.com/wustep/instruments#license',
     credit: 'Toward Morning, a symphonic movement in D minor that ends in D major (Adagio, Allegro appassionato, a coda marked Maestoso; four minutes and twenty seconds), for one each of flute, oboe, clarinet, bassoon, horn, trumpet and trombone, timpani and strings: thirteen parts, one to a seat, all at concert pitch, with their own dynamics. Written for these instruments by Fable 5.2 (Anthropic’s Claude), 2026, each note chosen for what its instrument’s model plays well. CC0 1.0: given to the public domain.',
     sha256: 'ab73e45a117f3499e34cd7ca0e50ceb2ee8051e44cb302cc4d9a8ca9c34ae352',
-    parts: (['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'timpani', 'violin', 'violin', 'viola', 'cello', 'bass'] as Voice[]).map((voice, i) => ({ voice, lines: [i] })),
+    // (levels, measured: the trombone, written fortissimo throughout and played 9 dB over its session, stood
+    // 7.7 dB under the whole, over the strings and 7 dB over the horn and trumpet; 4 dB down, 11 dB under.
+    // The bass, the line under everything, 17 dB under; 3 dB up, 13)
+    parts: (['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'timpani', 'violin', 'violin', 'viola', 'cello', 'bass'] as Voice[]).map((voice, i) => ({ voice, lines: [i], gain: ({ trombone: -4, bass: 3 } as Partial<Record<Voice, number>>)[voice] })),
     path: 'symphony',
   },
   {
@@ -213,6 +227,20 @@ export function piecePlan(piece: Piece, lines: LineInfo[], cap: number): Plan {
   return planOf(parts, lines, shifts);
 }
 
+/** dB as a gain */
+export const dbGain = (db: number | undefined): number => Math.pow(10, (db ?? 0) / 20);
+
+/** each of a plan's parts' own level in a piece (× its engine's volume): the piece's part of the same
+ *  voice on its lines (the second of two on one line, the second's), else 1 */
+export function pieceTrims(piece: Piece, plan: Plan): number[] {
+  return plan.parts.map((q, k) => {
+    const on = (s: Piece['parts'][number]) => s.voice === q.voice && s.lines.some((l) => q.lines.includes(l));
+    const mine = piece.parts.filter(on);
+    const before = plan.parts.slice(0, k).filter((r) => r.voice === q.voice && r.lines.some((l) => q.lines.includes(l))).length;
+    return dbGain(mine[Math.min(before, mine.length - 1)]?.gain);
+  });
+}
+
 /** the built-in piece whose instruments best match a lineup (the play icon, in an ensemble with
  *  nothing loaded): the most instruments in common, over the instruments of both (ties: the first) */
 export function pieceForLineup(lineup: Voice[]): number {
@@ -264,6 +292,9 @@ export interface Demo {
   end?: number;
   /** velocity, × the file's */
   vel?: number;
+  /** its level, dB (the engine's volume while it is loaded): every piece played at about one loudness
+   *  (scripts/levels-pieces.ts) */
+  gain?: number;
 }
 
 export const DEMOS: Record<InstrumentId, Demo> = {
