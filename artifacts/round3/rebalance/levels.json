@@ -1,0 +1,1687 @@
+[
+ {
+  "id": "haydn",
+  "gainDb": 2,
+  "seconds": 522.5,
+  "lufs": -20.17,
+  "lra": 9.9,
+  "peakDb": -5.04,
+  "prePeakDb": -6.18,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "violin",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -24.7,
+    "inMixDb": -5.7,
+    "loudDb": -3.1,
+    "peakDb": -9.18
+   },
+   {
+    "voice": "violin",
+    "lines": [
+     1
+    ],
+    "trimDb": 0,
+    "lufs": -27.22,
+    "inMixDb": -7.3,
+    "loudDb": -5.8,
+    "peakDb": -10.77
+   },
+   {
+    "voice": "viola",
+    "lines": [
+     2
+    ],
+    "trimDb": 0,
+    "lufs": -26.98,
+    "inMixDb": -7.7,
+    "loudDb": -5,
+    "peakDb": -12.65
+   },
+   {
+    "voice": "cello",
+    "lines": [
+     3
+    ],
+    "trimDb": 0,
+    "lufs": -27.54,
+    "inMixDb": -7.4,
+    "loudDb": -6,
+    "peakDb": -7.73
+   }
+  ]
+ },
+ {
+  "id": "bach",
+  "gainDb": 0,
+  "seconds": 310,
+  "lufs": -19.76,
+  "lra": 9.2,
+  "peakDb": -3.81,
+  "prePeakDb": -4.95,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "flute",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -27.44,
+    "inMixDb": -8.6,
+    "loudDb": -7,
+    "peakDb": -14.19
+   },
+   {
+    "voice": "violin",
+    "lines": [
+     1
+    ],
+    "trimDb": 0,
+    "lufs": -25.1,
+    "inMixDb": -6.8,
+    "loudDb": -4.7,
+    "peakDb": -10.84
+   },
+   {
+    "voice": "violin",
+    "lines": [
+     2
+    ],
+    "trimDb": 0,
+    "lufs": -28.24,
+    "inMixDb": -10.1,
+    "loudDb": -8.8,
+    "peakDb": -15.12
+   },
+   {
+    "voice": "viola",
+    "lines": [
+     3
+    ],
+    "trimDb": 0,
+    "lufs": -27.42,
+    "inMixDb": -10.1,
+    "loudDb": -7.6,
+    "peakDb": -11.44
+   },
+   {
+    "voice": "cello",
+    "lines": [
+     4
+    ],
+    "trimDb": 0,
+    "lufs": -27.72,
+    "inMixDb": -10,
+    "loudDb": -7.5,
+    "peakDb": -6.47
+   },
+   {
+    "voice": "grand",
+    "lines": [
+     6,
+     7
+    ],
+    "trimDb": 0,
+    "lufs": -28.4,
+    "inMixDb": -8.7,
+    "loudDb": -7,
+    "peakDb": -11.41
+   }
+  ]
+ },
+ {
+  "id": "handel",
+  "gainDb": -4,
+  "seconds": 47.7,
+  "lufs": -19.89,
+  "lra": 7.4,
+  "peakDb": -5.88,
+  "prePeakDb": -7.02,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "trumpet",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -23.39,
+    "inMixDb": -3.4,
+    "loudDb": -3.4,
+    "peakDb": -10.17
+   },
+   {
+    "voice": "grand",
+    "lines": [
+     1,
+     2
+    ],
+    "trimDb": 0,
+    "lufs": -24.74,
+    "inMixDb": -5.1,
+    "loudDb": -4.6,
+    "peakDb": -8.57
+   }
+  ]
+ },
+ {
+  "id": "air",
+  "gainDb": 3.5,
+  "seconds": 108.6,
+  "lufs": -19.96,
+  "lra": 7.5,
+  "peakDb": -3.73,
+  "prePeakDb": -4.87,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "trombone",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -24.6,
+    "inMixDb": -5.4,
+    "loudDb": -4.1,
+    "peakDb": -9.7
+   },
+   {
+    "voice": "trombone",
+    "lines": [
+     1
+    ],
+    "trimDb": 0,
+    "lufs": -27.68,
+    "inMixDb": -7.3,
+    "loudDb": -6.8,
+    "peakDb": -10.06
+   },
+   {
+    "voice": "trombone",
+    "lines": [
+     2
+    ],
+    "trimDb": 0,
+    "lufs": -27.76,
+    "inMixDb": -8.4,
+    "loudDb": -7.6,
+    "peakDb": -10.39
+   },
+   {
+    "voice": "trombone",
+    "lines": [
+     3
+    ],
+    "trimDb": 0,
+    "lufs": -28.94,
+    "inMixDb": -9.7,
+    "loudDb": -8.2,
+    "peakDb": -6.95
+   }
+  ]
+ },
+ {
+  "id": "beethoven5-i",
+  "gainDb": -4.5,
+  "seconds": 281.4,
+  "lufs": -20.37,
+  "lra": 15.8,
+  "peakDb": -3.21,
+  "prePeakDb": -4.35,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "flute",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -29.56,
+    "inMixDb": -9.6,
+    "loudDb": -8.9,
+    "peakDb": -19.28
+   },
+   {
+    "voice": "flute",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -32.44,
+    "inMixDb": -13.9,
+    "loudDb": -12.8,
+    "peakDb": -20.98
+   },
+   {
+    "voice": "oboe",
+    "lines": [
+     1
+    ],
+    "trimDb": 0,
+    "lufs": -34.87,
+    "inMixDb": -14.2,
+    "loudDb": -14.2,
+    "peakDb": -23.45
+   },
+   {
+    "voice": "oboe",
+    "lines": [
+     1
+    ],
+    "trimDb": 0,
+    "lufs": -34.03,
+    "inMixDb": -14.2,
+    "loudDb": -13.5,
+    "peakDb": -24.23
+   },
+   {
+    "voice": "clarinet",
+    "lines": [
+     2
+    ],
+    "trimDb": 0,
+    "lufs": -37.59,
+    "inMixDb": -17.2,
+    "loudDb": -17.1,
+    "peakDb": -23.14
+   },
+   {
+    "voice": "clarinet",
+    "lines": [
+     2
+    ],
+    "trimDb": 0,
+    "lufs": -41.32,
+    "inMixDb": -20.7,
+    "loudDb": -20.7,
+    "peakDb": -28.5
+   },
+   {
+    "voice": "bassoon",
+    "lines": [
+     3
+    ],
+    "trimDb": 0,
+    "lufs": -39.52,
+    "inMixDb": -16.9,
+    "loudDb": -17.6,
+    "peakDb": -23.58
+   },
+   {
+    "voice": "bassoon",
+    "lines": [
+     3
+    ],
+    "trimDb": 0,
+    "lufs": -38.25,
+    "inMixDb": -16.3,
+    "loudDb": -16.9,
+    "peakDb": -25.37
+   },
+   {
+    "voice": "horn",
+    "lines": [
+     4
+    ],
+    "trimDb": 0,
+    "lufs": -32.85,
+    "inMixDb": -11.9,
+    "loudDb": -12.1,
+    "peakDb": -19.78
+   },
+   {
+    "voice": "horn",
+    "lines": [
+     4
+    ],
+    "trimDb": 0,
+    "lufs": -36.51,
+    "inMixDb": -17.5,
+    "loudDb": -14.2,
+    "peakDb": -21.67
+   },
+   {
+    "voice": "trumpet",
+    "lines": [
+     5
+    ],
+    "trimDb": 3,
+    "lufs": -39.58,
+    "inMixDb": -20.8,
+    "loudDb": -19.1,
+    "peakDb": -23.47
+   },
+   {
+    "voice": "timpani",
+    "lines": [
+     6
+    ],
+    "trimDb": 10,
+    "lufs": -34.37,
+    "inMixDb": -15.1,
+    "loudDb": -13.7,
+    "peakDb": -13.76
+   },
+   {
+    "voice": "violin",
+    "lines": [
+     7
+    ],
+    "trimDb": 3,
+    "lufs": -29.36,
+    "inMixDb": -9.9,
+    "loudDb": -8.1,
+    "peakDb": -13.01
+   },
+   {
+    "voice": "violin",
+    "lines": [
+     8
+    ],
+    "trimDb": 3,
+    "lufs": -29.88,
+    "inMixDb": -10.6,
+    "loudDb": -8.2,
+    "peakDb": -13.44
+   },
+   {
+    "voice": "viola",
+    "lines": [
+     9
+    ],
+    "trimDb": 3,
+    "lufs": -29.6,
+    "inMixDb": -10.1,
+    "loudDb": -8.2,
+    "peakDb": -13.11
+   },
+   {
+    "voice": "cello",
+    "lines": [
+     10
+    ],
+    "trimDb": 3,
+    "lufs": -30.01,
+    "inMixDb": -10.9,
+    "loudDb": -9.5,
+    "peakDb": -8.01
+   },
+   {
+    "voice": "bass",
+    "lines": [
+     11
+    ],
+    "trimDb": 5,
+    "lufs": -35.84,
+    "inMixDb": -15.3,
+    "loudDb": -14.4,
+    "peakDb": -17.79
+   }
+  ]
+ },
+ {
+  "id": "beethoven5-ii",
+  "gainDb": 0,
+  "seconds": 482.6,
+  "lufs": -19.61,
+  "lra": 13.9,
+  "peakDb": -1.61,
+  "prePeakDb": -2.75,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "flute",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -30.46,
+    "inMixDb": -9.5,
+    "loudDb": -10.2,
+    "peakDb": -18.51
+   },
+   {
+    "voice": "flute",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -30.88,
+    "inMixDb": -14.9,
+    "loudDb": -13.9,
+    "peakDb": -21.03
+   },
+   {
+    "voice": "oboe",
+    "lines": [
+     1
+    ],
+    "trimDb": 0,
+    "lufs": -33.82,
+    "inMixDb": -14.7,
+    "loudDb": -14.3,
+    "peakDb": -21.42
+   },
+   {
+    "voice": "oboe",
+    "lines": [
+     1
+    ],
+    "trimDb": 0,
+    "lufs": -32.58,
+    "inMixDb": -17,
+    "loudDb": -15.9,
+    "peakDb": -21.86
+   },
+   {
+    "voice": "clarinet",
+    "lines": [
+     2
+    ],
+    "trimDb": 0,
+    "lufs": -38.24,
+    "inMixDb": -16.5,
+    "loudDb": -13.7,
+    "peakDb": -26.04
+   },
+   {
+    "voice": "clarinet",
+    "lines": [
+     2
+    ],
+    "trimDb": 0,
+    "lufs": -41.25,
+    "inMixDb": -18.8,
+    "loudDb": -17.5,
+    "peakDb": -29.87
+   },
+   {
+    "voice": "bassoon",
+    "lines": [
+     3
+    ],
+    "trimDb": 0,
+    "lufs": -38.13,
+    "inMixDb": -17.9,
+    "loudDb": -16,
+    "peakDb": -24.08
+   },
+   {
+    "voice": "bassoon",
+    "lines": [
+     3
+    ],
+    "trimDb": 0,
+    "lufs": -37.4,
+    "inMixDb": -17.4,
+    "loudDb": -16.9,
+    "peakDb": -21.2
+   },
+   {
+    "voice": "horn",
+    "lines": [
+     4
+    ],
+    "trimDb": 0,
+    "lufs": -28.11,
+    "inMixDb": -12.8,
+    "loudDb": -11,
+    "peakDb": -15.01
+   },
+   {
+    "voice": "horn",
+    "lines": [
+     4
+    ],
+    "trimDb": 0,
+    "lufs": -29.69,
+    "inMixDb": -15.4,
+    "loudDb": -12.7,
+    "peakDb": -15.85
+   },
+   {
+    "voice": "trumpet",
+    "lines": [
+     5
+    ],
+    "trimDb": 0,
+    "lufs": -28.33,
+    "inMixDb": -13,
+    "loudDb": -12.5,
+    "peakDb": -16.81
+   },
+   {
+    "voice": "trumpet",
+    "lines": [
+     5
+    ],
+    "trimDb": 3,
+    "lufs": -27.62,
+    "inMixDb": -13.6,
+    "loudDb": -10,
+    "peakDb": -14.67
+   },
+   {
+    "voice": "timpani",
+    "lines": [
+     6
+    ],
+    "trimDb": 10,
+    "lufs": -33.37,
+    "inMixDb": -18.3,
+    "loudDb": -16.2,
+    "peakDb": -12.66
+   },
+   {
+    "voice": "violin",
+    "lines": [
+     7
+    ],
+    "trimDb": 3,
+    "lufs": -26.14,
+    "inMixDb": -7.4,
+    "loudDb": -7.1,
+    "peakDb": -6.06
+   },
+   {
+    "voice": "violin",
+    "lines": [
+     8
+    ],
+    "trimDb": 3,
+    "lufs": -26.08,
+    "inMixDb": -7.7,
+    "loudDb": -6.4,
+    "peakDb": -6.85
+   },
+   {
+    "voice": "viola",
+    "lines": [
+     9
+    ],
+    "trimDb": 3,
+    "lufs": -30.04,
+    "inMixDb": -11.5,
+    "loudDb": -9.2,
+    "peakDb": -10.56
+   },
+   {
+    "voice": "cello",
+    "lines": [
+     10
+    ],
+    "trimDb": 3,
+    "lufs": -27.49,
+    "inMixDb": -8.4,
+    "loudDb": -4.5,
+    "peakDb": -8.83
+   },
+   {
+    "voice": "bass",
+    "lines": [
+     11
+    ],
+    "trimDb": 5,
+    "lufs": -32.18,
+    "inMixDb": -13.2,
+    "loudDb": -11.3,
+    "peakDb": -17.5
+   }
+  ]
+ },
+ {
+  "id": "toward-morning",
+  "gainDb": 2.5,
+  "seconds": 260.8,
+  "lufs": -19.97,
+  "lra": 10.7,
+  "peakDb": -4.69,
+  "prePeakDb": -5.83,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "flute",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -31.7,
+    "inMixDb": -12.7,
+    "loudDb": -12.9,
+    "peakDb": -19.55
+   },
+   {
+    "voice": "oboe",
+    "lines": [
+     1
+    ],
+    "trimDb": 0,
+    "lufs": -32.04,
+    "inMixDb": -12.8,
+    "loudDb": -12.7,
+    "peakDb": -22.77
+   },
+   {
+    "voice": "clarinet",
+    "lines": [
+     2
+    ],
+    "trimDb": 0,
+    "lufs": -33.06,
+    "inMixDb": -14.3,
+    "loudDb": -14.4,
+    "peakDb": -21.66
+   },
+   {
+    "voice": "bassoon",
+    "lines": [
+     3
+    ],
+    "trimDb": 0,
+    "lufs": -33.74,
+    "inMixDb": -13.9,
+    "loudDb": -13.9,
+    "peakDb": -20.25
+   },
+   {
+    "voice": "horn",
+    "lines": [
+     4
+    ],
+    "trimDb": 0,
+    "lufs": -34.62,
+    "inMixDb": -14.7,
+    "loudDb": -14.6,
+    "peakDb": -19.52
+   },
+   {
+    "voice": "trumpet",
+    "lines": [
+     5
+    ],
+    "trimDb": 0,
+    "lufs": -33.84,
+    "inMixDb": -15.5,
+    "loudDb": -15.2,
+    "peakDb": -21.13
+   },
+   {
+    "voice": "trombone",
+    "lines": [
+     6
+    ],
+    "trimDb": -4,
+    "lufs": -29.28,
+    "inMixDb": -11.2,
+    "loudDb": -10.9,
+    "peakDb": -13.47
+   },
+   {
+    "voice": "timpani",
+    "lines": [
+     7
+    ],
+    "trimDb": 0,
+    "lufs": -33.12,
+    "inMixDb": -16.1,
+    "loudDb": -11.4,
+    "peakDb": -13
+   },
+   {
+    "voice": "violin",
+    "lines": [
+     8
+    ],
+    "trimDb": 0,
+    "lufs": -28.46,
+    "inMixDb": -9.5,
+    "loudDb": -9,
+    "peakDb": -15.62
+   },
+   {
+    "voice": "violin",
+    "lines": [
+     9
+    ],
+    "trimDb": 0,
+    "lufs": -29.09,
+    "inMixDb": -10.3,
+    "loudDb": -9.4,
+    "peakDb": -15.71
+   },
+   {
+    "voice": "viola",
+    "lines": [
+     10
+    ],
+    "trimDb": 0,
+    "lufs": -27.17,
+    "inMixDb": -8.7,
+    "loudDb": -7.4,
+    "peakDb": -9.69
+   },
+   {
+    "voice": "cello",
+    "lines": [
+     11
+    ],
+    "trimDb": 0,
+    "lufs": -33.17,
+    "inMixDb": -12.9,
+    "loudDb": -13,
+    "peakDb": -14.48
+   },
+   {
+    "voice": "bass",
+    "lines": [
+     12
+    ],
+    "trimDb": 3,
+    "lufs": -32.7,
+    "inMixDb": -13.4,
+    "loudDb": -12.4,
+    "peakDb": -17.06
+   }
+  ]
+ },
+ {
+  "id": "everything-so-far",
+  "gainDb": 7.5,
+  "seconds": 181,
+  "lufs": -19.81,
+  "lra": 12.3,
+  "peakDb": -3.13,
+  "prePeakDb": -4.27,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "flute",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -22.04,
+    "inMixDb": -6.1,
+    "loudDb": -5.3,
+    "peakDb": -11.25
+   },
+   {
+    "voice": "clarinet",
+    "lines": [
+     1
+    ],
+    "trimDb": 0,
+    "lufs": -25.16,
+    "inMixDb": -7.9,
+    "loudDb": -6.8,
+    "peakDb": -14.64
+   },
+   {
+    "voice": "horn",
+    "lines": [
+     2
+    ],
+    "trimDb": 0,
+    "lufs": -24.61,
+    "inMixDb": -7,
+    "loudDb": -6.3,
+    "peakDb": -12.46
+   },
+   {
+    "voice": "glockenspiel",
+    "lines": [
+     3
+    ],
+    "trimDb": 0,
+    "lufs": -28.08,
+    "inMixDb": -10.7,
+    "loudDb": -8.6,
+    "peakDb": -9.23
+   },
+   {
+    "voice": "harp",
+    "lines": [
+     4
+    ],
+    "trimDb": 0,
+    "lufs": -28.24,
+    "inMixDb": -8.9,
+    "loudDb": -8.4,
+    "peakDb": -11.84
+   },
+   {
+    "voice": "grand",
+    "lines": [
+     5
+    ],
+    "trimDb": 0,
+    "lufs": -28.62,
+    "inMixDb": -9.9,
+    "loudDb": -8.6,
+    "peakDb": -8.87
+   },
+   {
+    "voice": "violin",
+    "lines": [
+     6
+    ],
+    "trimDb": 0,
+    "lufs": -32.02,
+    "inMixDb": -12.4,
+    "loudDb": -12,
+    "peakDb": -20.19
+   },
+   {
+    "voice": "violin",
+    "lines": [
+     7
+    ],
+    "trimDb": 0,
+    "lufs": -33.81,
+    "inMixDb": -13.3,
+    "loudDb": -12.6,
+    "peakDb": -23.53
+   },
+   {
+    "voice": "viola",
+    "lines": [
+     8
+    ],
+    "trimDb": 0,
+    "lufs": -31.39,
+    "inMixDb": -11,
+    "loudDb": -9.8,
+    "peakDb": -16.66
+   },
+   {
+    "voice": "cello",
+    "lines": [
+     9
+    ],
+    "trimDb": 0,
+    "lufs": -33.17,
+    "inMixDb": -12.3,
+    "loudDb": -12.2,
+    "peakDb": -19.71
+   },
+   {
+    "voice": "bass",
+    "lines": [
+     10
+    ],
+    "trimDb": 0,
+    "lufs": -34.96,
+    "inMixDb": -16,
+    "loudDb": -11.6,
+    "peakDb": -19.97
+   }
+  ]
+ },
+ {
+  "id": "pass-it-on",
+  "gainDb": 7,
+  "seconds": 188.1,
+  "lufs": -20.24,
+  "lra": 15.7,
+  "peakDb": -3.3,
+  "prePeakDb": -4.44,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "flute",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -25.92,
+    "inMixDb": -9.4,
+    "loudDb": -8.9,
+    "peakDb": -15.88
+   },
+   {
+    "voice": "oboe",
+    "lines": [
+     1
+    ],
+    "trimDb": 0,
+    "lufs": -28.87,
+    "inMixDb": -12.5,
+    "loudDb": -12.1,
+    "peakDb": -19.66
+   },
+   {
+    "voice": "clarinet",
+    "lines": [
+     2
+    ],
+    "trimDb": 0,
+    "lufs": -30.6,
+    "inMixDb": -13.5,
+    "loudDb": -13.2,
+    "peakDb": -18.94
+   },
+   {
+    "voice": "bassoon",
+    "lines": [
+     3
+    ],
+    "trimDb": 0,
+    "lufs": -31.82,
+    "inMixDb": -15.7,
+    "loudDb": -14.7,
+    "peakDb": -17.99
+   },
+   {
+    "voice": "horn",
+    "lines": [
+     4
+    ],
+    "trimDb": 0,
+    "lufs": -30.93,
+    "inMixDb": -14,
+    "loudDb": -13.5,
+    "peakDb": -18.02
+   },
+   {
+    "voice": "trumpet",
+    "lines": [
+     5
+    ],
+    "trimDb": 0,
+    "lufs": -28.14,
+    "inMixDb": -11.1,
+    "loudDb": -10.9,
+    "peakDb": -14.27
+   },
+   {
+    "voice": "trombone",
+    "lines": [
+     6
+    ],
+    "trimDb": 0,
+    "lufs": -31.93,
+    "inMixDb": -15.3,
+    "loudDb": -15,
+    "peakDb": -14.8
+   },
+   {
+    "voice": "tuba",
+    "lines": [
+     7
+    ],
+    "trimDb": 0,
+    "lufs": -33.29,
+    "inMixDb": -12.8,
+    "loudDb": -8.4,
+    "peakDb": -15.39
+   },
+   {
+    "voice": "timpani",
+    "lines": [
+     8
+    ],
+    "trimDb": 0,
+    "lufs": -33.66,
+    "inMixDb": -17.4,
+    "loudDb": -15.8,
+    "peakDb": -11.5
+   },
+   {
+    "voice": "glockenspiel",
+    "lines": [
+     9
+    ],
+    "trimDb": 0,
+    "lufs": -27.45,
+    "inMixDb": -8.6,
+    "loudDb": -8.6,
+    "peakDb": -15.38
+   },
+   {
+    "voice": "harp",
+    "lines": [
+     10
+    ],
+    "trimDb": 0,
+    "lufs": -28.64,
+    "inMixDb": -9.4,
+    "loudDb": -8.6,
+    "peakDb": -9.83
+   },
+   {
+    "voice": "grand",
+    "lines": [
+     11
+    ],
+    "trimDb": 0,
+    "lufs": -28.74,
+    "inMixDb": -12,
+    "loudDb": -11.4,
+    "peakDb": -11.49
+   },
+   {
+    "voice": "violin",
+    "lines": [
+     12
+    ],
+    "trimDb": 0,
+    "lufs": -29.42,
+    "inMixDb": -13.1,
+    "loudDb": -11.1,
+    "peakDb": -16.85
+   },
+   {
+    "voice": "violin",
+    "lines": [
+     13
+    ],
+    "trimDb": 0,
+    "lufs": -30.94,
+    "inMixDb": -15.7,
+    "loudDb": -13.1,
+    "peakDb": -16.41
+   },
+   {
+    "voice": "viola",
+    "lines": [
+     14
+    ],
+    "trimDb": 0,
+    "lufs": -28.92,
+    "inMixDb": -12.8,
+    "loudDb": -11.7,
+    "peakDb": -16.26
+   },
+   {
+    "voice": "cello",
+    "lines": [
+     15
+    ],
+    "trimDb": 0,
+    "lufs": -29.22,
+    "inMixDb": -12.2,
+    "loudDb": -12.2,
+    "peakDb": -15.54
+   },
+   {
+    "voice": "bass",
+    "lines": [
+     16
+    ],
+    "trimDb": 0,
+    "lufs": -32.18,
+    "inMixDb": -15.9,
+    "loudDb": -13.7,
+    "peakDb": -19
+   }
+  ]
+ },
+ {
+  "id": "after-you",
+  "gainDb": 9.5,
+  "seconds": 176,
+  "lufs": -20.09,
+  "lra": 12.8,
+  "peakDb": -1.94,
+  "prePeakDb": -3.08,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "oboe",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -27.61,
+    "inMixDb": -12.5,
+    "loudDb": -9.9,
+    "peakDb": -15.87
+   },
+   {
+    "voice": "clarinet",
+    "lines": [
+     1
+    ],
+    "trimDb": 0,
+    "lufs": -30.27,
+    "inMixDb": -11.2,
+    "loudDb": -9.4,
+    "peakDb": -17.66
+   },
+   {
+    "voice": "bassoon",
+    "lines": [
+     2
+    ],
+    "trimDb": 0,
+    "lufs": -33.87,
+    "inMixDb": -17.2,
+    "loudDb": -15.6,
+    "peakDb": -19.31
+   },
+   {
+    "voice": "horn",
+    "lines": [
+     3
+    ],
+    "trimDb": 0,
+    "lufs": -29.82,
+    "inMixDb": -11.7,
+    "loudDb": -10.8,
+    "peakDb": -14.06
+   },
+   {
+    "voice": "trumpet",
+    "lines": [
+     4
+    ],
+    "trimDb": 0,
+    "lufs": -28.24,
+    "inMixDb": -12,
+    "loudDb": -11.6,
+    "peakDb": -13.21
+   },
+   {
+    "voice": "trombone",
+    "lines": [
+     5
+    ],
+    "trimDb": 0,
+    "lufs": -33.97,
+    "inMixDb": -16.4,
+    "loudDb": -15.1,
+    "peakDb": -10.27
+   },
+   {
+    "voice": "grand",
+    "lines": [
+     6
+    ],
+    "trimDb": 0,
+    "lufs": -29.26,
+    "inMixDb": -8.8,
+    "loudDb": -8.2,
+    "peakDb": -4.57
+   },
+   {
+    "voice": "violin",
+    "lines": [
+     7
+    ],
+    "trimDb": 0,
+    "lufs": -25.93,
+    "inMixDb": -7.2,
+    "loudDb": -6,
+    "peakDb": -13.58
+   },
+   {
+    "voice": "violin",
+    "lines": [
+     8
+    ],
+    "trimDb": 0,
+    "lufs": -32.37,
+    "inMixDb": -14.9,
+    "loudDb": -11.1,
+    "peakDb": -17.06
+   },
+   {
+    "voice": "viola",
+    "lines": [
+     9
+    ],
+    "trimDb": 0,
+    "lufs": -32.87,
+    "inMixDb": -14.1,
+    "loudDb": -11.8,
+    "peakDb": -15.95
+   },
+   {
+    "voice": "cello",
+    "lines": [
+     10
+    ],
+    "trimDb": 0,
+    "lufs": -27.54,
+    "inMixDb": -10.5,
+    "loudDb": -7.3,
+    "peakDb": -12.32
+   },
+   {
+    "voice": "bass",
+    "lines": [
+     11
+    ],
+    "trimDb": 0,
+    "lufs": -34.48,
+    "inMixDb": -14.5,
+    "loudDb": -13.3,
+    "peakDb": -18.19
+   }
+  ]
+ },
+ {
+  "id": "demo:piano",
+  "gainDb": -1.5,
+  "seconds": 74.3,
+  "lufs": -19.8,
+  "lra": 5,
+  "peakDb": -3.32,
+  "prePeakDb": -3.32,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "grand",
+    "lines": [
+     0,
+     1
+    ],
+    "trimDb": 0,
+    "lufs": -19.8,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -3.32
+   }
+  ]
+ },
+ {
+  "id": "demo:violin",
+  "gainDb": 0,
+  "seconds": 36,
+  "lufs": -21.09,
+  "lra": 6.3,
+  "peakDb": -9.01,
+  "prePeakDb": -9.01,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "violin",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -21.09,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -9.01
+   }
+  ]
+ },
+ {
+  "id": "demo:viola",
+  "gainDb": 0,
+  "seconds": 36,
+  "lufs": -19.6,
+  "lra": 7.9,
+  "peakDb": -3.05,
+  "prePeakDb": -3.05,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "viola",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -19.6,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -3.05
+   }
+  ]
+ },
+ {
+  "id": "demo:cello",
+  "gainDb": 2,
+  "seconds": 126,
+  "lufs": -20.09,
+  "lra": 8,
+  "peakDb": -2.14,
+  "prePeakDb": -2.14,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "cello",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -20.09,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -2.14
+   }
+  ]
+ },
+ {
+  "id": "demo:bass",
+  "gainDb": 5.5,
+  "seconds": 40,
+  "lufs": -19.96,
+  "lra": 7.8,
+  "peakDb": -4.57,
+  "prePeakDb": -4.57,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "bass",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -19.96,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -4.57
+   }
+  ]
+ },
+ {
+  "id": "demo:harp",
+  "gainDb": 7,
+  "seconds": 126,
+  "lufs": -20.18,
+  "lra": 5.6,
+  "peakDb": -7.17,
+  "prePeakDb": -7.17,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "harp",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -20.18,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -7.17
+   }
+  ]
+ },
+ {
+  "id": "demo:glockenspiel",
+  "gainDb": -3.5,
+  "seconds": 107.7,
+  "lufs": -20.18,
+  "lra": 6.5,
+  "peakDb": -8.83,
+  "prePeakDb": -8.83,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "glockenspiel",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -20.18,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -8.83
+   }
+  ]
+ },
+ {
+  "id": "demo:zephyr",
+  "gainDb": -2.5,
+  "seconds": 79.1,
+  "lufs": -19.75,
+  "lra": 13.1,
+  "peakDb": -3.79,
+  "prePeakDb": -3.79,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "zephyr",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -19.75,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -3.79
+   }
+  ]
+ },
+ {
+  "id": "demo:flute",
+  "gainDb": -3.5,
+  "seconds": 87.5,
+  "lufs": -19.97,
+  "lra": 3.5,
+  "peakDb": -9.97,
+  "prePeakDb": -9.97,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "flute",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -19.97,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -9.97
+   }
+  ]
+ },
+ {
+  "id": "demo:oboe",
+  "gainDb": -2,
+  "seconds": 37.6,
+  "lufs": -20.19,
+  "lra": 20.3,
+  "peakDb": -9.56,
+  "prePeakDb": -9.56,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "oboe",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -20.19,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -9.56
+   }
+  ]
+ },
+ {
+  "id": "demo:clarinet",
+  "gainDb": 11.5,
+  "seconds": 41.5,
+  "lufs": -20.35,
+  "lra": 5.2,
+  "peakDb": -13.76,
+  "prePeakDb": -13.76,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "clarinet",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -20.35,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -13.76
+   }
+  ]
+ },
+ {
+  "id": "demo:bassoon",
+  "gainDb": 0,
+  "seconds": 33,
+  "lufs": -19.65,
+  "lra": 5.2,
+  "peakDb": -8.41,
+  "prePeakDb": -8.41,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "bassoon",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -19.65,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -8.41
+   }
+  ]
+ },
+ {
+  "id": "demo:horn",
+  "gainDb": 3.5,
+  "seconds": 37,
+  "lufs": -20.12,
+  "lra": 6.6,
+  "peakDb": -7.86,
+  "prePeakDb": -7.86,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "horn",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -20.12,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -7.86
+   }
+  ]
+ },
+ {
+  "id": "demo:trumpet",
+  "gainDb": -6,
+  "seconds": 45.6,
+  "lufs": -19.8,
+  "lra": 5.4,
+  "peakDb": -8.62,
+  "prePeakDb": -8.62,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "trumpet",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -19.8,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -8.62
+   }
+  ]
+ },
+ {
+  "id": "demo:trombone",
+  "gainDb": -6,
+  "seconds": 108.6,
+  "lufs": -19.82,
+  "lra": 10.7,
+  "peakDb": -5.87,
+  "prePeakDb": -5.87,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "trombone",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -19.82,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -5.87
+   }
+  ]
+ },
+ {
+  "id": "demo:tuba",
+  "gainDb": 4.5,
+  "seconds": 108.6,
+  "lufs": -21.37,
+  "lra": 7.5,
+  "peakDb": -1.42,
+  "prePeakDb": -1.42,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "tuba",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -21.37,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -1.42
+   }
+  ]
+ },
+ {
+  "id": "demo:timpani",
+  "gainDb": 2.5,
+  "seconds": 35.7,
+  "lufs": -20.21,
+  "lra": 12.1,
+  "peakDb": -1.84,
+  "prePeakDb": -1.84,
+  "busLimDb": 0,
+  "busLimOver1": 0,
+  "parts": [
+   {
+    "voice": "timpani",
+    "lines": [
+     0
+    ],
+    "trimDb": 0,
+    "lufs": -20.21,
+    "inMixDb": 0,
+    "loudDb": 0,
+    "peakDb": -1.84
+   }
+  ]
+ }
+]
