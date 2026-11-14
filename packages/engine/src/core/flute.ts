@@ -190,6 +190,37 @@ const VENT_OPEN = 0.01;
 const LICK_OPEN = 0.003;
 /** …and the jet's push and sharper aim as it does are this much of a first attack's */
 const LICK_BOOST = 0.5;
+/** The jet's sharper aim is for a tube that is not yet sounding.
+ *
+ *  A tongued attack aims the jet sharper for its first tens of milliseconds (ATTACK_BOOST: its small-signal
+ *  gain up to five times, up to thirteen for a note a file says is short, QUICK_AIM), so that a silent tube's
+ *  wave grows as fast as a flute's does. It was a function of time alone, and that holds only from silence:
+ *  there the wave is still small when the aim has worn off. A note begun on a tube still ringing (a key let go
+ *  and the next pressed some tens of milliseconds later, a note tongued over the breath, a short note in a
+ *  file) reached its full wave while the jet was still aimed two to five times as sharp, and the jet, swung
+ *  past its edge both ways, cut the flow off square: odd harmonics 10–19 dB over the note's own and the level
+ *  2–5 dB over it for 60–150 ms, a buzz like a synthesiser's square wave instead of a flute (measured on
+ *  random fast switches by hand and as a file plays them, scripts/winds-switch.ts: of the notes pressed after
+ *  the last was let go, 315 of 393 by hand and 374 of 397 as a file plays them). Whether it happened by hand
+ *  was the timing's: a note let go inside its shortest breath (MIN_BLOW) was tongued over the breath, one let
+ *  go after it was let go and attacked afresh on the ringing tube.
+ *
+ *  So the aim is never more than the wave already in the tube leaves room for: with the tube at a share s of
+ *  the wave the note settles at, the jet's gain is at most 1/s of its own, so the jet is never swung further
+ *  than the note's full wave swings it. The same switches, 780 notes each way: 25 by hand and 1 as a file
+ *  plays them sound square for over 20 ms, none for over 48 (it was 420 and 484, for up to 168 and 212 ms),
+ *  the level 0.3 dB over the note's at the median (2.0 and 2.9), and they speak as soon (12.9 and 9.5 ms on
+ *  average, as before). A note from silence that
+ *  nothing told of (a key in the hand: the long tone the recordings were fitted on and the judge hears) keeps
+ *  its aim as it was, bit for bit, though its loudest notes have a little of the same (C5 ff, A6 f: 2 dB
+ *  over, the odd harmonics 7–8 dB, for some tens of milliseconds). The wave a note settles at (`level`, the
+ *  bore's return at its peak) grows as the jet's flow (`velScale`, with the expression and the breath) to the
+ *  power AIM_POW: over that, 11 from C4 to C5, 8.6 at C6, 6.6 at C7, each note from pp to ff and at 44.1 and
+ *  48 kHz within 20 % of the line (scripts/flute-tube-full.ts; set on the low side of the notes, so that the
+ *  aim is cut early rather than late). */
+export const AIM_FULL = { midi: [60, 72, 84, 96], full: [11, 11, 8.6, 6.6] };
+export const AIM_POW = 0.7;
+const tubeFull = (m: number): number => interp(m, AIM_FULL.midi, AIM_FULL.full);
 export const FLUTE_VOICE = {
   /** small-signal jet gain (loop gain of the jet path at small amplitude) */
   jetGain: 0.115,
@@ -609,6 +640,7 @@ export class FluteCore implements InstrumentCore {
       this.tongueLen = Math.max(4, Math.round((0.5 * this.fs) / et(m)));
       this.tongueN = this.tongueLen;
       this.attackBoost = ATTACK_BOOST * (0.6 + 0.4 * v) * (1 + (QUICK_AIM - v) * quick);
+      this.aimRoom = !fresh || a.len < Infinity;
       // (the player's own: this note's rise, and the tongue's push with its sharper aim)
       this.pl.note(this.frame, m, a.len, true, true);
       if (this.pl.H > 0) this.ownAttack();
@@ -635,6 +667,7 @@ export class FluteCore implements InstrumentCore {
       this.tongueN = this.tongueLen;
       this.tongueWait = wait;
       this.attackBoost = ATTACK_BOOST * (0.6 + 0.4 * v) * (first ? 1 + QUICK_AIM - v : LICK_BOOST);
+      this.aimRoom = true;
       this.pl.note(this.frame, m, a.len, true, false);
       if (this.pl.H > 0) this.ownAttack();
       this.blowUntil = this.frame + Math.round(MIN_BLOW * this.fs);
@@ -655,6 +688,9 @@ export class FluteCore implements InstrumentCore {
   /** samples before the jet's push begins (the tongue is still across the air), and the decay of its
    *  sharper aim (s) */
   private tongueWait = 0;
+  /** the jet's sharper aim leaves room for the wave already in the tube (AIM_FULL): every attack but a note
+   *  from silence that nothing told of */
+  private aimRoom = false;
   /** when this breath began (frame): a note from silence. The vibrato comes in over the breath, not over
    *  each note of it: slurred or tongued over the breath, the notes of a phrase share one vibrato. (It used
    *  to begin again with every note, 0.3 s in and 0.4 s to its depth: in a slurred line of notes under 0.7 s
@@ -819,8 +855,15 @@ export class FluteCore implements InstrumentCore {
     const off = this.off;
     const tOff = this.tanhOff;
     // right after a tongued onset the jet is sharper and better aimed: a transient extra
-    // small-signal gain (decaying over ~60 ms) lets the tube speak as fast as a real flute
-    const jk = this.jetK * (1 + this.attackBoost * Math.exp(-sinceOn / 0.06));
+    // small-signal gain (decaying over ~60 ms) lets the tube speak as fast as a real flute;
+    // never so sharp that the wave already in the tube saturates the jet more than the note's
+    // own full wave does (AIM_FULL)
+    let aim = this.attackBoost * Math.exp(-sinceOn / 0.06);
+    if (aim > 0 && this.aimRoom) {
+      const sounding = this.level / (tubeFull(this.note) * Math.pow(velScale * this.expression * Math.min(1.6, P.breath), AIM_POW));
+      if (sounding * (1 + aim) > 1) aim = Math.max(0, 1 / sounding - 1);
+    }
+    const jk = this.jetK * (1 + aim);
     const vortex = V.vortex;
     const dqScale = fs / (2 * Math.PI * 1000);
     this.chiff *= Math.exp(-dt / 0.035);

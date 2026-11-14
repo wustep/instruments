@@ -1,0 +1,102 @@
+{
+ "keys": {
+  "notes": 161,
+  "seconds": 27.5,
+  "before": {
+   "square20": 99,
+   "squareMaxMs": 164,
+   "peakMedDb": 2.1,
+   "over3dB": 55,
+   "speakMedMs": 8,
+   "measured": 160
+  },
+  "after": {
+   "square20": 2,
+   "squareMaxMs": 24,
+   "peakMedDb": 0.3,
+   "over3dB": 0,
+   "speakMedMs": 8,
+   "measured": 160
+  }
+ },
+ "pointer": {
+  "notes": 91,
+  "seconds": 14.6,
+  "before": {
+   "square20": 57,
+   "squareMaxMs": 156,
+   "peakMedDb": 1.9,
+   "over3dB": 26,
+   "speakMedMs": 9,
+   "measured": 90
+  },
+  "after": {
+   "square20": 1,
+   "squareMaxMs": 24,
+   "peakMedDb": -0.2,
+   "over3dB": 0,
+   "speakMedMs": 10,
+   "measured": 90
+  }
+ },
+ "random": {
+  "notes": 168,
+  "seconds": 36.1,
+  "before": {
+   "square20": 80,
+   "squareMaxMs": 160,
+   "peakMedDb": 1.5,
+   "over3dB": 50,
+   "speakMedMs": 11,
+   "measured": 167
+  },
+  "after": {
+   "square20": 8,
+   "squareMaxMs": 44,
+   "peakMedDb": 0.1,
+   "over3dB": 6,
+   "speakMedMs": 12,
+   "measured": 167
+  }
+ },
+ "golden": {
+  "notes": 9,
+  "seconds": 4.5,
+  "before": {
+   "square20": 6,
+   "squareMaxMs": 148,
+   "peakMedDb": 4.7,
+   "over3dB": 6,
+   "speakMedMs": 11,
+   "measured": 8
+  },
+  "after": {
+   "square20": 0,
+   "squareMaxMs": 4,
+   "peakMedDb": 1.8,
+   "over3dB": 0,
+   "speakMedMs": 12,
+   "measured": 8
+  }
+ },
+ "file": {
+  "notes": 47,
+  "seconds": 9.9,
+  "before": {
+   "square20": 46,
+   "squareMaxMs": 164,
+   "peakMedDb": 4.5,
+   "over3dB": 37,
+   "speakMedMs": 8,
+   "measured": 46
+  },
+  "after": {
+   "square20": 0,
+   "squareMaxMs": 12,
+   "peakMedDb": 0.4,
+   "over3dB": 0,
+   "speakMedMs": 8,
+   "measured": 46
+  }
+ }
+}
