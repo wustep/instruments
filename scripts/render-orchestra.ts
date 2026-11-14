@@ -19,6 +19,7 @@
 // --stems: also write every part alone, as it reaches the bus (its seat, its limiter, the bus gain):
 //   <name>-<nn>-<voice>.mp3 (and .wav with --wav), and <name>-stems.json, each part's notes as it was sent
 //   them (time, midi, velocity, length). For hearing and measuring one part of a score as seated.
+// --pieces <dir>: the built-in pieces' files from this folder (the files as they were: a before and after)
 // --post-bus: each part's own limiter blind to the bus gain after it (as before audio audit 2; ensemble.ts
 //   tells every part its share, the engine's Limiter.bus: a part's limiter works on the level the bus hears)
 // A built-in piece of more than six instruments is seated whole (as the stage seats it: ensemble.ts).
@@ -74,6 +75,7 @@ const START = Number(opt('--start', '0'));
 const PLAYED = args.includes('--played') ? (args.splice(args.indexOf('--played'), 1), true) : false;
 const STEMS = args.includes('--stems') ? (args.splice(args.indexOf('--stems'), 1), true) : false;
 const POST_BUS = args.includes('--post-bus') ? (args.splice(args.indexOf('--post-bus'), 1), true) : false;
+const PIECES_DIR = opt('--pieces', 'apps/web/public/pieces');
 const FS = 48000;
 mkdirSync(OUT, { recursive: true });
 
@@ -90,7 +92,7 @@ const handPlan = (l: Parameters<typeof autoPlan>[0], base: Plan): Plan =>
   );
 let jobs: { name: string; buf: Buffer; plan: (l: Parameters<typeof autoPlan>[0]) => Plan; piece?: (typeof PIECES)[number] }[] = args.length
   ? args.map((f) => ({ name: f.split('/').pop()!.replace(/\.midi?$/i, ''), buf: readFileSync(f), plan: (l) => autoPlan(l, { cap: CAP }) }))
-  : PIECES.map((p) => ({ name: p.id, buf: readFileSync(join('apps/web/public/pieces', p.file)), plan: (l) => piecePlan(p, l, Math.max(CAP, p.parts.length > 6 ? p.parts.length : 0)), piece: p }));
+  : PIECES.map((p) => ({ name: p.id, buf: readFileSync(join(PIECES_DIR, p.file)), plan: (l) => piecePlan(p, l, Math.max(CAP, p.parts.length > 6 ? p.parts.length : 0)), piece: p }));
 if (PIECE) jobs = jobs.filter((j) => j.name === PIECE);
 if (PARTS) jobs = jobs.map((j) => ({ ...j, name: NAME || `${j.name}-routed`, plan: (l) => handPlan(l, j.plan(l)) }));
 
