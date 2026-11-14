@@ -738,8 +738,6 @@ class AudioApp {
       else if (this.instrument === 'horn' || this.instrument === 'trombone' || this.instrument === 'tuba') this.setParams({ vibrato: 0.01 * v });
       // (the timpani and the glockenspiel: pressing into the key rolls it)
       else if (this.instrument === 'timpani' || this.instrument === 'glockenspiel') this.setParams({ roll: v });
-      // (the zephyr: pressing into the key rocks the wind)
-      else if (this.instrument === 'zephyr') this.setParams({ tremulant: v });
       else if (this.instrument !== 'piano') this.setParams({ vibrato: 35 * v });
     }
   }

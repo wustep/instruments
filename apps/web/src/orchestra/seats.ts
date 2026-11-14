@@ -16,11 +16,11 @@
 // next pair behind, rather than one long row. A keyboard stands at the back on the left, where an
 // orchestra's piano, celesta and harps go.
 
-export type Inst = 'violin' | 'viola' | 'cello' | 'bass' | 'harp' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani' | 'glockenspiel' | 'zephyr' | 'grand' | 'upright';
+export type Inst = 'violin' | 'viola' | 'cello' | 'bass' | 'harp' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani' | 'glockenspiel' | 'grand' | 'upright';
 
 /** what decides a seat */
 export interface SeatKind {
-  family: 'piano' | 'bowed' | 'plucked' | 'wind' | 'reed' | 'brass' | 'percussion' | 'mallet' | 'aeolian';
+  family: 'piano' | 'bowed' | 'plucked' | 'wind' | 'reed' | 'brass' | 'percussion' | 'mallet';
   kind: 'grand' | 'upright';
   cello: boolean;
   /** a double bass: it stands, bigger than a cello, so it takes more room beside its neighbours and
@@ -52,8 +52,6 @@ export function instOf(p: SeatKind): Inst {
       return 'harp';
     case 'mallet':
       return 'glockenspiel';
-    case 'aeolian':
-      return 'zephyr';
     case 'wind':
       return 'flute';
     case 'reed':
@@ -96,7 +94,7 @@ export function seatRisers(parts: SeatKind[], aspect = 2): Riser[] {
 // ---------------------------------------------------------------- an orchestra
 /** the arc a seat takes along its row (m): a player's chair and stand, a bass's room to stand and bow, the
  *  four drums of a timpani set (2.6 m across) and the player behind them, a grand side-on */
-export const SEAT_W: Record<Inst, number> = { violin: 0.8, viola: 0.82, cello: 0.92, bass: 1.1, harp: 1.3, flute: 0.82, oboe: 0.72, clarinet: 0.74, bassoon: 0.8, horn: 0.88, trumpet: 0.8, trombone: 0.98, tuba: 1.0, glockenspiel: 1.0, zephyr: 1.5, timpani: 2.8, grand: 2.9, upright: 1.7 };
+export const SEAT_W: Record<Inst, number> = { violin: 0.8, viola: 0.82, cello: 0.92, bass: 1.1, harp: 1.3, flute: 0.82, oboe: 0.72, clarinet: 0.74, bassoon: 0.8, horn: 0.88, trumpet: 0.8, trombone: 0.98, tuba: 1.0, glockenspiel: 1.0, timpani: 2.8, grand: 2.9, upright: 1.7 };
 /** a row's longest arc (m): a computer's stage, and a phone's held upright */
 const ROW_MAX = { wide: 9.6, tall: 4.3 };
 /** each riser's step (m) */
@@ -168,7 +166,7 @@ export function orchestraPlan(parts: SeatKind[], tall = false): OrchestraPlan {
   const drums = of('timpani', 'glockenspiel');
   const brass = wrap([of('horn'), of('trumpet'), of('trombone'), of('tuba')]);
   const drumsBehind = brass.length > 0 && drums.length > 0 && (brass.length > 1 || len([...drums, ...brass[0]]) > max);
-  return { strings, basses, winds, brass, drums, drumsBehind, harps: of('harp', 'zephyr'), keys: of('grand', 'upright') };
+  return { strings, basses, winds, brass, drums, drumsBehind, harps: of('harp'), keys: of('grand', 'upright') };
 }
 /** the rows behind the strings, front to back (the timpani at the brass row's left end, or a row behind) */
 export function rowsOf(plan: OrchestraPlan): number[][] {
@@ -302,7 +300,7 @@ function chamberPlaces(parts: SeatKind[], aspect = 2): Place[] {
   // a bass is 0.3 m further from each neighbour than the 0.8 m the others keep (its lower bout is
   // 0.67 m across, a cello's 0.44), and 0.35 m upstage; a lineup without one sits as it always has
   // (a harp too: it stands a metre deep on the floor by its player)
-  const isBass = (k: number) => !!parts[mel[k]]?.bass || parts[mel[k]]?.inst === 'bass' || parts[mel[k]]?.inst === 'harp' || parts[mel[k]]?.inst === 'zephyr';
+  const isBass = (k: number) => !!parts[mel[k]]?.bass || parts[mel[k]]?.inst === 'bass' || parts[mel[k]]?.inst === 'harp';
   const BASS_GAP = 0.3;
   mel.forEach((i, k) => {
     const row = rows === 2 ? (k < perRow ? 0 : 1) : 0;
@@ -343,7 +341,7 @@ function chamberPlaces(parts: SeatKind[], aspect = 2): Place[] {
   return out;
 }
 
-const FAMILY = { piano: 'piano', violin: 'bowed', viola: 'bowed', cello: 'bowed', bass: 'bowed', harp: 'plucked', flute: 'wind', oboe: 'reed', clarinet: 'reed', bassoon: 'reed', horn: 'brass', trumpet: 'brass', trombone: 'brass', tuba: 'brass', timpani: 'percussion', glockenspiel: 'mallet', zephyr: 'aeolian' } as const;
+const FAMILY = { piano: 'piano', violin: 'bowed', viola: 'bowed', cello: 'bowed', bass: 'bowed', harp: 'plucked', flute: 'wind', oboe: 'reed', clarinet: 'reed', bassoon: 'reed', horn: 'brass', trumpet: 'brass', trombone: 'brass', tuba: 'brass', timpani: 'percussion', glockenspiel: 'mallet' } as const;
 
 /** a lineup's instruments as the seating takes them */
 export function seatKinds(lineup: { instrument: keyof typeof FAMILY; preset?: string }[]): SeatKind[] {

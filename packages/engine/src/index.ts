@@ -27,11 +27,9 @@ export type { HarpParams, HarpString, HarpPedal } from './core/harp.ts';
 export { HARP_LO, HARP_HI, HARP_STRINGS, HARP_PEDALS, harpStrings, harpStringOf, harpStringFor, harpPedalsFor } from './core/harp.ts';
 export type { GlockParams, GlockBar } from './core/glockenspiel.ts';
 export { GLOCK_LO, GLOCK_HI, GLOCK_BARS, GLOCK_BAR_WIDTH, GLOCK_BAR_THICK, glockBars, glockBarOf, barShape } from './core/glockenspiel.ts';
-export type { ZephyrParams, ZephyrString } from './core/zephyr.ts';
-export { ZEPHYR_LO, ZEPHYR_HI, ZEPHYR_STRINGS, ZEPHYR_SLOT, zephyrStrings, zephyrStringOf } from './core/zephyr.ts';
 export type { TimpaniParams, TimpaniDrum } from './core/timpani.ts';
 export { TIMPANI_LO, TIMPANI_HI, TIMPANI_DRUMS, besselJ } from './core/timpani.ts';
-export type { KeySummary, Stats, VisualFrame, TimpaniVisual, TimpaniDrumVisual, TromboneVisual, HarpVisual, GlockVisual, ZephyrVisual } from './api/messages.ts';
+export type { KeySummary, Stats, VisualFrame, TimpaniVisual, TimpaniDrumVisual, TromboneVisual, HarpVisual, GlockVisual } from './api/messages.ts';
 export {
   DEFAULT_PARAMS,
   PRESETS,

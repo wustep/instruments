@@ -459,8 +459,8 @@
   }
 }
 
-/* ------------------------------------------------------------ no room for seventeen: one button, a sheet */
-@media (max-width: 1410px), (max-height: 500px) and (orientation: landscape) {
+/* ------------------------------------------------------------ no room for thirteen: one button, a sheet */
+@media (max-width: 1340px), (max-height: 500px) and (orientation: landscape) {
   .picker {
     gap: 6px;
   }
@@ -531,8 +531,7 @@
   }
   /* the sheet: four to a row and every row a kind. The first is what is struck or plucked (the piano and the
      percussion: the keys' family, then the percussion's, brought up beside it), then the strings, the
-     woodwinds, the brass: with a harp and a glockenspiel, four rows of four; and under them the one that does
-     not exist yet */
+     woodwinds, the brass: with a harp and a glockenspiel, four rows of four */
   .picker-pop {
     display: none;
     position: fixed;
@@ -570,10 +569,6 @@
   }
   .fam[data-fam='brass'] > .pick {
     order: 4;
-  }
-  /* (and what does not exist yet, a row of its own under them) */
-  .fam[data-fam='future'] > .pick {
-    order: 5;
   }
   .fam:not([data-fam='percussion']) > .pick:first-child {
     grid-column-start: 1;
@@ -863,7 +858,7 @@
 :root[data-style='vector'] .part[data-on] {
   color: var(--v-amber);
 }
-@media (max-width: 1410px), (max-height: 500px) and (orientation: landscape) {
+@media (max-width: 1340px), (max-height: 500px) and (orientation: landscape) {
   :root[data-style='vector'] .picker-pop {
     background: #000;
     border-radius: 0;

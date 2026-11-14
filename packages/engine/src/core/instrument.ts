@@ -3,8 +3,8 @@
 
 import type { KeySummary } from '../api/messages.ts';
 
-export type InstrumentId = 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'harp' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani' | 'glockenspiel' | 'zephyr';
-export const INSTRUMENT_IDS: InstrumentId[] = ['piano', 'violin', 'viola', 'cello', 'bass', 'harp', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'glockenspiel', 'zephyr'];
+export type InstrumentId = 'piano' | 'violin' | 'viola' | 'cello' | 'bass' | 'harp' | 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trumpet' | 'trombone' | 'tuba' | 'timpani' | 'glockenspiel';
+export const INSTRUMENT_IDS: InstrumentId[] = ['piano', 'violin', 'viola', 'cello', 'bass', 'harp', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'glockenspiel'];
 /** the bowed strings (bowed.ts), high to low */
 export type BowedId = 'violin' | 'viola' | 'cello' | 'bass';
 export const isBowed = (id: string): id is BowedId => id === 'violin' || id === 'viola' || id === 'cello' || id === 'bass';
@@ -13,8 +13,8 @@ export type MonoId = 'flute' | 'oboe' | 'clarinet' | 'bassoon' | 'horn' | 'trump
 export const isMono = (id: string): id is MonoId => id === 'flute' || id === 'oboe' || id === 'clarinet' || id === 'bassoon' || id === 'horn' || id === 'trumpet' || id === 'trombone' || id === 'tuba';
 /** the instruments a file's notes are told to before they sound (PianoEvent 'foresee'): the bowed strings
  *  plan their bow with them (bowed.ts), the winds and brass their tongue and breath (mono.ts), the harp its
- *  pedals (harp.ts), the zephyr its keys' fall (zephyr.ts) */
-export const foresees = (id: string): boolean => isBowed(id) || isMono(id) || id === 'harp' || id === 'zephyr';
+ *  pedals (harp.ts) */
+export const foresees = (id: string): boolean => isBowed(id) || isMono(id) || id === 'harp';
 
 /** Played (not in the dry calibration renders), this many dB over the level an instrument was fitted at: a
  *  recording session's microphone gain given back. The trombone was matched to the Iowa trombones, whose ff
@@ -39,9 +39,8 @@ export const PLAYBACK_DB: Partial<Record<InstrumentId, number>> = { trombone: 9,
  *  trombone: the lips in a cup mouthpiece on a cylindrical slide and a wide bell; the tuba: the horn's lips
  *  and conical bore at five metres, wide, with four valves) and the
  *  percussion (the timpani: membranes over kettles, struck with felt mallets) and the mallet instruments
- *  (the glockenspiel: steel bars struck with hard mallets and left to ring), and what does not exist yet
- *  (the zephyr: ribbons bowed by a sheet of air; 'aeolian', a string sounded by the wind) */
-export type Family = 'piano' | 'bowed' | 'plucked' | 'wind' | 'reed' | 'brass' | 'percussion' | 'mallet' | 'aeolian';
+ *  (the glockenspiel: steel bars struck with hard mallets and left to ring) */
+export type Family = 'piano' | 'bowed' | 'plucked' | 'wind' | 'reed' | 'brass' | 'percussion' | 'mallet';
 export const INSTRUMENT_INFO: Record<InstrumentId, { label: string; family: Family; lo: number; hi: number; blurb: string }> = {
   piano: { label: 'Piano', family: 'piano', lo: 21, hi: 108, blurb: 'Felt hammers, 2–3 stiff strings per note, a shared soundboard.' },
   violin: { label: 'Violin', family: 'bowed', lo: 55, hi: 100, blurb: 'Four strings G3–E5, bowed with stick–slip friction, on a resonant body.' },
@@ -59,7 +58,6 @@ export const INSTRUMENT_INFO: Record<InstrumentId, { label: string; family: Fami
   tuba: { label: 'Tuba', family: 'brass', lo: 24, hi: 65, blurb: 'Buzzing lips on the widest, most conical bore of the brass, five metres long: four valves lengthen it, the lips pick its partial.' },
   timpani: { label: 'Timpani', family: 'percussion', lo: 36, hi: 57, blurb: 'Four kettledrums struck with felt mallets: the air on the heads draws their modes into a pitch; pedals tune them.' },
   glockenspiel: { label: 'Glockenspiel', family: 'mallet', lo: 79, hi: 108, blurb: 'Thirty steel bars struck with hard mallets and left to ring, two octaves above where they are written.' },
-  zephyr: { label: 'Zephyr', family: 'aeolian', lo: 36, hi: 96, blurb: 'An instrument from the future: sixty-one ribbons of nanotube film, each bowed by a sheet of air from its key’s slot.' },
 };
 
 /** Extra events beyond the piano's (continuous controllers). */
