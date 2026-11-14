@@ -85,7 +85,7 @@ test('/tango opens After You’s twelve seats with the piece loaded, silent unti
   await expect(page.locator('html')).toHaveAttribute('data-audio', 'running');
   await expect.poll(async () => (await state(page)).played, { timeout: 30_000 }).toBeGreaterThanOrEqual(1);
   // the last strain, where the couples move together and everyone plays: every line reaches its own seat
-  await page.evaluate(() => (window as any).__player.seek(SEEK_ALL));
+  await page.evaluate((t) => (window as any).__player.seek(t), SEEK_ALL);
   await expect.poll(async () => (await state(page)).played, { timeout: 30_000 }).toBe(12);
   // (heard: the room's level is up, and the limiter is not working hard)
   const level = await page.evaluate(() => {
