@@ -48,7 +48,6 @@ const SOLO = {
   tuba: ['/tuba', [36]],
   timpani: ['/timpani', [45]],
   glockenspiel: ['/glockenspiel', [84, 91]],
-  zephyr: ['/zephyr', [60, 67]],
 };
 for (const id of (process.env.MORE ?? '').split(',').filter(Boolean)) SOLO[id] = [`/${id}`, null];
 

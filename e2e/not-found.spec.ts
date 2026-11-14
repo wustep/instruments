@@ -39,9 +39,10 @@ test('an unknown address: the 404 page names it and links every instrument, the 
     expect(look.scroll, 'no horizontal scroll').toBeLessThanOrEqual(page.viewportSize()!.width);
   }
   // the places: sixteen instruments by family, the Orchestra and the four pieces' own addresses, the two pages; each whole on the page,
-  // a finger's height on a phone
+  // a finger's height on a phone. The families are the picker's (the harp beside the piano: what is struck or plucked)
   const links = page.locator('.nf a');
-  await expect(links).toHaveText(['piano', 'violin', 'viola', 'cello', 'bass', 'harp', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'glockenspiel', 'orchestra', 'symphony', 'everything', 'passiton', 'tango', 'measurements', 'notes']);
+  expect(await page.locator('.nf-fam').evaluateAll((fs) => fs.slice(0, 2).map((f) => [...f.querySelectorAll('a')].map((a) => a.textContent)))).toEqual([['piano', 'harp'], ['violin', 'viola', 'cello', 'bass']]);
+  await expect(links).toHaveText(['piano', 'harp', 'violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'glockenspiel', 'orchestra', 'symphony', 'everything', 'passiton', 'tango', 'measurements', 'notes']);
   const vp = page.viewportSize()!;
   for (const b of await links.evaluateAll((as) => as.map((a) => a.getBoundingClientRect().toJSON() as { left: number; right: number; top: number; bottom: number; height: number }))) {
     expect(b.left).toBeGreaterThanOrEqual(0);
