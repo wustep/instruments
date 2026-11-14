@@ -30,6 +30,8 @@ export interface Cell {
   h: number;
   /** px per metre, one for the whole group (its instruments drawn at their true relative sizes) */
   sc?: number;
+  /** a piano standing away from the keys on the screen (beside an orchestra): it is drawn with its own keys */
+  keys?: boolean;
 }
 
 /** what each part's drawing keeps between frames */
@@ -419,7 +421,7 @@ export function ensembleCells(voices: Voice[], W: number, H: number): Cell[] {
         if (whole(side) && (!whole(oc) || side[mel[0]].sc! > oc[mel[0]].sc! * SIDE_GAIN)) {
           const ph = Math.min(Math.floor(H / kb.length), Math.round(pw / SIDE_ASPECT));
           const y0 = Math.round((H - ph * kb.length) / 2);
-          kb.forEach((i, k) => (out[i] = { x: 0, y: y0 + k * ph, w: pw, h: ph }));
+          kb.forEach((i, k) => (out[i] = { x: 0, y: y0 + k * ph, w: pw, h: ph, keys: true }));
           mel.forEach((i) => (out[i] = { ...side[i], x: side[i].x + pw }));
           return out;
         }
@@ -463,6 +465,110 @@ function keysAcross(x0: number, w: number): (m: number) => { x: number; w: numbe
     const i = idx.get(m) ?? 0;
     return WHITE.includes(m % 12) ? { x: x0 + (i + 0.5) * ww, w: ww } : { x: x0 + i * ww, w: ww * 0.6 };
   };
+}
+
+// ---- a piano's own keys. In its band across the stage an orchestra's piano has its strings over the keys on
+// the screen, as the piano alone has. Beside an orchestra (SIDE_WIDE) it stands away from them, and strings
+// with no keyboard are half an instrument: there it is drawn with its own 88 keys under its strings, each
+// under the strings it plays (the plan's own key pitch), lit while its note is held. Small and plain: the
+// screen's keys are the ones to play.
+
+/** the room either side of a piano's keys in its cell (px): a little air, as the plan has */
+const keysInset = (w: number) => Math.max(10, w * 0.03);
+/** a key's length over a white key's width: a real key shows 150 mm of its 23.5 mm (6.4); shorter here, so
+ *  the strings keep the cell (the screen's own keys are 4.5 at a computer's width) */
+const KEY_LONG = 4.6;
+/** a black key's length over a white's, as the screen's keys */
+const KEY_BLACK = 0.62;
+
+export interface KeyRect {
+  midi: number;
+  black: boolean;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+/** how tall the keys of a piano's cell are (px): by the key's width, no more than a quarter of the cell */
+export const ownKeysHeight = (c: Cell): number => (c.keys ? Math.round(Math.min(c.h * 0.26, Math.max(12, ((c.w - 2 * keysInset(c.w)) / 52) * KEY_LONG))) : 0);
+/** the 88 keys of a piano's cell, in the cell's own px: the whites first, then the blacks over them */
+export function ownKeys(c: Cell): KeyRect[] {
+  const kh = ownKeysHeight(c);
+  if (!kh) return [];
+  const m = keysInset(c.w);
+  const at = keysAcross(m, c.w - 2 * m);
+  const y = c.h - kh;
+  const out: KeyRect[] = [];
+  for (const black of [false, true])
+    for (let midi = 21; midi <= 108; midi++) {
+      const k = at(midi);
+      const isBlack = k.w < (c.w - 2 * m) / 52 - 1e-9;
+      if (isBlack !== black) continue;
+      out.push({ midi, black, x: k.x - k.w / 2, y, w: k.w, h: black ? kh * KEY_BLACK : kh });
+    }
+  return out;
+}
+/** draw a piano's own keys (cell coordinates), those in `down` lit: as the keys on the screen are, plain */
+export function drawOwnKeys(ctx: CanvasRenderingContext2D, c: Cell, down: ReadonlySet<number>, vector: boolean): void {
+  const keys = ownKeys(c);
+  if (!keys.length) return;
+  const kh = ownKeysHeight(c);
+  const x0 = keys[0].x;
+  const x1 = keys[51].x + keys[51].w;
+  const y = c.h - kh;
+  ctx.save();
+  if (vector) {
+    // lines only: the whites' frame and partings, the blacks hatched boxes; a held key amber
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(x0, y, x1 - x0, kh);
+    for (const k of keys) {
+      const lit = down.has(k.midi);
+      if (k.black) {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(k.x, k.y, k.w, k.h);
+        ctx.fillStyle = lit ? 'rgba(255, 179, 64, 0.55)' : 'rgba(79, 182, 242, 0.22)';
+        ctx.fillRect(k.x, k.y, k.w, k.h);
+        ctx.strokeStyle = lit ? '#ffb340' : '#3487c4';
+        ctx.strokeRect(k.x + 0.5, k.y + 0.5, k.w - 1, k.h - 1);
+      } else {
+        if (lit) {
+          ctx.fillStyle = 'rgba(255, 179, 64, 0.3)';
+          ctx.fillRect(k.x, k.y, k.w, k.h);
+        }
+        ctx.strokeStyle = lit ? '#ffb340' : '#1f5f8c';
+        ctx.strokeRect(k.x + 0.5, k.y + 0.5, k.w - 1, k.h - 1);
+      }
+    }
+    ctx.restore();
+    return;
+  }
+  // the key slip over them (the strings end at it), the whites as one ivory field with their partings, a
+  // held one warm as the screen's are; the blacks over them
+  ctx.fillStyle = '#efe7d6';
+  ctx.fillRect(x0, y, x1 - x0, kh);
+  for (const k of keys) {
+    if (k.black) continue;
+    if (down.has(k.midi)) {
+      ctx.fillStyle = '#f2c3ad';
+      ctx.fillRect(k.x, k.y, k.w, k.h);
+    }
+    ctx.fillStyle = 'rgba(120, 106, 84, 0.75)';
+    ctx.fillRect(Math.round(k.x), k.y, 1, k.h);
+  }
+  ctx.fillStyle = 'rgba(120, 106, 84, 0.75)';
+  ctx.fillRect(Math.round(x1) - 1, y, 1, kh);
+  // (the whites' front edge in shade, the slip's shadow on their far end)
+  ctx.fillStyle = 'rgba(60, 48, 30, 0.28)';
+  ctx.fillRect(x0, y + kh - Math.max(1, Math.round(kh * 0.08)), x1 - x0, Math.max(1, Math.round(kh * 0.08)));
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+  ctx.fillRect(x0, y, x1 - x0, Math.max(1, Math.round(kh * 0.06)));
+  for (const k of keys) {
+    if (!k.black) continue;
+    ctx.fillStyle = down.has(k.midi) ? '#6a2a1a' : '#15120f';
+    ctx.fillRect(k.x, k.y, k.w, k.h);
+  }
+  ctx.restore();
 }
 
 /** a piano part's live state into the drawing's (the same object drives its 2D plan and 3D action) */
@@ -518,11 +624,13 @@ export function drawEnsemble(ctx: CanvasRenderingContext2D, cells: Cell[], parts
     else if (d.piano) {
       const st = d.piano.st;
       syncPianoState(st, p);
-      // a little room either side of the keys
-      const m = Math.max(10, c.w * 0.03);
+      // a little room either side of the keys; away from the screen's keys, its own under its strings
+      const m = keysInset(c.w);
+      const kh = ownKeysHeight(c);
       const pg = { keys: keysOf(p), kind: p.voice === 'upright' ? 'upright' : 'grand', lid: 1, keyX: keysAcross(m, c.w - 2 * m) } as const;
-      if (vector) drawPianoV(ctx, c.w, c.h, pg, fr, st, (d.piano.vfield ??= new Contours(56, 28, 2.2, 3)), now);
-      else drawPiano(ctx, c.w, c.h, pg, fr, st, d.piano.field, now);
+      if (vector) drawPianoV(ctx, c.w, c.h - kh, pg, fr, st, (d.piano.vfield ??= new Contours(56, 28, 2.2, 3)), now);
+      else drawPiano(ctx, c.w, c.h - kh, pg, fr, st, d.piano.field, now);
+      if (kh) drawOwnKeys(ctx, c, p.down, vector);
     }
     ctx.restore();
   });

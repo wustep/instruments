@@ -48,6 +48,53 @@ test('2D: an orchestra with a piano on a wide stage has the stage’s height, th
   expect(errors).toEqual([]);
 });
 
+test('2D: an orchestra’s piano away from the screen’s keys has keys of its own, under its strings, lit with its notes', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'a phone held upright keeps the piano’s band over the keys on the screen');
+  const errors = collectErrors(page);
+  type Key = { midi: number; black: boolean; x: number; y: number; w: number; h: number };
+  for (const view of ['2d', 'vector']) {
+    await page.goto(`/tango?view=${view}`);
+    await page.waitForFunction(() => (window as any).__player?.loaded && (window as any).__ens2d?.().every(Boolean), null, { timeout: 30_000 });
+    await startAudio(page);
+    const piano = async () => ((await page.evaluate(() => (window as any).__ens2d())) as { voice: string; cell: Seat['cell']; keys: Key[] | null }[]).find((s) => s.voice === 'grand')!;
+    const p = await piano();
+    // 88 keys along the foot of its cell, inside it; the other instruments have none
+    expect(p.keys, view).toHaveLength(88);
+    for (const k of p.keys!) {
+      expect(k.x, view).toBeGreaterThanOrEqual(p.cell.x - 0.5);
+      expect(k.x + k.w, view).toBeLessThanOrEqual(p.cell.x + p.cell.w + 0.5);
+      expect(k.y + (k.black ? 0 : k.h), view).toBeLessThanOrEqual(p.cell.y + p.cell.h + 0.5);
+      expect(k.y, view).toBeGreaterThan(p.cell.y + p.cell.h * 0.7);
+    }
+    expect(((await page.evaluate(() => (window as any).__ens2d())) as { keys: Key[] | null }[]).filter((s) => s.keys).length, view).toBe(1);
+    // what is drawn on a white key's front (clear of the black keys and of its partings), at rest and held
+    const c4 = p.keys!.find((k) => k.midi === 60)!;
+    const d4 = p.keys!.find((k) => k.midi === 62)!;
+    const seen = (k: Key) =>
+      page.evaluate(([x, y]) => {
+        const cv = document.querySelector<HTMLCanvasElement>('.stage-cv')!;
+        const r = cv.getBoundingClientRect();
+        const s = cv.width / r.width;
+        return [...cv.getContext('2d')!.getImageData(Math.round((x - r.left) * s), Math.round((y - r.top) * s), 1, 1).data].slice(0, 3);
+      }, [k.x + k.w / 2, k.y + k.h * 0.82]);
+    // (how far a key's colour is from what it was: the vector look's glow moves a key at rest by a few levels,
+    // a held key by a hundred and more)
+    const far = (a: number[], b: number[]) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+    const rest = { c4: await seen(c4), d4: await seen(d4) };
+    // (the keys play the piano: it is the orchestra's keyboard)
+    await page.evaluate(() => (window as any).__piano.noteOn(60, 0.7, 'keys'));
+    await expect.poll(async () => far(await seen(c4), rest.c4), { message: `${view}: C4 held` }).toBeGreaterThan(40);
+    expect(far(await seen(d4), rest.d4), `${view}: D4, not held`).toBeLessThan(40);
+    await page.evaluate(() => (window as any).__piano.noteOff(60, 'keys'));
+    await expect.poll(async () => far(await seen(c4), rest.c4), { message: `${view}: C4 let go` }).toBeLessThan(40);
+  }
+  // a few players with a piano keep its band over the screen's keys, and no keys of its own
+  await page.goto('/orchestra?v=1&seats=violin,grand&view=2d');
+  await page.waitForFunction(() => (window as any).__ens2d?.().every(Boolean), null, { timeout: 30_000 });
+  expect(((await page.evaluate(() => (window as any).__ens2d())) as { keys: Key[] | null }[]).filter((s) => s.keys).length).toBe(0);
+  expect(errors).toEqual([]);
+});
+
 test('a window between a phone’s and a computer’s (a tablet held upright): a long lineup’s strips never widen the page', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'a phone folds both strips away');
   const errors = collectErrors(page);
