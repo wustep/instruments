@@ -1,0 +1,28 @@
+
+horn: limiter's most (dB), attack/body · LUFS as played
+  v30  oct 1: 0.0/0.0 · -34.3   oct 2: 0.0/0.0 · -32.1   oct 3: 0.0/0.0 · -25.7   oct 4: 0.0/0.0 · -18.8   oct 5: 0.0/0.0 · -16.7   | worst 0.0, median LUFS -25.2
+  v70  oct 1: 0.0/0.0 · -30.3   oct 2: 0.0/0.0 · -28.0   oct 3: 0.0/0.0 · -22.0   oct 4: 0.0/0.0 · -15.1   oct 5: 0.0/0.0 · -12.4   | worst 0.0, median LUFS -21.7
+  v100 oct 1: 0.0/0.0 · -25.9   oct 2: 0.0/0.0 · -23.7   oct 3: 0.0/0.0 · -18.0   oct 4: 0.0/0.0 · -11.4   oct 5: 0.0/0.0 · -8.2   | worst 0.0, median LUFS -17.9
+  v112 oct 1: 0.0/0.0 · -24.3   oct 2: 0.0/0.0 · -22.0   oct 3: 0.0/0.0 · -16.4   oct 4: 0.0/0.0 · -10.0   oct 5: 0.5/0.5 · -6.7   | worst 0.5, median LUFS -16.3
+  v127 oct 1: 0.0/0.0 · -22.2   oct 2: 0.0/0.0 · -20.1   oct 3: 0.0/0.0 · -14.4   oct 4: 0.0/0.0 · -8.3   oct 5: 2.5/2.5 · -5.1   | worst 2.5, median LUFS -14.2
+
+trumpet: limiter's most (dB), attack/body · LUFS as played
+  v30  oct 3: 0.0/0.0 · -33.5   oct 4: 0.0/0.0 · -23.8   oct 5: 0.0/0.0 · -15.1   oct 6: 0.0/0.0 · -10.7   | worst 0.0, median LUFS -21.3
+  v70  oct 3: 0.0/0.0 · -25.9   oct 4: 0.0/0.0 · -18.0   oct 5: 0.0/0.0 · -11.1   oct 6: 0.0/0.0 · -7.4   | worst 0.0, median LUFS -16.3
+  v100 oct 3: 0.0/0.0 · -21.7   oct 4: 0.0/0.0 · -14.8   oct 5: 0.6/0.6 · -9.1   oct 6: 0.6/0.6 · -5.7   | worst 0.6, median LUFS -13.5
+  v112 oct 3: 0.0/0.0 · -20.7   oct 4: 0.0/0.0 · -14.0   oct 5: 1.5/1.5 · -8.4   oct 6: 1.3/1.3 · -5.3   | worst 1.5, median LUFS -12.6
+  v127 oct 3: 0.0/0.0 · -20.1   oct 4: 0.0/0.0 · -13.3   oct 5: 2.0/2.0 · -7.8   oct 6: 1.8/1.8 · -5.3   | worst 2.0, median LUFS -12.0
+
+trombone: limiter's most (dB), attack/body · LUFS as played
+  v30  oct 1: 0.0/0.0 · -35.3   oct 2: 0.0/0.0 · -43.5   oct 3: 0.0/0.0 · -36.2   oct 4: 0.0/0.0 · -34.1   oct 5: 0.0/0.0 · -40.8   | worst 0.0, median LUFS -37.0
+  v70  oct 1: 0.0/0.0 · -26.3   oct 2: 0.0/0.0 · -28.8   oct 3: 0.0/0.0 · -22.1   oct 4: 0.0/0.0 · -16.8   oct 5: 0.0/0.0 · -18.2   | worst 0.0, median LUFS -22.3
+  v100 oct 1: 0.0/0.0 · -21.7   oct 2: 0.0/0.0 · -21.8   oct 3: 0.0/0.0 · -14.5   oct 4: 0.0/0.0 · -9.5   oct 5: 0.0/0.0 · -9.3   | worst 0.0, median LUFS -15.2
+  v112 oct 1: 0.0/0.0 · -20.5   oct 2: 1.7/1.7 · -19.8   oct 3: 1.4/1.4 · -12.5   oct 4: 1.7/1.7 · -7.5   oct 5: 0.0/0.0 · -7.2   | worst 1.7, median LUFS -13.5
+  v127 oct 1: 0.0/0.0 · -19.1   oct 2: 4.2/4.2 · -17.4   oct 3: 4.2/4.2 · -12.2   oct 4: 5.8/5.8 · -7.8   oct 5: 1.8/1.8 · -5.4   | worst 5.8, median LUFS -12.5
+
+tuba: limiter's most (dB), attack/body · LUFS as played
+  v30  oct 1: 0.0/0.0 · -40.4   oct 2: 0.0/0.0 · -38.8   oct 3: 0.0/0.0 · -34.7   oct 4: 0.0/0.0 · -30.2   | worst 0.0, median LUFS -38.4
+  v70  oct 1: 0.0/0.0 · -30.9   oct 2: 0.0/0.0 · -28.9   oct 3: 0.0/0.0 · -26.1   oct 4: 0.0/0.0 · -21.9   | worst 0.0, median LUFS -28.6
+  v100 oct 1: 0.0/0.0 · -20.8   oct 2: 0.0/0.0 · -19.7   oct 3: 0.0/0.0 · -17.8   oct 4: 0.0/0.0 · -14.3   | worst 0.0, median LUFS -19.5
+  v112 oct 1: 1.3/1.3 · -17.4   oct 2: 0.0/0.0 · -16.9   oct 3: 0.0/0.0 · -15.1   oct 4: 0.0/0.0 · -12.0   | worst 1.3, median LUFS -16.6
+  v127 oct 1: 2.9/2.9 · -15.7   oct 2: 0.8/0.8 · -14.9   oct 3: 0.0/0.0 · -13.4   oct 4: 0.0/0.0 · -10.5   | worst 2.9, median LUFS -14.8

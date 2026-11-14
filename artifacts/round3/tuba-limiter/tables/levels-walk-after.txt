@@ -1,0 +1,4 @@
+horn           44–68   mf  -18.8 LUFS (peak  -9.0)   ff  -14.4 LUFS (peak  -4.5)
+trumpet        57–81   mf  -15.2 LUFS (peak  -4.4)   ff  -12.6 LUFS (peak  -1.8)
+trombone       41–65   mf  -21.9 LUFS (peak  -9.2)   ff  -14.0 LUFS (peak  -1.0)
+tuba           33–57   mf  -27.6 LUFS (peak -14.7)   ff  -18.0 LUFS (peak  -3.8)

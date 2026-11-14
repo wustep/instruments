@@ -1,0 +1,4 @@
+horn          v100:  0.0 dB at A#1 ( 0/44 over 1 dB)   v115:  1.0 dB at F5  ( 0/44 over 1 dB)   v127:  2.5 dB at F5  ( 2/44 over 1 dB)
+trumpet       v100:  0.6 dB at B5  ( 0/35 over 1 dB)   v115:  1.6 dB at B5  ( 2/35 over 1 dB)   v127:  2.0 dB at B5  ( 2/35 over 1 dB)
+trombone      v100:  0.0 dB at E1  ( 0/50 over 1 dB)   v115:  2.3 dB at F#4 (13/50 over 1 dB)   v127:  5.8 dB at F#4 (30/50 over 1 dB)
+tuba          v100:  0.0 dB at C1  ( 0/42 over 1 dB)   v115:  2.3 dB at D#1 ( 3/42 over 1 dB)   v127:  2.9 dB at C#1 (10/42 over 1 dB)
