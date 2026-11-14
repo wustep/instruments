@@ -488,8 +488,10 @@ describe('the hand’s vibrato over joined notes (a file playing)', () => {
       if (k < 0) continue;
       const s = core.strings.find((q) => q.bowing && q.midi === notes[k].midi);
       if (!s) continue;
-      // (the stopped length's glide target: the vibrato over the finger's own place)
-      const c = -1200 * Math.log2(s.Dtarget / s.D0) - s.place;
+      // (the stopped length's glide target: the vibrato over the finger's own place, and over where the ear
+      // has moved it since: the bass's finger follows its ear, design.byEar, from the moment the bow is up to
+      // speed, which a note told ahead now is a little sooner; that is no vibrato)
+      const c = -1200 * Math.log2(s.Dtarget / s.D0) - s.place - s.ear;
       out[k].lo = Math.min(out[k].lo, c);
       out[k].hi = Math.max(out[k].hi, c);
     }
@@ -511,7 +513,7 @@ describe('the hand’s vibrato over joined notes (a file playing)', () => {
       const on = swings(inst, line([0.5, 0.5, 0.5, 0.5, 0.5, 0.5], 0, midi0), 1);
       const off = swings(inst, line([0.5, 0.5, 0.5, 0.5, 0.5, 0.5], 0, midi0), 0);
       // the first note begins as ever (plain for a quarter of a second); every later one with the hand moving
-      expect(on[0]).toBeLessThan(0.05);
+      expect(on[0], inst).toBeLessThan(0.05);
       for (const c of on.slice(1)) expect(c).toBeGreaterThan(3);
       // `human` 0: each note begins plain, as the engine before
       for (const c of off) expect(c).toBeLessThan(0.05);

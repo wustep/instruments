@@ -2554,15 +2554,24 @@ export function poseBowed(b: Batch, bm: BowedModel, fr: VisualFrame | null, str:
     bp.contact = add(bp.contact, scale(sub(contact, bp.contact), k));
     bp.t = now;
   }
-  /** the bow's frame: the hair along `dir`, the point `along` it (0 the frog … 1 the tip) on `contact` */
-  const bowFrame = (dir: Vec3, up: Vec3, contact: Vec3, along: number) => {
+  /** the bow's frame: the hair along `dir`, the point `along` it (0 the frog … 1 the tip) over `contact`,
+   *  `off` m clear of the string (the hair's own thickness when it plays) */
+  const bowFrame = (dir: Vec3, up: Vec3, contact: Vec3, along: number, off = 0.0012) => {
     const ax = dir;
     const ay = norm(sub(up, scale(ax, ax[0] * up[0] + ax[1] * up[1] + ax[2] * up[2])));
     const az = cross(ax, ay);
-    const origin = sub(add(contact, scale(ay, 0.0012)), scale(ax, along * bm.hairLen));
+    const origin = sub(add(contact, scale(ay, off)), scale(ax, along * bm.hairLen));
     return { ax, origin, m: new Float32Array([ax[0], ax[1], ax[2], 0, ay[0], ay[1], ay[2], 0, az[0], az[1], az[2], 0, origin[0], origin[1], origin[2], 1]) };
   };
-  const { ax, origin, m: Bm } = bowFrame(bp.dir, bp.up, bp.contact, pos);
+  // In a rest the bow is off the string (the engine says how far: bowed.ts BOW_AIR): straight up from
+  // the strings, by a height that goes with the instrument (a violin’s 5 cm, a bass’s 10), and the frog's
+  // end a little higher than the tip's, as the hand that lifts it is at the frog
+  const lift = bow?.lift ?? 0;
+  const size = sp.body / 0.356;
+  const high = lift * (0.05 + 0.025 * (size - 1));
+  const tipDown = lift * 0.03;
+  const dirA = tipDown ? norm(sub(bp.dir, scale(bp.up, tipDown))) : bp.dir;
+  const { ax, origin, m: Bm } = bowFrame(dirA, bp.up, bp.contact, pos, 0.0012 + high);
   const bowM = mul(T, Bm);
   bm.bowLine = { a: W(origin), b: W(add(origin, scale(ax, bm.hairLen))), pos };
   b.mesh(bm.bow, bowM, bow?.changing ? [0.95, 0.65, 0.27, 0.3] : null);

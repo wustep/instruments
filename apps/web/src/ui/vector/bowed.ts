@@ -9,7 +9,7 @@
 // bass bar and soundpost that carry the bridge's motion into the plates.
 
 import type { VisualFrame } from '@piano-model/engine';
-import { BASS_MACH, BOWED_PLAN, HEAD_EAR, HEAD_PROJ, MM, PEG_A, PEG_OF, PEG_SIDE, bassAdjusters, bassHead, bassPinParts, bassTailWire, bowFit, bowedDrawn, bowedLayout, bowedShapes, bwBridge, bwClamp, bwForce, bwHeadParts, bwPegboxW, bwPlace, bwPoly, bwSstep, bwTailpiece, type BowedDrawn, type BowedGeom, type BowedLayout, type BowedState } from '../stage-draw.ts';
+import { BASS_MACH, BOWED_PLAN, HEAD_EAR, HEAD_PROJ, MM, PEG_A, PEG_OF, PEG_SIDE, bassAdjusters, bassHead, bassPinParts, bassTailWire, bowFit, bowLift, bowedDrawn, bowedLayout, bowedShapes, bwBridge, bwClamp, bwForce, bwHeadParts, bwPegboxW, bwPlace, bwPoly, bwSstep, bwTailpiece, type BowedDrawn, type BowedGeom, type BowedLayout, type BowedState } from '../stage-draw.ts';
 import { SLOTS, V, beam, dot, handle, label, ring, seg, type Contours, type Pt } from './kit.ts';
 
 const [GREEN, RED, PINK, WHITE] = SLOTS;
@@ -414,7 +414,7 @@ export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, 
   lv.cx += (cxT - lv.cx) * (snap ? 1 : ease(0.05));
   lv.cz += (czT - lv.cz) * (snap ? 1 : ease(0.06));
   lv.incl += (inclT - lv.incl) * (snap ? 1 : ease(0.06));
-  lv.lift += ((playing ? 0 : 1) - lv.lift) * ease(0.15);
+  lv.lift += (bowLift(lv, playing, bow?.lift, dt) - lv.lift) * ease(playing || bow?.lift === undefined || lv.quiet! > 0.6 ? 0.15 : 0.05);
   const Hh = g.bowLength;
   const S2 = bowFit(g);
   const pos = bow ? bwClamp(bow.pos, 0, 1) : 0.5;
