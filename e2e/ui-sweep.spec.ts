@@ -77,13 +77,16 @@ test('2D: an orchestra’s piano away from the screen’s keys has keys of its o
         const s = cv.width / r.width;
         return [...cv.getContext('2d')!.getImageData(Math.round((x - r.left) * s), Math.round((y - r.top) * s), 1, 1).data].slice(0, 3);
       }, [k.x + k.w / 2, k.y + k.h * 0.82]);
-    const rest = await seen(c4);
+    // (how far a key's colour is from what it was: the vector look's glow moves a key at rest by a few levels,
+    // a held key by a hundred and more)
+    const far = (a: number[], b: number[]) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+    const rest = { c4: await seen(c4), d4: await seen(d4) };
     // (the keys play the piano: it is the orchestra's keyboard)
     await page.evaluate(() => (window as any).__piano.noteOn(60, 0.7, 'keys'));
-    await expect.poll(async () => (await seen(c4)).join(), { message: `${view}: C4 held` }).not.toBe(rest.join());
-    expect((await seen(d4)).join(), `${view}: D4, not held`).toBe(rest.join());
+    await expect.poll(async () => far(await seen(c4), rest.c4), { message: `${view}: C4 held` }).toBeGreaterThan(40);
+    expect(far(await seen(d4), rest.d4), `${view}: D4, not held`).toBeLessThan(40);
     await page.evaluate(() => (window as any).__piano.noteOff(60, 'keys'));
-    await expect.poll(async () => (await seen(c4)).join(), { message: `${view}: C4 let go` }).toBe(rest.join());
+    await expect.poll(async () => far(await seen(c4), rest.c4), { message: `${view}: C4 let go` }).toBeLessThan(40);
   }
   // a few players with a piano keep its band over the screen's keys, and no keys of its own
   await page.goto('/orchestra?v=1&seats=violin,grand&view=2d');
