@@ -12,10 +12,13 @@ import type { VisualFrame } from '@piano-model/engine';
 import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, mulInto, rotX, translate, xform } from './gl3d.ts';
 import { M, box, cyl, extrude, grid, variant } from './mesh.ts';
 import { boxOf, latheOn, make } from './horn3d.ts';
-import { BASE, BOARD_A, BOARD_B, COLUMN_X, COLUMN_Y0, COLUMN_Y1, CROWN_Y, PEDAL_STEP, PEDAL_Y, STRINGS, STRING_X, STRING_Y0, STRING_Y1, neckLower, neckUpper, pedalOf, stopY } from '../harp-plan.ts';
+import { BASE, BOARD_A, BOARD_B, COLUMN_X, COLUMN_Y0, COLUMN_Y1, CROWN_Y, DISC_DY, PEDAL_STEP, PEDAL_Y, PIN_DY, STRINGS, STRING_X, STRING_Y0, STRING_Y1, discScale, neckLower, neckUpper, pedalOf, plateLower, stopY } from '../harp-plan.ts';
 
 type P2 = [number, number];
 const GILT = variant(M.brass, { name: 'harpGilt' });
+/** the action's brass: plates, discs (duller than the gilding: handled metal) */
+const ACTION = variant(M.brass, { name: 'harpPlate' });
+const HOLE = variant(M.ebony, { name: 'hole' });
 /** the soundboard's half width at its foot and at the knee, the soundbox's depth behind it there */
 const HALF_W = [0.21, 0.055];
 const DEPTH = [0.2, 0.07];
@@ -70,9 +73,30 @@ export function buildHarpModel(): HarpModel {
     // the column: a fluted shaft on a turned foot, its capital and crown gilded
     latheOn(mb, [COLUMN_X, COLUMN_Y0, 0], [0, 1, 0], [[0, 0], [0.05, 0], [0.052, 0.02], [0.038, 0.05], [0.031, 0.09], [0.029, COLUMN_Y1 - COLUMN_Y0 - 0.09], [0.034, COLUMN_Y1 - COLUMN_Y0 - 0.03]] as P2[], 28, M.maple);
     latheOn(mb, [COLUMN_X, COLUMN_Y1 - 0.03, 0], [0, 1, 0], [[0.034, 0], [0.052, 0.02], [0.056, 0.04], [0.042, 0.055], [0.05, 0.075], [0.036, 0.1], [0.016, 0.112], [0, CROWN_Y - COLUMN_Y1 + 0.045]] as P2[], 28, GILT);
+    // (the shaft's flutes: twelve reeds up it between the foot's turning and the capital, and two gilt rings)
+    for (let k = 0; k < 12; k++) {
+      const a = (2 * Math.PI * (k + 0.5)) / 12;
+      cyl(mb, [COLUMN_X + 0.0285 * Math.cos(a), COLUMN_Y0 + 0.11, 0.0285 * Math.sin(a)], [COLUMN_X + 0.0275 * Math.cos(a), COLUMN_Y1 - 0.1, 0.0275 * Math.sin(a)], 0.0052, 0.005, 6, M.maple, false);
+    }
+    for (const y of [COLUMN_Y0 + 0.1, COLUMN_Y1 - 0.095]) latheOn(mb, [COLUMN_X, y, 0], [0, 1, 0], [[0.03, 0], [0.037, 0.004], [0.037, 0.011], [0.03, 0.015]] as P2[], 28, GILT);
     // the neck: its curve over the strings' tops, beside their plane; the brass action plate along its foot
     slab(mb, [...neckLower, ...[...neckUpper].reverse()] as P2[], NECK_Z[0], NECK_Z[1], M.maple);
-    slab(mb, [...neckLower.map(([x, y]): P2 => [x, y - 0.012]), ...[...neckLower].reverse().map(([x, y]): P2 => [x, y + 0.012])], NECK_Z[0] - 0.003, NECK_Z[0], GILT);
+    // (the action plate: brass, from the neck's lower edge down past the discs; on it each string's bridge
+    // pin at its sounding top and its two discs under that, in the neck above each its tuning pin)
+    slab(mb, [...plateLower, ...[...neckLower].slice(1, -1).reverse().map(([x, y]): P2 => [x, y + 0.012])] as P2[], NECK_Z[0] - 0.0025, NECK_Z[0], ACTION);
+    for (let i = 0; i < STRINGS.length; i++) {
+      const x = STRING_X[i];
+      const y = STRING_Y1[i];
+      cyl(mb, [x, y, NECK_Z[0] - 0.002], [x, y, -0.006], 0.0022, 0.0022, 8, M.darkSteel);
+      for (const dy of DISC_DY) {
+        const yd = y - dy * discScale(i);
+        cyl(mb, [x + 0.0035, yd, NECK_Z[0] - 0.002], [x + 0.0035, yd, -0.0035], 0.0048, 0.0048, 12, GILT);
+        // (the disc's two prongs, the string between them)
+        for (const sx of [-1, 1]) cyl(mb, [x + sx * 0.0026, yd + sx * 0.0026, -0.0035], [x + sx * 0.0026, yd + sx * 0.0026, -0.0075], 0.0011, 0.0011, 6, M.steel);
+      }
+      cyl(mb, [x, y + PIN_DY, NECK_Z[0] + 0.002], [x, y + PIN_DY, -0.009], 0.0027, 0.0024, 8, M.darkSteel);
+      cyl(mb, [x, y + PIN_DY, NECK_Z[1] - 0.002], [x, y + PIN_DY, NECK_Z[1] + 0.014], 0.0027, 0.0032, 8, M.darkSteel);
+    }
     // the soundboard: a flat spruce plate widening to its foot, the strings' rail down its middle
     const at = (u: number, z: number, back: number): Vec3 => [lerp(BOARD_A[0], BOARD_B[0], u) + n[0] * back, lerp(BOARD_A[1], BOARD_B[1], u) + n[1] * back, z];
     grid(mb, 24, 2, (u, v) => at(u, (v * 2 - 1) * lerp(HALF_W[0], HALF_W[1], u), 0), M.spruce);
@@ -82,6 +106,20 @@ export function buildHarpModel(): HarpModel {
       const a = Math.PI * v;
       return at(u, -Math.cos(a) * lerp(HALF_W[0], HALF_W[1], u), Math.sin(a) * lerp(DEPTH[0], DEPTH[1], u));
     }, M.maple, { flip: true });
+    // (the sound holes down the shell's back: five, long ovals, the largest at the foot)
+    for (let h = 0; h < 5; h++) {
+      const u0 = 0.14 + 0.16 * h;
+      const hl = 0.052 - 0.006 * h;
+      const hw = 0.3 - 0.03 * h;
+      grid(mb, 8, 8, (p, q) => {
+        // (a disc on the shell, a millimetre proud of it)
+        const r = Math.sqrt(p);
+        const th = 2 * Math.PI * q;
+        const u = u0 + hl * r * Math.cos(th);
+        const a = Math.PI * (0.5 + (hw * r * Math.sin(th)) / Math.PI);
+        return at(u, -Math.cos(a) * lerp(HALF_W[0], HALF_W[1], u), Math.sin(a) * lerp(DEPTH[0], DEPTH[1], u) + 0.0012);
+      }, HOLE, { flip: true });
+    }
     // its ends closed: the foot on the base, the knee under the neck
     for (const u of [0, 1])
       grid(mb, 2, 12, (r, v) => {
@@ -113,11 +151,16 @@ const inkOf = (i: number): RGBA => (STRINGS[i].colour === 'red' ? INK.red : STRI
 const gauge = (i: number): number => (STRINGS[i].material === 'wire' ? 0.0034 - 0.0012 * (i / 11) : STRINGS[i].material === 'gut' ? 0.0021 - 0.0009 * ((i - 12) / 25) : 0.0011);
 
 /** what the stage last drew of the single harp (tests): each string's swing (m), each pedal's place */
-let stageState: { swing: number[]; pedals: number[]; ringing: number } | null = null;
+let stageState: { swing: number[]; pedals: number[]; ringing: number; plucks: { string: number; at: Vec3 }[] } | null = null;
+/** how long a pluck's mark shows (s), its ring's points */
+const PLUCK_SHOWN = 0.28;
+const RING: Vec3[] = Array.from({ length: 13 }, () => [0, 0, 0]);
+const MARK: RGBA = [1, 0.94, 0.82, 1];
 const SEG = 14;
 const pts: Vec3[] = Array.from({ length: SEG + 1 }, () => [0, 0, 0]);
 const two: Vec3[] = [[0, 0, 0], [0, 0, 0]];
 const PM = new Float32Array(16);
+const LIT: RGBA = [1, 1, 1, 1];
 
 export function poseHarp(b: Batch, hm: HarpModel, fr: VisualFrame | null, _dt: number, _now: number, T: Mat4 = hm.T): void {
   for (const s of hm.statics) b.mesh(s, T);
@@ -136,12 +179,10 @@ export function poseHarp(b: Batch, hm: HarpModel, fr: VisualFrame | null, _dt: n
     swing.push(w);
     const col = inkOf(i);
     const g = gauge(i);
-    // (above the disc that stops it: the string's still end, up to its pin)
-    if (STRING_Y1[i] - y1 > 0.002) {
-      two[0] = xform(T, [x, y1, 0]);
-      two[1] = xform(T, [x, STRING_Y1[i], 0]);
-      b.wire(two, col, g);
-    }
+    // (above the disc that stops it and over the bridge pin: the string's still end, up to its tuning pin)
+    two[0] = xform(T, [x, y1, 0]);
+    two[1] = xform(T, [x, STRING_Y1[i] + PIN_DY, -0.004]);
+    b.wire(two, col, g);
     if (w > 0) {
       ringing++;
       const sh = hv?.shapes.find((s) => s.string === i)?.shape ?? null;
@@ -154,12 +195,37 @@ export function poseHarp(b: Batch, hm: HarpModel, fr: VisualFrame | null, _dt: n
         pts[q] = xform(T, [x, y0 + (y1 - y0) * u, d * w]);
       }
       b.wire(pts, col, g);
+      // (a ringing string catches the light: brighter the wider it swings, dying with it)
+      LIT[0] = 0.5 + 0.5 * col[0];
+      LIT[1] = 0.45 + 0.5 * col[1];
+      LIT[2] = 0.35 + 0.5 * col[2];
+      LIT[3] = Math.min(0.85, 1.1 * Math.sqrt(a));
+      b.line(pts, LIT, 1.1 + 1.6 * Math.sqrt(a));
     } else {
       two[0] = xform(T, [x, y0, 0]);
       two[1] = xform(T, [x, y1, 0]);
       b.wire(two, col, g);
     }
   }
+  // the fingers: where each string plucked a moment ago was taken (the engine's own place), a ring in the
+  // strings' plane widening as it fades
+  const plucks: { string: number; at: Vec3 }[] = [];
+  if (hv)
+    for (let i = 0; i < hv.plucked.length; i++) {
+      const age = hv.plucked[i];
+      if (!(age >= 0 && age < PLUCK_SHOWN)) continue;
+      const u = age / PLUCK_SHOWN;
+      const y0 = STRING_Y0[i];
+      const y = y0 + (stopY(i, hv.pedals[pedalOf(i)]) - y0) * (hv.where?.[i] ?? 0.45);
+      const r = 0.006 + 0.022 * u;
+      for (let q = 0; q < RING.length; q++) {
+        const a = (2 * Math.PI * q) / (RING.length - 1);
+        RING[q] = xform(T, [STRING_X[i] + r * Math.cos(a), y + r * Math.sin(a), 0]);
+      }
+      MARK[3] = 0.9 * (1 - u) * (1 - u);
+      b.line(RING, MARK, 1.6);
+      plucks.push({ string: i, at: [STRING_X[i], y, 0] });
+    }
   // the pedals: each in its notch (up flat, the middle natural, down sharp)
   const ped: number[] = [];
   PEDALS.forEach((p, k) => {
@@ -175,5 +241,5 @@ export function poseHarp(b: Batch, hm: HarpModel, fr: VisualFrame | null, _dt: n
     mulInto(PM, 0, T, m);
     b.mesh(hm.pedal, PM);
   });
-  if (T === hm.T) stageState = { swing, pedals: ped, ringing };
+  if (T === hm.T) stageState = { swing, pedals: ped, ringing, plucks };
 }

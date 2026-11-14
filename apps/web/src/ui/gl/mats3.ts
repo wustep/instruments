@@ -84,6 +84,11 @@ const P: Record<string, Phys> = {
   // highlight across the grain
   glockBar: { color: '#b9bdc3', metalness: 0.85, roughness: 0.4, tex: 8, axis: [0, 0, 1] },
   glockHead: { color: '#d7b065', metalness: 1, roughness: 0.24, envMapIntensity: 1.4 },
+  // the harp's gilding (harp3d.ts: the crown, the capital, the column's rings, the feet): gold leaf over
+  // carved wood, burnished: warmer and softer than lacquered brass
+  harpGilt: { color: '#d9ab4c', metalness: 1, roughness: 0.3, envMapIntensity: 1.1 },
+  // … and its action plate: brass plate, brushed and lacquered (a flat face: no anisotropy)
+  harpPlate: { color: '#d2ac5e', metalness: 0.9, roughness: 0.42, clearcoat: 0.3, clearcoatRoughness: 0.3 },
   nickel: { color: '#dddcd6', metalness: 1, roughness: 0.1 },
   copper: { color: '#c4794a', metalness: 1, roughness: 0.3, anisotropy: 0.5, tex: 8 },
   brass: { color: '#e6bb62', metalness: 1, roughness: 0.14, clearcoat: 0.8, clearcoatRoughness: 0.04 },

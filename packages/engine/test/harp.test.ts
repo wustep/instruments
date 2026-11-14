@@ -300,7 +300,7 @@ describe('harp', () => {
   });
   it('a harder pluck is not the same pluck louder: brighter, its attack stronger; a wire string swung wide rattles against its disc, a soft one does not', () => {
     // (the voicing itself, `human` 0: one string at mezzo-forte and at forte)
-    const one = (m: number, vel: number, voice?: object) => pluck(m, vel, 1.2, { human: 0, ...(voice ? { voice } : {}) });
+    const one = (m: number, vel: number, voice?: object) => pluck(m, vel, 1.2, { human: 0, own: 0, ...(voice ? { voice } : {}) });
     const centroid = (x: Float32Array, f0: number) => {
       let num = 0;
       let den = 0;
@@ -326,7 +326,8 @@ describe('harp', () => {
       return 10 * Math.log10(s / ((b - a) * FS) + 1e-30);
     };
     expect(HARP_VOICE.noise).toBeGreaterThan(0);
-    expect(high(one(60, 100), 0.02, 0.032) - high(one(60, 100, { noise: 0 }), 0.02, 0.032)).toBeGreaterThan(0.5);
+    // (the board's knock and a forte pluck's even partials are in those 12 ms too since the improvement round)
+    expect(high(one(60, 100), 0.02, 0.032) - high(one(60, 100, { noise: 0 }), 0.02, 0.032)).toBeGreaterThan(0.3);
     // the rattle: a C2 plucked hard has it for its first moments, plucked softly none at all
     expect(HARP_VOICE.buzz).toBeGreaterThan(0);
     const hard = high(one(36, 120), 0.05, 0.35) - high(one(36, 120, { buzz: 0 }), 0.05, 0.35);
@@ -428,5 +429,110 @@ describe('harp', () => {
     run(c, 0.6);
     const later = (c.getVisual() as { harp: { amp: Float32Array } }).harp.amp[harpStringOf(48)];
     expect(later).toBeGreaterThan(0.25 * ringing);
+  });
+
+  it('the board is knocked by every pluck: its own modes ring for a few hundredths of a second under a top string, and are gone', () => {
+    // (the voicing: no player, the average string) a D7's first 60 ms between 380 and 850 Hz, well under its
+    // fundamental at 2.35 kHz: with the knock and without
+    const band = (x: Float32Array, a: number, b: number) => {
+      let e = 0;
+      for (let f = 390; f < 850; f += 20) e += 10 ** (at(x, f, a, b) / 10);
+      return 10 * Math.log10(e);
+    };
+    const on = pluck(98, 70, 0.6, { human: 0, own: 0 });
+    const off = pluck(98, 70, 0.6, { human: 0, own: 0, voice: { knock: 0 } });
+    expect(band(on, 0.02, 0.08) - band(off, 0.02, 0.08)).toBeGreaterThan(12);
+    // … as loud there as the recorded harp's: within 12 dB of the tone itself (it was 30–40 dB under)
+    expect(band(on, 0.02, 0.08) - at(on, et(98), 0.1, 0.26)).toBeGreaterThan(-14);
+    // gone a fifth of a second on
+    expect(band(on, 0.22, 0.28)).toBeLessThan(band(on, 0.02, 0.08) - 25);
+    // the long strings knock the board's low modes, the top strings its high ones
+    expect(HARP_VOICE.knockTop).toBeGreaterThan(2 * HARP_VOICE.knockF);
+    // a harder pluck is taken further from the string's middle: its second partial nearer its first
+    const second = (vel: number) => at(pluck(62, vel, 0.6, { human: 0, own: 0 }), 2 * et(62), 0.03, 0.28) - at(pluck(62, vel, 0.6, { human: 0, own: 0 }), et(62), 0.03, 0.28);
+    expect(second(100) - second(60)).toBeGreaterThan(3);
+  });
+
+  it('the strings that answer take their share from the plucked one: nothing is added at the pluck, the halo comes after', () => {
+    const P = { human: 0, own: 0, voice: { knock: 0, noise: 0 } };
+    const dry = pluck(60, 80, 2, { ...P, resonance: 0 });
+    const wet = pluck(60, 80, 2, { ...P, resonance: 1 });
+    // the pluck's first 4 ms: the same to a hundredth of a decibel
+    expect(Math.abs(rmsDb(wet, 0.02, 0.024) - rmsDb(dry, 0.02, 0.024))).toBeLessThan(0.05);
+    // … and what the others ring with is there once the two have drifted apart
+    let diff = 0;
+    let own = 0;
+    for (let i = Math.round(1 * FS); i < Math.round(1.9 * FS); i++) {
+      diff += (wet[i] - dry[i]) ** 2;
+      own += dry[i] ** 2;
+    }
+    expect(10 * Math.log10(diff / own)).toBeGreaterThan(-40);
+    // the other strings do ring (no finger plucked them)
+    const c = core({ human: 0 });
+    c.schedule({ type: 'noteOn', midi: 60, velocity: 90 });
+    run(c, 0.2);
+    expect(c.activeVoiceCount).toBe(1);
+    expect(c.activeSympatheticCount).toBeGreaterThan(3);
+  });
+
+  it('this harp’s own strings (`own`): each partial’s two polarisations a little apart, so a string wavers as it rings; never off its pitch; 0 is the voicing’s one string', () => {
+    // a partial's level every 20 ms against its own straight fall (dB, RMS)
+    const waver = (x: Float32Array, f: number) => {
+      const lv: number[] = [];
+      for (let t = 0.06; t < 1.2; t += 0.02) lv.push(at(x, f, t, t + 0.04));
+      const n = lv.length;
+      const mt = (n - 1) / 2;
+      const my = lv.reduce((a, b) => a + b, 0) / n;
+      let sxy = 0;
+      let sxx = 0;
+      lv.forEach((y, i) => {
+        sxy += (i - mt) * (y - my);
+        sxx += (i - mt) ** 2;
+      });
+      return Math.sqrt(lv.reduce((a, y, i) => a + (y - my - (sxy / sxx) * (i - mt)) ** 2, 0) / n);
+    };
+    let more = 0;
+    let top = 0;
+    const notes = [72, 76, 79, 83, 84, 86, 88, 91];
+    for (const m of notes) {
+      const a = waver(pluck(m, 80, 1.4, { human: 0, own: 0, resonance: 0 }), et(m));
+      const b = waver(pluck(m, 80, 1.4, { human: 0, own: 1, resonance: 0 }), et(m));
+      if (b > a + 0.1) more++;
+      top = Math.max(top, b);
+      // (its pitch is still the string's: the fundamental's strongest frequency within 3 ¢)
+      expect(Math.abs(1200 * Math.log2(pitchNear(pluck(m, 80, 1.4, { human: 0, own: 1 }), et(m)) / et(m))), `MIDI ${m}`).toBeLessThan(4);
+    }
+    // some of the strings waver more than the voicing's one string does, and none wildly
+    expect(more).toBeGreaterThanOrEqual(3);
+    expect(top).toBeGreaterThan(0.8);
+    expect(top).toBeLessThan(6);
+    // the instrument's, not the player's: the same every time
+    expect(pluck(84, 80, 0.5, { human: 0 })).toEqual(pluck(84, 80, 0.5, { human: 0 }));
+    // as loud as the voicing's string to a decibel or so
+    for (const m of [48, 60, 72, 84]) expect(Math.abs(rmsDb(pluck(m, 80, 1, { human: 0 }), 0.02, 0.5) - rmsDb(pluck(m, 80, 1, { human: 0, own: 0 }), 0.02, 0.5)), `MIDI ${m}`).toBeLessThan(1.5);
+  });
+
+  it('the pictures are told where the finger took each string: the voicing’s place, a player’s own each time', () => {
+    const where = (c: HarpCore, m: number) => (c.getVisual() as { harp: { where: number[]; plucked: number[] } }).harp.where[harpStringOf(m)];
+    const v = core({ human: 0 });
+    v.schedule({ type: 'noteOn', midi: 60, velocity: 70 });
+    run(v, 0.05);
+    // (mezzo-forte: the fitted place; a forte pluck further from the middle)
+    expect(where(v, 60)).toBeCloseTo(HARP_VOICE.beta - HARP_VOICE.betaVel * (70 / 127 - 0.55), 3);
+    v.schedule({ type: 'noteOn', midi: 64, velocity: 120 });
+    run(v, 0.05);
+    expect(where(v, 64)).toBeLessThan(where(v, 60) - 0.01);
+    const h = core({ human: 1 });
+    const seen: number[] = [];
+    for (let k = 0; k < 6; k++) {
+      h.schedule({ type: 'noteOn', midi: 60, velocity: 70 });
+      run(h, 0.3);
+      seen.push(where(h, 60));
+    }
+    for (const w of seen) {
+      expect(w).toBeGreaterThan(0.3);
+      expect(w).toBeLessThanOrEqual(0.5);
+    }
+    expect(new Set(seen.map((w) => w.toFixed(3))).size).toBeGreaterThan(2);
   });
 });

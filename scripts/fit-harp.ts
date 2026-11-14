@@ -21,6 +21,7 @@ export const RANGES: Partial<Record<Key, [number, number, boolean?]>> = {
   // even partials are gone: its fourth and sixth lie 25–45 dB under, not 150)
   beta: [0.3, 0.485],
   betaTop: [0.12, 0.485],
+  betaVel: [0, 0.5],
   slope: [0.3, 2.4],
   corner: [300, 9000, true],
   cornerOct: [0.8, 2.2],

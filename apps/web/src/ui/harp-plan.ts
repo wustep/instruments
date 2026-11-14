@@ -43,6 +43,13 @@ export const CROWN_Y = 1.885;
 export const NECK_GAP = 0.03;
 export const neckLower: P[] = [[COLUMN_X, STRING_Y1[0] + NECK_GAP - 0.01], ...STRING_X.map((x, i): P => [x, STRING_Y1[i] + NECK_GAP]), [STRING_X[N - 1] + 0.07, STRING_Y1[N - 1] + NECK_GAP + 0.03]];
 export const neckUpper: P[] = neckLower.map(([x, y], i): P => [x, y + 0.07 - 0.025 * (i / (neckLower.length - 1))]);
+/** each string's tuning pin: in the neck, this far above its sounding top (the bridge pin on the action plate) */
+export const PIN_DY = NECK_GAP + 0.022;
+/** how far down a string the discs sit, as a share of DISC_DY: the top strings are too short for the whole */
+export const discScale = (i: number): number => Math.min(1, STRINGS[i].length / 0.12);
+/** the brass action plate under the neck: from the neck's lower edge down past the lower discs (its lower
+ *  edge, string by string) */
+export const plateLower: P[] = STRING_X.map((x, i): P => [x, STRING_Y1[i] - (0.066 * discScale(i) + 0.004)]);
 /** the body (the soundbox): the soundboard's edge from the base up to the knee, and its back, 0.2 m behind at
  *  the base narrowing to 0.07 m at the top (in this side view: its depth) */
 export const BOARD_A: P = [X0 - 0.045, boardY(X0 - 0.045)];

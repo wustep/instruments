@@ -1,0 +1,99 @@
+{
+ "instrument": "glockenspiel",
+ "seconds": 15.100000000000001,
+ "notes": 31,
+ "before": {
+  "peakDb": -2.4,
+  "peakAt": 10.9,
+  "lufs": -18.1,
+  "repeats": [
+   {
+    "midi": 91,
+    "n": 8,
+    "levelSdDb": 3.64,
+    "centroidSdCents": 85,
+    "levelsDb": [
+     -25.8,
+     -21.7,
+     -19.8,
+     -20.4,
+     -19.2,
+     -19.4,
+     -26.7,
+     -28.1
+    ]
+   },
+   {
+    "midi": 96,
+    "n": 8,
+    "levelSdDb": 3.94,
+    "centroidSdCents": 140,
+    "levelsDb": [
+     -26.7,
+     -23.9,
+     -33.3,
+     -24.6,
+     -25.9,
+     -25.7,
+     -34.4,
+     -27.9
+    ]
+   }
+  ],
+  "held": [
+   {
+    "midi": 88,
+    "seconds": 2.6,
+    "centroidMoveCents": 162,
+    "levelMoveDb": 1.33
+   }
+  ]
+ },
+ "after": {
+  "peakDb": -1.6,
+  "peakAt": 10.9,
+  "lufs": -17.9,
+  "repeats": [
+   {
+    "midi": 91,
+    "n": 8,
+    "levelSdDb": 3.58,
+    "centroidSdCents": 82,
+    "levelsDb": [
+     -25.5,
+     -21.5,
+     -19.6,
+     -20.5,
+     -19.2,
+     -19.5,
+     -26.5,
+     -28.1
+    ]
+   },
+   {
+    "midi": 96,
+    "n": 8,
+    "levelSdDb": 3.86,
+    "centroidSdCents": 116,
+    "levelsDb": [
+     -26.2,
+     -23.6,
+     -33.3,
+     -24.4,
+     -25.8,
+     -25.6,
+     -33.6,
+     -26.8
+    ]
+   }
+  ],
+  "held": [
+   {
+    "midi": 88,
+    "seconds": 2.6,
+    "centroidMoveCents": 162,
+    "levelMoveDb": 1.49
+   }
+  ]
+ }
+}

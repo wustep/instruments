@@ -135,6 +135,17 @@ export interface GlockVoice {
   knockDyn: number;
   knockF: number;
   knockTau: number;
+  /** The contact itself. The head is on the bar a fifth of a millisecond, and that blow is heard as it is: a
+   *  click across 2–12 kHz, the same on every bar (the bar's many higher modes, each gone in a millisecond,
+   *  and the head's own clack), reaching higher the harder the stroke (the contact is shorter). Its level (dB
+   *  re the bar's pitch at C6 mezzo-forte), per 10 dB of the stroke's level under mezzo-forte (`clickDyn`)
+   *  and over it (`clickUp`); the contact's length at mezzo-forte (s) and × per 10 dB of the stroke's level.
+   *  Absent: none (the voicing as first fitted). */
+  click?: number;
+  clickDyn?: number;
+  clickUp?: number;
+  clickT?: number;
+  clickTDyn?: number;
   /** a low cut (Hz): what the bars and their case radiate below their pitches is nothing */
   hp: number;
   /** the level (dB) */
@@ -176,10 +187,22 @@ export const GLOCK_VOICE: GlockVoice = {
   decay: [4.83,  92.43,  13.89,  218.28,  44.52,  59.96],
   decayOct: [1.292,  1.117,  4.113,  0.401,  1.172,  1.727],
   decayOct2: [1.341,  1,  1,  1,  1,  1],
-  knock: -8,
+  // (−8 as fitted with the two resonances alone, which then stood 5 dB over the recordings' 3.2 kHz band while
+  // the bands either side of it were 16–23 dB under: scripts/glock-click.ts)
+  knock: -14,
   knockDyn: 12,
   knockF: 3200,
   knockTau: 0.004,
+  // The contact's click, set on the fit bars' first 4 ms (scripts/glock-click.ts): at mezzo-forte the bands
+  // at 4 and 5 kHz stood 16 and 23 dB under the recordings' and stand 6 and 7 under now. It is not given the
+  // recordings' whole size: their mezzo-forte click's peak is 10 dB over the note's own and their fortissimo's
+  // more, and the instrument is played with its fortissimo at its limiter's threshold (levels as played), so
+  // the click has what room that leaves (`clickUp` 2: over mezzo-forte it grows a fifth as fast as the note).
+  click: 11,
+  clickDyn: 12,
+  clickUp: 2,
+  clickT: 0.00028,
+  clickTDyn: 0.85,
   hp: 300,
   gainDb: -24,
 };
@@ -209,6 +232,13 @@ const PLACE_SD = 0.05;
  *  dies (octaves of the rate): each bar its own */
 const BAR_CENTS_SD = 0.8;
 const BAR_DECAY_SD = 0.2;
+/** A bar's twin (see `twinHz`): how far from the pitch it lies (Hz, the least and the most), its share of the
+ *  stroke (the least and the most), × this in the top octave. Set by the recorded bars' own waver (the Iowa
+ *  bells' pitch stands 0.4 dB from a straight fall, a median, 0.2–0.6 the quartiles, 0.6 in the top octave,
+ *  crossing it 1.4 times a second: scripts/glock-waver.ts). */
+const TWIN_HZ = [0.5, 2.2];
+const TWIN_SHARE = [0.02, 0.1];
+const TWIN_TOP = 1.5;
 /** how late a stroke lands (ms, a standard deviation; never early: nothing is known ahead) */
 const LATE_MS = 1.3;
 /** the two mallets: the left's head a little softer than the right's (dB on the upper partials and the
@@ -254,10 +284,22 @@ export class GlockenspielCore implements InstrumentCore {
   private V: GlockVoice;
   private queue: { frame: number; ev: PianoEvent | Stroke }[] = [];
   private hum: Human;
+  /** the click's own chances (a stream of its own: the strokes' are as they were before there was a click) */
+  private humClick: Human;
   /** each bar's own: its tuning (cents), its pitch's decay (a factor), its families' levels (dB) */
   private barCents = new Float64Array(GLOCK_BARS);
   private barDecay = new Float64Array(GLOCK_BARS).fill(1);
   private barLevel = new Float64Array(GLOCK_BARS * GLOCK_FAMILIES);
+  /** … and its pitch's twin: a bar on its cord is never quite one mode at its pitch (it rocks on its two
+   *  supports, and its two halves are not ground alike): a second, small, a cycle or two a second off, so its
+   *  ring wavers a few tenths of a decibel as it dies. How far off (Hz), its share of the stroke; its
+   *  resonator's state and coefficients */
+  private twinHz = new Float64Array(GLOCK_BARS);
+  private twinShare = new Float64Array(GLOCK_BARS);
+  private t1 = new Float64Array(GLOCK_BARS);
+  private t2 = new Float64Array(GLOCK_BARS);
+  private tc1 = new Float64Array(GLOCK_BARS);
+  private tc2 = new Float64Array(GLOCK_BARS);
   /** a roll in progress on a bar: its next stroke's frame (−1: none); the modulation wheel */
   private rollNext = new Float64Array(GLOCK_BARS).fill(-1);
   private modWheel = 0;
@@ -287,6 +329,10 @@ export class GlockenspielCore implements InstrumentCore {
   private kg = new Float64Array(4);
   private burst = new Int32Array(2);
   private burstAmp = new Float64Array(2);
+  /** the contacts' clicks still to be heard: a ring of samples, where it is read */
+  private ck = new Float64Array(256);
+  private ckAt = 0;
+  private ckLeft = 0;
   /** the two mallets: the bar each is over, and the last strokes (bar, frame, velocity, hand) */
   private hands = new Int8Array([8, 20]);
   private hitBar = new Int8Array(NHITS).fill(-1);
@@ -326,7 +372,14 @@ export class GlockenspielCore implements InstrumentCore {
       this.barLevel[i * GLOCK_FAMILIES] = BAR_LEVEL_SD * made.near();
       for (let k = 1; k < GLOCK_FAMILIES; k++) this.barLevel[i * GLOCK_FAMILIES + k] = BAR_SD[k] * made.near();
     }
+    // (the twins, drawn after: the bars' other traits are as they were)
+    for (let i = 0; i < GLOCK_BARS; i++) {
+      const u = made.even();
+      this.twinHz[i] = (u < 0 ? -1 : 1) * (TWIN_HZ[0] + (TWIN_HZ[1] - TWIN_HZ[0]) * u * u);
+      this.twinShare[i] = (TWIN_SHARE[0] + (TWIN_SHARE[1] - TWIN_SHARE[0]) * Math.abs(made.even())) * (BARS[i].midi >= 96 ? TWIN_TOP : 1);
+    }
     this.hum = new Human(79, opts.player);
+    this.humClick = new Human(797, opts.player);
     this.room = new Room(this.fs);
     this.limiter = new Limiter(this.fs);
     for (let i = 0; i < GLOCK_BARS; i++) {
@@ -402,6 +455,11 @@ export class GlockenspielCore implements InstrumentCore {
       const r = Math.pow(10, -rate / (20 * fs));
       this.c1[o + k] = 2 * r * Math.cos((2 * Math.PI * f) / fs);
       this.c2[o + k] = r * r;
+      if (k === 0) {
+        // (its twin dies as it does)
+        this.tc1[i] = 2 * r * Math.cos((2 * Math.PI * (f + this.twinHz[i])) / fs);
+        this.tc2[i] = r * r;
+      }
     }
   }
 
@@ -486,6 +544,14 @@ export class GlockenspielCore implements InstrumentCore {
       this.y1[o + k] -= (a * Math.sin(w)) / r;
       this.y2[o + k] -= (a * Math.sin(2 * w)) / (r * r);
     }
+    if (H > 0 && this.tc2[i] > 0) {
+      // the pitch's twin, set going with it (a sine from now, on top of what it was doing)
+      const a = H * this.twinShare[i] * A;
+      const w = (2 * Math.PI * (f1 + this.twinHz[i])) / fs;
+      const r = Math.sqrt(this.tc2[i]);
+      this.t1[i] -= (a * Math.sin(w)) / r;
+      this.t2[i] -= (a * Math.sin(2 * w)) / (r * r);
+    }
     this.live[i] = 1;
     this.peak[i] = 0;
     this.level[i] = Math.max(this.level[i], A);
@@ -506,6 +572,22 @@ export class GlockenspielCore implements InstrumentCore {
     } else {
       this.k1[2 * hand] += kn * this.kg[2 * hand];
       this.k1[2 * hand + 1] += kn * this.kg[2 * hand + 1];
+    }
+    if (V.click !== undefined) {
+      // the contact's own click: one cycle at the contact's length, swelling and dying inside it (the blow's
+      // second derivative, which is what a small bar sends into the air of it), shorter and so higher the
+      // harder the stroke and the head
+      const T = (V.clickT ?? 0.00022) * Math.pow(V.clickTDyn ?? 1, d) * Math.pow(1.6, -brass) * Math.pow(MALLET_PITCH[hand], -H) * (1 + 0.08 * this.humClick.near() * H);
+      const N = clamp(T * fs, 3, 200);
+      const nn = Math.ceil(N);
+      const ca = Math.pow(10, (V.level[0] + (g - 10 * d) + V.click + (d < 0 ? (V.clickDyn ?? 10) : (V.clickUp ?? 10)) * d + 4 * brass + head + 1.5 * this.humClick.near() * H) / 20);
+      // (as loud whatever the sample rate: its energy is that of the contact, not of how many samples draw it)
+      const sc = ca * Math.sqrt(11 / N);
+      for (let j = 0; j < nn; j++) {
+        const u = (j + 0.5) / N;
+        if (u < 1) this.ck[(this.ckAt + j) & 255] += sc * Math.sin(2 * Math.PI * u) * (1 - Math.cos(2 * Math.PI * u));
+      }
+      this.ckLeft = Math.max(this.ckLeft, nn);
     }
     this.hands[hand] = i;
     const h = this.hitN % NHITS;
@@ -642,6 +724,8 @@ export class GlockenspielCore implements InstrumentCore {
   allSoundOff(): void {
     this.y1.fill(0);
     this.y2.fill(0);
+    this.t1.fill(0);
+    this.t2.fill(0);
     this.live.fill(0);
     this.level.fill(0);
     this.peak.fill(0);
@@ -651,6 +735,8 @@ export class GlockenspielCore implements InstrumentCore {
     this.struckAt.fill(-1);
     this.rollNext.fill(-1);
     this.burst.fill(0);
+    this.ck.fill(0);
+    this.ckLeft = 0;
     // (strokes on their way are not made)
     let kept = 0;
     for (const e of this.queue) if (e.ev.type !== 'stroke') this.queue[kept++] = e;
@@ -744,6 +830,22 @@ export class GlockenspielCore implements InstrumentCore {
         y1[o + k] = u1;
         y2[o + k] = u2;
       }
+      if (this.t1[i] !== 0 || this.t2[i] !== 0) {
+        let u1 = this.t1[i];
+        let u2 = this.t2[i];
+        const a1 = this.tc1[i];
+        const a2 = this.tc2[i];
+        for (let t = 0; t < n; t++) {
+          const u = a1 * u1 - a2 * u2;
+          u2 = u1;
+          u1 = u;
+          buf[t] += u;
+        }
+        if (Math.abs(u1) + Math.abs(u2) < QUIET) u1 = u2 = 0;
+        else alive = 1;
+        this.t1[i] = u1;
+        this.t2[i] = u2;
+      }
       let pk = 0;
       const gl = this.gL[i];
       const gr = this.gR[i];
@@ -787,6 +889,18 @@ export class GlockenspielCore implements InstrumentCore {
         this.k1[k] = u1;
         this.k2[k] = u2;
       }
+    }
+    // the contacts' clicks
+    if (this.ckLeft > 0) {
+      const m = Math.min(n, this.ckLeft);
+      for (let t = 0; t < m; t++) {
+        const j = (this.ckAt + t) & 255;
+        oL[t] += this.ck[j];
+        oR[t] += this.ck[j];
+        this.ck[j] = 0;
+      }
+      this.ckAt = (this.ckAt + m) & 255;
+      this.ckLeft -= m;
     }
     const gn = this.gain;
     for (let t = 0; t < n; t++) {
