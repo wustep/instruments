@@ -6,11 +6,11 @@
 // ensemble's pieces (PIECES, the pieces menu), and each instrument's own short piece (DEMOS), which the
 // player's play icon plays when nothing is loaded.
 //
-// Three pieces are not Mutopia's: "Toward Morning", a symphonic movement, "Everything So Far", a
-// movement in 7/8, and "Pass It On", a scherzo for all sixteen instruments, written for them by
-// Fable 5.2 (Anthropic's Claude) in 2026 and given to the public domain (CC0 1.0). Each has an address
-// of its own, /symphony, /everything and /passiton (address.ts), which opens its orchestra with the
-// piece loaded.
+// Four pieces are not Mutopia's: "Toward Morning", a symphonic movement, "Everything So Far", a
+// movement in 7/8, "Pass It On", a scherzo for all sixteen instruments, and "After You", a tango for
+// twelve, written for them by Fable 5.2 (Anthropic's Claude) in 2026 and given to the public domain
+// (CC0 1.0). Each has an address of its own, /symphony, /everything, /passiton and /tango (address.ts),
+// which opens its orchestra with the piece loaded.
 import type { InstrumentId } from '@piano-model/engine';
 import type { FileEvent, MidiSong } from '../midi-file.ts';
 import { capParts, planOf, shiftKey, type LineInfo, type Plan, type Shifts, type Voice } from './assign.ts';
@@ -32,7 +32,7 @@ export interface Piece {
   parts: { voice: Voice; lines: number[]; shift?: Record<number, number> }[];
   /** tempo, × the file's (a tempo the score marks, where the file has another) */
   rate?: number;
-  /** a short address of its own (/symphony, /everything, /passiton): the page opens on its orchestra, the piece loaded
+  /** a short address of its own (/symphony, /everything, /passiton, /tango): the page opens on its orchestra, the piece loaded
    *  (address.ts PIECE_PATHS; vercel.json rewrites it to the page) */
   path?: string;
 }
@@ -176,6 +176,17 @@ export const PIECES: Piece[] = [
     sha256: '6619c59e89906e511a7f52d5ca671295bc4abae48400b6187f477a878650ac17',
     parts: (['flute', 'oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'tuba', 'timpani', 'glockenspiel', 'harp', 'grand', 'violin', 'violin', 'viola', 'cello', 'bass'] as Voice[]).map((voice, i) => ({ voice, lines: [i] })),
     path: 'passiton',
+  },
+  {
+    id: 'after-you',
+    composer: 'Fable 5.2',
+    title: 'After You',
+    file: 'fable-after-you.mid',
+    source: 'https://github.com/wustep/instruments#license',
+    credit: 'After You, a tango in C minor in which every phrase is led by one player and followed by another, a step behind: the violin and the clarinet a bar apart; the cello and the horn a beat apart; a slower strain in the major (the tune turned upside down) where the followers lead; the piano alone, its left hand a beat behind its right; and a last strain, with its variación, where the couples move at the same instant (two minutes and fifty-six seconds, in 2/4), for oboe, clarinet, bassoon, horn, trumpet, trombone, piano, two violins, viola, cello and double bass: twelve parts, one to a seat, all at concert pitch, with their own dynamics (each note its own velocity, and a hairpin inside every held one). Written for these instruments by Fable 5.2 (Anthropic’s Claude), 2026, each note chosen for what its instrument’s model plays well and placed ahead of its beat by the time that instrument takes to speak. CC0 1.0: given to the public domain.',
+    sha256: 'f5b7c594fe6833e037647f639c368555dd7f33c04bd542d5a918a445cb9ff81a',
+    parts: (['oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'grand', 'violin', 'violin', 'viola', 'cello', 'bass'] as Voice[]).map((voice, i) => ({ voice, lines: [i] })),
+    path: 'tango',
   },
 ];
 
