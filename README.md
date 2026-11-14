@@ -4,14 +4,14 @@
 
 # Instruments
 
-Sixteen acoustic instruments, each simulated as physics in real time in the browser. No samples are
-played. Every note comes from a model of hammers, bows, fingers, air jets, reeds, lips or mallets driving
-strings, tubes, membranes and bars.
+Sixteen acoustic instruments, and one that does not exist yet, each simulated as physics in real time in
+the browser. No samples are played. Every note comes from a model of hammers, bows, fingers, air jets,
+reeds, lips or mallets driving strings, tubes, membranes and bars.
 
 **Play it:** [instruments-wustep.vercel.app](https://instruments-wustep.vercel.app).
 **Hear the orchestra:** [/symphony](https://instruments-wustep.vercel.app/symphony) (*Toward Morning*, thirteen
 seats), [/everything](https://instruments-wustep.vercel.app/everything) (*Everything So Far*, eleven),
-[/passiton](https://instruments-wustep.vercel.app/passiton) (*Pass It On*, all sixteen instruments on seventeen
+[/passiton](https://instruments-wustep.vercel.app/passiton) (*Pass It On*, all sixteen acoustic instruments on seventeen
 seats) or [/tango](https://instruments-wustep.vercel.app/tango) (*After You*, a tango for twelve). Each opens
 with its piece loaded and silent. Press play.
 
@@ -25,6 +25,7 @@ Each has its own address:
 | Strings | [violin](https://instruments-wustep.vercel.app/violin), [viola](https://instruments-wustep.vercel.app/viola), [cello](https://instruments-wustep.vercel.app/cello), [double bass](https://instruments-wustep.vercel.app/bass) |
 | Woodwinds | [flute](https://instruments-wustep.vercel.app/flute), [oboe](https://instruments-wustep.vercel.app/oboe), [clarinet](https://instruments-wustep.vercel.app/clarinet), [bassoon](https://instruments-wustep.vercel.app/bassoon) |
 | Brass | [horn](https://instruments-wustep.vercel.app/horn), [trumpet](https://instruments-wustep.vercel.app/trumpet), [trombone](https://instruments-wustep.vercel.app/trombone) (alto, tenor and bass), [tuba](https://instruments-wustep.vercel.app/tuba) |
+| From the future | [zephyr](https://instruments-wustep.vercel.app/zephyr): sixty-one ribbons of nanotube film, each bowed by a sheet of air from its key's slot. An invented instrument, worked out from known physics, that a maker of about 2080 could build |
 
 These aliases work too: `/grand`, `/upright`, `/double-bass`, `/contrabass`, `/french-horn`, `/kettledrums`
 and `/glock`. The list of instruments is `INSTRUMENT_IDS` in `packages/engine/src/core/instrument.ts`.
@@ -44,7 +45,7 @@ pieces menu loads a piece and seats the orchestra it needs:
 | Beethoven, Symphony No. 5, Op. 67, II | 18: the same |
 | Fable 5.2, *Toward Morning* ([/symphony](https://instruments-wustep.vercel.app/symphony)) | 13: flute, oboe, clarinet, bassoon, horn, trumpet, trombone, timpani, two violins, viola, cello, double bass |
 | Fable 5.2, *Everything So Far* ([/everything](https://instruments-wustep.vercel.app/everything)) | 11: flute, clarinet, horn, glockenspiel, harp, grand piano, two violins, viola, cello, double bass |
-| Fable 5.2, *Pass It On* ([/passiton](https://instruments-wustep.vercel.app/passiton)) | 17: all sixteen instruments, with two violins |
+| Fable 5.2, *Pass It On* ([/passiton](https://instruments-wustep.vercel.app/passiton)) | 17: all sixteen acoustic instruments, with two violins |
 | Fable 5.2, *After You* ([/tango](https://instruments-wustep.vercel.app/tango)) | 12: oboe, clarinet, bassoon, horn, trumpet, trombone, grand piano, two violins, viola, cello, double bass |
 
 When nothing is loaded, the play button plays the instrument's own short piece:
@@ -65,6 +66,7 @@ When nothing is loaded, the play button plays the instrument's own short piece:
 * **tuba:** Bach, Air (the bass trombone's line, an octave down)
 * **timpani:** Mozart, Requiem, K. 626, Dies irae (the timpani's line)
 * **glockenspiel:** Bach, Bourrée anglaise (a twelfth above the flute)
+* **zephyr:** Fable 5.2, *Still Air* (written for it: nothing else was)
 
 In an orchestra with nothing loaded, the play button plays the bundled piece that best fits the seats. Each
 piece's file, source, credit and sha256 are listed in `apps/web/src/orchestra/pieces.ts`, and on the Notes
@@ -83,7 +85,8 @@ page.
   hides the 3D piano's case.
 * **MIDI keyboard** (Web MIDI, hot-plugged). CC64 is sustain (continuous, so half-pedalling works), CC66
   sostenuto and CC67 una corda. CC1, CC2 and CC11 set bow pressure or breath. Pitch bend has a ±2 semitone
-  range. Channel aftertouch controls vibrato depth, or makes the timpani and the glockenspiel roll.
+  range. Channel aftertouch controls vibrato depth, or makes the timpani and the glockenspiel roll and the zephyr's
+  wind tremble.
 * **MIDI files.** Drop a `.mid` anywhere, or open one from the player (on a phone, open is the only way in).
   A single-part file plays on the instrument shown. A file with several parts puts an orchestra on the
   stage. Files without their own dynamics are phrased automatically, and a file typed with every line on
@@ -153,9 +156,14 @@ The address always describes the page, so it can be shared:
   * **timpani:** four air-loaded membranes, their modes struck by a felt mallet.
   * **glockenspiel:** thirty steel bars, each with its pitch and five families of partials regressed from
     recordings, struck by two mallets.
+  * **zephyr** (invented): sixty-one waveguide ribbons, each driven at its slot by the wind's own force on
+    a bluff section moving across it (the galloping of an iced cable: Den Hartog; Parkinson & Smith),
+    damped by the still air along the rest of it (Stokes), on a light soundboard. A key's depth is its
+    wind.
 
   Each model is set against recordings: the University of Iowa MIS for fourteen of them, VSCO 2 CE for
-  the timpani and VCSL for the harp. A change is judged on notes held out of the fit (`scripts/judge.ts`:
+  the timpani and VCSL for the harp. (The zephyr has nothing to be set against: its numbers are its
+  physics and its maker's choices, and `scripts/zephyr-tune.ts` prints them.) A change is judged on notes held out of the fit (`scripts/judge.ts`:
   better, worse or no clear change) and kept on a verdict of better; the few kept without one fix a fault
   the judge cannot see, and say so (the harp's voicing is one: the judge cannot tell it from the hand-set
   one). The players (`human`) are measured on the same recordings. At `human` 0 each engine is bit for
@@ -218,7 +226,7 @@ Claude Fable 5.2, Anthropic's models, working in Claude Code.
 * **Pieces:** the [Mutopia Project](https://www.mutopiaproject.org)'s typesettings of Bach, Handel, Haydn,
   Mozart, Beethoven, Chopin, and a ground from Playford's *The Division Violin*. The files are bundled
   byte for byte. What a player would change (which lines play, a transposition, a tempo) is set beside
-  them in `pieces.ts`. *Toward Morning*, *Everything So Far*, *Pass It On* and *After You* were written for
+  them in `pieces.ts`. *Toward Morning*, *Everything So Far*, *Pass It On*, *After You* and *Still Air* were written for
   these instruments by Fable 5.2 (2026).
 * **3D:** [three.js](https://threejs.org) (MIT).
 * **The vector view** is after [Chimera](https://github.com/jamesondh/chimera-vocal-synth), Jameson
@@ -238,8 +246,9 @@ The code is under the [MIT License](LICENSE). Bundled third-party files keep the
   Commons Attribution 3.0.
 * **Toward Morning** (`apps/web/public/pieces/fable-toward-morning.mid`), **Everything So Far**
   (`apps/web/public/pieces/fable-everything-so-far.mid`), **Pass It On**
-  (`apps/web/public/pieces/fable-pass-it-on.mid`) and **After You**
-  (`apps/web/public/pieces/fable-after-you.mid`), this project's own pieces, are dedicated to the public
+  (`apps/web/public/pieces/fable-pass-it-on.mid`), **After You**
+  (`apps/web/public/pieces/fable-after-you.mid`) and **Still Air**
+  (`apps/web/public/pieces/fable-still-air.mid`), this project's own pieces, are dedicated to the public
   domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
 * **Reference excerpts** (`apps/web/public/ref/*.mp3`): University of Iowa MIS; see
   `apps/web/public/ref/LICENSE.txt`.
