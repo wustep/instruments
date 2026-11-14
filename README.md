@@ -225,9 +225,12 @@ Claude Fable 5.2, Anthropic's models, working in Claude Code.
   Library](https://github.com/sgossner/VCSL), CC0. Analysis only.
 * **Pieces:** the [Mutopia Project](https://www.mutopiaproject.org)'s typesettings of Bach, Handel, Haydn,
   Mozart, Beethoven, Chopin, and a ground from Playford's *The Division Violin*. The files are bundled
-  byte for byte. What a player would change (which lines play, a transposition, a tempo) is set beside
-  them in `pieces.ts`. *Toward Morning*, *Everything So Far*, *Pass It On*, *After You* and *Still Air* were written for
-  these instruments by Fable 5.2 (2026).
+  byte for byte, but for five that came with no dynamics (the Haydn, the Brandenburg finale, La
+  Réjouissance, the Air, the Fifth's first movement): those have their scores' dynamics written into them
+  as velocities and expression, from the marks in `scripts/score-dynamics/marks`. What a player would
+  change (which lines play, a transposition, a tempo) is set beside them in `pieces.ts`. *Toward Morning*,
+  *Everything So Far*, *Pass It On*, *After You* and *Still Air* were written for these instruments by
+  Fable 5.2 (2026).
 * **3D:** [three.js](https://threejs.org) (MIT).
 * **The vector view** is after [Chimera](https://github.com/jamesondh/chimera-vocal-synth), Jameson
   Hodge's vocal synth. Its screens were the inspiration; none of its code is used. The vector type is
