@@ -11,7 +11,11 @@ import { decodeWav, fft } from '../packages/engine/src/analysis/index.ts';
 import { wavPath, type Dyn } from './references.ts';
 const E = (await import(pathToFileURL(resolve(process.argv[2] ?? 'packages/engine/src/core/index.ts')).href)) as typeof import('../packages/engine/src/core/index.ts');
 function band(x: Float32Array, fs: number, a: number, len: number, lo: number, hi: number) {
-  const N = 4096;
+  // (the transform as long as the window: until 2026-11-14 it was 4096 points whatever the window, so the
+  // 200 ms of sustain, 8820 samples, was cut off at the top of its Hann window, and what was read at
+  // 6–12 kHz was that cut's splatter: ±20 dB from note to note, by where the wave stood at the cut)
+  let N = 4096;
+  while (N < len) N *= 2;
   const re = new Float64Array(N), im = new Float64Array(N);
   for (let i = 0; i < len && a + i < x.length; i++) re[i] = x[a + i] * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / len));
   fft(re, im);
