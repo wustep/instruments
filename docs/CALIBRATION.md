@@ -5,6 +5,10 @@ compared with, where each stands, and what the method cannot tell. This is the o
 Measurements page shows the same numbers as charts, the Notes page tells the physics, and each pull request's
 own notes (`artifacts/…/NOTES.md`) keep the detail of what it tried.
 
+The seventeenth instrument, the zephyr, is not here: it is invented, there is no recording of one, and
+nothing in it is fitted or judged. Its numbers are its physics and its maker's choices
+(`npx tsx scripts/zephyr-tune.ts` prints them; `artifacts/round3/zephyr/NOTES.md`).
+
 Contents: [the idea](#the-idea) · [running it](#running-it) · [how a comparison is made](#how-a-comparison-is-made) ·
 [the judge](#the-judge) · [reference recordings](#reference-recordings) · [current scores](#current-scores) ·
 [instrument by instrument](#instrument-by-instrument) · [players](#players) · [levels](#levels) ·
