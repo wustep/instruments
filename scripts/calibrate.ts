@@ -274,6 +274,14 @@ async function main(): Promise<void> {
   console.log(JSON.stringify(summary, null, 2));
   console.log(`(${((performance.now() - t0) / 1000).toFixed(1)} s)`);
 
+  // the round logged first, so that the page's data (which carries the rounds) has it
+  const li = args.indexOf('--log');
+  if (li >= 0) {
+    const logPath = join(ROOT, 'docs/calibration-rounds.json');
+    const log = existsSync(logPath) ? JSON.parse(readFileSync(logPath, 'utf8')) : [];
+    log.push({ label: args[li + 1], date: new Date().toISOString(), summary });
+    writeFileSync(logPath, JSON.stringify(log, null, 1) + '\n');
+  }
   // ------------------------------------------------ data for the measurements page
   if (!quick) {
     const slim = (a: NoteAnalysis | null) =>
@@ -328,13 +336,6 @@ async function main(): Promise<void> {
     console.log(`wrote ${OUT}`);
   }
 
-  const li = args.indexOf('--log');
-  if (li >= 0) {
-    const logPath = join(ROOT, 'docs/calibration-rounds.json');
-    const log = existsSync(logPath) ? JSON.parse(readFileSync(logPath, 'utf8')) : [];
-    log.push({ label: args[li + 1], date: new Date().toISOString(), summary });
-    writeFileSync(logPath, JSON.stringify(log, null, 1) + '\n');
-  }
   if (fit) doFit(keys, get, rows, decayPairs, bandDiff, summary, args.includes('--decay-only'));
 }
 

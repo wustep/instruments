@@ -219,6 +219,13 @@ async function main(): Promise<void> {
   }
   console.log(JSON.stringify(brief, null, 1));
   console.log(`(${((performance.now() - t0) / 1000).toFixed(1)} s)`);
+  // the round logged first, so that the page's data (which carries the rounds) has it
+  const li = args.indexOf('--log');
+  if (li >= 0) {
+    const log = existsSync(LOG) ? JSON.parse(readFileSync(LOG, 'utf8')) : [];
+    log.push({ label: args[li + 1], date: new Date().toISOString(), summary: brief });
+    writeFileSync(LOG, JSON.stringify(log, null, 1) + '\n');
+  }
   if (!only && !ENGINE) {
     const log = existsSync(LOG) ? JSON.parse(readFileSync(LOG, 'utf8')) : [];
     writeFileSync(
@@ -233,12 +240,6 @@ async function main(): Promise<void> {
       }),
     );
     console.log(`wrote ${OUT}`);
-  }
-  const li = args.indexOf('--log');
-  if (li >= 0) {
-    const log = existsSync(LOG) ? JSON.parse(readFileSync(LOG, 'utf8')) : [];
-    log.push({ label: args[li + 1], date: new Date().toISOString(), summary: brief });
-    writeFileSync(LOG, JSON.stringify(log, null, 1) + '\n');
   }
 }
 
