@@ -267,7 +267,7 @@ known to be off. The pull request notes named hold the tables and the audio.
     (Δ 0.09 ± 0.02), fit keys 3.41 → 3.26; partials 8.82 → 8.60 dB, brightness 0.49 → 0.45 octave, no
     guard broken. Kept, and the fit now smooths its EQ by rule and prints every constant that ends on its
     bound.
-  * A whole refit (`--fit`) from there: NO CLEAR CHANGE (3.10 → 3.12). Not kept.
+  * A whole refit (`--fit`, one step, before the EQ was smoothed): NO CLEAR CHANGE (3.10 → 3.12). Not kept.
   * The share of the board's high-frequency path that is direct (0.6; the rest a 30 ms diffuse tail)
     raised to 0.8 or 0.9: NO CLEAR CHANGE (Δ 0.00). It does even the top keys (see "Level, note by note"
     below) but changes the character of every treble note, and the judge gives no reason: left as designed.
