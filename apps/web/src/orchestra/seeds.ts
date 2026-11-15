@@ -9,8 +9,8 @@
 //   "cycles that are called incommensurable: they are not likely to come back into sync again"; a silence
 //   at least twice as long as the sound; and "seeds", not "forests": a few rules and a little material
 //   (here a word, the seed, and what it grows into). So: one phrase a player, a loop a player, the loops'
-//   lengths with no common measure (LOOPS: whole hundredths of a second, no two sharing a factor), a phrase
-//   under a third of its loop.
+//   lengths with no common measure (`loop`: whole hundredths of a second, no two sharing a factor), a phrase
+//   under a third of its loop (WAYS.air).
 //   The 1996 talk's rules are "probabilistic… an envelope of possibilities", with "one very exotic harmony
 //   that can only occur under particular conditions": the field's sixth note (`colour`), which only a
 //   phrase's last note may take, now and then.
@@ -22,9 +22,9 @@
 //   Terry Riley, In C (1964) and its directions: every player has the same material and moves through it
 //   at a pace of their own, never far from the others; they listen, drop out and come back in; a phrase may
 //   be taken an octave away. So the harmony is a field every player takes up at their own next entry
-//   (`lag`: nobody more than one field from anybody else), a player is away for about a fifth of the time
-//   and sits out an entry now and then (`away`, `rest`), and the high players sometimes take theirs an
-//   octave off (`octave`).
+//   (`lag`: nobody more than one field from anybody else), a player is away for an eighth of the time
+//   and sits out an entry now and then (`away`, `rest`), someone comes in when it has been silent a while
+//   (`quiet`), and the bells and the piano sometimes take their phrase an octave off (`octave`).
 //   Eno, Discreet Music (1975): two melodic lines of different lengths and a system left to run, to be
 //   heard "as part of the ambience". So it is quiet: every entry between pianissimo and mezzo-piano.
 //
