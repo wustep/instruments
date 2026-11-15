@@ -90,7 +90,8 @@ function jobOf(id: string): Job {
   }
   const p = PIECES.find((q) => q.id === id);
   if (!p) throw new Error(`no piece ${id}`);
-  const song = P.pieceSong(load(p.file), p);
+  // (a piece with no file, Seeds: the stretch of it that is measured)
+  const song = (P as { fileless?: (p: P.Piece) => MidiSong | null }).fileless?.(p) ?? P.pieceSong(load(p.file), p);
   // (seated whole, as the stage seats a piece of more than six: ensemble.ts)
   const plan = P.piecePlan(p, song.lines, Math.max(6, p.parts.length));
   const sounding = plan.parts.filter((q) => q.lines.length);
@@ -122,8 +123,9 @@ function renderPart(job: Job, k: number): { L: Float32Array; R: Float32Array; cp
   const { song, plan } = job;
   const part = plan.parts[k];
   const inst = job.instruments[k];
-  const x = express(song);
-  const played = x.shaped || x.timed ? x.events : song.events;
+  // (a piece made as it plays is sent as it is: ui/player.ts)
+  const x = song.stream ? null : express(song);
+  const played = x && (x.shaped || x.timed) ? x.events : song.events;
   const ahead = notesAhead(played);
   const dur = song.duration + 4;
   const n = Math.ceil(dur * FS);

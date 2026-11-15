@@ -15,8 +15,8 @@ const served = (path: string) => vercel.rewrites.some((r) => r.destination === '
 describe('vercel.json serves every address the app writes', () => {
   it('every instrument and alias, alone and with a sub-path; the Orchestra, measurements and notes', () => {
     const paths = [...Object.keys(INSTRUMENT_PATHS), ...Object.keys(PIECE_PATHS), 'orchestra', 'ensemble', 'measurements', 'notes'];
-    // (the pieces' own addresses: Toward Morning's, Everything So Far's, Pass It On's and After You's)
-    for (const p of ['symphony', 'everything', 'passiton', 'tango']) expect(paths, p).toContain(p);
+    // (the pieces' own addresses: Toward Morning's, Everything So Far's, Pass It On's, After You's and Seeds')
+    for (const p of ['symphony', 'everything', 'passiton', 'tango', 'seeds']) expect(paths, p).toContain(p);
     for (const id of INSTRUMENT_IDS) expect(paths, id).toContain(id);
     // (the horn: its path and its alias, named so that a rename cannot drop them unseen)
     for (const p of ['horn', 'french-horn']) expect(paths, p).toContain(p);

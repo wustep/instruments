@@ -14,6 +14,8 @@ seats), [/everything](https://instruments-wustep.vercel.app/everything) (*Everyt
 [/passiton](https://instruments-wustep.vercel.app/passiton) (*Pass It On*, all sixteen instruments on seventeen
 seats) or [/tango](https://instruments-wustep.vercel.app/tango) (*After You*, a tango for twelve). Each opens
 with its piece loaded and silent. Press play.
+**Leave it playing:** [/seeds](https://instruments-wustep.vercel.app/seeds) (*Seeds*: ten players, each with a
+phrase and a loop of its own length, after Brian Eno's *Music for Airports*; it has no end and does not repeat).
 
 ## Instruments
 
@@ -46,6 +48,7 @@ pieces menu loads a piece and seats the orchestra it needs:
 | Fable 5.2, *Everything So Far* ([/everything](https://instruments-wustep.vercel.app/everything)) | 11: flute, clarinet, horn, glockenspiel, harp, grand piano, two violins, viola, cello, double bass |
 | Fable 5.2, *Pass It On* ([/passiton](https://instruments-wustep.vercel.app/passiton)) | 17: all sixteen instruments, with two violins |
 | Fable 5.2, *After You* ([/tango](https://instruments-wustep.vercel.app/tango)) | 12: oboe, clarinet, bassoon, horn, trumpet, trombone, grand piano, two violins, viola, cello, double bass |
+| Fable 5.2, *Seeds* ([/seeds](https://instruments-wustep.vercel.app/seeds)), made as it plays | 10: flute, clarinet, horn, glockenspiel, harp, grand piano, violin, viola, cello, double bass |
 
 When nothing is loaded, the play button plays the instrument's own short piece:
 
@@ -126,8 +129,10 @@ The address always describes the page, so it can be shared:
 
 * `?view=2d|vector|3d` sets the view on any address.
 * The Orchestra writes its whole setup into the query, versioned: `/orchestra?v=1&seats=violin,violin,viola,cello&lines=…&keys=…&expr=on|off`.
-* A piece's own address (`/symphony`, `/everything`, `/passiton`, `/tango`) stays in the bar until the orchestra is
-  rearranged. After that the address becomes the Orchestra's.
+* A piece's own address (`/symphony`, `/everything`, `/passiton`, `/tango`, `/seeds`) stays in the bar until the
+  orchestra is rearranged. After that the address becomes the Orchestra's.
+* *Seeds* is grown from a word, and its address carries it: `/seeds?seed=kelumo` is the same music for
+  everyone. `/seeds` alone takes a new one; so does the seedling button in the player.
 * For filming, `keys=0` hides the keys and `ui=0` shows the stage alone (a 2D piano keeps its keys; `keys=1` keeps them on any one instrument).
 * `?debug` shows the start-up log.
 * Any other path gets a 404 page that links every instrument, the Orchestra, the four pieces and the two
@@ -222,6 +227,9 @@ Claude Fable 5.2, Anthropic's models, working in Claude Code.
   as velocities and expression, from the marks in `scripts/score-dynamics/marks`. What a player would
   change (which lines play, a transposition, a tempo) is set beside them in `pieces.ts`. *Toward Morning*,
   *Everything So Far*, *Pass It On* and *After You* were written for these instruments by Fable 5.2 (2026).
+  *Seeds* has no file: it is a set of rules (`apps/web/src/orchestra/seeds.ts`), after Brian Eno's *Music for
+  Airports* (1978) and his talk "Generative Music" (1996), Steve Reich's "Music as a Gradual Process" (1968)
+  and Terry Riley's *In C* (1964).
 * **3D:** [three.js](https://threejs.org) (MIT).
 * **The vector view** is after [Chimera](https://github.com/jamesondh/chimera-vocal-synth), Jameson
   Hodge's vocal synth. Its screens were the inspiration; none of its code is used. The vector type is
@@ -242,7 +250,8 @@ The code is under the [MIT License](LICENSE). Bundled third-party files keep the
   (`apps/web/public/pieces/fable-everything-so-far.mid`), **Pass It On**
   (`apps/web/public/pieces/fable-pass-it-on.mid`) and **After You**
   (`apps/web/public/pieces/fable-after-you.mid`), this project's own pieces, are dedicated to the public
-  domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+  domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/); so is whatever **Seeds** plays
+  (it has no file: the music is made in the page).
 * **Reference excerpts** (`apps/web/public/ref/*.mp3`): University of Iowa MIS; see
   `apps/web/public/ref/LICENSE.txt`.
 * **Fonts:** AVHershey Simplex (CC0 / WTFPL); Newsreader and IBM Plex (SIL OFL).

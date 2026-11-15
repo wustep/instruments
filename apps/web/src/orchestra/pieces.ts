@@ -14,10 +14,13 @@
 // movement in 7/8, "Pass It On", a scherzo for all sixteen instruments, and "After You", a tango for
 // twelve, written for them by Fable 5.2 (Anthropic's Claude) in 2026 and given to the public domain
 // (CC0 1.0). Each has an address of its own, /symphony, /everything, /passiton and /tango (address.ts),
-// which opens its orchestra with the piece loaded.
+// which opens its orchestra with the piece loaded. And one piece has no file at all: "Seeds" (orchestra/
+// seeds.ts), made as it plays from a word, with no end; its address is /seeds (and its seed's:
+// /seeds?seed=kelumo). Its `generate` stands where a file's bytes would.
 import type { InstrumentId } from '@piano-model/engine';
 import type { FileEvent, MidiSong } from '../midi-file.ts';
 import { capParts, planOf, shiftKey, type LineInfo, type Plan, type Shifts, type Voice } from './assign.ts';
+import { SEEDS_VOICES, seedsExcerpt, seedsSong } from './seeds.ts';
 
 export interface Piece {
   id: string;
@@ -43,6 +46,13 @@ export interface Piece {
   /** a short address of its own (/symphony, /everything, /passiton, /tango): the page opens on its orchestra, the piece loaded
    *  (address.ts PIECE_PATHS; vercel.json rewrites it to the page) */
   path?: string;
+  /** a piece with no file, made as it plays from a seed (orchestra/seeds.ts; `file` and `sha256` are
+   *  empty): its song for a seed, with no end; and a stretch of it as a file would hold it (`seconds` from
+   *  `from`), which is what is measured and rendered: `measured`, the seed and the stretch its level is
+   *  taken on (scripts/levels-pieces.ts) */
+  generate?: (seed: string) => MidiSong;
+  excerpt?: (seed: string, seconds: number, from?: number) => MidiSong;
+  measured?: { seed: string; seconds: number };
 }
 
 /** the symphony's orchestra, in the score's order: two each of flutes, oboes, clarinets, bassoons, horns
@@ -217,7 +227,29 @@ export const PIECES: Piece[] = [
     parts: (['oboe', 'clarinet', 'bassoon', 'horn', 'trumpet', 'trombone', 'grand', 'violin', 'violin', 'viola', 'cello', 'bass'] as Voice[]).map((voice, i) => ({ voice, lines: [i] })),
     path: 'tango',
   },
+  {
+    id: 'seeds',
+    composer: 'Fable 5.2',
+    title: 'Seeds',
+    file: '',
+    source: 'https://github.com/wustep/instruments#license',
+    credit: 'Seeds, a piece with no end and no score: ten players (flute, clarinet, horn, glockenspiel, harp, piano, violin, viola, cello and double bass) are each given a phrase of one to five notes and a loop of their own length to come back to it on, between seventeen and fifty-nine seconds, no two lengths sharing a measure, so what is heard together drifts and does not come round again. A phrase is under a third of its loop; the rest is silence. The harmony is five notes that move one at a time over minutes, taken up by each player at their own next entry. All of it grows from a word, the seed, which the address carries: the same word, the same music. After Brian Eno’s Music for Airports and his talk “Generative Music” (1996), Steve Reich’s “Music as a Gradual Process” (1968) and Terry Riley’s In C (1964). Made for these instruments by Fable 5.2 (Anthropic’s Claude), 2026. CC0 1.0: given to the public domain.',
+    sha256: '',
+    // (played between pianissimo and mezzo-piano, it stood at −40.8 LUFS: 19.5 dB up, with the others)
+    gain: 19.5,
+    // (levels, measured over the stretch below: every player's loudness as it reaches the bus within 3 LU
+    // of the others' by its expression, which the piece carries itself (seeds.ts `top`); the piano, whose
+    // strokes then stood 7.9 dB under the whole while it played, the others 4.4–6.2: 3 dB up)
+    parts: SEEDS_VOICES.map((voice, i) => ({ voice, lines: [i], gain: voice === 'grand' ? 3 : undefined })),
+    path: 'seeds',
+    generate: seedsSong,
+    excerpt: seedsExcerpt,
+    measured: { seed: 'kelumo', seconds: 300 },
+  },
 ];
+
+/** a piece's song from its file's bytes, or (a piece with no file) the stretch of it that is measured */
+export const fileless = (p: Piece): MidiSong | null => (p.excerpt && p.measured ? p.excerpt(p.measured.seed, p.measured.seconds) : null);
 
 /** a piece's file as it plays: at its tempo (`rate`); its lines, notes and voices as written */
 export function pieceSong(song: MidiSong, piece: Piece | null): MidiSong {

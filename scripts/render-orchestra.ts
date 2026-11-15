@@ -12,6 +12,7 @@
 // --undivided: a wind staff two players share sent whole to each (as before they divided it: a chord asked
 // of one wind; the comparison)
 // --start <s>: from this time of the piece (at its tempo), to --seconds after it
+// --seed <word>: a piece with no file (Seeds) grown from this seed (its measured one if none is given)
 // --played: as the file player plays it (ui/player.ts, audio.ts, orchestra/ensemble.ts): the automatic
 //   expression on the flat lines (expression.ts express), the file's volume and expression as each part's
 //   gain (CC7, CC11: a 20 ms glide, as the output's gain node), its mod wheel and swells to the engine, and
@@ -71,7 +72,8 @@ const WAV = args.includes('--wav') ? (args.splice(args.indexOf('--wav'), 1), tru
 const FLAT = args.includes('--flat') ? (args.splice(args.indexOf('--flat'), 1), true) : false;
 const JSON_OUT = args.includes('--json') ? (args.splice(args.indexOf('--json'), 1), true) : false;
 const UNDIVIDED = args.includes('--undivided') ? (args.splice(args.indexOf('--undivided'), 1), true) : false;
-const START = Number(opt('--start', '0'));
+const START_AT = Number(opt('--start', '0'));
+const SEED = opt('--seed', '');
 const PLAYED = args.includes('--played') ? (args.splice(args.indexOf('--played'), 1), true) : false;
 const STEMS = args.includes('--stems') ? (args.splice(args.indexOf('--stems'), 1), true) : false;
 const POST_BUS = args.includes('--post-bus') ? (args.splice(args.indexOf('--post-bus'), 1), true) : false;
@@ -90,9 +92,10 @@ const handPlan = (l: Parameters<typeof autoPlan>[0], base: Plan): Plan =>
     l,
     shiftsOf(base),
   );
-let jobs: { name: string; buf: Buffer; plan: (l: Parameters<typeof autoPlan>[0]) => Plan; piece?: (typeof PIECES)[number] }[] = args.length
+// (a piece with no file, Seeds: the stretch asked for, --seconds from --start of --seed, read from the generator)
+let jobs: { name: string; buf: Buffer | null; plan: (l: Parameters<typeof autoPlan>[0]) => Plan; piece?: (typeof PIECES)[number] }[] = args.length
   ? args.map((f) => ({ name: f.split('/').pop()!.replace(/\.midi?$/i, ''), buf: readFileSync(f), plan: (l) => autoPlan(l, { cap: CAP }) }))
-  : PIECES.map((p) => ({ name: p.id, buf: readFileSync(join(PIECES_DIR, p.file)), plan: (l) => piecePlan(p, l, Math.max(CAP, p.parts.length > 6 ? p.parts.length : 0)), piece: p }));
+  : PIECES.map((p) => ({ name: p.id, buf: p.excerpt ? null : readFileSync(join(PIECES_DIR, p.file)), plan: (l) => piecePlan(p, l, Math.max(CAP, p.parts.length > 6 ? p.parts.length : 0)), piece: p }));
 if (PIECE) jobs = jobs.filter((j) => j.name === PIECE);
 if (PARTS) jobs = jobs.map((j) => ({ ...j, name: NAME || `${j.name}-routed`, plan: (l) => handPlan(l, j.plan(l)) }));
 
@@ -121,11 +124,13 @@ function image(l: Float32Array, r: Float32Array): { ild: number; lag: number } {
   return { ild: 10 * Math.log10((el + 1e-30) / (er + 1e-30)), lag: (best / FS) * 1000 };
 }
 for (const job of jobs) {
-  const song = pieceSong(parseMidi(job.buf.buffer.slice(job.buf.byteOffset, job.buf.byteOffset + job.buf.byteLength) as ArrayBuffer), job.piece ?? null);
+  const START = job.buf ? START_AT : 0;
+  const song = job.buf ? pieceSong(parseMidi(job.buf.buffer.slice(job.buf.byteOffset, job.buf.byteOffset + job.buf.byteLength) as ArrayBuffer), job.piece ?? null) : job.piece!.excerpt!(SEED || job.piece!.measured!.seed, SECONDS, START_AT);
   const plan: Plan = SOLO ? { parts: [{ voice: SOLO, lines: song.lines.map((_, i) => i) }], lines: song.lines.map(() => [{ part: 0, shift: 0 }]) } : job.plan(song.lines);
   const players = ONE ? plan.parts.map(() => 0) : playersOf(plan);
   const dur = Math.min(SECONDS, song.duration - START + 2);
-  const played = PLAYED ? express(song).events : song.events;
+  // (a piece made as it plays has its own dynamics and timing: the player sends it as it is)
+  const played = PLAYED && !song.stream ? express(song).events : song.events;
   const ahead = notesAhead(played);
   const n = Math.ceil(dur * FS);
   const L = new Float32Array(n);

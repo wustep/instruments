@@ -10,10 +10,14 @@
 // instruments, the whole file on one, a second cello or grand of its own. The hairpin beside the
 // hairline is automatic expression (expression.ts), on unless turned off: a file's flat lines
 // phrased, its long notes swelling; a file with dynamics of its own plays them as written either way.
+// A piece with no end (Seeds, orchestra/seeds.ts) has no hairline and no hairpin: it is asked for its
+// events half a minute at a time for as long as it plays, and where the hairline was is one icon,
+// another seed.
 
 import { audio } from '../audio.ts';
 import { express, PartLevels, type Expressed } from '../expression.ts';
-import { notesAhead, parseMidi, type FileEvent, type MidiSong } from '../midi-file.ts';
+import { notesAhead, parseMidi, streamMore, streamOpen, type FileEvent, type MidiSong } from '../midi-file.ts';
+import { cleanSeed, newSeed } from '../orchestra/seeds.ts';
 import { canReassign, voicesOfLine, VOICE_INFO, VOICES, type Voice } from '../orchestra/assign.ts';
 import { ensemble, stageCap } from '../orchestra/ensemble.ts';
 import { dbGain, DEMOS, demoSong, PIECES, pieceForLineup, pieceSong, type Demo, type Piece } from '../orchestra/pieces.ts';
@@ -74,6 +78,8 @@ const PIECES_ICON = 'M3 6h11.2v1.7H3zM3 10h11.2v1.7H3zM3 14h8v1.7H3zM17 6v7.6a2.
 /** automatic expression: a messa di voce as a score writes it, crescendo then diminuendo, the open
  *  ends meeting (drawn, not filled) */
 const HAIRPIN = 'M11.3 8.6 1.6 12l9.7 3.4M12.7 8.6l9.7 3.4-9.7 3.4';
+/** another seed: a seedling, two leaves on a stem */
+const SEED = 'M12.75 21h-1.5v-6.9C8 14 5.5 11.6 5.3 8.2c3.2-.2 5.5 1.4 6.3 3.9.4-3.6 3-6.2 7.1-6.3.2 4.3-2.3 7.3-5.95 7.9z';
 const hairpin = () => {
   const s = icon(HAIRPIN);
   s.classList.add('pl-hairpin');
@@ -125,6 +131,10 @@ export class MidiPlayer {
   private menu: HTMLElement | null = null;
   private routeBtn: HTMLButtonElement;
   private exprBtn: HTMLButtonElement;
+  private seedBtn: HTMLButtonElement;
+  /** a piece with no end: how far its events have been asked for (s), and how to grow it from another seed */
+  private streamTo = 0;
+  private grow: ((seed: string) => MidiSong) | null = null;
   /** automatic expression (expression.ts): wanted, and the events as they play (the file's own, or
    *  with its flat lines phrased) */
   auto = readAuto();
@@ -173,7 +183,7 @@ export class MidiPlayer {
     // (the hairline has no tooltip: its fill says where the file is; it still scrubs)
     this.bar = h('div', { class: 'pl-bar', role: 'slider', 'aria-label': 'Position', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0', tabindex: '0' }, this.fill);
     this.bar.addEventListener('pointerdown', (e) => {
-      if (!this.song) return;
+      if (!this.song || this.song.stream) return;
       const r = this.bar.getBoundingClientRect();
       this.seek(((e.clientX - r.left) / r.width) * this.song.duration);
     });
@@ -182,11 +192,14 @@ export class MidiPlayer {
     this.routeBtn.appendChild(icon(ROUTE));
     this.exprBtn = h('button', { class: 'pl-btn pl-expr', type: 'button', 'aria-pressed': String(this.auto), 'aria-label': 'Automatic expression', 'data-tip': 'expression', onclick: () => this.setAuto(!this.auto) });
     this.exprBtn.appendChild(hairpin());
+    // a piece grown from a seed: another one (where a file's hairline is: it has no length to show)
+    this.seedBtn = h('button', { class: 'pl-btn pl-seed', type: 'button', 'aria-label': 'Another seed', 'data-tip': 'another seed', hidden: true, onclick: () => this.reseed() });
+    this.seedBtn.appendChild(icon(SEED));
     // the pieces that come with the stage, next to the file they are the alternative to: with one
     // instrument or an ensemble on the stage alike, a piece brings its own ensemble
     this.piecesBtn = h('button', { class: 'pl-btn pl-pieces score-btn', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': 'Pieces for the ensemble', 'data-tip': 'pieces', onclick: () => this.togglePieces() });
     this.piecesBtn.appendChild(icon(PIECES_ICON));
-    this.el = h('div', { class: 'player idle', role: 'group', 'aria-label': 'MIDI file' }, h('div', { class: 'pl-row' }, h('div', { class: 'pl-btns' }, this.playBtn, this.stopBtn), this.bar, this.exprBtn, this.routeBtn, this.piecesBtn, this.openBtn), this.strip, this.picker);
+    this.el = h('div', { class: 'player idle', role: 'group', 'aria-label': 'MIDI file' }, h('div', { class: 'pl-row' }, h('div', { class: 'pl-btns' }, this.playBtn, this.stopBtn), this.bar, this.seedBtn, this.exprBtn, this.routeBtn, this.piecesBtn, this.openBtn), this.strip, this.picker);
     this.attachDrop();
     ensemble.changed.on(() => {
       this.buildStrip();
@@ -278,8 +291,10 @@ export class MidiPlayer {
    *  the file has flat lines), and the single instrument told whose dynamics it plays */
   private perform(): void {
     const s = this.song;
-    const x = s ? expressOf(s) : null;
-    this.events = s ? (this.auto && (x!.shaped || x!.timed) ? x!.events : s.events) : [];
+    // (a piece made as it plays has its own dynamics and timing, and its events come as it goes: play)
+    const x = s && !s.stream ? expressOf(s) : null;
+    this.events = s && x ? (this.auto && (x.shaped || x.timed) ? x.events : s.events) : [];
+    this.streamTo = 0;
     audio.fileSong(s);
     audio.setFileVolume(dbGain(this.demo?.gain));
     this.syncExpr(x);
@@ -366,10 +381,16 @@ export class MidiPlayer {
       console.warn('not a playable MIDI file:', err);
       return;
     }
+    await this.loadSong(song, piece, onStage, play);
+  }
+
+  /** a song (a file's, or one made as it plays), loaded as `load` says */
+  private async loadSong(song: MidiSong, piece: Piece | null, onStage: boolean, play: boolean): Promise<void> {
     this.asked++;
     this.stop();
-    this.song = song.events.length ? song : null;
+    this.song = song.events.length || song.stream ? song : null;
     this.demo = null;
+    this.grow = song.stream ? (piece?.generate ?? null) : null;
     this.perform();
     // (a lineup picked by hand stays picked: the file was matched to it, by the routing it has if it
     // has one: an address's, or the last file's; `onStage`: a piece played on the lineup as it stands)
@@ -421,6 +442,7 @@ export class MidiPlayer {
     this.stop();
     this.song = song;
     this.demo = d;
+    this.grow = null;
     this.perform();
     this.buildStrip();
     this.sync();
@@ -432,6 +454,7 @@ export class MidiPlayer {
     this.stop();
     this.song = null;
     this.demo = null;
+    this.grow = null;
     this.perform();
     this.buildStrip();
     this.sync();
@@ -442,10 +465,17 @@ export class MidiPlayer {
    *  file's lines) and open */
   private sync(): void {
     const rest = !this.song;
+    const seed = this.seed;
     this.el.classList.toggle('idle', rest);
     this.stopBtn.hidden = rest;
-    this.bar.hidden = rest;
-    this.exprBtn.hidden = rest;
+    // (a piece with no end: no place in it to show, no flat lines to phrase; another seed instead)
+    this.bar.hidden = rest || seed !== null;
+    this.exprBtn.hidden = rest || seed !== null;
+    this.seedBtn.hidden = seed === null || !this.grow;
+    if (seed !== null) {
+      this.seedBtn.dataset.tip = `another seed · this one: ${seed}`;
+      this.seedBtn.setAttribute('aria-label', `Another seed (this one: ${seed})`);
+    }
     this.routeBtn.hidden = rest || !this.song!.lines.length || !!this.demo;
     if (rest) {
       const pc = ensemble.active ? PIECES[pieceForLineup(ensemble.lineup)] : DEMOS[audio.instrument];
@@ -464,15 +494,64 @@ export class MidiPlayer {
   /** a built-in piece (orchestra/pieces.ts), fetched and played; `play` false: fetched and left
    *  loaded, ready to play (its own address opened: no gesture yet, so no sound is asked for).
    *  `still`: asked once its file has come; false (the stage has moved on meanwhile), it is dropped */
-  async loadPiece(i: number, onStage = false, play = true, still?: () => boolean): Promise<void> {
+  async loadPiece(i: number, onStage = false, play = true, still?: () => boolean, seed?: string): Promise<void> {
     const piece = PIECES[i];
     if (!piece) return;
     // start the sound inside the gesture that asked for it (the fetch would lose it)
     if (play) void audio.start().catch(() => undefined);
+    // a piece with no file: grown now, from the seed asked for or a new one (nothing to wait for)
+    if (piece.generate) return this.loadSong(piece.generate(cleanSeed(seed ?? '') || newSeed()), piece, onStage, play);
     const ask = ++this.asked;
     const buf = await this.fetchFile(piece.file);
     if (ask !== this.asked || (still && !still())) return;
     await this.load(buf, piece, onStage, play);
+  }
+
+  /** the seed of the piece loaded, if it grew from one (null: a file, or nothing) */
+  get seed(): string | null {
+    return this.song?.stream?.seed ?? null;
+  }
+  /** The piece loaded grown again from another seed (a new one unless one is given): from its beginning,
+   *  playing if it was, on the stage as it stands (the lines are the same ten: seats and routing stay). */
+  reseed(seed: string = newSeed()): void {
+    const s = this.song;
+    const to = cleanSeed(seed);
+    if (!s?.stream || !this.grow || !to || to === s.stream.seed) return;
+    const was = this.playing;
+    this.stop();
+    s.stream = this.grow(to).stream;
+    this.perform();
+    this.sync();
+    this.seedSubs.forEach((cb) => cb());
+    if (was) void this.play();
+  }
+  /** where the piece is, s (as heard) */
+  get position(): number {
+    return this.heardPos();
+  }
+  private seedSubs = new Set<() => void>();
+  /** another seed was taken, or a piece grown from one was paused, moved or begun again (the address follows) */
+  onSeed(cb: () => void): () => void {
+    this.seedSubs.add(cb);
+    return () => this.seedSubs.delete(cb);
+  }
+
+  /** a piece with no end: its events round where it is (midi-file.ts streamOpen), and more as it plays on */
+  private window(pos: number): void {
+    const st = this.song?.stream;
+    if (!st) return;
+    const w = streamOpen(st, pos);
+    this.events = w.events;
+    this.streamTo = w.to;
+  }
+  private extend(now: number): void {
+    const st = this.song?.stream;
+    const w = st ? streamMore(st, this.events, this.streamTo, now, Math.min(this.idx, this.told)) : null;
+    if (!w) return;
+    this.events = w.events;
+    this.streamTo = w.to;
+    this.idx -= w.dropped;
+    this.told -= w.dropped;
   }
 
   /** the ensemble left the stage: what is scheduled stops (the file stays, for the one instrument) */
@@ -487,6 +566,8 @@ export class MidiPlayer {
     const ctx = audio.ctx;
     if (!ctx || !audio.piano) return;
     if (ensemble.active) await ensemble.ensureEngines();
+    if (!this.song) return;
+    this.window(this.pos);
     const ev = this.events;
     if (this.pos >= this.song.duration) this.pos = 0;
     // first event at or after the position
@@ -506,6 +587,7 @@ export class MidiPlayer {
     for (const e of PartLevels.chase(ev.slice(0, lo), Infinity)) audio.scheduleFileEvent(e, this.t0);
     this.playing = true;
     this.setIcon();
+    if (this.song.stream) this.seedSubs.forEach((cb) => cb());
     this.tick();
     this.timer = window.setInterval(() => this.tick(), 30);
     const draw = () => {
@@ -524,6 +606,7 @@ export class MidiPlayer {
     const ctx = audio.ctx;
     if (!ctx || !this.song) return;
     const now = ctx.currentTime;
+    this.extend(this.pos0 + (now - this.t0));
     const ev = this.events;
     if (this.aheadOf?.of !== ev) this.aheadOf = { of: ev, ...notesAhead(ev) };
     const { len, dyn } = this.aheadOf;
@@ -564,6 +647,7 @@ export class MidiPlayer {
     audio.stopFile();
     this.setIcon();
     this.paint();
+    if (this.song?.stream) this.seedSubs.forEach((cb) => cb());
   }
 
   stop(): void {
@@ -571,6 +655,7 @@ export class MidiPlayer {
     audio.stopFile();
     this.pos = 0;
     this.paint();
+    if (this.song?.stream) this.seedSubs.forEach((cb) => cb());
   }
 
   seek(t: number): void {
@@ -579,6 +664,7 @@ export class MidiPlayer {
     this.pause();
     this.pos = Math.max(0, Math.min(this.song.duration, t));
     this.paint();
+    if (this.song.stream) this.seedSubs.forEach((cb) => cb());
     if (was) void this.play();
   }
 

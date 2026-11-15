@@ -441,3 +441,63 @@ describe('keys=0 and ui=0: less of the page round the stage', () => {
     for (const ui of [true, false]) for (const look of ['2d', 'vector', '3d'] as const) expect(on({ keys: false, ui, look, keysOn: true })).toBe(false);
   });
 });
+
+describe('a piece’s own address: /seeds', () => {
+  const sd = PIECE_PATHS.seeds;
+  const seats = ['flute', 'clarinet', 'horn', 'glockenspiel', 'harp', 'grand', 'violin', 'viola', 'cello', 'bass'];
+  const lines: LineRule[] = ['Flute~73', 'Clarinet~71', 'Horn~60', 'Glockenspiel~9', 'Harp~46', 'Piano~0', 'Violin~40', 'Viola~41', 'Cello~42', 'Double Bass~43'].map((x, i) => ({ name: x.split('~')[0], program: Number(x.split('~')[1]), seats: [i] }));
+
+  it('opens the ten of Seeds with the piece named, and the seed the address carries: the word, cleaned; none, none (a new one is taken)', () => {
+    expect(sd.id).toBe('seeds');
+    const a = at('/seeds');
+    expect(a).toEqual({ ...emptyAddress(), piece: 'seeds', seed: null, orchestra: { seats, lines: null, keys: null } });
+    expect(tabOf(a)).toBe('orchestra');
+    const b = at('/seeds?seed=kelumo&view=3d&expr=off&keys=6&debug');
+    expect(b).toEqual({ ...a, seed: 'kelumo', look: '3d', expr: false, orchestra: { seats, lines: null, keys: [5] }, rest: ['debug'] });
+    expect(formatAddress(b)).toBe('/seeds?seed=kelumo&keys=6&view=3d&expr=off&debug');
+    // any word: lower case, letters, digits and hyphens, 24 at most; what is none of those is no seed
+    expect(at('/seeds?seed=Stephen+Wu').seed).toBe('stephenwu');
+    expect(at('/seeds?seed=2026-11-15').seed).toBe('2026-11-15');
+    expect(at(`/seeds?seed=${'x'.repeat(60)}`).seed).toBe('x'.repeat(24));
+    expect(at('/seeds?seed=%E2%99%AA').seed).toBe(null);
+    expect(at('/seeds?seed=').seed).toBe(null);
+    // a moment of a seed: whole seconds, with its seed (with none there is no moment to be at)
+    expect(at('/seeds?seed=kelumo&at=754').at).toBe(754);
+    expect(formatAddress(at('/seeds?seed=kelumo&at=754&view=3d'))).toBe('/seeds?seed=kelumo&at=754&view=3d');
+    for (const bad of ['0', '-5', '12.5', 'soon', '99999999', '']) expect(at(`/seeds?seed=kelumo&at=${bad}`).at, bad).toBe(null);
+    expect(at('/seeds?at=754').at).toBe(null);
+    expect(at('/seeds?at=754').rest).toEqual([]);
+    expect(at('/tango?at=754').rest).toEqual(['at=754']);
+    // a seed is the seeds': on any other address the word is not the app's, and is kept as written
+    expect(at('/tango?seed=kelumo')).toEqual({ ...at('/tango'), rest: ['seed=kelumo'] });
+    expect(at('/violin?seed=kelumo').rest).toEqual(['seed=kelumo']);
+    expect(at('/violin?seed=kelumo').seed).toBe(null);
+    // the other pieces' addresses are still their own
+    expect(at('/tango').piece).toBe('after-you');
+    expect(at('/symphony').seed).toBe(null);
+  });
+
+  it('is written with its seed for as long as the piece is on its own ten as they came; reorganised, the Orchestra’s own address, with no seed', () => {
+    const own = (o: Partial<Address> = {}): Address => ({ ...emptyAddress(), piece: 'seeds', seed: 'kelumo', orchestra: { seats: seats as never, lines: null, keys: null }, ...o });
+    expect(formatAddress(own())).toBe('/seeds?seed=kelumo');
+    expect(formatAddress(own({ seed: null }))).toBe('/seeds');
+    expect(formatAddress(own({ at: 754.9 }))).toBe('/seeds?seed=kelumo&at=754');
+    expect(formatAddress(own({ seed: null, at: 754 }))).toBe('/seeds');
+    expect(formatAddress(own({ orchestra: { seats: seats as never, lines, keys: null }, look: 'vector', expr: true }))).toBe('/seeds?seed=kelumo&view=vector&expr=on');
+    expect(formatAddress(own({ uiOff: true, keysOff: true, look: '3d' }))).toBe('/seeds?seed=kelumo&keys=0&view=3d&ui=0');
+    expect(ownSetup({ seats: seats as never, lines, keys: [5] }, sd)).toBe(true);
+    // it round-trips
+    const url = formatAddress(own({ orchestra: { seats: seats as never, lines, keys: null }, look: '3d', expr: true }));
+    expect(formatAddress({ ...at(url), orchestra: { seats: seats as never, lines, keys: null } })).toBe(url);
+    // a line moved, an instrument off the stage: the Orchestra's address (a seed is the piece's, not a lineup's)
+    const moved = lines.map((r, i) => (i === 0 ? { ...r, seats: [1] } : r));
+    expect(formatAddress(own({ orchestra: { seats: seats as never, lines: moved, keys: null } }))).toMatch(/^\/orchestra\?v=1&seats=flute,clarinet,horn,glockenspiel,harp,grand,violin,viola,cello,bass&lines=Flute~73:2,/);
+    expect(formatAddress(own({ orchestra: { seats: seats as never, lines: moved, keys: null } }))).not.toMatch(/seed/);
+    expect(formatAddress(own({ orchestra: { seats: seats.slice(0, 9) as never, lines: null, keys: null } }))).toBe(`/orchestra?v=1&seats=${seats.slice(0, 9).join(',')}`);
+    // the same ten with another piece or none: not the seeds' address
+    expect(formatAddress({ ...own(), piece: null })).toBe(`/orchestra?v=1&seats=${seats.join(',')}`);
+    // the other pieces' orchestras are not this one's
+    expect(ownSetup({ seats: PIECE_PATHS.everything.parts.map((q) => q.voice), lines: null, keys: null }, sd)).toBe(false);
+    expect(ownSetup({ seats: seats as never, lines: null, keys: null }, PIECE_PATHS.everything)).toBe(false);
+  });
+});

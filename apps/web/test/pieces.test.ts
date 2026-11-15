@@ -21,7 +21,8 @@ const load = (file: string) => {
 
 describe('orchestra: the pieces', () => {
   it('each file is its checksum’s: Mutopia’s (five with their scores’ dynamics written in), four this project’s own (CC0); each parses into the lines its plan names', () => {
-    for (const p of PIECES) {
+    // (Seeds has no file: it is made as it plays, test/seeds.test.ts)
+    for (const p of PIECES.filter((q) => !q.generate)) {
       const { b, song } = load(p.file);
       expect(createHash('sha256').update(b).digest('hex'), p.id).toBe(p.sha256);
       expect(song.duration, p.id).toBeGreaterThan(30);
@@ -35,7 +36,16 @@ describe('orchestra: the pieces', () => {
       } else expect(p.source).toMatch(/^https:\/\/www\.mutopiaproject\.org\/cgibin\/piece-info\.cgi\?id=\d+$/);
     }
     // the only pieces that are not Mutopia's are those named here
-    expect(PIECES.filter((p) => !/mutopiaproject/.test(p.source)).map((p) => p.id)).toEqual(['toward-morning', 'everything-so-far', 'pass-it-on', 'after-you']);
+    expect(PIECES.filter((p) => !/mutopiaproject/.test(p.source)).map((p) => p.id)).toEqual(['toward-morning', 'everything-so-far', 'pass-it-on', 'after-you', 'seeds']);
+    // and the one with no file says so: no file, no checksum, a way to grow it and a stretch to measure it on
+    const seeds = PIECES.filter((p) => p.generate);
+    expect(seeds.map((p) => [p.id, p.file, p.sha256, p.path])).toEqual([['seeds', '', '', 'seeds']]);
+    expect(seeds[0].credit).toMatch(/Fable 5\.2/);
+    expect(seeds[0].credit).toMatch(/CC0 1\.0/);
+    expect(seeds[0].credit).toMatch(/public domain/);
+    expect(seeds[0].source).toBe('https://github.com/wustep/instruments#license');
+    expect(seeds[0].measured).toBeTruthy();
+    expect(PIECES.every((p) => !!p.generate === !p.file)).toBe(true);
   });
 
   it('Toward Morning: thirteen lines, one to a seat by its own names; every note in its instrument’s compass, one voice to a wind; its own dynamics; the thirteen’s play icon plays it', () => {
@@ -67,7 +77,7 @@ describe('orchestra: the pieces', () => {
     const fifth = PIECES.find((p) => p.id === 'beethoven5-i')!;
     expect(PIECES[pieceForLineup(fifth.parts.map((q) => q.voice))].id).toBe('beethoven5-i');
     // (the page's own pieces come last, in the order they were written)
-    expect(PIECES.slice(-4).map((p) => p.id)).toEqual(['toward-morning', 'everything-so-far', 'pass-it-on', 'after-you']);
+    expect(PIECES.slice(-5).map((p) => p.id)).toEqual(['toward-morning', 'everything-so-far', 'pass-it-on', 'after-you', 'seeds']);
   });
 
   it('Everything So Far: eleven lines (the conductor track is none), one to a seat by its own names; every note in its instrument’s compass; its own dynamics; the eleven’s play icon plays it', () => {
@@ -231,7 +241,7 @@ describe('orchestra: the pieces', () => {
   });
 
   it('the quartet is a quartet, the concerto six players, the fanfare a trumpet at concert pitch with the piano', () => {
-    const plans = PIECES.map((p) => piecePlan(p, load(p.file).song.lines, 6));
+    const plans = PIECES.filter((p) => !p.generate).map((p) => piecePlan(p, load(p.file).song.lines, 6));
     expect(lineupOf(plans[0])).toEqual(['violin', 'violin', 'viola', 'cello']);
     expect(lineupOf(plans[1])).toEqual(['flute', 'violin', 'violin', 'viola', 'cello', 'grand']);
     // the violone doubles the cello: silent
