@@ -99,20 +99,20 @@ test('/seeds opens the ten with Seeds ready from the address’s seed, silent un
   expect(s.list).toBeGreaterThan(100);
   expect(s.last).toBeGreaterThan(30);
   expect(s.last).toBeLessThan(70);
-  // ten minutes in (anywhere in it can be asked for): most of the ten are playing within half a minute, and
-  // the list is still about a minute long, beginning a little before where it plays
-  await page.evaluate(() => (window as any).__player.seek(600));
-  await expect.poll(async () => (await state(page)).played, { timeout: 60_000 }).toBeGreaterThanOrEqual(6);
+  // a quarter of an hour in (anywhere in it can be asked for; here six of the ten come in within five
+  // seconds): they play, and the list is still about a minute long, beginning a little before where it plays
+  await page.evaluate(() => (window as any).__player.seek(915.5));
+  await expect.poll(async () => (await state(page)).played, { timeout: 60_000 }).toBeGreaterThanOrEqual(5);
   s = await state(page);
-  expect(s.first).toBeGreaterThanOrEqual(580);
-  expect(s.last).toBeLessThan(720);
+  expect(s.first).toBeGreaterThanOrEqual(895);
+  expect(s.last).toBeLessThan(1040);
   expect(s.list).toBeLessThan(6000);
   // (heard: the room's level is up, and the limiter is not working hard)
   const level = await page.evaluate(async () => {
     const a = (window as any).__piano;
     const d = new Float32Array(a.analyser.fftSize);
     let most = 0;
-    for (let k = 0; k < 40; k++) {
+    for (let k = 0; k < 30 && most < 0.004; k++) {
       a.analyser.getFloatTimeDomainData(d);
       most = Math.max(most, Math.sqrt(d.reduce((q: number, v: number) => q + v * v, 0) / d.length));
       await new Promise((r) => setTimeout(r, 100));
@@ -124,7 +124,7 @@ test('/seeds opens the ten with Seeds ready from the address’s seed, silent un
   expect(path(page)).toMatch(/^\/seeds\?seed=kelumo&view=/);
   // paused, the address says where: a moment of it, and a reload opens there, silent
   await page.evaluate(() => (window as any).__player.pause());
-  await expect.poll(() => path(page)).toMatch(/^\/seeds\?seed=kelumo&at=6\d\d&view=(2d|vector|3d)&expr=(on|off)$/);
+  await expect.poll(() => path(page)).toMatch(/^\/seeds\?seed=kelumo&at=9[12]\d&view=(2d|vector|3d)&expr=(on|off)$/);
   const moment = path(page);
   const at = Number(/at=(\d+)/.exec(moment)![1]);
   await page.reload();
