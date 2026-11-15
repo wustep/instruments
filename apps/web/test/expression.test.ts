@@ -3,7 +3,7 @@
 // no controller that moves) is phrased, a line with dynamics of its own is left as written. Tiny files
 // made here (test/smf.ts), never a real piece.
 import { describe, expect, it } from 'vitest';
-import { ccGain, express, lineLag, lineShapes, modLines, modValue, PartLevels, phrases, PHRASING, TIMING, timingPlayers, typedTogether, volumeRef } from '../src/expression.ts';
+import { ccGain, express, lineLag, lineShapes, modLines, modValue, PartLevels, phrases, PHRASING, TEMPO, TIMING, timingPlayers, typedAtOneTempo, typedTogether, volumeRef, wanderAt } from '../src/expression.ts';
 import { parseMidi, type FileEvent, type MidiSong } from '../src/midi-file.ts';
 import { smf } from './smf.ts';
 
@@ -142,14 +142,15 @@ describe('automatic expression', () => {
     const cello = dyn(1);
     expect(Math.max(...cello.map((e) => e.value))).toBeGreaterThan(8);
     expect(cello[cello.length - 1].value).toBe(0);
-    for (const e of ons(s.events, 1)) {
-      // a note's swell is over (back at 0) by the time the next note of its line begins
+    for (const e of ons(x.events, 1)) {
+      // a note's swell is over (back at 0) by the time the next note of its line begins (as played)
       const before = cello.filter((d) => d.t <= e.t + 1e-9 && d.t > e.t - 0.2);
       if (e.t > 0) expect(before[before.length - 1]?.value ?? 0, `at ${e.t}`).toBe(0);
     }
     // everything else as written: the same events, each line's in order, but for velocities and the swells,
-    // and each line's place in time (two lines typed together: TIMING)
+    // and the time: a player's (typed at one tempo: TEMPO), each line's place in it (two lines: TIMING)
     expect(x.timed).toBe(true);
+    expect(x.tempo).toBe(true);
     const strip = (es: FileEvent[], line: number) => es.filter((e) => e.kind !== 'dyn' && e.line === line).map((e) => ({ ...e, t: 0, ...(e.kind === 'on' ? { vel: 0 } : {}) }));
     for (const li of [0, 1]) expect(strip(x.events, li)).toEqual(strip(s.events, li));
     // in time order
@@ -169,11 +170,14 @@ describe('automatic expression', () => {
     expect(lineShapes(cc)[0].flat).toBe(false);
     const xc = express(cc);
     expect(xc.shaped).toBe(false);
-    expect(xc.events).toBe(cc.events);
+    // (its dynamics as written; typed at one tempo, it is played in a player's time: TEMPO)
+    const values = (es: FileEvent[]) => es.map((e) => (e.kind === 'on' ? e.vel : e.kind === 'cc' ? e.value : e.kind));
+    expect(xc.tempo).toBe(true);
+    expect(values(xc.events)).toEqual(values(cc.events));
     // a performance: velocities that move from note to note
     const played = song(part(0, 'Piano', tune, 1, (i) => 50 + ((i * 37) % 45)));
     expect(lineShapes(played)[0].flat).toBe(false);
-    expect(express(played).events).toBe(played.events);
+    expect(values(express(played).events)).toEqual(values(played.events));
   });
 
   it('a flat line with a moment of its own (a fade at the end) is phrased, but not there', () => {
@@ -230,8 +234,9 @@ describe('a typed file’s lines each in their own time', () => {
     expect(x.shaped).toBe(false);
     expect(x.timed).toBe(true);
     const at = (es: FileEvent[], li: number) => ons(es, li).map((e) => e.t);
-    const d0 = at(x.events, 0).map((t, i) => t - at(s.events, 0)[i]);
-    const d1 = at(x.events, 1).map((t, i) => t - at(s.events, 1)[i]);
+    // (each line's place about the player's clock: TEMPO, the file being typed at one tempo)
+    const d0 = at(x.events, 0).map((t, i) => t - x.clock.on(at(s.events, 0)[i]));
+    const d1 = at(x.events, 1).map((t, i) => t - x.clock.on(at(s.events, 1)[i]));
     for (const d of [...d0, ...d1]) expect(Math.abs(d)).toBeLessThan(2.5 * TIMING.sd);
     // each line about its standard deviation; the two apart by about √2 of it, a third of Rasch's 30–50 ms
     expect(sd(d0.slice(1))).toBeGreaterThan(0.5 * TIMING.sd);
@@ -239,21 +244,22 @@ describe('a typed file’s lines each in their own time', () => {
     const apart = sd(d0.map((d, i) => d - d1[i]).slice(1));
     expect(apart).toBeGreaterThan(0.006);
     expect(apart).toBeLessThan(0.02);
-    // a note is as long as written, to within 6 %, and nothing in a line changes order
+    // a note is as long as the clock makes it, to within 6 %, and nothing in a line changes order
+    const played = (e: FileEvent) => (e.kind === 'off' ? x.clock.off(e.t) : x.clock.on(e.t));
     for (const li of [0, 1]) {
       const es = x.events.filter((e) => e.line === li && (e.kind === 'on' || e.kind === 'off'));
       const ws = s.events.filter((e) => e.line === li && (e.kind === 'on' || e.kind === 'off'));
       expect(es.map((e) => e.kind + (e as { midi: number }).midi)).toEqual(ws.map((e) => e.kind + (e as { midi: number }).midi));
       for (let i = 1; i < es.length; i++) {
         const len = es[i].t - es[i - 1].t;
-        const was = ws[i].t - ws[i - 1].t;
+        const was = played(ws[i]) - played(ws[i - 1]);
         if (was > 0.1) expect(Math.abs(len / was - 1)).toBeLessThan(0.06);
       }
     }
-    // in time order, within the file, and the same every time
+    // in time order, within the file as played, and the same every time
     for (let i = 1; i < x.events.length; i++) expect(x.events[i].t).toBeGreaterThanOrEqual(x.events[i - 1].t);
     expect(x.events[0].t).toBeGreaterThanOrEqual(0);
-    expect(x.events[x.events.length - 1].t).toBeLessThanOrEqual(s.duration);
+    expect(x.events[x.events.length - 1].t).toBeLessThanOrEqual(x.clock.duration);
     expect(express(two()).events).toEqual(x.events);
   });
 
@@ -271,9 +277,11 @@ describe('a typed file’s lines each in their own time', () => {
     // the hands together to the sample, as written; the violin its own way
     at(x.events, 1).forEach((t, i) => expect(t).toBeCloseTo(at(x.events, 2)[i], 9));
     expect(sd(at(x.events, 0).map((t, i) => t - at(x.events, 1)[i]))).toBeGreaterThan(0.005);
-    // each pedal change as far from the right hand's nearest note as it was written (to 6 % of 62 ms)
+    // each pedal change as far from the right hand's nearest note as the player's clock puts it (to 6 %
+    // of 62 ms)
     const near = (es: FileEvent[]) => es.filter((e) => e.kind === 'pedal').map((p) => Math.min(...at(es, 1).map((t) => Math.abs(t - p.t))));
-    const was = near(s.events);
+    const clocked = s.events.map((e) => ({ ...e, t: e.kind === 'off' || (e.kind === 'pedal' && e.value < 0.5) ? x.clock.off(e.t) : x.clock.on(e.t) }));
+    const was = near(clocked);
     near(x.events).forEach((d, i) => expect(Math.abs(d - was[i])).toBeLessThan(0.004));
     // two violins next to each other (one program, not a keyboard's) are two players
     const vv = song(withProg(0, 40, part(0, 'Violin I', tune, 1, dyn)), withProg(1, 40, part(1, 'Violin II', tune.map((m) => m - 5), 1, dyn)));
@@ -282,5 +290,155 @@ describe('a typed file’s lines each in their own time', () => {
 
   it('a line’s place moves slowly: under 6 % of the time that passes', () => {
     for (const li of [0, 3, 11]) for (let t = 0; t < 60; t += 0.01) expect(Math.abs(lineLag(li, t + 0.01) - lineLag(li, t))).toBeLessThan(0.06 * 0.01);
+  });
+});
+
+// A file typed at one tempo is played in a player's time (TEMPO): the KTH rules' timing half.
+describe('a typed file in a player’s time', () => {
+  const dyn = (i: number) => 50 + ((i * 37) % 60);
+  /** a line of `beats`-long notes, every `group` of them followed by a rest of `rest` beats */
+  function phrased(ch: number, label: string, pitches: number[], group: number, rest: number): Ev[] {
+    const abs: [number, number[]][] = [[0, name(label)]];
+    let t = 0;
+    pitches.forEach((m, i) => {
+      abs.push([t, [0x90 | ch, m, 80]]);
+      abs.push([t + 470, [0x80 | ch, m, 0]]);
+      t += 480;
+      if ((i + 1) % group === 0) t += rest * 480;
+    });
+    abs.sort((a, b) => a[0] - b[0]);
+    let last = 0;
+    return abs.map(([at, b]) => {
+      const d = at - last;
+      last = at;
+      return [d, ...b];
+    });
+  }
+  const one = () => song(part(0, 'Violin', tune, 1, () => 80));
+
+  it('is told apart: typed at one tempo, played in, or with a tempo map of its own (kept as it is)', () => {
+    expect(one().quarter).toBeCloseTo(1, 9);
+    expect(typedAtOneTempo(one())).toBe(true);
+    // played in to a click: onsets a few ms either side of the grid
+    const loose = part(0, 'Piano', tune, 1, () => 80).map((e, i) => (i > 1 && i % 2 === 1 ? ([e[0] + ((i * 7) % 11) - 5, ...e.slice(1)] as Ev) : e));
+    expect(typedAtOneTempo(song(loose))).toBe(false);
+    // a tempo map of its own: ♩ = 60, then 90 from bar 3
+    const map = parseMidi(smf(480, [[[0, 0xff, 0x51, 3, 0x0f, 0x42, 0x40], [0, 0xff, 0x58, 4, 4, 2, 24, 8], [8 * 480, 0xff, 0x51, 3, 0x0a, 0x2c, 0x2a]], part(0, 'Violin', tune, 1, () => 80)]).buffer as ArrayBuffer);
+    expect(map.quarter).toBeUndefined();
+    const x = express(map);
+    expect(x.tempo).toBe(false);
+    expect(ons(x.events).map((e) => e.t)).toEqual(ons(map.events).map((e) => e.t));
+    expect(x.clock.on(12.3)).toBe(12.3);
+  });
+
+  it('the clock runs on: onsets in order, a note never ends before it begins, the same every time', () => {
+    const s = song(part(0, 'Violin', tune, 1, dyn), part(1, 'Cello', tune.map((m) => m - 24), 2, dyn));
+    const x = express(s);
+    expect(x.tempo).toBe(true);
+    for (let t = 0; t < s.duration; t += 0.01) {
+      expect(x.clock.on(t + 0.01)).toBeGreaterThan(x.clock.on(t));
+      expect(x.clock.off(t)).toBeLessThanOrEqual(x.clock.on(t));
+      expect(x.clock.written(x.clock.on(t))).toBeCloseTo(t, 4);
+    }
+    for (let i = 1; i < x.events.length; i++) expect(x.events[i].t).toBeGreaterThanOrEqual(x.events[i - 1].t);
+    expect(express(s).events).toEqual(x.events);
+  });
+
+  it('the phrase arch: broad at a phrase’s ends, moving in its middle; each phrase about its written length; the piece its tempo', () => {
+    const s = one();
+    const c = express(s).clock;
+    const g = phrases(s);
+    const speed = (t: number) => 0.2 / (c.on(t + 0.1) - c.on(t - 0.1));
+    let begins = 0;
+    let middles = 0;
+    for (let k = 0; k + 2 < g.length; k++) {
+      const len = g[k + 1] - g[k];
+      begins += speed(g[k] + 0.15 * len);
+      middles += speed(g[k] + 0.6 * len);
+      // (a phrase's breath and duration contrast aside, its length as written, to 3 %)
+      expect(Math.abs((c.off(g[k + 1]) - c.on(g[k])) / len - 1), `phrase ${k}`).toBeLessThan(0.03);
+    }
+    expect(middles - begins).toBeGreaterThan(0.03 * (g.length - 2));
+    // under 0.9 and over 1.1 of the tempo nowhere before the ritardando; the whole a few % longer
+    for (let t = 0.2; t < s.duration - 9; t += 0.25) {
+      expect(speed(t)).toBeGreaterThan(0.9);
+      expect(speed(t)).toBeLessThan(1.1);
+    }
+    expect(c.duration / s.duration).toBeGreaterThan(1.01);
+    expect(c.duration / s.duration).toBeLessThan(1.08);
+  });
+
+  it('the final ritardando: the last bars slow as a runner stops, the last note held longer', () => {
+    const s = one();
+    const x = express(s);
+    const on = ons(x.events).map((e) => e.t);
+    const gaps = on.slice(1).map((t, i) => t - on[i]);
+    const usual = [...gaps].sort((a, b) => a - b)[gaps.length >> 1];
+    // the last eight beats slow one after another, to under 0.8 of the tempo
+    const tail = gaps.slice(-8);
+    for (let i = 1; i < tail.length; i++) expect(tail[i]).toBeGreaterThanOrEqual(tail[i - 1] - 0.005);
+    expect(usual / tail[tail.length - 1]).toBeLessThan(0.8);
+    expect(usual / tail[tail.length - 1]).toBeGreaterThan(TEMPO.ritEnd - 0.05);
+    // the last note: as long as written in the ritardando's last tempo
+    const last = x.events.filter((e) => e.kind === 'off').pop()!.t - on[on.length - 1];
+    expect(last).toBeGreaterThan((1 - 10 / 480) / TEMPO.ritEnd - 0.05);
+  });
+
+  it('a breath where the music breathes (a rest after a phrase), none in a line that runs on', () => {
+    // seven notes and a rest: two bars a phrase, each ends resting
+    const s = song(phrased(0, 'Flute', tune.slice(0, 42), 7, 1));
+    const c = express(s).clock;
+    const gapAt = (t: number) => c.on(t) - c.off(t);
+    const after = ons(s.events).map((e) => e.t).filter((t, i, all) => i > 0 && t - all[i - 1] > 1.5);
+    const breaths = after.filter((t) => gapAt(t) > 1e-4);
+    expect(breaths.length).toBeGreaterThanOrEqual(2);
+    for (const t of breaths) {
+      expect(gapAt(t)).toBeGreaterThanOrEqual(TEMPO.breathLeast - 1e-9);
+      expect(gapAt(t)).toBeLessThanOrEqual(TEMPO.breathPairMost + 1e-9);
+    }
+    // a line that runs on (every note to the next): no breath anywhere
+    const run = express(one()).clock;
+    for (const e of ons(one().events)) expect(run.on(e.t) - run.off(e.t)).toBeLessThan(1e-4);
+  });
+
+  it('duration contrast, on the rhythm the lines make together: in a dotted rhythm the short note a little shorter', () => {
+    // a dotted eighth and a sixteenth, over and over (360 + 120 ticks: 0.75 s and 0.25 s)
+    const abs: [number, number[]][] = [[0, name('Oboe')]];
+    for (let k = 0; k < 24; k++) {
+      abs.push([k * 480, [0x90, 67, 80]], [k * 480 + 355, [0x80, 67, 0]], [k * 480 + 360, [0x90, 69, 80]], [k * 480 + 475, [0x80, 69, 0]]);
+    }
+    let last = 0;
+    const evs = abs.sort((a, b) => a[0] - b[0]).map(([t, b]) => {
+      const d = t - last;
+      last = t;
+      return [d, ...b] as Ev;
+    });
+    // (and a bassoon's long notes under it: two players, so no one player's wander in the clock)
+    const s = song(evs, part(1, 'Bassoon', tune.slice(0, 6).map((m) => m - 24), 4, () => 80));
+    const c = express(s).clock;
+    const ratios: number[] = [];
+    for (let k = 1; k < 18; k++) {
+      const a = k * 1.0;
+      const long = c.on(a + 0.75) - c.on(a);
+      const short = c.on(a + 1) - c.on(a + 0.75);
+      ratios.push(short / long);
+    }
+    const r = ratios.reduce((x, y) => x + y, 0) / ratios.length;
+    expect(r).toBeLessThan(1 / 3 - 0.004);
+    expect(r).toBeGreaterThan(1 / 3 - 0.05);
+  });
+
+  it('one player wanders in a 1/f way (slower moves larger); several keep each line’s own place (TIMING)', () => {
+    const solo = express(one());
+    expect(solo.timed).toBe(false);
+    const several = express(song(part(0, 'Violin', tune, 1, dyn), part(1, 'Cello', tune.map((m) => m - 24), 1, dyn)));
+    expect(several.timed).toBe(true);
+    const w: number[] = [];
+    for (let t = 0; t < 600; t += 0.25) w.push(wanderAt(t));
+    expect(sd(w)).toBeGreaterThan(0.6 * TEMPO.wander);
+    expect(sd(w)).toBeLessThan(1.5 * TEMPO.wander);
+    const moves = (lag: number) => sd(w.slice(lag).map((x, i) => x - w[i]));
+    expect(moves(48)).toBeGreaterThan(1.5 * moves(3));
+    expect(Math.max(...w.map(Math.abs))).toBeLessThan(3 * TEMPO.wander);
   });
 });

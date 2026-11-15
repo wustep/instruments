@@ -145,7 +145,10 @@ export function windParts(files?: string[], auto = true): WindPart[] {
     const plan = job.piece ? piecePlan(job.piece, song.lines, Math.max(6, job.piece.parts.length)) : autoPlan(song.lines, { cap: 24 });
     const players = playersOf(plan);
     const x = express(song);
-    const events = auto && x.shaped ? x.events : song.events;
+    // (as the player sends it: phrased, each line in its own time, in a player's time: expression.ts)
+    const use = auto && (x.shaped || x.timed || x.tempo);
+    const events = use ? x.events : song.events;
+    const length = use ? x.clock.duration : song.duration;
     const count = new Map<string, number>();
     plan.parts.forEach((p, k) => {
       const inst = VOICE_INFO[p.voice].instrument;
@@ -153,8 +156,8 @@ export function windParts(files?: string[], auto = true): WindPart[] {
       const n = (count.get(inst) ?? 0) + 1;
       count.set(inst, n);
       const pe = partEvents(song, events, plan, k);
-      const notes = pairNotes(pe.events, song.duration);
-      parts.push({ name: `${job.id} ${inst} ${n}`, piece: job.id, instrument: inst, player: players[k], events: pe.events, notes, gain: pe.gain, duration: song.duration });
+      const notes = pairNotes(pe.events, length);
+      parts.push({ name: `${job.id} ${inst} ${n}`, piece: job.id, instrument: inst, player: players[k], events: pe.events, notes, gain: pe.gain, duration: length });
     });
   }
   if (!files)
@@ -162,9 +165,11 @@ export function windParts(files?: string[], auto = true): WindPart[] {
       const d = DEMOS[inst];
       const song = demoSong(load(join(dir, d.file)), d);
       const x = express(song);
-      const events = auto && x.shaped ? x.events : song.events;
+      const use = auto && (x.shaped || x.timed || x.tempo);
+      const events = use ? x.events : song.events;
+      const length = use ? x.clock.duration : song.duration;
       const pe = soloEvents(song, events);
-      parts.push({ name: `demo ${inst}`, piece: `demo-${inst}`, instrument: inst, player: 0, events: pe.events, notes: pairNotes(pe.events, song.duration), gain: pe.gain, duration: song.duration });
+      parts.push({ name: `demo ${inst}`, piece: `demo-${inst}`, instrument: inst, player: 0, events: pe.events, notes: pairNotes(pe.events, length), gain: pe.gain, duration: length });
     }
   return parts;
 }

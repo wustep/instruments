@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { parseMidi } from '../src/midi-file.ts';
 import { express } from '../src/expression.ts';
 import { autoPlan, fitsStage, lineupOf, placeNote, VOICE_INFO } from '../src/orchestra/assign.ts';
-import { DEMOS, demoSong, pieceForLineup, PIECES, piecePlan, type Demo } from '../src/orchestra/pieces.ts';
+import { DEMOS, demoSong, pieceForLineup, PIECES, piecePlan, pieceSong, type Demo } from '../src/orchestra/pieces.ts';
 import type { MidiSong } from '../src/midi-file.ts';
 import { INSTRUMENT_IDS, INSTRUMENT_INFO } from '../../../packages/engine/src/core/instrument.ts';
 
@@ -252,6 +252,24 @@ describe('orchestra: the pieces', () => {
     expect(placeNote(72, plans[2].lines[0][0].shift, 'trumpet')).toBe(70);
     // a smaller stage: the concerto's violins become a section
     expect(piecePlan(PIECES[1], load(PIECES[1].file).song.lines, 5).parts.length).toBe(5);
+  });
+
+  it('their time: each typed at one tempo is played in a player’s time (expression.ts TEMPO); this project’s own keep their tempo maps, untouched', () => {
+    for (const p of PIECES.filter((q) => !q.generate)) {
+      const song = pieceSong(load(p.file).song, p);
+      const x = express(song);
+      if (p.source.includes('mutopiaproject')) {
+        // one tempo, typed on its grid: a few % longer, its last bars broadening
+        expect(x.tempo, p.id).toBe(true);
+        expect(x.clock.duration / song.duration, p.id).toBeGreaterThan(1.005);
+        expect(x.clock.duration / song.duration, p.id).toBeLessThan(1.06);
+      } else {
+        expect(song.quarter, p.id).toBeUndefined();
+        expect(x.tempo, p.id).toBe(false);
+        expect(x.clock.on(37.25), p.id).toBe(37.25);
+        expect(x.clock.duration, p.id).toBe(song.duration);
+      }
+    }
   });
 
   it('dropped as plain files, auto-assignment finds the same quartet', () => {

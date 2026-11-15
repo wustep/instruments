@@ -11,7 +11,9 @@
 // --json: also write <name>.json, each part's numbers (for scripts/stage-chart.mjs)
 // --undivided: a wind staff two players share sent whole to each (as before they divided it: a chord asked
 // of one wind; the comparison)
-// --start <s>: from this time of the piece (at its tempo), to --seconds after it
+// --start <s>: from this time of the piece (at its tempo; with --played, a place in the file as written), to
+//   --seconds after it
+// --demo <instrument>: that instrument's own piece (the play icon's, orchestra/pieces.ts DEMOS), alone on it
 // --seed <word>: a piece with no file (Seeds) grown from this seed (its measured one if none is given)
 // --played: as the file player plays it (ui/player.ts, audio.ts, orchestra/ensemble.ts): the automatic
 //   expression on the flat lines (expression.ts express), the file's volume and expression as each part's
@@ -35,7 +37,7 @@ import { notesAhead, parseMidi } from '../apps/web/src/midi-file.ts';
 import { express, modLines, modValue, PartLevels, volumeRef } from '../apps/web/src/expression.ts';
 import { CC_DYNAMICS, CC_REST, foresees } from '../packages/engine/src/core/instrument.ts';
 import { autoPlan, deskOf, placeNote, planOf, playersOf, playsNote, shiftsOf, VOICE_INFO, VOICES, type Plan, type Voice } from '../apps/web/src/orchestra/assign.ts';
-import { PIECES, piecePlan, pieceSong } from '../apps/web/src/orchestra/pieces.ts';
+import { DEMOS, demoSong, PIECES, piecePlan, pieceSong } from '../apps/web/src/orchestra/pieces.ts';
 import { busGain } from '../apps/web/src/orchestra/mix.ts';
 import { PLAYBACK_DB } from '../packages/engine/src/core/instrument.ts';
 import { soundSeats } from '../apps/web/src/orchestra/seats.ts';
@@ -63,7 +65,11 @@ const opt = (k: string, d: string) => {
 const SECONDS = Number(opt('--seconds', '40'));
 const OUT = opt('--out', 'artifacts/realistic-3d/final-orchestra/audio');
 const CAP = Number(opt('--cap', '6'));
-const SOLO = opt('--solo', '') as '' | 'violin' | 'viola' | 'cello' | 'flute' | 'trumpet' | 'grand';
+const DEMO = opt('--demo', '');
+const DEMO_VOICE = DEMO ? VOICES.find((v) => VOICE_INFO[v].instrument === DEMO) : undefined;
+if (DEMO && (!DEMOS[DEMO as keyof typeof DEMOS] || !DEMO_VOICE)) throw new Error(`no own piece for ${DEMO}`);
+// (an instrument's own piece is played on it alone, as a solo)
+const SOLO = (opt('--solo', '') || DEMO_VOICE || '') as '' | Voice;
 const PIECE = opt('--piece', '');
 const PARTS = opt('--parts', '');
 const NAME = opt('--name', '');
@@ -93,7 +99,9 @@ const handPlan = (l: Parameters<typeof autoPlan>[0], base: Plan): Plan =>
     shiftsOf(base),
   );
 // (a piece with no file, Seeds: the stretch asked for, --seconds from --start of --seed, read from the generator)
-let jobs: { name: string; buf: Buffer | null; plan: (l: Parameters<typeof autoPlan>[0]) => Plan; piece?: (typeof PIECES)[number] }[] = args.length
+let jobs: { name: string; buf: Buffer | null; plan: (l: Parameters<typeof autoPlan>[0]) => Plan; piece?: (typeof PIECES)[number] }[] = DEMO
+  ? [{ name: `${DEMO}-own`, buf: readFileSync(join(PIECES_DIR, DEMOS[DEMO as keyof typeof DEMOS]!.file)), plan: (l) => autoPlan(l, { cap: CAP }) }]
+  : args.length
   ? args.map((f) => ({ name: f.split('/').pop()!.replace(/\.midi?$/i, ''), buf: readFileSync(f), plan: (l) => autoPlan(l, { cap: CAP }) }))
   : PIECES.map((p) => ({ name: p.id, buf: p.excerpt ? null : readFileSync(join(PIECES_DIR, p.file)), plan: (l) => piecePlan(p, l, Math.max(CAP, p.parts.length > 6 ? p.parts.length : 0)), piece: p }));
 if (PIECE) jobs = jobs.filter((j) => j.name === PIECE);
@@ -124,13 +132,16 @@ function image(l: Float32Array, r: Float32Array): { ild: number; lag: number } {
   return { ild: 10 * Math.log10((el + 1e-30) / (er + 1e-30)), lag: (best / FS) * 1000 };
 }
 for (const job of jobs) {
-  const START = job.buf ? START_AT : 0;
-  const song = job.buf ? pieceSong(parseMidi(job.buf.buffer.slice(job.buf.byteOffset, job.buf.byteOffset + job.buf.byteLength) as ArrayBuffer), job.piece ?? null) : job.piece!.excerpt!(SEED || job.piece!.measured!.seed, SECONDS, START_AT);
+  const file = job.buf ? parseMidi(job.buf.buffer.slice(job.buf.byteOffset, job.buf.byteOffset + job.buf.byteLength) as ArrayBuffer) : null;
+  const song = file ? (DEMO ? demoSong(file, DEMOS[DEMO as keyof typeof DEMOS]!) : pieceSong(file, job.piece ?? null)) : job.piece!.excerpt!(SEED || job.piece!.measured!.seed, SECONDS, START_AT);
   const plan: Plan = SOLO ? { parts: [{ voice: SOLO, lines: song.lines.map((_, i) => i) }], lines: song.lines.map(() => [{ part: 0, shift: 0 }]) } : job.plan(song.lines);
   const players = ONE ? plan.parts.map(() => 0) : playersOf(plan);
-  const dur = Math.min(SECONDS, song.duration - START + 2);
-  // (a piece made as it plays has its own dynamics and timing: the player sends it as it is)
-  const played = PLAYED && !song.stream ? express(song).events : song.events;
+  // (a piece made as it plays has its own dynamics and timing: the player sends it as it is; a file
+  // typed at one tempo plays in a player's time, expression.ts TEMPO: --start is a place in the file)
+  const x = PLAYED && !song.stream ? express(song) : null;
+  const played = x ? x.events : song.events;
+  const START = job.buf ? (x ? x.clock.on(START_AT) : START_AT) : 0;
+  const dur = Math.min(SECONDS, (x ? x.clock.duration : song.duration) - START + 2);
   const ahead = notesAhead(played);
   const n = Math.ceil(dur * FS);
   const L = new Float32Array(n);
@@ -261,7 +272,7 @@ for (const job of jobs) {
     s2 += L[i] * L[i];
   }
   console.log(`  mix      peak ${db(pk)} dBFS  rms ${db(Math.sqrt(s2 / n))} dBFS  (all parts ${(cpu / dur / 10).toFixed(1)} % of real time)`);
-  const name = POST_BUS ? `${job.name}-post-bus` : SOLO ? `${job.name}-before-one-${SOLO}` : ONE ? `${job.name}-one-player` : FLAT ? `${job.name}-flat` : UNDIVIDED ? `${job.name}-undivided` : job.name;
+  const name = POST_BUS ? `${job.name}-post-bus` : SOLO && !DEMO ? `${job.name}-before-one-${SOLO}` : ONE ? `${job.name}-one-player` : FLAT ? `${job.name}-flat` : UNDIVIDED ? `${job.name}-undivided` : job.name;
   if (STEMS) writeFileSync(join(OUT, `${job.name}-stems.json`), JSON.stringify({ piece: job.name, seconds: dur, start: START, bus: g, parts: stems }));
   if (JSON_OUT) writeFileSync(join(OUT, `${name}.json`), JSON.stringify({ piece: job.name, seconds: dur, flat: FLAT, bus: g, parts: rows, mix: { peakDb: +db(pk), rmsDb: +db(Math.sqrt(s2 / n)) } }, null, 1));
   const wav = join(OUT, `${name}.wav`);

@@ -15,7 +15,7 @@
 // another seed.
 
 import { audio } from '../audio.ts';
-import { express, PartLevels, type Expressed } from '../expression.ts';
+import { express, PartLevels, type Clock, type Expressed } from '../expression.ts';
 import { notesAhead, parseMidi, streamMore, streamOpen, type FileEvent, type MidiSong } from '../midi-file.ts';
 import { cleanSeed, newSeed } from '../orchestra/seeds.ts';
 import { canReassign, voicesOfLine, VOICE_INFO, VOICES, type Voice } from '../orchestra/assign.ts';
@@ -139,6 +139,10 @@ export class MidiPlayer {
    *  with its flat lines phrased) */
   auto = readAuto();
   private events: FileEvent[] = [];
+  /** the clock the events are on (expression.ts TEMPO: a typed file in a player's time; null, the file's
+   *  own), and the length played on it: the position, the hairline and a seek are all in played time */
+  private clock: Clock | null = null;
+  private length = 0;
   /** the bows are told what is to come (audio.foreseeFileEvent): the first event not yet told, and
    *  each note's length and dynamics, by its place in `events` (midi-file.ts notesAhead; kept for the list
    *  they were made of) */
@@ -185,7 +189,7 @@ export class MidiPlayer {
     this.bar.addEventListener('pointerdown', (e) => {
       if (!this.song || this.song.stream) return;
       const r = this.bar.getBoundingClientRect();
-      this.seek(((e.clientX - r.left) / r.width) * this.song.duration);
+      this.seek(((e.clientX - r.left) / r.width) * this.length);
     });
     this.strip = h('div', { class: 'pl-lines', role: 'group', 'aria-label': 'The file’s lines and their instruments', hidden: true });
     this.routeBtn = h('button', { class: 'pl-btn pl-route', type: 'button', 'aria-label': 'Routing: which instrument takes which line', 'data-tip': 'routing', 'aria-expanded': 'false', onclick: () => this.toggleGrid() });
@@ -293,7 +297,10 @@ export class MidiPlayer {
     const s = this.song;
     // (a piece made as it plays has its own dynamics and timing, and its events come as it goes: play)
     const x = s && !s.stream ? expressOf(s) : null;
-    this.events = s && x ? (this.auto && (x.shaped || x.timed) ? x.events : s.events) : [];
+    const use = !!x && this.auto && (x.shaped || x.timed || x.tempo);
+    this.events = s && x ? (use ? x.events : s.events) : [];
+    this.clock = use && x?.tempo ? x.clock : null;
+    this.length = s ? (this.clock ? this.clock.duration : s.duration) : 0;
     this.streamTo = 0;
     audio.fileSong(s);
     audio.setFileVolume(dbGain(this.demo?.gain));
@@ -313,7 +320,10 @@ export class MidiPlayer {
       }
     const was = this.playing;
     if (was) this.pause();
+    // (the place in the file kept: from one clock to the other through the written time)
+    const at = this.clock ? this.clock.written(this.pos) : this.pos;
     this.perform();
+    this.pos = Math.min(this.length, this.clock ? this.clock.on(at) : at);
     if (was) void this.play();
     this.autoSubs.forEach((cb) => cb());
   }
@@ -329,7 +339,7 @@ export class MidiPlayer {
   private syncExpr(x: Expressed | null): void {
     const b = this.exprBtn;
     b.setAttribute('aria-pressed', String(this.auto));
-    const own = !!x && !x.shaped && !x.timed;
+    const own = !!x && !x.shaped && !x.timed && !x.tempo;
     b.classList.toggle('own', own);
     b.dataset.tip = own ? 'expression · the file’s own' : this.auto ? 'expression · on' : 'expression · off';
     b.setAttribute('aria-label', own ? 'Automatic expression (the file has its own dynamics)' : 'Automatic expression');
@@ -338,6 +348,10 @@ export class MidiPlayer {
   /** what the player schedules (tests and tools) */
   get scheduled(): readonly FileEvent[] {
     return this.events;
+  }
+  /** the loaded file's length as it plays, s (in a player's time where expression.ts TEMPO gives it one) */
+  get duration(): number {
+    return this.length;
   }
 
   private attachDrop(): void {
@@ -569,7 +583,7 @@ export class MidiPlayer {
     if (!this.song) return;
     this.window(this.pos);
     const ev = this.events;
-    if (this.pos >= this.song.duration) this.pos = 0;
+    if (this.pos >= this.length) this.pos = 0;
     // first event at or after the position
     let lo = 0;
     let hi = ev.length;
@@ -626,7 +640,7 @@ export class MidiPlayer {
     }
     this.pos = Math.max(0, this.pos0 + (now - this.t0));
     // the end: an instrument's own piece leaves the overlay at rest; a file stays, rewound
-    if (this.idx >= ev.length && this.pos > this.song.duration + 1) {
+    if (this.idx >= ev.length && this.pos > this.length + 1) {
       if (this.demo) this.unload();
       else this.stop();
     }
@@ -658,11 +672,12 @@ export class MidiPlayer {
     if (this.song?.stream) this.seedSubs.forEach((cb) => cb());
   }
 
+  /** to `t` s as it plays (on the player's clock: expression.ts TEMPO) */
   seek(t: number): void {
     if (!this.song) return;
     const was = this.playing;
     this.pause();
-    this.pos = Math.max(0, Math.min(this.song.duration, t));
+    this.pos = Math.max(0, Math.min(this.length, t));
     this.paint();
     if (this.song.stream) this.seedSubs.forEach((cb) => cb());
     if (was) void this.play();
@@ -676,7 +691,7 @@ export class MidiPlayer {
   }
 
   private paint(): void {
-    const f = this.song && this.song.duration > 0 ? Math.min(1, this.heardPos() / this.song.duration) : 0;
+    const f = this.song && this.length > 0 ? Math.min(1, this.heardPos() / this.length) : 0;
     this.fill.style.transform = `scaleX(${f})`;
     this.bar.setAttribute('aria-valuenow', String(Math.round(f * 100)));
     this.glow();

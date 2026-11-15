@@ -89,9 +89,12 @@ page.
   range. Channel aftertouch controls vibrato depth, or makes the timpani and the glockenspiel roll.
 * **MIDI files.** Drop a `.mid` anywhere, or open one from the player (on a phone, open is the only way in).
   A single-part file plays on the instrument shown. A file with several parts puts an orchestra on the
-  stage. Files without their own dynamics are phrased automatically, and a file typed with every line on
-  the grid has each line played slightly ahead of or behind the beat, as an ensemble plays (the hairpin
-  button turns both off).
+  stage. Files without their own dynamics are phrased automatically. A file typed at one tempo is played
+  in a player's time: each phrase broad at its ends and moving in its middle, a breath where the music
+  rests, short notes a little shorter, a ritardando at the end. A file typed with every line on the grid has
+  each line played slightly ahead of or behind the beat, as an ensemble plays. The hairpin button turns all
+  of it off; files with their own tempo map, like the four pieces written for this page, keep their own
+  time.
 * **Each instrument's controls** are on the stage: hammer hardness and string stiffness on the piano, bow
   position and force on the strings, breath and embouchure or lips on the winds and brass, pluck point on
   the harp, mallets on the timpani and glockenspiel, and so on. Two rotary knobs set the piano's lid and the room. The 3D lid rests
