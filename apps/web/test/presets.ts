@@ -41,3 +41,10 @@ export const SEVENTEEN =
 export const TWELVE =
   '/orchestra?v=1&seats=oboe,clarinet,bassoon,horn,trumpet,trombone,grand,violin,violin,viola,cello,bass' +
   '&lines=Oboe~68:1,Clarinet~71:2,Bassoon~70:3,Horn~60:4,Trumpet~56:5,Trombone~57:6,Grand+Piano~0:7,Violin+I~40:8,Violin+II~40:9,Viola~41:10,Cello~42:11,Double+Bass~43:12';
+
+/** ten players: the players of "Seeds" (orchestra/seeds.ts), which has no file and no end, and whose own
+ *  address is /seeds. This one is the Orchestra's, the same seats and lines written out: its play icon plays
+ *  Seeds too, from a new seed */
+export const TEN =
+  '/orchestra?v=1&seats=flute,clarinet,horn,glockenspiel,harp,grand,violin,viola,cello,bass' +
+  '&lines=Flute~73:1,Clarinet~71:2,Horn~60:3,Glockenspiel~9:4,Harp~46:5,Piano~0:6,Violin~40:7,Viola~41:8,Cello~42:9,Double+Bass~43:10';

@@ -139,7 +139,7 @@ export function windParts(files?: string[], auto = true): WindPart[] {
   const dir = 'apps/web/public/pieces';
   const jobs = files
     ? files.map((f) => ({ id: f.split('/').pop()!.replace(/\.midi?$/i, ''), song: load(f), piece: null as (typeof PIECES)[number] | null }))
-    : PIECES.map((p) => ({ id: p.id, song: pieceSong(load(join(dir, p.file)), p), piece: p as (typeof PIECES)[number] | null }));
+    : PIECES.filter((p) => !p.generate).map((p) => ({ id: p.id, song: pieceSong(load(join(dir, p.file)), p), piece: p as (typeof PIECES)[number] | null }));
   for (const job of jobs) {
     const song = job.song;
     const plan = job.piece ? piecePlan(job.piece, song.lines, Math.max(6, job.piece.parts.length)) : autoPlan(song.lines, { cap: 24 });

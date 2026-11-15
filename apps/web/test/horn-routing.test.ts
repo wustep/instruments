@@ -113,7 +113,8 @@ describe('orchestra: the horn', () => {
       const bare = song.lines.map(({ core: _c, pcs: _p, ...l }) => l);
       for (const cap of [4, 8]) expect(autoPlan(song.lines, { cap }), `${f} cap ${cap}`).toEqual(autoPlan(bare, { cap }));
     }
-    for (const pc of PIECES) {
+    // (the pieces with a file: Seeds' lines are made up, with their core as they come)
+    for (const pc of PIECES.filter((q) => !q.generate)) {
       const song = load(pc.file);
       expect(piecePlan(pc, song.lines, 8), pc.id).toEqual(piecePlan(pc, song.lines.map(({ core: _c, pcs: _p, ...l }) => l), 8));
     }

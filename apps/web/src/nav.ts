@@ -38,12 +38,17 @@ export function startNav(player: MidiPlayer, render: (page: Page) => void): Nav 
   /** a piece an address asked for, on its way (its file being fetched): the address stays its own */
   let cueing: string | null = null;
 
+  /** is what is loaded a piece grown from a seed, on its own orchestra? */
+  const seeded = () => ensemble.active && !!ensemble.piece?.generate && player.loaded === ensemble.song;
   const state = (): Address => ({
     page,
     instrument: audio.instrument,
     preset: presetOf(audio.preset),
     orchestra: ensemble.active ? ensemble.setup() : null,
     piece: ensemble.active ? (ensemble.piece?.id ?? cueing) : null,
+    seed: seeded() ? player.seed : null,
+    // (a piece with no end, paused: where; playing, or at its beginning, nowhere)
+    at: seeded() && !player.playing && player.position >= 1 ? Math.floor(player.position) : null,
     look: look.value,
     expr: player.auto,
     keysOff: !look.keys,
@@ -52,22 +57,29 @@ export function startNav(player: MidiPlayer, render: (page: Page) => void): Nav 
     rest,
   });
 
-  /** A piece's own address (/symphony, /everything, /passiton, /tango): its orchestra is on the stage; the piece is loaded on it, ready
+  /** A piece's own address (/symphony, /everything, /passiton, /tango, /seeds): its orchestra is on the stage; the piece is loaded on it, ready
    *  to play (not played: nothing has been pressed, and sound starts with a gesture), and the keys the
    *  address chose are chosen again (a piece coming on resets them). Already there as it came, it is
    *  left alone. */
-  const cue = (id: string, keys: Setup['keys']) => {
+  const cue = (id: string, keys: Setup['keys'], seed: string | null, at: number | null) => {
     const i = PIECES.findIndex((p) => p.id === id);
-    if (i < 0 || (ensemble.piece?.id === id && player.loaded === ensemble.song && ownSetup(ensemble.setup(), PIECES[i]))) return;
+    if (i < 0) return;
+    if (ensemble.piece?.id === id && player.loaded === ensemble.song && ownSetup(ensemble.setup(), PIECES[i])) {
+      // (already there as it came; a piece grown from a seed, walked to under another: grown from that one)
+      if (seed && PIECES[i].generate) player.reseed(seed);
+      return;
+    }
     cueing = id;
     // (its file may be a moment coming: if the stage has left its orchestra by then, another instrument
     // chosen or a seat changed, the piece is not brought on after all)
     void player
-      .loadPiece(i, false, false, () => cueing === id && ensemble.active && ownSetup(ensemble.setup(), PIECES[i]))
+      .loadPiece(i, false, false, () => cueing === id && ensemble.active && ownSetup(ensemble.setup(), PIECES[i]), seed ?? undefined)
       .catch((e) => console.warn('piece:', e))
       .finally(() => {
         if (cueing !== id) return;
         cueing = null;
+        // (a moment of a seed: the piece waits there)
+        if (at && seed && player.seed === seed && ensemble.piece?.id === id) player.seek(at);
         if (keys && ensemble.piece?.id === id) ensemble.setKeysTo(keys);
         changed();
       });
@@ -132,7 +144,7 @@ export function startNav(player: MidiPlayer, render: (page: Page) => void): Nav 
         const own = PIECES.find((p) => p.id === a.piece);
         // (a piece's address: its orchestra as it came is left as it is)
         if (!ensemble.active || (a.orchestra.seats.length && !(own && ownSetup(ensemble.setup(), own)) && setupKey(a.orchestra) !== setupKey(ensemble.setup()))) enterOrchestra(player, a.orchestra);
-        if (own) cue(own.id, a.orchestra.keys);
+        if (own) cue(own.id, a.orchestra.keys, a.seed, a.at);
       } else {
         if (ensemble.active) leaveOrchestra(player);
         if (a.instrument && a.instrument !== audio.instrument) void audio.setInstrument(a.instrument);
@@ -176,6 +188,7 @@ export function startNav(player: MidiPlayer, render: (page: Page) => void): Nav 
   ensemble.keysChanged.on(changed);
   look.on(changed);
   player.onAuto(changed);
+  player.onSeed(changed);
 
   apply(parseAddress(location.pathname, location.search, location.hash), true);
   return {

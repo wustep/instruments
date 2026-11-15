@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseMidi } from '../src/midi-file.ts';
 import { placeNote } from '../src/orchestra/assign.ts';
-import { DEMOS, dbGain, PIECES, piecePlan, pieceTrims, type Piece } from '../src/orchestra/pieces.ts';
+import { DEMOS, dbGain, fileless, PIECES, piecePlan, pieceTrims, type Piece } from '../src/orchestra/pieces.ts';
 
 const TABLE = new URL('../../../artifacts/round3/rebalance/levels.json', import.meta.url);
 type Row = { id: string; gainDb: number; lufs: number; peakDb: number; prePeakDb: number; busLimDb: number; parts: { voice: string; lines: number[]; trimDb: number }[] };
@@ -22,7 +22,8 @@ const load = (file: string) => {
 describe('the pieces’ levels', () => {
   it('each part of a piece seated as it came takes its own level; seated on a smaller stage, the level of the part of its voice it plays', () => {
     for (const pc of PIECES) {
-      const song = load(pc.file);
+      // (a piece with no file, Seeds: the stretch of it that is measured)
+      const song = fileless(pc) ?? load(pc.file);
       const whole = piecePlan(pc, song.lines, Math.max(6, pc.parts.length));
       const t = pieceTrims(pc, whole);
       expect(t.length).toBe(whole.parts.length);

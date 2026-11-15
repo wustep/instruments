@@ -1,5 +1,5 @@
 // The page's address. Every tab has a path of its own (/piano, /piano/upright, /violin, /viola,
-// /cello, /bass, /harp, /flute, /oboe, /clarinet, /bassoon, /horn, /trumpet, /trombone, /tuba, /timpani, /glockenspiel, /orchestra, /symphony, /everything, /passiton, /tango, /measurements, /notes), and the Orchestra's
+// /cello, /bass, /harp, /flute, /oboe, /clarinet, /bassoon, /horn, /trumpet, /trombone, /tuba, /timpani, /glockenspiel, /orchestra, /symphony, /everything, /passiton, /tango, /seeds, /measurements, /notes), and the Orchestra's
 // carries its whole setup in a short, readable, versioned query, so the address itself is a preset; nav.ts keeps
 // it in step with the page. Pure (no DOM), tested fast.
 //
@@ -30,7 +30,9 @@
 // A piece with an address of its own (orchestra/pieces.ts `path`: /symphony, "Toward Morning";
 // /everything, "Everything So Far"; /passiton, "Pass It On"; /tango, "After You") stands for its orchestra and its routing, with the piece loaded:
 // /symphony?view=3d. It is written so for as long as the piece is on its own orchestra as it came;
-// reorganised, the address is the Orchestra's.
+// reorganised, the address is the Orchestra's. /seeds is "Seeds", which has no file: it is grown from a
+// word, and the address carries it (/seeds?seed=kelumo: the same word, the same music; with none, a new
+// one is taken and written). Paused, the address says where (&at=754, seconds): a moment of it, to share.
 //
 // An instrument's path carries ?view= too when the stage is not the plain 2D one. Old addresses still
 // open where they did: #/, #/notes, #/measurements (and #/play, #/inside), ?style=vector. Anything
@@ -39,6 +41,7 @@
 import { INSTRUMENT_IDS, type InstrumentId } from '@piano-model/engine';
 import { MAX_SEATS, VOICES, type Voice } from './orchestra/assign.ts';
 import { PIECES, type Piece } from './orchestra/pieces.ts';
+import { cleanSeed } from './orchestra/seeds.ts';
 import type { LineRule, Setup } from './orchestra/rules.ts';
 
 export type Page = 'stage' | 'measurements' | 'notes';
@@ -58,6 +61,10 @@ export interface Address {
   orchestra: Setup | null;
   /** the built-in piece loaded on it (its id), when that piece has an address of its own */
   piece: string | null;
+  /** the seed a piece with no file is grown from (null: none said: a new one is taken) */
+  seed: string | null;
+  /** where in it, whole seconds (a piece with no end, paused there; null: its beginning, or playing) */
+  at: number | null;
   look: Look | null;
   expr: boolean | null;
   /** no keys on the screen (keys=0): the stage takes the room of the fallboard and the keyboard */
@@ -70,7 +77,7 @@ export interface Address {
   rest: string[];
 }
 
-export const emptyAddress = (): Address => ({ page: 'stage', instrument: null, preset: null, orchestra: null, piece: null, look: null, expr: null, keysOff: false, keysOn: false, uiOff: false, rest: [] });
+export const emptyAddress = (): Address => ({ page: 'stage', instrument: null, preset: null, orchestra: null, piece: null, seed: null, at: null, look: null, expr: null, keysOff: false, keysOn: false, uiOff: false, rest: [] });
 
 /** the most of anything an address is read for (a longer one is cut there) */
 const MAX_LINES = 128;
@@ -118,7 +125,7 @@ export const INSTRUMENT_PATHS: Record<string, [InstrumentId, ('grand' | 'upright
 };
 for (const id of INSTRUMENT_IDS) INSTRUMENT_PATHS[id] ??= [id];
 
-/** the pieces with a path of their own, by that path (/symphony, /everything, /passiton, /tango; vercel.json rewrites each to the page) */
+/** the pieces with a path of their own, by that path (/symphony, /everything, /passiton, /tango, /seeds; vercel.json rewrites each to the page) */
 export const PIECE_PATHS: Record<string, Piece> = Object.fromEntries(PIECES.filter((p) => p.path).map((p) => [p.path!, p]));
 /** a piece's own orchestra: its instruments, one to a seat, in its order */
 const pieceSeats = (p: Piece): Voice[] => p.parts.map((q) => q.voice);
@@ -188,6 +195,15 @@ export function parseAddress(path: string, search: string, hash = ''): Address {
   const q = [...splitQuery(search), ...splitQuery(old?.[2] ?? '')];
   const get = (k: string) => q.find((x) => x[0] === k)?.[1];
   const mine = new Set(['v', 'seats', 'lines', 'keys', 'view', 'style', 'expr', 'ui']);
+  // (a piece grown from a seed: the word, as an address may carry it)
+  if (a.piece && PIECES.find((p) => p.id === a.piece)?.generate) {
+    mine.add('seed');
+    mine.add('at');
+    a.seed = cleanSeed(dec(get('seed') ?? '')) || null;
+    // (a moment is a seed's: whole seconds, under four months of them)
+    const at = dec(get('at') ?? '').trim();
+    a.at = a.seed && /^\d{1,7}$/.test(at) && Number(at) > 0 ? Number(at) : null;
+  }
   a.rest = q.filter((x) => !mine.has(x[0])).map((x) => x[2]);
   const view = dec(get('view') ?? '').toLowerCase();
   const style = dec(get('style') ?? '').toLowerCase();
@@ -240,8 +256,11 @@ export function formatAddress(a: Address): string {
     const s = a.orchestra;
     const own = PIECES.find((p) => p.path && p.id === a.piece && ownSetup(s, p));
     // (a piece on its own orchestra as it came: its short address stands for the seats and the lines)
-    if (own) path = `/${own.path}`;
-    else if (s.seats.length) {
+    if (own) {
+      path = `/${own.path}`;
+      if (own.generate && a.seed) q.push(`seed=${encodeURIComponent(a.seed)}`);
+      if (own.generate && a.seed && a.at) q.push(`at=${Math.floor(a.at)}`);
+    } else if (s.seats.length) {
       q.push(`v=${FORMAT}`, `seats=${s.seats.join(',')}`);
       if (s.lines?.length) q.push(`lines=${s.lines.map(formatLine).join(',')}`);
     }

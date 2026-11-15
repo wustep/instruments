@@ -51,6 +51,38 @@ export interface MidiSong {
   lines: MidiLine[];
   /** the bar lines, seconds (4/4 where the file sets no time signature) */
   bars?: number[];
+  /** a song with no end, made as it plays (orchestra/seeds.ts): `events` is empty and `duration` infinite */
+  stream?: SongStream;
+}
+
+/** a song that is asked for its events a stretch at a time */
+export interface SongStream {
+  /** what it grew from */
+  seed: string;
+  /** its events from `from` (included) to `to` (not), s, in order: the same for the same times, and two
+   *  stretches end to end are the events of the whole */
+  events(from: number, to: number): FileEvent[];
+}
+
+/** How a song with no end is held while it plays: `chunk` s more of it is asked for whenever under `ahead`
+ *  s are left (past what the bows are told ahead and the longest note: a note told has its end in the
+ *  list), and what was played more than `keep` s ago is let go (a resume chases the controllers over
+ *  that). The list stays a minute or so long however long it plays. */
+export const STREAM = { ahead: 30, chunk: 30, keep: 20 } as const;
+/** a stream's events round a position: from a little before it to well after; `to`: how far they go */
+export function streamOpen(st: SongStream, pos: number): { events: FileEvent[]; to: number } {
+  const to = pos + STREAM.ahead + STREAM.chunk;
+  return { events: st.events(Math.max(0, pos - STREAM.keep), to), to };
+}
+/** … and as it plays on, at position `now`: null while enough is left; else the list with the next chunk
+ *  on its end and its long-past beginning let go, never an event of the first `done` not yet played
+ *  (`dropped`: how many went, for whoever counts places in the list) */
+export function streamMore(st: SongStream, events: FileEvent[], to: number, now: number, done: number): { events: FileEvent[]; to: number; dropped: number } | null {
+  if (to - now >= STREAM.ahead) return null;
+  const cut = now - STREAM.keep;
+  let d = 0;
+  while (d < done && events[d].t < cut) d++;
+  return { events: events.slice(d).concat(st.events(to, to + STREAM.chunk)), to: to + STREAM.chunk, dropped: d };
 }
 
 /** how long (s) notes must sound together to count as a chord (MidiLine.poly) */

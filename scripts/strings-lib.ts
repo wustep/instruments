@@ -284,7 +284,8 @@ export function pairNotes(events: Ev[], duration: number): PartNote[] {
 export function stringParts(instruments: InstrumentId[], pieces?: string[]): StringPart[] {
   const parts: StringPart[] = [];
   const dir = join(import.meta.dirname, '../apps/web/public/pieces');
-  for (const p of PIECES) {
+  // (the pieces with a file: Seeds is made as it plays, scripts/seeds-check.ts reads its notes)
+  for (const p of PIECES.filter((q) => !q.generate)) {
     if (pieces && !pieces.includes(p.id)) continue;
     const song = pieceSong(load(join(dir, p.file)), p);
     const plan = piecePlan(p, song.lines, Math.max(6, p.parts.length));
