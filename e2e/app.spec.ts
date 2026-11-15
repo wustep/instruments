@@ -2105,13 +2105,29 @@ test('automatic expression: a hairpin by the hairline, on by default; a flat fil
   // phrased: velocities spread about the file's 80; the cello's long notes swell
   expect(new Set(s.vels).size).toBeGreaterThan(5);
   expect(s.dyn).toBeGreaterThan(10);
-  // off: as written, and it plays on
+  // and in a player's time (typed at one tempo: expression.ts TEMPO): a little longer than written, its
+  // onsets moved, the hairline on that clock
+  const timing = () =>
+    page.evaluate(() => {
+      const p = (window as any).__player;
+      const at = (es: { kind: string; t: number }[]) => es.filter((e) => e.kind === 'on').map((e) => e.t);
+      return { played: p.duration as number, written: p.loaded.duration as number, on: at(p.scheduled), file: at(p.loaded.events), pos: p.position as number };
+    });
+  let tm = await timing();
+  expect(tm.played / tm.written).toBeGreaterThan(1.01);
+  expect(tm.on).not.toEqual(tm.file);
+  // off: as written (velocities, swells and time), and it plays on from the same place in the file
+  const before = tm.pos;
   await btn.click();
   await expect(btn).toHaveAttribute('aria-pressed', 'false');
   await expect(btn).toHaveAttribute('data-tip', 'expression · off');
   s = await scheduled(page);
   expect([...new Set(s.vels)]).toEqual([80]);
   expect(s.dyn).toBe(0);
+  tm = await timing();
+  expect(tm.played).toBe(tm.written);
+  expect(tm.on).toEqual(tm.file);
+  expect(Math.abs(tm.pos - before)).toBeLessThan(1);
   await expect.poll(() => page.evaluate(() => (window as any).__player.playing)).toBe(true);
   // remembered on this device
   await page.reload();

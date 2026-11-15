@@ -51,6 +51,9 @@ export interface MidiSong {
   lines: MidiLine[];
   /** the bar lines, seconds (4/4 where the file sets no time signature) */
   bars?: number[];
+  /** a quarter note, seconds, where every note of the file begins under one tempo (a file typed at one
+   *  speed, or played in to a click); absent where the tempo changes (the file's own tempo map) */
+  quarter?: number;
   /** a song with no end, made as it plays (orchestra/seeds.ts): `events` is empty and `duration` infinite */
   stream?: SongStream;
 }
@@ -241,6 +244,8 @@ export function parseMidi(buf: ArrayBuffer): MidiSong {
   let usPerQ = 500000;
   let lastTick = 0;
   let sec = 0;
+  /** the tempi in force where notes begin */
+  const tempi = new Set<number>();
   for (const r of raw) {
     sec += smpte ? (r.tick - lastTick) / smpteTps : ((r.tick - lastTick) * usPerQ) / 1e6 / (ppq || 480);
     lastTick = r.tick;
@@ -252,6 +257,7 @@ export function parseMidi(buf: ArrayBuffer): MidiSong {
     else if (e.kind === 'cc') for (const l of ccLines(r.key)) events.push({ t: sec, kind: 'cc', cc: e.a as FileCC, value: e.b / 127, line: l });
     else if (e.kind === 'on') {
       events.push({ t: sec, kind: 'on', midi: e.a, vel: e.b, line });
+      tempi.add(usPerQ);
       if (s) {
         if (s.firstTick < 0) s.firstTick = r.tick;
         s.pitches.push(e.a);
@@ -295,7 +301,8 @@ export function parseMidi(buf: ArrayBuffer): MidiSong {
   while (last > 0 && events[last].kind === 'cc') last--;
   const duration = last >= 0 ? events[last].t : 0;
   divide(events);
-  return { events, duration, lines, bars: smpte ? undefined : bars.filter((b) => b <= duration + 1e-9) };
+  const quarter = !smpte && tempi.size === 1 ? [...tempi][0] / 1e6 : undefined;
+  return { events, duration, lines, bars: smpte ? undefined : bars.filter((b) => b <= duration + 1e-9), ...(quarter ? { quarter } : {}) };
 }
 
 /**

@@ -291,7 +291,10 @@ export function stringParts(instruments: InstrumentId[], pieces?: string[]): Str
     const plan = piecePlan(p, song.lines, Math.max(6, p.parts.length));
     const players = playersOf(plan);
     const x = express(song);
-    const events = x.shaped ? x.events : song.events;
+    // (as the player sends it: expression.ts, phrased, timed, in a player's time)
+    const use = x.shaped || x.timed || x.tempo;
+    const events = use ? x.events : song.events;
+    const length = use ? x.clock.duration : song.duration;
     const count = new Map<string, number>();
     plan.parts.forEach((pt, k) => {
       const inst = VOICE_INFO[pt.voice].instrument;
@@ -299,7 +302,7 @@ export function stringParts(instruments: InstrumentId[], pieces?: string[]): Str
       const n = (count.get(inst) ?? 0) + 1;
       count.set(inst, n);
       const ev = partEvents(song, events, plan, k);
-      parts.push({ name: `${p.id} ${inst} ${n}`, piece: p.id, instrument: inst, player: players[k], events: ev, notes: pairNotes(ev, song.duration), duration: song.duration });
+      parts.push({ name: `${p.id} ${inst} ${n}`, piece: p.id, instrument: inst, player: players[k], events: ev, notes: pairNotes(ev, length), duration: length });
     });
   }
   return parts;

@@ -255,7 +255,7 @@ export const fileless = (p: Piece): MidiSong | null => (p.excerpt && p.measured 
 export function pieceSong(song: MidiSong, piece: Piece | null): MidiSong {
   const r = piece?.rate ?? 1;
   if (r === 1) return song;
-  return { ...song, events: song.events.map((e) => ({ ...e, t: e.t / r })), duration: song.duration / r, bars: song.bars?.map((b) => b / r) };
+  return { ...song, events: song.events.map((e) => ({ ...e, t: e.t / r })), duration: song.duration / r, bars: song.bars?.map((b) => b / r), ...(song.quarter ? { quarter: song.quarter / r } : {}) };
 }
 
 /** a piece's own plan for its lines, fitted to the stage's room (`cap` instruments) */
@@ -588,5 +588,5 @@ export function demoSong(song: MidiSong, d: Demo): MidiSong {
   const lines = d.lines ? d.lines.map((i) => song.lines[i]).filter(Boolean) : song.lines;
   // (the bar lines from the first note on, for phrasing: expression.ts)
   const bars = song.bars?.map(at).filter((b, i, all) => b <= last + 1e-9 && (b > 0 || all[i + 1] === undefined || all[i + 1] > 0));
-  return { events, duration: last, lines, bars };
+  return { events, duration: last, lines, bars, ...(song.quarter ? { quarter: song.quarter / rate } : {}) };
 }

@@ -125,9 +125,9 @@ function renderPart(job: Job, k: number): { L: Float32Array; R: Float32Array; cp
   const inst = job.instruments[k];
   // (a piece made as it plays is sent as it is: ui/player.ts)
   const x = song.stream ? null : express(song);
-  const played = x && (x.shaped || x.timed) ? x.events : song.events;
+  const played = x && (x.shaped || x.timed || x.tempo) ? x.events : song.events;
   const ahead = notesAhead(played);
-  const dur = song.duration + 4;
+  const dur = (played === song.events ? song.duration : x!.clock.duration) + 4;
   const n = Math.ceil(dur * FS);
   const events: TimedEvent[] = [];
   const lv = new PartLevels(volumeRef(song), modLines(song));
