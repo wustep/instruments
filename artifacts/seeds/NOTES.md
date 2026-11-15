@@ -102,7 +102,23 @@ does not work. Twenty minutes of another seed (`tavide`) at the same gain: −21
 the limiter still. The table
 (`artifacts/round3/rebalance/levels.json`) has its row; the other pieces stand at −21.4 … −19.6.
 
-SOAK
+**Left playing** (`scripts/seeds-soak.mjs`: headless Chrome on this Mac, the built page, 3D, 13 minutes of
+`kelumo`, read every 30 s):
+
+| | |
+|---|---|
+| the piece's position against the wall clock | moved 10 ms in 12.5 minutes (−183 … −173 ms; the offset is the start's: the scheduling lead and the output's latency) |
+| the sound's clock against the wall clock | moved 9 ms (no block was late enough to slow it) |
+| events the player holds | 1 938 … 2 733, no trend (−8 a minute over the last two thirds) |
+| the page's JS heap, after a forced collection | 768 … 797 MB, no trend (−0.6 MB a minute); the 3D stage's own |
+| keys down at a reading | 0–5; none left down after stop |
+| the engines' own load reports | the heaviest 5–23 % of a block's time, the ten together 23–46 % |
+| page errors | 0 |
+
+An hour of it on the player's own bookkeeping, with no sound (`seeds.test.ts`): every event sent once, in
+order; every note told ahead has its end in the list; the list never over 6 000 events.
+
+Offline the ten engines cost 23 % of one core (the piano 7 %, the others 1.2–2.7 % each).
 
 ## What was not done, and what I am not sure of
 

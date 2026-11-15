@@ -8,7 +8,8 @@
 //   load     the heaviest engine's share of the audio thread's time, % (its own report), and all ten's
 //   held     keys still down in the ensemble (a note never let go would show here for good)
 //   played   players that have sounded so far
-// and at the end: the heap's and the list's slope over the last two thirds of the run, the worst drift, page errors.
+// and at the end: the heap's and the list's slope over the last two thirds of the run, how far the clocks
+// moved from their first reading, page errors.
 import { chromium } from '@playwright/test';
 
 const arg = (k, d) => {
@@ -71,7 +72,9 @@ const slope = (f) => {
   const my = tail.reduce((s, r) => s + f(r), 0) / n;
   return tail.reduce((s, r) => s + (r.wall - mx) * (f(r) - my), 0) / Math.max(1e-9, tail.reduce((s, r) => s + (r.wall - mx) ** 2, 0));
 };
-console.log(`\nover the last two thirds: heap ${(slope((r) => r.heap) * 60).toFixed(3)} MB a minute, list ${(slope((r) => r.list) * 60).toFixed(2)} events a minute; the clock's worst drift ${Math.max(...rows.map((r) => Math.abs(r.drift))).toFixed(0)} ms (the sound's against the room's ${Math.max(...rows.map((r) => Math.abs(r.ctxDrift))).toFixed(0)} ms); most events held ${Math.max(...rows.map((r) => r.list))}; page errors ${errors.length}`);
+// (the first reading has the start's own offset in it: the scheduling lead and the output's latency)
+const moved = (f) => Math.max(...rows.map((r) => Math.abs(f(r) - f(rows[0]))));
+console.log(`\nover the last two thirds: heap ${(slope((r) => r.heap) * 60).toFixed(3)} MB a minute, list ${(slope((r) => r.list) * 60).toFixed(2)} events a minute; the piece's clock against the room's moved ${moved((r) => r.drift).toFixed(0)} ms at most from its first reading (the sound's own clock ${moved((r) => r.ctxDrift).toFixed(0)} ms); most events held ${Math.max(...rows.map((r) => r.list))}; most keys down ${Math.max(...rows.map((r) => r.held))}; page errors ${errors.length}`);
 if (errors.length) console.log(errors.slice(0, 5).join('\n'));
 await page.evaluate(() => window.__player.stop());
 await browser.close();
