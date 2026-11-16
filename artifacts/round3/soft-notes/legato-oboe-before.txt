@@ -1,0 +1,21 @@
+engine /Users/wustep/Projects/piano-model-expr-before/packages/engine/src/core/index.ts
+
+oboe, 48000 Hz
+slur                    448 | hole dB med  -0.3 p10  -2.7 | hole ms med    0 p90    0 | speak ms med   12 p90   25 | neither ms med   13 p90   45 | crack>10ms   55 | over ¢ p90    3 | click× p90 1.03 max  1.37 | rise dB/ms med 0.31
+  slur 1500 ms          448 | hole dB med  -0.3 p10  -2.7 | hole ms med    0 p90    0 | speak ms med   12 p90   25 | neither ms med   13 p90   45 | crack>10ms   55 | over ¢ p90    3 | click× p90 1.03 max  1.37 | rise dB/ms med 0.31
+  slur velocity 40      112 | hole dB med  -0.3 p10  -2.7 | hole ms med    0 p90    0 | speak ms med   12 p90   16 | neither ms med   13 p90   21 | crack>10ms   11 | over ¢ p90    3 | click× p90 1.12 max  1.37 | rise dB/ms med 0.28
+  slur velocity 50      112 | hole dB med  -0.3 p10  -2.8 | hole ms med    0 p90    0 | speak ms med   11 p90   15 | neither ms med   13 p90   19 | crack>10ms    9 | over ¢ p90    3 | click× p90 1.03 max  1.23 | rise dB/ms med 0.33
+  slur velocity 64      112 | hole dB med  -0.3 p10  -2.3 | hole ms med    0 p90    0 | speak ms med   12 p90   75 | neither ms med   14 p90   90 | crack>10ms   18 | over ¢ p90    3 | click× p90 1.00 max  1.08 | rise dB/ms med 0.31
+  slur velocity 90      112 | hole dB med  -0.2 p10  -2.9 | hole ms med    0 p90    0 | speak ms med   12 p90   41 | neither ms med   13 p90   52 | crack>10ms   17 | over ¢ p90    3 | click× p90 1.03 max  1.18 | rise dB/ms med 0.36
+join                    448 | hole dB med  -1.6 p10  -5.3 | hole ms med    0 p90    0 | speak ms med    1 p90   33 | neither ms med    7 p90   76 | crack>10ms   57 | over ¢ p90    4 | click× p90 0.94 max  1.22 | rise dB/ms med 0.35
+  join 1500 ms          448 | hole dB med  -1.6 p10  -5.3 | hole ms med    0 p90    0 | speak ms med    1 p90   33 | neither ms med    7 p90   76 | crack>10ms   57 | over ¢ p90    4 | click× p90 0.94 max  1.22 | rise dB/ms med 0.35
+  join velocity 40      112 | hole dB med  -1.3 p10  -5.6 | hole ms med    0 p90    0 | speak ms med    1 p90    9 | neither ms med    7 p90   88 | crack>10ms   12 | over ¢ p90    4 | click× p90 0.94 max  1.10 | rise dB/ms med 0.33
+  join velocity 50      112 | hole dB med  -1.4 p10  -5.3 | hole ms med    0 p90    0 | speak ms med    1 p90    3 | neither ms med    7 p90   12 | crack>10ms    8 | over ¢ p90    4 | click× p90 0.94 max  1.20 | rise dB/ms med 0.34
+  join velocity 64      112 | hole dB med  -1.6 p10  -5.1 | hole ms med    0 p90    0 | speak ms med    1 p90 1500 | neither ms med    8 p90  149 | crack>10ms   23 | over ¢ p90    3 | click× p90 0.90 max  1.22 | rise dB/ms med 0.38
+  join velocity 90      112 | hole dB med  -1.6 p10  -4.9 | hole ms med    0 p90    0 | speak ms med    1 p90   38 | neither ms med    7 p90   46 | crack>10ms   14 | over ¢ p90    3 | click× p90 0.92 max  1.13 | rise dB/ms med 0.34
+gap                     448 | hole dB med -10.0 p10 -12.7 | hole ms med   21 p90   25 | speak ms med   12 p90   68 | neither ms med   12 p90   91 | crack>10ms   63 | over ¢ p90    3 | click× p90 0.36 max  0.65 | rise dB/ms med 1.43
+  gap 1500 ms           448 | hole dB med -10.0 p10 -12.7 | hole ms med   21 p90   25 | speak ms med   12 p90   68 | neither ms med   12 p90   91 | crack>10ms   63 | over ¢ p90    3 | click× p90 0.36 max  0.65 | rise dB/ms med 1.43
+  gap velocity 40       112 | hole dB med  -9.8 p10 -12.0 | hole ms med   20 p90   23 | speak ms med   12 p90   25 | neither ms med   12 p90   20 | crack>10ms   11 | over ¢ p90    3 | click× p90 0.45 max  0.65 | rise dB/ms med 1.44
+  gap velocity 50       112 | hole dB med -10.0 p10 -12.4 | hole ms med   21 p90   26 | speak ms med   12 p90   21 | neither ms med   12 p90   29 | crack>10ms   11 | over ¢ p90    3 | click× p90 0.36 max  0.46 | rise dB/ms med 1.44
+  gap velocity 64       112 | hole dB med  -9.9 p10 -12.5 | hole ms med   21 p90   24 | speak ms med   12 p90 1500 | neither ms med   13 p90  132 | crack>10ms   24 | over ¢ p90    3 | click× p90 0.33 max  0.40 | rise dB/ms med 1.48
+  gap velocity 90       112 | hole dB med -10.4 p10 -12.9 | hole ms med   21 p90   27 | speak ms med   13 p90 1500 | neither ms med   13 p90  123 | crack>10ms   17 | over ¢ p90    3 | click× p90 0.33 max  0.46 | rise dB/ms med 1.31

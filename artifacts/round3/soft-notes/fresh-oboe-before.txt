@@ -1,0 +1,6 @@
+engine /Users/wustep/Projects/piano-model-expr-before/packages/engine/src/core/index.ts
+oboe 48000 told ahead, 140 ms: 29 of 216 not on their pitch (40 ¢) over their second half: B3/v60:1591 B3/v100:1590 B3/v118:1590 C4/v100:388 C4/v118:891 D4/v100:1200 D4/v118:1204 E♭4/v44:1207 E♭4/v60:500 E♭4/v80:1207 E♭4/v100:1206 E♭4/v118:1203 E4/v100:1210 E4/v118:510 F4/v44:1206 G4/v80:703 G4/v100:700 A♭4/v60:704 A♭4/v80:698 B♭4/v60:1201 B4/v60:1203 C5/v80:1203 C5/v100:1203 C♯5/v60:1204 C♯5/v80:1207 C♯5/v100:1207 C♯5/v118:1198 D6/v30:1203 A6/v118:691
+oboe 48000 told ahead, 280 ms: 8 of 216 not on their pitch (40 ¢) over their second half: D4/v44:1202 G4/v30:1202 A♭4/v80:1201 A♭4/v100:1202 B♭4/v80:1200 D6/v30:1202 E♭6/v44:1201 A6/v118:691
+oboe 48000 told ahead, 500 ms: 8 of 216 not on their pitch (40 ¢) over their second half: D4/v80:1196 E♭4/v118:703 E4/v118:700 C5/v118:1199 D6/v60:1200 D6/v80:1200 E♭6/v80:1200 A6/v118:689
+oboe 48000 by hand, 280 ms: 9 of 216 not on their pitch (40 ¢) over their second half: E♭4/v118:702 F4/v118:1195 A♭4/v60:1201 B♭4/v30:1199 C5/v118:1202 E♭5/v30:1079 C♯6/v80:1202 D6/v60:1202 D6/v80:1202
+told ahead, in all: 45 of 648
