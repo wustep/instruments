@@ -1,0 +1,12 @@
+harp: before → this checkout: NO CLEAR CHANGE
+  score (mean |error| / spread): fit 1.03 → 1.03 (n=23); held-out 1.33 → 1.37 (n=22, Δ -0.05 ± 0.01)
+  partials   held-out |err| 9.44 → 9.46 (spread 6.76)
+  spectrum   held-out |err| 11.73 → 11.69 (spread 15.26)
+  decay      held-out |err| 0.61 → 0.71 (spread 0.46)
+  upper      held-out |err| 0.48 → 0.54 (spread 0.34)
+  ring       held-out |err| 0.78 → 0.79 (spread 0.57)
+  centroid   held-out |err| 0.31 → 0.30 (spread 0.19)
+  later      held-out |err| 0.27 → 0.28 (spread 0.21)
+  attack     held-out |err| 4.25 → 4.29 (spread 3.30)
+  stretch    held-out |err| 5.93 → 5.90 (spread 4.00)
+  level      held-out |err| 3.45 → 3.43 (spread 2.68)

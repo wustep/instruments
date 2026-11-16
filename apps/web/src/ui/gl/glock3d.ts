@@ -40,6 +40,8 @@ export interface GlockModel {
    *  as the meshes are stored */
   T: Mat4;
   statics: Mesh[];
+  /** the folding stand (framed with the rest in the Orchestra; on its own stage, not: the bars are) */
+  stand: Mesh;
   /** each bar's own mesh (drawn with its glow) */
   bars: Mesh[];
   /** a mallet: its head at the origin, its shaft back along +z and a little up */
@@ -53,7 +55,15 @@ export interface GlockModel {
 }
 /** the camera for the glockenspiel alone (scenes3d viewFor): from the player's side and above, the low bars
  *  at the left; a narrow stage may swing round */
-export const GLOCK_VIEW = { yaw: 0.26, pitch: 0.8, swing: 0.3 };
+export const GLOCK_VIEW = { yaw: 0.22, pitch: 0.86, swing: 0.3 };
+/** its key light's direction (the model's frame: from the target towards the light): the camera's mirror in
+ *  the bars' plane, turned 0.8 rad towards the high bars and 0.2 lower, so its sheen runs across the bars
+ *  and fades along them (at the mirror itself every bar was one white glare: steel read as white paint) */
+export const GLOCK_KEY: Vec3 = (() => {
+  const y = GLOCK_VIEW.yaw + Math.PI + 0.8;
+  const p = GLOCK_VIEW.pitch - 0.2;
+  return [Math.cos(p) * Math.sin(y), Math.sin(p), -Math.cos(p) * Math.cos(y)];
+})();
 /** a glockenspiel in the Orchestra stands by the timpani: its footprint's radius and its top (m) */
 export const GLOCK_SEAT = { r: 0.5, top: 1.15 };
 
@@ -139,6 +149,11 @@ export function buildGlockModel(): GlockModel {
         ellipsoid(mb, at(x, y, top + PIN_UP * 0.55), [PIN_R, PIN_UP * 0.45, PIN_R], 10, M.pinSteel);
       }
     }
+  });
+  // (its own mesh: on its own stage the glockenspiel is framed on its case and bars, the stand under them
+  // left to run off the picture: poseGlock)
+  const stand = make((mb) => {
+    const FLOOR = TOP - TRAY;
     // the stand: at each end two crossed legs on a pivot, each from a rubber foot on the floor up to the
     // cradle the case lies on; two stretchers between the ends
     const ends = [GK_X0 + 0.07, GK_X1 - 0.07];
@@ -185,12 +200,12 @@ export function buildGlockModel(): GlockModel {
     cyl(mb, p(0.7), p(1), 0.0052, 0.0054, 12, M.cork);
     ellipsoid(mb, p(1), [0.0054, 0.0054, 0.003], 10, M.cork);
   });
-  const bx = boxOf([statics]);
+  const bx = boxOf([statics, stand]);
   const c: Vec3 = [(bx.lo[0] + bx.hi[0]) / 2, 0, (bx.lo[2] + bx.hi[2]) / 2];
   // (the instrument's middle over the stage's)
   const T = translate(-c[0], 0, -c[2]);
   const r = 0.5 * Math.hypot(bx.hi[0] - bx.lo[0], TOP + 0.2, bx.hi[2] - bx.lo[2] + SHAFT) + 0.02;
-  const model: GlockModel = { T, statics: [statics], bars, mallet, count: BARS.length, longest: BARS[0].length, shortest: BARS[BARS.length - 1].length, top: TOP, bounds: { c: [0, (TOP + 0.05) / 2, 0.08], r } };
+  const model: GlockModel = { T, statics: [statics], stand, bars, mallet, count: BARS.length, longest: BARS[0].length, shortest: BARS[BARS.length - 1].length, top: TOP, bounds: { c: [0, (TOP + 0.05) / 2, 0.08], r } };
   if (typeof window !== 'undefined') (window as unknown as { __glock3d?: unknown }).__glock3d = { bounds: model.bounds, state: () => stageState };
   return model;
 }
@@ -218,6 +233,17 @@ const hands = new WeakMap<GlockModel, { p: [number, number][]; t: number }>();
 
 export function poseGlock(b: Batch, gm: GlockModel, fr: VisualFrame | null, _dt: number, now: number, T: Mat4 = gm.T): void {
   for (const s of gm.statics) b.mesh(s, T);
+  b.mesh(gm.stand, T);
+  // on its own stage it is framed on its case and its bars, the stand under them left to the floor (and the
+  // mallets: framed with the case at rest, they may reach past it while they play); and
+  // lit for the steel: the key from beyond the bars, near the camera's mirror (a flat bar turned up shows
+  // the light only there), a little to the high bars' side, so a sheen runs along them
+  if (!b.world) {
+    b.noFit.add(gm.stand);
+    // (and the mallets, which go where the hands take them, as a bow is)
+    b.noFit.add(gm.mallet);
+    b.key = GLOCK_KEY;
+  }
   const gv = fr?.glock ?? null;
   const glow: number[] = [];
   let ringing = 0;

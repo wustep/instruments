@@ -222,6 +222,9 @@ test('3D: the glockenspiel whole on the stage, clear of the file player; a struc
   expect(v.box!.y0).toBeGreaterThanOrEqual(v.over - 2);
   expect(v.box!.y1).toBeLessThanOrEqual(v.h + 1);
   expect((v.box!.y1 - v.box!.y0) / (v.h - v.over)).toBeGreaterThan(0.5);
+  // framed on its case and bars (the stand under them may run past the picture): as large as the stage
+  // allows, binding on one axis
+  expect(Math.max((v.box!.x1 - v.box!.x0) / v.w, (v.box!.y1 - v.box!.y0) / (v.h - v.over))).toBeGreaterThan(0.85);
   const st = () => page.evaluate(() => (window as any).__glock3d.state() as { glow: number[]; heads: number[][]; lift: number[]; ringing: number });
   expect((await st()).ringing).toBe(0);
   // G5 (the lowest bar) glows; then A7 as well, under the other hand

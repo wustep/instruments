@@ -428,6 +428,19 @@ One engine (`lipcone.ts`: lips on a conical bore), two voicings.
   strings), and again with the second dynamic (1.29 → 1.28). It is the one voicing shipped without BETTER:
   a string is 1.3 spreads from any voicing fitted without it, where 1.0 is how far it is from its
   neighbour. More strings would settle it; more plucks of the same ones do not.
+* **The other strings' answer** (2026-11-15). The recordings' partials waver 1.7 dB about their fall (their
+  fundamentals dip 10–20 dB and come back on some strings: the other strings beating against the plucked
+  one through the board), the model's 1.0 (`scripts/harp-waver.ts`). The coupling (`symp`) ×2.5: 1.4 dB, the
+  gut strings 1.4 against 1.5; ×5 gave 1.9 but a top string read 6 ¢ off and a damped note's halo stood
+  too near the string, ×10 2.6. The judge: **NO CLEAR CHANGE**, held-out 1.33 → 1.34 (Δ −0.02 ± 0.01):
+  the leading partial's decay 0.61 → 0.69, the ring 0.78 → 0.75. The decays polished again with it on the
+  fit half (`fit-harp.ts --polish`) brought the fit half back (1.03 → 1.03) and the held-out strings
+  further off (1.37): not kept. Kept for the waver, and said so.
+* **The forte attack** (2026-11-15, not changed). A forte pluck's first 20 ms stand 2.8–4.2 dB further over
+  what rings on than a softer pluck's do in the recordings, 0.1–0.2 in the model (`harp-dynamics.ts`). Tried:
+  the slow polarisation's share falling with the pluck (0.36 dB at most) and the fingertip's noise growing
+  faster (the mean 2.2–2.5 dB, but string by string no nearer: 2.97 → 2.74 held out, 3.91 → 4.12 fit). No
+  one mechanism; left.
 * **Known limits.** The wire strings are the least like the recordings (partials' levels 12 dB out).
 
 ### Glockenspiel
@@ -505,3 +518,4 @@ under `artifacts/`. In short:
 | 2026-11-11/12 | Tuba, harp, glockenspiel; players in every engine; levels against the recordings | `artifacts/round3/{tuba,harp,glockenspiel,*-polish,consistency}` |
 | 2026-11-14 | Everything re-measured; this guide; a held-out judge for the piano; the piano's output EQ smoothed (BETTER) and the horn's fortissimo refitted (BETTER); the other fourteen measured as they were | `artifacts/round3/calibration` |
 | 2026-11-15 | Soft notes: the piano's soft treble lifted and the clarinet's break evened (both NO CLEAR CHANGE, level better, said so); the viola's and the double bass's bodies smoothed (both WORSE: not kept); a player's ear for the double reeds' registers | `artifacts/round3/soft-notes` |
+| 2026-11-15 | The harp's strings answering 2.5 times as strongly (NO CLEAR CHANGE, the waver nearer the recordings', said so); its forte attack tried and left | `artifacts/round3/harp-glock-2` |

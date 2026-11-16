@@ -639,7 +639,7 @@ export class Renderer3 {
     const C = new THREE.Vector3(mix(c[0], target[0]), mix(c[1], target[1]), mix(c[2], target[2]));
     const radL = mix(rad, CLOSE.radius);
     const dir = (a: Vec3, z: Vec3) => new THREE.Vector3(mix(a[0], z[0] * side), mix(a[1], z[1]), mix(a[2], z[2])).normalize();
-    const keyDir = dir([0.55, 0.78, -0.5], CLOSE.key);
+    const keyDir = dir(b.key ?? [0.55, 0.78, -0.5], CLOSE.key);
     this.key.position.copy(C).add(keyDir.clone().multiplyScalar(radL * 3));
     this.key.target.position.copy(C);
     this.key.intensity = mix(2.6, CLOSE.keyI);

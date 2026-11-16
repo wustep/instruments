@@ -216,11 +216,12 @@ describe('harp', () => {
     const held = pluck(60, 85, 1.5);
     expect(Math.abs(rmsDb(lv, 0.8, 1.2) - rmsDb(held, 0.8, 1.2))).toBeLessThan(0.01);
     // … unless the hand stops it (damp 1): 0.3 s after, what is left is the other strings' answer (the harp's
-    // halo: they ring on in their slow plane), 15 dB and more under the string itself; with none of that
-    // (resonance 0), nothing
+    // halo: they ring on in their slow plane), 10 dB and more under the string itself (the recordings'
+    // fundamentals dip 10–20 dB as the answering strings beat against them: those are within about 10 dB of
+    // the string; scripts/harp-waver.ts); with none of that (resonance 0), nothing
     const off = [{ time: 0.1, event: { type: 'noteOff', midi: 60 } }];
     const damped = pluck(60, 85, 1.5, { damp: 1 }, off);
-    expect(rmsDb(damped, 0.45, 0.6)).toBeLessThan(rmsDb(lv, 0.45, 0.6) - 15);
+    expect(rmsDb(damped, 0.45, 0.6)).toBeLessThan(rmsDb(lv, 0.45, 0.6) - 10);
     expect(rmsDb(damped, 0.45, 0.6)).toBeGreaterThan(rmsDb(lv, 0.45, 0.6) - 40);
     expect(rmsDb(pluck(60, 85, 1.5, { damp: 1, resonance: 0 }, off), 0.45, 0.6)).toBeLessThan(rmsDb(lv, 0.45, 0.6) - 70);
     // the third partial against the first: lower later than at the pluck (the brightness goes first)

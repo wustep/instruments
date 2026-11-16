@@ -392,9 +392,10 @@ export function viewFor(si: SceneIn, st: Scene3State): View3 {
   }
   // the harp: three-quarter from the audience's side, the strings fanned across the picture, whole on every
   // stage (harp3d.ts sets its view)
-  // the glockenspiel: from the player's side and above, its low bars at the left, whole on every stage
-  // (glock3d.ts sets its view)
-  if (si.family === 'mallet') return { target: [0, 0.62, 0.02], dist: 2.0, yaw: GLOCK_VIEW.yaw, pitch: GLOCK_VIEW.pitch, swing: GLOCK_VIEW.swing, whole: true };
+  // the glockenspiel: from the player's side and above, its low bars at the left, its case and bars whole on
+  // every stage and as large as that allows (the stand under them left to the floor: glock3d.ts sets its
+  // view and its light)
+  if (si.family === 'mallet') return { target: [0, 0.84, 0.02], dist: 1.3, yaw: GLOCK_VIEW.yaw, pitch: GLOCK_VIEW.pitch, swing: GLOCK_VIEW.swing, whole: true };
   if (si.family === 'plucked') {
     const c = st.harp ? st.harp.bounds.c : ([0, 0.95, 0] as Vec3);
     return { target: [c[0], c[1], c[2]], dist: 2.6, yaw: HARP_VIEW.yaw, pitch: HARP_VIEW.pitch, swing: HARP_VIEW.swing, whole: true };
