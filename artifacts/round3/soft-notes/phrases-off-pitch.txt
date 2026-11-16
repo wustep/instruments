@@ -1,0 +1,10 @@
+== before
+oboe-soft-low: 8 of 15 notes off their pitch over their second half 63:1208 58:1203 60:1194 62:1191 63:1209 67:1200 63:- 62:-
+oboe-soft-low-p: 8 of 11 notes off their pitch over their second half 60:1198 59:1196 60:1207 64:1200 67:1202 64:1192 62:1205 60:1200
+bassoon-soft-low: 0 of 13 notes off their pitch over their second half 
+bassoon-soft-mid: 0 of 11 notes off their pitch over their second half 
+== after
+oboe-soft-low: 2 of 15 notes off their pitch over their second half 63:- 62:-
+oboe-soft-low-p: 0 of 11 notes off their pitch over their second half 
+bassoon-soft-low: 0 of 13 notes off their pitch over their second half 
+bassoon-soft-mid: 0 of 11 notes off their pitch over their second half 

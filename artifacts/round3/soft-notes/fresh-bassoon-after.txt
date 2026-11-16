@@ -1,0 +1,6 @@
+engine /Users/wustep/Projects/piano-model-soft-notes/packages/engine/src/core/index.ts
+bassoon 48000 told ahead, 140 ms: 43 of 258 not on their pitch (40 ¢) over their second half: B♭1/v60:884 C2/v44:1414 C2/v60:1395 C♯2/v80:238 C♯2/v100:237 C♯2/v118:236 E♭2/v44:1447 E♭2/v60:1443 E♭2/v80:590 E♭2/v100:1464 E♭2/v118:1468 F2/v100:319 F2/v118:705 F♯2/v60:325 F♯2/v80:323 F♯2/v100:322 F♯2/v118:321 A♭2/v100:389 A♭2/v118:1587 A2/v60:1586 A2/v80:1588 A2/v100:1589 A2/v118:1588 B2/v44:1204 B2/v60:1205 B2/v80:1204 B2/v100:1204 B2/v118:1202 C3/v60:1201 C3/v80:1202 C3/v100:1202 C3/v118:1202 C♯3/v30:498 C♯3/v80:498 C♯3/v100:503 C♯3/v118:1194 E3/v30:700 E3/v44:701 E3/v60:692 E3/v80:691 F3/v44:697 E4/v30:1190 F4/v30:1189
+bassoon 48000 told ahead, 280 ms: 4 of 258 not on their pitch (40 ¢) over their second half: B♭1/v30:210 B♭1/v44:212 G2/v80:1199 E3/v60:1200
+bassoon 48000 told ahead, 500 ms: 0 of 258 not on their pitch (40 ¢) over their second half
+bassoon 48000 by hand, 280 ms: 4 of 258 not on their pitch (40 ¢) over their second half: B♭1/v30:210 B♭1/v44:211 E3/v60:1197 E3/v118:1197
+told ahead, in all: 47 of 774

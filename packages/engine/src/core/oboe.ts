@@ -44,6 +44,7 @@ import { biquadHighpass, biquadHighShelf, biquadLowShelf, biquadLowpass, biquadP
 import { BiquadChain, Limiter, Room, type Seat } from './post.ts';
 import { clamp, interp, mulberry32, playerCents, playerSeed, playerVibrato } from './util.ts';
 import { WindPlayer, type WindHuman } from './winds-human.ts';
+import { RegisterEar } from './register-ear.ts';
 import oboeTuning from './oboe-tuning.json';
 
 export interface OboeParams {
@@ -251,6 +252,8 @@ export class OboeCore implements InstrumentCore {
   /** waves leaving the reed down the bore (the long branch) and up into the apex (the short one) */
   private longB = new Float64Array(BUF);
   private apexB = new Float64Array(BUF);
+  /** the player's ear for the register (register-ear.ts): a soft note on its octave taken back */
+  readonly ear: RegisterEar;
   /** round trips (samples): the bore's, eased towards its target, and the apex's */
   private D1 = 100;
   private D1target = 100;
@@ -349,6 +352,7 @@ export class OboeCore implements InstrumentCore {
     this.params = { breath: 1, embouchure: 1, noise: 1, vibrato: OBOE_VIBRATO, room: 0.3, volume: 1, ...opts.params };
     this.V = { ...OBOE_VOICE, ...this.params.voice };
     this.keys = new MonoKeys(this.fs);
+    this.ear = new RegisterEar(this.fs);
     this.rng = mulberry32(playerSeed(68, opts.player));
     const pv = playerVibrato(opts.player);
     this.vib0 = this.vibPhase = pv.phase;
@@ -414,6 +418,7 @@ export class OboeCore implements InstrumentCore {
     this.lpSet = -1;
     this.note = m;
     for (let k = 0; k < 16; k++) this.modeFreqs[k] = (k + 1) * f;
+    this.ear.note(f);
   }
 
   schedule(ev: unknown, frame?: number): void {
@@ -809,6 +814,14 @@ export class OboeCore implements InstrumentCore {
       if (tg < 1) u *= tg;
       if (nz || nzF) u += (nz * u + (u !== 0 ? nzF : 0)) * (this.rng() * 2 - 1);
       const p = a1 + a2 + 0.5 * u;
+      if (H > 0) {
+        // (the player hears the note on another register and puts it back: register-ear.ts)
+        const kick = this.ear.hear(p, tg === 1 && !licking && this.pTarget > 0 && !this.releasePending);
+        if (kick) {
+          const nk = Math.max(2, Math.round(D1));
+          for (let k = 0; k < nk; k++) longB[(w - nk + k) & mask] = kick * Math.sin((2 * Math.PI * k) / nk);
+        }
+      }
       longB[w & mask] = (p - a1) * damp;
       apexB[w & mask] = (p - a2) * damp;
       // radiation: the flow leaving the open end (incident minus reflected), differentiated

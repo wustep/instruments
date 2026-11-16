@@ -1,0 +1,8 @@
+clarinet: before → this checkout: NO CLEAR CHANGE
+  score (mean |error| / spread): fit 2.06 → 2.02 (n=69); held-out 1.95 → 1.91 (n=66, Δ 0.03 ± 0.02)
+  harmonics  held-out |err| 8.57 → 8.57 (spread 4.38)
+  centroid   held-out |err| 0.18 → 0.18 (spread 0.08)
+  noise      held-out |err| 4.06 → 4.06 (spread 1.58)
+  attack     held-out |err| 0.96 → 0.96 (spread 0.41)
+  pitch      held-out |err| 0.23 → 0.23 (spread 3.48)
+  level      held-out |err| 2.47 → 2.28 (spread 1.00)

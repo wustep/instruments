@@ -1,0 +1,8 @@
+oboe 44100 dry: 168903 samples, peak 0.5281, largest difference 0 (bit-identical)
+oboe 44100 room: 168903 samples, peak 0.7277, largest difference 0 (bit-identical)
+oboe 48000 dry: 183840 samples, peak 0.4872, largest difference 0 (bit-identical)
+oboe 48000 room: 183840 samples, peak 0.6472, largest difference 0 (bit-identical)
+bassoon 44100 dry: 168903 samples, peak 0.4483, largest difference 0 (bit-identical)
+bassoon 44100 room: 168903 samples, peak 0.4285, largest difference 0 (bit-identical)
+bassoon 48000 dry: 183840 samples, peak 0.4633, largest difference 0 (bit-identical)
+bassoon 48000 room: 183840 samples, peak 0.4448, largest difference 0 (bit-identical)

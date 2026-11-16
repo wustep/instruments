@@ -274,6 +274,14 @@ known to be off. The pull request notes named hold the tables and the audio.
   * The attack (`attack-judge.ts`, whose sustain window was being cut short until this round: fixed): the
     6–12 kHz burst over the sustain is +1.5 dB against the Steinway on the fit half and +8.2 dB on the
     held-out half; its decay −0.8 and −1.9 dB. The two halves disagree, so the tick's level was left.
+  * The **soft treble** (2026-11-15): F6–C8 stood 6.6 dB under the Steinway at pp and 2.8 at mf (the fit
+    keys), level at ff: a dynamic range too wide at the top, which the voicing trim (the same at every
+    velocity) cannot narrow. `Calibration.lift`: a soft treble stroke quicker by 6 dB of hammer velocity at
+    velocity 1, fading as (1 − x)² to none at 127, from D6 (0) to F♯6 (6) and on to C8. On the fit keys
+    pp +0.2 dB (RMS 7.0 → 2.6), mf +0.2 (5.1 → 4.0), ff as it was; 8 and 10 dB, or a fade of (1 − x) or
+    (1 − x)³, were no nearer. On all 88: **NO CLEAR CHANGE**, held-out 3.00 → 3.04 (Δ −0.03 ± 0.03); level
+    4.16 → 3.92 dB, partials 8.60 → 8.52, brightness 0.45 → 0.47 octave. Kept for the level, and said so:
+    the Seeds piece had to stay under C6 for it.
 * **Known limits.**
   * *Bass aftersound*: about four-fifths as long as the Steinway's (×0.79 in A0–B1), with the string's own
     loss already at its limit; the board near the bass bridge sets it.
@@ -353,7 +361,15 @@ known to be off. The pull request notes named hold the tables and the audio.
     shuts several times a period down there instead of once. A shelf to lift the fundamental was tried on
     the bassoon and judged WORSE. It needs a new reed model, not a filter.
   * *Regimes*: a double reed's held note sits near its octave. Counted over many players and start times,
-    about 2 % of the oboe's and 1 % of the bassoon's notes land on the wrong one.
+    about 2 % of the oboe's and 1 % of the bassoon's notes land on the wrong one; at a soft dynamic, joined
+    or slurred, far more (the oboe 55–63 of 448 of each, the bassoon 21–70). Since 2026-11-15 the player
+    hears it and puts the note back (`register-ear.ts`, only with `human` over 0: the model judged here is
+    untouched): the oboe's 0–1, 1–10 and 10–25, the bassoon's 9, 22 and 57 (it listens for the octave
+    alone; its stranger regimes stay). `packages/engine/test/soft-notes.test.ts` is the budget.
+  * The *clarinet's throat and the clarion's first notes* (G♯4–B4 concert) stood 4–7 dB over the
+    recording's beside their neighbours. `vent` (a −4.5 dB dip at A4–B♭4, 1.6 semitones wide: the register
+    key's one vent serves those notes worst), set on G♯4 and B♭4 (fit notes): **NO CLEAR CHANGE**, held-out
+    1.95 → 1.91 (Δ 0.03 ± 0.02), level 2.47 → 2.28 dB; pp G♯4–B4 +5…+6 → +2…+3. Kept, and said so.
   * The *clarinet's* top third is about 17 dB short of even harmonics and its low register has about 9 dB
     too much of them; its pianissimo spectrum error (12 dB) is mostly the recording's noise above 3 kHz.
   * Soft low notes speak sooner than the players' (who swell in over up to a second).
@@ -488,3 +504,4 @@ under `artifacts/`. In short:
 | 2026-11-11 | Three audio audits (levels, releases, joins, reed regimes) | `…/final-symphony/audio-audit`, `artifacts/round3/audio-audit-{2,3}` |
 | 2026-11-11/12 | Tuba, harp, glockenspiel; players in every engine; levels against the recordings | `artifacts/round3/{tuba,harp,glockenspiel,*-polish,consistency}` |
 | 2026-11-14 | Everything re-measured; this guide; a held-out judge for the piano; the piano's output EQ smoothed (BETTER) and the horn's fortissimo refitted (BETTER); the other fourteen measured as they were | `artifacts/round3/calibration` |
+| 2026-11-15 | Soft notes: the piano's soft treble lifted and the clarinet's break evened (both NO CLEAR CHANGE, level better, said so); the viola's and the double bass's bodies smoothed (both WORSE: not kept); a player's ear for the double reeds' registers | `artifacts/round3/soft-notes` |

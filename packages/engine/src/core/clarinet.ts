@@ -121,6 +121,9 @@ export interface ClarinetVoice {
   /** the level's rise across the compass (dB per octave: the open holes and the bell radiate the high
    *  notes better; the recordings' top octave is ~10 dB over the chalumeau at the same dynamic) */
   tilt: number;
+  /** a dip in the level about the register break (dB, at MIDI note, its width in semitones): the throat's
+   *  last note and the clarion's first ones, which the register key's one vent serves worst */
+  vent: [number, number, number];
   /** the open end's reflection: a fourth-order low-pass (two sections at one corner, Hz, and Q: the
    *  open-hole lattice reflects below its cutoff and passes the rest, Benade 1960; a second-order one
    *  left the bore resonating an octave above it, and the clarion's even harmonics 15 dB short), and the
@@ -183,6 +186,7 @@ export const CLARINET_VOICE: ClarinetVoice = {
   riseHi: 0.0544,
   riseExp: 0.327,
   tilt: 1.43,
+  vent: [-4.5, 69.5, 1.6],
   cutoff: 3441,
   cutQ: 0.522,
   wall: 0.9923,
@@ -430,7 +434,7 @@ export class ClarinetCore implements InstrumentCore {
     if (immediate) this.D1 = this.D1target;
     this.zetaNote = V.zeta + (V.zetaTop - V.zeta) * clamp((m - CLARINET_LO) / (CLARINET_HI - CLARINET_LO), 0, 1);
     this.riseNote = Math.pow(f / et(CLARINET_LO), -V.riseExp);
-    this.tiltNote = Math.pow(f / et(CLARINET_LO), V.tilt / 6.0206);
+    this.tiltNote = Math.pow(f / et(CLARINET_LO), V.tilt / 6.0206) * Math.pow(10, (V.vent[0] * Math.exp(-(((m - V.vent[1]) / V.vent[2]) ** 2))) / 20);
     this.noiseNote = Math.pow(f / et(CLARINET_LO), V.noisePitch);
     this.lpNote = V.lp * Math.pow(f / 440, V.lpExp);
     this.lpSet = -1;

@@ -33,6 +33,9 @@ export interface Calibration {
   velocity: { vMin: number; vMax: number; gamma: number };
   /** Regulation/voicing: per-register hammer velocity trim, dB (evens out the scale). */
   voicing: Breakpoints;
+  /** The treble's soft end: a trim of the hammer's velocity at velocity 1, dB, fading as (1 − x)² (x the
+   *  velocity curve's place) to none at 127; absent, none. */
+  lift?: Breakpoints;
   /** Damped T60 at partial 1 and at 2 kHz (s). */
   damperLow: Breakpoints;
   damperHigh: Breakpoints;
@@ -73,6 +76,12 @@ export const BASE_CALIBRATION: Calibration = {
   strike: { midi: [21, 60, 84, 108], val: [0.120, 0.120, 0.095, 0.065] },
   velocity: { vMin: 0.35, vMax: 5.6, gamma: 1.0 },
   voicing: { midi: [21, 33, 45, 57, 69, 81, 93, 108], val: [0, 0, 0, 0, 0, 0, 0, 0] },
+  // Measured against the Iowa Steinway (scripts/piano-judge.ts --table, the fit keys): F6–C8 played 6.6 dB
+  // under it at pp and 2.8 at mf, level at ff (a dynamic range too wide at the top; the voicing trim, the
+  // same at every velocity, cannot fix it). A soft treble stroke 6 dB quicker at velocity 1, fading as
+  // (1 − x)²: pp +0.2 dB (RMS 7.0 → 2.6), mf +0.2 (5.1 → 4.0), ff unchanged; 8 and 10 dB, or a fade of
+  // (1 − x) or (1 − x)³, were no nearer. Judged on the held-out keys: see docs/CALIBRATION.md.
+  lift: { midi: [86, 92, 108], val: [0, 6, 6] },
   damperLow: { midi: [21, 45, 60, 88], val: [0.9, 0.45, 0.3, 0.18] },
   damperHigh: { midi: [21, 60, 88], val: [0.18, 0.1, 0.07] },
   board: { modalMass: 40, lossFactor: 0.02, lossFactorHigh: 0.035, zoneCoupling: [0.7, 1, 0.7] },

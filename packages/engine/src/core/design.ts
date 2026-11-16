@@ -343,7 +343,9 @@ export function hammerVelocity(vel: number, cal: Calibration, midi = 60): number
   const { vMin, vMax, gamma } = cal.velocity;
   const x = Math.pow(clamp((vel - 1) / 126, 0, 1), gamma);
   const trim = cal.voicing ? Math.pow(10, interp(midi, cal.voicing.midi, cal.voicing.val) / 20) : 1;
-  return vMin * Math.pow(vMax / vMin, x) * trim;
+  // (the treble's soft end, Calibration.lift: most at velocity 1, little by mf, none at 127)
+  const L = cal.lift ? interp(midi, cal.lift.midi, cal.lift.val) : 0;
+  return vMin * Math.pow(vMax / vMin, x) * trim * (L ? Math.pow(10, (L * (1 - x) * (1 - x)) / 20) : 1);
 }
 
 /** Compute per-key specs for a design + params. Pure; safe to call off the audio thread. */
