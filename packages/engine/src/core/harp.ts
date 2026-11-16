@@ -378,7 +378,12 @@ export const HARP_VOICE: HarpVoice = {
   knockTop: 620,
   knockTau: 0.026,
   knockPow: 0.5,
-  symp: 0.01419,
+  // (0.01419 until 2026-11-15: the recordings' partials waver 1.7 dB about their fall (the other strings
+  // beating through the board), the model's 1.0; at 2.5 times this coupling 1.4 (the gut strings 1.4 against
+  // 1.5), at five times 1.9, but a top string then read 6 ¢ off its pitch and a damped note's halo stood 4 dB
+  // too near the string: scripts/harp-waver.ts, harp.test.ts. The decays polished again with it on the fit
+  // half did not move. The judge: see docs/CALIBRATION.md)
+  symp: 0.0355,
   octave: 0.09671,
   pol: 0.2671,
   polDecay: 0.4045,

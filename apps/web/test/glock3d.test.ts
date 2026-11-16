@@ -27,14 +27,14 @@ describe('the glockenspiel in 3D', () => {
     expect(gm.shortest).toBeCloseTo(BARS[29].length, 9);
     expect(gm.top).toBeCloseTo(0.86, 6);
     expect(gm.bars.length).toBe(30);
-    const verts = [...gm.statics, ...gm.bars, gm.mallet].reduce((s, m) => s + m.count, 0);
+    const verts = [...gm.statics, gm.stand, ...gm.bars, gm.mallet].reduce((s, m) => s + m.count, 0);
     expect(verts).toBeLessThan(60_000);
     expect(verts).toBeGreaterThan(1_500);
     expect(buildMs).toBeLessThan(800);
-    // it stands on the floor, inside its bounds
+    // it stands on the floor (its stand), inside its bounds
     let lowY = Infinity;
     let far = 0;
-    for (const m of [...gm.statics, ...gm.bars])
+    for (const m of [...gm.statics, gm.stand, ...gm.bars])
       for (let i = 0; i < m.count; i += 3) {
         const p = xform(gm.T, [m.data[i * 14], m.data[i * 14 + 1], m.data[i * 14 + 2]]);
         lowY = Math.min(lowY, p[1]);
