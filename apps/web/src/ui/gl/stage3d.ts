@@ -282,6 +282,13 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       let lo = clear;
       let hi = lines;
       let best = at(lines);
+      // A small arc has no risers, and a raised harp column or piano lid can stand
+      // above its seat's box. Fit the drawn instruments when the boxes run out.
+      if (!under(best)) {
+        const rect = { l: -1 + 2 * FIT.side, r: 1 - 2 * FIT.side, b: -1 + 2 * FIT.bottom, t: top };
+        const exact = fitView(batch, best, tanV, aspect, rect);
+        return exact ? { ...best, target: exact.target, dist: Math.max(best.dist, exact.dist) } : best;
+      }
       for (let k = 0; k < 5; k++) {
         const mid = (lo + hi) / 2;
         const q = at(mid);
