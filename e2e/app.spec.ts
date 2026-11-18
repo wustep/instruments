@@ -1,5 +1,6 @@
 // End-to-end checks in real Chrome: the page, the AudioWorklet, offline rendering
 // through the worklet with spectral checks, the live views, MIDI input, phone layout.
+import { PIECES } from '../apps/web/src/orchestra/pieces.ts';
 import { test, expect, type Page } from '@playwright/test';
 import { closePicker, openPicker } from './picker.ts';
 import { analyzePartials } from '../packages/engine/src/analysis/index.ts';
@@ -2197,7 +2198,7 @@ test('orchestra: a piece from the menu puts its ensemble on the stage, in 2D and
   await page.locator('.score-btn').click();
   const menu = page.locator('.score-menu');
   await expect(menu).toBeVisible();
-  await expect(menu.locator('.sm-item')).toHaveCount(11);
+  await expect(menu.locator('.sm-item')).toHaveCount(PIECES.length);
   // (a credit, minimal, to the notes)
   await expect(menu.locator('.sm-credit')).toHaveText(/public domain · Mutopia/);
   await menu.locator('.sm-item').first().click();
@@ -2283,7 +2284,7 @@ test('the pieces are in the player’s overlay, with play and open: one icon, th
     await expect(menu, mode).toBeVisible();
     await expect(player.locator('.score-menu'), mode).toHaveCount(1);
     await expect(btn, mode).toHaveAttribute('aria-expanded', 'true');
-    await expect(menu.locator('.sm-item'), mode).toHaveCount(11);
+    await expect(menu.locator('.sm-item'), mode).toHaveCount(PIECES.length);
     const m = await box(menu);
     expect(m.y, mode).toBeGreaterThanOrEqual(b.y + b.height);
     expect(m.y, mode).toBeLessThan(b.y + b.height + 10);
@@ -2293,6 +2294,8 @@ test('the pieces are in the player’s overlay, with play and open: one icon, th
     expect(m.x + m.width, mode).toBeLessThanOrEqual(view.width - 4);
     expect(m.y + m.height, mode).toBeLessThanOrEqual(view.height);
     for (const it of await menu.locator('.sm-item, .sm-credit').all()) {
+      // (the menu scrolls when it holds more than the window: each item is checked where it scrolls to)
+      await it.scrollIntoViewIfNeeded();
       const r = await box(it);
       expect(await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('.score-menu'), [r.x + r.width / 2, r.y + r.height / 2]), `${mode}: nothing over the menu`).toBe(true);
     }

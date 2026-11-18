@@ -48,6 +48,9 @@ pieces menu loads a piece and seats the orchestra it needs:
 | Fable 5.2, *Everything So Far* ([/everything](https://instruments-wustep.vercel.app/everything)) | 11: flute, clarinet, horn, glockenspiel, harp, grand piano, two violins, viola, cello, double bass |
 | Fable 5.2, *Pass It On* ([/passiton](https://instruments-wustep.vercel.app/passiton)) | 17: all sixteen instruments, with two violins |
 | Fable 5.2, *After You* ([/tango](https://instruments-wustep.vercel.app/tango)) | 12: oboe, clarinet, bassoon, horn, trumpet, trombone, grand piano, two violins, viola, cello, double bass |
+| GPT-6.2 Astra, *Salt Thread* ([/salt-thread](https://instruments-wustep.vercel.app/salt-thread)) | 3: harp, viola, clarinet |
+| GPT-6.2 Astra, *Latchwork* ([/latchwork](https://instruments-wustep.vercel.app/latchwork)) | 5: violin, bassoon, grand piano, timpani, glockenspiel |
+| GPT-6.2 Astra, *The Long Fold* ([/long-fold](https://instruments-wustep.vercel.app/long-fold)) | 8: violin, viola, cello, double bass, flute, oboe, horn, tenor trombone |
 | Fable 5.2, *Seeds* ([/seeds](https://instruments-wustep.vercel.app/seeds)), made as it plays | 10: flute, clarinet, horn, glockenspiel, harp, grand piano, violin, viola, cello, double bass |
 
 When nothing is loaded, the play button plays the instrument's own short piece:
@@ -93,7 +96,7 @@ page.
   in a player's time: each phrase broad at its ends and moving in its middle, a breath where the music
   rests, short notes a little shorter, a ritardando at the end. A file typed with every line on the grid has
   each line played slightly ahead of or behind the beat, as an ensemble plays. The hairpin button turns all
-  of it off; files with their own tempo map, like the four pieces written for this page, keep their own
+  of it off; files with their own tempo map, like the scores written for this page, keep their own
   time.
 * **Each instrument's controls** are on the stage: hammer hardness and string stiffness on the piano, bow
   position and force on the strings, breath and embouchure or lips on the winds and brass, pluck point on
@@ -110,7 +113,7 @@ page.
 ## The Orchestra
 
 [/orchestra](https://instruments-wustep.vercel.app/orchestra) puts several instruments on one stage, each
-running its own engine.
+running its own engine. Each original score opens with its players seated and ready. [/salt-thread](https://instruments-wustep.vercel.app/salt-thread), [/latchwork](https://instruments-wustep.vercel.app/latchwork), [/long-fold](https://instruments-wustep.vercel.app/long-fold).
 
 * **Seats.** Pick up to eight instruments by hand (six on a phone). A piece or an address can seat more, as
   far as the audio thread can carry them (Beethoven's Fifth seats eighteen), up to 24. Up to four players
@@ -132,13 +135,13 @@ The address always describes the page, so it can be shared:
 
 * `?view=2d|vector|3d` sets the view on any address.
 * The Orchestra writes its whole setup into the query, versioned: `/orchestra?v=1&seats=violin,violin,viola,cello&lines=…&keys=…&expr=on|off`.
-* A piece's own address (`/symphony`, `/everything`, `/passiton`, `/tango`, `/seeds`) stays in the bar until the
+* A piece's own address (`/symphony`, `/everything`, `/passiton`, `/tango`, `/salt-thread`, `/latchwork`, `/long-fold`, `/seeds`) stays in the bar until the
   orchestra is rearranged. After that the address becomes the Orchestra's.
 * *Seeds* is grown from a word, and its address carries it: `/seeds?seed=kelumo` is the same music for
   everyone. `/seeds` alone takes a new one; so does the seedling button in the player.
 * For filming, `keys=0` hides the keys and `ui=0` shows the stage alone (a 2D piano keeps its keys; `keys=1` keeps them on any one instrument).
 * `?debug` shows the start-up log.
-* Any other path gets a 404 page that links every instrument, the Orchestra, the four pieces and the two
+* Any other path gets a 404 page that links every instrument, the Orchestra, the addressed pieces and the two
   pages.
 
 ## How it works
@@ -230,6 +233,7 @@ Claude Fable 5.2, Anthropic's models, working in Claude Code.
   as velocities and expression, from the marks in `scripts/score-dynamics/marks`. What a player would
   change (which lines play, a transposition, a tempo) is set beside them in `pieces.ts`. *Toward Morning*,
   *Everything So Far*, *Pass It On* and *After You* were written for these instruments by Fable 5.2 (2026).
+  GPT-6.2 Astra (OpenAI) wrote *Salt Thread*, *Latchwork*, and *The Long Fold* for these modelled players in 2026.
   *Seeds* has no file: it is a set of rules (`apps/web/src/orchestra/seeds.ts`), after Brian Eno's *Music for
   Airports* (1978) and his talk "Generative Music" (1996), Steve Reich's "Music as a Gradual Process" (1968)
   and Terry Riley's *In C* (1964).
@@ -244,9 +248,9 @@ Claude Fable 5.2, Anthropic's models, working in Claude Code.
 
 ## License
 
-The code is under the [MIT License](LICENSE). Bundled third-party files keep their own terms:
+The code is under the [MIT License](LICENSE). Individual licences apply to the bundled music and other assets.
 
-* **Pieces** (`apps/web/public/pieces/*.mid`): Mutopia Project files, public domain, except
+* **Pieces** (`apps/web/public/pieces/*.mid`): the Mutopia Project files are public domain, except
   `bach-bwv1046-adagio-oboe.mid` (typeset by Ben Stewart, Mutopia-2008/10/29-1577), which is under Creative
   Commons Attribution 3.0.
 * **Toward Morning** (`apps/web/public/pieces/fable-toward-morning.mid`), **Everything So Far**
@@ -254,6 +258,7 @@ The code is under the [MIT License](LICENSE). Bundled third-party files keep the
   (`apps/web/public/pieces/fable-pass-it-on.mid`) and **After You**
   (`apps/web/public/pieces/fable-after-you.mid`), this project's own pieces, are dedicated to the public
   domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/); so is whatever **Seeds** plays
+* GPT-6.2 Astra (OpenAI), 2026, dedicated *Salt Thread*, *Latchwork*, and *The Long Fold* (`astra-*.mid`) to the public domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
   (it has no file: the music is made in the page).
 * **Reference excerpts** (`apps/web/public/ref/*.mp3`): University of Iowa MIS; see
   `apps/web/public/ref/LICENSE.txt`.
