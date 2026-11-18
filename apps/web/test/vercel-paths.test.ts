@@ -15,8 +15,8 @@ const served = (path: string) => vercel.rewrites.some((r) => r.destination === '
 describe('vercel.json serves every address the app writes', () => {
   it('every instrument and alias, alone and with a sub-path; the Orchestra, measurements and notes', () => {
     const paths = [...Object.keys(INSTRUMENT_PATHS), ...Object.keys(PIECE_PATHS), 'orchestra', 'ensemble', 'measurements', 'notes'];
-    // (the pieces' own addresses: Toward Morning's, Everything So Far's, Pass It On's, After You's and Seeds')
-    for (const p of ['symphony', 'everything', 'passiton', 'tango', 'seeds']) expect(paths, p).toContain(p);
+    // (the pieces' own addresses: Toward Morning's, Everything So Far's, Pass It On's, After You's, Salt Thread's, Latchwork's, The Long Fold's and Seeds')
+    for (const p of ['symphony', 'everything', 'passiton', 'tango', 'salt-thread', 'latchwork', 'long-fold', 'seeds']) expect(paths, p).toContain(p);
     for (const id of INSTRUMENT_IDS) expect(paths, id).toContain(id);
     // (the horn: its path and its alias, named so that a rename cannot drop them unseen)
     for (const p of ['horn', 'french-horn']) expect(paths, p).toContain(p);
@@ -55,7 +55,7 @@ describe('an address that is none of the app’s is a 404, with the page that sa
     expect(config).toMatch(/input:\s*\{[^}]*'404':\s*'404\.html'/);
     expect(html).toContain('<title>Not Found · Instruments</title>');
     expect(html).toContain('<meta name="robots" content="noindex" />');
-    const links = [...html.matchAll(/<a href="\/([a-z-]+)">([a-z]+)<\/a>/g)].map((m) => m[1]);
+    const links = [...html.matchAll(/<a href="\/([a-z-]+)">([^<]+)<\/a>/g)].map((m) => m[1]);
     // (the instruments in the picker's families and their order, views/stage.ts `groupOf`: what is struck or
     // plucked first, the harp beside the piano; then the strings, the woodwinds, the brass, the percussion)
     const rank = (f: string) => (f === 'piano' || f === 'plucked' ? 0 : f === 'bowed' ? 1 : f === 'brass' ? 3 : f === 'percussion' || f === 'mallet' ? 4 : 2);

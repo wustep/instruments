@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { emptyAddress, formatAddress, ownSetup, parseAddress, PIECE_PATHS, tabOf, type Address } from '../src/address.ts';
 import { keysOnScreen } from '../src/look.ts';
 import type { LineRule } from '../src/orchestra/rules.ts';
-import { ELEVEN, QUINTET, SEVENTEEN, THIRTEEN, TWELVE } from './presets.ts';
+import { ASTRA_SCORES, ELEVEN, QUINTET, SEVENTEEN, THIRTEEN, TWELVE } from './presets.ts';
 
 const at = (url: string, hash = '') => {
   const u = new URL(url, 'https://instruments-wustep.vercel.app');
@@ -499,5 +499,23 @@ describe('a piece’s own address: /seeds', () => {
     // the other pieces' orchestras are not this one's
     expect(ownSetup({ seats: PIECE_PATHS.everything.parts.map((q) => q.voice), lines: null, keys: null }, sd)).toBe(false);
     expect(ownSetup({ seats: seats as never, lines: null, keys: null }, PIECE_PATHS.everything)).toBe(false);
+  });
+});
+
+describe.each(Object.entries(ASTRA_SCORES))('a piece’s own address: /%s', (id, score) => {
+  it('opens its own seats, keeps the page’s keys, expression and view, and follows a change of routing or seating', () => {
+    const seats = [...score.seats];
+    const piece = PIECE_PATHS[id];
+    const a = at(`/${id}?keys=2&view=3d&expr=off`);
+    expect(a).toEqual({ ...emptyAddress(), piece: id, orchestra: { seats, lines: null, keys: [1] }, look: '3d', expr: false });
+    expect(tabOf(a)).toBe('orchestra');
+    const lines = seats.map((name, i) => ({ name, program: -1, seats: [i] }));
+    const setup = { seats, lines, keys: [1] };
+    expect(ownSetup(setup, piece)).toBe(true);
+    expect(formatAddress({ ...a, orchestra: setup })).toBe(`/${id}?keys=2&view=3d&expr=off`);
+    const changed = { ...setup, lines: lines.map((l, i) => i === 0 ? { ...l, seats: [1] } : l) };
+    expect(ownSetup(changed, piece)).toBe(false);
+    expect(at(formatAddress({ ...a, orchestra: changed }))).toMatchObject({ piece: null, orchestra: changed });
+    expect(formatAddress({ ...a, orchestra: { ...setup, seats: seats.slice(1), lines: null } })).toMatch(/^\/orchestra\?v=1&seats=/);
   });
 });

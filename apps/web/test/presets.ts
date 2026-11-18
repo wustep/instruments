@@ -48,3 +48,10 @@ export const TWELVE =
 export const TEN =
   '/orchestra?v=1&seats=flute,clarinet,horn,glockenspiel,harp,grand,violin,viola,cello,bass' +
   '&lines=Flute~73:1,Clarinet~71:2,Horn~60:3,Glockenspiel~9:4,Harp~46:5,Piano~0:6,Violin~40:7,Viola~41:8,Cello~42:9,Double+Bass~43:10';
+
+// The seating order and conductor track of each original MIDI score.
+export const ASTRA_SCORES = {
+  'salt-thread': { title: 'Salt Thread', seats: ['harp', 'viola', 'clarinet'], meter: [3, 1], beats: 6, bars: 36 },
+  'latchwork': { title: 'Latchwork', seats: ['violin', 'bassoon', 'grand', 'timpani', 'glockenspiel'], meter: [7, 3], beats: 3.5, bars: 96 },
+  'long-fold': { title: 'The Long Fold', seats: ['violin', 'viola', 'cello', 'bass', 'flute', 'oboe', 'horn', 'trombone'], meter: [4, 2], beats: 4, bars: 72 },
+} as const;

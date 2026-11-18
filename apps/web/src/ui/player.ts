@@ -259,8 +259,8 @@ export class MidiPlayer {
       });
       return b;
     });
-    // (the typesettings are Mutopia's; Toward Morning, Everything So Far, Pass It On and After You are this project's own, CC0)
-    const credit = h('a', { class: 'sm-credit', href: '/notes', 'data-route': 'notes' }, 'public domain · Mutopia, Fable 5.2');
+    // (the typesettings are Mutopia's; Toward Morning, Everything So Far, Pass It On and After You (Fable 5.2) and Salt Thread, Latchwork and The Long Fold (GPT-6.2 Astra) are this project's own, CC0)
+    const credit = h('a', { class: 'sm-credit', href: '/notes', 'data-route': 'notes' }, 'public domain · Mutopia, Fable 5.2, GPT-6.2 Astra');
     credit.addEventListener('click', () => this.closePieces());
     const m = h('div', { class: 'score-menu', role: 'menu', 'aria-label': 'Pieces' }, ...items, credit);
     this.el.append(m);

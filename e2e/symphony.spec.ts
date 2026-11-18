@@ -141,7 +141,7 @@ test('/symphony is kept by a reload and by back and forward; reorganised, the ad
   await expect(last).toHaveAttribute('data-piece', 'toward-morning');
   await expect(last).toContainText('Fable 5.2');
   await expect(last).toContainText('Toward Morning');
-  await expect(page.locator('.score-menu .sm-credit')).toHaveText('public domain · Mutopia, Fable 5.2');
+  await expect(page.locator('.score-menu .sm-credit')).toHaveText('public domain · Mutopia, Fable 5.2, GPT-6.2 Astra');
   // the menu on the screen, no wider than it
   const box = (await page.locator('.score-menu').boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);

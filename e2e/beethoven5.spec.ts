@@ -2,6 +2,7 @@
 // computer and a phone, its play icon plays the first movement on them (Mutopia's file, public domain), each
 // wind staff divided between its two players (never a chord asked of one), the horns' and trumpets' staves
 // (both "english horn", GM 69) on the horns and the trumpets, and the address stays the preset.
+import { PIECES } from '../apps/web/src/orchestra/pieces.ts';
 import { test, expect, type Page } from '@playwright/test';
 import { SYMPHONY } from '../apps/web/test/presets.ts';
 
@@ -86,7 +87,7 @@ test('Beethoven’s Fifth: both movements are in the pieces menu, its lineup fit
   await page.locator('.score-btn').click();
   const menu = page.locator('.score-menu');
   // (six of Mutopia's, and the page's own Toward Morning, Everything So Far, Pass It On, After You and Seeds after them)
-  await expect(menu.locator('.sm-item')).toHaveCount(11);
+  await expect(menu.locator('.sm-item')).toHaveCount(PIECES.length);
   const items = menu.locator('.sm-item');
   await expect(items.nth(4)).toHaveAttribute('aria-label', /^Beethoven, Symphony No\. 5, I: flute, flute, oboe, oboe, clarinet, clarinet, bassoon, bassoon, horn, horn, trumpet, trumpet, timpani, violin, violin, viola, cello, double bass$/);
   // (each kind once, with its count: the row fits the menu)

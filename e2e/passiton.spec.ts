@@ -152,7 +152,7 @@ test('/passiton is kept by a reload and by back and forward; reorganised, the ad
   await expect(last).toHaveAttribute('data-piece', 'pass-it-on');
   await expect(last).toContainText('Fable 5.2');
   await expect(last).toContainText('Pass It On');
-  await expect(page.locator('.score-menu .sm-credit')).toHaveText('public domain · Mutopia, Fable 5.2');
+  await expect(page.locator('.score-menu .sm-credit')).toHaveText('public domain · Mutopia, Fable 5.2, GPT-6.2 Astra');
   const box = (await page.locator('.score-menu').boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);

@@ -3,13 +3,15 @@
 // listed (orchestra/pieces.ts), fitted to a smaller stage when needed.
 // Four are this project's own (Fable 5.2, CC0): "Toward Morning", thirteen parts on thirteen seats,
 // "Everything So Far", eleven on eleven, "Pass It On", every instrument, seventeen on seventeen, and
-// "After You", a tango, twelve on twelve.
+// "After You", a tango, twelve on twelve. Three more are GPT-6.2 Astra's (CC0, pending approval).
+// The original scores carry their own tempo, dynamics and timing in the files.
+import { ASTRA_SCORES } from './presets.ts';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseMidi } from '../src/midi-file.ts';
 import { express } from '../src/expression.ts';
-import { autoPlan, fitsStage, lineupOf, placeNote, VOICE_INFO } from '../src/orchestra/assign.ts';
+import { autoPlan, fitLineup, fitsStage, voiceFromName, voiceFromProgram, lineupOf, placeNote, VOICE_INFO } from '../src/orchestra/assign.ts';
 import { DEMOS, demoSong, pieceForLineup, PIECES, piecePlan, pieceSong, type Demo } from '../src/orchestra/pieces.ts';
 import type { MidiSong } from '../src/midi-file.ts';
 import { INSTRUMENT_IDS, INSTRUMENT_INFO } from '../../../packages/engine/src/core/instrument.ts';
@@ -20,7 +22,7 @@ const load = (file: string) => {
 };
 
 describe('orchestra: the pieces', () => {
-  it('each file is its checksum’s: Mutopia’s (five with their scores’ dynamics written in), four this project’s own (CC0); each parses into the lines its plan names', () => {
+  it('each file is its checksum’s: Mutopia’s (five with their scores’ dynamics written in), the original scores (CC0); each parses into the lines its plan names', () => {
     // (Seeds has no file: it is made as it plays, test/seeds.test.ts)
     for (const p of PIECES.filter((q) => !q.generate)) {
       const { b, song } = load(p.file);
@@ -28,15 +30,20 @@ describe('orchestra: the pieces', () => {
       expect(song.duration, p.id).toBeGreaterThan(30);
       for (const part of p.parts) for (const l of part.lines) expect(l, p.id).toBeLessThan(song.lines.length);
       expect(p.credit).toMatch(/public domain/);
-      if (p.id === 'toward-morning' || p.id === 'everything-so-far' || p.id === 'pass-it-on' || p.id === 'after-you') {
+      if (p.id in ASTRA_SCORES) {
         // not Mutopia's: written for this page, and said so, with its licence
         expect(p.source).toBe('https://github.com/wustep/instruments#license');
-        expect(p.credit).toMatch(/Fable 5\.2/);
+        expect(p.composer).toBe('GPT-6.2 Astra');
+        expect(p.credit).toContain('GPT-6.2 Astra (OpenAI), 2026');
+        expect(p.credit).toMatch(/CC0 1\.0/);
+      } else if (p.id === 'toward-morning' || p.id === 'everything-so-far' || p.id === 'pass-it-on' || p.id === 'after-you') {
+        expect(p.source).toBe('https://github.com/wustep/instruments#license');
+        expect(p.composer).toBe('Fable 5.2');
         expect(p.credit).toMatch(/CC0 1\.0/);
       } else expect(p.source).toMatch(/^https:\/\/www\.mutopiaproject\.org\/cgibin\/piece-info\.cgi\?id=\d+$/);
     }
     // the only pieces that are not Mutopia's are those named here
-    expect(PIECES.filter((p) => !/mutopiaproject/.test(p.source)).map((p) => p.id)).toEqual(['toward-morning', 'everything-so-far', 'pass-it-on', 'after-you', 'seeds']);
+    expect(PIECES.filter((p) => !/mutopiaproject/.test(p.source)).map((p) => p.id)).toEqual(['toward-morning', 'everything-so-far', 'pass-it-on', 'after-you', ...Object.keys(ASTRA_SCORES), 'seeds']);
     // and the one with no file says so: no file, no checksum, a way to grow it and a stretch to measure it on
     const seeds = PIECES.filter((p) => p.generate);
     expect(seeds.map((p) => [p.id, p.file, p.sha256, p.path])).toEqual([['seeds', '', '', 'seeds']]);
@@ -77,7 +84,7 @@ describe('orchestra: the pieces', () => {
     const fifth = PIECES.find((p) => p.id === 'beethoven5-i')!;
     expect(PIECES[pieceForLineup(fifth.parts.map((q) => q.voice))].id).toBe('beethoven5-i');
     // (the page's own pieces come last, in the order they were written)
-    expect(PIECES.slice(-5).map((p) => p.id)).toEqual(['toward-morning', 'everything-so-far', 'pass-it-on', 'after-you', 'seeds']);
+    expect(PIECES.slice(-8).map((p) => p.id)).toEqual(['toward-morning', 'everything-so-far', 'pass-it-on', 'after-you', 'salt-thread', 'latchwork', 'long-fold', 'seeds']);
   });
 
   it('Everything So Far: eleven lines (the conductor track is none), one to a seat by its own names; every note in its instrument’s compass; its own dynamics; the eleven’s play icon plays it', () => {
@@ -367,5 +374,102 @@ describe('each instrument’s own piece (the play icon)', () => {
     expect(pieceForLineup(['trumpet', 'grand'])).toBe(2);
     expect(pieceForLineup(['grand'])).toBe(2);
     expect(pieceForLineup(['trumpet', 'trumpet'])).toBe(2);
+  });
+});
+
+describe.each(Object.entries(ASTRA_SCORES))('original score /%s', (id, expected) => {
+  const piece = PIECES.find(p => p.id === id)!;
+  const { b, song } = load(piece.file);
+  const seats = [...expected.seats];
+  const on = song.events.filter(e => e.kind === 'on');
+  const bars = song.bars!;
+  const beatTime = (bar: number, beat: number) => bars[bar] + beat / expected.beats * (bars[bar + 1] - bars[bar]);
+
+  it('has one named concert-pitch track per player, seated whole on a phone and chosen by its play icon', () => {
+    expect(piece.title).toBe(expected.title);
+    expect(piece.file).toBe(`astra-${id}.mid`);
+    expect(song.lines.map(l => voiceFromName(l.name))).toEqual(seats);
+    expect(song.lines.map(l => voiceFromProgram(l.program))).toEqual(seats);
+    expect(new Set(song.lines.map(l => l.channel)).size).toBe(seats.length);
+    expect(song.lines.every(l => l.channel !== 9)).toBe(true);
+    expect(fitLineup(seats, 6)).toEqual(seats);
+    const plan = piecePlan(piece, song.lines, fitLineup(seats, 6).length);
+    expect(lineupOf(plan)).toEqual(seats);
+    expect(PIECES[pieceForLineup(seats)].id).toBe(id);
+    expect(plan.lines).toEqual(seats.map((_, part) => [{ part, shift: 0 }]));
+    expect(lineupOf(autoPlan(song.lines, { cap: seats.length }))).toEqual(seats);
+    for (const [i, v] of seats.entries()) {
+      const info = INSTRUMENT_INFO[VOICE_INFO[v].instrument];
+      const ns = on.filter(e => e.line === i);
+      expect(Math.min(...ns.map(e => e.midi))).toBeGreaterThanOrEqual(info.lo);
+      expect(Math.max(...ns.map(e => e.midi))).toBeLessThanOrEqual(info.hi);
+      if (VOICE_INFO[v].poly === 1) {
+        let held = 0;
+        for (const e of song.events.filter(e => e.line === i)) {
+          if (e.kind === 'on') expect(++held, `${v} at ${e.t}`).toBe(1);
+          if (e.kind === 'off') expect(--held).toBe(0);
+        }
+        expect(held).toBe(0);
+      }
+      expect(new Set(ns.map(e => e.vel)).size).toBeGreaterThan(8);
+      const cc = song.events.filter(e => e.kind === 'cc' && e.line === i && e.cc === 11);
+      expect(new Set(cc.map(e => e.kind === 'cc' && e.value)).size).toBeGreaterThan(12);
+      expect(cc.length).toBeGreaterThan(ns.length);
+    }
+  });
+
+  it('keeps its metre, phrase tempi, dynamics and ensemble timing through the player', () => {
+    expect(b.includes(Buffer.from([0xff, 0x58, 4, ...expected.meter]))).toBe(true);
+    expect(bars.length).toBe(expected.bars);
+    expect(song.duration).toBeGreaterThanOrEqual(150);
+    expect(song.duration).toBeLessThanOrEqual(300);
+    const lengths = bars.slice(1).map((t, i) => t - bars[i]);
+    expect(Math.max(...lengths) / Math.min(...lengths)).toBeGreaterThan(1.12);
+    expect(song.quarter).toBeUndefined();
+    const played = express(song);
+    expect([played.tempo, played.timed, played.shaped]).toEqual([false, false, false]);
+    expect(played.events).toBe(song.events);
+  });
+
+  // Score landmarks use the conductor's bar times. Allow the physical attack advance.
+  const nearBeat = (line: number, bar: number, beat: number, tolerance = .18) =>
+    on.filter(e => e.line === line && Math.abs(e.t - beatTime(bar, beat)) < tolerance).map(e => e.midi);
+  if (id === 'salt-thread') it('hands the second and third notes of the same harp ground to the viola and clarinet', () => {
+    const middle = [69, 67, 62, 65, 71, 64];
+    const upper = [71, 64, 69, 64, 67, 62];
+    for (let bar = 0; bar < 6; bar++) {
+      expect(nearBeat(0, bar, 2)).toContain(middle[bar]);
+      expect(nearBeat(1, bar + 12, 2)).toContain(middle[bar]);
+      expect(nearBeat(0, bar + 12, 2)).toEqual([]);
+      expect(nearBeat(2, bar + 18, 4)).toContain(upper[bar]);
+    }
+    expect(on.filter(e => e.t > bars[35]).map(e => [e.line, e.midi])).toEqual([[0, 50]]);
+  });
+
+  if (id === 'latchwork') it('rotates 2+2+3, 3+2+2 and 2+3+2 among different players on the three returns', () => {
+    for (const [bar, line, beat] of [[0, 2, .25], [0, 1, 1], [0, 0, 2],
+      [32, 1, 0], [32, 0, 1.5], [32, 2, 2.5],
+      [64, 4, 0], [64, 2, 1], [64, 1, 2.5]]) {
+      expect(nearBeat(line, bar, beat), `bar ${bar + 1}, line ${line + 1}`).not.toEqual([]);
+    }
+    const last = on.filter(e => e.t >= bars[95]);
+    expect(last.map(e => e.line).sort()).toEqual([0, 1, 2, 3]);
+    expect(Math.max(...last.map(e => e.t)) - Math.min(...last.map(e => e.t))).toBeLessThan(.18);
+    expect(song.duration - bars[95]).toBeLessThan(.8);
+  });
+
+  if (id === 'long-fold') it('returns the opening four-bar flute melody in the double bass, two octaves down and twice as long', () => {
+    const opening = on.filter(e => e.line === 4 && e.t < bars[4] - .15);
+    const returning = on.filter(e => e.line === 3 && e.t > bars[56] - .25 && e.t < bars[64] - .25);
+    expect(opening).toHaveLength(10);
+    expect(returning.map(e => e.midi)).toEqual(opening.map(e => e.midi - 24));
+    const quarter = (t: number) => {
+      const bar = bars.findLastIndex(b => b <= t);
+      return 4 * (bar + (t - bars[bar]) / (bars[bar + 1] - bars[bar]));
+    };
+    for (const [i, n] of returning.entries()) {
+      expect(Math.abs(quarter(n.t) - 224 - 2 * quarter(opening[i].t))).toBeLessThan(.7);
+    }
+    expect(new Set(on.filter(e => e.t >= bars[71] - .4).map(e => e.line)).size).toBe(8);
   });
 });
