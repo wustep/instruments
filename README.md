@@ -94,7 +94,9 @@ page.
   rests, short notes a little shorter, a ritardando at the end. A file typed with every line on the grid has
   each line played slightly ahead of or behind the beat, as an ensemble plays. The hairpin button turns all
   of it off; files with their own tempo map, like the four pieces written for this page, keep their own
-  time.
+  time. The page icon beside the hairline turns the stage into the file's sheet music and back: the notes
+  sounding are lit and a hairline follows the place, a tap on a bar plays on from there, and an orchestra's
+  file is read a part at a time (a few players' also as a score).
 * **Each instrument's controls** are on the stage: hammer hardness and string stiffness on the piano, bow
   position and force on the strings, breath and embouchure or lips on the winds and brass, pluck point on
   the harp, mallets on the timpani and glockenspiel, and so on. Two rotary knobs set the piano's lid and the room. The 3D lid rests
@@ -178,7 +180,8 @@ The address always describes the page, so it can be shared:
 * **Renderers** (`apps/web/src/ui`): a 2D drawer per instrument in `ui/`, the vector style in
   `ui/vector/`, and the three.js 3D stage in `ui/gl/`, with a module per instrument and `fit3d.ts` framing
   the stage on phones. All three draw the same telemetry from the worklet. Seating, routing and the bundled
-  pieces live in `apps/web/src/orchestra/`.
+  pieces live in `apps/web/src/orchestra/`; the sheet music in `apps/web/src/sheet/` (the file's grid read
+  into bars and parts, then drawn with VexFlow, loaded the first time it is asked for).
 
 [`AGENTS.md`](AGENTS.md) is the full map, with the house rules (each with the check that enforces it) and
 the checklist for a new instrument.
@@ -234,6 +237,7 @@ Claude Fable 5.2, Anthropic's models, working in Claude Code.
   Airports* (1978) and his talk "Generative Music" (1996), Steve Reich's "Music as a Gradual Process" (1968)
   and Terry Riley's *In C* (1964).
 * **3D:** [three.js](https://threejs.org) (MIT).
+* **Sheet music:** [VexFlow](https://www.vexflow.com) (MIT), with the Bravura music font (SIL OFL).
 * **The vector view** is after [Chimera](https://github.com/jamesondh/chimera-vocal-synth), Jameson
   Hodge's vocal synth. Its screens were the inspiration; none of its code is used. The vector type is
   AVHershey Simplex by Stewart C. Russell, from A. V. Hershey's vector fonts (US Naval Weapons

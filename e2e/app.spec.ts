@@ -2272,8 +2272,9 @@ test('the pieces are in the player’s overlay, with play and open: one icon, th
     await expect(btn, mode).toHaveCount(1);
     await expect(player.locator('.pl-row > .score-btn.pl-btn'), mode).toBeVisible();
     await expect(page.locator('.picker .score-btn'), mode).toHaveCount(0);
-    // one row of icons, in this order, the pieces next to the file they are the alternative to
-    const shown = await player.locator('.pl-row button:visible').evaluateAll((bs) => bs.map((b) => [...b.classList].find((c) => /^pl-(play|stop|expr|route|pieces|open)$/.test(c))));
+    // one row of icons, in this order, the pieces next to the file they are the alternative to (a file
+    // loaded: its sheet music after the hairline)
+    const shown = await player.locator('.pl-row button:visible').evaluateAll((bs) => bs.map((b) => [...b.classList].find((c) => /^pl-(play|stop|sheet|expr|route|pieces|open)$/.test(c))));
     expect(shown, mode).toEqual(row);
     const [b, o] = [await box(btn), await box(page.locator('.pl-open'))];
     expect(Math.abs(b.y - o.y), mode).toBeLessThan(1);
@@ -2319,7 +2320,7 @@ test('the pieces are in the player’s overlay, with play and open: one icon, th
   await expect(menu).toBeHidden();
   await expect.poll(() => page.evaluate(() => (window as any).__orchestra.ensemble.piece?.id ?? null), { timeout: 10_000 }).toBe('haydn');
   await expect(page.locator('.pl-line')).toHaveCount(4);
-  await check('an ensemble, its piece loaded', ['pl-play', 'pl-stop', 'pl-expr', 'pl-route', 'pl-pieces', 'pl-open']);
+  await check('an ensemble, its piece loaded', ['pl-play', 'pl-stop', 'pl-sheet', 'pl-expr', 'pl-route', 'pl-pieces', 'pl-open']);
   // the routing grid and the pieces menu are not open together
   await page.locator('.pl-route').click();
   await expect(page.locator('.pl-grid')).toBeVisible();

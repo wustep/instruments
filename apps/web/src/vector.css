@@ -151,6 +151,46 @@
   letter-spacing: 0.08em;
 }
 
+/* the sheet music: the score in the display's lines, black ground, a hairline frame; what sounds in amber */
+:root[data-style='vector'] .sheet {
+  --sheet-paper: #000;
+  --sheet-ink: var(--v-blue);
+  --sheet-rule: var(--v-blue-dim);
+  --sheet-dim: var(--v-blue-mid);
+  --sheet-on: var(--v-amber);
+}
+:root[data-style='vector'] .sheet-paper {
+  border: 1px solid var(--v-frame);
+  border-radius: 0;
+  background: #000;
+  box-shadow: none;
+}
+:root[data-style='vector'] .sheet-part,
+:root[data-style='vector'] .sheet-part-name,
+:root[data-style='vector'] .sheet-title {
+  font-style: normal;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+:root[data-style='vector'] .sheet-part,
+:root[data-style='vector'] .sheet-part-name {
+  color: var(--v-text);
+}
+:root[data-style='vector'] .sheet svg {
+  filter: drop-shadow(0 0 1.5px rgba(79, 182, 242, 0.45));
+}
+:root[data-style='vector'] .sheet svg .vf-stavenote.on {
+  filter: drop-shadow(0 0 3px rgba(255, 179, 64, 0.8));
+}
+:root[data-style='vector'] .sheet-menu {
+  background: #000;
+  border-color: var(--v-blue-dim);
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 /* ------------------------------------------------------------ fallboard: pedals, octave, encoders */
 :root[data-style='vector'] .fallboard {
   background: #000;
