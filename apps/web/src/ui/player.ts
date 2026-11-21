@@ -12,7 +12,8 @@
 // phrased, its long notes swelling; a file with dynamics of its own plays them as written either way.
 // A piece with no end (Seeds, orchestra/seeds.ts) has no hairline and no hairpin: it is asked for its
 // events half a minute at a time for as long as it plays, and where the hairline was is one icon,
-// another seed.
+// another seed. A file or a piece loaded can be read as it plays: the page icon turns the stage into its
+// sheet music (sheet/view.ts) and back; the choice is remembered on the device.
 
 import { audio } from '../audio.ts';
 import { express, PartLevels, type Clock, type Expressed } from '../expression.ts';
@@ -80,6 +81,29 @@ const PIECES_ICON = 'M3 6h11.2v1.7H3zM3 10h11.2v1.7H3zM3 14h8v1.7H3zM17 6v7.6a2.
 const HAIRPIN = 'M11.3 8.6 1.6 12l9.7 3.4M12.7 8.6l9.7 3.4-9.7 3.4';
 /** another seed: a seedling, two leaves on a stem */
 const SEED = 'M12.75 21h-1.5v-6.9C8 14 5.5 11.6 5.3 8.2c3.2-.2 5.5 1.4 6.3 3.9.4-3.6 3-6.2 7.1-6.3.2 4.3-2.3 7.3-5.95 7.9z';
+/** the sheet music: a page with a staff on it and a note (its lines drawn, the note filled) */
+const sheetIcon = (): SVGElement => {
+  const s = document.createElementNS(SVGNS, 'svg');
+  s.setAttribute('viewBox', '0 0 24 24');
+  s.setAttribute('aria-hidden', 'true');
+  s.classList.add('pl-sheet-icon');
+  const page = document.createElementNS(SVGNS, 'path');
+  page.setAttribute('d', 'M6.2 3.2h11.6a1 1 0 0 1 1 1v15.6a1 1 0 0 1-1 1H6.2a1 1 0 0 1-1-1V4.2a1 1 0 0 1 1-1zM8 8.2h8M8 11h8M8 13.8h8');
+  page.setAttribute('class', 'ln');
+  const note = document.createElementNS(SVGNS, 'path');
+  note.setAttribute('d', 'M11.6 17.6c0 .9-1 1.6-2.1 1.6-.9 0-1.4-.5-1.4-1.1 0-.9 1-1.6 2.1-1.6.4 0 .7.1 1 .2V9.4h.4z');
+  s.append(page, note);
+  return s;
+};
+const SHEET_KEY = 'piano-model.sheet';
+/** the sheet music is shown in place of the instrument where it was last chosen on this device */
+const readSheet = (): boolean => {
+  try {
+    return localStorage.getItem(SHEET_KEY) === 'on';
+  } catch {
+    return false;
+  }
+};
 const hairpin = () => {
   const s = icon(HAIRPIN);
   s.classList.add('pl-hairpin');
@@ -132,6 +156,9 @@ export class MidiPlayer {
   private routeBtn: HTMLButtonElement;
   private exprBtn: HTMLButtonElement;
   private seedBtn: HTMLButtonElement;
+  private sheetBtn: HTMLButtonElement;
+  /** the sheet music wanted in place of the instrument (shown while a file that has one is loaded) */
+  sheet = readSheet();
   /** a piece with no end: how far its events have been asked for (s), and how to grow it from another seed */
   private streamTo = 0;
   private grow: ((seed: string) => MidiSong) | null = null;
@@ -199,11 +226,14 @@ export class MidiPlayer {
     // a piece grown from a seed: another one (where a file's hairline is: it has no length to show)
     this.seedBtn = h('button', { class: 'pl-btn pl-seed', type: 'button', 'aria-label': 'Another seed', 'data-tip': 'another seed', hidden: true, onclick: () => this.reseed() });
     this.seedBtn.appendChild(icon(SEED));
+    // the sheet music in place of the instrument, and back (the same icon, pressed)
+    this.sheetBtn = h('button', { class: 'pl-btn pl-sheet', type: 'button', 'aria-pressed': String(this.sheet), 'aria-label': 'Sheet music', 'data-tip': this.sheet ? 'back to the instrument' : 'sheet music', hidden: true, onclick: () => this.setSheet(!this.sheet) });
+    this.sheetBtn.appendChild(sheetIcon());
     // the pieces that come with the stage, next to the file they are the alternative to: with one
     // instrument or an ensemble on the stage alike, a piece brings its own ensemble
     this.piecesBtn = h('button', { class: 'pl-btn pl-pieces score-btn', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': 'Pieces for the ensemble', 'data-tip': 'pieces', onclick: () => this.togglePieces() });
     this.piecesBtn.appendChild(icon(PIECES_ICON));
-    this.el = h('div', { class: 'player idle', role: 'group', 'aria-label': 'MIDI file' }, h('div', { class: 'pl-row' }, h('div', { class: 'pl-btns' }, this.playBtn, this.stopBtn), this.bar, this.seedBtn, this.exprBtn, this.routeBtn, this.piecesBtn, this.openBtn), this.strip, this.picker);
+    this.el = h('div', { class: 'player idle', role: 'group', 'aria-label': 'MIDI file' }, h('div', { class: 'pl-row' }, h('div', { class: 'pl-btns' }, this.playBtn, this.stopBtn), this.bar, this.seedBtn, this.sheetBtn, this.exprBtn, this.routeBtn, this.piecesBtn, this.openBtn), this.strip, this.picker);
     this.attachDrop();
     ensemble.changed.on(() => {
       this.buildStrip();
@@ -345,6 +375,44 @@ export class MidiPlayer {
     b.setAttribute('aria-label', own ? 'Automatic expression (the file has its own dynamics)' : 'Automatic expression');
   }
 
+  // ------------------------------------------------------------- the sheet music
+  /** the loaded song can be set out as a score: a file's (one made as it plays has no bars) */
+  get sheetable(): boolean {
+    return !!this.song && !this.song.stream && !!this.song.score;
+  }
+  /** the sheet music in place of the instrument, or the instrument again (remembered on the device) */
+  setSheet(on: boolean): void {
+    if (on === this.sheet) return;
+    this.sheet = on;
+    try {
+      localStorage.setItem(SHEET_KEY, on ? 'on' : 'off');
+    } catch {
+      /* private mode */
+    }
+    this.syncSheet();
+    this.sheetSubs.forEach((cb) => cb());
+  }
+  private syncSheet(): void {
+    this.sheetBtn.hidden = !this.sheetable;
+    this.sheetBtn.setAttribute('aria-pressed', String(this.sheet));
+    this.sheetBtn.dataset.tip = this.sheet ? 'back to the instrument' : 'sheet music';
+  }
+  private sheetSubs = new Set<() => void>();
+  /** the sheet music asked for or put away, or another song loaded (or none) */
+  onSheet(cb: () => void): () => void {
+    this.sheetSubs.add(cb);
+    return () => this.sheetSubs.delete(cb);
+  }
+  /** where the song is as written (s: its own time, before a player's tempo: expression.ts TEMPO), as heard */
+  get writtenPosition(): number {
+    const p = this.heardPos();
+    return this.clock ? this.clock.written(p) : p;
+  }
+  /** to written time `t` (s), as `seek` */
+  seekWritten(t: number): void {
+    this.seek(this.clock ? this.clock.on(t) : t);
+  }
+
   /** what the player schedules (tests and tools) */
   get scheduled(): readonly FileEvent[] {
     return this.events;
@@ -414,6 +482,7 @@ export class MidiPlayer {
     if (piece || ensemble.active || plan.parts.length > 1) ensemble.enter(plan, song, piece, keep || (!piece && ensemble.active && ensemble.byUser), rules);
     this.buildStrip();
     this.sync();
+    this.sheetSubs.forEach((cb) => cb());
     if (this.song && play) await this.play();
   }
 
@@ -460,6 +529,7 @@ export class MidiPlayer {
     this.perform();
     this.buildStrip();
     this.sync();
+    this.sheetSubs.forEach((cb) => cb());
     await this.play();
   }
 
@@ -472,6 +542,7 @@ export class MidiPlayer {
     this.perform();
     this.buildStrip();
     this.sync();
+    this.sheetSubs.forEach((cb) => cb());
   }
 
   /** the overlay's icons for what is loaded: at rest, play (the piece it would play, in its tip) and
@@ -491,6 +562,7 @@ export class MidiPlayer {
       this.seedBtn.setAttribute('aria-label', `Another seed (this one: ${seed})`);
     }
     this.routeBtn.hidden = rest || !this.song!.lines.length || !!this.demo;
+    this.syncSheet();
     if (rest) {
       const pc = ensemble.active ? PIECES[pieceForLineup(ensemble.lineup)] : DEMOS[audio.instrument];
       const name = pc ? `${pc.composer}, ${pc.title}` : '';

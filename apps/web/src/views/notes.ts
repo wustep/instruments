@@ -504,6 +504,8 @@ export function notesView(): View {
       h('a', { href: 'https://github.com/sgossner/VCSL', target: '_blank', rel: 'noopener' }, 'Versilian Community Sample Library'),
       '; the 3D stage is drawn with ',
       h('a', { href: 'https://threejs.org', target: '_blank', rel: 'noopener' }, 'three.js'),
+      ', the sheet music with ',
+      h('a', { href: 'https://www.vexflow.com', target: '_blank', rel: 'noopener' }, 'VexFlow'),
       '.',
     ),
     h(

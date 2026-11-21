@@ -18,6 +18,7 @@ import { look } from '../look.ts';
 import { drawEnsemble, ensembleCells, newPartDraw, ownKeys, syncPianoState, type Cell, type PartDraw } from '../ui/ensemble-draw.ts';
 import type { EnsPartIn } from '../ui/gl/scenes3d.ts';
 import type { MidiPlayer } from '../ui/player.ts';
+import type { Sheet, SheetHost } from '../sheet/view.ts';
 import { AutoScale, INK as STAGE_INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, type BowedGeom, type BowedState } from '../ui/stage-draw.ts';
 import { drawPiano, keysAcross, newPianoState, stringAt } from '../ui/piano-draw.ts';
 import { drawRoom, newRoomState } from '../ui/room-draw.ts';
@@ -371,6 +372,46 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     if (e.key === 'Escape' && s3 && want3d && s3.zoomed !== null) s3.zoomOut();
   });
   const el = h('div', { class: 'view stage' }, canvas, top, knobRoom.el, knobLid.el, zoomBack);
+  // the sheet music, in the instrument's place while a file is loaded and the player's page icon asks for
+  // it (ui/player.ts); sheet/view.ts and VexFlow load the first time (a chunk of their own)
+  const sheetEl = h('div', { class: 'sheet', hidden: true });
+  el.append(sheetEl);
+  let sheet: Sheet | null = null;
+  let sheetLoading: Promise<void> | null = null;
+  let sheetOn = false;
+  let mounted = false;
+  /** the ensemble plays the file loaded (else the one instrument shown does) */
+  const ensPlays = () => ensemble.active && !!player.loaded && ensemble.song === player.loaded;
+  const sheetHost: SheetHost = {
+    song: () => (player.sheetable ? player.loaded : null),
+    plan: () => (ensPlays() ? ensemble.plan : null),
+    solo: () => (ensPlays() ? null : voiceOfPick(audio.instrument)),
+    keySeats: () => ensemble.keyParts,
+    title: () => {
+      const pc = player.demo ?? (ensPlays() ? ensemble.piece : null);
+      return pc ? `${pc.composer} · ${pc.title}` : '';
+    },
+    position: () => player.writtenPosition,
+    playing: () => player.playing,
+    seek: (t) => player.seekWritten(t),
+  };
+  const syncSheet = () => {
+    // (never with ui=0: that address is the stage alone, for looking and filming)
+    const on = mounted && look.ui && player.sheet && player.sheetable;
+    if (on !== sheetOn) {
+      sheetOn = on;
+      sheetEl.hidden = !on;
+      el.classList.toggle('sheet-on', on);
+    }
+    if (!on) return;
+    if (sheet) sheet.refresh();
+    else
+      sheetLoading ??= import('../sheet/view.ts')
+        .then(({ createSheet }) => {
+          if (mounted) sheet = createSheet(sheetEl, sheetHost);
+        })
+        .catch((e) => console.warn('sheet:', e));
+  };
   /** the bow in the hand, on the 2D and the 3D stage (ui/hand-bow.ts) */
   const hands: HandBow[] = [];
   window.addEventListener('blur', () => hands.forEach((hb) => hb.drop()));
@@ -1148,7 +1189,12 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     if (vec) vfields ??= { piano: new Contours(72, 36, 2.2, 3), bowed: new Contours(64, 36, 1.8, 0.6) };
     const ens = ensemble.active && ensemble.parts.length > 0;
     if (ens && draws.length !== ensemble.parts.length) syncDraws();
-    if (in3d) {
+    if (sheetOn) {
+      // the sheet music stands in the instrument's place (sheet/view.ts), under the file player
+      const pb = player.el.hidden ? 0 : player.el.getBoundingClientRect().bottom;
+      sheetEl.style.top = `${Math.max(topH, Math.round(pb - el.getBoundingClientRect().top + 6))}px`;
+      sheet?.frame();
+    } else if (in3d) {
       // the 3D stage draws the instrument and the room; the 2D canvas keeps only the top band
     } else if (ens) {
       // (under the file player when it shows: it sits at the top middle, over the first row)
@@ -1224,7 +1270,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     const grand = fam === 'piano' && !(audio.preset === 'upright' || audio.preset === 'honky-tonk') && !ens;
     const src = ens ? { x: w / 2, y: ih / 2 } : fam === 'piano' ? pianoState.src : fam === 'bowed' ? { x: w * 0.62, y: ih / 2 } : fam === 'brass' ? ((inst === 'horn' ? hornState : inst === 'trombone' ? tromboneState : inst === 'tuba' ? tubaState : trumpetState).src ?? { x: w * 0.85, y: ih * 0.55 }) : fam === 'reed' ? ((inst === 'clarinet' ? clarinetState : inst === 'bassoon' ? bassoonState : oboeState).src ?? { x: w * 0.8, y: ih * 0.5 }) : fam === 'percussion' ? (timpaniState.src ?? { x: w * 0.5, y: ih * 0.45 }) : fam === 'plucked' ? (harpState.src ?? { x: w * 0.5, y: ih * 0.5 }) : fam === 'mallet' ? (glockState.src ?? { x: w * 0.5, y: ih * 0.5 }) : { x: w * 0.5, y: ih * 0.45 };
     // (an ensemble's cells have no room drawn round them: its outline would cross the instruments)
-    if (!in3d && !ens) (vec ? drawRoomV : drawRoom)(ctx, w, ih, roomState, src, roomVal(), rms, now, grand ? { open: lidVal(), dir: -Math.PI / 4 } : null);
+    if (!in3d && !ens && !sheetOn) (vec ? drawRoomV : drawRoom)(ctx, w, ih, roomState, src, roomVal(), rms, now, grand ? { open: lidVal(), dir: -Math.PI / 4 } : null);
     ctx.restore();
     // the display's glow, over everything drawn this frame
     if (vec) glow(ctx);
@@ -1233,7 +1279,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     const lidOn3d = in3d && grand;
     if (lidOn3d && audio.piano && !s3!.lidHeld && !onNotch(lidVal())) setLid(lidNotch(lidVal()));
     const lidShown = lidPicture(now, lidOn3d);
-    if (in3d && s3) {
+    if (in3d && s3 && !sheetOn) {
       pianoState.down = new Set(audio.down.keys());
       pianoState.sustain = audio.lastStats?.sustain ?? audio.sustainValue;
       pianoState.soft = audio.lastStats?.soft ?? audio.softValue;
@@ -1265,7 +1311,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     // (in 3D the room's knob is on the floor or not shown: stage3d `roomKnob` gives its place, also
     // through the flight back out of a close-up; never the 2D stage's corner)
     const rk = in3d ? s3!.roomKnob() : null;
-    kr.hidden = ens || (in3d && !rk);
+    kr.hidden = ens || (in3d && !rk) || sheetOn;
     if (in3d) s3!.roomHot = !kr.hidden && (kr.classList.contains('dragging') || document.activeElement === kr || kr.matches(':hover'));
     // the MIDI file player sits at the top middle, just under this band (a fixed overlay)
     const bandY = Math.round(top.getBoundingClientRect().bottom);
@@ -1273,7 +1319,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       lastBandY = bandY;
       document.documentElement.style.setProperty('--stage-band-y', `${bandY}px`);
     }
-    zoomBack.hidden = !(in3d && s3!.zoomed !== null);
+    zoomBack.hidden = !(in3d && s3!.zoomed !== null) || sheetOn;
     if (!zoomBack.hidden) zoomBack.style.top = `${topH + 12}px`;
     // place the knobs (stage coordinates: the instrument area starts below the top band), each by what
     // it moves and where it does not move while it is turned: the room's in the top right corner, the
@@ -1295,7 +1341,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     const cb = pianoState.caseBox;
     const le2 = pianoState.lidEdge;
     const le = !grand || ens ? null : in3d ? (g3 && !caseHidden ? s3!.lidKnob() : null) : le2 && ([Math.min(w - kh - 10, Math.max(kh + 10, cb.x0 + 0.12 * (cb.x1 - cb.x0))), le2.y] as [number, number]);
-    knobLid.el.hidden = !le;
+    knobLid.el.hidden = !le || sheetOn;
     if (le) knobLid.el.style.transform = `translate(${Math.round(le[0] - kh)}px, ${Math.round(topH + le[1] - kh)}px)`;
     knobLid.show(lidVal());
     // spectrum hairline
@@ -1380,9 +1426,15 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       applyEnsemble();
       if (want3d) set3d(true, false);
       showStyle();
+      mounted = true;
+      unsubs.push(player.onSheet(syncSheet), ensemble.changed.on(syncSheet), audio.instrumentChanged.on(syncSheet));
+      syncSheet();
       raf = requestAnimationFrame(loop);
     },
     unmount() {
+      mounted = false;
+      sheet?.dispose();
+      sheet = null;
       action?.close();
       delete document.documentElement.dataset.style;
       document.body.style.setProperty('--ground', cssVar('--ground'));

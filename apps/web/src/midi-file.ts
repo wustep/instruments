@@ -6,7 +6,8 @@
 // format 0 files a part per channel), described in `lines` for assigning parts to instruments
 // (orchestra/assign.ts). A controller in a track with no notes of its channel (a conductor track)
 // goes to every line on that channel. The bar lines (from the time signatures) are kept for phrasing
-// (expression.ts).
+// (expression.ts), and the file's own grid (its ticks, tempo map, time and key signatures: `score`) for
+// writing it out as notes (sheet/score.ts).
 
 export type FileEvent =
   /** `div`: the note's voice in its line (divide): 0 the top one, 1 the next … */
@@ -56,6 +57,27 @@ export interface MidiSong {
   quarter?: number;
   /** a song with no end, made as it plays (orchestra/seeds.ts): `events` is empty and `duration` infinite */
   stream?: SongStream;
+  /** the file's written grid, to set it out as a score (sheet/score.ts); absent for a file timed in SMPTE
+   *  frames, which has no beats, and for a song made as it plays */
+  score?: ScoreGrid;
+}
+
+/** What a file says of its notes' places in the bar: its ticks, its tempo map (to find a note's tick from
+ *  its time), its time and key signatures. A song made from the file by moving and stretching its time
+ *  (a demo's excerpt, a piece's tempo) says how: song time = (file time − `from`) / `rate`. */
+export interface ScoreGrid {
+  /** ticks per quarter note */
+  ppq: number;
+  /** the tempo in force from each change: at `tick`, `sec` into the file, `us` microseconds a quarter */
+  tempo: { tick: number; sec: number; us: number }[];
+  /** time signatures, by tick (4/4 where the file sets none) */
+  meters: { tick: number; num: number; den: number }[];
+  /** key signatures, by tick: sharps (+) or flats (−), and in which track (a transposing part's own) */
+  keys: { tick: number; fifths: number; minor: boolean; track: number }[];
+  from: number;
+  rate: number;
+  /** semitones the song's notes stand from the file's (a demo played in another key): its key signatures move with them */
+  shift?: number;
 }
 
 /** a song that is asked for its events a stretch at a time */
@@ -117,6 +139,9 @@ export function parseMidi(buf: ArrayBuffer): MidiSong {
   const progs: [number, number][][] = Array.from({ length: 16 }, () => []);
   /** time signatures: [tick, ticks per bar] */
   const meters: [number, number][] = [];
+  /** … and as written (sheet/score.ts), with the key signatures */
+  const signs: ScoreGrid['meters'] = [];
+  const keySigs: ScoreGrid['keys'] = [];
   let lastTickAll = 0;
   let order = 0;
   for (let tr = 0; tr < ntracks && p + 8 <= d.byteLength; tr++) {
@@ -158,7 +183,10 @@ export function parseMidi(buf: ArrayBuffer): MidiSong {
         const type = d.getUint8(p++);
         const l = vlq();
         if (type === 0x51 && l === 3) raw.push({ tick, order: order++, key: -1, ev: { kind: 'tempo', a: (d.getUint8(p) << 16) | (d.getUint8(p + 1) << 8) | d.getUint8(p + 2), b: 0 } });
-        else if (type === 0x58 && l >= 2) meters.push([tick, Math.max(1, d.getUint8(p)) * 4 * (ppq || 480) / 2 ** Math.min(6, d.getUint8(p + 1))]);
+        else if (type === 0x58 && l >= 2) {
+          meters.push([tick, Math.max(1, d.getUint8(p)) * 4 * (ppq || 480) / 2 ** Math.min(6, d.getUint8(p + 1))]);
+          signs.push({ tick, num: Math.max(1, d.getUint8(p)), den: 2 ** Math.min(6, d.getUint8(p + 1)) });
+        } else if (type === 0x59 && l >= 2) keySigs.push({ tick, fifths: Math.max(-7, Math.min(7, d.getInt8(p))), minor: d.getUint8(p + 1) === 1, track: tr });
         else if (type === 0x03 && !names[tr]) names[tr] = text(l);
         else if (type === 0x04 && !insts[tr]) insts[tr] = text(l);
         p += l;
@@ -246,13 +274,19 @@ export function parseMidi(buf: ArrayBuffer): MidiSong {
   let sec = 0;
   /** the tempi in force where notes begin */
   const tempi = new Set<number>();
+  const tempoMap: ScoreGrid['tempo'] = [{ tick: 0, sec: 0, us: usPerQ }];
   for (const r of raw) {
     sec += smpte ? (r.tick - lastTick) / smpteTps : ((r.tick - lastTick) * usPerQ) / 1e6 / (ppq || 480);
     lastTick = r.tick;
     const e = r.ev;
     const line = lineOf.get(r.key);
     const s = line === undefined ? null : stats[line];
-    if (e.kind === 'tempo') usPerQ = e.a || 500000;
+    if (e.kind === 'tempo') {
+      usPerQ = e.a || 500000;
+      const last = tempoMap[tempoMap.length - 1];
+      if (last.tick === r.tick) last.us = usPerQ;
+      else tempoMap.push({ tick: r.tick, sec, us: usPerQ });
+    }
     else if (e.kind === 'bar') bars.push(sec);
     else if (e.kind === 'cc') for (const l of ccLines(r.key)) events.push({ t: sec, kind: 'cc', cc: e.a as FileCC, value: e.b / 127, line: l });
     else if (e.kind === 'on') {
@@ -302,7 +336,10 @@ export function parseMidi(buf: ArrayBuffer): MidiSong {
   const duration = last >= 0 ? events[last].t : 0;
   divide(events);
   const quarter = !smpte && tempi.size === 1 ? [...tempi][0] / 1e6 : undefined;
-  return { events, duration, lines, bars: smpte ? undefined : bars.filter((b) => b <= duration + 1e-9), ...(quarter ? { quarter } : {}) };
+  // (the signatures in the order they come; at one tick the last one written stands)
+  const byTick = <T extends { tick: number }>(a: T[]) => a.map((x, i) => [x, i] as const).sort((x, y) => x[0].tick - y[0].tick || x[1] - y[1]).map(([x]) => x);
+  const score: ScoreGrid | undefined = smpte ? undefined : { ppq: ppq || 480, tempo: tempoMap, meters: byTick(signs), keys: byTick(keySigs), from: 0, rate: 1 };
+  return { events, duration, lines, bars: smpte ? undefined : bars.filter((b) => b <= duration + 1e-9), ...(quarter ? { quarter } : {}), ...(score ? { score } : {}) };
 }
 
 /**
