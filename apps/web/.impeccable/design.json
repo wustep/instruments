@@ -1,0 +1,1234 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-23T09:12:39Z",
+  "title": "Design System: Instruments",
+  "extensions": {
+    "colorMeta": {
+      "hall-ground": {
+        "role": "neutral",
+        "displayName": "Claret-Black",
+        "canonical": "#140a0b",
+        "tonalRamp": [
+          "#1e1516",
+          "#3e282a",
+          "#673c40",
+          "#934d54",
+          "#b26c73",
+          "#c3989c",
+          "#dbc7c9",
+          "#f2edee"
+        ]
+      },
+      "hall-raised": {
+        "role": "neutral",
+        "displayName": "Raised Hall",
+        "canonical": "#1e1112",
+        "tonalRamp": [
+          "#1d1616",
+          "#3c2a2b",
+          "#643f42",
+          "#8d5358",
+          "#ac7276",
+          "#c09b9e",
+          "#d9c9ca",
+          "#f2eeee"
+        ]
+      },
+      "hall-raised-2": {
+        "role": "neutral",
+        "displayName": "Raised Hall, Second",
+        "canonical": "#2b191a",
+        "tonalRamp": [
+          "#1d1616",
+          "#3c2a2b",
+          "#634042",
+          "#8c5458",
+          "#ab7376",
+          "#bf9c9e",
+          "#d9c9ca",
+          "#f2eeee"
+        ]
+      },
+      "hall-rule": {
+        "role": "neutral",
+        "displayName": "Hall Rule",
+        "canonical": "#301c1b",
+        "tonalRamp": [
+          "#1d1616",
+          "#3d2a29",
+          "#64413f",
+          "#8e5653",
+          "#ac7471",
+          "#c09d9b",
+          "#d9cac9",
+          "#f2eeed"
+        ]
+      },
+      "hall-rule-2": {
+        "role": "neutral",
+        "displayName": "Hall Rule, Strong",
+        "canonical": "#4a322b",
+        "tonalRamp": [
+          "#1d1716",
+          "#3c2e2a",
+          "#634840",
+          "#8c6154",
+          "#ab8073",
+          "#bfa49c",
+          "#d9cdc9",
+          "#f2efee"
+        ]
+      },
+      "hall-ink": {
+        "role": "neutral",
+        "displayName": "Hall Ivory Ink",
+        "canonical": "#f1e7d3",
+        "tonalRamp": [
+          "#211c12",
+          "#453921",
+          "#735d30",
+          "#a6823a",
+          "#c5a159",
+          "#cfb98c",
+          "#e0d6c2",
+          "#f4f1ec"
+        ]
+      },
+      "hall-ink-2": {
+        "role": "neutral",
+        "displayName": "Hall Second Ink",
+        "canonical": "#d3c5ab",
+        "tonalRamp": [
+          "#1e1b15",
+          "#3e3628",
+          "#66583d",
+          "#917a4f",
+          "#b0996e",
+          "#c2b499",
+          "#dad4c8",
+          "#f2f0ed"
+        ]
+      },
+      "hall-muted": {
+        "role": "neutral",
+        "displayName": "Hall Muted",
+        "canonical": "#a8977f",
+        "tonalRamp": [
+          "#1c1a17",
+          "#3a342c",
+          "#5e5445",
+          "#84745c",
+          "#a3927b",
+          "#bab0a1",
+          "#d7d2cb",
+          "#f1f0ee"
+        ]
+      },
+      "velvet": {
+        "role": "neutral",
+        "displayName": "Garnet Velvet",
+        "canonical": "#3b0f19",
+        "tonalRamp": [
+          "#221115",
+          "#471f28",
+          "#792b3c",
+          "#af324e",
+          "#cd506d",
+          "#d48698",
+          "#e3bfc7",
+          "#f4ebed"
+        ]
+      },
+      "velvet-hi": {
+        "role": "neutral",
+        "displayName": "Velvet, Lit",
+        "canonical": "#4f1522",
+        "tonalRamp": [
+          "#221115",
+          "#471f28",
+          "#782c3d",
+          "#ad334f",
+          "#cc526d",
+          "#d38798",
+          "#e2c0c8",
+          "#f4ebed"
+        ]
+      },
+      "velvet-lo": {
+        "role": "neutral",
+        "displayName": "Velvet, Shade",
+        "canonical": "#27090f",
+        "tonalRamp": [
+          "#221114",
+          "#481e26",
+          "#7b2939",
+          "#b22f49",
+          "#d04d68",
+          "#d68495",
+          "#e4bfc6",
+          "#f5ebed"
+        ]
+      },
+      "lacquer": {
+        "role": "neutral",
+        "displayName": "Lacquer",
+        "canonical": "#0c0707",
+        "tonalRamp": [
+          "#1d1616",
+          "#3c2a2a",
+          "#634040",
+          "#8c5555",
+          "#aa7373",
+          "#bf9c9c",
+          "#d9c9c9",
+          "#f2eeee"
+        ]
+      },
+      "felt": {
+        "role": "neutral",
+        "displayName": "Red Felt",
+        "canonical": "#6b1826",
+        "tonalRamp": [
+          "#231014",
+          "#491d25",
+          "#7b2836",
+          "#b32e44",
+          "#d14c63",
+          "#d78492",
+          "#e4bec5",
+          "#f5ebec"
+        ]
+      },
+      "ivory": {
+        "role": "neutral",
+        "displayName": "Key Ivory",
+        "canonical": "#f3ecdc",
+        "tonalRamp": [
+          "#201c13",
+          "#443a22",
+          "#725e32",
+          "#a3843d",
+          "#c2a35c",
+          "#cdba8d",
+          "#e0d7c3",
+          "#f4f1ec"
+        ]
+      },
+      "light": {
+        "role": "primary",
+        "displayName": "Stage Light",
+        "canonical": "#ecbb62",
+        "tonalRamp": [
+          "#251d0e",
+          "#4e3b18",
+          "#85601e",
+          "#c2881e",
+          "#e1a73d",
+          "#e1bc7a",
+          "#e8d8ba",
+          "#f6f1ea"
+        ]
+      },
+      "light-ink": {
+        "role": "neutral",
+        "displayName": "Ink on Light",
+        "canonical": "#1c1009",
+        "tonalRamp": [
+          "#211812",
+          "#452e21",
+          "#734930",
+          "#a6623a",
+          "#c58159",
+          "#cfa58c",
+          "#e0cdc2",
+          "#f4efec"
+        ]
+      },
+      "gilt": {
+        "role": "primary",
+        "displayName": "Gilt",
+        "canonical": "#c9a253",
+        "tonalRamp": [
+          "#211c12",
+          "#453921",
+          "#745d2f",
+          "#a78339",
+          "#c6a158",
+          "#d0b98b",
+          "#e1d6c2",
+          "#f4f1ec"
+        ]
+      },
+      "gilt-hi": {
+        "role": "primary",
+        "displayName": "Gilt, Lit",
+        "canonical": "#f4dfa6",
+        "tonalRamp": [
+          "#251f0e",
+          "#4e3f18",
+          "#85691f",
+          "#c2961e",
+          "#e1b53d",
+          "#e0c57a",
+          "#e8dcba",
+          "#f6f3ea"
+        ]
+      },
+      "gilt-lo": {
+        "role": "primary",
+        "displayName": "Gilt, Shade",
+        "canonical": "#8a6a2c",
+        "tonalRamp": [
+          "#211c12",
+          "#453921",
+          "#735c30",
+          "#a6813a",
+          "#c5a059",
+          "#cfb88c",
+          "#e0d6c2",
+          "#f4f1ec"
+        ]
+      },
+      "verdigris": {
+        "role": "tertiary",
+        "displayName": "Verdigris",
+        "canonical": "#8fbfae",
+        "tonalRamp": [
+          "#161d1b",
+          "#2a3c36",
+          "#406357",
+          "#548d79",
+          "#72ab97",
+          "#9cbfb3",
+          "#c9d9d3",
+          "#eef2f0"
+        ]
+      },
+      "alarm": {
+        "role": "neutral",
+        "displayName": "Alarm",
+        "canonical": "#ee6a5f",
+        "tonalRamp": [
+          "#25100e",
+          "#4f1c17",
+          "#86251d",
+          "#c5291c",
+          "#e3473a",
+          "#e28179",
+          "#e9bdb9",
+          "#f6eae9"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Programme Paper",
+        "canonical": "#f2e9d6",
+        "tonalRamp": [
+          "#211c12",
+          "#453921",
+          "#745e30",
+          "#a7843a",
+          "#c5a258",
+          "#cfba8b",
+          "#e1d7c2",
+          "#f4f1ec"
+        ]
+      },
+      "paper-2": {
+        "role": "neutral",
+        "displayName": "Paper, Second",
+        "canonical": "#e9dec7",
+        "tonalRamp": [
+          "#201c13",
+          "#423824",
+          "#6e5c35",
+          "#9e8043",
+          "#bc9f61",
+          "#cab791",
+          "#ded6c4",
+          "#f3f1ec"
+        ]
+      },
+      "paper-3": {
+        "role": "neutral",
+        "displayName": "Paper, Third",
+        "canonical": "#ddd0b4",
+        "tonalRamp": [
+          "#1f1b14",
+          "#403826",
+          "#6a5b39",
+          "#987f49",
+          "#b69d67",
+          "#c6b695",
+          "#dcd5c6",
+          "#f3f1ed"
+        ]
+      },
+      "paper-rule": {
+        "role": "neutral",
+        "displayName": "Paper Rule",
+        "canonical": "#dccfb3",
+        "tonalRamp": [
+          "#1f1b14",
+          "#403826",
+          "#6a5a39",
+          "#977e49",
+          "#b69d68",
+          "#c6b695",
+          "#dcd5c6",
+          "#f3f1ed"
+        ]
+      },
+      "paper-rule-2": {
+        "role": "neutral",
+        "displayName": "Paper Rule, Strong",
+        "canonical": "#bcab8b",
+        "tonalRamp": [
+          "#1d1b16",
+          "#3c362a",
+          "#635740",
+          "#8c7954",
+          "#ab9773",
+          "#bfb39c",
+          "#d9d4c9",
+          "#f2f0ee"
+        ]
+      },
+      "paper-ink": {
+        "role": "neutral",
+        "displayName": "Sepia Ink",
+        "canonical": "#2a1a14",
+        "tonalRamp": [
+          "#1f1714",
+          "#3f2d27",
+          "#69473a",
+          "#955f4b",
+          "#b47e6a",
+          "#c5a396",
+          "#dcccc7",
+          "#f3eeed"
+        ]
+      },
+      "paper-ink-2": {
+        "role": "neutral",
+        "displayName": "Sepia Second Ink",
+        "canonical": "#4b382c",
+        "tonalRamp": [
+          "#1d1916",
+          "#3c312a",
+          "#634e41",
+          "#8b6a55",
+          "#aa8974",
+          "#beaa9c",
+          "#d9cfc9",
+          "#f2efee"
+        ]
+      },
+      "paper-muted": {
+        "role": "neutral",
+        "displayName": "Sepia Muted",
+        "canonical": "#6c594a",
+        "tonalRamp": [
+          "#1c1917",
+          "#39322d",
+          "#5e5045",
+          "#846e5d",
+          "#a28c7b",
+          "#baaca1",
+          "#d7d0cc",
+          "#f1f0ee"
+        ]
+      },
+      "claret": {
+        "role": "secondary",
+        "displayName": "Claret",
+        "canonical": "#8c1c2b",
+        "tonalRamp": [
+          "#231013",
+          "#4a1c22",
+          "#7d2632",
+          "#b62a3d",
+          "#d5495c",
+          "#d9828d",
+          "#e5bdc3",
+          "#f5eaec"
+        ]
+      },
+      "paper-verdigris": {
+        "role": "tertiary",
+        "displayName": "Verdigris on Paper",
+        "canonical": "#2a6a5e",
+        "tonalRamp": [
+          "#13201d",
+          "#24423c",
+          "#356e63",
+          "#439e8d",
+          "#61bcab",
+          "#91cabf",
+          "#c4ded9",
+          "#ecf3f2"
+        ]
+      },
+      "plate-ground": {
+        "role": "neutral",
+        "displayName": "Plate Ground",
+        "canonical": "#0b0405",
+        "tonalRamp": [
+          "#201315",
+          "#432328",
+          "#70333c",
+          "#a13f4d",
+          "#c05e6c",
+          "#cc8f98",
+          "#dfc3c7",
+          "#f3eced"
+        ]
+      },
+      "plate-line": {
+        "role": "neutral",
+        "displayName": "Plate Line",
+        "canonical": "#e8dec8",
+        "tonalRamp": [
+          "#1f1c14",
+          "#413825",
+          "#6c5c37",
+          "#9b8045",
+          "#ba9f64",
+          "#c8b793",
+          "#ddd6c5",
+          "#f3f1ec"
+        ]
+      },
+      "plate-line-mid": {
+        "role": "neutral",
+        "displayName": "Plate Line, Mid",
+        "canonical": "#b3a68c",
+        "tonalRamp": [
+          "#1c1a17",
+          "#3a352c",
+          "#5f5644",
+          "#86775b",
+          "#a49679",
+          "#bbb2a0",
+          "#d7d3cb",
+          "#f1f0ee"
+        ]
+      },
+      "plate-frame": {
+        "role": "neutral",
+        "displayName": "Plate Frame",
+        "canonical": "#5c4a2a",
+        "tonalRamp": [
+          "#1f1b14",
+          "#403726",
+          "#6a5839",
+          "#977b49",
+          "#b69a68",
+          "#c6b495",
+          "#dcd4c6",
+          "#f3f1ed"
+        ]
+      },
+      "plate-sound": {
+        "role": "primary",
+        "displayName": "Plate Gold",
+        "canonical": "#ffbe55",
+        "tonalRamp": [
+          "#281d0b",
+          "#553b11",
+          "#936110",
+          "#d98907",
+          "#f8a726",
+          "#efbd6c",
+          "#efd8b3",
+          "#f8f2e8"
+        ]
+      },
+      "paper-hi": {
+        "role": "neutral",
+        "displayName": "Paper, a Slip",
+        "canonical": "#fbf6e8",
+        "tonalRamp": [
+          "#2a2109",
+          "#534213",
+          "#8b6d18",
+          "#bf9621",
+          "#d2af4c",
+          "#d6c085",
+          "#e1d9c1",
+          "#f4f2eb"
+        ]
+      },
+      "claret-lit": {
+        "role": "secondary",
+        "displayName": "Claret in the Light",
+        "canonical": "#b3202f",
+        "tonalRamp": [
+          "#290a0d",
+          "#53131a",
+          "#8a1924",
+          "#be2232",
+          "#d14c5a",
+          "#d5868e",
+          "#e1c1c4",
+          "#f4ebec"
+        ]
+      },
+      "shadow": {
+        "role": "neutral",
+        "displayName": "Shadow",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "#1a1a1a",
+          "#333333",
+          "#525252",
+          "#707070",
+          "#8f8f8f",
+          "#adadad",
+          "#d1d1d1",
+          "#f0f0f0"
+        ]
+      },
+      "pool-light": {
+        "role": "neutral",
+        "displayName": "The Pool's Light",
+        "canonical": "#ffd696",
+        "tonalRamp": [
+          "#301f03",
+          "#613d05",
+          "#a36300",
+          "#e08900",
+          "#eea42f",
+          "#e7ba74",
+          "#e8d6ba",
+          "#f6f1ea"
+        ]
+      },
+      "hall-muted-lit": {
+        "role": "neutral",
+        "displayName": "Muted, over Lit Boards",
+        "canonical": "#bdad94",
+        "tonalRamp": [
+          "#1f1b14",
+          "#3e3528",
+          "#65563e",
+          "#8b7656",
+          "#a59478",
+          "#bbb0a0",
+          "#d7d2cc",
+          "#f1f0ee"
+        ]
+      },
+      "alarm-ink": {
+        "role": "neutral",
+        "displayName": "A Failure's Words",
+        "canonical": "#ffb3a8",
+        "tonalRamp": [
+          "#300803",
+          "#611105",
+          "#a31500",
+          "#e01c00",
+          "#ee482f",
+          "#e78374",
+          "#e8c0ba",
+          "#f6ebea"
+        ]
+      },
+      "lamp-hi": {
+        "role": "neutral",
+        "displayName": "Lamp, Lit",
+        "canonical": "#fff6dc",
+        "tonalRamp": [
+          "#302503",
+          "#614905",
+          "#a37900",
+          "#e0a700",
+          "#eebd2f",
+          "#e7c974",
+          "#e8dcba",
+          "#f6f3ea"
+        ]
+      },
+      "lamp-lo": {
+        "role": "neutral",
+        "displayName": "Lamp, its Shade",
+        "canonical": "#7a5417",
+        "tonalRamp": [
+          "#291d0a",
+          "#523a14",
+          "#895f1a",
+          "#bd8224",
+          "#d09e4e",
+          "#d4b686",
+          "#e1d5c1",
+          "#f4f1ec"
+        ]
+      },
+      "lacquer-sheen": {
+        "role": "neutral",
+        "displayName": "Lacquer's Sheen",
+        "canonical": "#ffe8be",
+        "tonalRamp": [
+          "#302003",
+          "#614005",
+          "#a36900",
+          "#e09100",
+          "#eeab2f",
+          "#e7be74",
+          "#e8d8ba",
+          "#f6f1ea"
+        ]
+      },
+      "pedal-brass": {
+        "role": "neutral",
+        "displayName": "A Pedal's Brass",
+        "canonical": "#b08a3e",
+        "tonalRamp": [
+          "#241d0f",
+          "#493a1d",
+          "#795f2b",
+          "#a6823a",
+          "#bc9e61",
+          "#c9b792",
+          "#dcd5c6",
+          "#f3f1ed"
+        ]
+      },
+      "brass-shine": {
+        "role": "neutral",
+        "displayName": "Brass's Shine",
+        "canonical": "#fff6d6",
+        "tonalRamp": [
+          "#302603",
+          "#614d05",
+          "#a37f00",
+          "#e0af00",
+          "#eec42f",
+          "#e7cd74",
+          "#e8deba",
+          "#f6f3ea"
+        ]
+      },
+      "knob": {
+        "role": "neutral",
+        "displayName": "A Knob's Cap",
+        "canonical": "#24130f",
+        "tonalRamp": [
+          "#231410",
+          "#462720",
+          "#733d30",
+          "#9e5442",
+          "#b67668",
+          "#c59f96",
+          "#dbcbc8",
+          "#f2eeed"
+        ]
+      },
+      "knob-hi": {
+        "role": "neutral",
+        "displayName": "A Knob's Cap, under the Hand",
+        "canonical": "#3a2018",
+        "tonalRamp": [
+          "#231410",
+          "#462920",
+          "#734030",
+          "#9f5842",
+          "#b67a67",
+          "#c5a196",
+          "#dbccc8",
+          "#f2eeed"
+        ]
+      },
+      "key-pressed": {
+        "role": "neutral",
+        "displayName": "A Pressed Key",
+        "canonical": "#c9bb9f",
+        "tonalRamp": [
+          "#201c13",
+          "#403726",
+          "#68593b",
+          "#907b51",
+          "#aa9874",
+          "#bdb39d",
+          "#d8d3cb",
+          "#f1f0ee"
+        ]
+      },
+      "key-lit": {
+        "role": "neutral",
+        "displayName": "A Sounding Key",
+        "canonical": "#fbe6b4",
+        "tonalRamp": [
+          "#2e2205",
+          "#5c440a",
+          "#9b7008",
+          "#d5990b",
+          "#e5b239",
+          "#e1c27a",
+          "#e6dabc",
+          "#f5f2ea"
+        ]
+      },
+      "key-lit-2": {
+        "role": "neutral",
+        "displayName": "A Sounding Key, its Face",
+        "canonical": "#fdf0cf",
+        "tonalRamp": [
+          "#2f2304",
+          "#5d4509",
+          "#9d7207",
+          "#d79d09",
+          "#e7b537",
+          "#e2c479",
+          "#e6dabc",
+          "#f5f2ea"
+        ]
+      },
+      "ebony-lit": {
+        "role": "neutral",
+        "displayName": "A Sounding Black Key",
+        "canonical": "#4b3312",
+        "tonalRamp": [
+          "#281c0b",
+          "#4f3717",
+          "#845920",
+          "#b57b2b",
+          "#c99854",
+          "#d0b38a",
+          "#dfd3c3",
+          "#f3f0ec"
+        ]
+      },
+      "ebony-lit-2": {
+        "role": "neutral",
+        "displayName": "A Sounding Black Key, its Edge",
+        "canonical": "#6a4a1b",
+        "tonalRamp": [
+          "#271c0c",
+          "#4e3818",
+          "#825b21",
+          "#b37d2e",
+          "#c79a56",
+          "#cfb48b",
+          "#dfd4c3",
+          "#f3f0ec"
+        ]
+      },
+      "key-wings-edge": {
+        "role": "neutral",
+        "displayName": "A Key in the Wings",
+        "canonical": "#2f2721",
+        "tonalRamp": [
+          "#1e1915",
+          "#3b322b",
+          "#605043",
+          "#846d5d",
+          "#9f8c7e",
+          "#b7aca3",
+          "#d5d1cd",
+          "#f1f0ef"
+        ]
+      },
+      "key-wings-legend": {
+        "role": "neutral",
+        "displayName": "A Key in the Wings, its Legend",
+        "canonical": "#8f8170",
+        "tonalRamp": [
+          "#1c1a17",
+          "#39342d",
+          "#5c5348",
+          "#7e7263",
+          "#9a9083",
+          "#b4aea6",
+          "#d4d1ce",
+          "#f0f0ef"
+        ]
+      },
+      "strip-on": {
+        "role": "neutral",
+        "displayName": "Sounding, in the Position Strip",
+        "canonical": "#e0871a",
+        "tonalRamp": [
+          "#2c1b07",
+          "#57370f",
+          "#925811",
+          "#c97917",
+          "#da9643",
+          "#dbb280",
+          "#e3d3bf",
+          "#f5f0eb"
+        ]
+      },
+      "paper-sheen": {
+        "role": "neutral",
+        "displayName": "Paper's Sheen",
+        "canonical": "#fffcf0",
+        "tonalRamp": [
+          "#302703",
+          "#614f05",
+          "#a38300",
+          "#e0b400",
+          "#eec82f",
+          "#e7d074",
+          "#e8dfba",
+          "#f6f3ea"
+        ]
+      },
+      "ochre": {
+        "role": "neutral",
+        "displayName": "Ochre",
+        "canonical": "#b0761c",
+        "tonalRamp": [
+          "#2a1d09",
+          "#543a12",
+          "#8d5e16",
+          "#c2821f",
+          "#d49e4a",
+          "#d7b684",
+          "#e2d5c0",
+          "#f4f1eb"
+        ]
+      },
+      "plate-wash": {
+        "role": "neutral",
+        "displayName": "The Plate's Claret Wash",
+        "canonical": "#781a2c",
+        "tonalRamp": [
+          "#280b10",
+          "#511521",
+          "#861d31",
+          "#b82844",
+          "#cc5169",
+          "#d28997",
+          "#e0c2c8",
+          "#f4eced"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The readout's note and the 404's word: Libre Caslon Display, the one large thing on a page."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Titles and section heads on paper."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Sub-heads in prose; piece and part names."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Notes and Measurements prose at a 34rem measure."
+      },
+      "direction": {
+        "displayName": "Stage direction",
+        "purpose": "Italic for words that instruct or name: the lamp's hint, tooltips, page links, captions."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Cabin capitals, tracked, 11px or more, narrowed with the width axis (75-88%)."
+      },
+      "figures": {
+        "displayName": "Figures",
+        "purpose": "System monospace for columns of numbers (Cabin has no tabular figures), code and equations."
+      },
+      "plate": {
+        "displayName": "Plate letter",
+        "purpose": "Hershey Simplex capitals, only in the vector display."
+      },
+      "accidental": {
+        "displayName": "Accidental",
+        "purpose": "The readout's ♭ and ♯, at 0.7em in the system's symbol face; Caslon has neither sign."
+      },
+      "ui": {
+        "displayName": "Interface text",
+        "purpose": "Cabin at 15px: the base size of everything that is not a label, a readout or prose."
+      },
+      "readout-2": {
+        "displayName": "Readout, two notes",
+        "purpose": "The readout set smaller for two notes or a chord's name."
+      },
+      "readout-3": {
+        "displayName": "Readout, three or four",
+        "purpose": "The readout in the text face for three or four notes."
+      },
+      "readout-phone-2": {
+        "displayName": "Readout on a phone",
+        "purpose": "The readout's second setting on a phone."
+      },
+      "readout-landscape": {
+        "displayName": "Readout, a phone on its side",
+        "purpose": "The readout in the slim band of a phone held sideways."
+      },
+      "readout-landscape-3": {
+        "displayName": "Readout, a phone on its side, long",
+        "purpose": "Its smaller setting there."
+      }
+    },
+    "shadows": [
+      {
+        "name": "rail-rule",
+        "value": "linear-gradient(rgba(201,162,83,.85), rgba(201,162,83,.85)) left bottom / 100% 1px no-repeat, linear-gradient(rgba(201,162,83,.3), rgba(201,162,83,.3)) left bottom 3px / 100% 1px no-repeat",
+        "purpose": "The programme's thick-and-thin gilt rule under the velvet rail."
+      },
+      {
+        "name": "paper-opened",
+        "value": "inset 0 1px 0 rgba(255,255,255,.6), 0 2px 5px rgba(0,0,0,.45), 0 20px 44px -12px rgba(0,0,0,.8)",
+        "purpose": "Menus and the programme sheet: paper floating in the dark hall, no border."
+      },
+      {
+        "name": "paper-page",
+        "value": "inset 0 1px 0 rgba(255,255,255,.6), 0 2px 5px rgba(0,0,0,.5), 0 28px 60px -20px rgba(0,0,0,.8)",
+        "purpose": "The reading pages."
+      },
+      {
+        "name": "paper-slip",
+        "value": "0 1px 2px rgba(0,0,0,.5), 0 8px 18px -5px rgba(0,0,0,.75)",
+        "purpose": "The tooltip."
+      },
+      {
+        "name": "smoked-glass",
+        "value": "inset 0 0 0 1px rgba(201,162,83,.3), 0 8px 20px -8px rgba(0,0,0,.8)",
+        "purpose": "The file player once loaded, on rgba(12,6,6,.74) with a 6px backdrop blur."
+      },
+      {
+        "name": "lamp-glow",
+        "value": "0 0 9px 1px rgba(236,187,98,.55)",
+        "purpose": "The lit lamp; glow belongs only to things that are lit."
+      },
+      {
+        "name": "key-seat",
+        "value": "inset 0 -5px 0 #cdbfa6, 0 2px 0 #000",
+        "purpose": "A white key's front edge at rest."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-light",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "How the hall's light moves: it fades, it never slides."
+      },
+      {
+        "name": "light-up",
+        "value": "1.4s",
+        "purpose": "The stage's pool (opacity 0.42 to 1), the drawing's filter (brightness 0.7, saturate 0.88 to none) and the rail's shade, when sound first runs."
+      },
+      {
+        "name": "light-up-3d",
+        "value": "0.45s time constant",
+        "purpose": "The 3D spot, pool, beam and curtain rising from 0.5 (STAGE.wait) to full; set at once under reduced motion."
+      },
+      {
+        "name": "control",
+        "value": "0.12s-0.15s",
+        "purpose": "Colour, border-colour and background changes on controls."
+      },
+      {
+        "name": "readout-dim",
+        "value": "0.3s",
+        "purpose": "The readout's opacity when nothing sounds."
+      },
+      {
+        "name": "key-travel",
+        "value": "0.04s-0.06s",
+        "purpose": "A key (2px) or a pedal (4px) under the finger."
+      },
+      {
+        "name": "lamp-breathe",
+        "value": "2.4s ease-in-out infinite (0.6s while starting)",
+        "purpose": "The unlit lamp before a gesture; none under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "rail-tight",
+        "value": "1500px"
+      },
+      {
+        "name": "compact (picker folds into the programme sheet)",
+        "value": "1340px"
+      },
+      {
+        "name": "phone",
+        "value": "760px"
+      },
+      {
+        "name": "sheet-narrow",
+        "value": "600px"
+      },
+      {
+        "name": "small-phone",
+        "value": "480px"
+      },
+      {
+        "name": "narrowest",
+        "value": "360px"
+      },
+      {
+        "name": "short-landscape",
+        "value": "max-height 500px and landscape"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Velvet rail",
+      "kind": "nav",
+      "refersTo": "rail",
+      "description": "The bar over the stage: garnet velvet, the programme's gilt rule under it, the instruments, the view and the two pages on it.",
+      "html": "<div class=\"ds-rail\"><button class=\"ds-pick\" aria-pressed=\"true\"><svg viewBox=\"0 0 36 36\" aria-hidden=\"true\"><path d=\"M5 26V15c0-4 3-7 7-7h7c7 0 12 5 12 11v7z\"/><path d=\"M5 22h26M10 22v4M15 22v4M20 22v4M25 22v4\"/></svg><span>Piano</span></button><button class=\"ds-pick\"><svg viewBox=\"0 0 36 36\" aria-hidden=\"true\"><path d=\"M5 26V15c0-4 3-7 7-7h7c7 0 12 5 12 11v7z\"/><path d=\"M5 22h26M10 22v4M15 22v4M20 22v4M25 22v4\"/></svg><span>Violin</span></button><span class=\"ds-rail-space\"></span><span class=\"ds-view\"><button aria-pressed=\"true\">2D</button><button>Vector</button><button>3D</button></span><span class=\"ds-links\"><a href=\"#\" aria-current=\"page\">Notes</a><a href=\"#\">Measurements</a></span></div>",
+      "css": ".ds-rail{display:flex;align-items:center;gap:8px;height:60px;padding:0 20px;font:400 12px/1 'Cabin Variable','Gill Sans','Gill Sans MT',Calibri,'Trebuchet MS',sans-serif;letter-spacing:.04em;color:rgba(241,231,211,.68);background:linear-gradient(rgba(201,162,83,.85),rgba(201,162,83,.85)) left bottom/100% 1px no-repeat,linear-gradient(rgba(201,162,83,.3),rgba(201,162,83,.3)) left bottom 3px/100% 1px no-repeat,linear-gradient(180deg,#4f1522,#3b0f19 42%,#27090f)} .ds-rail-space{flex:1} .ds-pick{position:relative;display:flex;flex-direction:column;align-items:center;min-width:36px;padding:3px 2px 5px;border:0;border-radius:3px;background:none;color:rgba(241,231,211,.68);cursor:pointer;transition:color .15s,background-color .15s} .ds-pick svg{width:32px;height:32px;fill:none;stroke:currentColor;stroke-width:1.1;stroke-linecap:round;stroke-linejoin:round} .ds-pick span{font:400 11px/1.3 'Cabin Variable','Gill Sans','Gill Sans MT',Calibri,'Trebuchet MS',sans-serif;font-stretch:76%;letter-spacing:.04em;text-transform:uppercase} .ds-pick:hover{color:#f1e7d3;background:rgba(241,231,211,.06)} .ds-pick[aria-pressed=true]{color:#f1e7d3} .ds-pick[aria-pressed=true] svg{stroke:#f4dfa6;filter:drop-shadow(0 0 5px rgba(236,187,98,.5))} .ds-pick[aria-pressed=true]::after{content:'';position:absolute;left:9px;right:9px;bottom:0;height:1.5px;border-radius:1px;background:#ecbb62} .ds-pick:focus-visible,.ds-view button:focus-visible,.ds-links a:focus-visible{outline:1.5px solid #ecbb62;outline-offset:-1.5px} .ds-view{display:inline-flex;gap:2px} .ds-view button{position:relative;border:0;border-radius:2px;background:none;padding:8px 6px 9px;font:500 11px/1 'Cabin Variable','Gill Sans','Gill Sans MT',Calibri,'Trebuchet MS',sans-serif;letter-spacing:.09em;text-transform:uppercase;color:rgba(241,231,211,.72);cursor:pointer;transition:color .15s} .ds-view button:hover{color:#f1e7d3} .ds-view button[aria-pressed=true]{color:#f4dfa6} .ds-view button[aria-pressed=true]::after{content:'';position:absolute;left:7px;right:7px;bottom:3px;height:1.5px;border-radius:1px;background:#ecbb62} .ds-links{display:flex;gap:2px} .ds-links a{padding:8px 5px;border-radius:3px;font:italic 400 13.5px/1 'Libre Caslon Text','Big Caslon','Book Antiqua',Palatino,Georgia,serif;letter-spacing:0;color:rgba(241,231,211,.8);text-decoration:none;transition:color .15s} .ds-links a:hover,.ds-links a[aria-current=page]{color:#f1e7d3} .ds-links a[aria-current=page]{box-shadow:inset 0 -1.5px 0 #ecbb62}"
+    },
+    {
+      "name": "House lamp",
+      "kind": "custom",
+      "refersTo": "page-link",
+      "description": "The sound's state: unlit and breathing before a gesture, lit while it runs. Its hint is a stage direction in italic.",
+      "html": "<div class=\"ds-lamp-row\"><span class=\"ds-status\"><i class=\"ds-lamp\"></i><span>tap a key</span></span><span class=\"ds-status\"><i class=\"ds-lamp ds-lamp-lit\"></i></span></div>",
+      "css": ".ds-lamp-row{display:flex;gap:28px;align-items:center;padding:14px 18px;background:#3b0f19} .ds-status{display:flex;align-items:center;gap:8px;font:italic 400 13.5px/1.2 'Libre Caslon Text','Big Caslon','Book Antiqua',Palatino,Georgia,serif;color:#f4dfa6} .ds-lamp{width:9px;height:9px;border-radius:50%;border:1px solid rgba(201,162,83,.9);background:rgba(201,162,83,.16);animation:ds-breathe 2.4s ease-in-out infinite} .ds-lamp-lit{border-color:transparent;background:radial-gradient(circle at 38% 35%,#fff6dc,#ecbb62 58%,#7a5417);box-shadow:0 0 9px 1px rgba(236,187,98,.55);animation:none} @keyframes ds-breathe{50%{opacity:.35}} @media (prefers-reduced-motion:reduce){.ds-lamp{animation:none}}"
+    },
+    {
+      "name": "Readout",
+      "kind": "custom",
+      "refersTo": "readout",
+      "description": "Everything sounding, in a box that never changes size: the note in the display face over a line of label.",
+      "html": "<div class=\"ds-readout\"><div class=\"ds-r-note\">A4</div><div class=\"ds-r-hz\">440.0 Hz</div></div>",
+      "css": ".ds-readout{width:250px;height:58px;padding:10px 18px;display:flex;flex-direction:column;justify-content:center;background:#140a0b;box-sizing:content-box} .ds-r-note{height:38px;font:400 37px/38px 'Libre Caslon Display','Libre Caslon Text','Big Caslon','Book Antiqua',Palatino,Georgia,serif;color:#f1e7d3;white-space:nowrap;overflow:hidden} .ds-r-hz{height:15px;margin-top:4px;font:400 12px/15px 'Cabin Variable','Gill Sans','Gill Sans MT',Calibri,'Trebuchet MS',sans-serif;letter-spacing:.04em;color:#a8977f}"
+    },
+    {
+      "name": "Fallboard and pedal names",
+      "kind": "custom",
+      "refersTo": "fallboard",
+      "description": "Black lacquer with a brass line at its hinge and red felt at its foot; labels in tracked Cabin capitals, gold when on.",
+      "html": "<div class=\"ds-fall\"><span>Una corda</span><span>Sostenuto</span><span class=\"ds-on\">Sustain</span></div>",
+      "css": ".ds-fall{display:flex;align-items:center;gap:18px;height:62px;padding:0 20px;background:linear-gradient(180deg,rgba(255,232,190,.075),transparent 36%),linear-gradient(0deg,rgba(0,0,0,.5),transparent 44%),#0c0707;border-top:1px solid rgba(201,162,83,.42);border-bottom:3px solid #6b1826;box-shadow:inset 0 -4px 8px rgba(0,0,0,.6);font:400 11px/1.2 'Cabin Variable','Gill Sans','Gill Sans MT',Calibri,'Trebuchet MS',sans-serif;font-stretch:86%;letter-spacing:.07em;text-transform:uppercase;color:#a8977f} .ds-fall span:hover{color:#d3c5ab} .ds-fall .ds-on{color:#ecbb62}"
+    },
+    {
+      "name": "Player at rest",
+      "kind": "button",
+      "refersTo": "pick",
+      "description": "Solid icons over the stage with no box; the play button is gold and wears a ring of the stage's light.",
+      "html": "<div class=\"ds-player\"><button class=\"ds-pl-btn ds-pl-play\" aria-label=\"Play\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M8 5.5v13l10.5-6.5z\"/></svg></button><button class=\"ds-pl-btn\" aria-label=\"Stop\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M7 7h10v10H7z\"/></svg></button><button class=\"ds-pl-btn\" aria-label=\"Open a file\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 6.6C3 5.7 3.7 5 4.6 5h4.7l2 2h8.1c.9 0 1.6.7 1.6 1.6v8.8c0 .9-.7 1.6-1.6 1.6H4.6c-.9 0-1.6-.7-1.6-1.6zM4.8 9.4v7.8h14.4V9.4z\"/></svg></button></div>",
+      "css": ".ds-player{display:inline-flex;gap:2px;padding:10px 14px;background:#140a0b} .ds-pl-btn{width:28px;height:28px;padding:5px;border:0;background:none;color:#d3c5ab;cursor:pointer} .ds-pl-btn svg{display:block;width:100%;height:100%;fill:currentColor} .ds-pl-btn:hover{color:#ecbb62} .ds-pl-btn:focus-visible{outline:1.5px solid #ecbb62;outline-offset:2px} .ds-pl-play{border-radius:50%;color:#ecbb62;box-shadow:inset 0 0 0 1.2px rgba(236,187,98,.8);transition:background-color .15s} .ds-pl-play:hover{background:rgba(236,187,98,.16)}"
+    },
+    {
+      "name": "Programme menu",
+      "kind": "card",
+      "refersTo": "paper-menu",
+      "description": "What opens is paper: ivory stock, sepia ink, a soft dark shadow, no border. A row is a label in capitals over an italic line.",
+      "html": "<div class=\"ds-menu\"><button class=\"ds-menu-item\"><span class=\"ds-who\">Fable 5.2</span><span class=\"ds-what\">Toward Morning</span></button><button class=\"ds-menu-item\"><span class=\"ds-who\">J. S. Bach</span><span class=\"ds-what\">Air, from the third suite</span></button></div>",
+      "css": ".ds-menu{display:flex;flex-direction:column;min-width:248px;width:max-content;padding:8px 6px 4px;border-radius:2px;background:#f2e9d6;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 2px 5px rgba(0,0,0,.45),0 20px 44px -12px rgba(0,0,0,.8)} .ds-menu-item{display:grid;gap:1px;padding:6px 10px;border:0;border-radius:2px;background:none;text-align:left;color:#4b382c;cursor:pointer} .ds-menu-item:hover,.ds-menu-item:focus-visible{background:rgba(42,26,20,.08);color:#2a1a14;outline:none} .ds-who{font:600 12px/1.5 'Cabin Variable','Gill Sans','Gill Sans MT',Calibri,'Trebuchet MS',sans-serif;letter-spacing:.11em;text-transform:uppercase;color:#2a1a14} .ds-what{font:italic 400 15px/1.3 'Libre Caslon Text','Big Caslon','Book Antiqua',Palatino,Georgia,serif;color:#4b382c}"
+    },
+    {
+      "name": "Tooltip",
+      "kind": "custom",
+      "refersTo": "tooltip",
+      "description": "A slip of the programme's paper; its words are a stage direction.",
+      "html": "<span class=\"ds-tip\">the lid</span>",
+      "css": ".ds-tip{display:inline-block;padding:4px 9px 5px;border-radius:2px;font:italic 400 13px/1.3 'Libre Caslon Text','Big Caslon','Book Antiqua',Palatino,Georgia,serif;color:#2a1a14;background:#f2e9d6;box-shadow:0 1px 2px rgba(0,0,0,.5),0 8px 18px -5px rgba(0,0,0,.75);white-space:nowrap}"
+    },
+    {
+      "name": "Reading page",
+      "kind": "card",
+      "refersTo": "reading-page",
+      "description": "Notes and Measurements: one sheet of paper on the dark ground, display heads, claret capitals for sub-heads, Caslon prose.",
+      "html": "<article class=\"ds-page\"><h2>How a string is heard</h2><h3>The bridge</h3><p>The string moves the bridge, the bridge moves the board, and the board moves the air.</p></article>",
+      "css": ".ds-page{max-width:34rem;padding:28px 32px 36px;border-radius:2px;background:linear-gradient(180deg,rgba(255,252,240,.55),transparent 260px),#f2e9d6;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 2px 5px rgba(0,0,0,.5),0 28px 60px -20px rgba(0,0,0,.8);color:#2a1a14} .ds-page h2{margin:0 0 14px;font:400 33px/1.15 'Libre Caslon Display','Libre Caslon Text','Big Caslon','Book Antiqua',Palatino,Georgia,serif;letter-spacing:0;text-wrap:balance} .ds-page h3{margin:0 0 8px;font:600 12px/1.4 'Cabin Variable','Gill Sans','Gill Sans MT',Calibri,'Trebuchet MS',sans-serif;letter-spacing:.11em;text-transform:uppercase;color:#8c1c2b} .ds-page p{margin:0;font:400 17px/1.62 'Libre Caslon Text','Big Caslon','Book Antiqua',Palatino,Georgia,serif;color:#4b382c;text-wrap:pretty}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Evening Hall",
+    "overview": "**Creative North Star: \"Evening Hall\"**\n\nA warm concert hall at night. The instrument stands on a stage under one spot; the house beyond is dark and warm (wood, velvet, gold, a soft falloff into the hall). Everything on the page is one of three materials, and each has one job. The hall is what stays: a claret-black ground, a garnet velvet rail across the top, black lacquer and a strip of red felt over ivory keys. The light is what is chosen or sounding: one warm gold. Paper is what opens: ivory programme stock with sepia ink and a printer's claret, for menus, tooltips, the sheet music and the two reading pages. The chrome reads as a hall programme or a well-printed ticket: Caslon speaks, Cabin capitals label, italics are stage directions.\n\nThe system is built as one token set at the top of `src/styles.css`. Paper is a scope that re-points the same variables in ink, so a menu needs no second set of rules; the vector display (the 2D stage's engraved style) re-points them again as an engraver's plate. The stage itself stays nearly wordless: icon-only controls carry a tooltip and an `aria-label`, never a visible caption.\n\nBefore the first sound the stage waits in a low light, and the light comes up with the sound while a shade comes down over the rail. Light fades; nothing slides. The instruments' own drawings and 3D models (wood, brass, silver, varnish) are product content and are not part of this system.",
+    "keyCharacteristics": [
+      "Three materials, one job each: the hall stays, the light marks, paper opens.",
+      "One accent per ground: gold on the hall, claret on paper. Verdigris is the one cool colour and means \"ideal / reference\".",
+      "Chosen things are lit (gold ink, a 1.5 px rule), not filled.",
+      "Serif for what is said, tracked Cabin capitals for what is labelled, italic for what is a direction.",
+      "Depth is light and material: gradients on velvet and lacquer, soft dark shadows under paper, a vignette for the house.",
+      "One signature motion: the light comes up with the first sound (1.4 s), and is absent under reduced motion."
+    ],
+    "rules": [
+      {
+        "name": "The Three Materials Rule",
+        "body": "Hall, light, paper. A new surface is one of them: if it stays it is hall, if it marks a choice or a sound it is light, if it opens it is paper. There is no fourth.",
+        "section": "colors"
+      },
+      {
+        "name": "The Paper Scope Rule",
+        "body": "Paper is not a second stylesheet. It re-points `--paper`, `--ink`, `--muted`, `--rule`, `--on`, `--ref` on the surface that opens (`.score-menu`, `.pl-menu`, `.pl-grid`, `.sheet-menu`, `.tip`, the non-stage `.view`, and `.picker-pop` in the compact layout). A component written against the variables works on both grounds.",
+        "section": "colors"
+      },
+      {
+        "name": "The Failure Red Rule",
+        "body": "On the dark hall, red means the sound failed (`alarm`, on the lamp). The velvet and felt are dark garnet materials, not signals. On paper, claret is ink.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Cool Colour Rule",
+        "body": "Verdigris means \"ideal / reference\" and is used for nothing else.",
+        "section": "colors"
+      },
+      {
+        "name": "The Stage Direction Rule",
+        "body": "Italic is for words that tell the visitor what to do or what a thing is: the lamp's \"tap a key\", a tooltip, the links to the two pages, a caption. It is never emphasis inside a label.",
+        "section": "typography"
+      },
+      {
+        "name": "The Capitals Floor Rule",
+        "body": "Cabin labels are uppercase, tracked, and 11px or larger. Narrow places are solved with the width axis (down to 75 %), not with a smaller size.",
+        "section": "typography"
+      },
+      {
+        "name": "The Columns Rule",
+        "body": "Cabin has no tabular figures. A column of numbers is set in `--mono`; body text and labels never are.",
+        "section": "typography"
+      },
+      {
+        "name": "The Plate Letter Rule",
+        "body": "Hershey appears only inside `:root[data-style='vector']`, where it replaces every family at once.",
+        "section": "typography"
+      },
+      {
+        "name": "The Light Comes Up Rule",
+        "body": "Before the first sound the stage waits low: in 2D the pool and boards at 0.42 opacity and the drawing at `brightness(0.7) saturate(0.88)`; in 3D the spot, pool, beam and curtain at 0.5. With the sound they rise (1.4s on `cubic-bezier(0.16, 1, 0.3, 1)` in CSS; a 0.45s time constant in 3D) and a shade (`rgba(8,2,4,.34)`) comes down over the velvet. Only opacity, filter and light intensity change. Under reduced motion the change is immediate and the lamp does not breathe.",
+        "section": "elevation"
+      },
+      {
+        "name": "The One Spot Rule",
+        "body": "The 3D stage has one warm key light from above and in front (4.1), a thin gold back light (0.9), and the boards' own bounce from below (0.34). No other fill. Its reflections come from a dark hall with one lantern; boards are drawn in the floor shader, the velvet curtain and the spot's beam in the final pass, under Khronos neutral tone mapping.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Light Fades Rule",
+        "body": "Controls change colour in 120–150ms; the hall's light takes 1.4s. Nothing translates, slides or scales into place. The exceptions are physical: a key or a pedal travels 2–4px under the finger in 40–60ms.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do decide the material first: hall for what stays, light for what is chosen or sounding, paper for what opens.",
+      "Do mark a chosen thing by lighting it: gold ink (`gilt-hi`) and a 1.5px `light` rule on the hall; claret ink and rule on paper.",
+      "Do write new surfaces against the variables (`--paper`, `--ink`, `--muted`, `--rule`, `--on`) so the paper scope and the vector scope re-point them.",
+      "Do set labels in Cabin capitals at 11px or more, tracked 0.05–0.11em, and narrow them with `font-stretch` (75–88 %) when space is short.",
+      "Do set words that instruct or name (hints, tooltips, captions, the two page links) in Libre Caslon Text italic.",
+      "Do set columns of numbers in `--mono`.",
+      "Do give every icon-only control a `data-tip` and an `aria-label`, and draw its icon (the chrome's 1.5px pen at 16px).",
+      "Do float paper with the soft dark shadow and its 1px light top edge, at a 2px corner.",
+      "Do keep transitions to colour, opacity, filter and light: 120–150ms for controls, 1.4s on `--ease-light` for the hall, and none of it under `prefers-reduced-motion`.",
+      "Do keep the readout's box, the rail's height and the dock's heights fixed while sound changes what they say."
+    ],
+    "donts": [
+      "Don't add a fourth material, a second accent on either ground, or a second cool colour.",
+      "Don't fill a chosen control on the rail with a pill, a chip or a tinted box.",
+      "Don't use red on the dark hall for anything but a failure of the sound.",
+      "Don't use monospace for labels or prose, or Hershey outside the vector display.",
+      "Don't use Inter, Instrument Serif, Fraunces, Bricolage Grotesque, Space Grotesk, Sora, Young Serif, Bodoni, Geist or Syne (the repo's own ban, checked by grep).",
+      "Don't use a character as an icon.",
+      "Don't add permanent explanatory text to the stage.",
+      "Don't slide, scale or bounce anything into place; the hall's light fades.",
+      "Don't light the stage in 3D with a second fill, or put a border round paper.",
+      "Don't treat the instruments' own colours (wood, brass, silver, varnish) as chrome tokens; they are the product's drawings."
+    ]
+  }
+}

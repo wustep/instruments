@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          "apps/web/src/ui/gl/mats3.ts"
+        ],
+        "createdAt": "2026-11-23T09:12:23.425Z",
+        "reason": "agent: instrument materials (wood, brass, silver, felt, lacquer) are product content, not chrome; DESIGN.md and the brief keep the instruments' own models outside the design system"
+      }
+    ]
+  }
+}
