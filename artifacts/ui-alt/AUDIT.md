@@ -128,3 +128,34 @@ drawing or the 3D room; those were judged by eye and by the finish review.
 3. **[P3] `/impeccable polish`**: remove the dead transition.
 
 Re-run `/impeccable audit` after fixes to see the score improve.
+
+## After the polish pass
+
+Measured again on the finished branch (`BASE=http://127.0.0.1:5393 node artifacts/ui-alt/audit-measure.mjs`, the
+detector with `DESIGN.md` in place). Not a second scored audit: the table above is the audit; this is what its
+findings came to.
+
+| Finding | Now |
+|---|---|
+| [P1] Notes contents 24 px tall | 44 px rows on a phone. The script still lists them: each is a word wide, under 44 across |
+| [P2] Count badges at 9–10 px | 11 px. Text under 11 px: 0 on all six pages, computer and phone (the sheet's bar numbers, a chart's axis and the vector spectrum's figures were the last three, at 10–10.5) |
+| [P2] The scrub line's 17 px hold | 25 px (`.pl-bar::before`; the script reads the 1 px line's own box) |
+| [P2] The way back, `summary`, the 404's links | 44 px tall on a phone (the way back 40 wide) |
+| [P2] Long lines and small labels on the pages | a 29 rem measure for 13 px text; chart panel titles and diagram labels 14 px |
+| [P2] The player's 36 px buttons | left, as said above |
+| [P3] The dead transition | removed |
+| [P3] The readout at rest, the keys' literals | left, as said above; the keys' shading is named in `DESIGN.md` and in the detector's ignores, each with its reason |
+
+- Text under AA: none in the page. The script's remaining hits are the key names (`.cname`, `.lbl`), which it reads
+  against a gradient it cannot see; against the key they are 6.9:1.
+- Sideways scroll: 0 px on every page at 1440 and 390.
+- Detector, static scan of `apps/web`: 0. With `DESIGN.md` written the detector also holds the code to it; that
+  first found 114 (91 of them the 3D instruments' own material colours in `mats3.ts`, 14 type sizes, 8 colours, one
+  symbol font). Taken as: the readout's steps, the page's base size, captions and a tile's figure recorded in
+  `DESIGN.md`'s type; a silent part's tone made a token (`--unlit`); `mats3.ts`, six stops of a key's shading, the
+  light on the sheet's paper and the accidental's symbol fallback ignored by name, each with its reason
+  (`.impeccable/config.json`).
+- Detector, rendered: 0 on `/piano` (1440, 390 and in 3D), `/symphony`, `/measurements` and `/404.html` (both
+  widths). `/notes`: 6 at both widths, all one rule (`tiny-text`) on diagram labels, which are 14 px in the SVG's
+  own units and shrink with the figure on a phone.
+

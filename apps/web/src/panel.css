@@ -461,7 +461,7 @@
   flex: 0 1 auto;
   width: 40px;
   min-width: 0;
-  color: #6f7275;
+  color: var(--unlit);
   transition: color var(--fall) var(--ease);
 }
 .part[data-on] {

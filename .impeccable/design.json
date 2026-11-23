@@ -52,22 +52,6 @@
           "#edeef1"
         ]
       },
-      "wall-3": {
-        "role": "neutral",
-        "displayName": "Raised Wall, upper",
-        "canonical": "#232529",
-        "oklch": "oklch(26.4% 0.008 264)",
-        "tonalRamp": [
-          "#0a0b0d",
-          "#242527",
-          "#404245",
-          "#5f6165",
-          "#808287",
-          "#a3a5a9",
-          "#c7c9cd",
-          "#edeef2"
-        ]
-      },
       "rule": {
         "role": "neutral",
         "displayName": "Rule",
@@ -146,6 +130,22 @@
           "#a3a5a8",
           "#c7c9cc",
           "#edeff1"
+        ]
+      },
+      "unlit": {
+        "role": "neutral",
+        "displayName": "Unlit",
+        "canonical": "#6f7275",
+        "oklch": "oklch(55.0% 0.006 248)",
+        "tonalRamp": [
+          "#090b0d",
+          "#232528",
+          "#3f4245",
+          "#5e6164",
+          "#808386",
+          "#a2a5a8",
+          "#c6c9cd",
+          "#eceff3"
         ]
       },
       "light": {

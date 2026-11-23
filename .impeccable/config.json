@@ -1,0 +1,86 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          "apps/web/src/ui/gl/mats3.ts"
+        ],
+        "createdAt": "2026-11-23T09:42:13.222Z",
+        "reason": "The 3D instruments' own materials (wood, brass, felt, copper, steel): DESIGN.md's Instruments' Colour Rule. Not chrome."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#74777b",
+        "files": [
+          "apps/web/src/styles.css"
+        ],
+        "createdAt": "2026-11-23T09:42:13.237Z",
+        "reason": "A piano key's own shading: a stop of its gradient round --key and --light (DESIGN.md, Keys). One component, no token."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#b3b5b8",
+        "files": [
+          "apps/web/src/styles.css"
+        ],
+        "createdAt": "2026-11-23T09:42:13.251Z",
+        "reason": "A piano key's own shading: a stop of its gradient round --key and --light (DESIGN.md, Keys). One component, no token."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#d1d3d6",
+        "files": [
+          "apps/web/src/styles.css"
+        ],
+        "createdAt": "2026-11-23T09:42:13.266Z",
+        "reason": "A piano key's own shading: a stop of its gradient round --key and --light (DESIGN.md, Keys). One component, no token."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#cfd2d6",
+        "files": [
+          "apps/web/src/styles.css"
+        ],
+        "createdAt": "2026-11-23T09:42:13.280Z",
+        "reason": "A piano key's own shading: a stop of its gradient round --key and --light (DESIGN.md, Keys). One component, no token."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#949aa2",
+        "files": [
+          "apps/web/src/styles.css"
+        ],
+        "createdAt": "2026-11-23T09:42:13.293Z",
+        "reason": "A piano key's own shading: a stop of its gradient round --key and --light (DESIGN.md, Keys). One component, no token."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#fff",
+        "files": [
+          "apps/web/src/styles.css"
+        ],
+        "createdAt": "2026-11-23T09:42:13.307Z",
+        "reason": "A lit key's foot: the one pure white, a step over --light (DESIGN.md, Keys)."
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgb(255 255 255 / 0.4)",
+        "files": [
+          "apps/web/src/styles.css"
+        ],
+        "createdAt": "2026-11-23T09:42:13.321Z",
+        "reason": "The light on the sheet music's paper (DESIGN.md, Sheet music)."
+      },
+      {
+        "rule": "design-system-font",
+        "value": "apple symbols",
+        "createdAt": "2026-11-23T09:42:13.334Z",
+        "reason": "The readout's accidental (a sharp or flat sign beside its letter): a symbol fallback, since Libre Franklin has neither sign. Not a text face."
+      }
+    ]
+  }
+}

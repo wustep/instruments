@@ -5,12 +5,12 @@ colors:
   wall: "#111315"
   wall-0: "#090a0c"
   wall-2: "#1a1c1f"
-  wall-3: "#232529"
   rule: "#282a2d"
   rule-2: "#3d4043"
   ink: "#e6e8ea"
   ink-2: "#bbbec1"
   muted: "#919497"
+  unlit: "#6f7275"
   light: "#f5f7f9"
   tungsten: "#edd09c"
   steel: "#8ba8c6"
@@ -52,6 +52,69 @@ typography:
     fontWeight: 300
     lineHeight: 1.15
     letterSpacing: "-0.02em"
+  readout-2:
+    fontFamily: "'Franklin Figures', 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "29px"
+    fontWeight: 300
+    lineHeight: "38px"
+    letterSpacing: "-0.025em"
+  readout-3:
+    fontFamily: "'Franklin Figures', 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "23px"
+    fontWeight: 300
+    lineHeight: "38px"
+    letterSpacing: "-0.02em"
+  readout-4:
+    fontFamily: "'Franklin Figures', 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "18px"
+    fontWeight: 400
+    lineHeight: "38px"
+    letterSpacing: "-0.01em"
+  readout-phone:
+    fontFamily: "'Franklin Figures', 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "26px"
+    fontWeight: 300
+    lineHeight: "38px"
+    letterSpacing: "-0.025em"
+  readout-phone-3:
+    fontFamily: "'Franklin Figures', 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "19px"
+    fontWeight: 300
+    lineHeight: "38px"
+    letterSpacing: "-0.015em"
+  readout-phone-4:
+    fontFamily: "'Franklin Figures', 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "15.5px"
+    fontWeight: 400
+    lineHeight: "38px"
+  readout-sideways:
+    fontFamily: "'Franklin Figures', 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "21px"
+    fontWeight: 300
+    lineHeight: "38px"
+    letterSpacing: "-0.02em"
+  figure:
+    fontFamily: "'Franklin Figures', 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "32px"
+    fontWeight: 300
+    lineHeight: 1.1
+    letterSpacing: "-0.02em"
+  headline-phone:
+    fontFamily: "'Franklin Figures', 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "25px"
+    fontWeight: 300
+    lineHeight: 1.15
+    letterSpacing: "-0.02em"
+  base:
+    fontFamily: "'Franklin Figures', 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "15px"
+    fontWeight: 400
+    lineHeight: 1.5
+  caption:
+    fontFamily: "'Franklin Figures', 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    fontSize: "14.5px"
+    fontWeight: 400
+    lineHeight: 1.55
   title:
     fontFamily: "'Franklin Figures', 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif"
     fontSize: "17px"
@@ -251,14 +314,17 @@ an instrument's own material.
   the dark gradients from banding.
 - **Floor** (`wall-0`): one step lower: the plinth (fallboard and key bed), the bottom of the stage's fall-off,
   discs behind stage knobs (78 %), the scrim behind the action close-up (70 %).
-- **Raised wall** (`wall-2`, `wall-3`): floating surfaces only: the phone's picker sheet, menus, tooltips, the
+- **Raised wall** (`wall-2`): floating surfaces only: the phone's picker sheet, menus, tooltips, the
   phone's knob and keys-play trays.
 - **Rule** (`rule`) and **Rule, strong** (`rule-2`): table and section hairlines; the frame of a floating surface,
   chart axes, scrollbars.
 - **Bone ink** (`ink`), **Second ink** (`ink-2`), **Muted** (`muted`): body and hover text; secondary text, icon
   buttons at rest, prose; labels, unlit words and glyphs.
+- **Unlit** (`unlit`): a silent part's glyph in an ensemble's strip, in the room's dark. A drawing, never text
+  (3.9:1 on the wall).
 - **Keys** (`key`, `key-lip`, `key-out`, `key-ink`): ivory in half-light, its front lip, a key outside the
-  instrument's compass, and the ink of key names.
+  instrument's compass, and the ink of key names. A key's own shading (the stops of its gradients round `key` and
+  `light`, a lit key's foot in pure white) is its component's and no token: nothing else takes it.
 - **Sheet** (`sheet-paper`, `sheet-ink`, `sheet-on`): the sheet music's grey-white board, graphite ink, and the
   conductor's blue pencil for the notes sounding.
 
@@ -309,6 +375,7 @@ carrying the ten digits and nothing else stands first in the family. Every figur
   18px at weight 400; on a phone 26, 23, 19, 15.5px; sideways 21 and 16.5px. Always one 38px line box.
 - **Headline** (300, 30px/1.15, −0.02em; 25px on a phone): page and section heads on Measurements and Notes; the
   action close-up's key name is 26px of the same; a measurement tile's figure 32px.
+- **Base** (400, 15px/1.5): the page's own size, what a line not otherwise set inherits; an A/B item's title.
 - **Title** (500, 17px/1.3, −0.01em): a figure's heading. Notes' sub-heads are 600 13px/1.4, tracking 0.
 - **Body** (400, 16.5px/1.62, `ink-2`, max 33rem): prose. Captions 14.5px/1.55; Notes' captions and credit line
   italic 14px/1.5.
@@ -467,7 +534,7 @@ short.
   10k, 11px Franklin) hang under it, each from a tick at its frequency. Measured partials in silver, the ideal
   series in steel.
 - **Scope** (canvas, 42px): the excitation in silver over bone, its caption 11px tabular muted.
-- **Parts** (an ensemble): each instrument's 28px glyph, in the room's dark (`#6f7275`) when silent, silver while it
+- **Parts** (an ensemble): each instrument's 28px glyph, in the room's dark (`unlit`) when silent, silver while it
   sounds, its notes (11px) under it only while it sounds.
 
 ### File player and menus

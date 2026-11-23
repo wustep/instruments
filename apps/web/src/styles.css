@@ -34,7 +34,6 @@
   --wall-0: #090a0c;
   --wall-0-rgb: 9 10 12;
   --wall-2: #1a1c1f;
-  --wall-3: #232529;
   --rule: #282a2d;
   --rule-2: #3d4043;
   /* the label's ink */
@@ -42,11 +41,12 @@
   --ink-rgb: 230 232 234;
   --ink-2: #bbbec1;
   --muted: #919497;
+  /* a part of an ensemble that is silent: its glyph in the room's dark (a drawing, not text: 3.9:1) */
+  --unlit: #6f7275;
   /* the three lights */
   --light: #f5f7f9;
   --light-rgb: 245 247 249;
   --tungsten: #edd09c;
-  --tungsten-rgb: 237 208 156;
   --steel: #8ba8c6;
   --steel-rgb: 139 168 198;
   /* a failure, and nothing else */
