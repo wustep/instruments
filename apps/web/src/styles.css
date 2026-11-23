@@ -1,43 +1,58 @@
-@import '@fontsource-variable/newsreader/opsz.css';
-@import '@fontsource-variable/newsreader/opsz-italic.css';
-@import '@fontsource/ibm-plex-sans/400.css';
-@import '@fontsource/ibm-plex-sans/500.css';
-@import '@fontsource/ibm-plex-mono/400.css';
-@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource-variable/libre-franklin/wght.css';
+@import '@fontsource-variable/libre-franklin/wght-italic.css';
 
-/* An instrument bench at night: warm near-black, ivory linework, vermilion where
-   something vibrates, amber for the board, steel blue for "ideal / reference". */
+/* Night Gallery. The instrument is the one lit object in a museum room after closing, and the page is
+   that room: a cool charcoal wall, a floor one step lower, the type a wall label's. Three lights and no
+   paint: silver (the light from behind; whatever is chosen, pressed or sounding is lit, never coloured),
+   tungsten (the dim key; what a body does: a board, a string that answers, a key under a finger), steel
+   (reference). Every other colour on the page is an instrument's own. DESIGN.md has the whole system. */
 :root {
-  --ground: #0e0d0b;
-  --paper: #0e0d0b;
-  --paper-2: #16140f;
-  --paper-3: #1f1c16;
-  --ink: #ece2ce;
-  --ink-2: #c9bfab;
-  --muted: #8a8172;
-  --rule: #2a261f;
-  --rule-2: #3d372d;
-  --accent: #ff5e38;
-  --accent-soft: rgba(255, 94, 56, 0.16);
-  --ref: #96b6d2;
-  --ref-soft: rgba(150, 182, 210, 0.16);
-  --good: #b8d68e;
-  --amber: #f2a646;
-  --brass: #c9a35c;
-  --lacquer: #120f0c;
-  --ivory: #efe7d6;
-  --ivory-edge: #b9ae98;
-  --ebony: #15120f;
-  --serif: 'Newsreader Variable', 'Iowan Old Style', Palatino, Georgia, serif;
-  --sans: 'IBM Plex Sans', -apple-system, 'Segoe UI', system-ui, sans-serif;
-  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --measure: 40rem;
+  /* the room (--ground is read by the 3D stage, which paints the same wall: six hex digits) */
+  --ground: #0f1318;
+  --wall-rgb: 15 19 24;
+  --wall-0: #070a0e;
+  --wall-0-rgb: 7 10 14;
+  --wall-2: #171c22;
+  --wall-3: #20262c;
+  --rule: #262b31;
+  --rule-2: #3b4047;
+  /* the label's ink */
+  --ink: #e5e8ec;
+  --ink-rgb: 229 232 236;
+  --ink-2: #babec3;
+  --muted: #8f949b;
+  /* the three lights */
+  --light: #f5f7f9;
+  --light-rgb: 245 247 249;
+  --tungsten: #edd09c;
+  --tungsten-rgb: 237 208 156;
+  --steel: #8ba8c6;
+  --steel-rgb: 139 168 198;
+  /* a failure, and nothing else */
+  --signal: #f66e5c;
+  /* what the charts name (ui/chart.ts, views/measure.ts): the model, and the recording it is held against */
+  --accent: var(--light);
+  --ref: var(--steel);
+  --focus: var(--light);
+  /* the keys, in half-light until they sound */
+  --key: #a7abb0;
+  --key-lip: #7b8087;
+  --key-out: #2c3036;
+  --key-ink: #1e2226;
+  /* one family: the grotesque of the American museum's wall labels */
+  --face: 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --code: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+  --measure: 33rem;
   --gutter: clamp(14px, 3vw, 28px);
-  --radius: 4px;
+  --radius: 2px;
   --kbd-h: clamp(118px, 17vh, 168px);
   --fall-h: 62px;
   /* the keys' position strip (only where the keys do not all fit: see .keymap) */
   --pos-h: 0px;
+  /* light comes up at once and falls away slowly */
+  --rise: 90ms;
+  --fall: 320ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
   color-scheme: dark;
 }
 
@@ -53,16 +68,29 @@ body {
   background: var(--ground);
   color: var(--ink);
 }
+html {
+  scrollbar-color: var(--rule-2) transparent;
+  scrollbar-width: thin;
+}
 body {
-  font-family: var(--sans);
+  /* the wall's plaster: a grain about the wall's own tone (three levels either side of it, no lighter on
+     the whole: the 3D stage paints the same flat tone and meets it without a seam). It keeps the dark
+     gradients laid over it from banding. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0.026 0 0 0 0.0458  0.026 0 0 0 0.0615  0.026 0 0 0 0.0811  0 0 0 0 1'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+  font-family: var(--face);
   font-size: 15px;
   line-height: 1.5;
+  font-kerning: normal;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   min-height: 100dvh;
   overscroll-behavior: none;
+  caret-color: var(--light);
 }
 a {
   color: inherit;
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
 }
 button,
 input {
@@ -73,7 +101,8 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 ::selection {
-  background: var(--accent-soft);
+  background: rgb(var(--steel-rgb) / 0.42);
+  color: var(--light);
 }
 .sr {
   position: absolute;
@@ -84,7 +113,7 @@ button {
   white-space: nowrap;
 }
 :focus-visible {
-  outline: 1.5px solid var(--amber);
+  outline: 1px solid var(--focus);
   outline-offset: 2px;
 }
 #app {
@@ -93,49 +122,56 @@ button {
   flex-direction: column;
 }
 
-
-
-
-
-
+/* ------------------------------------------------------------ the lamp: is the sound on */
+/* not on: a ring, breathing; on: the ring filled. A failure is the one thing here with a colour. */
 .status {
   display: flex;
   align-items: center;
   gap: 8px;
+  cursor: pointer;
 }
 .lamp {
   width: 9px;
   height: 9px;
+  border: 1.5px solid var(--ink-2);
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #ffb59f, var(--accent) 55%, #5a1a0c);
-  box-shadow: 0 0 8px rgba(255, 94, 56, 0.55);
+  background: none;
+  transition: background-color var(--fall) var(--ease);
 }
 :root[data-audio='running'] .lamp {
-  background: radial-gradient(circle at 35% 35%, #fff2c4, var(--amber) 55%, #5c3a10);
-  box-shadow: 0 0 10px rgba(242, 166, 70, 0.7);
+  border-color: var(--light);
+  background: var(--light);
+  transition-duration: var(--rise);
 }
 :root:not([data-audio='running']) .lamp {
-  animation: pulse 1.3s ease-in-out infinite;
+  animation: breathe 1.6s ease-in-out infinite;
 }
 :root[data-audio='starting'] .lamp {
-  animation-duration: 0.45s;
+  animation-duration: 0.5s;
+}
+:root[data-audio='error'] .lamp,
+:root[data-audio='stalled'] .lamp {
+  border-color: var(--signal);
+  background: var(--signal);
+  animation: none;
 }
 .lamp-text {
-  color: var(--accent);
+  color: var(--ink-2);
   max-width: min(60vw, 520px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.status {
-  cursor: pointer;
+.lamp-text::first-letter {
+  text-transform: uppercase;
 }
-.midi {
-  color: var(--amber);
+:root[data-audio='error'] .lamp-text,
+:root[data-audio='stalled'] .lamp-text {
+  color: var(--signal);
 }
-@keyframes pulse {
+@keyframes breathe {
   50% {
-    opacity: 0.3;
+    opacity: 0.35;
   }
 }
 
@@ -147,14 +183,48 @@ main {
   min-height: 0;
 }
 
+/* The wall. In 2D a work hangs on it, lit from a rail of wall-washers overhead: each throws its scallop of
+   light down the wall (a tile 680 px wide, the middle one over the work; a phone has room for one), and
+   the wall falls into the dark towards the floor. The floor line is the plinth's lit edge (the
+   fallboard); with no keys on the screen the wall has its own (.stage::after). The wall itself is the
+   page's (body: its tone and its grain). In 3D the stage paints the same wall behind the instrument, and
+   a floor under it (ui/gl/three3d.ts). */
 .stage {
   position: relative;
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  background:
-    radial-gradient(120% 90% at 50% 100%, rgba(58, 42, 28, 0.35), transparent 60%),
-    var(--ground);
+  background: linear-gradient(180deg, transparent 52%, rgb(var(--wall-0-rgb) / 0.6) 100%);
+}
+.stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* (the band keeps the wall's own tone: the light begins under it) */
+  top: max(0px, calc(var(--stage-band-y, 0px) - var(--top-h, 0px) - 4px));
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 680 600' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23b9c8dc' stop-opacity='0.13'/%3E%3Cstop offset='0.28' stop-color='%23b9c8dc' stop-opacity='0.075'/%3E%3Cstop offset='0.7' stop-color='%23b9c8dc' stop-opacity='0.022'/%3E%3Cstop offset='1' stop-color='%23b9c8dc' stop-opacity='0'/%3E%3C/linearGradient%3E%3Cfilter id='b' x='-20%25' y='-20%25' width='140%25' height='140%25'%3E%3CfeGaussianBlur stdDeviation='17'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M44 640 C 58 250 150 40 340 40 C 530 40 622 250 636 640 Z' fill='url(%23g)' filter='url(%23b)'/%3E%3C/svg%3E")
+    center 0 / 680px 100% repeat-x;
+}
+/* (3D: the stage's own picture of the wall; the sheet music: a page under its own light) */
+.stage.is-3d,
+.stage.sheet-on {
+  background: none;
+}
+.stage.is-3d::before,
+.stage.sheet-on::before {
+  background: none;
+}
+/* no keys on the screen: the wall's own floor line, a hand's breadth over the window's foot */
+:root[data-nokeys] .stage:not(.is-3d)::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 26px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgb(var(--light-rgb) / 0.2), rgb(var(--light-rgb) / 0.07) 40%, rgb(var(--light-rgb) / 0.03));
 }
 .stage-cv {
   position: absolute;
@@ -170,12 +240,8 @@ main {
   cursor: grab;
 }
 
-
-
-
-
-
-
+/* ------------------------------------------------------------ the glyphs (ui/controls.ts) */
+/* line drawings in the label's ink: unlit, a faint wash where the body is; lit, the same lines in silver */
 .glyph {
   width: 36px;
   height: 36px;
@@ -187,7 +253,7 @@ main {
   overflow: visible;
 }
 .glyph .g-body {
-  fill: rgba(58, 42, 28, 0.55);
+  fill: rgb(var(--ink-rgb) / 0.07);
 }
 .glyph .g-thin {
   stroke-width: 0.6;
@@ -198,15 +264,13 @@ main {
   opacity: 0.75;
 }
 .glyph .g-ebony {
-  fill: #0b0907;
+  fill: var(--wall-0);
   stroke-width: 0.5;
 }
 .glyph .g-bridge {
   stroke-width: 0.9;
-  stroke: #cdb592;
 }
 .glyph .g-steel {
-  stroke: #96b6d2;
   stroke-width: 0.6;
 }
 .glyph .g-fill {
@@ -215,32 +279,22 @@ main {
   opacity: 0.8;
 }
 .glyph .g-keys {
-  fill: rgba(239, 231, 214, 0.18);
+  fill: rgb(var(--ink-rgb) / 0.16);
   stroke-width: 0.6;
 }
 .glyph .g-tube-body {
-  fill: rgba(150, 182, 210, 0.16);
+  fill: rgb(var(--ink-rgb) / 0.1);
   stroke-width: 0.7;
 }
 .glyph .g-key {
-  fill: #0e0d0b;
+  fill: var(--ground);
   stroke-width: 0.5;
 }
 
-
-
-
-
-
-
-
-
-
-
-
 .scope-cap {
-  font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
+  line-height: 15px;
+  font-variant-numeric: tabular-nums;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -248,13 +302,14 @@ main {
   min-height: 15px;
 }
 
-/* ------------------------------------------------------------ fallboard and keyboard */
+/* ------------------------------------------------------------ the plinth: fallboard and keyboard */
 .dock {
   position: sticky;
   bottom: 0;
   z-index: 4;
-  background: var(--ground);
+  background: var(--wall-0);
 }
+/* a matt slab; its front edge catches the light from behind, brightest at the side it comes from */
 .fallboard {
   position: relative;
   display: flex;
@@ -262,41 +317,30 @@ main {
   gap: 18px;
   height: var(--fall-h);
   padding: 0 var(--gutter);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 30%),
-    linear-gradient(0deg, rgba(0, 0, 0, 0.6), transparent 40%),
-    var(--lacquer);
-  border-top: 1px solid #2c261e;
-  box-shadow: inset 0 -6px 10px rgba(0, 0, 0, 0.55);
+  background: linear-gradient(180deg, #0c1015, var(--wall-0));
+  font-size: 11px;
 }
-.inlay {
+.fallboard::before {
+  content: '';
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 21px;
-  font-variation-settings: 'opsz' 36;
-  letter-spacing: 0.01em;
-  text-decoration: none;
-  white-space: nowrap;
-  background: linear-gradient(180deg, #f3dca2 0%, #c9a35c 45%, #8a6a2c 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  pointer-events: auto;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgb(var(--light-rgb) / 0.5), rgb(var(--light-rgb) / 0.18) 34%, rgb(var(--light-rgb) / 0.06));
 }
 .pedals {
   display: flex;
   gap: 6px;
 }
+/* a pedal: its outline; held down, it is lit */
 .pedal {
   --depress: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
   width: 46px;
   padding: 3px 0 0;
   border: 0;
@@ -309,27 +353,37 @@ main {
 .p-face {
   width: 30px;
   height: 28px;
-  transform: translateY(calc(var(--depress) * 4px)) scaleY(calc(1 - var(--depress) * 0.12));
+  transform: translateY(calc(var(--depress) * 3px)) scaleY(calc(1 - var(--depress) * 0.1));
   transition: transform 0.06s;
 }
 .p-foot {
-  fill: url(#none);
-  fill: #a8823f;
-  stroke: #f0d89c;
-  stroke-width: 0.8;
-  filter: brightness(calc(0.75 + var(--depress) * 0.5));
+  fill: rgb(var(--light-rgb) / calc(0.04 + var(--depress) * 0.86));
+  stroke: var(--ink-2);
+  stroke-width: 1;
 }
 .p-shine {
   fill: none;
-  stroke: rgba(255, 245, 210, 0.55);
-  stroke-width: 1;
+  stroke: rgb(var(--ink-rgb) / 0.3);
+  stroke-width: 0.8;
+}
+.pedal:hover .p-foot {
+  stroke: var(--light);
+}
+.pedal[aria-pressed='true'] .p-foot {
+  stroke: var(--light);
+}
+.pedal[aria-pressed='true'] .p-shine {
+  stroke: rgb(var(--wall-0-rgb) / 0.5);
 }
 .p-name {
-  font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+.p-name::first-letter {
+  text-transform: uppercase;
 }
 .pedal[aria-pressed='true'] .p-name {
-  color: var(--amber);
+  color: var(--light);
 }
 .knobs {
   margin-left: auto;
@@ -340,6 +394,7 @@ main {
 .knob-toggle {
   display: none;
 }
+/* a dial: a thin ring, the value's arc in light, an index on the ring; no cap, no bevel */
 .knob {
   position: relative;
   display: flex;
@@ -364,46 +419,55 @@ main {
   touch-action: none;
 }
 .k-ticks line {
-  stroke: rgba(236, 226, 206, 0.3);
-  stroke-width: 0.8;
+  stroke: rgb(var(--ink-rgb) / 0.24);
+  stroke-width: 0.7;
 }
 .k-track {
   fill: none;
-  stroke: rgba(236, 226, 206, 0.12);
-  stroke-width: 2;
+  stroke: rgb(var(--ink-rgb) / 0.16);
+  stroke-width: 1.2;
 }
 .k-val-arc {
   fill: none;
-  stroke: var(--amber);
-  stroke-width: 2;
+  stroke: var(--light);
+  stroke-width: 1.6;
   stroke-linecap: round;
 }
 .k-cap {
-  fill: #2a241c;
-  stroke: #5b4e3a;
+  fill: rgb(var(--ink-rgb) / 0.03);
+  stroke: rgb(var(--ink-rgb) / 0.3);
   stroke-width: 0.8;
+  transition: fill var(--fall) var(--ease);
 }
 .k-ptr {
-  stroke: var(--ivory);
-  stroke-width: 1.6;
+  stroke: var(--light);
+  stroke-width: 1.5;
   stroke-linecap: round;
 }
 .knob:hover .k-cap,
 .knob.turning .k-cap,
 .knob:focus-within .k-cap {
-  fill: #3a3125;
+  fill: rgb(var(--ink-rgb) / 0.1);
+  stroke: var(--ink-2);
+  transition-duration: var(--rise);
+}
+.knob:focus-within .k-cap {
+  stroke: var(--light);
 }
 .k-name,
 .k-read {
-  font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.2;
   color: var(--muted);
   white-space: nowrap;
 }
+.k-name::first-letter {
+  text-transform: uppercase;
+}
 .k-read {
   display: none;
-  color: var(--amber);
+  color: var(--light);
+  font-variant-numeric: tabular-nums;
 }
 .knob:hover .k-read,
 .knob.turning .k-read,
@@ -416,22 +480,37 @@ main {
   display: none;
 }
 .k-reset {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
   border: 0;
   background: none;
   color: var(--muted);
-  font-size: 15px;
-  padding: 4px 6px;
+  padding: 0;
   cursor: pointer;
 }
 .k-reset:hover {
-  color: var(--ink);
+  color: var(--light);
+}
+
+/* a control that is one drawn line (the octave's arrows, the way back, the knobs' way back, close) */
+.ico {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .kbd-scroll {
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
-  background: linear-gradient(180deg, #050403, #0d0b09);
+  background: var(--wall-0);
   padding: 0 var(--gutter) 6px;
 }
 .kbd-scroll::-webkit-scrollbar {
@@ -445,6 +524,8 @@ main {
   user-select: none;
   -webkit-user-select: none;
 }
+/* The keys stand in half-light: the fallboard's shadow across their far end, their fronts falling away.
+   A key that sounds is lit. (Their partings are the dark between them, not a line on one side.) */
 .key {
   position: absolute;
   top: 0;
@@ -452,71 +533,87 @@ main {
 }
 .key.white {
   height: 100%;
-  background: linear-gradient(180deg, #d9cfbb 0%, var(--ivory) 7%, #f6f0e2 80%, #e4dac6 100%);
-  border-left: 1px solid #a99c84;
-  border-right: 1px solid #fbf7ee;
-  border-radius: 0 0 4px 4px;
-  box-shadow: inset 0 -5px 0 #cbbfa8, 0 2px 0 #000;
+  background: linear-gradient(180deg, #70757b 0%, var(--key) 9%, #b1b5ba 76%, var(--key) 100%);
+  background-clip: padding-box;
+  border: solid transparent;
+  border-width: 0 0.5px;
+  border-radius: 0 0 2px 2px;
+  box-shadow: inset 0 -4px 0 var(--key-lip);
   z-index: 1;
-  transition: transform 0.04s, box-shadow 0.04s;
+  transition:
+    transform 0.04s,
+    background-color var(--fall) var(--ease);
 }
 .key.black {
   height: 62%;
-  background: linear-gradient(180deg, #000 0%, #1d1915 70%, #2b2620 92%, #0b0907 100%);
-  border-radius: 0 0 3px 3px;
-  box-shadow: inset 0 -6px 0 #000, inset 1px 0 0 #3a332b, 0 3px 4px rgba(0, 0, 0, 0.7);
+  background: linear-gradient(180deg, #030405 0%, #0c0f13 68%, #1d2228 91%, #07090c 100%);
+  border-radius: 0 0 2px 2px;
+  box-shadow:
+    inset 0 -5px 0 #000,
+    0 3px 4px rgb(0 0 0 / 0.7);
   z-index: 2;
-  transition: transform 0.04s, box-shadow 0.04s;
+  transition: transform 0.04s;
 }
 /* pressed (any source) */
 .key.down.white {
   transform: translateY(2px);
-  box-shadow: inset 0 -2px 0 #cbbfa8, inset 0 0 24px rgba(255, 94, 56, 0.06), 0 0 0 #000;
-  background: linear-gradient(180deg, #cfc4ad 0%, #efe4cf 12%, #f2e6d0 100%);
+  background: linear-gradient(180deg, #8b9096 0%, #c3c7cc 12%, #cfd3d8 100%);
+  background-clip: padding-box;
+  box-shadow: inset 0 -2px 0 var(--key-lip);
 }
 .key.down.black {
   transform: translateY(2px);
-  box-shadow: inset 0 -2px 0 #000, inset 0 0 14px rgba(255, 94, 56, 0.1);
+  box-shadow:
+    inset 0 -2px 0 #000,
+    0 2px 3px rgb(0 0 0 / 0.7);
 }
-/* its note really sounds (the engine's allocation): the glow */
+/* its note really sounds (the engine's allocation): lit */
 .key.sounding.white {
-  box-shadow: inset 0 -2px 0 #cbbfa8, inset 0 0 24px rgba(255, 94, 56, 0.35), 0 0 0 #000;
+  background: linear-gradient(180deg, #b9bec4 0%, var(--light) 14%, #fff 100%);
+  background-clip: padding-box;
+  box-shadow: inset 0 -2px 0 #cdd2d8;
 }
 .key.sounding.black {
-  box-shadow: inset 0 -2px 0 #000, inset 0 0 14px rgba(255, 94, 56, 0.55);
+  background: linear-gradient(180deg, #1a1f25 0%, #3d454e 66%, #9099a4 93%, #2a3038 100%);
+  box-shadow:
+    inset 0 -2px 0 #000,
+    inset 0 0 0 1px rgb(var(--light-rgb) / 0.5),
+    0 2px 3px rgb(0 0 0 / 0.7);
 }
 .key.out.white {
-  background: linear-gradient(180deg, #6f6758, #8c8371);
-  box-shadow: inset 0 -5px 0 #615a4c;
+  background: linear-gradient(180deg, #1b1e23, var(--key-out) 12%);
+  background-clip: padding-box;
+  box-shadow: inset 0 -4px 0 #1f2328;
 }
 .key.out.black {
-  background: #0a0908;
+  background: #040506;
 }
-.key .lbl {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 12px;
-  text-align: center;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: #9c917b;
-  pointer-events: none;
-}
-.key.black .lbl {
-  bottom: 9px;
-  color: #6d6457;
-}
+.key .lbl,
 .key .cname {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 30px;
   text-align: center;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: #b8ac95;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--key-ink);
   pointer-events: none;
+}
+.key .lbl {
+  bottom: 12px;
+}
+.key.black .lbl {
+  bottom: 9px;
+  color: #a2a7ae;
+}
+.key .cname {
+  bottom: 30px;
+}
+.key.out .lbl,
+.key.out .cname {
+  color: #a2a7ae;
 }
 .key.prep::after {
   content: '';
@@ -527,7 +624,7 @@ main {
   height: 5px;
   margin-left: -2.5px;
   border-radius: 50%;
-  background: var(--ref);
+  background: var(--steel);
 }
 /* a touch screen has no computer keyboard: its letters stay off the keys, and each C's name takes
    their line (they come back with the first key played on a keyboard that is plugged in) */
@@ -549,7 +646,7 @@ main {
   display: none;
   position: relative;
   height: var(--pos-h);
-  background: linear-gradient(180deg, #0b0907, #050403);
+  background: var(--wall-0);
   touch-action: none;
   cursor: grab;
   user-select: none;
@@ -576,16 +673,16 @@ main {
   height: 100%;
 }
 .km-w {
-  fill: #d8cdb8;
+  fill: #8d9299;
 }
 .km-b {
-  fill: #0b0907;
+  fill: var(--wall-0);
 }
 .km-w.out {
-  fill: #6f6758;
+  fill: var(--key-out);
 }
 .km-k.on {
-  fill: var(--accent);
+  fill: var(--light);
 }
 .km-shade {
   position: absolute;
@@ -598,7 +695,7 @@ main {
   bottom: 0;
   left: var(--l, 0%);
   width: var(--w, 100%);
-  box-shadow: 0 0 0 100vmax rgba(5, 4, 3, 0.62);
+  box-shadow: 0 0 0 100vmax rgb(var(--wall-0-rgb) / 0.66);
 }
 .km-win {
   position: absolute;
@@ -606,12 +703,11 @@ main {
   bottom: -3px;
   left: var(--l, 0%);
   width: var(--w, 100%);
-  border: 1px solid var(--brass);
-  border-radius: 3px;
-  box-shadow: 0 0 6px rgba(201, 163, 92, 0.25);
+  border: 1px solid var(--ink-2);
+  border-radius: 1px;
 }
 .keymap.dragging .km-win {
-  border-color: #f0d89c;
+  border-color: var(--light);
 }
 @media (max-width: 760px), (pointer: coarse) and (max-width: 1559px) {
   :root {
@@ -626,6 +722,7 @@ main {
 }
 
 /* ------------------------------------------------------------ text pages (measurements, notes) */
+/* the catalogue: one family, a real measure, the wall for ground */
 :root:not([data-route='stage']) main {
   padding: clamp(18px, 4vw, 44px) var(--gutter) 48px;
 }
@@ -640,46 +737,42 @@ main {
 h1,
 h2,
 h3 {
-  font-family: var(--serif);
-  font-weight: 400;
-  letter-spacing: -0.01em;
+  font-family: var(--face);
+  font-weight: 300;
+  letter-spacing: -0.02em;
   margin: 0;
+  text-wrap: balance;
 }
 h2 {
-  font-size: clamp(24px, 3vw, 30px);
+  font-size: 30px;
   line-height: 1.15;
-  font-variation-settings: 'opsz' 48;
-  font-style: italic;
 }
 h3 {
-  font-size: 18px;
-  line-height: 1.25;
-  font-variation-settings: 'opsz' 24;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 .prose {
-  font-family: var(--serif);
-  font-size: 17px;
-  line-height: 1.55;
-  font-variation-settings: 'opsz' 16;
+  font-size: 16.5px;
+  line-height: 1.62;
   max-width: var(--measure);
   color: var(--ink-2);
+  text-wrap: pretty;
 }
 .prose p {
-  margin: 0 0 0.8em;
+  margin: 0 0 0.85em;
 }
 code {
-  font-family: var(--mono);
-  font-size: 0.85em;
+  font-family: var(--code);
+  font-size: 0.86em;
 }
 .label {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--muted);
 }
 .num {
-  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
 }
 .hint {
@@ -693,33 +786,28 @@ code {
     --kbd-h: 150px;
     --fall-h: 54px;
   }
-
-
-
-
-
-
-
-
-
-
-
-
-  .inlay {
-    position: static;
-    transform: none;
-    font-size: 17px;
-    margin-right: auto;
+  h2 {
+    font-size: 25px;
   }
   .knob-toggle {
-    display: block;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
     margin-left: auto;
+    margin-right: -10px;
     border: 0;
     background: none;
-    color: var(--brass);
-    font-size: 22px;
-    padding: 4px 8px;
+    color: var(--ink-2);
+    padding: 0;
     cursor: pointer;
+  }
+  .knob-toggle .ico {
+    width: 22px;
+    height: 22px;
+  }
+  .knob-toggle[aria-expanded='true'] {
+    color: var(--light);
   }
   .knobs {
     position: absolute;
@@ -730,7 +818,7 @@ code {
     padding: 10px var(--gutter) 8px;
     flex-wrap: wrap;
     justify-content: center;
-    background: rgba(18, 15, 12, 0.96);
+    background: var(--wall-2);
     border-top: 1px solid var(--rule-2);
     display: none;
   }
@@ -745,6 +833,9 @@ code {
   .knob {
     width: 52px;
   }
+  .k-reset {
+    width: 24px;
+  }
 }
 /* the narrowest phones (320 px): three pedals, the octave and the knob toggle still fit the bar */
 @media (max-width: 360px) {
@@ -755,29 +846,18 @@ code {
     gap: 2px;
   }
   .knob-toggle {
-    padding: 4px 4px;
+    width: 36px;
+    margin-right: -6px;
   }
 }
 /* ------------------------------------------------------------ a phone held sideways */
-/* a short viewport (844×390): one slim band over the stage, the knobs behind ◐, shorter keys; the
-   stage takes all the height that is left and the page does not scroll */
+/* a short viewport (844×390): one slim band over the stage, the knobs behind their button, shorter keys;
+   the stage takes all the height that is left and the page does not scroll */
 @media (max-height: 500px) and (orientation: landscape) {
   :root {
     --kbd-h: 96px;
     --fall-h: 40px;
   }
-
-
-
-
-
-
-
-
-
-
-
-
   .pedal {
     padding-top: 0;
   }
@@ -789,15 +869,20 @@ code {
     display: none;
   }
   .knob-toggle {
-    display: block;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 36px;
     margin-left: auto;
     border: 0;
     background: none;
-    color: var(--brass);
-    font-size: 22px;
-    line-height: 1;
-    padding: 4px 8px;
+    color: var(--ink-2);
+    padding: 0;
     cursor: pointer;
+  }
+  .knob-toggle .ico {
+    width: 20px;
+    height: 20px;
   }
   .knobs {
     position: absolute;
@@ -808,7 +893,7 @@ code {
     padding: 8px var(--gutter) 6px;
     flex-wrap: wrap;
     justify-content: center;
-    background: rgba(18, 15, 12, 0.96);
+    background: var(--wall-2);
     border-top: 1px solid var(--rule-2);
     display: none;
   }
@@ -830,9 +915,10 @@ code {
   .lamp {
     animation: none !important;
   }
-  .key,
-  .p-face {
-    transition: none;
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0s !important;
   }
 }
 
@@ -907,11 +993,11 @@ figure svg {
 }
 figcaption {
   margin-top: 10px;
-  font-family: var(--serif);
-  font-size: 15px;
-  line-height: 1.5;
+  max-width: var(--measure);
+  font-size: 14.5px;
+  line-height: 1.55;
   color: var(--ink-2);
-  font-variation-settings: 'opsz' 14;
+  text-wrap: pretty;
 }
 .legend {
   display: flex;
@@ -935,8 +1021,9 @@ figcaption {
   vertical-align: 0;
 }
 .axis text {
-  font-family: var(--mono);
-  font-size: 10px;
+  font-family: var(--face);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
   fill: var(--muted);
 }
 .axis line,
@@ -959,8 +1046,8 @@ figcaption {
   gap: 6px;
 }
 .ab-item .t {
-  font-family: var(--serif);
-  font-size: 17px;
+  font-size: 15px;
+  font-weight: 500;
 }
 .ab-item .btns {
   display: flex;
@@ -969,14 +1056,24 @@ figcaption {
 .ab-item .btns button {
   border: 1px solid var(--rule-2);
   background: transparent;
-  border-radius: 999px;
-  padding: 3px 10px;
+  border-radius: var(--radius);
+  padding: 4px 11px;
   font-size: 12px;
+  color: var(--ink-2);
   cursor: pointer;
+  transition:
+    border-color var(--fall) var(--ease),
+    color var(--fall) var(--ease);
+}
+.ab-item .btns button:hover {
+  border-color: var(--ink-2);
+  color: var(--light);
+  transition-duration: var(--rise);
 }
 .ab-item .btns button.playing {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--light);
+  background: var(--light);
+  color: var(--wall-0);
 }
 table.rounds {
   border-collapse: collapse;
@@ -989,18 +1086,16 @@ table.rounds td {
   text-align: right;
   padding: 6px 8px;
   border-bottom: 1px solid var(--rule);
-  font-family: var(--mono);
-  font-size: 12px;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
 }
 table.rounds th:first-child,
 table.rounds td:first-child {
   text-align: left;
-  font-family: var(--sans);
 }
 table.rounds th {
   color: var(--muted);
   font-weight: 500;
-  font-family: var(--sans);
 }
 .shortfalls {
   margin-top: 56px;
@@ -1021,27 +1116,23 @@ table.rounds th {
 .notes h2 {
   margin: 44px 0 12px;
 }
-.notes .refs {
-  font-size: 14px;
-  color: var(--ink-2);
-  font-family: var(--serif);
-}
 .notes .refs li {
   margin-bottom: 6px;
 }
 
 /* ------------------------------------------------------------ charts */
+/* the model in the wall's light, the recording it is held against in steel: a line against dots */
 .chart {
   position: relative;
 }
 .chart svg .series-line {
   fill: none;
-  stroke-width: 2;
+  stroke-width: 1.75;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
 .chart svg .dot {
-  stroke: var(--paper);
+  stroke: var(--ground);
   stroke-width: 2;
 }
 .chart svg .crosshair {
@@ -1049,25 +1140,27 @@ table.rounds th {
   stroke-width: 1;
 }
 .chart svg .axis-label {
-  font-family: var(--sans);
+  font-family: var(--face);
   font-size: 11px;
   fill: var(--muted);
 }
 .chart svg .panel-title {
-  font-family: var(--sans);
+  font-family: var(--face);
   font-size: 12px;
+  font-weight: 500;
   fill: var(--ink-2);
 }
-.tip {
+/* a chart's own tooltip: the values under the pointer */
+.chart .tip {
   position: absolute;
   pointer-events: none;
-  background: var(--paper);
+  background: var(--wall-2);
   border: 1px solid var(--rule-2);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 7px 10px;
   font-size: 12px;
   line-height: 1.45;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 22px rgb(0 0 0 / 0.45);
   z-index: 4;
   min-width: 140px;
   white-space: nowrap;
@@ -1091,8 +1184,8 @@ table.rounds th {
   border-radius: 1px;
 }
 .tip .row b {
-  font-family: var(--mono);
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
 .tip .row span {
@@ -1106,6 +1199,9 @@ details.data summary {
   cursor: pointer;
   color: var(--muted);
 }
+details.data summary:hover {
+  color: var(--ink);
+}
 details.data table {
   border-collapse: collapse;
   margin-top: 6px;
@@ -1113,14 +1209,13 @@ details.data table {
 }
 details.data td,
 details.data th {
-  font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
   text-align: right;
   padding: 2px 6px;
   border-bottom: 1px solid var(--rule);
 }
 details.data th {
-  font-family: var(--sans);
   font-weight: 500;
   color: var(--muted);
 }
@@ -1134,11 +1229,12 @@ details.data .scroll {
   gap: 18px 24px;
 }
 .tile .v {
-  font-family: var(--sans);
-  font-size: 30px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-size: 32px;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
   line-height: 1.1;
+  color: var(--light);
 }
 .tile .s {
   font-size: 13px;
@@ -1167,76 +1263,79 @@ details.data .scroll {
 }
 .note-item h3 {
   margin: 22px 0 4px;
-  font-size: 17px;
-  font-style: italic;
+  font-size: 16px;
   color: var(--ink);
 }
 .note-item p {
   margin: 0;
 }
 .notes .refs {
-  font-family: var(--mono);
-  font-size: 11px;
+  font-size: 13px;
   color: var(--muted);
-  line-height: 1.7;
+  line-height: 1.6;
   padding-left: 22px;
-}
-.tile .v {
-  color: var(--ink);
 }
 figure[title] {
   cursor: help;
 }
 
-
 /* ------------------------------------------------------------ octave */
 .octave {
   display: flex;
   align-items: center;
-  gap: 2px;
-  font-family: var(--mono);
+  gap: 0;
 }
 .oct-btn {
-  width: 26px;
+  display: grid;
+  place-items: center;
+  width: 28px;
   height: 30px;
-  border: 1px solid #3a3226;
-  border-radius: 4px;
-  background: linear-gradient(180deg, #2a241c, #17130f);
-  color: var(--brass);
-  font-size: 17px;
-  line-height: 1;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink-2);
+  padding: 0;
   cursor: pointer;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 0 #000;
+}
+.oct-btn:hover {
+  color: var(--light);
 }
 .oct-btn:active {
   transform: translateY(1px);
-  box-shadow: 0 1px 0 #000;
 }
 .oct-label {
-  min-width: 30px;
+  min-width: 26px;
   text-align: center;
-  font-size: 11px;
-  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+@media (pointer: coarse) {
+  .oct-btn {
+    width: 40px;
+    height: 44px;
+  }
 }
 
 /* ------------------------------------------------------------ MIDI socket */
+/* a keyboard is plugged in: a small ring by the lamp, filled for an instant as each message comes */
 .midi {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: var(--amber);
+  color: var(--ink-2);
 }
 .midi::before {
   content: '';
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  border: 1px solid var(--amber);
-  box-shadow: 0 0 0 2px rgba(242, 166, 70, 0.15);
+  border: 1px solid var(--ink-2);
 }
 .midi.blink::before {
-  background: var(--amber);
-  box-shadow: 0 0 8px rgba(242, 166, 70, 0.9);
+  border-color: var(--light);
+  background: var(--light);
 }
 
 /* ------------------------------------------------------------ MIDI file player: icons and a hairline */
@@ -1256,9 +1355,10 @@ figure[title] {
   align-items: center;
   gap: 2px;
   padding: 3px 4px;
-  border-radius: 6px;
-  background: rgba(14, 13, 11, 0.55);
-  backdrop-filter: blur(6px);
+  border: 1px solid rgb(var(--ink-rgb) / 0.1);
+  border-radius: var(--radius);
+  /* (the wall's own tone, so its icons read over a lit instrument; nothing is blurred) */
+  background: rgb(var(--wall-rgb) / 0.82);
 }
 .pl-row {
   display: flex;
@@ -1280,16 +1380,10 @@ figure[title] {
 }
 /* (a phone: a symphony's lines in one row, each chip its share of it (--n of them: player.ts), from
    28 px down to 22 px: thirteen fit a 390 px screen, fifteen at the narrowest. A second row lay over
-   the orchestra's back row. The strip is 100vw − 40 px inside; a pixel is kept for rounding.) */
+   the orchestra's back row. The strip is 100vw − 40 px inside, less the player's hairline each side; a
+   pixel is kept for rounding.) */
 @media (max-width: 480px) {
   .pl-lines .pl-line {
-    width: clamp(22px, calc((100vw - 41px - (var(--n, 12) - 1) * 1px) / var(--n, 12)), 28px);
-  }
-}
-/* (the vector style's player has a border: its strip is 2 px narrower, and thirteen chips at the 2D
-   style's width put the last on a second row) */
-@media (max-width: 480px) {
-  :root[data-style='vector'] .pl-lines .pl-line {
     width: clamp(20px, calc((100vw - 43px - (var(--n, 12) - 1) * 1px) / var(--n, 12)), 28px);
   }
 }
@@ -1301,11 +1395,11 @@ figure[title] {
   height: 30px;
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: none;
   color: var(--muted);
   cursor: pointer;
-  transition: color 0.12s;
+  transition: color var(--fall) var(--ease);
 }
 .pl-line .glyph,
 .pl-pick .glyph {
@@ -1315,16 +1409,15 @@ figure[title] {
 .pl-line:hover,
 .pl-pick:hover:not(:disabled) {
   color: var(--ink);
+  transition-duration: var(--rise);
 }
+/* a line sounding: lit */
 .pl-line.on {
-  color: var(--ink);
-}
-.pl-line.on .glyph {
-  stroke: var(--amber);
-  filter: drop-shadow(0 0 4px rgba(242, 166, 70, 0.5));
+  color: var(--light);
+  transition-duration: var(--rise);
 }
 .pl-line[aria-expanded='true'] {
-  background: rgba(236, 226, 206, 0.1);
+  background: rgb(var(--ink-rgb) / 0.1);
 }
 .pl-line[data-voice='none'] {
   opacity: 0.6;
@@ -1336,7 +1429,7 @@ figure[title] {
 }
 .pl-line:focus-visible,
 .pl-pick:focus-visible {
-  outline: 1px solid rgba(242, 166, 70, 0.8);
+  outline: 1px solid var(--focus);
   outline-offset: -1px;
 }
 /* a line's instruments: a row of glyphs under its chip (on a phone, two rows: thirteen voices and their
@@ -1352,16 +1445,13 @@ figure[title] {
   gap: 1px;
   padding: 3px;
   border: 1px solid var(--rule-2);
-  border-radius: 6px;
-  background: rgba(14, 13, 11, 0.92);
-  backdrop-filter: blur(6px);
+  border-radius: var(--radius);
+  background: var(--wall-2);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.5);
 }
 .pl-pick[aria-checked='true'] {
-  color: var(--ink);
-  background: rgba(236, 226, 206, 0.12);
-}
-.pl-pick[aria-checked='true'] .glyph {
-  stroke: var(--amber);
+  color: var(--light);
+  background: rgb(var(--ink-rgb) / 0.12);
 }
 .pl-pick:disabled {
   opacity: 0.3;
@@ -1376,7 +1466,8 @@ figure[title] {
   position: absolute;
   right: 0;
   bottom: 1px;
-  font: 500 10px/1 var(--mono);
+  font: 500 10px/1 var(--face);
+  font-variant-numeric: tabular-nums;
   color: var(--ink-2);
   pointer-events: none;
 }
@@ -1385,10 +1476,9 @@ figure[title] {
   height: 18px;
   fill: currentColor;
 }
+/* (off: a little apart from the instruments) */
 .pl-off {
-  margin-left: 4px;
-  border-left: 1px solid var(--rule-2);
-  border-radius: 0 4px 4px 0;
+  margin-left: 8px;
 }
 /* a section's menu, in rows: its instruments; from the stage, the file's lines (numbered as the grid's
    columns, lit where the section plays); another desk, one fewer, off */
@@ -1406,7 +1496,7 @@ figure[title] {
 }
 @media (max-width: 480px) {
   .pl-menu.pl-seat {
-  width: 224px;
+    width: 224px;
   }
 }
 .pl-ln {
@@ -1419,21 +1509,22 @@ figure[title] {
   border: 0;
   border-radius: 50%;
   background: none;
-  font: 400 10px/1 var(--mono);
+  font: 500 11px/1 var(--face);
+  font-variant-numeric: tabular-nums;
   color: var(--muted);
   cursor: pointer;
-  box-shadow: inset 0 0 0 1px rgba(138, 129, 114, 0.45);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.3);
 }
 .pl-ln:hover {
   color: var(--ink);
 }
 .pl-ln[aria-checked='true'] {
-  color: var(--paper);
-  background: var(--amber);
+  color: var(--wall-0);
+  background: var(--light);
   box-shadow: none;
 }
 .pl-ln:focus-visible {
-  outline: 1px solid rgba(242, 166, 70, 0.8);
+  outline: 1px solid var(--focus);
   outline-offset: 1px;
 }
 .pl-route[hidden] {
@@ -1448,17 +1539,17 @@ figure[title] {
   stroke-linejoin: round;
 }
 .pl-expr[aria-pressed='true'] {
-  color: var(--amber);
+  color: var(--light);
 }
 .pl-expr[aria-pressed='false'] {
-  opacity: 0.6;
+  color: var(--muted);
 }
 .pl-expr.own {
-  opacity: 0.45;
+  opacity: 0.55;
 }
 .pl-route[aria-expanded='true'],
 .pl-pieces[aria-expanded='true'] {
-  color: var(--amber);
+  color: var(--light);
 }
 /* routing: instruments (rows) by lines (columns), a last column for every line, a row to add one */
 .pl-grid {
@@ -1475,12 +1566,13 @@ figure[title] {
   overflow: auto;
   padding: 4px 6px 4px 4px;
   border: 1px solid var(--rule-2);
-  border-radius: 6px;
-  background: rgba(14, 13, 11, 0.92);
-  backdrop-filter: blur(6px);
+  border-radius: var(--radius);
+  background: var(--wall-2);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.5);
 }
 .pg-col {
-  font: 400 10px/1 var(--mono);
+  font: 400 11px/1 var(--face);
+  font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
 .pg-col svg {
@@ -1497,7 +1589,7 @@ figure[title] {
   height: 100%;
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: none;
   color: var(--muted);
   cursor: pointer;
@@ -1515,12 +1607,11 @@ figure[title] {
 .pg-cell:hover {
   color: var(--ink);
 }
-.pg-row.on .glyph {
-  stroke: var(--amber);
-  filter: drop-shadow(0 0 4px rgba(242, 166, 70, 0.5));
+.pg-row.on {
+  color: var(--light);
 }
 .pg-row[aria-expanded='true'] {
-  background: rgba(236, 226, 206, 0.1);
+  background: rgb(var(--ink-rgb) / 0.1);
 }
 .pg-row:disabled {
   opacity: 0.3;
@@ -1542,7 +1633,7 @@ figure[title] {
   height: 100%;
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: none;
   color: var(--muted);
   cursor: pointer;
@@ -1554,10 +1645,10 @@ figure[title] {
 }
 .pg-mode:hover,
 .pg-mode[aria-pressed='true'] {
-  color: var(--amber);
+  color: var(--light);
 }
 .pg-mode:focus-visible {
-  outline: 1px solid rgba(242, 166, 70, 0.8);
+  outline: 1px solid var(--focus);
   outline-offset: -1px;
 }
 /* a cell: a ring, filled when this instrument plays this line */
@@ -1570,22 +1661,22 @@ figure[title] {
   opacity: 0.55;
 }
 .pg-cell[aria-pressed='true']::before {
-  border-color: var(--amber);
-  background: var(--amber);
+  border-color: var(--light);
+  background: var(--light);
   opacity: 1;
 }
 .pg-all::before {
   width: 10px;
   height: 10px;
-  border-radius: 2px;
+  border-radius: 1px;
 }
 .pg-all[aria-pressed='true']::before {
   background: transparent;
-  box-shadow: inset 0 0 0 2px var(--amber);
+  box-shadow: inset 0 0 0 2px var(--light);
 }
 .pg-row:focus-visible,
 .pg-cell:focus-visible {
-  outline: 1px solid rgba(242, 166, 70, 0.8);
+  outline: 1px solid var(--focus);
   outline-offset: -1px;
 }
 .player[hidden] {
@@ -1612,12 +1703,15 @@ figure[title] {
   height: 28px;
   padding: 5px;
   border: 0;
+  border-radius: var(--radius);
   background: none;
   color: var(--ink-2);
   cursor: pointer;
+  transition: color var(--fall) var(--ease);
 }
 .pl-btn:hover {
-  color: var(--amber);
+  color: var(--light);
+  transition-duration: var(--rise);
 }
 .pl-btn svg {
   width: 100%;
@@ -1633,14 +1727,15 @@ figure[title] {
     padding: 8px;
   }
 }
+/* where the piece is: a hairline, the part played in light */
 .pl-bar {
   position: relative;
   width: min(160px, 34vw);
   /* (the icons keep their size; on a narrow phone with every icon shown the hairline gives way) */
   flex: 0 1 auto;
   min-width: 56px;
-  height: 2px;
-  background: rgba(236, 226, 206, 0.16);
+  height: 1px;
+  background: rgb(var(--ink-rgb) / 0.24);
   cursor: pointer;
   touch-action: none;
 }
@@ -1651,8 +1746,8 @@ figure[title] {
 }
 .pl-fill {
   position: absolute;
-  inset: 0;
-  background: var(--amber);
+  inset: -0.5px 0;
+  background: var(--light);
   transform-origin: left;
   transform: scaleX(0);
 }
@@ -1664,12 +1759,14 @@ figure[title] {
   stroke-linecap: round;
 }
 .pl-sheet[aria-pressed='true'] {
-  color: var(--amber);
+  color: var(--light);
+  background: rgb(var(--ink-rgb) / 0.12);
 }
 
 /* ------------------------------------------------------------ the sheet music (sheet/view.ts) */
-/* In the instrument's place, under the file player (the stage sets its top): a part on a sheet of paper,
-   lit by the lamp over the stand, warm ink; the notes sounding in the stage's vermilion. */
+/* In the instrument's place, under the file player (the stage sets its top): a part on a sheet of grey-white
+   board under its own light, graphite ink; the notes sounding in a conductor's blue pencil (on paper,
+   light cannot be the mark). */
 .sheet {
   position: absolute;
   z-index: 2;
@@ -1677,11 +1774,11 @@ figure[title] {
   right: 0;
   bottom: 0;
   top: 120px;
-  --sheet-paper: #e9e1cd;
-  --sheet-ink: #2a241b;
-  --sheet-rule: rgba(42, 36, 27, 0.55);
-  --sheet-dim: rgba(42, 36, 27, 0.58);
-  --sheet-on: #c8431c;
+  --sheet-paper: #e1e0db;
+  --sheet-ink: #1e2226;
+  --sheet-rule: rgb(30 34 38 / 0.55);
+  --sheet-dim: rgb(30 34 38 / 0.62);
+  --sheet-on: #1f53b8;
 }
 .stage.sheet-on .stage-cv,
 .stage.sheet-on .stage-3d {
@@ -1703,13 +1800,11 @@ figure[title] {
   margin: 0 auto;
   padding: 12px clamp(10px, 2.2vw, 26px) 26px;
   background:
-    radial-gradient(140% 60% at 50% 0%, rgba(255, 252, 240, 0.35), transparent 70%),
+    radial-gradient(140% 60% at 50% 0%, rgb(255 255 255 / 0.4), transparent 70%),
     var(--sheet-paper);
   color: var(--sheet-ink);
-  border-radius: 2px;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.25) inset,
-    0 14px 40px rgba(0, 0, 0, 0.5);
+  border-radius: 1px;
+  box-shadow: 0 16px 44px rgb(0 0 0 / 0.55);
 }
 .sheet-head {
   display: flex;
@@ -1721,7 +1816,8 @@ figure[title] {
 .sheet-part,
 .sheet-part-name {
   flex: none;
-  font: italic 400 15px/1.2 var(--serif);
+  font: 500 14px/1.2 var(--face);
+  letter-spacing: -0.005em;
   color: var(--sheet-ink);
 }
 .sheet-part {
@@ -1731,13 +1827,13 @@ figure[title] {
   margin: -3px 0 0 -4px;
   padding: 3px 4px;
   border: 0;
-  border-radius: 3px;
+  border-radius: var(--radius);
   background: none;
   cursor: pointer;
 }
 .sheet-part:hover,
 .sheet-part[aria-expanded='true'] {
-  background: rgba(42, 36, 27, 0.07);
+  background: rgb(30 34 38 / 0.08);
 }
 .sheet-part:focus-visible {
   outline: 1px solid var(--sheet-on);
@@ -1754,7 +1850,7 @@ figure[title] {
   min-width: 0;
   margin-left: auto;
   overflow: hidden;
-  font: 400 13px/1.2 var(--serif);
+  font: italic 400 13px/1.2 var(--face);
   color: var(--sheet-dim);
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -1772,7 +1868,8 @@ figure[title] {
 }
 .sheet-n {
   position: absolute;
-  font: 400 10px/1 var(--mono);
+  font: 400 10.5px/1 var(--face);
+  font-variant-numeric: tabular-nums;
   color: var(--sheet-dim);
   pointer-events: none;
 }
@@ -1784,7 +1881,7 @@ figure[title] {
   margin-left: -0.75px;
   border-radius: 1px;
   background: var(--sheet-on);
-  opacity: 0.7;
+  opacity: 0.75;
   pointer-events: none;
   will-change: transform;
 }
@@ -1821,9 +1918,9 @@ figure[title] {
   padding: 4px;
   overflow-y: auto;
   border: 1px solid var(--rule-2);
-  border-radius: 4px;
-  background: var(--paper-2);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius);
+  background: var(--wall-2);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.5);
 }
 .sheet-pick {
   display: flex;
@@ -1832,10 +1929,10 @@ figure[title] {
   min-height: 30px;
   padding: 2px 10px 2px 4px;
   border: 0;
-  border-radius: 3px;
+  border-radius: var(--radius);
   background: none;
   color: var(--ink-2);
-  font: 400 12px/1.2 var(--mono);
+  font: 400 12.5px/1.2 var(--face);
   text-align: left;
   cursor: pointer;
 }
@@ -1849,13 +1946,14 @@ figure[title] {
 }
 .sheet-pick:hover {
   color: var(--ink);
-  background: rgba(236, 226, 206, 0.06);
+  background: rgb(var(--ink-rgb) / 0.07);
 }
 .sheet-pick[aria-checked='true'] {
-  color: var(--amber);
+  color: var(--light);
+  font-weight: 500;
 }
 .sheet-pick:focus-visible {
-  outline: 1px solid rgba(242, 166, 70, 0.8);
+  outline: 1px solid var(--focus);
   outline-offset: -1px;
 }
 @media (pointer: coarse) {
@@ -1864,11 +1962,9 @@ figure[title] {
   }
 }
 
-/* a file is being dragged over the page */
+/* a file is being dragged over the page: the wall's edge lit */
 :root[data-drop] .stage {
-  box-shadow:
-    inset 0 0 0 1px rgba(242, 166, 70, 0.55),
-    inset 0 0 80px rgba(242, 166, 70, 0.12);
+  box-shadow: inset 0 0 0 1px rgb(var(--light-rgb) / 0.7);
 }
 
 /* ------------------------------------------------------------ ?debug start-up log */
@@ -1881,10 +1977,10 @@ figure[title] {
   max-height: 46vh;
   display: flex;
   flex-direction: column;
-  background: rgba(8, 7, 6, 0.92);
+  background: rgb(var(--wall-0-rgb) / 0.94);
   border: 1px solid var(--rule-2);
-  border-radius: 4px;
-  font-family: var(--mono);
+  border-radius: var(--radius);
+  font-family: var(--code);
   font-size: 11px;
   color: var(--ink-2);
 }
@@ -1900,14 +1996,16 @@ figure[title] {
   margin: 4px 6px 0;
   border: 1px solid var(--rule-2);
   background: none;
-  color: var(--amber);
-  font-size: 10px;
+  color: var(--ink);
+  font-size: 11px;
   padding: 1px 6px;
   cursor: pointer;
 }
 
 /* ------------------------------------------------------------ room and lid knobs (on the stage) */
-/* the fallboard's knob face (.k-*) on a dark disc that keeps it legible over the instrument; no word */
+/* the fallboard's dial (.k-*) on a disc of the wall's tone that keeps it legible over the instrument. No
+   word, and no pointer: the arc is the value, and the middle holds what the knob moves (a lid on its
+   hinge, a room's walls: ui/stage-knob.ts) */
 .stage-knob {
   position: absolute;
   left: 0;
@@ -1931,31 +2029,43 @@ figure[title] {
   height: 100%;
 }
 .sk-bg {
-  fill: rgba(14, 13, 11, 0.62);
-  stroke: rgba(242, 166, 70, 0.28);
+  fill: rgb(var(--wall-0-rgb) / 0.78);
+  stroke: rgb(var(--ink-rgb) / 0.2);
   stroke-width: 0.8;
-  transition: stroke 0.15s;
+  transition: stroke var(--fall) var(--ease);
 }
 .stage-knob .k-track {
-  stroke: rgba(236, 226, 206, 0.16);
+  stroke: rgb(var(--ink-rgb) / 0.2);
 }
 .stage-knob .k-ticks line {
-  stroke: rgba(236, 226, 206, 0.32);
+  stroke: rgb(var(--ink-rgb) / 0.3);
 }
 .stage-knob .k-ticks .sk-notch {
-  stroke: rgba(236, 226, 206, 0.7);
+  stroke: rgb(var(--ink-rgb) / 0.75);
   stroke-width: 1.4;
   stroke-linecap: round;
 }
-.stage-knob:hover .k-cap,
-.stage-knob.dragging .k-cap,
-.stage-knob:focus-visible .k-cap {
-  fill: #3a3125;
+.stage-knob .k-cap,
+.stage-knob .k-ptr {
+  display: none;
+}
+.sk-glyph {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.stage-knob:hover .sk-glyph,
+.stage-knob.dragging .sk-glyph,
+.stage-knob:focus-visible .sk-glyph {
+  stroke: var(--light);
 }
 .stage-knob:hover .sk-bg,
 .stage-knob.dragging .sk-bg,
 .stage-knob:focus-visible .sk-bg {
-  stroke: rgba(242, 166, 70, 0.8);
+  stroke: var(--light);
+  transition-duration: var(--rise);
 }
 /* touch: a finger's size (44 px) */
 @media (pointer: coarse) {
@@ -1966,23 +2076,21 @@ figure[title] {
 }
 
 /* ------------------------------------------------------------ tooltip (icon-only controls) */
-.tip {
+body > .tip {
   position: fixed;
   left: 0;
   top: 0;
   z-index: 50;
   pointer-events: none;
-  padding: 3px 7px;
-  border-radius: 4px;
-  font: 500 11px/1.3 'IBM Plex Mono', ui-monospace, monospace;
-  letter-spacing: 0.02em;
-  color: var(--ink, #ece2ce);
-  background: rgba(20, 17, 14, 0.92);
-  border: 1px solid rgba(242, 166, 70, 0.35);
+  padding: 4px 8px;
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius);
+  font: 500 11.5px/1.3 var(--face);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: var(--wall-2);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.4);
   white-space: nowrap;
-}
-.tip[hidden] {
-  display: none;
 }
 
 /* ------------------------------------------------------------ single-key action view */
@@ -1992,17 +2100,16 @@ figure[title] {
   z-index: 20;
   display: grid;
   place-items: center;
-  background: rgba(8, 7, 6, 0.55);
-  backdrop-filter: blur(2px);
+  background: rgb(var(--wall-0-rgb) / 0.7);
 }
 .av-panel {
   position: relative;
   width: min(820px, calc(100% - 32px));
   height: min(460px, calc(100% - 32px));
-  background: var(--ground, #0e0d0b);
-  border: 1px solid rgba(236, 226, 206, 0.14);
-  border-radius: 10px;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+  background: var(--ground);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius);
+  box-shadow: 0 18px 60px rgb(0 0 0 / 0.6);
   overflow: hidden;
 }
 .av-panel:focus {
@@ -2019,34 +2126,38 @@ figure[title] {
   position: absolute;
   left: 16px;
   top: 10px;
-  font: italic 400 26px/1.1 'Newsreader Variable', Georgia, serif;
-  color: var(--ink, #ece2ce);
+  font: 300 26px/1.1 var(--face);
+  letter-spacing: -0.02em;
+  color: var(--ink);
   pointer-events: none;
 }
 .av-speed {
   position: absolute;
-  left: 18px;
+  left: 17px;
   top: 44px;
-  font: 500 11px/1 'IBM Plex Mono', ui-monospace, monospace;
-  color: rgba(242, 166, 70, 0.9);
+  font: 500 11px/1 var(--face);
+  font-variant-numeric: tabular-nums;
+  color: var(--tungsten);
   pointer-events: none;
 }
 .av-close {
   position: absolute;
   right: 10px;
   top: 8px;
+  display: grid;
+  place-items: center;
   width: 30px;
   height: 30px;
-  border: 1px solid rgba(236, 226, 206, 0.18);
+  padding: 0;
+  border: 1px solid var(--rule-2);
   border-radius: 50%;
   background: transparent;
-  color: var(--ink, #ece2ce);
-  font: 400 18px/1 'IBM Plex Sans', system-ui, sans-serif;
+  color: var(--ink);
   cursor: pointer;
 }
 .av-close:hover,
 .av-close:focus-visible {
-  border-color: rgba(242, 166, 70, 0.8);
+  border-color: var(--light);
 }
 @media (max-width: 600px) {
   .action-view {
@@ -2055,7 +2166,8 @@ figure[title] {
   .av-panel {
     width: 100%;
     height: min(62vh, 520px);
-    border-radius: 12px 12px 0 0;
+    border-radius: 0;
+    border-width: 1px 0 0;
   }
   /* (the grand's section is long and low: its panel leaves the rest of the stage in view) */
   .av-panel[data-kind='grand'] {
@@ -2069,12 +2181,6 @@ figure[title] {
   }
 }
 
-
-
-
-
-
-
 .ens-icon circle {
   fill: currentColor;
 }
@@ -2084,38 +2190,35 @@ figure[title] {
   stroke-linecap: round;
 }
 
-
-
-
-
 :root[data-ensemble] .knob-toggle,
 :root[data-ensemble] .knobs {
   display: none !important;
 }
+/* the pieces: each row its title first, then who wrote it and who plays it */
 .score-menu {
   position: absolute;
   z-index: 7;
   display: flex;
   flex-direction: column;
-  min-width: 220px;
+  min-width: min(304px, calc(100vw - 12px));
   padding: 4px;
   border: 1px solid var(--rule-2);
-  border-radius: 6px;
-  background: rgba(14, 13, 11, 0.94);
-  backdrop-filter: blur(6px);
+  border-radius: var(--radius);
+  background: var(--wall-2);
+  box-shadow: 0 14px 36px rgb(0 0 0 / 0.55);
   /* (its height is kept to the window's: player.ts; a short window scrolls it) */
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 .sm-item {
   display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-areas: 'who what' 'lineup lineup';
-  align-items: baseline;
-  gap: 0 8px;
-  padding: 6px 8px 4px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'what what' 'who lineup';
+  align-items: center;
+  gap: 3px 10px;
+  padding: 7px 8px 5px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: none;
   color: var(--ink-2);
   text-align: left;
@@ -2123,26 +2226,31 @@ figure[title] {
 }
 .sm-item:hover,
 .sm-item:focus-visible {
-  background: rgba(236, 226, 206, 0.08);
+  background: rgb(var(--ink-rgb) / 0.08);
   color: var(--ink);
   outline: none;
 }
-.sm-who {
-  grid-area: who;
-  font: italic 17px/1.2 var(--serif);
-  color: var(--ink);
-}
 .sm-what {
   grid-area: what;
-  font: 400 11px/1.3 var(--mono);
+  font: 500 13.5px/1.3 var(--face);
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.sm-who {
+  grid-area: who;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 400 12px/1.3 var(--face);
   color: var(--muted);
   white-space: nowrap;
 }
 .sm-lineup {
   grid-area: lineup;
   display: flex;
+  justify-content: flex-end;
   gap: 0;
-  margin-top: 2px;
 }
 .sm-lineup .glyph {
   width: 20px;
@@ -2150,7 +2258,7 @@ figure[title] {
   stroke: var(--ink-2);
 }
 /* a large orchestra: each kind once, its count over its shoulder (thirteen kinds, "Toward Morning"'s,
-   are 13 × 15 + 12 px: inside the item's 210 px; at 17 px the row came through the menu's border) */
+   are 13 × 15 + 12 px: beside its composer's name in a row 288 px wide) */
 .sm-many .sm-v {
   position: relative;
   display: inline-flex;
@@ -2168,23 +2276,27 @@ figure[title] {
 }
 .sm-n {
   position: absolute;
-  top: -3px;
+  top: -4px;
   right: -4px;
-  font: 400 8px/1 var(--mono);
-  color: var(--muted);
+  font: 500 9px/1 var(--face);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
 }
 .sm-credit {
-  padding: 6px 8px 3px;
+  padding: 7px 8px 4px;
   border-top: 1px solid var(--rule);
   margin-top: 2px;
-  font: 400 10px/1.3 var(--mono);
+  font: 400 11px/1.3 var(--face);
   color: var(--muted);
   text-decoration: none;
   /* (one line: it broke before its last word) */
   white-space: nowrap;
 }
+.sm-credit::first-letter {
+  text-transform: uppercase;
+}
 .sm-credit:hover {
-  color: var(--ink-2);
+  color: var(--ink);
 }
 .case-toggle svg {
   display: block;
@@ -2198,19 +2310,23 @@ figure[title] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  color: var(--ink-2, #c9bfab);
-  background: rgba(14, 13, 11, 0.55);
-  border: 1px solid rgba(236, 226, 206, 0.22);
+  width: 28px;
+  height: 28px;
+  color: var(--ink-2);
+  background: rgb(var(--wall-0-rgb) / 0.78);
+  border: 1px solid rgb(var(--ink-rgb) / 0.22);
   border-radius: 50%;
   cursor: pointer;
+}
+.zoom-back:hover {
+  color: var(--light);
+  border-color: var(--light);
 }
 .zoom-back[hidden] {
   display: none;
 }
 .zoom-back:focus-visible {
-  outline: 1px solid rgba(242, 166, 70, 0.8);
+  outline: 1px solid var(--focus);
 }
 .stage-3d {
   position: absolute;
@@ -2228,38 +2344,44 @@ figure[title] {
 .notes .toc {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 14px;
-  margin: 4px 0 28px;
+  gap: 4px 16px;
+  margin: 6px 0 30px;
 }
 .notes .toc button {
-  font: 400 12px/1.4 var(--mono);
-  color: var(--ink-2);
+  font: 400 13px/1.5 var(--face);
+  color: var(--muted);
   background: none;
   border: none;
-  border-bottom: 1px solid rgba(236, 226, 206, 0.18);
   padding: 2px 0;
   cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--rule-2);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.3em;
 }
 .notes .toc button:hover,
 .notes .toc button:focus-visible {
-  color: var(--ink);
-  border-color: rgba(242, 166, 70, 0.8);
+  color: var(--light);
+  text-decoration-color: var(--light);
   outline: none;
 }
 .notes section {
   scroll-margin-top: 24px;
 }
 .notes h2.sec {
-  font: italic 400 30px/1.15 var(--serif);
+  font: 300 30px/1.15 var(--face);
+  letter-spacing: -0.02em;
   color: var(--ink);
-  margin: 52px 0 14px;
+  margin: 56px 0 14px;
 }
 .notes h3 {
-  font: 500 12px/1.4 var(--mono);
-  letter-spacing: 0.06em;
-  text-transform: lowercase;
-  color: rgba(242, 166, 70, 0.9);
-  margin: 28px 0 8px;
+  font: 600 13px/1.4 var(--face);
+  letter-spacing: 0;
+  color: var(--ink);
+  margin: 30px 0 6px;
+}
+.notes h3::first-letter {
+  text-transform: uppercase;
 }
 .notes .prose ul {
   padding-left: 1.1em;
@@ -2268,13 +2390,25 @@ figure[title] {
 .notes .prose li {
   margin-bottom: 0.55em;
 }
+.notes .prose li::marker {
+  color: var(--muted);
+}
+.notes .prose a {
+  color: var(--ink);
+  text-decoration-color: var(--rule-2);
+}
+.notes .prose a:hover {
+  text-decoration-color: var(--light);
+}
 .notes .eq {
-  font: 400 14px/1.6 var(--mono);
+  max-width: none;
+  font: 400 13.5px/1.6 var(--code);
   color: var(--ink);
   margin: 10px 0 16px;
   padding: 10px 14px;
-  border-left: 2px solid rgba(242, 166, 70, 0.55);
-  background: rgba(236, 226, 206, 0.035);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: rgb(var(--ink-rgb) / 0.03);
   overflow-x: auto;
 }
 .notes .eq div + div {
@@ -2287,7 +2421,8 @@ figure[title] {
 }
 .notes table {
   border-collapse: collapse;
-  font: 400 12.5px/1.45 var(--mono);
+  font: 400 13px/1.45 var(--face);
+  font-variant-numeric: tabular-nums;
   color: var(--ink-2);
   min-width: 100%;
 }
@@ -2295,7 +2430,7 @@ figure[title] {
 .notes td {
   text-align: left;
   padding: 5px 10px 5px 0;
-  border-bottom: 1px solid rgba(236, 226, 206, 0.08);
+  border-bottom: 1px solid var(--rule);
   vertical-align: top;
 }
 .notes th {
@@ -2304,7 +2439,7 @@ figure[title] {
 }
 .notes figure.diagram {
   margin: 14px 0 22px;
-  color: rgba(236, 226, 206, 0.6);
+  color: rgb(var(--ink-rgb) / 0.62);
 }
 .notes figure.diagram svg {
   width: 100%;
@@ -2312,16 +2447,16 @@ figure[title] {
   display: block;
 }
 .notes figure.diagram .lbl {
-  font: 400 11px var(--mono);
+  font: 400 11px var(--face);
 }
 .notes figure.diagram .hot {
-  stroke: rgb(255, 94, 56);
+  stroke: var(--light);
 }
 .notes figure.diagram .warm {
-  stroke: rgb(242, 166, 70);
+  stroke: var(--tungsten);
 }
 .notes figcaption {
-  font: italic 400 14px/1.45 var(--serif);
+  font: italic 400 14px/1.5 var(--face);
   color: var(--muted);
   margin-top: 6px;
 }
@@ -2330,19 +2465,18 @@ figure[title] {
 }
 /* what the work stands on that is not a paper: a line under the sources, in their type, each a link */
 .notes .thanks {
-  max-width: none;
+  max-width: var(--measure);
   margin: 20px 0 0;
-  font: 400 11px/1.7 var(--mono);
+  font: 400 13px/1.6 var(--face);
   color: var(--muted);
 }
 .notes .thanks a {
   color: var(--ink-2);
   text-decoration-color: var(--rule-2);
-  text-underline-offset: 2px;
 }
 .notes .thanks a:hover {
   color: var(--ink);
-  text-decoration-color: var(--amber);
+  text-decoration-color: var(--light);
 }
 .notes .credit {
   display: flex;
@@ -2353,7 +2487,7 @@ figure[title] {
   margin: 36px 0 0;
   padding-top: 18px;
   border-top: 1px solid var(--rule);
-  font: italic 400 14px/1.5 var(--serif);
+  font: italic 400 14px/1.5 var(--face);
   color: var(--ink-2);
 }
 .notes .credit-line {
@@ -2381,12 +2515,12 @@ figure[title] {
 }
 .notes .credit-icon:hover,
 .notes .credit-icon:focus-visible {
-  color: var(--ink);
+  color: var(--light);
   outline: none;
 }
 .notes .credit-icon:focus-visible {
   border-radius: 2px;
-  box-shadow: 0 0 0 1px rgba(242, 166, 70, 0.8);
+  box-shadow: 0 0 0 1px var(--focus);
 }
 .notes .credit-icon svg {
   width: 100%;
@@ -2403,7 +2537,7 @@ figure[title] {
     font-size: 25px;
   }
   .notes .eq {
-    font-size: 13px;
+    font-size: 12.5px;
   }
 }
 
@@ -2439,11 +2573,11 @@ figure[title] {
   height: 40px;
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: none;
   color: var(--muted);
   cursor: pointer;
-  transition: color 0.12s;
+  transition: color var(--fall) var(--ease);
 }
 .kf-part .glyph {
   width: 30px;
@@ -2453,41 +2587,27 @@ figure[title] {
 .kf-part:hover,
 .kf-split:hover {
   color: var(--ink);
+  transition-duration: var(--rise);
 }
+/* the keys play it: lit, a light on it from above */
 .kf-part[aria-pressed='true'],
 .kf-split[aria-pressed='true'] {
-  color: var(--ink);
-  background: rgba(236, 226, 206, 0.1);
+  color: var(--light);
+  background: var(--spot);
+  box-shadow: var(--fixture);
 }
-.kf-part[aria-pressed='true'] .glyph {
-  stroke: var(--amber);
-  filter: drop-shadow(0 0 4px rgba(242, 166, 70, 0.45));
-}
-/* a section some of whose desks the keys play (by default the first flute of two) */
+/* a section some of whose desks the keys play (by default the first flute of two): its fixture half up */
 .kf-part[aria-pressed='mixed'] {
-  color: var(--ink-2);
-  background: rgba(236, 226, 206, 0.05);
-}
-.kf-part[aria-pressed='mixed'] .glyph {
-  stroke: rgba(242, 166, 70, 0.6);
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 rgb(var(--light-rgb) / 0.45);
 }
 .kf-split {
-  margin-left: 6px;
-}
-.kf-split[aria-pressed='true'] {
-  color: var(--amber);
-}
-.kf-split::before {
-  content: '';
-  position: absolute;
-  left: -4px;
-  top: 7px;
-  bottom: 7px;
-  border-left: 1px solid var(--rule-2);
+  margin-left: 12px;
 }
 .kf-n,
 .kf-more {
-  font: 500 10px/1 var(--mono);
+  font: 500 10px/1 var(--face);
+  font-variant-numeric: tabular-nums;
   color: var(--ink-2);
   pointer-events: none;
 }
@@ -2499,32 +2619,31 @@ figure[title] {
 .kf-part:focus-visible,
 .kf-split:focus-visible,
 .kf-toggle:focus-visible {
-  outline: 1px solid rgba(242, 166, 70, 0.8);
+  outline: 1px solid var(--focus);
   outline-offset: -1px;
 }
 .kf-toggle {
   align-items: center;
   gap: 4px;
-  height: 34px;
+  height: 36px;
   margin-left: auto;
   padding: 0 7px;
-  border: 1px solid #3a3226;
-  border-radius: 4px;
-  background: linear-gradient(180deg, #2a241c, #17130f);
-  color: var(--brass);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink-2);
   cursor: pointer;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 2px 0 #000;
 }
 .kf-toggle .glyph {
   width: 24px;
   height: 24px;
-  stroke: var(--amber);
+  stroke: var(--light);
 }
 .kf-toggle .kf-split-sign {
-  color: var(--amber);
+  color: var(--light);
 }
 .kf-toggle[aria-expanded='true'] {
-  border-color: rgba(242, 166, 70, 0.6);
+  border-color: var(--light);
 }
 @media (max-width: 760px), (max-height: 500px) and (orientation: landscape) {
   :root[data-ensemble] .kf-toggle {
@@ -2541,7 +2660,7 @@ figure[title] {
     flex-wrap: wrap;
     justify-content: center;
     gap: 4px;
-    background: rgba(18, 15, 12, 0.96);
+    background: var(--wall-2);
     border-top: 1px solid var(--rule-2);
     display: none;
   }

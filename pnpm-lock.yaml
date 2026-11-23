@@ -29,13 +29,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@fontsource-variable/newsreader':
-        specifier: 5.3.0
-        version: 5.3.0
-      '@fontsource/ibm-plex-mono':
-        specifier: 5.3.0
-        version: 5.3.0
-      '@fontsource/ibm-plex-sans':
+      '@fontsource-variable/libre-franklin':
         specifier: 5.3.0
         version: 5.3.0
       '@piano-model/engine':
@@ -215,14 +209,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@fontsource-variable/newsreader@5.3.0':
-    resolution: {integrity: sha512-rrzYi43qMpbzwuFtf9OkWH8sxAPVPcQQQEwXpPtwaKYeJ8yVg5aLs5kawmo1f2Q1t1M38TLmEKCkGVDsYwgdFw==}
-
-  '@fontsource/ibm-plex-mono@5.3.0':
-    resolution: {integrity: sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q==}
-
-  '@fontsource/ibm-plex-sans@5.3.0':
-    resolution: {integrity: sha512-CbE4CbbEEZJX860XyUiRpsksXIQR8Rp2XDva2VO53NJox9tVNtusrysd2x5YkUEY3ErQ66W1IiiQL8/wihhw5w==}
+  '@fontsource-variable/libre-franklin@5.3.0':
+    resolution: {integrity: sha512-PEQemCKVRtkLZJNpfvR4wG7x87c8iG05XJuEaX59ogMcAQpdtCZz/NXZUrXLJyvyx3/HD70W4LUppWLBdEdU2g==}
 
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
@@ -867,11 +855,7 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@fontsource-variable/newsreader@5.3.0': {}
-
-  '@fontsource/ibm-plex-mono@5.3.0': {}
-
-  '@fontsource/ibm-plex-sans@5.3.0': {}
+  '@fontsource-variable/libre-franklin@5.3.0': {}
 
   '@jridgewell/resolve-uri@3.1.2': {}
 

@@ -1,8 +1,9 @@
 // A knob on the stage itself: the grand's lid and the room (the reverb), in 2D and in 3D. Drawn as
-// the fallboard's knobs are (ui/controls.ts: ticks, track, the value's arc, the cap and its pointer;
-// the same classes, so the vector style draws it too) on a dark disc that keeps it legible over the
-// instrument, with no engraved word: the stage stays wordless, and the knob says what it is and its
-// value in a tooltip (data-tip, as the grips did) and to assistive tech (a slider).
+// the fallboard's dials are (ui/controls.ts: ticks, track, the value's arc; the same classes, so the
+// vector style draws it too) on a dark disc that keeps it legible over the instrument. No engraved word:
+// the stage stays wordless. The knob says what it is by what is drawn in its middle (a lid on its hinge,
+// a room: the two were the same dial twice), and says it and its value in a tooltip (data-tip, as the
+// grips did) and to assistive tech (a slider). Its arc is its value; it has no pointer.
 // Turned by dragging (up or right = more, Shift for fine), by the wheel, or from the keyboard (the
 // arrows by 0.05, Home and End to the ends). A knob with notches (the 3D lid: shut, the short stick,
 // the long stick) clicks from one to the next as it is turned, and its arrows step a notch; without,
@@ -91,7 +92,15 @@ export function stageKnob(c: StageKnobSpec): StageKnob {
   const cap = svg('circle', { cx: 20, cy: 20, r: 10.5, class: 'k-cap' });
   const ptr = svg('line', { x1: 20, y1: 20, x2: 20, y2: 11, class: 'k-ptr' });
   const face = svg('svg', { viewBox: '0 0 40 40', class: 'k-face', 'aria-hidden': 'true' });
+  // what it moves, in its middle (the dial has no word): a lid raised on its hinge, a room's walls with
+  // the sound's source inside them; any other knob keeps the bare dial
+  const GLYPH: Record<string, string> = {
+    lid: 'M13.6 24.2h12.8M13.6 24.2 24.6 16.4',
+    room: 'M14 14h12v12H14zM18.4 20a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0',
+  };
+  const glyph = GLYPH[c.name] ? svg('path', { d: GLYPH[c.name], class: 'sk-glyph' }) : null;
   face.append(bg, ticks, track, val, cap, ptr);
+  if (glyph) face.append(glyph);
   const el = h('div', { class: `stage-knob knob-${c.name}`, role: 'slider', tabindex: '0', 'aria-label': c.label, 'aria-valuemin': '0', 'aria-valuemax': '1' });
   el.append(face as unknown as Node);
 

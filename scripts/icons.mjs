@@ -1,5 +1,5 @@
-// The page's icons, all from one drawing (apps/web/public/favicon.svg: three keys, two sharps and a
-// vermilion string on the stage's near-black, drawn on a 16 px grid so the smallest is crisp):
+// The page's icons, all from one drawing (apps/web/public/favicon.svg: three keys in half-light, two sharps
+// and a string lit across them, on the wall's own dark; drawn on a 16 px grid so the smallest is crisp):
 //   favicon.ico            16, 32 and 48 px (PNG entries), for browsers and tools that ask for /favicon.ico
 //   apple-touch-icon.png   180 px, full bleed (iOS rounds it), the drawing at 5/8 of the square
 // node scripts/icons.mjs        (Playwright's Chrome draws the SVG)

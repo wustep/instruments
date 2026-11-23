@@ -161,7 +161,7 @@ function drawFocus(ctx: CanvasRenderingContext2D, focus: NonNullable<VisualFrame
       [5, 0.2],
       [1.7, 0.97],
     ] as const) {
-      ctx.strokeStyle = rgba(j === 0 ? INK.vermilion : j === 1 ? INK.amber : INK.steel, a);
+      ctx.strokeStyle = rgba(j === 0 ? INK.light : j === 1 ? INK.tungsten : INK.steel, a);
       ctx.lineWidth = wid;
       ctx.beginPath();
       for (let i = 0; i < s.length; i++) {
@@ -207,7 +207,7 @@ function drawAllShapes(ctx: CanvasRenderingContext2D, fr: VisualFrame | null, by
     }
     // (a struck string's shape is drawn twice: a soft wide glow under a firm line)
     for (let pass = sym ? 1 : 0; pass < 2; pass++) {
-      ctx.strokeStyle = sym ? rgba(INK.amber, alpha) : rgba(INK.vermilion, pass ? 0.92 : 0.16);
+      ctx.strokeStyle = sym ? rgba(INK.tungsten, alpha) : rgba(INK.light, pass ? 0.92 : 0.16);
       ctx.lineWidth = sym ? 1 : pass ? 1.5 : 4.5;
       ctx.beginPath();
       for (let i = 0; i < P; i++) {
@@ -401,14 +401,14 @@ function paintUpBase(lay: UpLayout, W: number, H: number, dpr: number): void {
       c.stroke();
     }
     // the pressure bar: where every speaking length begins, slanting up to the bass
-    c.strokeStyle = rgba(INK.ivory, 0.3);
+    c.strokeStyle = rgba(INK.bone, 0.3);
     c.lineWidth = 1.5;
     for (const part of [treb, bass]) if (part.length > 1) c.stroke(path(part.map((s): [number, number] => [s.x0, s.y0]), false));
     // the strings at rest: steel tenor and treble, then the copper-wound bass across them
     c.lineCap = 'butt';
     for (const part of [treb, bass]) {
       const wound = part === bass;
-      c.strokeStyle = rgba(wound ? INK.copper : INK.ivory, wound ? 0.5 : 0.24);
+      c.strokeStyle = rgba(wound ? INK.copper : INK.bone, wound ? 0.5 : 0.24);
       c.lineWidth = wound ? 1.3 : 0.8;
       c.beginPath();
       for (const s of part)
@@ -420,10 +420,10 @@ function paintUpBase(lay: UpLayout, W: number, H: number, dpr: number): void {
     }
     paintEnds(c, pl);
     c.restore();
-    c.strokeStyle = rgba(INK.ivory, 0.1);
+    c.strokeStyle = rgba(INK.bone, 0.1);
     c.lineWidth = 1;
     c.stroke(inner);
-    c.strokeStyle = rgba(INK.ivory, 0.34);
+    c.strokeStyle = rgba(INK.bone, 0.34);
     c.lineWidth = 1.4;
     c.stroke(box);
   });

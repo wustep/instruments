@@ -13,6 +13,7 @@ import { midiName, type VisualFrame, type WatchKey } from '@piano-model/engine';
 import { audio } from '../audio.ts';
 import { ActionMotion, type ActionState, type Kind } from './action-motion.ts';
 import { h } from './dom.ts';
+import { ICON_CLOSE } from './icons.ts';
 import { AutoScale, INK, rgba } from './stage-draw.ts';
 import { glow, V } from './vector/kit.ts';
 import { linePen } from './vector/pen.ts';
@@ -36,7 +37,7 @@ export function openActionView(opts: { midi: number; kind: () => Kind; host: HTM
   let midi = opts.midi;
   let kind = opts.kind();
   const canvas = h('canvas', { class: 'av-cv', 'data-tip-follow': '', role: 'img' }) as HTMLCanvasElement;
-  const close = h('button', { class: 'av-close', type: 'button', 'aria-label': 'Close', 'data-tip': 'close · Esc' }, '×');
+  const close = h('button', { class: 'av-close', type: 'button', 'aria-label': 'Close', 'data-tip': 'close · Esc', html: ICON_CLOSE });
   const name = h('div', { class: 'av-name' });
   const speed = h('div', { class: 'av-speed', 'aria-hidden': 'true' });
   const panel = h('div', { class: 'av-panel', tabindex: '-1', role: 'dialog' }, canvas, name, speed, close);
@@ -193,7 +194,7 @@ export function openActionView(opts: { midi: number; kind: () => Kind; host: HTM
     const parts: [string, number, number][] = [];
     const geo: GrandGeo = { soft: f?.soft ?? 0, middle: f?.middle ?? 0, parts, X, Y, s, y: st.y, comp: st.comp, keyPos: st.keyPos, escaped: st.escaped, damperOn: hasDamper ? st.damperOn : 0, hasDamper, shape, sc, beta: w?.beta ?? 0.12, active: st.active, contact: st.contact, jackOut: st.jackOut, dt, mem, midi, watch: w, sustain: f?.sustain ?? 0 };
     const vector = document.documentElement.dataset.style === 'vector';
-    const c = vector ? (pen ??= linePen(ctx, { [INK.vermilion]: V.amber, [INK.amber]: V.white, [GC.hFelt]: V.green })) : ctx;
+    const c = vector ? (pen ??= linePen(ctx, { [INK.light]: V.amber, [INK.tungsten]: V.white, [GC.hFelt]: V.green })) : ctx;
     box = kind === 'grand' ? drawGrand(c, geo) : drawUpright(c, geo);
     if (vector) glow(ctx);
     hover = parts.map(([n, px, py]) => [n, X(px), Y(py)] as [string, number, number]);
@@ -285,7 +286,7 @@ function pivot(ctx: CanvasRenderingContext2D, x: number, y: number, g: Geo): voi
 function string(ctx: CanvasRenderingContext2D, g: Geo, x0: number, y0: number, dx: number, dy: number, len: number, visible: number): void {
   const nx = -dy;
   const ny = dx;
-  ctx.strokeStyle = rgba(INK.ivory, 0.35);
+  ctx.strokeStyle = rgba(INK.bone, 0.35);
   ctx.lineWidth = 1.4;
   ctx.beginPath();
   ctx.moveTo(g.X(x0), g.Y(y0));
@@ -294,7 +295,7 @@ function string(ctx: CanvasRenderingContext2D, g: Geo, x0: number, y0: number, d
   const sh = g.shape;
   if (!sh) return;
   const amp = 9 / g.sc;
-  ctx.strokeStyle = rgba(INK.vermilion, 0.9);
+  ctx.strokeStyle = rgba(INK.light, 0.9);
   ctx.lineWidth = 1.3;
   ctx.beginPath();
   const n = sh.length;
@@ -318,7 +319,7 @@ function felt(ctx: CanvasRenderingContext2D, g: Geo, cx: number, cy: number, w: 
   const H = (hgt - squash) * g.s;
   ctx.beginPath();
   ctx.ellipse(0, 0, W / 2, H / 2, 0, 0, Math.PI * 2);
-  ctx.fillStyle = hot ? rgba(INK.vermilion, 0.55) : rgba(INK.felt, 0.55);
+  ctx.fillStyle = hot ? rgba(INK.light, 0.55) : rgba(INK.felt, 0.55);
   ctx.fill();
   ctx.strokeStyle = rgba(INK.felt, 0.9);
   ctx.lineWidth = 1;
@@ -616,7 +617,7 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): SectionBox {
   const jC: Q = [GA.jackZ, GA.wipY + 4];
   const jk = (pts: Q[]) => pts.map(([u, v]) => Wp(R(jC, jA)([GA.jackZ + u, GA.wipY + 4 + v])));
   const jackHot = driving && g.y > 0.5;
-  shape(jk([[-3.2, 0], [3.5, 0], [3.5, 30.5], [-2.5, 30.5], [-3.2, 12], [-19, 9], [-20, 4.5], [-3.2, 3]]), jackHot ? rgba(INK.vermilion, 0.9) : rgba(GC.hornbeam, 0.95), jackHot ? rgba(INK.vermilion, 1) : outline, 0.8);
+  shape(jk([[-3.2, 0], [3.5, 0], [3.5, 30.5], [-2.5, 30.5], [-3.2, 12], [-19, 9], [-20, 4.5], [-3.2, 3]]), jackHot ? rgba(INK.light, 0.9) : rgba(GC.hornbeam, 0.95), jackHot ? rgba(INK.light, 1) : outline, 0.8);
   centrePin(Wp(jC));
   part('jack', Wp(R(jC, jA)([GA.jackZ, GA.wipY + 20])));
   part('knuckle', kn);
@@ -629,7 +630,7 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): SectionBox {
   const squash = g.contact ? Math.min(6, g.comp) : 0;
   const feltPts = head(HEAD_FELT.map(([a, c]): Q => [a, Math.min(c, 48 - squash / hy)]));
   const hot = g.contact ? 0.95 : g.active && g.escaped ? 0.55 : 0;
-  shape(feltPts, hot ? rgba(INK.vermilion, hot) : rgba(GC.hFelt, 0.95), outline, 0.8);
+  shape(feltPts, hot ? rgba(INK.light, hot) : rgba(GC.hFelt, 0.95), outline, 0.8);
   shape(head(HEAD_UNDER), rgba(GC.underfelt, 0.95));
   shape(head(HEAD_MOULD), rgba('196,152,100', 0.95), outline, 0.8);
   if (!hot) poly(head(HEAD_FELT.slice(8, 15).map(([a, c]): Q => [a * 0.92, Math.min(c, 48 - squash / hy) - 1.2])), rgba('255,252,244', 0.9), lw(1.4));
@@ -649,7 +650,7 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): SectionBox {
     // the pedal's tray under the underlevers
     const trayAt = 605;
     const trayY = GA.ulY - 5.5 + (tray * (GA.ulZ - trayAt)) / (GA.ulZ - GA.damperZ);
-    box(585, trayY - 10, 640, trayY, rgba(GC.actionWood, 0.6), g.sustain > 0.05 ? rgba(INK.amber, 0.5 + 0.4 * g.sustain) : outline, 0.8);
+    box(585, trayY - 10, 640, trayY, rgba(GC.actionWood, 0.6), g.sustain > 0.05 ? rgba(INK.tungsten, 0.5 + 0.4 * g.sustain) : outline, 0.8);
     part('damper tray (sustain pedal)', [612, trayY - 5]);
     const ulLen = GA.ulZ - GA.damperZ;
     shape(ul([[12, -5], [12, 6], [-ulLen - 14, 5], [-ulLen - 14, -4]]), rgba(GC.actionWood, 0.9), outline, 0.8);
@@ -665,7 +666,7 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): SectionBox {
     const under = U([GA.ulZ - 88, GA.ulY + 12.4]);
     const lipA = holding ? Math.atan2(under[1] - rodC[1], under[0] - rodC[0]) : mid > 0.5 ? Math.PI * 1.08 : -Math.PI / 2;
     const lipL = holding ? Math.min(14, Math.hypot(under[0] - rodC[0], under[1] - rodC[1])) : 10;
-    poly([rodC, [rodC[0] + Math.cos(lipA) * lipL, rodC[1] + Math.sin(lipA) * lipL]], holding ? rgba(INK.amber, 0.95) : rgba(GC.dFelt, 0.7), lw(2.2));
+    poly([rodC, [rodC[0] + Math.cos(lipA) * lipL, rodC[1] + Math.sin(lipA) * lipL]], holding ? rgba(INK.tungsten, 0.95) : rgba(GC.dFelt, 0.7), lw(2.2));
     disc(rodC, 3.4, rgba(GC.steel, 0.85), outline);
     part('sostenuto rod (middle pedal)', rodC);
     const yStr = strAt(GA.damperZ);
@@ -676,7 +677,7 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): SectionBox {
     const lifted = lift > 2;
     const dz = GA.damperZ;
     shape([[dz - hh + 1, hb - 0.5], [dz + hh - 1, hb - 0.5], [dz + hh - 1, hb + 6], [dz - hh + 1, hb + 6]], rgba(GC.dFelt, 0.95), outline, 0.6);
-    shape([[dz - hh, hb + 6], [dz + hh, hb + 6], [dz + hh, hb + 21], [dz + hh - 7, hb + 28], [dz - hh + 7, hb + 28], [dz - hh, hb + 21]], rgba(GC.head, 1), lifted ? rgba(INK.amber, 0.5 + 0.4 * Math.min(1, lift / GA.lift)) : rgba(GC.sheen, 0.8), lifted ? 1.2 : 0.8);
+    shape([[dz - hh, hb + 6], [dz + hh, hb + 6], [dz + hh, hb + 21], [dz + hh - 7, hb + 28], [dz - hh + 7, hb + 28], [dz - hh, hb + 21]], rgba(GC.head, 1), lifted ? rgba(INK.tungsten, 0.5 + 0.4 * Math.min(1, lift / GA.lift)) : rgba(GC.sheen, 0.8), lifted ? 1.2 : 0.8);
     box(dz - 2.4, hb + 27.5, dz + 2.4, hb + 31, rgba(GC.brass, 1));
     part('damper', [dz, hb + 16]);
     part('damper wire', [dz, (wb[1] + hb) / 2]);
@@ -720,7 +721,7 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): SectionBox {
   const sh = g.shape;
   if (sh) {
     const amp = 9 / g.sc;
-    ctx.strokeStyle = rgba(INK.vermilion, 0.95);
+    ctx.strokeStyle = rgba(INK.light, 0.95);
     ctx.lineWidth = wound ? 1.6 : 1.3;
     ctx.beginPath();
     const n = sh.length;
@@ -891,7 +892,7 @@ function drawUpright(ctx: CanvasRenderingContext2D, g: GrandGeo): SectionBox {
     const sh = g.shape;
     if (sh) {
       const amp = 9 / g.sc;
-      ctx.strokeStyle = rgba(INK.vermilion, 0.9);
+      ctx.strokeStyle = rgba(INK.light, 0.9);
       ctx.lineWidth = 1.3;
       ctx.beginPath();
       for (let i = 0; i < sh.length; i++) {
@@ -964,7 +965,7 @@ function drawUpright(ctx: CanvasRenderingContext2D, g: GrandGeo): SectionBox {
     const jp = W([UA.jackZ - UA.wipZ, 6]);
     const J = (p: Q): Q => rot(jp[0], jp[1], jp[0] + p[0], jp[1] + p[1], g.mem.jack);
     const hot = g.active && !g.escaped;
-    shape([J([-3.5, 0]), J([3.5, 0]), J([3.5, 68]), J([-3.5, 68]), J([-3.5, 24]), J([-13, 20]), J([-13, 14]), J([-3.5, 14])], hot ? rgba(INK.vermilion, 0.9) : rgba(GC.hornbeam, 0.95), outline, 0.7);
+    shape([J([-3.5, 0]), J([3.5, 0]), J([3.5, 68]), J([-3.5, 68]), J([-3.5, 24]), J([-13, 20]), J([-13, 14]), J([-3.5, 14])], hot ? rgba(INK.light, 0.9) : rgba(GC.hornbeam, 0.95), outline, 0.7);
     centrePin(jp);
     part('jack', J([0, 40]));
   }
@@ -976,7 +977,7 @@ function drawUpright(ctx: CanvasRenderingContext2D, g: GrandGeo): SectionBox {
     shape([D([-8, -30]), D([-5, -30]), D([-5, -14]), D([-8, -14])], rgba(GC.red, 0.95));
     poly([D([3, 62]), D([22, 82])], rgba(GC.brass, 0.85), lw(1.2));
     shape([D([19, 74]), D([34, 74]), D([34, 100]), D([19, 100])], rgba(GC.hornbeam, 0.95), outline, 0.6);
-    shape([D([34, 75.5]), D([40.2, 75.5]), D([40.2, 98.5]), D([34, 98.5])], off > 0.3 ? rgba(INK.amber, 0.9) : rgba(GC.dFelt, 0.95));
+    shape([D([34, 75.5]), D([40.2, 75.5]), D([40.2, 98.5]), D([34, 98.5])], off > 0.3 ? rgba(INK.tungsten, 0.9) : rgba(GC.dFelt, 0.95));
     centrePin([UA.dampZ, UA.dampY]);
     part('damper lever', D([0, 30]));
     part('damper', D([30, 88]));
@@ -1000,7 +1001,7 @@ function drawUpright(ctx: CanvasRenderingContext2D, g: GrandGeo): SectionBox {
     const hs = 1.15 - 0.3 * ((g.midi - 21) / 87);
     const H = (al: number, cr: number): Q => B([cr, UA.shank - al * hs]);
     const hot = g.active ? (g.contact ? 1 : 0.6) : 0;
-    shape(HEAD_FELT.map(([al, cr]) => H(al, cr)), hot ? rgba(INK.vermilion, 0.55 + 0.4 * hot) : rgba(GC.hFelt, 0.97), outline, 0.7);
+    shape(HEAD_FELT.map(([al, cr]) => H(al, cr)), hot ? rgba(INK.light, 0.55 + 0.4 * hot) : rgba(GC.hFelt, 0.97), outline, 0.7);
     shape(HEAD_UNDER.map(([al, cr]) => H(al, cr)), rgba(GC.underfelt, 0.95));
     shape([H(-5.8, -7.5), H(5.8, -7.5), H(6.8, 3), ...egg(7.5, 21.1, 16, 3, 14).map(([al, cr]) => H(al, cr)), H(-6.8, 3)], rgba('124,75,46', 0.95), outline, 0.6);
     part('hammer (felt)', H(0, 40));

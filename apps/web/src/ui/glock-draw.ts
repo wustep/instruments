@@ -197,7 +197,7 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
     ctx.strokeStyle = 'rgba(0,0,0,0.6)';
     ctx.lineWidth = 1;
     ctx.stroke(L.trayPath);
-    ctx.strokeStyle = rgba(INK.amber, 0.45);
+    ctx.strokeStyle = rgba(INK.tungsten, 0.45);
     ctx.stroke(L.casePath);
     // the rails: a wooden strip, felt on it
     ctx.lineCap = 'butt';
@@ -224,7 +224,7 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
   // ringing bar lit where it moves, as far as it swings
   const stampPx = Math.round(BAR_W * sc * 0.4);
   if (stampPx >= 7) {
-    ctx.font = `500 ${stampPx}px "IBM Plex Mono", monospace`;
+    ctx.font = `500 ${stampPx}px "Libre Franklin Variable", "Helvetica Neue", Arial, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
   }
@@ -243,7 +243,7 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
     g.addColorStop(0.82, '#c9d0d7');
     g.addColorStop(1, '#6f7780');
     if (a > 0.01 && !small) {
-      ctx.shadowColor = rgba(INK.amber, 0.25 + 0.6 * a);
+      ctx.shadowColor = rgba(INK.tungsten, 0.25 + 0.6 * a);
       ctx.shadowBlur = 4 + 14 * a;
     }
     ctx.fillStyle = g;

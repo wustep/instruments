@@ -1,4 +1,5 @@
-// The vector display: the 2D stage's other style. Thin glowing lines on black, after the screens
+// The vector display: the 2D stage's other style. Thin glowing lines on the gallery's wall turned down (a
+// drawing in light: argon blue and tungsten amber, paler than a tube's), after the screens
 // Jameson Hodge drew for his Chimera vocal synth (github.com/jamesondh/chimera-vocal-synth,
 // docs/ui-redesign.md), themselves after the NORAD displays in WarGames and the OP-1's colour-coded
 // encoders. Nothing is filled: an instrument is its outline, and the sound is drawn over it.
@@ -16,15 +17,15 @@
 // document (apps/web/test/models3d.test.ts).
 
 export const V = {
-  blue: '#4fb6f2',
-  blueMid: '#3487c4',
-  blueDim: '#1f5f8c',
-  frame: '#133954',
-  green: '#5be381',
-  red: '#ff5d40',
-  pink: '#ff73cf',
-  white: '#eef6f8',
-  amber: '#ffb340',
+  blue: '#86bdea',
+  blueMid: '#5a8fbf',
+  blueDim: '#3a6289',
+  frame: '#1d3147',
+  green: '#7fdca0',
+  red: '#ff7c5e',
+  pink: '#f08fd2',
+  white: '#eef3f8',
+  amber: '#ffc56e',
 } as const;
 /** the four control slots, in knob order */
 export const SLOTS = [V.green, V.red, V.pink, V.white] as const;
@@ -42,11 +43,11 @@ export function mix(hex: string, to: string, u: number): string {
 export const core = (hex: string): string => mix(hex, '#ffffff', 0.55);
 
 const HEAT: [number, string][] = [
-  [0, '#3a2408'],
-  [0.35, '#c9822a'],
-  [0.6, '#ffb340'],
-  [0.82, '#ffe39a'],
-  [1, '#fff8ec'],
+  [0, '#33240e'],
+  [0.35, '#bd8a44'],
+  [0.6, '#ffc56e'],
+  [0.82, '#ffe6b0'],
+  [1, '#fff9ee'],
 ];
 /** sound level 0..1 → dim amber → amber → pale yellow → white */
 export function heat(level: number): string {
@@ -58,10 +59,10 @@ export function heat(level: number): string {
 /** the palette as rgb triplets, for the drawings shared with the stage's own style (they take an ink) */
 const rgb = (hex: string) => [16, 8, 0].map((sh) => (parseInt(hex.slice(1), 16) >> sh) & 255).join(',');
 /** the excitation scope: the trace is sound (amber), its second row and the axis the structure's blue */
-export const SCOPE_INK_V = { ivory: rgb(V.blue), vermilion: rgb(V.amber) };
+export const SCOPE_INK_V = { bone: rgb(V.blue), light: rgb(V.amber) };
 /** the spectrum: the measured line amber, and where the partials should fall in blue. On a piano the
  *  stiff string's series is in the stiffness knob's slot (red) against the ideal harmonics in blue. */
-export const SPECTRUM_INK_V = { line: rgb(V.amber), label: rgb(V.blue), ideal: rgb(V.blueMid), partial: rgb(V.blue), font: '500 10px "Hershey", "IBM Plex Mono", monospace' };
+export const SPECTRUM_INK_V = { line: rgb(V.amber), label: rgb(V.blue), ideal: rgb(V.blueMid), partial: rgb(V.blue), font: '500 10px "Hershey", ui-monospace, monospace' };
 export const SPECTRUM_INK_V_PIANO = { ...SPECTRUM_INK_V, partial: rgb(V.red) };
 
 export type Pt = [number, number];
@@ -183,7 +184,7 @@ export function handle(ctx: CanvasRenderingContext2D, x: number, y: number, colo
 
 // ---------------------------------------------------------------- type
 /** Hershey Simplex (single-stroke capitals); what it lacks (×, ·, ♯, Greek) falls to the mono */
-export const HERSHEY = '"Hershey", "IBM Plex Mono", ui-monospace, monospace';
+export const HERSHEY = '"Hershey", ui-monospace, "SF Mono", Menlo, monospace';
 export const hfont = (size: number, weight: 'l' | 'm' = 'm') => `${weight === 'm' ? 500 : 300} ${size}px ${HERSHEY}`;
 let fontAsked = false;
 /** ask for the faces once (a canvas does not fetch a font by drawing with it) */

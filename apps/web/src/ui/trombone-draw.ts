@@ -544,7 +544,7 @@ const NICKEL_BODY = '#3c3a36';
 /** a polished nickel-silver tube's body (the slide's inner tubes, the sleeves, the braces) */
 const NICKEL_TUBE = '#55534e';
 const nickel = (a: number) => rgba('236,230,216', a);
-const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
+const waveInk = (v: number) => (v >= 0 ? INK.light : INK.steel);
 
 /** The slide trombone from the player's right: the bell section (the tuning slide, the valve loops, the
  *  bell), the rotors and the thumb's levers, the inner slide and the outer slide standing out by the engine's
@@ -584,13 +584,13 @@ export function drawTrombone(ctx: CanvasRenderingContext2D, W: number, H: number
     }
     ctx.fillStyle = on ? BRASS_BODY : BRASS_DEEP;
     ctx.fill(t.body);
-    ctx.strokeStyle = rgba(INK.amber, on ? 0.16 : 0.08);
+    ctx.strokeStyle = rgba(INK.tungsten, on ? 0.16 : 0.08);
     ctx.lineWidth = Math.max(1, 0.42 * t.r);
     ctx.stroke(t.sh);
-    ctx.strokeStyle = rgba(INK.amber, on ? 0.36 : 0.2);
+    ctx.strokeStyle = rgba(INK.tungsten, on ? 0.36 : 0.2);
     ctx.lineWidth = Math.max(0.8, 0.22 * t.r);
     ctx.stroke(t.hi);
-    ctx.strokeStyle = rgba(INK.amber, on ? 0.72 : 0.42);
+    ctx.strokeStyle = rgba(INK.tungsten, on ? 0.72 : 0.42);
     ctx.lineWidth = 1;
     ctx.stroke(t.edges);
   };
@@ -616,7 +616,7 @@ export function drawTrombone(ctx: CanvasRenderingContext2D, W: number, H: number
       if (on && lv.sounding) glowRun(ctx, L, lv, t.id, 0);
     }
   for (const t of L.sleeves) tube(t, true);
-  ctx.strokeStyle = rgba(INK.amber, 0.42);
+  ctx.strokeStyle = rgba(INK.tungsten, 0.42);
   ctx.lineWidth = Math.max(1, 0.0045 * sc);
   ctx.lineCap = 'butt';
   ctx.stroke(L.stays);
@@ -628,16 +628,16 @@ export function drawTrombone(ctx: CanvasRenderingContext2D, W: number, H: number
     ctx.fill(B.flare);
     const n2 = B.ax.length / 2 - 1;
     const g = ctx.createLinearGradient(B.ax[0], B.ax[1], B.ax[2 * n2], B.ax[2 * n2 + 1]);
-    g.addColorStop(0, rgba(INK.amber, 0.12));
-    g.addColorStop(0.6, rgba(INK.amber, 0.2));
-    g.addColorStop(1, rgba(INK.amber, 0.34));
+    g.addColorStop(0, rgba(INK.tungsten, 0.12));
+    g.addColorStop(0.6, rgba(INK.tungsten, 0.2));
+    g.addColorStop(1, rgba(INK.tungsten, 0.34));
     ctx.fillStyle = g;
     ctx.fill(B.hi);
     ctx.fillStyle = rgba('255,226,160', 0.16);
     ctx.fill(B.spec);
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.fill(B.shade);
-    ctx.strokeStyle = rgba(INK.amber, 0.74);
+    ctx.strokeStyle = rgba(INK.tungsten, 0.74);
     ctx.lineWidth = 1.1;
     ctx.stroke(B.edges);
     if (lv.sounding) bellGlow(ctx, L, lv);
@@ -653,10 +653,10 @@ export function drawTrombone(ctx: CanvasRenderingContext2D, W: number, H: number
     ctx.fill(B.mouth);
     if (lv.sounding) {
       const A = Math.min(1, Math.abs(lv.ampAt(lv.air.total - 0.001)));
-      ctx.fillStyle = rgba(INK.vermilion, 0.1 + 0.22 * A * lv.lvl);
+      ctx.fillStyle = rgba(INK.light, 0.1 + 0.22 * A * lv.lvl);
       ctx.fill(B.mouth);
     }
-    ctx.strokeStyle = rgba(INK.amber, 0.88);
+    ctx.strokeStyle = rgba(INK.tungsten, 0.88);
     ctx.lineWidth = Math.max(1.3, 0.0032 * sc);
     ctx.stroke(B.mouth);
     ctx.strokeStyle = rgba('255,236,190', 0.45);
@@ -697,7 +697,7 @@ export function drawTrombone(ctx: CanvasRenderingContext2D, W: number, H: number
     ctx.lineCap = 'butt';
     for (let k = 0; k < 7; k++) {
       const on = lv.sounding && lv.position === k + 1 && (lv.side === 'Bb' || lv.side === 'Eb');
-      ctx.strokeStyle = on ? rgba(INK.amber, 0.55) : rgba(INK.ivory, 0.13);
+      ctx.strokeStyle = on ? rgba(INK.tungsten, 0.55) : rgba(INK.bone, 0.13);
       ctx.beginPath();
       ctx.moveTo(L.ticks[k], L.tickY);
       ctx.lineTo(L.ticks[k], L.tickY + tl);
@@ -813,13 +813,13 @@ function glowRun(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive, id: str
   ctx.save();
   ctx.lineCap = 'butt';
   for (const [key, q] of env) {
-    ctx.strokeStyle = rgba(INK.vermilion, (Math.floor(key / 1000) / 10) * 0.2);
+    ctx.strokeStyle = rgba(INK.light, (Math.floor(key / 1000) / 10) * 0.2);
     ctx.lineWidth = 2.1 * (key % 1000);
     ctx.stroke(q);
   }
   for (const [key, q] of sgn) {
     const a = Math.abs(key);
-    ctx.strokeStyle = rgba(key > 0 ? INK.vermilion : INK.steel, (Math.floor(a / 1000) / 10) * 0.46);
+    ctx.strokeStyle = rgba(key > 0 ? INK.light : INK.steel, (Math.floor(a / 1000) / 10) * 0.46);
     ctx.lineWidth = 1.24 * (a % 1000);
     ctx.stroke(q);
   }
@@ -836,7 +836,7 @@ function bellGlow(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive): void 
   for (let i = 0; i <= 20; i++) {
     const u = i / 20;
     const A = lv.ampAt(sB + u * len);
-    ge.addColorStop(u, rgba(INK.vermilion, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+    ge.addColorStop(u, rgba(INK.light, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
     gw.addColorStop(u, rgba(waveInk(A * lv.ph), 0.46 * Math.min(1, Math.pow(Math.abs(A * lv.ph), 1.2))));
   }
   ctx.fillStyle = ge;
@@ -858,7 +858,7 @@ function drawRotor(ctx: CanvasRenderingContext2D, L: TbLayout, r: { c: P; R: num
   ctx.arc(cx, cy, R, 0, 2 * Math.PI);
   ctx.fillStyle = BRASS_BODY;
   ctx.fill();
-  ctx.strokeStyle = rgba(INK.amber, 0.75);
+  ctx.strokeStyle = rgba(INK.tungsten, 0.75);
   ctx.lineWidth = 1;
   ctx.stroke();
   ctx.beginPath();
@@ -888,7 +888,7 @@ function drawRotor(ctx: CanvasRenderingContext2D, L: TbLayout, r: { c: P; R: num
     ctx.strokeStyle = 'rgba(14,12,10,0.7)';
     ctx.stroke();
     if (lit) {
-      ctx.strokeStyle = rgba(INK.vermilion, lit * 0.6);
+      ctx.strokeStyle = rgba(INK.light, lit * 0.6);
       ctx.lineWidth = Math.max(0.8, rc * 0.07);
       ctx.stroke();
       ctx.lineWidth = Math.max(1, rc * 0.13);
@@ -915,14 +915,14 @@ function drawLevers(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive): voi
     const bx = r.c[0] + Math.cos(ca) * CRANK;
     const by = r.c[1] + Math.sin(ca) * CRANK;
     // the crank and the link
-    ctx.strokeStyle = q > 0.05 ? rgba(INK.amber, 0.5 + 0.4 * q) : nickel(0.7);
+    ctx.strokeStyle = q > 0.05 ? rgba(INK.tungsten, 0.5 + 0.4 * q) : nickel(0.7);
     ctx.lineWidth = Math.max(1.2, 0.0024 * sc);
     ctx.beginPath();
     ctx.moveTo(X(r.c[0]), Y(r.c[1]));
     ctx.lineTo(X(bx), Y(by));
     ctx.stroke();
     ctx.lineWidth = Math.max(1, 0.0016 * sc);
-    ctx.strokeStyle = q > 0.05 ? rgba(INK.amber, 0.45 + 0.4 * q) : nickel(0.5);
+    ctx.strokeStyle = q > 0.05 ? rgba(INK.tungsten, 0.45 + 0.4 * q) : nickel(0.5);
     ctx.beginPath();
     ctx.moveTo(X(bx), Y(by));
     ctx.lineTo(X(back[0]), Y(back[1]));
@@ -939,7 +939,7 @@ function drawLevers(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive): voi
     ctx.strokeStyle = 'rgba(0,0,0,0.5)';
     ctx.lineWidth = Math.max(2.4, 0.0046 * sc);
     ctx.stroke();
-    ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.55 + 0.35 * q) : nickel(0.55);
+    ctx.strokeStyle = q > 0.5 ? rgba(INK.tungsten, 0.55 + 0.35 * q) : nickel(0.55);
     ctx.lineWidth = Math.max(1.6, 0.0032 * sc);
     ctx.stroke();
     ctx.strokeStyle = nickel(0.35);
@@ -953,7 +953,7 @@ function drawLevers(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive): voi
       ctx.rotate(Math.atan2(-(e[1] - f[1]), e[0] - f[0]));
       ctx.beginPath();
       ctx.ellipse(0, 0, 0.0052 * sc, 0.0026 * sc, 0, 0, 2 * Math.PI);
-      ctx.fillStyle = q > 0.5 ? rgba(INK.amber, 0.5 + 0.3 * q) : '#5a564e';
+      ctx.fillStyle = q > 0.5 ? rgba(INK.tungsten, 0.5 + 0.3 * q) : '#5a564e';
       ctx.fill();
       ctx.strokeStyle = nickel(0.6);
       ctx.lineWidth = 1;

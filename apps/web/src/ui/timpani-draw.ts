@@ -796,11 +796,11 @@ function drawGauge(ctx: CanvasRenderingContext2D, L: TpLayout, d: DrumPx, p: num
   ctx.strokeStyle = chrome(0.7);
   ctx.lineWidth = Math.max(0.8, 0.003 * sc);
   ctx.stroke(d.plate);
-  ctx.strokeStyle = rgba(INK.ivory, 0.6);
+  ctx.strokeStyle = rgba(INK.bone, 0.6);
   ctx.lineWidth = Math.max(0.6, 0.0022 * sc);
   ctx.stroke(d.ticks);
   const [tx, ty, bx, by] = pointerAt(d, p);
-  ctx.strokeStyle = rgba(INK.amber, 0.85 + 0.15 * lvl);
+  ctx.strokeStyle = rgba(INK.tungsten, 0.85 + 0.15 * lvl);
   ctx.lineWidth = Math.max(1, 0.004 * sc);
   ctx.beginPath();
   ctx.moveTo(bx, by);
@@ -917,7 +917,7 @@ function drawMallets(ctx: CanvasRenderingContext2D, L: TpLayout, lv: TpLive, st:
       const r = br * (1.2 + 5 * m.ago);
       ctx.beginPath();
       ctx.ellipse(sx, sy, r, r * SIN_E, 0, 0, 2 * Math.PI);
-      ctx.strokeStyle = rgba(INK.vermilion, 0.55 * a * Math.min(1, m.vel / 90));
+      ctx.strokeStyle = rgba(INK.light, 0.55 * a * Math.min(1, m.vel / 90));
       ctx.lineWidth = Math.max(1, 0.004 * sc);
       ctx.stroke();
     }
@@ -953,7 +953,7 @@ function drawMallets(ctx: CanvasRenderingContext2D, L: TpLayout, lv: TpLive, st:
     ctx.arc(bx, by, br, 0, 2 * Math.PI);
     ctx.fillStyle = g;
     ctx.fill();
-    ctx.strokeStyle = m.on ? rgba(INK.vermilion, 0.9) : 'rgba(60,50,40,0.7)';
+    ctx.strokeStyle = m.on ? rgba(INK.light, 0.9) : 'rgba(60,50,40,0.7)';
     ctx.lineWidth = m.on ? 1.4 : 0.8;
     ctx.stroke();
     ctx.strokeStyle = 'rgba(120,110,96,0.5)';

@@ -908,7 +908,7 @@ export function borePx(L: BsLayout, x: number): { px: number; py: number; nx: nu
 const silver = (a: number) => rgba('240,230,212', a);
 const SILVER_BODY = 'rgb(72,66,58)';
 const WOOD = '#3a140e';
-const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
+const waveInk = (v: number) => (v >= 0 ? INK.light : INK.steel);
 
 /** the envelope's base and side for each leg: (lying frame) the narrow bore's to the left of the wing and
  *  boot (up, lying), the wide bore's to the right of the long joint (down) */
@@ -954,9 +954,9 @@ export function drawBassoon(ctx: CanvasRenderingContext2D, W: number, H: number,
       const [hb] = boreHU(b);
       ctx.lineTo(X(hb), Y(g.base));
       ctx.closePath();
-      ctx.fillStyle = rgba(INK.vermilion, 0.07 * lvl + 0.03);
+      ctx.fillStyle = rgba(INK.light, 0.07 * lvl + 0.03);
       ctx.fill();
-      ctx.strokeStyle = rgba(INK.vermilion, 0.16 + 0.22 * lvl);
+      ctx.strokeStyle = rgba(INK.light, 0.16 + 0.22 * lvl);
       ctx.lineWidth = 1;
       ctx.stroke();
     }
@@ -1031,11 +1031,11 @@ export function drawBassoon(ctx: CanvasRenderingContext2D, W: number, H: number,
   ctx.lineWidth = 1;
   ctx.stroke(L.capRim);
   ctx.stroke(L.seams);
-  ctx.strokeStyle = rgba(INK.ivory, 0.2);
+  ctx.strokeStyle = rgba(INK.bone, 0.2);
   ctx.lineWidth = 1;
   ctx.stroke(L.long);
   ctx.stroke(L.boot);
-  ctx.strokeStyle = rgba(INK.ivory, 0.26);
+  ctx.strokeStyle = rgba(INK.bone, 0.26);
   ctx.stroke(L.wing);
   ctx.strokeStyle = 'rgba(255,248,232,0.5)';
   ctx.stroke(L.lip);
@@ -1100,7 +1100,7 @@ export function drawBassoon(ctx: CanvasRenderingContext2D, W: number, H: number,
     for (const q of L.glowQ) {
       const A = lv.ampAt(q.x);
       if (Math.abs(A) < 0.02) continue;
-      ctx.fillStyle = rgba(INK.vermilion, 0.36 * Math.min(1, Math.pow(Math.abs(A), 1.5)));
+      ctx.fillStyle = rgba(INK.light, 0.36 * Math.min(1, Math.pow(Math.abs(A), 1.5)));
       ctx.fill(q.p);
       ctx.fillStyle = rgba(waveInk(A * ph), 0.56 * Math.min(1, Math.pow(Math.abs(A * ph), 1.15)));
       ctx.fill(q.pi);
@@ -1114,7 +1114,7 @@ export function drawBassoon(ctx: CanvasRenderingContext2D, W: number, H: number,
       const N = 48;
       for (let i = 0; i <= N; i++) {
         const A = lv.ampAt(g.a + ((g.b - g.a) * i) / N);
-        ge.addColorStop(i / N, rgba(INK.vermilion, 0.36 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+        ge.addColorStop(i / N, rgba(INK.light, 0.36 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
         gw.addColorStop(i / N, rgba(waveInk(A * ph), 0.56 * Math.min(1, Math.pow(Math.abs(A * ph), 1.15))));
       }
       ctx.save();
@@ -1137,12 +1137,12 @@ export function drawBassoon(ctx: CanvasRenderingContext2D, W: number, H: number,
     if (!t.back) return;
     const q = lv.touchPress[i];
     if (q > 0.01) {
-      ctx.fillStyle = rgba(INK.amber, 0.22 * q);
+      ctx.fillStyle = rgba(INK.tungsten, 0.22 * q);
       ctx.fill(L.touches[i]);
     }
     ctx.save();
     ctx.setLineDash([0.0016 * sc, 0.0012 * sc]);
-    ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.4 + 0.4 * q) : rgba(INK.ivory, 0.2);
+    ctx.strokeStyle = q > 0.5 ? rgba(INK.tungsten, 0.4 + 0.4 * q) : rgba(INK.bone, 0.2);
     ctx.lineWidth = 1;
     ctx.stroke(L.touches[i]);
     ctx.restore();
@@ -1199,10 +1199,10 @@ export function drawBassoon(ctx: CanvasRenderingContext2D, W: number, H: number,
     ctx.fillStyle = g;
     ctx.fill(path);
     if (q > 0.01) {
-      ctx.fillStyle = rgba(INK.amber, 0.5 * q);
+      ctx.fillStyle = rgba(INK.tungsten, 0.5 * q);
       ctx.fill(path);
     }
-    ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.55 + 0.35 * q) : rgba(INK.ivory, t.fixed ? 0.32 : 0.45);
+    ctx.strokeStyle = q > 0.5 ? rgba(INK.tungsten, 0.55 + 0.35 * q) : rgba(INK.bone, t.fixed ? 0.32 : 0.45);
     ctx.lineWidth = 1 + 0.4 * q;
     ctx.stroke(path);
   });
@@ -1234,7 +1234,7 @@ export function drawBassoon(ctx: CanvasRenderingContext2D, W: number, H: number,
       if (i) ctx.lineTo(b.px + b.nx * v, b.py + b.ny * v);
       else ctx.moveTo(b.px + b.nx * v, b.py + b.ny * v);
     }
-    ctx.strokeStyle = rgba(INK.ivory, 0.75 * Math.min(1, 3 * lvl));
+    ctx.strokeStyle = rgba(INK.bone, 0.75 * Math.min(1, 3 * lvl));
     ctx.lineWidth = 1.2;
     ctx.stroke();
   }
@@ -1264,7 +1264,7 @@ function bsArm(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number,
   ctx.closePath();
   ctx.fillStyle = '#2c2a27';
   ctx.fill();
-  ctx.strokeStyle = rgba(INK.ivory, 0.4);
+  ctx.strokeStyle = rgba(INK.bone, 0.4);
   ctx.lineWidth = 0.9;
   ctx.stroke();
 }
@@ -1293,16 +1293,16 @@ function bsCup(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number
   ctx.fillStyle = g;
   ctx.fill();
   if (moved > 0.01) {
-    ctx.fillStyle = rgba(INK.amber, 0.14 * moved);
+    ctx.fillStyle = rgba(INK.tungsten, 0.14 * moved);
     ctx.fill();
   }
-  ctx.strokeStyle = moved > 0.5 ? rgba(INK.amber, 0.45 + 0.35 * moved) : rgba(INK.ivory, 0.5);
+  ctx.strokeStyle = moved > 0.5 ? rgba(INK.tungsten, 0.45 + 0.35 * moved) : rgba(INK.bone, 0.5);
   ctx.lineWidth = 1 + 0.4 * moved;
   ctx.stroke();
   if (ry > 2.5 && rx > 2.5) {
     ctx.beginPath();
     ctx.ellipse(cx, cy, rx * 0.74, ry * 0.74, 0, 0, 2 * Math.PI);
-    ctx.strokeStyle = rgba(INK.ivory, 0.16);
+    ctx.strokeStyle = rgba(INK.bone, 0.16);
     ctx.lineWidth = 1;
     ctx.stroke();
     // the dome's highlight
@@ -1329,7 +1329,7 @@ function bsHole(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number
   ctx.fill('evenodd');
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, 2 * Math.PI);
-  ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.5 + 0.35 * q) : rgba(INK.ivory, 0.45);
+  ctx.strokeStyle = q > 0.5 ? rgba(INK.tungsten, 0.5 + 0.35 * q) : rgba(INK.bone, 0.45);
   ctx.lineWidth = 1 + 0.4 * q;
   ctx.stroke();
   if (q > 0.01) {
@@ -1340,7 +1340,7 @@ function bsHole(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number
     ctx.clip();
     ctx.beginPath();
     ctx.ellipse(cx - half * r * 0.9, cy, r * 1.25 * (1 - 0.45 * half), r * 1.2, 0, 0, 2 * Math.PI);
-    ctx.fillStyle = rgba(INK.amber, 0.72 * q);
+    ctx.fillStyle = rgba(INK.tungsten, 0.72 * q);
     ctx.fill();
     ctx.restore();
   }
@@ -1372,7 +1372,7 @@ function bsRing(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number
   g.addColorStop(1, silver(0.12));
   ctx.fillStyle = g;
   ctx.fill('evenodd');
-  ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.5 + 0.35 * q) : rgba(INK.ivory, 0.5);
+  ctx.strokeStyle = q > 0.5 ? rgba(INK.tungsten, 0.5 + 0.35 * q) : rgba(INK.bone, 0.5);
   ctx.lineWidth = 1 + 0.4 * q;
   ctx.beginPath();
   ctx.arc(cx, cy, ro, 0, 2 * Math.PI);
@@ -1380,11 +1380,11 @@ function bsRing(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number
   if (q > 0.01) {
     ctx.beginPath();
     ctx.arc(cx, cy, ro * 0.95, 0, 2 * Math.PI);
-    ctx.fillStyle = rgba(INK.amber, 0.16 * q);
+    ctx.fillStyle = rgba(INK.tungsten, 0.16 * q);
     ctx.fill();
     ctx.beginPath();
     ctx.arc(cx, cy, ri * 1.02, 0, 2 * Math.PI);
-    ctx.fillStyle = rgba(INK.amber, 0.72 * q);
+    ctx.fillStyle = rgba(INK.tungsten, 0.72 * q);
     ctx.fill();
   }
 }
@@ -1396,10 +1396,10 @@ function ghostPad(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: numb
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, 2 * Math.PI);
   if (moved > 0.01) {
-    ctx.fillStyle = rgba(INK.amber, 0.18 * moved);
+    ctx.fillStyle = rgba(INK.tungsten, 0.18 * moved);
     ctx.fill();
   }
-  ctx.strokeStyle = moved > 0.5 ? rgba(INK.amber, 0.38 + 0.35 * moved) : rgba(INK.ivory, 0.16 + 0.1 * shut);
+  ctx.strokeStyle = moved > 0.5 ? rgba(INK.tungsten, 0.38 + 0.35 * moved) : rgba(INK.bone, 0.16 + 0.1 * shut);
   ctx.lineWidth = 1;
   ctx.stroke();
   ctx.restore();

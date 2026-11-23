@@ -60,8 +60,11 @@ export function knob(c: KnobSpec, v0: number, onChange: (v: number) => void): { 
   const paint = () => {
     const a = A0 + (A1 - A0) * unit;
     val.setAttribute('d', arc(15, A0, Math.max(A0 + 0.01, a)));
-    ptr.setAttribute('x2', (20 + 9 * Math.sin(a)).toFixed(2));
-    ptr.setAttribute('y2', (20 - 9 * Math.cos(a)).toFixed(2));
+    // (the index: a short mark on the ring, not a hand from the middle)
+    ptr.setAttribute('x1', (20 + 5.5 * Math.sin(a)).toFixed(2));
+    ptr.setAttribute('y1', (20 - 5.5 * Math.cos(a)).toFixed(2));
+    ptr.setAttribute('x2', (20 + 10.5 * Math.sin(a)).toFixed(2));
+    ptr.setAttribute('y2', (20 - 10.5 * Math.cos(a)).toFixed(2));
     const v = Math.round(fromUnit(c, unit) / c.step) * c.step;
     readout.textContent = c.fmt(v);
     input.value = String(unit);
@@ -168,7 +171,7 @@ export function pedal(name: string, title: string, onValue: (v: number) => void)
 }
 
 // ---------------------------------------------------------------- glyphs
-// Line drawings in the stage's style: thin ivory strokes, dark lacquer/ebony fills.
+// Line drawings in the label's ink: thin strokes, a faint wash where a body is, the wall's dark for ebony.
 // The violin family is drawn in order of size (violin 356, viola 410, cello 755, double bass
 // 1110 mm bodies), so the picker shows the instruments' scale.
 

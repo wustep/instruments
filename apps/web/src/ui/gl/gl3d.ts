@@ -221,8 +221,8 @@ export class Batch {
   clip: { at: number; side: 1 | -1 } | null = null;
   /** a box the orbit camera may not enter (an instrument's case: its target is inside it) */
   keepOut: { lo: Vec3; hi: Vec3 } | null = null;
-  /** the scene's own key light: its direction from the instrument (null: the stage's, from the front left
-   *  above) */
+  /** the scene's own direction for the light that casts its shadow, from the instrument (null: the
+   *  stage's, from behind and above) */
   key: Vec3 | null = null;
   /** planar mirrors (the underside of a grand's lid; an ensemble may have two grands): each its plan
    *  outline [x, z] at height y in the frame `m` (a model matrix), facing −y there; k scales the

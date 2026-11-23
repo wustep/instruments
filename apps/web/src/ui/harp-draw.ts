@@ -178,7 +178,7 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     g.addColorStop(1, '#2a1b0c');
     ctx.fillStyle = g;
     ctx.fill(L.body);
-    ctx.strokeStyle = rgba(INK.amber, 0.5);
+    ctx.strokeStyle = rgba(INK.tungsten, 0.5);
     ctx.lineWidth = 1;
     ctx.stroke(L.body);
     ctx.strokeStyle = 'rgba(226,190,130,0.85)';
@@ -188,7 +188,7 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   // ---- the base and its feet, the pedals' slots
   ctx.fillStyle = '#3a2812';
   ctx.fill(L.base);
-  ctx.strokeStyle = rgba(INK.amber, 0.5);
+  ctx.strokeStyle = rgba(INK.tungsten, 0.5);
   ctx.lineWidth = 1;
   ctx.stroke(L.base);
   // ---- the column (fluted maple, gilded) and its crown
@@ -200,7 +200,7 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     g.addColorStop(1, '#3a2812');
     ctx.fillStyle = g;
     ctx.fill(L.column);
-    ctx.strokeStyle = rgba(INK.amber, 0.55);
+    ctx.strokeStyle = rgba(INK.tungsten, 0.55);
     ctx.stroke(L.column);
     // (the shaft's flutes)
     ctx.strokeStyle = 'rgba(40,26,10,0.45)';
@@ -210,7 +210,7 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     ctx.fill(L.crown);
     ctx.fillStyle = 'rgba(255,236,190,0.18)';
     ctx.fill(L.crown);
-    ctx.strokeStyle = rgba(INK.amber, 0.7);
+    ctx.strokeStyle = rgba(INK.tungsten, 0.7);
     ctx.stroke(L.crown);
   }
   // ---- the neck (the action's brass plates along its lower edge)
@@ -220,7 +220,7 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     g.addColorStop(1, '#3f2b12');
     ctx.fillStyle = g;
     ctx.fill(L.neck);
-    ctx.strokeStyle = rgba(INK.amber, 0.55);
+    ctx.strokeStyle = rgba(INK.tungsten, 0.55);
     ctx.lineWidth = 1;
     ctx.stroke(L.neck);
     // (the action plate: brass, from the neck's lower edge down past the discs)

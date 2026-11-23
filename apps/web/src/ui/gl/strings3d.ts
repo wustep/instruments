@@ -2477,8 +2477,8 @@ function invertRigid(m: Mat4): Mat4 {
 }
 
 const C = {
-  verm: (a: number) => ink(INK.vermilion, a),
-  amber: (a: number) => ink(INK.amber, a),
+  light: (a: number) => ink(INK.light, a),
+  tungsten: (a: number) => ink(INK.tungsten, a),
 };
 
 export function poseBowed(b: Batch, bm: BowedModel, fr: VisualFrame | null, str: { of(v: number): number }): void {
@@ -2513,15 +2513,15 @@ export function poseBowed(b: Batch, bm: BowedModel, fr: VisualFrame | null, str:
     b.wire([W(bm.pegEnd[i]), W(at(i, bm.xn)), W(br), W(bm.tailEnd[i])], col, sp.dia[i]);
     const stopFrac = s ? (s.stopNow ?? s.stop) : 1;
     const xs = bm.xb - stopFrac * bm.L;
-    if (l > 0.03) b.line([W(at(i, Math.max(bm.xn, xs))), W(br)], s?.bowing ? C.verm(0.18 + 0.45 * l) : C.amber(0.12 + 0.4 * l), 1.4);
+    if (l > 0.03) b.line([W(at(i, Math.max(bm.xn, xs))), W(br)], s?.bowing ? C.light(0.18 + 0.45 * l) : C.tungsten(0.12 + 0.4 * l), 1.4);
     // the stopping point: a glowing bar on the fingerboard under the string
     if (s && s.stop < 0.999 && s.level > 0.002) {
       const y = bm.fbY(xs) + 0.0006;
       const zc = at(i, xs)[2];
       const half = sp.spreadN * 0.75;
-      b.line([W([xs, y, zc - half * 1.6]), W([xs, y, zc + half * 1.6])], C.amber(0.24), 14);
-      b.line([W([xs, y, zc - half]), W([xs, y, zc + half])], C.amber(0.9), 6);
-      b.line([W([xs, y, zc]), W(at(i, xs))], C.amber(0.7), 2.5);
+      b.line([W([xs, y, zc - half * 1.6]), W([xs, y, zc + half * 1.6])], C.tungsten(0.24), 14);
+      b.line([W([xs, y, zc - half]), W([xs, y, zc + half])], C.tungsten(0.9), 6);
+      b.line([W([xs, y, zc]), W(at(i, xs))], C.tungsten(0.7), 2.5);
     }
     // the bowed string, moving in the bowing direction between the stop and the bridge
     if (focus && i === bowedIdx && focus.shapes[0]) {
@@ -2534,7 +2534,7 @@ export function poseBowed(b: Batch, bm: BowedModel, fr: VisualFrame | null, str:
         const d = (sh[k] / sc) * 0.008 * (sp.body / 0.356);
         line.push(W(add(p, scale(dirL, d))));
       }
-      b.line(line, C.verm(0.85), 1.8);
+      b.line(line, C.light(0.85), 1.8);
     }
   }
   // the bow: hair on the bowed string at its contact point, at the hair position along the bow
@@ -2589,7 +2589,7 @@ export function poseBowed(b: Batch, bm: BowedModel, fr: VisualFrame | null, str:
   if (bow && bowedIdx >= 0) {
     const c = W(contact);
     const n = norm(xdir(T, upL));
-    b.line([sub(c, scale(n, 0.002)), add(c, scale(n, 0.004))], C.verm(0.85), 5);
+    b.line([sub(c, scale(n, 0.002)), add(c, scale(n, 0.004))], C.light(0.85), 5);
   }
 }
 
