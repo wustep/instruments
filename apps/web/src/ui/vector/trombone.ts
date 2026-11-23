@@ -14,7 +14,7 @@
 import type { VisualFrame } from '@piano-model/engine';
 import { CRANK, MOUTH_K, crankAngle, leverOf, tromboneLayout, tromboneLive, tromboneRecord, turned, type TbLayout, type TbLive, type TromboneState, type TubePx } from '../trombone-draw.ts';
 import type { P } from '../trombone-plan.ts';
-import { V, beam, breathFlow, dot, handle, heat, lipLine, mix, ring, seg } from './kit.ts';
+import { GROUND, V, beam, breathFlow, dot, handle, heat, lipLine, mix, ring, seg } from './kit.ts';
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 /** how many brightnesses a hatched wave is drawn in (one path each) */
@@ -47,7 +47,7 @@ export function drawTromboneV(ctx: CanvasRenderingContext2D, W: number, H: numbe
   /** hide what lies behind a shape: lines only, but a nearer part still covers a farther one */
   const mask = (path: Path2D) => {
     ctx.save();
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = GROUND;
     ctx.fill(path);
     ctx.restore();
   };

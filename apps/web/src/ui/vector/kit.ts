@@ -27,6 +27,9 @@ export const V = {
   white: '#eef3f8',
   amber: '#ffc56e',
 } as const;
+/** the wall the lines are drawn on (vector.css --v-ground): what a solid part is masked with, so the lines
+ *  behind it are hidden and nothing shows where it stands */
+export const GROUND = '#080b0f';
 /** the four control slots, in knob order */
 export const SLOTS = [V.green, V.red, V.pink, V.white] as const;
 /** a knob's colour: its slot, or the structure's blue past the fourth */

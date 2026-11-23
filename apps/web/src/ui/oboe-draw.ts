@@ -906,7 +906,7 @@ function obArm(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number,
   ctx.lineWidth = 0.9;
   ctx.stroke();
 }
-/** a covered key's cup from the front: a silver dome, lifted `p` (1 open), lit amber where a finger has
+/** a covered key's cup from the front: a silver dome, lifted `p` (1 open), lit tungsten where a finger has
  *  moved it off its rest (`moved`), the pad's leather showing under its rim as it lifts */
 function obCup(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, p: number, moved: number, lift: number): void {
   const s = 0.965 + 0.035 * p;

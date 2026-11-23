@@ -6,7 +6,7 @@
 import type { VisualFrame } from '@piano-model/engine';
 import { PLUCK_SHOWN, harpLayout, harpLive, harpRecord, pluckXY, swingPx, type HarpState } from '../harp-draw.ts';
 import { DISC_DY, PEDAL_LEN, PEDAL_X, PEDAL_Y, PIN_DY, STRINGS, STRING_X, STRING_Y0, STRING_Y1, discScale, pedalFoot, pedalOf, stopY } from '../harp-plan.ts';
-import { V, beam, heat, seg } from './kit.ts';
+import { GROUND, V, beam, heat, seg } from './kit.ts';
 
 /** The harp from its side, as lines. `top`: the file player's px over the box's top. */
 export function drawHarpV(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: HarpState, top = 0): void {
@@ -20,7 +20,7 @@ export function drawHarpV(ctx: CanvasRenderingContext2D, W: number, H: number, f
   ctx.save();
   const mask = (path: Path2D) => {
     ctx.save();
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = GROUND;
     ctx.fill(path);
     ctx.restore();
   };

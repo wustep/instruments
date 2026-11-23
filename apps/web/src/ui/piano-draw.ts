@@ -177,7 +177,7 @@ function drawFocus(ctx: CanvasRenderingContext2D, focus: NonNullable<VisualFrame
 }
 
 
-/** every sounding string at once: struck strings vermilion, sympathetic ones amber and
+/** every sounding string at once: struck strings in silver light, sympathetic ones tungsten and
  *  (being quieter) smaller; all on one scale, so a decaying note visibly settles */
 function drawAllShapes(ctx: CanvasRenderingContext2D, fr: VisualFrame | null, byMidi: Map<number, Pt>, ends: (p: Pt) => [number, number, number, number], st: PianoState, W: number, skip: number): void {
   const ps = fr?.pianoShapes;

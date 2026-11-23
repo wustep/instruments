@@ -31,11 +31,12 @@ test('an unknown address: the 404 page names it and links every instrument, the 
       const cs = (s: string) => getComputedStyle(document.querySelector(s)!);
       return { word: cs('.nf-word').fontFamily, style: cs('.nf-word').fontStyle, line: cs('.nf-line').fontFamily, ground: cs('html').backgroundColor, loaded: [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family.replace(/"/g, '')), scroll: document.documentElement.scrollWidth };
     });
-    expect(look.word).toMatch(/^"?Newsreader Variable/);
-    expect(look.style).toBe('italic');
-    expect(look.line).toMatch(/^"?IBM Plex Mono/);
-    expect(look.ground).toBe('rgb(14, 13, 11)');
-    expect(look.loaded).toEqual(expect.arrayContaining(['Newsreader Variable', 'IBM Plex Mono']));
+    // (one family, the wall's own tone: styles.css)
+    expect(look.word).toMatch(/^"?Libre Franklin Variable/);
+    expect(look.style).toBe('normal');
+    expect(look.line).toMatch(/^"?Libre Franklin Variable/);
+    expect(look.ground).toBe('rgb(15, 19, 24)');
+    expect(look.loaded).toEqual(expect.arrayContaining(['Libre Franklin Variable']));
     expect(look.scroll, 'no horizontal scroll').toBeLessThanOrEqual(page.viewportSize()!.width);
   }
   // the places: sixteen instruments by family, the Orchestra and the five pieces' own addresses, the two pages; each whole on the page,
@@ -72,7 +73,7 @@ test('the icons a browser asks for are served: /favicon.ico, /favicon.svg, /appl
   await page.goto('/');
   await expect(page).toHaveTitle('Instruments');
   expect(await page.evaluate(() => [...document.querySelectorAll<HTMLLinkElement>('link[rel="icon"], link[rel="apple-touch-icon"]')].map((l) => `${l.rel} ${new URL(l.href).pathname}`))).toEqual(['icon /favicon.ico', 'icon /favicon.svg', 'apple-touch-icon /apple-touch-icon.png']);
-  // the icon is the drawing in the stage's colours: its corner the ground, its keys ivory, its string vermilion
+  // the icon is the drawing in the stage's colours: its corner the wall, its keys in half-light, its string lit
   const px = await page.evaluate(async () => {
     const img = new Image();
     img.src = '/apple-touch-icon.png';
@@ -84,5 +85,5 @@ test('the icons a browser asks for are served: /favicon.ico, /favicon.svg, /appl
     const at = (x: number, y: number) => [...g.getImageData(x, y, 1, 1).data].slice(0, 3).join(',');
     return { corner: at(2, 2), key: at(53, 123), sharp: at(74, 65), string: at(90, 110) };
   });
-  expect(px).toEqual({ corner: '20,17,13', key: '239,231,214', sharp: '21,18,15', string: '255,94,56' });
+  expect(px).toEqual({ corner: '15,19,24', key: '154,159,166', sharp: '11,13,16', string: '245,247,249' });
 });

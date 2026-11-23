@@ -2971,10 +2971,11 @@ test('the vector display: off by default; the toggle redraws every family in blu
   await expect(root).toHaveAttribute('data-style', 'vector');
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   expect(await ground()).not.toBe(classic);
-  expect(await ground()).toMatch(/^rgb\(0, 0, 0\) \/ "?Hershey/);
+  // (the wall turned down: vector.css --v-ground)
+  expect(await ground()).toMatch(/^rgb\(8, 11, 15\) \/ "?Hershey/);
   expect(await page.evaluate(() => document.fonts.load('500 12px Hershey').then((f) => f.length))).toBeGreaterThan(0);
   // one instrument of each family, sounding: the instrument's lines are blue, the sound amber, and
-  // nothing is filled (most of the stage stays black)
+  // nothing is filled (most of the stage stays dark)
   for (const [id, midi] of [['piano', 60], ['violin', 67], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['bassoon', 50], ['horn', 53], ['timpani', 48], ['trumpet', 67]] as const) {
     await page.evaluate(async ([i, m]) => {
       const a = (window as any).__piano;
@@ -3008,7 +3009,7 @@ test('the vector display: off by default; the toggle redraws every family in blu
   // each knob wears its slot colour
   const slots = await page.evaluate(() => Array.from(document.querySelectorAll('.knob')).map((k) => (k as HTMLElement).style.getPropertyValue('--slot')));
   // (the trumpet's four: breath, lips, noise, vibrato, as the horn's)
-  expect(slots).toEqual(['#5be381', '#ff5d40', '#ff73cf', '#eef6f8']);
+  expect(slots).toEqual(['#7fdca0', '#ff7c5e', '#f08fd2', '#eef3f8']);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 'no horizontal scroll').toBeLessThanOrEqual(1);
   // the other pages keep their own look; back on the stage the choice is remembered (and across a reload)
   await page.goto('/#/notes');
@@ -3027,7 +3028,7 @@ test('the vector display: off by default; the toggle redraws every family in blu
     await expect(dim).toHaveAttribute('aria-pressed', 'false');
     await expect(root).toHaveAttribute('data-style', 'vector');
   }
-  // the pianos' action close-up follows: a black panel, the section in blue lines, nothing filled
+  // the pianos' action close-up follows: a panel of the wall's dark, the section in blue lines, nothing filled
   await page.evaluate(() => (window as any).__piano.setInstrument('piano'));
   await page.waitForTimeout(400);
   {
@@ -3040,7 +3041,7 @@ test('the vector display: off by default; the toggle redraws every family in blu
     const panel = page.locator('.av-panel');
     await expect(panel).toBeVisible();
     await page.waitForTimeout(300);
-    expect(await panel.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(0, 0, 0)');
+    expect(await panel.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(8, 11, 15)');
     const av = await page.evaluate(() => {
       const c = document.querySelector('.av-cv') as HTMLCanvasElement;
       const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;

@@ -69,7 +69,7 @@ export function openActionView(opts: { midi: number; kind: () => Kind; host: HTM
   /** the note sounding from a press on the drawing */
   let playing: number | null = null;
   // under the vector display the same section is drawn through a line pen (ui/vector/pen.ts): blue
-  // structure, the string's motion and the strike amber, the hammer's felt in the hammer knob's green
+  // structure, the string's motion and the strike tungsten, the hammer's felt in the hammer knob's green
   let pen: CanvasRenderingContext2D | null = null;
   /** part names at canvas positions, from the last frame */
   let hover: [string, number, number][] = [];
@@ -684,7 +684,7 @@ function drawGrand(ctx: CanvasRenderingContext2D, g: GrandGeo): SectionBox {
     part('damper underlever', U([GA.ulZ - 60, GA.ulY]));
   }
   // ---- the string: from its tuning pin over the understring felt, through the agraffe (or under the
-  //      capo bar), its speaking length over the belly rail and the board; live shape in vermilion
+  //      capo bar), its speaking length over the belly rail and the board; live shape in silver light
   const pinsZ = Array.from({ length: Math.max(1, nStr) }, (_, j) => pinZ + 24 * j + 12 * ((g.midi - 21) % 2));
   const feltZ = Math.min(Math.max(...pinsZ) + 40, aZ - 14);
   const yA = strAt(aZ);

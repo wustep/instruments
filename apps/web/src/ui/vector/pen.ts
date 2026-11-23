@@ -7,7 +7,7 @@
 //     colours named in `roles` (what sounds, a knob's part) given theirs;
 //   * a part's dark edge line, drawn after its fill, is dropped (the traced outline is that edge).
 // Geometry, order and hit areas are the drawing's own.
-import { V } from './kit.ts';
+import { GROUND, V } from './kit.ts';
 
 /** 'r,g,b' (as stage-draw.ts's INK) → a palette colour */
 export type PenRoles = Record<string, string>;
@@ -49,7 +49,7 @@ export function linePen(ctx: CanvasRenderingContext2D, roles: PenRoles = {}): Ca
     },
     fill: () => {
       if (fillInk.solid) {
-        ctx.fillStyle = '#000';
+        ctx.fillStyle = GROUND;
         ctx.fill();
       }
       const lw = ctx.lineWidth;

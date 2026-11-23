@@ -347,7 +347,7 @@ describe('the breath in 3D: faint steel streams into the mouthpiece while it sou
     { name: 'trumpet', lips: xform(um.T, um.lips), pose: (b: Batch, fr: VisualFrame | null, p: ReturnType<typeof newWindPose>, k: number, rms: number) => poseTrumpet(b, um, fr, p, 1 / 60, k * 16.7, rms), frame: () => trumpetFrame(67, 0) },
   ];
   for (const md of MODELS)
-    it(`${md.name}: no line at rest; sounding, only the steel streams at the mouthpiece (no vermilion lips)`, () => {
+    it(`${md.name}: no line at rest; sounding, only the steel streams at the mouthpiece (no lit lips)`, () => {
       const pose = newWindPose();
       const b = new Batch();
       for (let k = 0; k < 20; k++) {

@@ -13,7 +13,7 @@ import {
   TR_MAIN, TR_MP, TR_MPIECE, TR_RC, TR_RIM, TR_RT, TR_SLIDES, TR_SLIDE_TRAVEL, TR_STEM, TR_STROKE, TR_TAIL, TR_VX, TR_XB, TR_ZB, TR_ZL, VALVE_DOWN, boreAt, flHead, fluteLayout, newBoreWave, slowPhase,
   spring01, trAir, trAlong, trBellR, trLeadY, trProj, trackBoreWave, trumpetLayout, v3add, v3lerp, v3len, type FluteState, type TrumpetState, type V3,
 } from '../stage-draw.ts';
-import { V, beam, breathFlow, dot, handle, heat, label, lipLine, mix, ring, seg } from './kit.ts';
+import { GROUND, V, beam, breathFlow, dot, handle, heat, label, lipLine, mix, ring, seg } from './kit.ts';
 
 type P2 = [number, number];
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -311,13 +311,13 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
     ctx.save();
     ctx.setLineDash([]);
     if (strokeWidth) {
-      ctx.strokeStyle = '#000';
+      ctx.strokeStyle = GROUND;
       ctx.lineWidth = strokeWidth;
       ctx.lineCap = 'butt';
       ctx.lineJoin = 'round';
       ctx.stroke(path);
     } else {
-      ctx.fillStyle = '#000';
+      ctx.fillStyle = GROUND;
       ctx.fill(path);
     }
     ctx.restore();

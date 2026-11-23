@@ -2225,7 +2225,7 @@ const STRING_SWING = 0.004;
 const shapeOf = new Int32Array(88);
 /** the strings: wires of their real diameters (steel, copper-wound in the bass). A sounding string (or,
  *  with the dampers off, a sympathetic one) is the same wire in its live shape (the engine's) along its
- *  speaking length: in 3D a played string moves, it does not light up (no vermilion or amber over it) */
+ *  speaking length: in 3D a played string moves, it does not light up (no line of light over it) */
 export function pianoStrings(b: Batch, pm: PianoModel, fr: VisualFrame | null, sc: (mx: number) => number, lite: boolean, cut: { at: number; side: 1 | -1 } | null = null): void {
   // the strings are drawn over the picture (not clipped): past a section's cut, none
   const past = (x: number) => !!cut && cut.side * (x - cut.at) > 0;

@@ -242,7 +242,7 @@ Claude Fable 5.2, Anthropic's models, working in Claude Code.
   Hodge's vocal synth. Its screens were the inspiration; none of its code is used. The vector type is
   AVHershey Simplex by Stewart C. Russell, from A. V. Hershey's vector fonts (US Naval Weapons
   Laboratory, 1967).
-* **Fonts:** Newsreader, IBM Plex Sans and IBM Plex Mono (SIL OFL), self-hosted.
+* **Fonts:** Libre Franklin (SIL OFL), self-hosted.
 * **The physics** is other people's, cited where it is used: in `docs/RESEARCH.md`, in the comments in
   `packages/engine/src/core`, and in the Sources on the Notes page.
 
@@ -261,4 +261,4 @@ The code is under the [MIT License](LICENSE). Bundled third-party files keep the
   (it has no file: the music is made in the page).
 * **Reference excerpts** (`apps/web/public/ref/*.mp3`): University of Iowa MIS; see
   `apps/web/public/ref/LICENSE.txt`.
-* **Fonts:** AVHershey Simplex (CC0 / WTFPL); Newsreader and IBM Plex (SIL OFL).
+* **Fonts:** AVHershey Simplex (CC0 / WTFPL); Libre Franklin (SIL OFL).

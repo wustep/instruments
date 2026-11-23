@@ -13,7 +13,7 @@
 import type { VisualFrame } from '@piano-model/engine';
 import { BAR_X, CRANK, HOOK, LEVERS, crankAngle, hornLayout, hornLive, hornRecord, paddle, type HnLayout, type HnLive, type HornState } from '../horn-draw.ts';
 import { AXIS, CAP_R, MOUTH_K, MP_DIR, MP_RIM, RIM_C, ROT_R, ROT_X, ROT_Y, bellR, type P } from '../horn-plan.ts';
-import { V, beam, breathFlow, dot, handle, heat, lipLine, mix, ring, seg } from './kit.ts';
+import { GROUND, V, beam, breathFlow, dot, handle, heat, lipLine, mix, ring, seg } from './kit.ts';
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 /** how many brightnesses a hatched wave is drawn in (one path each) */
@@ -46,7 +46,7 @@ export function drawHornV(ctx: CanvasRenderingContext2D, W: number, H: number, f
   /** hide what lies behind a shape: lines only, but a nearer part still covers a farther one */
   const mask = (path: Path2D) => {
     ctx.save();
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = GROUND;
     ctx.fill(path);
     ctx.restore();
   };

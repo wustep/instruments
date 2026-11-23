@@ -68,8 +68,8 @@ export class Layer {
   }
 }
 
-/** a sounding unison lit over its resting lines: struck strings vermilion with a soft bloom,
- *  sympathetic ones amber and faint (at most 0.55 alpha even when they move like a struck string) */
+/** a sounding unison lit over its resting lines: struck strings in silver light with a soft bloom,
+ *  sympathetic ones tungsten and faint (at most 0.55 alpha even when they move like a struck string) */
 export function lightString(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, off: number[], l: number, sym: number): void {
   if (l <= 0.02 && sym <= SYM_VISIBLE) return;
   const struck = l >= sym;
@@ -93,7 +93,7 @@ export function lightString(ctx: CanvasRenderingContext2D, x0: number, y0: numbe
   ctx.stroke();
 }
 
-/** a hammer's mark: a short felt dash that swells and lights at the strike; amber under the soft pedal */
+/** a hammer's mark: a short felt dash that swells and lights at the strike; tungsten under the soft pedal */
 export function hammerMark(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, soft: number): void {
   const flash = h > 0.6 ? (h - 0.6) / 0.4 : 0;
   const hh = 3 + 3 * h;
@@ -104,7 +104,7 @@ export function hammerMark(ctx: CanvasRenderingContext2D, x: number, y: number, 
 }
 
 /** a damper: a black head lying along its strings (`len` px long, turned by `ang` with a leaning string;
- *  x, y its middle); lifted, it moves off them and its edge turns amber */
+ *  x, y its middle); lifted, it moves off them and its edge turns tungsten */
 export function damperMark(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, d: number, len = 4, ang = 0): void {
   const cx = x + 2 * d;
   const cy = y - 3 * d;

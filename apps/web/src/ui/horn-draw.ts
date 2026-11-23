@@ -586,7 +586,7 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   hornRecord(L, st, lv);
 }
 
-/** the wave along a tube on the air's path: its envelope (vermilion, by strength) and its sign (warm
+/** the wave along a tube on the air's path: its envelope (silver light, by strength) and its sign (warm
  *  compression, cool rarefaction), drawn slowed */
 export function glowTube(ctx: CanvasRenderingContext2D, t: TubePx, lv: Pick<HnLive, 'ampAt' | 'ph'> & { air: { runs: { id: string; offset?: number }[]; starts: number[] } }): void {
   const runs = lv.air.runs;
@@ -732,7 +732,7 @@ function drawRotor(ctx: CanvasRenderingContext2D, cx: number, cy: number, sc: nu
   ctx.stroke();
 }
 /** the lever bar with its springs, each lever's link from its hub to its rotor's crank, and the paddles
- *  (the thumb's at the top), going down under the fingers (amber) */
+ *  (the thumb's at the top), going down under the fingers (tungsten) */
 function drawLevers(ctx: CanvasRenderingContext2D, L: HnLayout, lv: HnLive): void {
   const { sc } = L;
   const X = (x: number) => L.ox + x * sc;

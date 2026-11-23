@@ -11,7 +11,7 @@ import type { VisualFrame } from '@piano-model/engine';
 import { tubaLayout, tubaLive, tubaRecord, type TbLayout, type TubaState } from '../tuba-draw.ts';
 import { BELL_TILT, BELL_TOP_X, BUTTON_Y, CASING_R, CASING_Y1, MOUTH_K, MP_DIR, MP_RIM, RIM_R, RIM_Y, TRAVEL, VALVE_X, bellAxisX, bellR, lean } from '../tuba-plan.ts';
 import { airHatch, slots, strokeHatch } from './horn.ts';
-import { V, beam, mix, seg } from './kit.ts';
+import { GROUND, V, beam, mix, seg } from './kit.ts';
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
@@ -45,7 +45,7 @@ export function drawTubaV(ctx: CanvasRenderingContext2D, W: number, H: number, f
   /** hide what lies behind a shape: lines only, but a nearer part still covers a farther one */
   const mask = (path: Path2D) => {
     ctx.save();
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = GROUND;
     ctx.fill(path);
     ctx.restore();
   };

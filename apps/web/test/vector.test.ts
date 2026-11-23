@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { bowedGeometry, type VisualFrame } from '@piano-model/engine';
 import { AutoScale, BOWED_PLAN, bowedLayout, bowedShapes } from '../src/ui/stage-draw.ts';
 import { drawBowedV } from '../src/ui/vector/bowed.ts';
-import { Contours, SLOTS, V, heat, mix, slotColor } from '../src/ui/vector/kit.ts';
+import { Contours, GROUND, SLOTS, V, heat, mix, slotColor } from '../src/ui/vector/kit.ts';
 import { linePen } from '../src/ui/vector/pen.ts';
 import { installCanvas, recorder } from './recording-ctx.ts';
 
@@ -98,9 +98,11 @@ describe('the line pen (the action close-up drawn in lines)', () => {
     };
     return { c, log };
   };
-  const blue = '79,182,242';
-  const amber = '255,179,64';
-  it('a solid fill becomes a black mask with its outline traced; the dark edge line after it is dropped', () => {
+  // (the palette's own blue and amber, as rgb triplets)
+  const tri = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(',');
+  const blue = tri(V.blue);
+  const amber = tri(V.amber);
+  it('a solid fill becomes a mask of the wall’s own dark with its outline traced; the dark edge line after it is dropped', () => {
     const { c, log } = fake();
     const pen = linePen(c as unknown as CanvasRenderingContext2D);
     pen.beginPath();
@@ -110,7 +112,7 @@ describe('the line pen (the action close-up drawn in lines)', () => {
     pen.strokeStyle = 'rgba(0,0,0,0.550)';
     pen.lineWidth = 0.8;
     pen.stroke();
-    expect(log).toEqual(['begin', 'rect', 'fill #000', `stroke rgba(${blue},0.870) 1`]);
+    expect(log).toEqual(['begin', 'rect', `fill ${GROUND}`, `stroke rgba(${blue},0.870) 1`]);
     expect(c.lineWidth).toBe(0.8);
   });
   it('a faint fill is only outlined; a line keeps its width; named colours take their role', () => {

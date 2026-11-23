@@ -8,7 +8,7 @@ import type { VisualFrame } from '@piano-model/engine';
 import { barShape } from '@piano-model/engine';
 import { glockLayout, glockLive, glockRecord, shaftEnd, strokeRings, type GlockState } from '../glock-draw.ts';
 import { BARS, HEAD_R, PIN_R, RAIL_W, barBox, barNodes } from '../glock-plan.ts';
-import { V, beam, heat, mix, ring, seg } from './kit.ts';
+import { GROUND, V, beam, heat, mix, ring, seg } from './kit.ts';
 
 /** The glockenspiel from above, as lines. `top`: the file player's px over the box's top. */
 export function drawGlockV(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: GlockState, top = 0): void {
@@ -40,7 +40,7 @@ export function drawGlockV(ctx: CanvasRenderingContext2D, W: number, H: number, 
     const p = new Path2D();
     p.rect(X(x0), Y(y1), (x1 - x0) * sc, (y1 - y0) * sc);
     ctx.save();
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = GROUND;
     ctx.fill(p);
     ctx.restore();
     beam(ctx, p, a > 0.01 ? mix(V.blue, V.amber, Math.min(1, 0.3 + a)) : V.blueMid, a > 0.01 ? lw : 1, { hot: a > 0.3 && !small });

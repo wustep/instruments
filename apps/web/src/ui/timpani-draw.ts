@@ -788,7 +788,7 @@ function drawPedal(ctx: CanvasRenderingContext2D, L: TpLayout, pl: DrumPlan, d: 
   ctx.stroke();
 }
 
-/** the gauge: its dark plate, a tick a semitone, the pointer at the tuning (amber) */
+/** the gauge: its dark plate, a tick a semitone, the pointer at the tuning (tungsten) */
 function drawGauge(ctx: CanvasRenderingContext2D, L: TpLayout, d: DrumPx, p: number, lvl: number): void {
   const { sc } = L;
   ctx.fillStyle = '#16181b';

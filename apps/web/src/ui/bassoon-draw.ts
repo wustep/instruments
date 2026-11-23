@@ -1185,7 +1185,7 @@ export function drawBassoon(ctx: CanvasRenderingContext2D, W: number, H: number,
       bsCup(ctx, cx, cy + out, k.r * sc, Math.max(0.6, 0.0013 * sc), p, moved, 0);
     }
   });
-  // the touches: levers and spatulas, lit amber under a finger
+  // the touches: levers and spatulas, lit tungsten under a finger
   BS_TOUCHES.forEach((t, i) => {
     if (t.back) return;
     const q = lv.touchPress[i];
@@ -1268,7 +1268,7 @@ function bsArm(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number,
   ctx.lineWidth = 0.9;
   ctx.stroke();
 }
-/** a pad's cup from the front (or edge-on): a silver dome, lifted `p` (1 open), lit amber where a finger
+/** a pad's cup from the front (or edge-on): a silver dome, lifted `p` (1 open), lit tungsten where a finger
  *  or a linkage has moved it off its rest (`moved`), the pad's leather showing under its rim as it lifts */
 function bsCup(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, p: number, moved: number, lift: number): void {
   const s = 0.965 + 0.035 * p;
@@ -1388,7 +1388,7 @@ function bsRing(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number
     ctx.fill();
   }
 }
-/** a pad on the back, seen through the wood: its outline dashed and faint, darker shut (`shut`), amber
+/** a pad on the back, seen through the wood: its outline dashed and faint, darker shut (`shut`), tungsten
  *  while its key has moved it (`moved`) */
 function ghostPad(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, shut: number, moved: number, sc: number): void {
   ctx.save();

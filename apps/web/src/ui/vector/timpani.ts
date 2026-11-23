@@ -12,7 +12,7 @@
 import type { VisualFrame } from '@piano-model/engine';
 import { FG, gridOf, pedalPts, pointerAt, timpaniLayout, timpaniLive, timpaniRecord, trackHands, type HeadField, type TpLayout, type TpLive, type TimpaniState } from '../timpani-draw.ts';
 import { BALL_R, PAINT_ORDER, SET, SIN_E } from '../timpani-plan.ts';
-import { V, beam, dot, handle, mix, ring, seg } from './kit.ts';
+import { GROUND, V, beam, dot, handle, mix, ring, seg } from './kit.ts';
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 /** each head's envelope a moment ago, to see it stopped (the fingers on it), kept per state object */
@@ -40,7 +40,7 @@ export function drawTimpaniV(ctx: CanvasRenderingContext2D, W: number, H: number
 /** hide what lies behind a shape: lines only, but a nearer drum still covers a farther one */
 function mask(ctx: CanvasRenderingContext2D, path: Path2D): void {
   ctx.save();
-  ctx.fillStyle = '#000';
+  ctx.fillStyle = GROUND;
   ctx.fill(path);
   ctx.restore();
 }

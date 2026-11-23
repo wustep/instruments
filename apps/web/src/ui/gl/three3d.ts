@@ -231,12 +231,12 @@ function gallery(): THREE.Scene {
   // the key: one small lamp, front right and above
   panel(2.4, 2.4, TUNGSTEN, 7.5, [5.2, 5.6, -6.6], [0, 0.6, 0], 0.7);
   // the wall behind the camera, dimly washed
-  panel(22, 6, [0.86, 0.9, 1], 0.44, [0, 3.2, -12], [0, 1.4, 0], 0.9);
+  panel(22, 7, [0.86, 0.9, 1], 0.62, [0, 3.2, -12], [0, 1.4, 0], 0.9);
   // what comes down from above: next to nothing (a head, a lid's top, a key's face)
   panel(9, 9, [0.82, 0.88, 1], 0.42, [0, 9.5, 0], [0, 0, 0], 0.8);
   // the floor in front of the instrument, as the pool lights it: what a case's black front, a bell's
   // underside and a rib's lower edge return (they face down and out, at the floor)
-  panel(20, 14, [0.9, 0.92, 1], 0.2, [0, -1.85, -4], [0, 10, -4], 1.0);
+  panel(20, 14, [0.9, 0.92, 1], 0.28, [0, -1.85, -4], [0, 10, -4], 1.0);
   return s;
 }
 

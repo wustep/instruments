@@ -752,7 +752,7 @@ export function drawTrombone(ctx: CanvasRenderingContext2D, W: number, H: number
 }
 
 /** the wave along a run of the air's path (a tube of the bell section, or the slide's runs as they stand):
- *  its envelope (vermilion, by strength) and its sign (warm compression, cool rarefaction), drawn slowed */
+ *  its envelope (silver light, by strength) and its sign (warm compression, cool rarefaction), drawn slowed */
 function glowRun(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive, id: string, rTube: number): void {
   const runs = lv.air.runs;
   const ri = runs.findIndex((r) => r.id === id);
@@ -901,7 +901,7 @@ function drawRotor(ctx: CanvasRenderingContext2D, L: TbLayout, r: { c: P; R: num
   ctx.fill();
 }
 /** each valve's lever: the link from its back arm to the rotor's crank, the crank, the lever on its pivot on
- *  the bell brace with its spring, the hook the thumb pulls (amber while held down) */
+ *  the bell brace with its spring, the hook the thumb pulls (tungsten while held down) */
 function drawLevers(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive): void {
   const { sc, p } = L;
   const X = (x: number) => L.ox + x * sc;

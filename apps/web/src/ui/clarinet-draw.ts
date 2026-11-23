@@ -913,7 +913,7 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
     else if (k.style === 'plain') clPlain(ctx, cx, cy, k.hole * sc, lv.keyPress[i]);
     else clCup(ctx, cx, cy, k.r * sc, Math.max(0.6, k.r * sc * Math.abs(cphi)), p, moved, lift);
   });
-  // the touches: the levers and spatulas, lit amber under a finger
+  // the touches: the levers and spatulas, lit tungsten under a finger
   CL_TOUCHES.forEach((t, i) => {
     if (t.back) return;
     const q = lv.touchPress[i];
@@ -1001,7 +1001,7 @@ function clArm(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number,
   ctx.lineWidth = 0.9;
   ctx.stroke();
 }
-/** a covered key's cup from the front: a silver dome, lifted `p` (1 open), lit amber where a finger or a
+/** a covered key's cup from the front: a silver dome, lifted `p` (1 open), lit tungsten where a finger or a
  *  linkage has moved it off its rest (`moved`), the pad's leather showing under its rim as it lifts */
 function clCup(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, p: number, moved: number, lift: number): void {
   const s = 0.965 + 0.035 * p;
@@ -1111,7 +1111,7 @@ function clPlain(ctx: CanvasRenderingContext2D, cx: number, cy: number, hole: nu
   ctx.lineWidth = 1 + 0.4 * q;
   ctx.stroke();
 }
-/** a key on the back, seen through the wood: its outline dashed and faint, filled amber under the thumb
+/** a key on the back, seen through the wood: its outline dashed and faint, filled tungsten under the thumb
  *  (`q`); a ring's hole inside it */
 function ghostKey(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, hole: number, q: number, sc: number): void {
   ctx.save();

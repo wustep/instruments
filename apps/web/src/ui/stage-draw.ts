@@ -2817,7 +2817,7 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
     ctx.fillStyle = rgba(ink.partial, 0.9);
     for (const f of marks) if (f >= f0 && f <= f1) ctx.fillRect(X(f) - 0.75, y0 + 3, 1.5, 6);
   } else if (focus) {
-    // where the partials should be: stiff-string series (vermilion) vs ideal harmonics (steel)
+    // where the partials should be: stiff-string series (silver light) vs ideal harmonics (steel)
     const fz = focus.f1 / Math.sqrt(1 + focus.B);
     for (let k = 1; k <= 60; k++) {
       const fk = k * fz * Math.sqrt(1 + focus.B * k * k);
@@ -3144,7 +3144,7 @@ export function trumpetLayout(W: number, H: number): TrLayout {
   trLayout = { key, S, ox, oy, memo: new Map() };
   return trLayout;
 }
-// lacquered yellow brass on the dark stage: a dark gold body under the amber edges and highlights
+// lacquered yellow brass on the dark stage: a dark gold body under the tungsten edges and highlights
 const BRASS_BODY = '#4a3416';
 const BRASS_DEEP = '#251a0c';
 
