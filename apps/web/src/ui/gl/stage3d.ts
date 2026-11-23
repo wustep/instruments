@@ -723,8 +723,8 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       }
       const eye: Vec3 = [target[0] + dist * dir[0], target[1] + dist * dir[1], target[2] + dist * dir[2]];
       lastEye = eye;
-      const g = getComputedStyle(document.body).getPropertyValue('--ground').trim() || '#0f1318';
-      const hex = /^#([0-9a-f]{6})$/i.exec(g)?.[1] ?? '0f1318';
+      const g = getComputedStyle(document.body).getPropertyValue('--ground').trim() || '#111315';
+      const hex = /^#([0-9a-f]{6})$/i.exec(g)?.[1] ?? '111315';
       const ground: [number, number, number] = [parseInt(hex.slice(0, 2), 16) / 255, parseInt(hex.slice(2, 4), 16) / 255, parseInt(hex.slice(4, 6), 16) / 255];
       // the lid: what this frame shows; the pool's rim brightens while the room's knob is under the
       // pointer, turned or focused (τ 0.1 s)

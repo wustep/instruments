@@ -5,12 +5,12 @@
 @import '@fontsource-variable/libre-franklin/wght.css';
 
 :root {
-  --ground: #0f1318;
-  --wall-0: #070a0e;
-  --ink: #e5e8ec;
-  --ink-2: #babec3;
-  --muted: #8f949b;
-  --rule: #262b31;
+  --ground: #111315;
+  --wall-0: #090a0c;
+  --ink: #e6e8ea;
+  --ink-2: #bbbec1;
+  --muted: #919497;
+  --rule: #282a2d;
   --light: #f5f7f9;
   --face: 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   color-scheme: dark;
@@ -25,7 +25,7 @@ body {
   color: var(--ink);
 }
 html {
-  scrollbar-color: #3b4047 transparent;
+  scrollbar-color: #3d4043 transparent;
 }
 ::selection {
   background: rgb(139 168 198 / 0.42);
@@ -37,8 +37,8 @@ body {
   font-family: var(--face);
   /* (the stage's own wall: a wash from above, the corners falling away) */
   background:
-    radial-gradient(60% 70% at 50% 0%, rgb(185 200 220 / 0.11), transparent 72%),
-    radial-gradient(130% 115% at 50% 28%, transparent 52%, rgb(7 10 14 / 0.62) 100%),
+    radial-gradient(60% 70% at 50% 0%, rgb(194 200 207 / 0.11), transparent 72%),
+    radial-gradient(130% 115% at 50% 28%, transparent 52%, rgb(9 10 12 / 0.62) 100%),
     var(--ground);
   -webkit-font-smoothing: antialiased;
 }
@@ -58,7 +58,6 @@ body {
   align-items: center;
   margin: 16px 0 0 3px;
   font: 400 13px/18px var(--face);
-  font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
 /* the lamp, as it is before any sound: a ring, unlit */
@@ -123,7 +122,7 @@ body {
     gap: 4px 10px;
   }
   .nf a {
-    padding: 13px 6px;
+    padding: 16px 6px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

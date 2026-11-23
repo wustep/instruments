@@ -3,6 +3,8 @@
 //   favicon.ico            16, 32 and 48 px (PNG entries), for browsers and tools that ask for /favicon.ico
 //   apple-touch-icon.png   180 px, full bleed (iOS rounds it), the drawing at 5/8 of the square
 // node scripts/icons.mjs        (Playwright's Chrome draws the SVG)
+// (the PNG then carries where it came from, in a text chunk: `npx impeccable embed-prompt
+// apps/web/public/apple-touch-icon.png --prompt "Origin: drawn by scripts/icons.mjs from favicon.svg …"`)
 import { chromium } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

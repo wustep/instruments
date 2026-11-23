@@ -18,6 +18,8 @@ const ONLY = (process.env.ONLY ?? '').split(',').filter(Boolean);
 const DEVS = {
   desktop: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 },
   phone: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
+  landscape: { viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
+  small: { viewport: { width: 360, height: 640 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
 };
 const hold = (notes) => async (page) => {
   await page.evaluate((x) => x.forEach((m) => window.__piano.noteOn(m, 0.7, 'midi')), notes);
@@ -30,6 +32,19 @@ const click = (sel, ms = 600) => async (page) => {
 };
 // (the dev server answers every path with the app: its 404 page is at /404.html; a host serves it for any other path)
 const NOT_FOUND = /127\.0\.0\.1|localhost/.test(BASE) && !process.env.PREVIEW ? '/404.html' : '/no-such-page';
+const states = async (page) => {
+  await page.locator('.pick[aria-label="Cello"]').hover();
+  await page.waitForTimeout(500);
+  await page.keyboard.press('Tab');
+  for (let i = 0; i < 20; i++) await page.keyboard.press('Tab');
+  await page.waitForTimeout(300);
+};
+const closeUp = async (page) => {
+  const k = await page.locator('.key[data-midi="48"]').boundingBox();
+  const cv = await page.locator('.stage-cv').boundingBox();
+  await page.mouse.click(k.x + k.width / 2, cv.y + cv.height * 0.8);
+  await page.waitForTimeout(900);
+};
 const openPicker = async (page) => {
   const b = page.locator('.pick-open');
   if ((await b.count()) && (await b.isVisible()) && (await b.getAttribute('aria-expanded')) !== 'true') await b.click();
@@ -74,6 +89,14 @@ const SHOTS = [
   ['measurements-phone', 'phone', '/measurements', wait(1500), 'more'],
   ['stage-only-3d-desktop', 'desktop', '/cello?view=3d&ui=0', wait(1500), 'more'],
   ['nokeys-2d-desktop', 'desktop', '/violin?keys=0', wait(1200), 'more'],
+  // states: a pick and a dial under the pointer, a word focused from the keyboard; a phone's knobs open;
+  // a key's action close up
+  ['states-hover-desktop', 'desktop', '/piano', states, 'more'],
+  ['knobs-open-phone', 'phone', '/horn?view=3d', click('.knob-toggle'), 'more'],
+  ['action-2d-desktop', 'desktop', '/piano', closeUp, 'more'],
+  ['picker-orchestra-phone', 'phone', '/symphony', openPicker, 'more'],
+  ['landscape-phone', 'landscape', '/cello?view=3d', hold([50]), 'more'],
+  ['small-phone', 'small', '/piano', hold([60, 64, 67]), 'more'],
 ];
 
 const browser = await chromium.launch({ channel: 'chrome', args: ['--autoplay-policy=no-user-gesture-required', '--use-angle=metal', '--enable-gpu', '--mute-audio'] });

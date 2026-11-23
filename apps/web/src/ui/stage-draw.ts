@@ -14,8 +14,8 @@ import { BASS } from './gl/bass-outline.ts';
  *  coloured); `tungsten`, the dim warm key, what a body does (a board's modes, a string that answers, a
  *  key under a finger); `steel`, a reference or what is ideal. */
 export const INK = {
-  ground: '#0f1318',
-  bone: '229,232,236',
+  ground: '#111315',
+  bone: '230,232,234',
   light: '245,247,249',
   tungsten: '237,208,156',
   copper: '196,128,82',
@@ -2774,15 +2774,30 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
   const dbHi = -25;
   const Y = (db: number) => y0 + h * (1 - (db - dbLo) / (dbHi - dbLo));
   ctx.font = ink.font;
-  ctx.fillStyle = rgba(ink.label, 0.3);
-  for (const [f, t] of [
-    [100, '100'],
-    [1000, '1k'],
-    [10000, '10k'],
-  ] as const) {
-    // (the last label sits left of its frequency where it would run off the end)
-    const tw = ctx.measureText(t).width;
-    ctx.fillText(t, X(f) + 3 + tw > x0 + w ? X(f) - tw - 3 : X(f) + 3, y0 + h - 2);
+  // the scale's three figures stand on the floor of the trace, each in a gap of its own (the trace is
+  // parted for them: it used to strike through them); with no sound yet the floor is there, a hairline
+  const scale = () => {
+    ctx.textBaseline = 'alphabetic';
+    for (const [f, t] of [
+      [100, '100'],
+      [1000, '1k'],
+      [10000, '10k'],
+    ] as const) {
+      // (the last label sits left of its frequency where it would run off the end)
+      const tw = ctx.measureText(t).width;
+      const lx = X(f) + 3 + tw > x0 + w ? X(f) - tw - 3 : X(f) + 3;
+      ctx.clearRect(lx - 3, y0 + h - 12, tw + 6, 14);
+      ctx.fillStyle = rgba(ink.label, 0.6);
+      ctx.fillText(t, lx, y0 + h + 1);
+    }
+  };
+  if (!an) {
+    ctx.strokeStyle = rgba(ink.line, ink === SPECTRUM_INK ? 0.3 : 0.5);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x0, Math.round(Y(dbLo)) - 0.5);
+    ctx.lineTo(x0 + w, Math.round(Y(dbLo)) - 0.5);
+    ctx.stroke();
   }
   if (an) {
     const bins = an.frequencyBinCount;
@@ -2812,6 +2827,7 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
     }
     ctx.stroke();
   }
+  scale();
   if (marks && marks.length > 1) {
     // several notes sounding: a mark at each one's fundamental (one note's partials would speak for one of them)
     ctx.fillStyle = rgba(ink.partial, 0.9);

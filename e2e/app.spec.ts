@@ -2972,7 +2972,7 @@ test('the vector display: off by default; the toggle redraws every family in blu
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   expect(await ground()).not.toBe(classic);
   // (the wall turned down: vector.css --v-ground)
-  expect(await ground()).toMatch(/^rgb\(8, 11, 15\) \/ "?Hershey/);
+  expect(await ground()).toMatch(/^rgb\(8, 9, 11\) \/ "?Hershey/);
   expect(await page.evaluate(() => document.fonts.load('500 12px Hershey').then((f) => f.length))).toBeGreaterThan(0);
   // one instrument of each family, sounding: the instrument's lines are blue, the sound amber, and
   // nothing is filled (most of the stage stays dark)
@@ -3041,7 +3041,7 @@ test('the vector display: off by default; the toggle redraws every family in blu
     const panel = page.locator('.av-panel');
     await expect(panel).toBeVisible();
     await page.waitForTimeout(300);
-    expect(await panel.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(8, 11, 15)');
+    expect(await panel.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(8, 9, 11)');
     const av = await page.evaluate(() => {
       const c = document.querySelector('.av-cv') as HTMLCanvasElement;
       const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;

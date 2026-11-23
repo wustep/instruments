@@ -35,7 +35,7 @@ test('an unknown address: the 404 page names it and links every instrument, the 
     expect(look.word).toMatch(/^"?Libre Franklin Variable/);
     expect(look.style).toBe('normal');
     expect(look.line).toMatch(/^"?Libre Franklin Variable/);
-    expect(look.ground).toBe('rgb(15, 19, 24)');
+    expect(look.ground).toBe('rgb(17, 19, 21)');
     expect(look.loaded).toEqual(expect.arrayContaining(['Libre Franklin Variable']));
     expect(look.scroll, 'no horizontal scroll').toBeLessThanOrEqual(page.viewportSize()!.width);
   }
@@ -85,5 +85,5 @@ test('the icons a browser asks for are served: /favicon.ico, /favicon.svg, /appl
     const at = (x: number, y: number) => [...g.getImageData(x, y, 1, 1).data].slice(0, 3).join(',');
     return { corner: at(2, 2), key: at(53, 123), sharp: at(74, 65), string: at(90, 110) };
   });
-  expect(px).toEqual({ corner: '15,19,24', key: '154,159,166', sharp: '11,13,16', string: '245,247,249' });
+  expect(px).toEqual({ corner: '17,19,21', key: '160,162,166', sharp: '9,10,12', string: '245,247,249' });
 });

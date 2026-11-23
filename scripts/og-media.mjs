@@ -1,10 +1,13 @@
 // The link preview's picture, taken from the app itself: the og:image (the grand piano in 3D, its lid
-// raised, in its pool of light on the right of the card; the title alone in the dark on the left).
+// raised, lit from behind in the gallery's room on the right of the card; the title alone on the dark of
+// the wall on the left).
 // Nothing is drawn but the title: the picture is the 3D canvas as the app renders it.
 //   pnpm build && pnpm preview --port 5417 --strictPort &
 //   BASE=http://localhost:5417 node scripts/og-media.mjs
 // Writes apps/web/public/og/instruments-grand.jpg (1200×630, under 300 KB); the stills it is made
 // from in .cache/og-media/. Needs Chrome and Python with Pillow.
+// (The picture then carries where it came from, in its own comment segment: `npx impeccable embed-prompt
+// apps/web/public/og/instruments-grand.jpg --prompt "Origin: scripts/og-media.mjs, a still of the app's own 3D stage …"`.)
 import { chromium } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -33,11 +36,10 @@ const VIEW = { target: [-0.842659, 0.719902, -0.031585], yaw: 0.95, pitch: 0.3, 
  *  (842, 318), 548 px high, the left half left to the title. Checked before the still is taken: a
  *  change to the model or the lens that moves the piano is said, not photographed. */
 const BOX = { x0: 616, x1: 1068, y0: 44, y1: 592 };
-/** the title's line box (100 px, line-height 1) from the card's top left. Alone on the card, the
- *  word is centred by its ink, not its box: the ink's centre of weight, measured 45.4 px under the
- *  box's top, lies on the card's middle line (315). The capital then stands from y 272, the small
- *  letters from y 292, on a baseline at y 344: the letters' own middle (318) is the piano's. */
-const TITLE_AT = { left: 72, top: 270 };
+/** the title: its left edge, its size (88 px: the word ends 80 px short of the piano), and the height of its letters' own middle (the capital's and the small
+ *  letters': the word has no descender), which is the piano's (318). The card's script puts the line there
+ *  by the face's own measure of its capital, once the face has loaded. */
+const TITLE_AT = { left: 72, middle: 318, size: 88 };
 
 /** A 2x PNG to the card's JPEG: Lanczos to w×h, quality 90, 4:4:4 so the type's edges stay clean.
  *  (Pillow, not ffmpeg: ffmpeg's conversion to JPEG's colours moves the dark ground about a level
@@ -51,16 +53,25 @@ im.save(sys.argv[2], "JPEG", quality=90, subsampling=0, optimize=True, progressi
 const toJpg = (png, jpg, w, h) => execFileSync('python3', ['-c', TO_JPG, png, jpg, String(w), String(h)], { stdio: ['ignore', 'pipe', 'inherit'] });
 const font = (p) => `data:font/woff2;base64,${readFileSync(join(ROOT, 'apps/web/node_modules', p)).toString('base64')}`;
 
-/** The card: the still `bg`, darkened to the left so the title has clean ground, and the title as
- *  the site sets its display type (Newsreader italic, styles.css) */
+/** The card: the still `bg`, the wall's own dark drawn over its left so the title has clean ground, and
+ *  the title as the site sets its display type (Libre Franklin Light, tightly set: styles.css) */
 function cardHtml(bg) {
   return `<!doctype html><html><head><meta charset="utf-8"><style>
-@font-face { font-family: 'Newsreader Variable'; font-style: italic; font-weight: 200 800; src: url(${font('@fontsource-variable/newsreader/files/newsreader-latin-opsz-italic.woff2')}) format('woff2-variations'); }
-html, body { margin: 0; width: ${W}px; height: ${H}px; overflow: hidden; background: #0e0d0b; }
-.bg { position: absolute; left: 0; top: 0; width: ${W}px; height: ${H}px; filter: brightness(1.11) contrast(1.1) saturate(1.08); }
-.shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(14,13,11,0.82) 0%, rgba(14,13,11,0.6) 30%, rgba(14,13,11,0) 52%), radial-gradient(ellipse 80% 90% at 70% 55%, rgba(14,13,11,0) 55%, rgba(14,13,11,0.6) 100%); }
-h1 { position: absolute; left: ${TITLE_AT.left}px; top: ${TITLE_AT.top}px; margin: 0; font: italic 400 100px/1 'Newsreader Variable', serif; font-variation-settings: 'opsz' 72; letter-spacing: -0.012em; color: #ece2ce; }
-</style></head><body><img class="bg" src="data:image/png;base64,${readFileSync(bg).toString('base64')}"><div class="shade"></div><h1>${TITLE}</h1></body></html>`;
+@font-face { font-family: 'Libre Franklin Variable'; font-style: normal; font-weight: 100 900; src: url(${font('@fontsource-variable/libre-franklin/files/libre-franklin-latin-wght-normal.woff2')}) format('woff2-variations'); }
+html, body { margin: 0; width: ${W}px; height: ${H}px; overflow: hidden; background: #111315; }
+.bg { position: absolute; left: 0; top: 0; width: ${W}px; height: ${H}px; filter: brightness(1.12) contrast(1.06); }
+.shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(17,19,21,0.86) 0%, rgba(17,19,21,0.62) 30%, rgba(17,19,21,0) 52%), radial-gradient(ellipse 80% 90% at 70% 55%, rgba(9,10,12,0) 55%, rgba(9,10,12,0.55) 100%); }
+h1 { position: absolute; left: ${TITLE_AT.left}px; top: 0; margin: 0; font: 300 ${TITLE_AT.size}px/1 'Libre Franklin Variable', sans-serif; letter-spacing: -0.035em; color: #f5f7f9; }
+</style></head><body><img class="bg" src="data:image/png;base64,${readFileSync(bg).toString('base64')}"><div class="shade"></div><h1>${TITLE}</h1>
+<script>
+document.fonts.ready.then(() => {
+  // the line's baseline in its box, and the capital's height, by the face's own measures
+  const h1 = document.querySelector('h1');
+  const m = Object.assign(document.createElement('canvas').getContext('2d'), { font: getComputedStyle(h1).font }).measureText('I');
+  const baseline = (${TITLE_AT.size} - (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent)) / 2 + m.fontBoundingBoxAscent;
+  h1.style.top = (${TITLE_AT.middle} - (baseline - m.actualBoundingBoxAscent / 2)) + 'px';
+});
+</script></body></html>`;
 }
 
 async function renderHtml(browser, html, w, h, path) {

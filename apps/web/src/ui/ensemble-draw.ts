@@ -549,7 +549,7 @@ export function drawOwnKeys(ctx: CanvasRenderingContext2D, c: Cell, down: Readon
   }
   // the key slip over them (the strings end at it), the whites as one field in half-light with their
   // partings, a held one lit as the screen's are (styles.css .key: --key, --light); the blacks over them
-  ctx.fillStyle = '#a7abb0';
+  ctx.fillStyle = '#a9abae';
   ctx.fillRect(x0, y, x1 - x0, kh);
   for (const k of keys) {
     if (k.black) continue;
@@ -557,10 +557,10 @@ export function drawOwnKeys(ctx: CanvasRenderingContext2D, c: Cell, down: Readon
       ctx.fillStyle = '#f5f7f9';
       ctx.fillRect(k.x, k.y, k.w, k.h);
     }
-    ctx.fillStyle = 'rgba(30, 34, 38, 0.8)';
+    ctx.fillStyle = 'rgba(32, 34, 37, 0.8)';
     ctx.fillRect(Math.round(k.x), k.y, 1, k.h);
   }
-  ctx.fillStyle = 'rgba(30, 34, 38, 0.8)';
+  ctx.fillStyle = 'rgba(32, 34, 37, 0.8)';
   ctx.fillRect(Math.round(x1) - 1, y, 1, kh);
   // (the whites' front edge in shade, the slip's shadow on their far end)
   ctx.fillStyle = 'rgba(20, 24, 30, 0.3)';

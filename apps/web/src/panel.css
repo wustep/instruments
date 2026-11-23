@@ -35,6 +35,19 @@
   line-height: 1;
   color: var(--muted);
 }
+/* the rail's lower line: what the index stands on, catching the light as the plinth's edge does. It lies
+   on the first row under the bar, so that what hangs from it below (a phone's view switch, in the band) has
+   its fixture in the line itself */
+.top::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgb(var(--light-rgb) / 0.2), rgb(var(--light-rgb) / 0.08) 36%, rgb(var(--light-rgb) / 0.03));
+}
 .top > * {
   align-self: center;
 }
@@ -115,9 +128,9 @@
 .back {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  margin-left: -8px;
+  width: 44px;
+  margin-left: -14px;
+  align-self: stretch;
   color: var(--ink-2);
 }
 .back:hover {
@@ -234,8 +247,8 @@
 .pick-n {
   position: absolute;
   top: 3px;
-  right: 1px;
-  font: 500 10px/1 var(--face);
+  right: 0;
+  font: 500 11px/1 var(--face);
   font-variant-numeric: tabular-nums;
   color: var(--light);
 }
@@ -448,7 +461,7 @@
   flex: 0 1 auto;
   width: 40px;
   min-width: 0;
-  color: #6b7178;
+  color: #6f7275;
   transition: color var(--fall) var(--ease);
 }
 .part[data-on] {
@@ -463,8 +476,8 @@
 .part-n {
   position: absolute;
   top: 0;
-  right: 0;
-  font: 500 10px/1 var(--face);
+  right: -1px;
+  font: 500 11px/1 var(--face);
   font-variant-numeric: tabular-nums;
   color: var(--ink-2);
 }
@@ -472,7 +485,7 @@
   width: 100%;
   height: 22px;
   overflow: hidden;
-  font: 400 10px/11px var(--face);
+  font: 400 11px/11px var(--face);
   font-variant-numeric: tabular-nums;
   text-align: center;
   color: var(--ink);
@@ -495,40 +508,36 @@
 /* ------------------------------------------------------------ no room for sixteen: one button, a sheet */
 @media (max-width: 1340px), (max-height: 500px) and (orientation: landscape) {
   .picker {
-    align-items: center;
-    align-self: center;
-    gap: 6px;
+    gap: 2px;
+    margin-left: -6px;
   }
-  .top-pick {
-    align-items: center;
-  }
+  /* what is on the stage, named: lit from its fixture as it is in the row (no frame; the bar's whole
+     height to touch). An orchestra's count is not an instrument: it stands unlit beside the orchestra's own
+     button, which has the fixture. */
   .pick-open {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    height: 36px;
-    padding: 0 9px 0 4px;
-    border: 1px solid var(--rule-2);
-    border-radius: var(--radius);
-    background: none;
-    color: var(--ink);
+    padding: 0 8px 0 6px;
+    border: 0;
+    background: var(--spot);
+    box-shadow: var(--fixture);
+    color: var(--light);
     font: 500 12.5px/1 var(--face);
     cursor: pointer;
-    transition: border-color var(--fall) var(--ease);
   }
-  .pick-open:hover {
-    border-color: var(--ink-2);
+  .pick-open[data-count] {
+    background: none;
+    box-shadow: none;
+    color: var(--ink);
   }
   .picker[data-open] .pick-open {
-    border-color: var(--light);
+    background-color: rgb(var(--light-rgb) / 0.1);
   }
   .pick-open .glyph {
     width: 26px;
     height: 26px;
     stroke: var(--light);
-  }
-  .pick-open[data-count] {
-    padding-left: 10px;
   }
   .po-name {
     white-space: nowrap;
@@ -549,16 +558,13 @@
     margin-top: 3px;
     transform: rotate(225deg);
   }
-  /* the orchestra beside it: a square button, its name its tooltip */
+  /* the orchestra beside it: its glyph alone, its name its tooltip */
   .ens-toggle {
     justify-content: center;
     min-width: 0;
-    width: 38px;
-    height: 36px;
+    width: 44px;
     margin-left: 0;
     padding: 0;
-    border: 1px solid var(--rule-2);
-    border-radius: var(--radius);
     color: var(--ink-2);
   }
   .ens-toggle .pick-name {
@@ -567,11 +573,6 @@
   .ens-toggle .ens-icon {
     width: 20px;
     height: 20px;
-  }
-  .ens-toggle[aria-pressed='true'] {
-    border-color: var(--light);
-    background: rgb(var(--light-rgb) / 0.12);
-    box-shadow: none;
   }
   /* the sheet: four to a row and every row a kind. The first is what is struck or plucked (the piano and the
      percussion: the keys' family, then the percussion's, brought up beside it), then the strings, the
@@ -716,8 +717,10 @@
     margin-top: 2px;
     font-size: 11px;
   }
-  /* (in the band the view has no rail over it: a row a finger finds, each word its own fixture) */
+  /* (in the band the view hangs from the rail's lower line: a row a finger finds, the word shown lit from
+     a fixture that is a length of that line) */
   .stage-tools {
+    align-self: start;
     gap: 4px;
     height: 44px;
   }
@@ -767,10 +770,6 @@
     /* the 6 px is the keyboard's bottom padding */
     height: calc(100dvh - var(--top-h) - var(--fall-h) - var(--pos-h) - var(--kbd-h) - 6px);
     min-height: 0;
-  }
-  .pick-open,
-  .ens-toggle {
-    height: 26px;
   }
   .pick-open .glyph {
     width: 20px;

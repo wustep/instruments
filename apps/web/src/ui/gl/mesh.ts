@@ -123,6 +123,9 @@ export const M = {
   keyIvory: { col: hex('#f0ebdf'), rough: 0.3, metal: 0 },
   pinSteel: { col: hex('#bfc2c7'), rough: 0.34, metal: 1 },
   caseRaw: { col: hex('#151210'), rough: 0.85, metal: 0 },
+  // an orchestra's risers, as a gallery's plinths: matt, the room's own cool dark (a little lighter on top)
+  plinthTop: { col: hex('#1c1d20'), rough: 0.72, metal: 0 },
+  plinthSide: { col: hex('#0e0f11'), rough: 0.82, metal: 0 },
   // the upright's action: rails of pale beech (Kawai, Yamaha: natural, unstained), the bridle tapes'
   // cotton, the bridle wires' leather ends
   railBeech: { col: hex('#d2b384'), rough: 0.55, metal: 0 },

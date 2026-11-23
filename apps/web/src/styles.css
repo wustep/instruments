@@ -1,6 +1,27 @@
 @import '@fontsource-variable/libre-franklin/wght.css';
 @import '@fontsource-variable/libre-franklin/wght-italic.css';
 
+/* The figures. Libre Franklin has no tabular figures (its 1 is two thirds of its 0: a frequency, a table's
+   column and a knob's reading would shift as they change). Public Sans is Libre Franklin's own fork and
+   has them: one face of it, the ten digits and nothing else, stands first in the family, so every figure
+   on the page is its, and `font-variant-numeric: tabular-nums` holds wherever it is asked. */
+@font-face {
+  font-family: 'Franklin Figures';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../node_modules/@fontsource-variable/public-sans/files/public-sans-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0030-0039;
+}
+@font-face {
+  font-family: 'Franklin Figures';
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../node_modules/@fontsource-variable/public-sans/files/public-sans-latin-wght-italic.woff2') format('woff2-variations');
+  unicode-range: U+0030-0039;
+}
+
 /* Night Gallery. The instrument is the one lit object in a museum room after closing, and the page is
    that room: a cool charcoal wall, a floor one step lower, the type a wall label's. Three lights and no
    paint: silver (the light from behind; whatever is chosen, pressed or sounding is lit, never coloured),
@@ -8,19 +29,19 @@
    (reference). Every other colour on the page is an instrument's own. DESIGN.md has the whole system. */
 :root {
   /* the room (--ground is read by the 3D stage, which paints the same wall: six hex digits) */
-  --ground: #0f1318;
-  --wall-rgb: 15 19 24;
-  --wall-0: #070a0e;
-  --wall-0-rgb: 7 10 14;
-  --wall-2: #171c22;
-  --wall-3: #20262c;
-  --rule: #262b31;
-  --rule-2: #3b4047;
+  --ground: #111315;
+  --wall-rgb: 17 19 21;
+  --wall-0: #090a0c;
+  --wall-0-rgb: 9 10 12;
+  --wall-2: #1a1c1f;
+  --wall-3: #232529;
+  --rule: #282a2d;
+  --rule-2: #3d4043;
   /* the label's ink */
-  --ink: #e5e8ec;
-  --ink-rgb: 229 232 236;
-  --ink-2: #babec3;
-  --muted: #8f949b;
+  --ink: #e6e8ea;
+  --ink-rgb: 230 232 234;
+  --ink-2: #bbbec1;
+  --muted: #919497;
   /* the three lights */
   --light: #f5f7f9;
   --light-rgb: 245 247 249;
@@ -35,14 +56,16 @@
   --ref: var(--steel);
   --focus: var(--light);
   /* the keys, in half-light until they sound */
-  --key: #a7abb0;
-  --key-lip: #7b8087;
-  --key-out: #2c3036;
-  --key-ink: #1e2226;
-  /* one family: the grotesque of the American museum's wall labels */
-  --face: 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --key: #a9abae;
+  --key-lip: #7e8084;
+  --key-out: #2c2e31;
+  --key-ink: #202225;
+  /* one family: the grotesque of the American museum's wall labels (its figures: the face above) */
+  --face: 'Franklin Figures', 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --code: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
   --measure: 33rem;
+  /* (the same count of letters to a line at the small size: sources, a table's note) */
+  --measure-small: 29rem;
   --gutter: clamp(14px, 3vw, 28px);
   --radius: 2px;
   --kbd-h: clamp(118px, 17vh, 168px);
@@ -76,7 +99,7 @@ body {
   /* the wall's plaster: a grain about the wall's own tone (three levels either side of it, no lighter on
      the whole: the 3D stage paints the same flat tone and meets it without a seam). It keeps the dark
      gradients laid over it from banding. */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0.026 0 0 0 0.0458  0.026 0 0 0 0.0615  0.026 0 0 0 0.0811  0 0 0 0 1'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0.026 0 0 0 0.0537  0.026 0 0 0 0.0615  0.026 0 0 0 0.0694  0 0 0 0 1'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
   font-family: var(--face);
   font-size: 15px;
   line-height: 1.5;
@@ -184,8 +207,9 @@ main {
 }
 
 /* The wall. In 2D a work hangs on it, lit from a rail of wall-washers overhead: each throws its scallop of
-   light down the wall (a tile 680 px wide, the middle one over the work; a phone has room for one), and
-   the wall falls into the dark towards the floor. The floor line is the plinth's lit edge (the
+   light down the wall and across the work itself (the light lies over the drawing: a grand's plan fills
+   its stage, and it is the one lit object too; a tile 680 px wide, the middle one over the work; a phone
+   has room for one), and wall and work fall into the dark towards the floor. The floor line is the plinth's lit edge (the
    fallboard); with no keys on the screen the wall has its own (.stage::after). The wall itself is the
    page's (body: its tone and its grain). In 3D the stage paints the same wall behind the instrument, and
    a floor under it (ui/gl/three3d.ts). */
@@ -202,9 +226,12 @@ main {
   inset: 0;
   /* (the band keeps the wall's own tone: the light begins under it) */
   top: max(0px, calc(var(--stage-band-y, 0px) - var(--top-h, 0px) - 4px));
+  z-index: 1;
   pointer-events: none;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 680 600' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23b9c8dc' stop-opacity='0.13'/%3E%3Cstop offset='0.28' stop-color='%23b9c8dc' stop-opacity='0.075'/%3E%3Cstop offset='0.7' stop-color='%23b9c8dc' stop-opacity='0.022'/%3E%3Cstop offset='1' stop-color='%23b9c8dc' stop-opacity='0'/%3E%3C/linearGradient%3E%3Cfilter id='b' x='-20%25' y='-20%25' width='140%25' height='140%25'%3E%3CfeGaussianBlur stdDeviation='17'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M44 640 C 58 250 150 40 340 40 C 530 40 622 250 636 640 Z' fill='url(%23g)' filter='url(%23b)'/%3E%3C/svg%3E")
-    center 0 / 680px 100% repeat-x;
+  background:
+    linear-gradient(180deg, transparent 56%, rgb(var(--wall-0-rgb) / 0.4) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 680 600' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23c2c8cf' stop-opacity='0.13'/%3E%3Cstop offset='0.28' stop-color='%23c2c8cf' stop-opacity='0.075'/%3E%3Cstop offset='0.7' stop-color='%23c2c8cf' stop-opacity='0.022'/%3E%3Cstop offset='1' stop-color='%23c2c8cf' stop-opacity='0'/%3E%3C/linearGradient%3E%3Cfilter id='b' x='-20%25' y='-20%25' width='140%25' height='140%25'%3E%3CfeGaussianBlur stdDeviation='17'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M44 640 C 58 250 150 40 340 40 C 530 40 622 250 636 640 Z' fill='url(%23g)' filter='url(%23b)'/%3E%3C/svg%3E")
+      center 0 / 680px 100% repeat-x;
 }
 /* (3D: the stage's own picture of the wall; the sheet music: a page under its own light) */
 .stage.is-3d,
@@ -317,7 +344,9 @@ main {
   gap: 18px;
   height: var(--fall-h);
   padding: 0 var(--gutter);
-  background: linear-gradient(180deg, #0c1015, var(--wall-0));
+  background:
+    linear-gradient(180deg, rgb(var(--light-rgb) / 0.055), transparent 9px),
+    linear-gradient(180deg, #0d0e11, var(--wall-0));
   font-size: 11px;
 }
 .fallboard::before {
@@ -328,7 +357,7 @@ main {
   top: 0;
   height: 1px;
   pointer-events: none;
-  background: linear-gradient(90deg, rgb(var(--light-rgb) / 0.5), rgb(var(--light-rgb) / 0.18) 34%, rgb(var(--light-rgb) / 0.06));
+  background: linear-gradient(90deg, rgb(var(--light-rgb) / 0.72), rgb(var(--light-rgb) / 0.3) 34%, rgb(var(--light-rgb) / 0.1));
 }
 .pedals {
   display: flex;
@@ -533,20 +562,18 @@ main {
 }
 .key.white {
   height: 100%;
-  background: linear-gradient(180deg, #70757b 0%, var(--key) 9%, #b1b5ba 76%, var(--key) 100%);
+  background: linear-gradient(180deg, #74777b 0%, var(--key) 9%, #b3b5b8 76%, var(--key) 100%);
   background-clip: padding-box;
   border: solid transparent;
   border-width: 0 0.5px;
   border-radius: 0 0 2px 2px;
   box-shadow: inset 0 -4px 0 var(--key-lip);
   z-index: 1;
-  transition:
-    transform 0.04s,
-    background-color var(--fall) var(--ease);
+  transition: transform 0.04s;
 }
 .key.black {
   height: 62%;
-  background: linear-gradient(180deg, #030405 0%, #0c0f13 68%, #1d2228 91%, #07090c 100%);
+  background: linear-gradient(180deg, #030405 0%, #0d0e10 68%, #202226 91%, #08090b 100%);
   border-radius: 0 0 2px 2px;
   box-shadow:
     inset 0 -5px 0 #000,
@@ -557,7 +584,7 @@ main {
 /* pressed (any source) */
 .key.down.white {
   transform: translateY(2px);
-  background: linear-gradient(180deg, #8b9096 0%, #c3c7cc 12%, #cfd3d8 100%);
+  background: linear-gradient(180deg, #8e9195 0%, #c5c7ca 12%, #d1d3d6 100%);
   background-clip: padding-box;
   box-shadow: inset 0 -2px 0 var(--key-lip);
 }
@@ -569,21 +596,21 @@ main {
 }
 /* its note really sounds (the engine's allocation): lit */
 .key.sounding.white {
-  background: linear-gradient(180deg, #b9bec4 0%, var(--light) 14%, #fff 100%);
+  background: linear-gradient(180deg, #bcbfc3 0%, var(--light) 14%, #fff 100%);
   background-clip: padding-box;
-  box-shadow: inset 0 -2px 0 #cdd2d8;
+  box-shadow: inset 0 -2px 0 #cfd2d6;
 }
 .key.sounding.black {
-  background: linear-gradient(180deg, #1a1f25 0%, #3d454e 66%, #9099a4 93%, #2a3038 100%);
+  background: linear-gradient(180deg, #1d1f23 0%, #41454b 66%, #949aa2 93%, #2c2f34 100%);
   box-shadow:
     inset 0 -2px 0 #000,
     inset 0 0 0 1px rgb(var(--light-rgb) / 0.5),
     0 2px 3px rgb(0 0 0 / 0.7);
 }
 .key.out.white {
-  background: linear-gradient(180deg, #1b1e23, var(--key-out) 12%);
+  background: linear-gradient(180deg, #1d1e21, var(--key-out) 12%);
   background-clip: padding-box;
-  box-shadow: inset 0 -4px 0 #1f2328;
+  box-shadow: inset 0 -4px 0 #212326;
 }
 .key.out.black {
   background: #040506;
@@ -606,14 +633,14 @@ main {
 }
 .key.black .lbl {
   bottom: 9px;
-  color: #a2a7ae;
+  color: #a5a8ac;
 }
 .key .cname {
   bottom: 30px;
 }
 .key.out .lbl,
 .key.out .cname {
-  color: #a2a7ae;
+  color: #a5a8ac;
 }
 .key.prep::after {
   content: '';
@@ -673,7 +700,7 @@ main {
   height: 100%;
 }
 .km-w {
-  fill: #8d9299;
+  fill: #909397;
 }
 .km-b {
   fill: var(--wall-0);
@@ -776,8 +803,10 @@ code {
   font-variant-numeric: tabular-nums;
 }
 .hint {
+  max-width: var(--measure-small);
   font-size: 13px;
   color: var(--muted);
+  text-wrap: pretty;
 }
 
 /* ------------------------------------------------------------ phone */
@@ -1146,7 +1175,7 @@ table.rounds th {
 }
 .chart svg .panel-title {
   font-family: var(--face);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   fill: var(--ink-2);
 }
@@ -1196,6 +1225,7 @@ details.data {
   font-size: 13px;
 }
 details.data summary {
+  padding: 8px 0;
   cursor: pointer;
   color: var(--muted);
 }
@@ -1270,10 +1300,12 @@ details.data .scroll {
   margin: 0;
 }
 .notes .refs {
+  max-width: calc(var(--measure-small) + 22px);
   font-size: 13px;
   color: var(--muted);
   line-height: 1.6;
   padding-left: 22px;
+  text-wrap: pretty;
 }
 figure[title] {
   cursor: help;
@@ -1355,10 +1387,9 @@ figure[title] {
   align-items: center;
   gap: 2px;
   padding: 3px 4px;
-  border: 1px solid rgb(var(--ink-rgb) / 0.1);
   border-radius: var(--radius);
-  /* (the wall's own tone, so its icons read over a lit instrument; nothing is blurred) */
-  background: rgb(var(--wall-rgb) / 0.82);
+  /* (the wall's own tone, so its icons read over a lit instrument: no frame, nothing blurred) */
+  background: rgb(var(--wall-rgb) / 0.84);
 }
 .pl-row {
   display: flex;
@@ -1380,10 +1411,16 @@ figure[title] {
 }
 /* (a phone: a symphony's lines in one row, each chip its share of it (--n of them: player.ts), from
    28 px down to 22 px: thirteen fit a 390 px screen, fifteen at the narrowest. A second row lay over
-   the orchestra's back row. The strip is 100vw − 40 px inside, less the player's hairline each side; a
-   pixel is kept for rounding.) */
+   the orchestra's back row. The strip is 100vw − 40 px inside; a pixel is kept for rounding.) */
 @media (max-width: 480px) {
   .pl-lines .pl-line {
+    width: clamp(22px, calc((100vw - 41px - (var(--n, 12) - 1) * 1px) / var(--n, 12)), 28px);
+  }
+}
+/* (the vector style's player has a border: its strip is 2 px narrower, and thirteen chips at the 2D
+   style's width put the last on a second row) */
+@media (max-width: 480px) {
+  :root[data-style='vector'] .pl-lines .pl-line {
     width: clamp(20px, calc((100vw - 43px - (var(--n, 12) - 1) * 1px) / var(--n, 12)), 28px);
   }
 }
@@ -1466,7 +1503,7 @@ figure[title] {
   position: absolute;
   right: 0;
   bottom: 1px;
-  font: 500 10px/1 var(--face);
+  font: 500 11px/1 var(--face);
   font-variant-numeric: tabular-nums;
   color: var(--ink-2);
   pointer-events: none;
@@ -1739,10 +1776,11 @@ figure[title] {
   cursor: pointer;
   touch-action: none;
 }
+/* (a hairline to see, 25 px of it to take hold of) */
 .pl-bar::before {
   content: '';
   position: absolute;
-  inset: -8px 0;
+  inset: -12px 0;
 }
 .pl-fill {
   position: absolute;
@@ -1775,14 +1813,22 @@ figure[title] {
   bottom: 0;
   top: 120px;
   --sheet-paper: #e1e0db;
-  --sheet-ink: #1e2226;
-  --sheet-rule: rgb(30 34 38 / 0.55);
-  --sheet-dim: rgb(30 34 38 / 0.62);
+  --sheet-ink: #202225;
+  --sheet-rule: rgb(32 34 37 / 0.55);
+  --sheet-dim: rgb(32 34 37 / 0.62);
   --sheet-on: #1f53b8;
 }
 .stage.sheet-on .stage-cv,
 .stage.sheet-on .stage-3d {
   visibility: hidden;
+}
+/* (the page is lit from over its head: what is in view of it falls off towards the floor) */
+.sheet::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 34%, rgb(var(--wall-0-rgb) / 0.3) 100%);
 }
 .sheet-page {
   position: absolute;
@@ -1833,7 +1879,7 @@ figure[title] {
 }
 .sheet-part:hover,
 .sheet-part[aria-expanded='true'] {
-  background: rgb(30 34 38 / 0.08);
+  background: rgb(32 34 37 / 0.08);
 }
 .sheet-part:focus-visible {
   outline: 1px solid var(--sheet-on);
@@ -2146,18 +2192,21 @@ body > .tip {
   top: 8px;
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   padding: 0;
-  border: 1px solid var(--rule-2);
-  border-radius: 50%;
-  background: transparent;
-  color: var(--ink);
+  border: 0;
+  background: none;
+  color: var(--ink-2);
   cursor: pointer;
+}
+.av-close .ico {
+  width: 18px;
+  height: 18px;
 }
 .av-close:hover,
 .av-close:focus-visible {
-  border-color: var(--light);
+  color: var(--light);
 }
 @media (max-width: 600px) {
   .action-view {
@@ -2200,7 +2249,7 @@ body > .tip {
   z-index: 7;
   display: flex;
   flex-direction: column;
-  min-width: min(304px, calc(100vw - 12px));
+  min-width: min(356px, calc(100vw - 12px));
   padding: 4px;
   border: 1px solid var(--rule-2);
   border-radius: var(--radius);
@@ -2268,22 +2317,29 @@ body > .tip {
   width: 15px;
   height: 17px;
 }
-/* more kinds than a row holds (sixteen, "Pass It On"'s): two rows of eight, 8 × 15 + 8 px */
-.sm-two {
-  flex-wrap: wrap;
-  max-width: 130px;
-  row-gap: 3px;
+/* (sixteen kinds, "Pass It On"'s, are one line too in a menu 356 px wide; a phone under 370 px has no room
+   for them beside the composer's name: two rows of eight there) */
+@media (max-width: 369px) {
+  .sm-two {
+    flex-wrap: wrap;
+    max-width: 136px;
+    row-gap: 4px;
+  }
+}
+/* (a kind with its count has the count's room after it) */
+.sm-many .sm-v:has(.sm-n) {
+  margin-right: 6px;
 }
 .sm-n {
   position: absolute;
   top: -4px;
-  right: -4px;
-  font: 500 9px/1 var(--face);
+  right: -7px;
+  font: 500 11px/1 var(--face);
   font-variant-numeric: tabular-nums;
   color: var(--ink-2);
 }
 .sm-credit {
-  padding: 7px 8px 4px;
+  padding: 6px 8px 4px;
   border-top: 1px solid var(--rule);
   margin-top: 2px;
   font: 400 11px/1.3 var(--face);
@@ -2344,15 +2400,15 @@ body > .tip {
 .notes .toc {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 16px;
-  margin: 6px 0 30px;
+  gap: 0 16px;
+  margin: 2px 0 28px;
 }
 .notes .toc button {
   font: 400 13px/1.5 var(--face);
   color: var(--muted);
   background: none;
   border: none;
-  padding: 2px 0;
+  padding: 6px 0;
   cursor: pointer;
   text-decoration: underline;
   text-decoration-color: var(--rule-2);
@@ -2419,6 +2475,9 @@ body > .tip {
   margin: 12px 0 20px;
   overflow-x: auto;
 }
+.notes .tbl .hint {
+  margin-top: 8px;
+}
 .notes table {
   border-collapse: collapse;
   font: 400 13px/1.45 var(--face);
@@ -2439,7 +2498,7 @@ body > .tip {
 }
 .notes figure.diagram {
   margin: 14px 0 22px;
-  color: rgb(var(--ink-rgb) / 0.62);
+  color: var(--ink-2);
 }
 .notes figure.diagram svg {
   width: 100%;
@@ -2447,7 +2506,7 @@ body > .tip {
   display: block;
 }
 .notes figure.diagram .lbl {
-  font: 400 11px var(--face);
+  font: 400 13px var(--face);
 }
 .notes figure.diagram .hot {
   stroke: var(--light);
@@ -2465,7 +2524,7 @@ body > .tip {
 }
 /* what the work stands on that is not a paper: a line under the sources, in their type, each a link */
 .notes .thanks {
-  max-width: var(--measure);
+  max-width: var(--measure-small);
   margin: 20px 0 0;
   font: 400 13px/1.6 var(--face);
   color: var(--muted);
@@ -2531,6 +2590,15 @@ body > .tip {
   /* the filled X reads heavier than the stroked globe at the same box */
   width: 0.72em;
   height: 0.72em;
+}
+/* (a finger: each entry of the contents 44 px tall) */
+@media (pointer: coarse) {
+  .notes .toc button {
+    padding: 12px 0;
+  }
+  details.data summary {
+    padding: 12px 0;
+  }
 }
 @media (max-width: 600px) {
   .notes h2.sec {
@@ -2606,7 +2674,7 @@ body > .tip {
 }
 .kf-n,
 .kf-more {
-  font: 500 10px/1 var(--face);
+  font: 500 11px/1 var(--face);
   font-variant-numeric: tabular-nums;
   color: var(--ink-2);
   pointer-events: none;
@@ -2625,11 +2693,11 @@ body > .tip {
 .kf-toggle {
   align-items: center;
   gap: 4px;
-  height: 36px;
+  height: 44px;
   margin-left: auto;
-  padding: 0 7px;
-  border: 1px solid var(--rule-2);
-  border-radius: var(--radius);
+  margin-right: -6px;
+  padding: 0 6px;
+  border: 0;
   background: none;
   color: var(--ink-2);
   cursor: pointer;
@@ -2643,7 +2711,9 @@ body > .tip {
   color: var(--light);
 }
 .kf-toggle[aria-expanded='true'] {
-  border-color: var(--light);
+  color: var(--light);
+  background: var(--spot);
+  box-shadow: var(--fixture);
 }
 @media (max-width: 760px), (max-height: 500px) and (orientation: landscape) {
   :root[data-ensemble] .kf-toggle {

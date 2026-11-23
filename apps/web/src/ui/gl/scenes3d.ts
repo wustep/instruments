@@ -519,10 +519,10 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
 /** the risers an ensemble's rows stand on (none for a few players) */
 export const ensembleRisers = (parts: SeatIn[], aspect = 2): Riser[] => seatRisers(parts.map(seatKind), aspect);
 
-/** a riser: a stepped platform of the stage, an arc round the podium, its top edge chamfered (2 cm), a
- *  dark stained wood top over a black fascia */
-const RISER_TOP = M.caseInner;
-const RISER_SIDE = M.caseRaw;
+/** a riser: a stepped platform of the stage, an arc round the podium, its top edge chamfered (2 cm): a
+ *  plinth of the room's own matt dark (it was a stained wood top over a black fascia, warm in a cool room) */
+const RISER_TOP = M.plinthTop;
+const RISER_SIDE = M.plinthSide;
 function riserMesh(r: Riser): Mesh {
   const mb = new MeshBuilder();
   const n = Math.max(8, Math.ceil(((r.a1 - r.a0) * r.r1) / 0.12));

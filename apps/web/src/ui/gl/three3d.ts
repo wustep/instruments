@@ -3,8 +3,9 @@
 // stopping marks, breath, wavefronts).
 //
 // The look is a gallery at night, the instrument the one lit object in it: a strong silver light from
-// behind and above that cuts its outline and throws its shadow forward over a dark polished floor; a dim
-// tungsten key from the front, just enough to read the form; almost no fill. The image-based light is a
+// behind and above that cuts its outline and throws its shadow forward over a dark honed floor, a second
+// from behind on the other side for the far edge; a dim tungsten key across the front from one side, just
+// enough to read the form; no fill from the front at all. The image-based light is a
 // generated room with very little in it (`gallery`): two slots of cool light behind, one small warm lamp
 // in front, the far wall's dim wash, and the dark. Behind the instrument the stage paints the room
 // itself (FINAL_FS): the page's own wall, a scallop of light on it, the line where it meets the floor.
@@ -97,7 +98,7 @@ void main() {
   // faces the camera, so the line is level): under it the floor, darker, a polished one that returns a
   // little of the lit wall and falls away towards us. A hairline of light where the two meet.
   float top = 1.0 - smoothstep(0.8, 0.985, vUv.y);
-  vec3 lamp = vec3(0.105, 0.124, 0.155) * uGlow * top;
+  vec3 lamp = vec3(0.112, 0.124, 0.142) * uGlow * top;
   float up = vUv.y - uHorizon;
   vec3 wall = uGround * mix(0.82, 1.0, smoothstep(0.0, 0.16, up)) + lamp * scallop(vUv);
   vec3 floorC = uGround * mix(0.5, 0.72, exp(6.0 * up)) + lamp * scallop(vec2(vUv.x, 2.0 * uHorizon - vUv.y)) * 0.28 * exp(9.0 * up);
@@ -223,20 +224,21 @@ function gallery(): THREE.Scene {
   const SILVER: [number, number, number] = [0.8, 0.88, 1];
   const TUNGSTEN: [number, number, number] = [1, 0.84, 0.64];
   // the light from behind: a tall slot behind left (where the silver light itself comes from), a
-  // narrower one behind right, so both edges of a silhouette catch
-  panel(1.5, 10, SILVER, 13, [-6.6, 4.2, 7.6], [0, 1.2, 0], 0.55);
-  panel(0.9, 9, SILVER, 6.5, [7.4, 3.6, 6.2], [0, 1.2, 0], 0.55);
+  // narrower one behind right (the second light's), so both edges of a silhouette catch
+  panel(1.5, 10, SILVER, 14, [-6.6, 4.2, 7.6], [0, 1.2, 0], 0.55);
+  panel(1.0, 9, SILVER, 8.5, [7.6, 3.2, 6.0], [0, 1.2, 0], 0.55);
   // … and its spill on the wall behind them, low and wide: the line along a lid's edge and a soundboard
   panel(16, 2.6, SILVER, 0.5, [0, 4.6, 11], [0, 1.4, 0], 0.9);
-  // the key: one small lamp, front right and above
-  panel(2.4, 2.4, TUNGSTEN, 7.5, [5.2, 5.6, -6.6], [0, 0.6, 0], 0.7);
-  // the wall behind the camera, dimly washed
-  panel(22, 7, [0.86, 0.9, 1], 0.62, [0, 3.2, -12], [0, 1.4, 0], 0.9);
+  // the key: one small lamp, front left and above
+  panel(2.4, 2.4, TUNGSTEN, 7.5, [-7.2, 5.2, -4.6], [0, 0.6, 0], 0.7);
+  // the wall behind the camera, washed so dimly that a body falls off into it: enough that a piano's
+  // black front and a bell's flare are not holes
+  panel(22, 7, [0.86, 0.9, 1], 0.36, [0, 3.2, -12], [0, 1.4, 0], 0.9);
   // what comes down from above: next to nothing (a head, a lid's top, a key's face)
-  panel(9, 9, [0.82, 0.88, 1], 0.42, [0, 9.5, 0], [0, 0, 0], 0.8);
+  panel(9, 9, [0.82, 0.88, 1], 0.26, [0, 9.5, 0], [0, 0, 0], 0.8);
   // the floor in front of the instrument, as the pool lights it: what a case's black front, a bell's
   // underside and a rib's lower edge return (they face down and out, at the floor)
-  panel(20, 14, [0.9, 0.92, 1], 0.28, [0, -1.85, -4], [0, 10, -4], 1.0);
+  panel(20, 14, [0.9, 0.92, 1], 0.2, [0, -1.85, -4], [0, 10, -4], 1.0);
   return s;
 }
 
@@ -245,19 +247,21 @@ function gallery(): THREE.Scene {
 const ROOM = {
   /** the silver light: from behind and above, the one that casts the shadow (forward, towards us); a scene
    *  may point it itself (Batch.key) */
-  back: [-0.62, 0.64, 0.7] as Vec3,
-  backI: 3.3,
+  back: [-0.62, 0.6, 0.72] as Vec3,
+  backI: 3.5,
   backC: [0.84, 0.9, 1] as Vec3,
-  /** the key: dim, tungsten, from the front and above */
-  key: [0.52, 0.6, -0.61] as Vec3,
-  keyI: 1.4,
+  /** the key: dim, tungsten, across the front from the left and above (most stages are seen from the
+   *  right: the light crosses the body and it falls off towards us) */
+  key: [-0.72, 0.52, -0.46] as Vec3,
+  keyI: 1.1,
   keyC: [1, 0.86, 0.68] as Vec3,
-  /** next to no fill: what the wall in front returns, low and cool */
-  fill: [-0.75, 0.22, -0.62] as Vec3,
-  fillI: 0.14,
+  /** no fill from the front. The third light is a second one from behind, low, on the other side: the
+   *  far edge of a silhouette, a case's flank (it casts no shadow) */
+  fill: [0.74, 0.34, 0.58] as Vec3,
+  fillI: 1.5,
   fillC: [0.84, 0.9, 1] as Vec3,
   /** the generated room's share of the light */
-  env: 1,
+  env: 0.8,
   /** the floor past the pool's rim, as a share of the pool's light */
   dusk: 0.3,
 };
@@ -379,7 +383,7 @@ export class Renderer3 {
     this.root.add(this.key, this.key.target);
     this.rim = new THREE.DirectionalLight(new THREE.Color(...ROOM.keyC), ROOM.keyI);
     this.root.add(this.rim, this.rim.target);
-    // next to no fill, low (no shadow)
+    // the second light from behind, low (no shadow); no fill
     this.fill = new THREE.DirectionalLight(new THREE.Color(...ROOM.fillC), ROOM.fillI);
     this.root.add(this.fill, this.fill.target);
     // the floor
@@ -690,7 +694,8 @@ export class Renderer3 {
     }
     this.section(!!clip);
     // lights fitted to the scene: the silver light from behind and above (it casts the shadow, forward;
-    // a scene's own direction for it: Batch.key), the dim key from the front, next to no fill.
+    // a scene's own direction for it: Batch.key), a second from behind on the other side, the dim key
+    // across the front, no fill.
     // In a key's close-up (k → 1) they are the section's own, as a workbench is lit: the shadow's light
     // from the open side, above and in front (whichever end the section was cut from), warm, fitted to
     // the action so its shadow map resolves a jack; the other two, which cast no shadow and would shine
