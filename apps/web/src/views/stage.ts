@@ -20,7 +20,7 @@ import { drawEnsemble, ensembleCells, newPartDraw, ownKeys, syncPianoState, type
 import type { EnsPartIn } from '../ui/gl/scenes3d.ts';
 import type { MidiPlayer } from '../ui/player.ts';
 import type { Sheet, SheetHost } from '../sheet/view.ts';
-import { AutoScale, INK as STAGE_INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, type BowedGeom, type BowedState } from '../ui/stage-draw.ts';
+import { SPECTRUM_FOOT, AutoScale, INK as STAGE_INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, type BowedGeom, type BowedState } from '../ui/stage-draw.ts';
 import { drawPiano, keysAcross, newPianoState, stringAt } from '../ui/piano-draw.ts';
 import { drawRoom, newRoomState } from '../ui/room-draw.ts';
 import { createHandBow, type HandBow } from '../ui/hand-bow.ts';
@@ -1093,6 +1093,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     if (family() === 'piano') {
       const s = strike;
       if (!s || s.force.length < 2) {
+        // (no key struck yet: nothing to show, not an axis with nothing on it)
+        ctx.clearRect(0, 0, w, hh);
         scopeCap.textContent = '';
         return;
       }
@@ -1350,13 +1352,17 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     sp.ctx.clearRect(0, 0, sp.w, sp.h);
     showHeard(ens);
     const sink = vec ? (f: string) => (f === 'piano' ? SPECTRUM_INK_V_PIANO : SPECTRUM_INK_V) : () => undefined;
+    // (the trace's box: the partials' marks over it, its scale's figures under its floor; a low band, a
+    // phone's, gives the marks less room)
+    const sy = sp.h < 44 ? 4 : 6;
+    const sh = sp.h - sy - SPECTRUM_FOOT;
     if (ens) {
       // (one part alone: its note's partials; several: a mark at each note)
       const lead = heard.length === 1 ? leadPart() : null;
       const lfam = lead ? familyOf(lead.voice) : 'ensemble';
-      drawSpectrum(sp.ctx, 0, 6, sp.w, sp.h - 8, audio.analyser, specBuf, lead?.frame?.focus ?? null, lfam, sink(lfam), marks);
+      drawSpectrum(sp.ctx, 0, sy, sp.w, sh, audio.analyser, specBuf, lead?.frame?.focus ?? null, lfam, sink(lfam), marks);
     } else {
-      drawSpectrum(sp.ctx, 0, 6, sp.w, sp.h - 8, audio.analyser, specBuf, focus, family(), sink(family()), marks);
+      drawSpectrum(sp.ctx, 0, sy, sp.w, sh, audio.analyser, specBuf, focus, family(), sink(family()), marks);
       drawScope(frame, family(), strike, bowedGeom);
     }
     raf = requestAnimationFrame(loop);

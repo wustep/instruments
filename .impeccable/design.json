@@ -1,0 +1,1043 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-23T09:13:35Z",
+  "title": "Design System: Night Gallery",
+  "extensions": {
+    "colorMeta": {
+      "wall": {
+        "role": "neutral",
+        "displayName": "Wall",
+        "canonical": "#111315",
+        "oklch": "oklch(18.5% 0.005 248)",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#242526",
+          "#404244",
+          "#5f6164",
+          "#808385",
+          "#a3a5a8",
+          "#c7c9cb",
+          "#edeff0"
+        ]
+      },
+      "wall-0": {
+        "role": "neutral",
+        "displayName": "Floor",
+        "canonical": "#090a0c",
+        "oklch": "oklch(14.5% 0.005 264)",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#242526",
+          "#414244",
+          "#606164",
+          "#818285",
+          "#a4a5a8",
+          "#c8c9cb",
+          "#edeef0"
+        ]
+      },
+      "wall-2": {
+        "role": "neutral",
+        "displayName": "Raised Wall",
+        "canonical": "#1a1c1f",
+        "oklch": "oklch(22.6% 0.007 258)",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#242527",
+          "#404245",
+          "#5f6165",
+          "#808286",
+          "#a3a5a9",
+          "#c7c9cc",
+          "#edeef1"
+        ]
+      },
+      "wall-3": {
+        "role": "neutral",
+        "displayName": "Raised Wall, upper",
+        "canonical": "#232529",
+        "oklch": "oklch(26.4% 0.008 264)",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#242527",
+          "#404245",
+          "#5f6165",
+          "#808287",
+          "#a3a5a9",
+          "#c7c9cd",
+          "#edeef2"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "#282a2d",
+        "oklch": "oklch(28.4% 0.006 258)",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#242527",
+          "#404244",
+          "#5f6164",
+          "#808286",
+          "#a3a5a8",
+          "#c7c9cc",
+          "#edeef1"
+        ]
+      },
+      "rule-2": {
+        "role": "neutral",
+        "displayName": "Rule, strong",
+        "canonical": "#3d4043",
+        "oklch": "oklch(37.0% 0.007 248)",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#242527",
+          "#404244",
+          "#5f6264",
+          "#7f8386",
+          "#a2a5a8",
+          "#c7c9cc",
+          "#eceff1"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Bone Ink",
+        "canonical": "#e6e8ea",
+        "oklch": "oklch(93.0% 0.003 248)",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#242526",
+          "#414243",
+          "#606163",
+          "#818284",
+          "#a3a5a7",
+          "#c8c9cb",
+          "#edeef0"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Second Ink",
+        "canonical": "#bbbec1",
+        "oklch": "oklch(80.0% 0.005 248)",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#242527",
+          "#404244",
+          "#5f6164",
+          "#808385",
+          "#a3a5a8",
+          "#c7c9cb",
+          "#edeff0"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "canonical": "#919497",
+        "oklch": "oklch(66.5% 0.006 248)",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#242527",
+          "#404244",
+          "#5f6164",
+          "#808386",
+          "#a3a5a8",
+          "#c7c9cc",
+          "#edeff1"
+        ]
+      },
+      "light": {
+        "role": "primary",
+        "displayName": "Silver Light",
+        "canonical": "#f5f7f9",
+        "oklch": "oklch(97.5% 0.003 248)",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#242526",
+          "#414243",
+          "#606163",
+          "#818284",
+          "#a4a5a7",
+          "#c8c9cb",
+          "#edeef0"
+        ]
+      },
+      "tungsten": {
+        "role": "secondary",
+        "displayName": "Tungsten",
+        "canonical": "#edd09c",
+        "oklch": "oklch(87.0% 0.075 82)",
+        "tonalRamp": [
+          "#120900",
+          "#302307",
+          "#513f1d",
+          "#745e34",
+          "#997e4d",
+          "#b9a277",
+          "#dbc6a2",
+          "#feecce"
+        ]
+      },
+      "steel": {
+        "role": "tertiary",
+        "displayName": "Steel",
+        "canonical": "#8ba8c6",
+        "oklch": "oklch(72.0% 0.054 249)",
+        "tonalRamp": [
+          "#040c16",
+          "#182635",
+          "#314457",
+          "#4c647c",
+          "#6a85a2",
+          "#8fa8c2",
+          "#b6cce2",
+          "#dff1ff"
+        ]
+      },
+      "signal": {
+        "role": "tertiary",
+        "displayName": "Signal",
+        "canonical": "#f66e5c",
+        "oklch": "oklch(70.0% 0.171 30)",
+        "tonalRamp": [
+          "#240000",
+          "#4c0301",
+          "#771c13",
+          "#a53529",
+          "#d45141",
+          "#f37e6d",
+          "#ffaa99",
+          "#ffd5c7"
+        ]
+      },
+      "key": {
+        "role": "neutral",
+        "displayName": "Key, half-light",
+        "canonical": "#a9abae",
+        "oklch": "oklch(74.1% 0.005 258)",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#242526",
+          "#414244",
+          "#606164",
+          "#808285",
+          "#a3a5a8",
+          "#c8c9cb",
+          "#edeef0"
+        ]
+      },
+      "key-lip": {
+        "role": "neutral",
+        "displayName": "Key Lip",
+        "canonical": "#7e8084",
+        "oklch": "oklch(59.9% 0.006 265)",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#242527",
+          "#414245",
+          "#606165",
+          "#808286",
+          "#a3a5a9",
+          "#c7c9cc",
+          "#edeef1"
+        ]
+      },
+      "key-out": {
+        "role": "neutral",
+        "displayName": "Key, out of compass",
+        "canonical": "#2c2e31",
+        "oklch": "oklch(30.0% 0.006 258)",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#242527",
+          "#404244",
+          "#5f6164",
+          "#808286",
+          "#a3a5a8",
+          "#c7c9cc",
+          "#edeef1"
+        ]
+      },
+      "key-ink": {
+        "role": "neutral",
+        "displayName": "Key Ink",
+        "canonical": "#202225",
+        "oklch": "oklch(25.1% 0.006 258)",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#242527",
+          "#404245",
+          "#5f6164",
+          "#808286",
+          "#a3a5a8",
+          "#c7c9cc",
+          "#edeef1"
+        ]
+      },
+      "sheet-paper": {
+        "role": "neutral",
+        "displayName": "Sheet Board",
+        "canonical": "#e1e0db",
+        "oklch": "oklch(90.6% 0.007 97)",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#252523",
+          "#43423f",
+          "#62615d",
+          "#83827e",
+          "#a6a5a1",
+          "#cac9c6",
+          "#efeeeb"
+        ]
+      },
+      "sheet-ink": {
+        "role": "neutral",
+        "displayName": "Graphite",
+        "canonical": "#202225",
+        "oklch": "oklch(25.1% 0.006 258)",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#242527",
+          "#404245",
+          "#5f6164",
+          "#808286",
+          "#a3a5a8",
+          "#c7c9cc",
+          "#edeef1"
+        ]
+      },
+      "sheet-on": {
+        "role": "tertiary",
+        "displayName": "Blue Pencil",
+        "canonical": "#1f53b8",
+        "oklch": "oklch(47.1% 0.169 262)",
+        "tonalRamp": [
+          "#00062c",
+          "#052056",
+          "#193d83",
+          "#2f5cb4",
+          "#477ee5",
+          "#71a3ff",
+          "#9dc9ff",
+          "#caefff"
+        ]
+      },
+      "vector-ground": {
+        "role": "neutral",
+        "displayName": "Vector Ground",
+        "canonical": "#08090b",
+        "oklch": "oklch(13.9% 0.005 263)",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#242526",
+          "#414244",
+          "#606164",
+          "#818285",
+          "#a4a5a8",
+          "#c8c9cb",
+          "#edeef0"
+        ]
+      },
+      "vector-blue": {
+        "role": "primary",
+        "displayName": "Argon Blue",
+        "canonical": "#86bdea",
+        "oklch": "oklch(77.7% 0.086 244)",
+        "tonalRamp": [
+          "#000c1b",
+          "#0a273d",
+          "#214562",
+          "#396689",
+          "#5388b2",
+          "#7dabd1",
+          "#a7cef0",
+          "#d2f3ff"
+        ]
+      },
+      "vector-blue-mid": {
+        "role": "neutral",
+        "displayName": "Argon Blue, mid",
+        "canonical": "#5a8fbf",
+        "oklch": "oklch(63.3% 0.092 247)",
+        "tonalRamp": [
+          "#000c1c",
+          "#0a273f",
+          "#214564",
+          "#39658d",
+          "#5387b6",
+          "#7caad4",
+          "#a7cef3",
+          "#d2f3ff"
+        ]
+      },
+      "vector-blue-dim": {
+        "role": "neutral",
+        "displayName": "Argon Blue, dim",
+        "canonical": "#3a6289",
+        "oklch": "oklch(48.4% 0.078 249)",
+        "tonalRamp": [
+          "#010c1a",
+          "#11273b",
+          "#29445f",
+          "#426486",
+          "#5d86af",
+          "#85a9ce",
+          "#aecded",
+          "#d8f2ff"
+        ]
+      },
+      "vector-frame": {
+        "role": "neutral",
+        "displayName": "Vector Frame",
+        "canonical": "#1d3147",
+        "oklch": "oklch(30.7% 0.048 252)",
+        "tonalRamp": [
+          "#050c14",
+          "#1b2633",
+          "#344355",
+          "#506379",
+          "#6e859e",
+          "#93a7bf",
+          "#b9cbe0",
+          "#e1f0ff"
+        ]
+      },
+      "vector-amber": {
+        "role": "secondary",
+        "displayName": "Tungsten Amber",
+        "canonical": "#ffc56e",
+        "oklch": "oklch(85.8% 0.124 76)",
+        "tonalRamp": [
+          "#180600",
+          "#391e00",
+          "#5d3900",
+          "#845700",
+          "#ac7612",
+          "#cb9c54",
+          "#ebc286",
+          "#ffe9b8"
+        ]
+      },
+      "vector-text": {
+        "role": "primary",
+        "displayName": "Vector Lit",
+        "canonical": "#e3f0fa",
+        "oklch": "oklch(94.8% 0.019 241)",
+        "tonalRamp": [
+          "#080c0f",
+          "#20262a",
+          "#3b4349",
+          "#59636a",
+          "#79848d",
+          "#9ca7af",
+          "#c1cbd2",
+          "#e8f0f6"
+        ]
+      },
+      "vector-slot-1": {
+        "role": "tertiary",
+        "displayName": "Slot 1, green",
+        "canonical": "#7fdca0",
+        "oklch": "oklch(82.1% 0.124 154)",
+        "tonalRamp": [
+          "#001102",
+          "#002f13",
+          "#05502b",
+          "#1f7344",
+          "#399760",
+          "#6cb987",
+          "#9adbaf",
+          "#c9fed9"
+        ]
+      },
+      "vector-slot-2": {
+        "role": "tertiary",
+        "displayName": "Slot 2, red",
+        "canonical": "#ff7c5e",
+        "oklch": "oklch(73.3% 0.166 34)",
+        "tonalRamp": [
+          "#230000",
+          "#4b0600",
+          "#75200b",
+          "#a33921",
+          "#d25538",
+          "#f08167",
+          "#ffac94",
+          "#ffd7c3"
+        ]
+      },
+      "vector-slot-3": {
+        "role": "tertiary",
+        "displayName": "Slot 3, pink",
+        "canonical": "#f08fd2",
+        "oklch": "oklch(77.2% 0.143 340)",
+        "tonalRamp": [
+          "#1b0014",
+          "#3e0f32",
+          "#652754",
+          "#8e4178",
+          "#b85d9d",
+          "#d786be",
+          "#f7afdf",
+          "#ffd9ff"
+        ]
+      },
+      "vector-slot-4": {
+        "role": "tertiary",
+        "displayName": "Slot 4, white",
+        "canonical": "#eef3f8",
+        "oklch": "oklch(96.2% 0.009 248)",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#232527",
+          "#3f4245",
+          "#5e6265",
+          "#7e8387",
+          "#a1a5a9",
+          "#c6c9cd",
+          "#eceff2"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The 404's one word."
+      },
+      "readout": {
+        "displayName": "Readout",
+        "purpose": "The note sounding, in the label band; steps down to 29, 23 and 18 px as it has more to say."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page and section heads on Measurements and Notes; 25 px on a phone."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "A figure's heading."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Prose on the reading pages, at 33rem."
+      },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Sources, hints, table notes, at 29rem."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "The rail's words and tooltips; 12.5 px on a phone."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "The 11 px floor: names under glyphs, pedals, dials, keys, counts. Tabular."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "Equations on Notes and the debug log only."
+      },
+      "vector": {
+        "displayName": "Vector lines",
+        "purpose": "Hershey Simplex capitals, only while the vector look shows."
+      }
+    },
+    "shadows": [
+      {
+        "name": "fixture",
+        "value": "inset 0 1px 0 #f5f7f9",
+        "purpose": "--fixture: the line of light on the upper edge of the chosen thing."
+      },
+      {
+        "name": "spot",
+        "value": "radial-gradient(50% 72% at 50% 0%, rgb(245 247 249 / 0.26), rgb(245 247 249 / 0.08) 55%, transparent 100%)",
+        "purpose": "--spot: a background, not a shadow: the fixture's light on what stands under it."
+      },
+      {
+        "name": "fixture-half",
+        "value": "inset 0 1px 0 rgb(245 247 249 / 0.45)",
+        "purpose": "A section some of whose desks the keys play."
+      },
+      {
+        "name": "tooltip",
+        "value": "0 6px 16px rgb(0 0 0 / 0.4)",
+        "purpose": "Tooltips."
+      },
+      {
+        "name": "chart-tip",
+        "value": "0 8px 22px rgb(0 0 0 / 0.45)",
+        "purpose": "A chart's own tooltip."
+      },
+      {
+        "name": "menu",
+        "value": "0 12px 30px rgb(0 0 0 / 0.5)",
+        "purpose": "A line's instruments, the routing grid, the sheet's parts."
+      },
+      {
+        "name": "pieces-menu",
+        "value": "0 14px 36px rgb(0 0 0 / 0.55)",
+        "purpose": "The pieces menu."
+      },
+      {
+        "name": "sheet-paper",
+        "value": "0 16px 44px rgb(0 0 0 / 0.55)",
+        "purpose": "The sheet music page on the wall."
+      },
+      {
+        "name": "picker-sheet",
+        "value": "0 18px 44px rgb(0 0 0 / 0.6)",
+        "purpose": "The phone's picker sheet."
+      },
+      {
+        "name": "close-up",
+        "value": "0 18px 60px rgb(0 0 0 / 0.6)",
+        "purpose": "The action close-up panel."
+      },
+      {
+        "name": "key-lip",
+        "value": "inset 0 -4px 0 #7e8084",
+        "purpose": "A white key's front lip (2px when pressed or sounding)."
+      },
+      {
+        "name": "drop",
+        "value": "inset 0 0 0 1px rgb(245 247 249 / 0.7)",
+        "purpose": "A file dragged over the page: the wall's edge lit."
+      }
+    ],
+    "motion": [
+      {
+        "name": "rise",
+        "value": "90ms",
+        "purpose": "Light comes up at once: hover, lit, sounding."
+      },
+      {
+        "name": "fall",
+        "value": "320ms",
+        "purpose": "Light falls away slowly: the default duration of every colour transition."
+      },
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The one curve, ease-out."
+      },
+      {
+        "name": "key-press",
+        "value": "40ms",
+        "purpose": "A key travels 2px."
+      },
+      {
+        "name": "pedal-press",
+        "value": "60ms",
+        "purpose": "A pedal sinks 3px and shortens by a tenth."
+      },
+      {
+        "name": "lamp-breathe",
+        "value": "1.6s ease-in-out infinite (0.5s while starting)",
+        "purpose": "The lamp before sound runs; stopped under reduced motion."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "transition-duration: 0s; lamp animation: none",
+        "purpose": "prefers-reduced-motion: no fades."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "picker-folds",
+        "value": "max-width: 1340px, or landscape under 500px tall"
+      },
+      {
+        "name": "parts-closer",
+        "value": "max-width: 1500px"
+      },
+      {
+        "name": "phone",
+        "value": "max-width: 760px"
+      },
+      {
+        "name": "close-up-tray",
+        "value": "max-width: 600px"
+      },
+      {
+        "name": "player-lines-one-row",
+        "value": "max-width: 480px"
+      },
+      {
+        "name": "narrowest",
+        "value": "max-width: 360px"
+      },
+      {
+        "name": "sideways",
+        "value": "max-height: 500px and orientation: landscape"
+      },
+      {
+        "name": "touch",
+        "value": "pointer: coarse"
+      }
+    ],
+    "stage2d": {
+      "ink": {
+        "ground": "#111315",
+        "bone": "230,232,234",
+        "light": "245,247,249",
+        "tungsten": "237,208,156",
+        "steel": "139,168,198",
+        "copper": "196,128,82",
+        "felt": "205,181,146",
+        "wood": "58,42,28",
+        "ebony": "18,20,24"
+      },
+      "scallop": {
+        "tile": "680px",
+        "color": "#c2c8cf",
+        "stops": [
+          [
+            0,
+            0.13
+          ],
+          [
+            0.28,
+            0.075
+          ],
+          [
+            0.7,
+            0.022
+          ],
+          [
+            1,
+            0
+          ]
+        ],
+        "blur": 17
+      },
+      "falloff": "transparent 52% to wall-0 at 60%, plus transparent 56% to wall-0 at 40%"
+    },
+    "vector": {
+      "ground": "#08090b",
+      "V": {
+        "blue": "#86bdea",
+        "blueMid": "#5a8fbf",
+        "blueDim": "#3a6289",
+        "frame": "#1d3147",
+        "green": "#7fdca0",
+        "red": "#ff7c5e",
+        "pink": "#f08fd2",
+        "white": "#eef3f8",
+        "amber": "#ffc56e"
+      },
+      "slots": [
+        "#7fdca0",
+        "#ff7c5e",
+        "#f08fd2",
+        "#eef3f8"
+      ],
+      "face": "AVHershey Simplex Light 300 / Medium 500",
+      "fixture": "inset 0 1px 0 #86bdea",
+      "spot": "none",
+      "radius": "0px"
+    },
+    "stage3d": {
+      "lights": {
+        "back": {
+          "dir": [
+            -0.62,
+            0.5,
+            0.72
+          ],
+          "intensity": 3.3,
+          "color": [
+            0.84,
+            0.9,
+            1
+          ],
+          "shadow": true
+        },
+        "second": {
+          "dir": [
+            0.74,
+            0.34,
+            0.58
+          ],
+          "intensity": 1.3,
+          "color": [
+            0.84,
+            0.9,
+            1
+          ],
+          "shadow": false
+        },
+        "key": {
+          "dir": [
+            -0.72,
+            0.52,
+            -0.46
+          ],
+          "intensity": 1.1,
+          "color": [
+            1,
+            0.86,
+            0.68
+          ],
+          "shadow": false
+        },
+        "frontFill": null,
+        "bearing": 0.62,
+        "env": 0.8,
+        "dusk": 0.3
+      },
+      "environment": {
+        "room": [
+          0.011,
+          0.013,
+          0.017
+        ],
+        "floor": [
+          0.026,
+          0.029,
+          0.034
+        ],
+        "silver": [
+          0.8,
+          0.88,
+          1
+        ],
+        "tungsten": [
+          1,
+          0.84,
+          0.64
+        ]
+      },
+      "floor": {
+        "color": [
+          0.044,
+          0.046,
+          0.05
+        ],
+        "roughness": 0.72,
+        "specularIntensity": 0.18,
+        "envMapIntensity": 0.4
+      },
+      "wall": {
+        "lamp": [
+          0.112,
+          0.124,
+          0.142
+        ],
+        "wallAtFloor": 0.82,
+        "floor": [
+          0.5,
+          0.72
+        ],
+        "floorReturn": 0.28,
+        "horizonLine": [
+          0.02,
+          0.024,
+          0.03
+        ]
+      },
+      "pipeline": {
+        "toneMapping": "Khronos neutral",
+        "bloom": 0.35,
+        "msaa": [
+          4,
+          2
+        ],
+        "shadowMap": [
+          2048,
+          1024
+        ],
+        "shadowRadius": [
+          5,
+          3
+        ],
+        "fov": 24,
+        "closeUpExposure": 0.74
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Rail pick (lit and unlit)",
+      "kind": "nav",
+      "refersTo": "rail-pick",
+      "description": "An instrument on the rail: glyph over name. The one on the stage is silver under a fixture and its spot; nothing is boxed.",
+      "html": "<div class=\"ds-rail\"><button class=\"ds-pick\" aria-pressed=\"true\"><svg viewBox=\"0 0 36 36\" width=\"32\" height=\"32\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 30V12c0-5 4-7 8-5 5 2 4 8 10 10v13z\" fill=\"rgb(230 232 234 / 0.07)\"/><path d=\"M9 26h18M12 26v4M15 26v4M18 26v4M21 26v4M24 26v4\" stroke-width=\"0.6\"/></svg><span>Piano</span></button><button class=\"ds-pick\" aria-pressed=\"false\"><svg viewBox=\"0 0 36 36\" width=\"32\" height=\"32\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 30V12c0-5 4-7 8-5 5 2 4 8 10 10v13z\" fill=\"rgb(230 232 234 / 0.07)\"/><path d=\"M9 26h18M12 26v4M15 26v4M18 26v4M21 26v4M24 26v4\" stroke-width=\"0.6\"/></svg><span>Harp</span></button><button class=\"ds-pick\" aria-pressed=\"false\"><svg viewBox=\"0 0 36 36\" width=\"32\" height=\"32\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 30V12c0-5 4-7 8-5 5 2 4 8 10 10v13z\" fill=\"rgb(230 232 234 / 0.07)\"/><path d=\"M9 26h18M12 26v4M15 26v4M18 26v4M21 26v4M24 26v4\" stroke-width=\"0.6\"/></svg><span>Violin</span></button></div>",
+      "css": ".ds-rail { position: relative; display: flex; gap: 1px; height: 60px; padding: 0 16px; background: var(--ground, #111315); } .ds-rail::after { content: \"\"; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: linear-gradient(90deg, rgb(245 247 249 / 0.2), rgb(245 247 249 / 0.08) 36%, rgb(245 247 249 / 0.03)); } .ds-pick { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 40px; padding: 2px 3px 3px; border: 0; border-radius: 0; background: none; color: var(--muted, #919497); cursor: pointer; font-family: var(--face, 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif); font-size: 11px; line-height: 1.25; transition: color var(--fall, 320ms) var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-pick:hover { color: var(--ink, #e6e8ea); transition-duration: var(--rise, 90ms); } .ds-pick[aria-pressed=\"true\"] { color: var(--light, #f5f7f9); background: radial-gradient(50% 72% at 50% 0%, rgb(245 247 249 / 0.26), rgb(245 247 249 / 0.08) 55%, transparent 100%); box-shadow: inset 0 1px 0 var(--light, #f5f7f9); } .ds-pick:focus-visible { outline: 1px solid var(--light, #f5f7f9); outline-offset: -1.5px; }"
+    },
+    {
+      "name": "View switch",
+      "kind": "chip",
+      "refersTo": "view-word",
+      "description": "Words, one of them lit: the view (2D, Vector, 3D) and the piano kind. No segment box.",
+      "html": "<div class=\"ds-seg\"><button class=\"ds-word\" aria-pressed=\"true\">2D</button><button class=\"ds-word\" aria-pressed=\"false\">Vector</button><button class=\"ds-word\" aria-pressed=\"false\">3D</button></div>",
+      "css": ".ds-seg { display: inline-flex; align-items: stretch; height: 60px; background: var(--ground, #111315); padding: 0 12px; } .ds-word { border: 0; border-radius: 0; background: none; padding: 0 7px; font-family: var(--face, 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif); font-weight: 500; font-size: 11.5px; line-height: 1; color: var(--muted, #919497); cursor: pointer; transition: color var(--fall, 320ms) var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-word:hover { color: var(--ink, #e6e8ea); transition-duration: var(--rise, 90ms); } .ds-word[aria-pressed=\"true\"] { color: var(--light, #f5f7f9); background: radial-gradient(50% 72% at 50% 0%, rgb(245 247 249 / 0.26), rgb(245 247 249 / 0.08) 55%, transparent 100%); box-shadow: inset 0 1px 0 var(--light, #f5f7f9); } .ds-word:focus-visible { outline: 1px solid var(--light, #f5f7f9); outline-offset: -2px; }"
+    },
+    {
+      "name": "Readout (the label)",
+      "kind": "custom",
+      "refersTo": "readout",
+      "description": "What is sounding: Franklin Light 34 px in silver over one small tabular line, in a fixed 250 by 58 px box.",
+      "html": "<div class=\"ds-readout\"><div class=\"ds-r-note\">C3 C4 E4 G4</div><div class=\"ds-r-hz\">C major · 130.8 Hz – 392.0 Hz</div></div>",
+      "css": ".ds-readout { width: 250px; height: 58px; display: flex; flex-direction: column; justify-content: center; padding: 8px 16px; background: var(--ground, #111315); } .ds-r-note { height: 38px; font-family: var(--face, 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif); font-weight: 300; font-size: 29px; line-height: 38px; letter-spacing: -0.025em; color: var(--light, #f5f7f9); white-space: nowrap; overflow: hidden; } .ds-r-hz { height: 15px; margin-top: 4px; font-family: var(--face, 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif); font-size: 11.5px; line-height: 15px; font-variant-numeric: tabular-nums; color: var(--muted, #919497); white-space: nowrap; }"
+    },
+    {
+      "name": "Dial",
+      "kind": "input",
+      "refersTo": "dial",
+      "description": "A thin ring with an index: the value is an arc of silver. Name under it, the reading in its place on hover or focus.",
+      "html": "<label class=\"ds-knob\" tabindex=\"0\"><svg viewBox=\"0 0 40 40\" width=\"38\" height=\"38\" aria-hidden=\"true\"><path class=\"ds-k-track\" d=\"M9.4 30.6A15 15 0 1 1 30.6 30.6\"/><path class=\"ds-k-val\" d=\"M9.4 30.6A15 15 0 0 1 27.5 7\"/><circle class=\"ds-k-cap\" cx=\"20\" cy=\"20\" r=\"10.5\"/><path class=\"ds-k-ptr\" d=\"M20 20 25.2 11\"/></svg><span class=\"ds-k-name\">Hammer</span><span class=\"ds-k-read\">0.62</span></label>",
+      "css": ".ds-knob { display: inline-flex; flex-direction: column; align-items: center; width: 54px; padding: 8px 4px; background: var(--wall-0, #090a0c); cursor: ns-resize; outline: none; font-family: var(--face, 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif); font-size: 11px; line-height: 1.2; } .ds-k-track { fill: none; stroke: rgb(230 232 234 / 0.16); stroke-width: 1.2; } .ds-k-val { fill: none; stroke: var(--light, #f5f7f9); stroke-width: 1.6; stroke-linecap: round; } .ds-k-cap { fill: rgb(230 232 234 / 0.03); stroke: rgb(230 232 234 / 0.3); stroke-width: 0.8; transition: fill var(--fall, 320ms) var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-k-ptr { stroke: var(--light, #f5f7f9); stroke-width: 1.5; stroke-linecap: round; } .ds-k-name { color: var(--muted, #919497); } .ds-k-read { display: none; color: var(--light, #f5f7f9); font-variant-numeric: tabular-nums; } .ds-knob:hover .ds-k-cap, .ds-knob:focus-visible .ds-k-cap { fill: rgb(230 232 234 / 0.1); stroke: var(--ink-2, #bbbec1); transition-duration: var(--rise, 90ms); } .ds-knob:focus-visible .ds-k-cap { stroke: var(--light, #f5f7f9); } .ds-knob:hover .ds-k-read, .ds-knob:focus-visible .ds-k-read { display: block; } .ds-knob:hover .ds-k-name, .ds-knob:focus-visible .ds-k-name { display: none; }"
+    },
+    {
+      "name": "Pedal",
+      "kind": "button",
+      "refersTo": "pedal",
+      "description": "A pedal in outline; held, it fills with light and sinks.",
+      "html": "<div class=\"ds-pedals\"><button class=\"ds-pedal\" aria-pressed=\"false\"><svg viewBox=\"0 0 30 28\" width=\"30\" height=\"28\" aria-hidden=\"true\"><path d=\"M7 3h16l4 20a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z\"/></svg><span>Sustain</span></button><button class=\"ds-pedal\" aria-pressed=\"true\"><svg viewBox=\"0 0 30 28\" width=\"30\" height=\"28\" aria-hidden=\"true\"><path d=\"M7 3h16l4 20a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z\"/></svg><span>Soft</span></button></div>",
+      "css": ".ds-pedals { display: inline-flex; gap: 6px; padding: 10px 16px; background: var(--wall-0, #090a0c); box-shadow: inset 0 1px 0 rgb(245 247 249 / 0.4); } .ds-pedal { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 46px; padding: 3px 0 0; border: 0; background: none; color: var(--muted, #919497); cursor: pointer; font-family: var(--face, 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif); font-size: 11px; line-height: 1.2; } .ds-pedal path { fill: rgb(245 247 249 / 0.04); stroke: var(--ink-2, #bbbec1); stroke-width: 1; } .ds-pedal:hover path, .ds-pedal:focus-visible path { stroke: var(--light, #f5f7f9); } .ds-pedal:focus-visible { outline: 1px solid var(--light, #f5f7f9); outline-offset: 2px; } .ds-pedal[aria-pressed=\"true\"] { color: var(--light, #f5f7f9); } .ds-pedal[aria-pressed=\"true\"] svg { transform: translateY(3px) scaleY(0.9); } .ds-pedal[aria-pressed=\"true\"] path { fill: rgb(245 247 249 / 0.9); stroke: var(--light, #f5f7f9); } .ds-pedal:active svg { transform: translateY(3px) scaleY(0.9); }"
+    },
+    {
+      "name": "Keys (half-light, sounding)",
+      "kind": "custom",
+      "refersTo": "key-white",
+      "description": "Keys stand in half-light under the plinth; a key that sounds is lit. Names in key ink, 11 px.",
+      "html": "<div class=\"ds-keys\"><div class=\"ds-key\"><span>C4</span></div><div class=\"ds-key ds-on\"><span>D</span></div><div class=\"ds-key\"><span>E</span></div><div class=\"ds-key\"><span>F</span></div><div class=\"ds-bk\" style=\"left:27px\"></div><div class=\"ds-bk\" style=\"left:67px\"></div></div>",
+      "css": ".ds-keys { position: relative; display: inline-flex; height: 130px; padding: 0 12px 6px; background: var(--wall-0, #090a0c); } .ds-key { position: relative; width: 40px; height: 100%; background: linear-gradient(180deg, #74777b 0%, var(--key, #a9abae) 9%, #b3b5b8 76%, var(--key, #a9abae) 100%); background-clip: padding-box; border: solid transparent; border-width: 0 0.5px; border-radius: 0 0 2px 2px; box-shadow: inset 0 -4px 0 var(--key-lip, #7e8084); transition: transform 0.04s; cursor: pointer; } .ds-key:active { transform: translateY(2px); background: linear-gradient(180deg, #8e9195 0%, #c5c7ca 12%, #d1d3d6 100%); background-clip: padding-box; box-shadow: inset 0 -2px 0 var(--key-lip, #7e8084); } .ds-key.ds-on { background: linear-gradient(180deg, #bcbfc3 0%, var(--light, #f5f7f9) 14%, #fff 100%); background-clip: padding-box; box-shadow: inset 0 -2px 0 #cfd2d6; } .ds-key span { position: absolute; left: 0; right: 0; bottom: 12px; text-align: center; font-family: var(--face, 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif); font-size: 11px; font-weight: 500; line-height: 1; color: var(--key-ink, #202225); } .ds-bk { position: absolute; top: 0; width: 22px; height: 62%; margin-left: 12px; background: linear-gradient(180deg, #030405 0%, #0d0e10 68%, #202226 91%, #08090b 100%); border-radius: 0 0 2px 2px; box-shadow: inset 0 -5px 0 #000, 0 3px 4px rgb(0 0 0 / 0.7); }"
+    },
+    {
+      "name": "File player",
+      "kind": "custom",
+      "refersTo": "player-button",
+      "description": "Icons on a strip of the wall's own tone, and a hairline for the place: the part played in light.",
+      "html": "<div class=\"ds-player\"><button class=\"ds-pl-btn\" aria-label=\"play\"><svg viewBox=\"0 0 16 16\"><path d=\"M4.5 3v10l8.5-5z\"/></svg></button><div class=\"ds-pl-bar\"><i></i></div><button class=\"ds-pl-btn\" aria-label=\"open a file\"><svg viewBox=\"0 0 16 16\"><path d=\"M1.5 4h4.2l1.4 1.6h7.4V13h-13z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linejoin=\"round\"/></svg></button></div>",
+      "css": ".ds-player { display: inline-flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: var(--radius, 2px); background: rgb(17 19 21 / 0.84); } .ds-pl-btn { width: 28px; height: 28px; padding: 5px; border: 0; border-radius: var(--radius, 2px); background: none; color: var(--ink-2, #bbbec1); cursor: pointer; transition: color var(--fall, 320ms) var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-pl-btn:hover { color: var(--light, #f5f7f9); transition-duration: var(--rise, 90ms); } .ds-pl-btn:focus-visible { outline: 1px solid var(--light, #f5f7f9); outline-offset: 2px; } .ds-pl-btn svg { width: 100%; height: 100%; fill: currentColor; } .ds-pl-bar { position: relative; width: 160px; height: 1px; background: rgb(230 232 234 / 0.24); } .ds-pl-bar i { position: absolute; inset: -0.5px 0; background: var(--light, #f5f7f9); transform-origin: left; transform: scaleX(0.38); }"
+    },
+    {
+      "name": "Menu (pieces)",
+      "kind": "card",
+      "refersTo": "menu",
+      "description": "What floats over the stage: raised wall, a hairline frame, 2 px corners, a soft shadow. Title first, then who wrote it.",
+      "html": "<div class=\"ds-menu\"><button class=\"ds-mi\"><b>Toward Morning</b><span>Fable 5.2 · thirteen players</span></button><button class=\"ds-mi\"><b>Seeds</b><span>Fable 5.2 · ten players</span></button></div>",
+      "css": ".ds-menu { display: inline-flex; flex-direction: column; min-width: 280px; padding: 4px; border: 1px solid var(--rule-2, #3d4043); border-radius: var(--radius, 2px); background: var(--wall-2, #1a1c1f); box-shadow: 0 14px 36px rgb(0 0 0 / 0.55); } .ds-mi { display: grid; gap: 3px; padding: 7px 8px 5px; border: 0; border-radius: var(--radius, 2px); background: none; text-align: left; cursor: pointer; font-family: var(--face, 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif); } .ds-mi b { font-weight: 500; font-size: 13.5px; line-height: 1.3; letter-spacing: -0.005em; color: var(--ink, #e6e8ea); } .ds-mi span { font-size: 12px; line-height: 1.3; color: var(--muted, #919497); } .ds-mi:hover, .ds-mi:focus-visible { background: rgb(230 232 234 / 0.08); outline: none; }"
+    },
+    {
+      "name": "Stage knob (room)",
+      "kind": "input",
+      "refersTo": "stage-knob",
+      "description": "A dial on a disc of the floor's tone, on the stage itself: no word and no pointer; the arc is the value and the middle shows what it moves.",
+      "html": "<div class=\"ds-sk\" role=\"slider\" tabindex=\"0\" aria-label=\"reverb\" aria-valuemin=\"0\" aria-valuemax=\"1\" aria-valuenow=\"0.4\"><svg viewBox=\"0 0 40 40\" width=\"36\" height=\"36\" aria-hidden=\"true\"><circle class=\"ds-sk-bg\" cx=\"20\" cy=\"20\" r=\"19\"/><path class=\"ds-sk-track\" d=\"M9.4 30.6A15 15 0 1 1 30.6 30.6\"/><path class=\"ds-sk-val\" d=\"M9.4 30.6A15 15 0 0 1 14 6.3\"/><path class=\"ds-sk-glyph\" d=\"M14 14h12v12H14zM18.4 20a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0\"/></svg></div>",
+      "css": ".ds-sk { display: inline-block; width: 36px; height: 36px; border-radius: 50%; cursor: ns-resize; outline: none; } .ds-sk svg { display: block; } .ds-sk-bg { fill: rgb(9 10 12 / 0.78); stroke: rgb(230 232 234 / 0.2); stroke-width: 0.8; transition: stroke var(--fall, 320ms) var(--ease, cubic-bezier(0.16, 1, 0.3, 1)); } .ds-sk-track { fill: none; stroke: rgb(230 232 234 / 0.2); stroke-width: 1.2; } .ds-sk-val { fill: none; stroke: var(--light, #f5f7f9); stroke-width: 1.6; stroke-linecap: round; } .ds-sk-glyph { fill: none; stroke: var(--ink-2, #bbbec1); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; } .ds-sk:hover .ds-sk-bg, .ds-sk:focus-visible .ds-sk-bg, .ds-sk:hover .ds-sk-glyph, .ds-sk:focus-visible .ds-sk-glyph { stroke: var(--light, #f5f7f9); transition-duration: var(--rise, 90ms); }"
+    },
+    {
+      "name": "Tooltip",
+      "kind": "custom",
+      "refersTo": "tooltip",
+      "description": "An icon-only control's name and value: one line, lower case, one grammar.",
+      "html": "<span class=\"ds-tip\">reverb · 1.1 s</span>",
+      "css": ".ds-tip { display: inline-block; padding: 4px 8px; border: 1px solid var(--rule-2, #3d4043); border-radius: var(--radius, 2px); font-family: var(--face, 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif); font-weight: 500; font-size: 11.5px; line-height: 1.3; font-variant-numeric: tabular-nums; color: var(--ink, #e6e8ea); background: var(--wall-2, #1a1c1f); box-shadow: 0 6px 16px rgb(0 0 0 / 0.4); white-space: nowrap; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Night Gallery",
+    "overview": "The instrument is the one lit object in a museum room after closing, and the page is that room: its wall, its picture rail, its label, its plinth. A cool charcoal wall runs edge to edge; the floor is one step darker. At the top a rail carries sixteen line-drawn glyphs in their families; under it a wall label names what is sounding; below stands the work itself, the only colour on the page; at the foot a matt plinth with a lit front edge, and the keys in half-light.\n Light is the only signal. What is chosen, pressed or sounding is lit, never coloured and never boxed. There are three lights and no paint: silver (the light from behind; every \"on\"), tungsten (the dim key; what a body does: a board, a string that answers, a hammer's speed), steel (reference: the recording a model is held against). All other colour belongs to the instruments: their wood, brass, felt, copper and steel.\n It is quiet, spare and exact: one grotesque family, tight tracking, low-contrast labels that still pass AA, square corners, no ornament. It replaced a dark product studio under softboxes with an italic display serif over small monospace labels and one orange accent; none of that is current, and none of it returns.",
+    "keyCharacteristics": [
+      "One wall tone for page, 2D stage and 3D room; they meet without a seam (`--ground` is read by the 3D stage).",
+      "Three lights, no paint. One alarm colour, for a failure and nothing else.",
+      "One way to say \"this one\": a fixture on the rail's upper edge and its light falling on the thing.",
+      "One family, Libre Franklin, with tabular figures from its fork Public Sans; text floor 11 px.",
+      "Hairlines only where something stands: the rail's lower line, the plinth's front edge, the floor line.",
+      "Light rises in 90 ms and falls in 320 ms. Nothing changes place but what the hand moves.",
+      "The stage is nearly wordless: icon-only controls carry a tooltip and an accessible name."
+    ],
+    "rules": [
+      {
+        "name": "The Three Lights Rule",
+        "body": "Silver, tungsten, steel, and no paint. A new state gets one of the three by its meaning (on, a body's doing, reference), never a new hue.",
+        "section": "colors"
+      },
+      {
+        "name": "The Instruments' Colour Rule",
+        "body": "Any saturated colour on the page belongs to an instrument's material. Chrome never borrows it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Signal Rule",
+        "body": "`signal` appears only when the sound has failed.",
+        "section": "colors"
+      },
+      {
+        "name": "The Slot Exception",
+        "body": "In vector lines only, the first four knobs of an instrument take a slot colour (green `vector-slot-1`, red `-2`, pink `-3`, white `-4`; blue past the fourth) and whatever each knob moves in the drawing is drawn in that colour. It ties a control to its effect; it is not decoration and does not exist in the other two looks.",
+        "section": "colors"
+      },
+      {
+        "name": "The Blue Pencil Exception",
+        "body": "On the sheet music's paper light cannot be the mark, so the notes sounding and the place line are `sheet-on`. In vector lines the same role is amber.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Family Rule",
+        "body": "Libre Franklin for everything that is read. No second display face, no monospace labels.",
+        "section": "typography"
+      },
+      {
+        "name": "The 11 px Floor Rule",
+        "body": "No text under 11px.",
+        "section": "typography"
+      },
+      {
+        "name": "The Figures Rule",
+        "body": "Anything that changes while it is read (a frequency, a reading, a count, a table) is tabular.",
+        "section": "typography"
+      },
+      {
+        "name": "The Hershey Exception",
+        "body": "In vector lines `--face` becomes Hershey Simplex, upper-cased with 0.03–0.04em tracking, weight 500 (300 for the readout). It is a second drawing of the same room, not a second voice in the first.",
+        "section": "typography"
+      },
+      {
+        "name": "The Light From Behind Rule",
+        "body": "The instrument is cut out by silver light from behind and read by a dim tungsten key. Never fill from the front; never a softbox.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Flat Chrome Rule",
+        "body": "Rail, label and plinth carry no shadow. A shadow means \"this floats over the stage\".",
+        "section": "elevation"
+      },
+      {
+        "name": "The One Wall Rule",
+        "body": "Page, 2D ground and 3D far wall are the same tone and meet without a seam.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Standing Line Rule",
+        "body": "A hairline is drawn only where something stands on it: the index on the rail, the work on the floor, the plinth's edge. Never a divider between siblings; a gap says that.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do say a state with light: silver ink, and where there is a rail above it, `--fixture` and `--spot`.",
+      "Do take every chrome colour from the tokens, and every 2D drawing ink from `INK`; in vector lines from `V`, masking solids with `GROUND`.",
+      "Do keep text at 11px or more, tabular wherever it changes while read, in Libre Franklin.",
+      "Do keep the page, the 2D ground and the 3D far wall one tone, and let the 3D stage read `--ground`.",
+      "Do light the 3D instrument from behind in silver with a dim tungsten key, and let its shadow fall forward.",
+      "Do time light at 90 ms up and 320 ms down on `cubic-bezier(0.16, 1, 0.3, 1)`; transition colour and opacity, not place.",
+      "Do give an icon-only control a `data-tip` and an `aria-label`, and a dial a real slider.",
+      "Do give a touch target 44px where the layout has room (stage knobs, the knob toggle, the octave's arrows at 40×44, Notes' contents), and never widen the page to fit a long lineup.",
+      "Do honour reduced motion: the lamp stops breathing and every transition is instant."
+    ],
+    "donts": [
+      "Don't mark \"this one\" with a colour, a filled chip, a boxed segment, an underline or a side stripe.",
+      "Don't bring back the look this replaced: a warm near-black ground, an italic display serif over small monospace labels, a vermilion or amber accent, softboxes and a warm key in a product studio, a spot in a void.",
+      "Don't add a second family, or set labels in monospace. Never Inter, Instrument Serif, Fraunces, Bricolage Grotesque, Space Grotesk, Sora, Young Serif, Bodoni, Geist or Syne.",
+      "Don't use tungsten or steel to mean \"selected\", or `signal` for anything but a failure.",
+      "Don't use the vector slot colours, the blue pencil or the Hershey face outside the look or surface they belong to.",
+      "Don't put a shadow, a frame or a blur on the rail, the label or the plinth; don't blur behind anything.",
+      "Don't draw a divider between siblings; don't round a corner past 2px unless the thing is round.",
+      "Don't add permanent words to the stage, or a theme picker.",
+      "Don't fill the 3D scene from the front or raise the environment to read a dark body; give it an edge to catch."
+    ]
+  }
+}

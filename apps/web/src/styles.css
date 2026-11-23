@@ -1051,7 +1051,7 @@ figcaption {
 }
 .axis text {
   font-family: var(--face);
-  font-size: 10.5px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
   fill: var(--muted);
 }
@@ -1175,7 +1175,7 @@ table.rounds th {
 }
 .chart svg .panel-title {
   font-family: var(--face);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   fill: var(--ink-2);
 }
@@ -1914,7 +1914,7 @@ figure[title] {
 }
 .sheet-n {
   position: absolute;
-  font: 400 10.5px/1 var(--face);
+  font: 400 11px/1 var(--face);
   font-variant-numeric: tabular-nums;
   color: var(--sheet-dim);
   pointer-events: none;
@@ -2506,7 +2506,7 @@ body > .tip {
   display: block;
 }
 .notes figure.diagram .lbl {
-  font: 400 13px var(--face);
+  font: 400 14px var(--face);
 }
 .notes figure.diagram .hot {
   stroke: var(--light);
@@ -2528,6 +2528,7 @@ body > .tip {
   margin: 20px 0 0;
   font: 400 13px/1.6 var(--face);
   color: var(--muted);
+  text-wrap: pretty;
 }
 .notes .thanks a {
   color: var(--ink-2);

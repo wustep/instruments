@@ -22,7 +22,7 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import type { Batch, Mat4, Mesh, Mirror, Vec3 } from './gl3d.ts';
 import { LINE_FS, LINE_VS, type LineSet } from './gl3d.ts';
-import { SECTION, disposeMaterials, materialFor, setEnvironment } from './mats3.ts';
+import { SECTION, disposeMaterials, materialFor, setEnvironment, turnEnvironment } from './mats3.ts';
 import { MAT_LIST } from './mesh.ts';
 
 /** the shadow pass of a dissolving mesh: the same screen-door as its colour pass, so the shadow
@@ -225,12 +225,13 @@ function gallery(): THREE.Scene {
   const TUNGSTEN: [number, number, number] = [1, 0.84, 0.64];
   // the light from behind: a tall slot behind left (where the silver light itself comes from), a
   // narrower one behind right (the second light's), so both edges of a silhouette catch
-  panel(1.5, 10, SILVER, 14, [-6.6, 4.2, 7.6], [0, 1.2, 0], 0.55);
-  panel(1.0, 9, SILVER, 8.5, [7.6, 3.2, 6.0], [0, 1.2, 0], 0.55);
+  // (three's world is the scenes' mirrored in x: each is on the side its light is, ROOM)
+  panel(1.5, 10, SILVER, 14, [6.6, 3.6, 7.6], [0, 1.2, 0], 0.55);
+  panel(1.0, 9, SILVER, 8.5, [-7.6, 3.2, 6.0], [0, 1.2, 0], 0.55);
   // … and its spill on the wall behind them, low and wide: the line along a lid's edge and a soundboard
   panel(16, 2.6, SILVER, 0.5, [0, 4.6, 11], [0, 1.4, 0], 0.9);
   // the key: one small lamp, front left and above
-  panel(2.4, 2.4, TUNGSTEN, 7.5, [-7.2, 5.2, -4.6], [0, 0.6, 0], 0.7);
+  panel(2.4, 2.4, TUNGSTEN, 7.5, [7.2, 5.2, -4.6], [0, 0.6, 0], 0.7);
   // the wall behind the camera, washed so dimly that a body falls off into it: enough that a piano's
   // black front and a bell's flare are not holes
   panel(22, 7, [0.86, 0.9, 1], 0.36, [0, 3.2, -12], [0, 1.4, 0], 0.9);
@@ -243,12 +244,17 @@ function gallery(): THREE.Scene {
 }
 
 /** The stage's own lights, a whole instrument's (a key's close-up has its own: CLOSE). Directions are
- *  towards the light, in the scene's frame (the audience at −z, so +z is behind the instrument). */
+ *  towards the light, in the scene's frame (the audience at −z, so +z is behind the instrument), for a
+ *  visitor standing at `bearing`: the room is turned about each instrument to where it is first seen from
+ *  (`Renderer3.bearing`), so every one is lit the same way from its own first view (the silver light behind
+ *  it, the key across it from the left) and keeps that light as it is walked round. */
 const ROOM = {
+  /** the first view's yaw the directions below are written for (the cello's) */
+  bearing: 0.62,
   /** the silver light: from behind and above, the one that casts the shadow (forward, towards us); a scene
    *  may point it itself (Batch.key) */
-  back: [-0.62, 0.6, 0.72] as Vec3,
-  backI: 3.5,
+  back: [-0.62, 0.5, 0.72] as Vec3,
+  backI: 3.3,
   backC: [0.84, 0.9, 1] as Vec3,
   /** the key: dim, tungsten, across the front from the left and above (most stages are seen from the
    *  right: the light crosses the body and it falls off towards us) */
@@ -258,7 +264,7 @@ const ROOM = {
   /** no fill from the front. The third light is a second one from behind, low, on the other side: the
    *  far edge of a silhouette, a case's flank (it casts no shadow) */
   fill: [0.74, 0.34, 0.58] as Vec3,
-  fillI: 1.5,
+  fillI: 1.3,
   fillC: [0.84, 0.9, 1] as Vec3,
   /** the generated room's share of the light */
   env: 0.8,
@@ -339,6 +345,10 @@ export class Renderer3 {
   closeUp = 0;
   /** the last frame's exposure (1 for a whole instrument; capped in a close-up) */
   exposure = 1;
+  /** where the scene is first seen from (its home view's yaw): the room's lights and the room itself are
+   *  turned to it (ROOM) */
+  bearing = ROOM.bearing;
+  private turned = 0;
   /** where the far wall meets the floor on the picture (0 at its foot … 1 at its top; outside that, not in it) */
   horizon = -1;
 
@@ -708,8 +718,19 @@ export class Renderer3 {
     const radL = mix(rad, CLOSE.radius);
     const dir = (a: Vec3, z: Vec3) => new THREE.Vector3(mix(a[0], z[0] * side), mix(a[1], z[1]), mix(a[2], z[2])).normalize();
     const mixC = (l: THREE.DirectionalLight, a: Vec3, z: Vec3) => l.color.setRGB(mix(a[0], z[0]), mix(a[1], z[1]), mix(a[2], z[2]));
+    // the room turned to where the scene is first seen from: its lights, and what is seen in lacquer and brass
+    const turnBy = this.bearing - ROOM.bearing;
+    const ct = Math.cos(turnBy);
+    const sn = Math.sin(turnBy);
+    const turn = (v: Vec3): Vec3 => [v[0] * ct - v[2] * sn, v[1], v[2] * ct + v[0] * sn];
+    if (turnBy !== this.turned) {
+      this.turned = turnBy;
+      this.scene.environmentRotation.set(0, turnBy, 0);
+      turnEnvironment(turnBy);
+      (this.floor.material as THREE.MeshPhysicalMaterial).envMapRotation.set(0, turnBy, 0);
+    }
     // (a scene may point the light itself: Batch.key, a glockenspiel's, set for the sheen along its steel)
-    const keyDir = dir(b.key ?? ROOM.back, CLOSE.key);
+    const keyDir = dir(b.key ?? turn(ROOM.back), CLOSE.key);
     this.key.position.copy(C).add(keyDir.clone().multiplyScalar(radL * 3));
     this.key.target.position.copy(C);
     this.key.intensity = mix(ROOM.backI, CLOSE.keyI);
@@ -725,11 +746,11 @@ export class Renderer3 {
     // (the offset along the normal is in metres: 2 mm for a case, a fraction of a jack's width close up)
     this.key.shadow.normalBias = mix(0.002, CLOSE.normalBias);
     this.key.castShadow = this.shadows;
-    this.rim.position.copy(C).add(dir(ROOM.key, CLOSE.rim).multiplyScalar(radL * 3));
+    this.rim.position.copy(C).add(dir(turn(ROOM.key), CLOSE.rim).multiplyScalar(radL * 3));
     this.rim.target.position.copy(C);
     this.rim.intensity = mix(ROOM.keyI, CLOSE.rimI);
     mixC(this.rim, ROOM.keyC, CLOSE.rimC);
-    this.fill.position.copy(C).add(dir(ROOM.fill, CLOSE.fill).multiplyScalar(radL * 3));
+    this.fill.position.copy(C).add(dir(turn(ROOM.fill), CLOSE.fill).multiplyScalar(radL * 3));
     this.fill.target.position.copy(C);
     this.fill.intensity = mix(ROOM.fillI, CLOSE.fillI);
     // (close up, warm: a cool fill turned pale wood in the work light's shadow olive)

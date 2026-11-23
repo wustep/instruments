@@ -737,6 +737,8 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       r.shadows = stats.shadows;
       r.ao = stats.ao;
       r.closeUp = zoom ? closeK : 0;
+      // (the room's lights are set for where this scene is first seen from)
+      if (view) r.bearing = view.yaw;
       const progs = r.r.info.programs?.length ?? 0;
       r.draw(batch, eye, target, FOV, pw, ph, ground);
       lastVP = r.vp.elements as unknown as Mat4;

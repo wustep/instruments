@@ -65,7 +65,7 @@ const rgb = (hex: string) => [16, 8, 0].map((sh) => (parseInt(hex.slice(1), 16) 
 export const SCOPE_INK_V = { bone: rgb(V.blue), light: rgb(V.amber) };
 /** the spectrum: the measured line amber, and where the partials should fall in blue. On a piano the
  *  stiff string's series is in the stiffness knob's slot (red) against the ideal harmonics in blue. */
-export const SPECTRUM_INK_V = { line: rgb(V.amber), label: rgb(V.blue), ideal: rgb(V.blueMid), partial: rgb(V.blue), font: '500 10px "Hershey", ui-monospace, monospace' };
+export const SPECTRUM_INK_V = { line: rgb(V.amber), label: rgb(V.blue), ideal: rgb(V.blueMid), partial: rgb(V.blue), font: '500 11px "Hershey", ui-monospace, monospace' };
 export const SPECTRUM_INK_V_PIANO = { ...SPECTRUM_INK_V, partial: rgb(V.red) };
 
 export type Pt = [number, number];

@@ -265,6 +265,16 @@ let envTex: THREE.Texture | null = null;
 export function setEnvironment(t: THREE.Texture | null): void {
   envTex = t;
 }
+/** the room turned about the instrument (rad, about y): a material that has the environment as its own
+ *  map is turned with it (the scene's own is turned by the renderer), those made later too */
+let envTurn = 0;
+export function turnEnvironment(y: number): void {
+  envTurn = y;
+  for (const m of cache.values()) {
+    const pm = m as THREE.MeshPhysicalMaterial;
+    if (pm.envMap) pm.envMapRotation.set(0, y, 0);
+  }
+}
 const textures: THREE.Texture[] = [];
 
 export function materialFor(m: Mat, lite: boolean): THREE.Material {
@@ -278,7 +288,10 @@ export function materialFor(m: Mat, lite: boolean): THREE.Material {
   const metal = (params.metalness ?? 0) >= 0.5;
   const cap = cap0 ?? (WOODS.includes(tex) ? 1 : tex === 6 || tex === 12 ? 2 : metal ? 3 : 0);
   const pm = new THREE.MeshPhysicalMaterial({ side: THREE.DoubleSide, ...params });
-  if (params.envMapIntensity !== undefined && envTex) pm.envMap = envTex;
+  if (params.envMapIntensity !== undefined && envTex) {
+    pm.envMap = envTex;
+    pm.envMapRotation.set(0, envTurn, 0);
+  }
   if (m.tint) pm.color.setRGB(m.col[0], m.col[1], m.col[2], THREE.SRGBColorSpace);
   if (pm.anisotropy) pm.anisotropyRotation = 0;
   const kind = m.kind ?? 0;

@@ -2765,6 +2765,8 @@ export interface SpectrumInk {
   partial: string;
   font: string;
 }
+/** the room under the spectrum's floor for its scale's figures (px) */
+export const SPECTRUM_FOOT = 13;
 const SPECTRUM_INK: SpectrumInk = { line: INK.bone, label: INK.bone, ideal: INK.steel, partial: INK.light, font: '11px "Libre Franklin Variable", "Helvetica Neue", Arial, sans-serif' };
 export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, an: AnalyserNode | null, buf: Float32Array, focus: VisualFrame['focus'] | null, family: string, ink: SpectrumInk = SPECTRUM_INK, marks: number[] | null = null): void {
   const f0 = 30;
@@ -2774,8 +2776,10 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
   const dbHi = -25;
   const Y = (db: number) => y0 + h * (1 - (db - dbLo) / (dbHi - dbLo));
   ctx.font = ink.font;
-  // the scale's three figures stand on the floor of the trace, each in a gap of its own (the trace is
-  // parted for them: it used to strike through them); with no sound yet the floor is there, a hairline
+  // the scale's three figures hang under the floor of the trace, each from a tick at its frequency (the
+  // caller leaves SPECTRUM_FOOT px under y0 + h for them): the trace is whole over them. (They stood in the
+  // trace and it struck through them; parted for them, it lost the partials at 100 Hz and 1 kHz.) With no
+  // sound yet the floor is there, a hairline.
   const scale = () => {
     ctx.textBaseline = 'alphabetic';
     for (const [f, t] of [
@@ -2786,9 +2790,9 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
       // (the last label sits left of its frequency where it would run off the end)
       const tw = ctx.measureText(t).width;
       const lx = X(f) + 3 + tw > x0 + w ? X(f) - tw - 3 : X(f) + 3;
-      ctx.clearRect(lx - 3, y0 + h - 12, tw + 6, 14);
       ctx.fillStyle = rgba(ink.label, 0.6);
-      ctx.fillText(t, lx, y0 + h + 1);
+      ctx.fillRect(Math.round(X(f)) - 0.5, y0 + h, 1, 4);
+      ctx.fillText(t, lx, y0 + h + SPECTRUM_FOOT - 2);
     }
   };
   if (!an) {

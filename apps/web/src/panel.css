@@ -691,8 +691,8 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    gap: 2px 10px;
-    padding: 0 var(--gutter) 4px;
+    gap: 0 10px;
+    padding: 0 var(--gutter) 2px;
   }
   .readout {
     width: auto;
@@ -737,8 +737,9 @@
     max-width: none;
     margin: 0;
   }
+  /* (its scale's figures hang under the trace: 4 px more, from the band's own gap and foot) */
   .spec {
-    height: 36px;
+    height: 40px;
   }
   .scope,
   .stage[data-ensemble] .parts {
@@ -823,7 +824,7 @@
     margin: 0;
   }
   .spec {
-    height: 30px;
+    height: 34px;
   }
   .scope,
   .stage[data-ensemble] .parts {
