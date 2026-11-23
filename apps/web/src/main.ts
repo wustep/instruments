@@ -15,6 +15,7 @@ import { keysRange } from './orchestra/keys.ts';
 import { keysForControl } from './ui/keys-for.ts';
 import { PIECES } from './orchestra/pieces.ts';
 import { installTips } from './ui/tip.ts';
+import { arrowLeft, chevronLeft, chevronRight, dial } from './ui/icons.ts';
 import { stageView } from './views/stage.ts';
 import { startNav } from './nav.ts';
 import { look } from './look.ts';
@@ -42,14 +43,17 @@ const syncPedals = () => {
   softPedal.rename('soft', up ? 'Soft pedal: the hammers rest nearer the strings (hold; Shift on a keyboard, CC67 on MIDI)' : 'Una corda: the action shifts, the hammers miss a string (hold; Shift on a keyboard, CC67 on MIDI)');
 };
 const knobSlot = h('div', { class: 'knobs', role: 'group', 'aria-label': 'Physical controls' });
-const knobToggle = h('button', { class: 'knob-toggle', type: 'button', 'aria-label': 'Show the knobs', 'aria-expanded': 'false', 'data-tip': 'knobs' }, '◐');
+const knobToggle = h('button', { class: 'knob-toggle', type: 'button', 'aria-label': 'Show the knobs', 'aria-expanded': 'false', 'data-tip': 'knobs' });
+knobToggle.append(dial() as unknown as Node);
 knobToggle.addEventListener('click', () => {
   const open = document.documentElement.toggleAttribute('data-knobs');
   knobToggle.setAttribute('aria-expanded', String(open));
 });
 // octave: shifts the computer keys (Z/X or −/=) and brings the on-screen keys along
-const octDown = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave down', 'data-tip': 'octave down · Z', onclick: () => keys.octave(-1) }, '‹');
-const octUp = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave up', 'data-tip': 'octave up · X', onclick: () => keys.octave(1) }, '›');
+const octDown = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave down', 'data-tip': 'octave down · Z', onclick: () => keys.octave(-1) });
+octDown.append(chevronLeft() as unknown as Node);
+const octUp = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave up', 'data-tip': 'octave up · X', onclick: () => keys.octave(1) });
+octUp.append(chevronRight() as unknown as Node);
 const octLabel = h('span', { class: 'oct-label', 'aria-live': 'polite' });
 const octave = h('div', { class: 'octave', role: 'group', 'aria-label': 'Octave' }, octDown, octLabel, octUp);
 // an ensemble: in the knobs' place, the instruments the keys play (a phone: behind one button)
@@ -77,15 +81,20 @@ const links = [
   h('a', { href: '/measurements', 'data-route': 'measurements' }, 'measurements'),
   h('a', { href: '/notes', 'data-route': 'notes' }, 'notes'),
 ];
-const backLink = h('a', { class: 'back', href: '/', 'data-route': 'stage', 'aria-label': 'back to the instruments', 'data-tip': 'back' }, '←');
+const backLink = h('a', { class: 'back', href: '/', 'data-route': 'stage', 'aria-label': 'back to the instruments', 'data-tip': 'back' });
+backLink.append(arrowLeft() as unknown as Node);
 // (the stage puts its picker and its view's tools in the bar while it shows: views/stage.ts)
 const pickSlot = h('div', { class: 'top-pick' });
 const toolSlot = h('div', { class: 'top-tools' });
 const header = h('header', { class: 'top' }, backLink, pickSlot, h('span', { class: 'spacer' }), toolSlot, status, h('nav', { class: 'links', 'aria-label': 'Pages' }, links));
-const main = h('main', { id: 'main' });
+// (for a keyboard and a screen reader: the page's name, which nothing shows, and a way past the bar's
+// two dozen stops to the stage)
+const title = h('h1', { class: 'sr' }, WORDMARK);
+const skip = h('a', { class: 'skip', href: '#main' }, 'Skip to the instrument');
+const main = h('main', { id: 'main', tabindex: '-1' });
 // drop a .mid file anywhere to hear it (an ensemble's file on an ensemble)
 const player = new MidiPlayer();
-app.append(header, main, player.el, dock);
+app.append(skip, title, header, main, player.el, dock);
 
 /** A page whose code loads when it is first opened (its own chunk: the stage's first load does not
  *  carry it). Its box stands in until then; left before it has loaded, it is never made. */

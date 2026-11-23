@@ -25,7 +25,7 @@
 // on the back: drawn faintly through the wood, lit when the thumb is on them. The reed, behind the beak,
 // shows at the tip: the opening between the reed's tip and the mouthpiece's tip rail, seen a little from
 // its end, following the engine's own reed (its opening over the last cycles, played back slowed: shut
-// once a cycle when the note is loud). The bore's standing wave (the engine's, with its sign) glows inside
+// once a cycle when the note is loud). The bore's standing wave (the engine's, with its sign) lies blue inside
 // the cylinder from the reed (a pressure antinode) to where it leaves the tube past the first open hole (a
 // node): one quarter-wave in the chalumeau, three on the same long tube for a clarion note (the register
 // key's vent sits near the first node: the twelfth), five or seven in the altissimo. The engine plays each
@@ -315,7 +315,7 @@ export interface ClLayout {
   /** the bell's mouth (seen a little from its side) and its inner lip */
   mouth: Path2D;
   mouthIn: Path2D;
-  /** the bore (the wave's glow): wide and narrow */
+  /** the bore (the wave's blue): wide and narrow */
   bore: Path2D;
   boreIn: Path2D;
   rods: Path2D;
@@ -460,7 +460,7 @@ export function clarinetLayout(W: number, H: number, top = 0): ClLayout {
   mouth.ellipse(X(CL_LEN), Y(0), 0.0052 * sc, rr * sc, 0, 0, 2 * Math.PI);
   const mouthIn = new Path2D();
   mouthIn.ellipse(X(CL_LEN) + 0.0005 * sc, Y(0), 0.0043 * sc, clBore(CL_LEN) * sc, 0, 0, 2 * Math.PI);
-  // ---- the bore (the wave's glow)
+  // ---- the bore (the wave's blue)
   const glowW = (x: number, k: number) => Math.min(clR(x) - 0.0012, clBore(x) * k + 0.0016 * k);
   const bore = new Path2D();
   const boreIn = new Path2D();
@@ -675,17 +675,120 @@ export function clRecord(L: ClLayout, W: number, st: ClarinetState, fingers: num
 }
 
 // ---------------------------------------------------------------- the classic drawing
-const silver = (a: number) => rgba('230,232,236', a);
-const SILVER_BODY = 'rgb(62,64,68)';
-/** the grenadilla's fill: dark wood, lifted just enough to read against the stage (contrast over 1.3:1, test) */
-export const WOOD = '#332820';
-const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
+// In daylight the clarinet is an object on pale plaster, lit by a window up and to the left of the screen:
+// its silver bright with a shade side and an edge that stands it off the ground, its blackwood and ebonite
+// near black with a cool sheen, one soft shadow on the floor. What sounds is the one blue (the bore's
+// pressure, the reed's tip); what a finger holds is graphite ink (a touch, a ring or a hole under its
+// fingertip, a pad moved off its rest), and on the black wood, where ink cannot show, a firm light line.
+/** silver in daylight: lit, body, shade, and (r,g,b) the edge that stands it off the plaster */
+const AG_LIT = '#f6f7f8';
+const AG_BODY = '#d3d8dd';
+const AG_SHADE = '#98a1aa';
+const AG_EDGE = '95,104,114';
+/** the grenadilla's fill: African blackwood, near black with a brown cast, as the 3D model's (dark wood,
+ *  and well off the pale stage: test) */
+export const WOOD = '#2a211e';
+/** compression the one blue, rarefaction slate */
+const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.steel);
 const D2R = Math.PI / 180;
+
+/** how the daylight falls in the layout's own frame: `lit` the lit side across the body (−1: −v), and
+ *  (`cx`, `cy`) the way a shadow falls (the screen's down and a little to its right); `hair` the width of
+ *  a hairline (1 px on a stage; thinner on an orchestra's small clarinet, which is its wood and not its
+ *  keys' outlines) */
+interface Light {
+  lit: number;
+  cx: number;
+  cy: number;
+  hair: number;
+}
+const LYING: Light = { lit: -1, cx: 0.5, cy: 0.86, hair: 1 };
+/** (standing, the box is turned a quarter: the screen's down is +x, its left +v) */
+const STANDING: Light = { lit: 1, cx: 0.86, cy: -0.5, hair: 1 };
+
+/** what daylight adds to a layout, made once with it: the floor's shadow (a blurred picture, drawn each
+ *  frame as an image), and the black parts the wave's line is light on (the wood and the mouthpiece) */
+interface Day {
+  dark: Path2D;
+  cast: { cv: HTMLCanvasElement; x: number; y: number; w: number; h: number } | null;
+  s: number;
+}
+const days = new WeakMap<ClLayout, Day>();
+/** (shadows are kept up to 6 megapixels in all, a dozen at most: a window dragged wider leaves no trail of
+ *  canvases, and an orchestra's small ones all stay) */
+const kept: { L: ClLayout; px: number }[] = [];
+function keep(L: ClLayout, px: number): void {
+  const i = kept.findIndex((k) => k.L === L);
+  if (i >= 0) kept.splice(i, 1);
+  kept.push({ L, px });
+  let sum = kept.reduce((a, k) => a + k.px, 0);
+  while ((sum > 6e6 || kept.length > 12) && kept.length > 1) {
+    const old = kept.shift()!;
+    sum -= old.px;
+    days.delete(old.L);
+  }
+}
+/** the canvas px to one of the box's a context draws at (2 at most: a shadow is soft) */
+const castScale = (ctx: CanvasRenderingContext2D): number => {
+  const t = ctx.getTransform?.();
+  return t ? Math.min(2, Math.max(1, Math.round(Math.hypot(t.a, t.b) * 4) / 4)) : 1;
+};
+/** The clarinet's one shadow on the floor: its silhouette (the wood, the mouthpiece and its ligature, the
+ *  touches) blurred, down and a little to the right on the screen whichever way the clarinet lies, in
+ *  proportion to its size (on a computer's stage: a blur of 12 px, 4 px across and 7 down). In the layout's
+ *  frame, `s` canvas px to one of the box's. */
+function clDay(L: ClLayout, s: number): Day {
+  const hit = days.get(L);
+  if (hit && hit.s === s) return hit;
+  const dark = new Path2D();
+  dark.addPath(L.body);
+  dark.addPath(L.mp);
+  const day: Day = { dark, cast: null, s };
+  if (typeof document !== 'undefined') {
+    const { sc } = L;
+    const light = L.vertical ? STANDING : LYING;
+    const blur = Math.max(1.5, 0.006 * sc);
+    const far = Math.max(1.2, 0.004 * sc);
+    const m = Math.ceil(2 * blur + far) + 2;
+    const x = Math.floor(L.x0 - m);
+    const y = Math.floor(L.c - CL_REACH * sc - m);
+    const w = Math.ceil(L.x0 + (CL_LEN + 0.006) * sc + m) - x;
+    const h = Math.ceil(L.c + CL_REACH * sc + m) - y;
+    const mk = () => {
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(w * s));
+      cv.height = Math.max(1, Math.round(h * s));
+      return cv;
+    };
+    const sil = mk();
+    const cv = mk();
+    const a = sil.getContext('2d');
+    const b = cv.getContext('2d');
+    if (a && b) {
+      a.setTransform(s, 0, 0, s, -x * s, -y * s);
+      a.fillStyle = '#000';
+      for (const p of [L.body, L.mouth, L.mp, L.lig, L.screwTabs, L.screwHeads, ...L.touches.filter((_, i) => !CL_TOUCHES[i].back)]) a.fill(p);
+      b.shadowColor = 'rgba(28,34,42,0.32)';
+      b.shadowBlur = blur * s;
+      b.shadowOffsetX = far * light.cx * s;
+      b.shadowOffsetY = far * light.cy * s;
+      b.drawImage(sil, 0, 0);
+      // (the silhouette itself out again: the shadow alone is kept)
+      b.shadowColor = 'transparent';
+      b.globalCompositeOperation = 'destination-out';
+      b.drawImage(sil, 0, 0);
+      day.cast = { cv, x, y, w, h };
+    }
+  }
+  days.set(L, day);
+  keep(L, day.cast ? day.cast.cv.width * day.cast.cv.height : 0);
+  return day;
+}
 
 /** The clarinet from the front: the mouthpiece's beak with its ligature and the reed's tip opening and
  *  shutting with the engine's reed (drawn slowed), the grenadilla joints with their silver rings and
  *  keywork, the keys closing for the engine's note by the chart (each on a spring), the thumb's ring and
- *  register key faint through the wood, and the bore's standing wave glowing inside the cylinder from the
+ *  register key faint through the wood, and the bore's standing wave in blue inside the cylinder from the
  *  reed to where it leaves the tube, its envelope either side. `top`: the file player's px over the box's
  *  top. */
 export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: ClarinetState, top = 0): void {
@@ -696,6 +799,10 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
   const now = performance.now();
   const lv = clarinetLive(fr, st, now);
   const { lvl, ph, end, keyPos } = lv;
+  const day = clDay(L, castScale(ctx));
+  const hair = Math.min(1, sc / 600);
+  const light: Light = { ...(L.vertical ? STANDING : LYING), hair };
+  const { lit } = light;
   ctx.save();
   if (L.vertical) {
     ctx.translate(W, 0);
@@ -703,6 +810,9 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
   }
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
+  // ---- on the floor: its shadow
+  const cast = day.cast;
+  if (cast) ctx.drawImage(cast.cv, cast.x, cast.y, cast.w, cast.h);
   // ---- behind the clarinet: the pressure's standing-wave envelope either side, pinched at the nodes
   if (lv.sounding) {
     const hm = Hm * Math.min(1, 0.35 + lvl);
@@ -721,62 +831,61 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
       }
       ctx.lineTo(X(end), Y(sgn * clLobeBase(Math.min(CL_LEN, end))));
       ctx.closePath();
-      ctx.fillStyle = rgba(INK.vermilion, 0.07 * lvl + 0.03);
+      ctx.fillStyle = rgba(INK.sound, 0.09 + 0.07 * lvl);
       ctx.fill();
-      ctx.strokeStyle = rgba(INK.vermilion, 0.16 + 0.22 * lvl);
+      ctx.strokeStyle = rgba(INK.sound, 0.3 + 0.3 * lvl);
       ctx.lineWidth = 1;
       ctx.stroke();
     }
   }
-  // ---- the mouthpiece: black ebonite, its beak's ridge lit (its ligature goes on over the bore's glow)
-  ctx.fillStyle = '#0b0b0d';
+  // ---- the mouthpiece: black ebonite, its beak's ridge lit (its ligature goes on over the bore's wave)
+  ctx.fillStyle = '#0d0d10';
   ctx.fill(L.mp);
-  const gm = ctx.createLinearGradient(0, Y(-0.013), 0, Y(0.013));
-  gm.addColorStop(0, 'rgba(225,228,236,0.06)');
-  gm.addColorStop(0.18, 'rgba(225,228,236,0.22)');
-  gm.addColorStop(0.42, 'rgba(225,228,236,0.05)');
-  gm.addColorStop(0.85, 'rgba(225,228,236,0.03)');
-  gm.addColorStop(1, 'rgba(225,228,236,0.1)');
+  const gm = ctx.createLinearGradient(0, Y(lit * 0.013), 0, Y(-lit * 0.013));
+  gm.addColorStop(0, rgba(INK.light, 0.06));
+  gm.addColorStop(0.18, rgba(INK.light, 0.24));
+  gm.addColorStop(0.42, rgba(INK.light, 0.05));
+  gm.addColorStop(0.85, rgba(INK.light, 0.03));
+  gm.addColorStop(1, rgba(INK.light, 0.1));
   ctx.fillStyle = gm;
   ctx.fill(L.mp);
-  ctx.fillStyle = 'rgba(225,228,236,0.14)';
-  ctx.fill(L.mpRidge);
-  ctx.strokeStyle = rgba(INK.ivory, 0.26);
-  ctx.lineWidth = 1;
-  ctx.stroke(L.mp);
-  // ---- the wood: grenadilla, near black, polished, lit from above the player's left
+  // ---- the wood: grenadilla, near black, polished, lit from the window (standing, the lit bands are the
+  // other edge's: the axis mirrored)
   ctx.fillStyle = WOOD;
   ctx.fill(L.body);
-  ctx.strokeStyle = 'rgba(110,84,62,0.16)';
+  ctx.strokeStyle = 'rgba(126,98,76,0.2)';
   ctx.lineWidth = 0.7;
   ctx.stroke(L.grain);
-  ctx.fillStyle = 'rgba(236,226,206,0.09)';
+  ctx.save();
+  if (L.vertical) {
+    ctx.translate(0, 2 * c);
+    ctx.scale(1, -1);
+  }
+  ctx.fillStyle = rgba(INK.light, 0.15);
+  ctx.fill(L.mpRidge);
+  ctx.fillStyle = rgba(INK.light, 0.1);
   ctx.fill(L.sheen);
-  ctx.fillStyle = 'rgba(236,226,206,0.15)';
+  ctx.fillStyle = rgba(INK.light, 0.19);
   ctx.fill(L.spec);
-  ctx.fillStyle = 'rgba(236,226,206,0.04)';
+  ctx.fillStyle = rgba(INK.light, 0.05);
   ctx.fill(L.bounce);
-  // the silver rings
-  ctx.fillStyle = SILVER_BODY;
-  ctx.fill(L.silver);
-  ctx.fillStyle = metalGrad(ctx, Y, 0.016);
-  ctx.fill(L.silver);
-  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-  ctx.lineWidth = 1;
-  ctx.stroke(L.seams);
-  ctx.strokeStyle = rgba(INK.ivory, 0.4);
+  ctx.strokeStyle = rgba(INK.light, 0.2);
+  ctx.lineWidth = hair;
+  ctx.stroke(L.rimUp);
+  ctx.restore();
+  // (its outline on the plaster)
+  ctx.strokeStyle = rgba(INK.line, 0.45);
   ctx.lineWidth = 1;
   ctx.stroke(L.body);
-  ctx.strokeStyle = rgba(INK.ivory, 0.32);
-  ctx.stroke(L.rimUp);
   // the bell's mouth: its rim's face, the inner lip, the dark of the bore
-  ctx.fillStyle = '#41342a';
+  ctx.fillStyle = '#3a2e29';
   ctx.fill(L.mouth);
-  ctx.strokeStyle = rgba(INK.ivory, 0.3);
+  ctx.lineWidth = hair;
+  ctx.strokeStyle = rgba(INK.light, 0.26);
   ctx.stroke(L.mouth);
   ctx.fillStyle = '#050403';
   ctx.fill(L.mouthIn);
-  ctx.strokeStyle = rgba(INK.ivory, 0.14);
+  ctx.strokeStyle = rgba(INK.light, 0.14);
   ctx.stroke(L.mouthIn);
   // ---- the tone holes in the wood: L3's raised chimney, the rings' holes, a pad's hole as it lifts
   CL_KEYS.forEach((k, i) => {
@@ -790,12 +899,14 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
       ctx.arc(cx, cy, k.r * sc, 0, 2 * Math.PI);
       ctx.fillStyle = '#0a0806';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(150,120,96,0.3)';
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(160,132,110,0.34)';
+      ctx.lineWidth = hair;
       ctx.stroke();
+      // (the chimney's edge towards the window)
       ctx.beginPath();
-      ctx.arc(cx, cy - 0.00035 * sc, k.r * sc * 0.92, 1.15 * Math.PI, 1.85 * Math.PI);
-      ctx.strokeStyle = 'rgba(236,226,206,0.2)';
+      if (lit < 0) ctx.arc(cx, cy - 0.00035 * sc, k.r * sc * 0.92, 1.15 * Math.PI, 1.85 * Math.PI);
+      else ctx.arc(cx, cy + 0.00035 * sc, k.r * sc * 0.92, 0.15 * Math.PI, 0.85 * Math.PI);
+      ctx.strokeStyle = rgba(INK.light, 0.3);
       ctx.stroke();
     }
     if (k.style === 'cup' && p < 0.03) return;
@@ -804,89 +915,97 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
     ctx.fillStyle = k.style === 'cup' ? `rgba(3,2,2,${Math.min(1, p * 1.5).toFixed(3)})` : '#020101';
     ctx.fill();
   });
-  // ---- the standing wave inside the bore: compression warm, rarefaction cool, the nodes dark
+  // ---- the standing wave inside the bore, laid over the wood: its envelope in blue, and in it the
+  // pressure now (compression blue, rarefaction slate); the nodes stay wood
   if (lv.sounding) {
     const ge = ctx.createLinearGradient(X(0), 0, X(end), 0);
     const gw = ctx.createLinearGradient(X(0), 0, X(end), 0);
     const N = 56;
     for (let i = 0; i <= N; i++) {
       const A = lv.ampAt((end * i) / N);
-      ge.addColorStop(i / N, rgba(INK.vermilion, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
-      gw.addColorStop(i / N, rgba(waveInk(A * ph), 0.46 * Math.min(1, Math.pow(Math.abs(A * ph), 1.15))));
+      ge.addColorStop(i / N, rgba(INK.sound, 0.75 * Math.min(1, Math.pow(Math.abs(A), 0.9))));
+      gw.addColorStop(i / N, rgba(waveInk(A * ph), 0.9 * Math.min(1, Math.abs(A * ph))));
     }
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
     ctx.fillStyle = ge;
     ctx.fill(L.bore);
     ctx.fillStyle = gw;
     ctx.fill(L.boreIn);
-    ctx.restore();
   }
-  // ---- the ligature over the mouthpiece (metal: the glow stays under it): the screws, then the sleeve
-  ctx.fillStyle = SILVER_BODY;
+  // ---- the silver rings (metal: the wave stays under them), the joints' seams
+  ctx.fillStyle = metalGrad(ctx, Y(lit * 0.016), Y(-lit * 0.016));
+  ctx.fill(L.silver);
+  ctx.strokeStyle = rgba(AG_EDGE, 0.9);
+  ctx.lineWidth = hair;
+  ctx.stroke(L.silver);
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = Math.max(0.5, hair);
+  ctx.stroke(L.seams);
+  // ---- the ligature over the mouthpiece (metal too): the screws, then the sleeve
+  ctx.fillStyle = metalGrad(ctx, Y(lit * 0.012), Y(-lit * 0.012));
   ctx.fill(L.screwTabs);
-  ctx.fill(L.screwHeads);
-  ctx.fillStyle = metalGrad(ctx, Y, 0.012);
-  ctx.fill(L.screwTabs);
-  const gs = ctx.createLinearGradient(0, Y(0.012), 0, Y(0.022));
-  gs.addColorStop(0, silver(0.6));
-  gs.addColorStop(0.5, silver(0.25));
-  gs.addColorStop(1, silver(0.1));
+  const gs = ctx.createLinearGradient(0, Y(lit < 0 ? 0.012 : 0.022), 0, Y(lit < 0 ? 0.022 : 0.012));
+  gs.addColorStop(0, AG_LIT);
+  gs.addColorStop(0.5, AG_BODY);
+  gs.addColorStop(1, AG_SHADE);
   ctx.fillStyle = gs;
   ctx.fill(L.screwHeads);
-  ctx.strokeStyle = 'rgba(20,20,22,0.55)';
+  ctx.strokeStyle = rgba(AG_EDGE, 0.7);
   ctx.lineWidth = Math.max(0.5, 0.0003 * sc);
   ctx.stroke(L.screwKnurl);
-  ctx.strokeStyle = silver(0.45);
-  ctx.lineWidth = 0.8;
+  ctx.strokeStyle = rgba(AG_EDGE, 0.95);
+  ctx.lineWidth = 0.9 * hair;
+  ctx.stroke(L.screwTabs);
   ctx.stroke(L.screwHeads);
-  ctx.fillStyle = SILVER_BODY;
+  ctx.fillStyle = metalGrad(ctx, Y(lit * 0.0125), Y(-lit * 0.0125));
   ctx.fill(L.lig);
-  ctx.fillStyle = metalGrad(ctx, Y, 0.0125);
-  ctx.fill(L.lig);
-  ctx.fillStyle = metalGrad(ctx, Y, 0.0125);
-  ctx.fill(L.lig);
-  ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+  ctx.strokeStyle = rgba(AG_EDGE, 0.6);
   ctx.lineWidth = Math.max(0.6, 0.0004 * sc);
   ctx.stroke(L.ligRib);
-  ctx.strokeStyle = silver(0.5);
-  ctx.lineWidth = 0.9;
+  ctx.strokeStyle = rgba(AG_EDGE, 0.95);
+  ctx.lineWidth = 0.9 * hair;
   ctx.stroke(L.lig);
-  // ---- through the wood: the thumb's ring and the register key on the back (faint; lit under the thumb)
+  // ---- through the wood: the thumb's ring and the register key on the back (a faint dashed line; firm
+  // under the thumb)
   CL_KEYS.forEach((k, i) => {
     if (!k.back) return;
     // (the thumb on its ring; the register key's pad lifted by its lever)
     const q = k.style === 'ring' ? lv.keyPress[i] : keyPos[i];
-    ghostKey(ctx, X(k.x), Y(0), k.r * sc, k.style === 'ring' ? k.hole * sc * 1.3 : 0, q, sc);
+    ghostKey(ctx, X(k.x), Y(0), k.r * sc, k.style === 'ring' ? k.hole * sc * 1.3 : 0, q, sc, hair);
   });
   CL_TOUCHES.forEach((t, i) => {
     if (!t.back) return;
     const q = lv.touchPress[i];
     if (q > 0.01) {
-      ctx.fillStyle = rgba(INK.amber, 0.16 * q);
+      ctx.fillStyle = rgba(INK.light, 0.12 * q);
       ctx.fill(L.touches[i]);
     }
     ctx.save();
-    ctx.setLineDash([0.0016 * sc, 0.0012 * sc]);
-    ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.35 + 0.35 * q) : rgba(INK.ivory, 0.2);
-    ctx.lineWidth = 1;
+    ctx.setLineDash(q > 0.5 ? [] : [0.0016 * sc, 0.0012 * sc]);
+    ctx.strokeStyle = rgba(INK.light, q > 0.5 ? 0.3 + 0.4 * q : 0.28);
+    ctx.lineWidth = hair;
     ctx.stroke(L.touches[i]);
     ctx.restore();
   });
   // ---- the mechanism: rods (each a polished axle), hinge tubes
-  ctx.strokeStyle = 'rgb(46,47,50)';
-  ctx.lineWidth = Math.max(1, 0.002 * sc);
+  const wr = Math.max(hair, 0.002 * sc);
+  ctx.strokeStyle = `rgb(${AG_EDGE})`;
+  ctx.lineWidth = wr;
   ctx.stroke(L.rods);
-  ctx.strokeStyle = silver(0.5);
-  ctx.lineWidth = Math.max(0.6, 0.0007 * sc);
+  if (wr > 1.8) {
+    ctx.strokeStyle = AG_BODY;
+    ctx.lineWidth = wr - 1.2;
+    ctx.stroke(L.rods);
+  }
+  ctx.strokeStyle = AG_LIT;
+  ctx.lineWidth = Math.max(0.5 * hair, 0.0006 * sc);
   ctx.save();
-  ctx.translate(0, -0.0004 * sc);
+  ctx.translate(0, lit * 0.0004 * sc);
   ctx.stroke(L.rods);
   ctx.restore();
-  ctx.fillStyle = '#24231f';
+  ctx.fillStyle = AG_BODY;
   ctx.fill(L.hinges);
-  ctx.strokeStyle = silver(0.48);
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = rgba(AG_EDGE, 0.9);
+  ctx.lineWidth = hair;
   ctx.stroke(L.hinges);
   // ---- the keys: each on its arm from its hinge, cups lifting and seating on springs, the rings under
   // the fingers
@@ -897,7 +1016,7 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
     const rod = Y(k.rod);
     // (a long arm, to a rod across the body, is a slender lever)
     const long = Math.abs(k.rod - keyV(k)) > 0.012;
-    if (Math.abs(rod - cy) > ry) clArm(ctx, X(k.x), cy + (Math.sign(rod - cy) || 1) * ry * 0.75, rod, k.r * sc * (long ? 0.18 : 0.36), (long ? 0.0009 : 0.0013) * sc);
+    if (Math.abs(rod - cy) > ry) clArm(ctx, X(k.x), cy + (Math.sign(rod - cy) || 1) * ry * 0.75, rod, k.r * sc * (long ? 0.18 : 0.36), (long ? 0.0009 : 0.0013) * sc, hair);
   }
   CL_KEYS.forEach((k, i) => {
     if (k.back) return;
@@ -909,55 +1028,56 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
     const cx = X(k.x);
     const cy = Y(keyV(k)) + lift * sphi;
     const moved = k.closed ? p : 1 - p;
-    if (k.style === 'ring') clRing(ctx, cx, cy, k.r * sc, k.hole * sc, lv.keyPress[i], p);
-    else if (k.style === 'plain') clPlain(ctx, cx, cy, k.hole * sc, lv.keyPress[i]);
-    else clCup(ctx, cx, cy, k.r * sc, Math.max(0.6, k.r * sc * Math.abs(cphi)), p, moved, lift);
+    if (k.style === 'ring') clRing(ctx, cx, cy, k.r * sc, k.hole * sc, lv.keyPress[i], p, light);
+    else if (k.style === 'plain') clPlain(ctx, cx, cy, k.hole * sc, lv.keyPress[i], hair);
+    else clCup(ctx, cx, cy, k.r * sc, Math.max(0.6, k.r * sc * Math.abs(cphi)), p, moved, lift, light);
   });
-  // the touches: the levers and spatulas, lit amber under a finger
+  // the touches: the levers and spatulas, inked under a finger
   CL_TOUCHES.forEach((t, i) => {
     if (t.back) return;
     const q = lv.touchPress[i];
     const path = L.touches[i];
-    ctx.fillStyle = 'rgb(56,58,62)';
-    ctx.fill(path);
-    const g = ctx.createLinearGradient(0, Y(Math.min(t.v0, t.v1) - 0.003), 0, Y(Math.max(t.v0, t.v1) + 0.003));
-    g.addColorStop(0, silver(t.fixed ? 0.42 : 0.55));
-    g.addColorStop(0.5, silver(0.22));
-    g.addColorStop(1, silver(0.1));
+    const va = Math.min(t.v0, t.v1) - 0.003;
+    const vb = Math.max(t.v0, t.v1) + 0.003;
+    const g = ctx.createLinearGradient(0, Y(lit < 0 ? va : vb), 0, Y(lit < 0 ? vb : va));
+    g.addColorStop(0, AG_LIT);
+    g.addColorStop(0.5, AG_BODY);
+    g.addColorStop(1, '#a9b1b9');
     ctx.fillStyle = g;
     ctx.fill(path);
     if (q > 0.01) {
-      ctx.fillStyle = rgba(INK.amber, 0.5 * q);
+      ctx.fillStyle = rgba(INK.line, 0.62 * q);
       ctx.fill(path);
     }
-    ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.55 + 0.35 * q) : rgba(INK.ivory, t.fixed ? 0.32 : 0.45);
-    ctx.lineWidth = 1 + 0.4 * q;
+    ctx.strokeStyle = q > 0.5 ? rgba(INK.line, 0.6 + 0.35 * q) : rgba(AG_EDGE, t.fixed ? 0.75 : 0.95);
+    ctx.lineWidth = (1 + 0.5 * q) * hair;
     ctx.stroke(path);
   });
   // the pillars, over the rods
-  ctx.fillStyle = '#2a2825';
+  ctx.fillStyle = '#e4e7ea';
   ctx.fill(L.posts);
-  ctx.strokeStyle = silver(0.6);
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = rgba(AG_EDGE, 0.95);
+  ctx.lineWidth = hair;
   ctx.stroke(L.posts);
   // ---- the reed behind the beak (its outline and vamp, faint through the ebonite), and at the tip the
   // opening between its tip and the tip rail, seen a little from its end (drawn twice its size: 1.2 mm at
   // rest, shut once a cycle when the note is loud)
   ctx.save();
   ctx.setLineDash([0.0018 * sc, 0.0013 * sc]);
-  ctx.strokeStyle = 'rgba(226,196,130,0.3)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(232,206,146,0.36)';
+  ctx.lineWidth = hair;
   ctx.stroke(L.reed);
-  ctx.strokeStyle = 'rgba(226,196,130,0.16)';
+  ctx.strokeStyle = 'rgba(232,206,146,0.2)';
   ctx.stroke(L.vamp);
   ctx.restore();
-  clTipEye(ctx, X, Y, lv.open * 0.0024, sc);
+  clTipEye(ctx, X, Y, lv.open * 0.0024, sc, Math.min(1, 4 * lv.blow));
   // the breath into the mouthpiece: a faint stream from the lips, flowing in
   if (lv.blow > 0.02) {
     const a = Math.min(1, 0.3 + lv.blow) * (1 + 2.5 * lv.vib);
     breathStream(ctx, (b, w) => [X(-b), Y(w)], sc, [[0.017, 0.0046], [0.007, 0.0026], [0.0016, 0.0008]], 0.45 * a, now);
   }
-  // ---- the wave's line along the bore's axis, over everything (its nodes stand still)
+  // ---- the wave's line along the bore's axis, over everything (its nodes stand still): blue, a light line
+  // where it lies on the black wood and the ebonite (not on the ligature's silver)
   if (lv.sounding) {
     ctx.beginPath();
     const n = 160;
@@ -967,27 +1087,39 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
       if (i) ctx.lineTo(X(x), Y(-v));
       else ctx.moveTo(X(x), Y(-v));
     }
-    ctx.strokeStyle = rgba(INK.ivory, 0.75 * Math.min(1, 3 * lvl));
-    ctx.lineWidth = 1.2;
+    const a = Math.min(1, 3 * lvl);
+    ctx.strokeStyle = rgba(INK.sound, 0.9 * a);
+    ctx.lineWidth = 1.5 * hair;
     ctx.stroke();
+    ctx.save();
+    ctx.clip(day.dark);
+    ctx.strokeStyle = rgba(INK.light, 0.9 * a);
+    ctx.stroke();
+    ctx.restore();
+    ctx.save();
+    ctx.clip(L.lig);
+    ctx.strokeStyle = rgba(INK.sound, 0.9 * a);
+    ctx.stroke();
+    ctx.restore();
   }
   ctx.restore();
   clRecord(L, W, st, lv.fingers);
 }
 
-/** polished silver across a part of half-height h about the axis */
-function metalGrad(ctx: CanvasRenderingContext2D, Y: (v: number) => number, h: number): CanvasGradient {
-  const g = ctx.createLinearGradient(0, Y(-h), 0, Y(h));
-  g.addColorStop(0, silver(0.2));
-  g.addColorStop(0.2, silver(0.7));
-  g.addColorStop(0.34, silver(0.36));
-  g.addColorStop(0.64, silver(0.12));
-  g.addColorStop(0.9, silver(0.26));
-  g.addColorStop(1, silver(0.08));
+/** polished silver across a part, from its lit edge (y0) to its far one (y1): the window's light, the
+ *  body, its shade side, the floor's bounce */
+function metalGrad(ctx: CanvasRenderingContext2D, y0: number, y1: number): CanvasGradient {
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, '#bcc3ca');
+  g.addColorStop(0.18, AG_LIT);
+  g.addColorStop(0.36, AG_BODY);
+  g.addColorStop(0.66, AG_SHADE);
+  g.addColorStop(0.88, '#c2c8ce');
+  g.addColorStop(1, '#8d96a0');
   return g;
 }
 /** a key's arm: from its cup's edge (y0, half-width w0) narrowing to its hinge tube (y1, w1) */
-function clArm(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number, w0: number, w1: number): void {
+function clArm(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number, w0: number, w1: number, hair: number): void {
   const m = (y0 + y1) / 2;
   ctx.beginPath();
   ctx.moveTo(x - w0, y0);
@@ -995,65 +1127,79 @@ function clArm(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number,
   ctx.lineTo(x + w1, y1);
   ctx.bezierCurveTo(x + w1, m, x + w0 * 0.5, m, x + w0, y0);
   ctx.closePath();
-  ctx.fillStyle = '#282623';
+  ctx.fillStyle = '#b4bcc4';
   ctx.fill();
-  ctx.strokeStyle = rgba(INK.ivory, 0.4);
-  ctx.lineWidth = 0.9;
+  ctx.strokeStyle = rgba(AG_EDGE, 0.9);
+  ctx.lineWidth = 0.9 * hair;
   ctx.stroke();
 }
-/** a covered key's cup from the front: a silver dome, lifted `p` (1 open), lit amber where a finger or a
+/** a covered key's cup from the front: a silver dome, lifted `p` (1 open), inked where a finger or a
  *  linkage has moved it off its rest (`moved`), the pad's leather showing under its rim as it lifts */
-function clCup(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, p: number, moved: number, lift: number): void {
+function clCup(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, p: number, moved: number, lift: number, day: Light): void {
   const s = 0.965 + 0.035 * p;
   rx *= s;
   ry *= s;
   if (p > 0.02) {
+    // its shadow on the wood
     ctx.beginPath();
-    ctx.ellipse(cx + lift * 0.2, cy + lift * 0.35, rx * 1.02, Math.max(0.5, ry * 1.02), 0, 0, 2 * Math.PI);
-    ctx.fillStyle = `rgba(0,0,0,${(0.4 * p).toFixed(3)})`;
+    ctx.ellipse(cx + lift * 0.45 * day.cx, cy + lift * 0.45 * day.cy, rx * 1.02, Math.max(0.5, ry * 1.02), 0, 0, 2 * Math.PI);
+    ctx.fillStyle = `rgba(24,28,34,${(0.4 * p).toFixed(3)})`;
     ctx.fill();
   }
   ctx.beginPath();
   ctx.ellipse(cx, cy, rx, Math.max(0.5, ry), 0, 0, 2 * Math.PI);
-  ctx.fillStyle = 'rgb(48,50,54)';
-  ctx.fill();
-  const g = ctx.createLinearGradient(0, cy - ry, 0, cy + ry);
-  g.addColorStop(0, silver(0.78));
-  g.addColorStop(0.3, silver(0.42));
-  g.addColorStop(0.62, silver(0.07));
-  g.addColorStop(0.9, silver(0.26));
-  g.addColorStop(1, silver(0.12));
+  // (polished silver: a bright crown towards the light, a shade band, the floor's bounce at its skirt)
+  const g = ctx.createLinearGradient(0, cy + day.lit * ry, 0, cy - day.lit * ry);
+  g.addColorStop(0, AG_LIT);
+  g.addColorStop(0.32, '#e1e5e9');
+  g.addColorStop(0.66, AG_SHADE);
+  g.addColorStop(0.9, '#c2c8ce');
+  g.addColorStop(1, '#a9b1b9');
   ctx.fillStyle = g;
   ctx.fill();
   if (moved > 0.01) {
-    ctx.fillStyle = rgba(INK.amber, 0.14 * moved);
+    ctx.fillStyle = rgba(INK.line, 0.3 * moved);
     ctx.fill();
   }
-  ctx.strokeStyle = moved > 0.5 ? rgba(INK.amber, 0.45 + 0.35 * moved) : rgba(INK.ivory, 0.5);
-  ctx.lineWidth = 1 + 0.4 * moved;
+  ctx.strokeStyle = moved > 0.5 ? rgba(INK.line, 0.55 + 0.4 * moved) : rgba(AG_EDGE, 0.95);
+  ctx.lineWidth = (1 + 0.6 * moved) * day.hair;
   ctx.stroke();
   if (p > 0.05) {
     ctx.beginPath();
     ctx.ellipse(cx, cy + 0.5, rx * 1.02, Math.max(0.5, ry * 1.02), 0, 0.15 * Math.PI, 0.85 * Math.PI);
     ctx.strokeStyle = `rgba(214,190,150,${(0.45 * p).toFixed(3)})`;
+    ctx.lineWidth = day.hair;
     ctx.stroke();
   }
   if (ry > 2.5) {
     ctx.beginPath();
     ctx.ellipse(cx, cy, rx * 0.74, Math.max(0.4, ry * 0.74), 0, 0, 2 * Math.PI);
-    ctx.strokeStyle = rgba(INK.ivory, 0.16);
+    ctx.strokeStyle = rgba(INK.line, 0.18);
     ctx.lineWidth = 1;
     ctx.stroke();
     // the dome's highlight
     ctx.beginPath();
-    ctx.ellipse(cx - rx * 0.22, cy - ry * 0.4, rx * 0.26, Math.max(0.3, ry * 0.12), 0, 0, 2 * Math.PI);
-    ctx.fillStyle = silver(0.6);
+    ctx.ellipse(cx - rx * 0.22, cy + day.lit * ry * 0.4, rx * 0.26, Math.max(0.3, ry * 0.12), 0, 0, 2 * Math.PI);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.fill();
   }
 }
+/** a fingertip on a key or a hole: graphite (radius `r`; `q` how far it is down), edged in light where it
+ *  lies on the black wood (`hair` the line's width; 0 on a ring, which has its own edge) */
+function fingertip(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, q: number, hair: number): void {
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+  ctx.fillStyle = rgba(INK.line, 0.9 * q);
+  ctx.fill();
+  if (hair <= 0) return;
+  ctx.strokeStyle = rgba(INK.light, 0.5 * q);
+  ctx.lineWidth = hair;
+  ctx.stroke();
+}
 /** a ring key from the front: a thin silver ring round its tone hole's raised chimney; under the finger
- *  (`q`) the ring goes down and the fingertip covers the hole */
-function clRing(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, hole: number, q: number, p: number): void {
+ *  (`q`) the ring goes down and the fingertip covers the hole and the ring: an open hole is a bright ring,
+ *  a covered one dark */
+function clRing(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, hole: number, q: number, p: number, day: Light): void {
   const s = 0.965 + 0.035 * p;
   const ro = r * s;
   const ri = r * 0.74;
@@ -1070,65 +1216,50 @@ function clRing(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number
   ctx.arc(cx, cy, ro, 0, 2 * Math.PI);
   ctx.moveTo(cx + ri, cy);
   ctx.arc(cx, cy, ri, 0, 2 * Math.PI, true);
-  ctx.fillStyle = 'rgb(58,60,64)';
-  ctx.fill('evenodd');
-  const g = ctx.createLinearGradient(0, cy - ro, 0, cy + ro);
-  g.addColorStop(0, silver(0.75));
-  g.addColorStop(0.42, silver(0.3));
-  g.addColorStop(0.58, silver(0.42));
-  g.addColorStop(1, silver(0.12));
+  const g = ctx.createLinearGradient(0, cy + day.lit * ro, 0, cy - day.lit * ro);
+  g.addColorStop(0, AG_LIT);
+  g.addColorStop(0.42, AG_BODY);
+  g.addColorStop(0.58, '#e6e9ec');
+  g.addColorStop(1, AG_SHADE);
   ctx.fillStyle = g;
   ctx.fill('evenodd');
-  ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.5 + 0.35 * q) : rgba(INK.ivory, 0.5);
-  ctx.lineWidth = 1 + 0.4 * q;
+  ctx.strokeStyle = rgba(AG_EDGE, 0.95);
+  ctx.lineWidth = day.hair;
   ctx.beginPath();
   ctx.arc(cx, cy, ro, 0, 2 * Math.PI);
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(cx, cy, ri, 0, 2 * Math.PI);
-  ctx.strokeStyle = rgba(INK.ivory, 0.32);
-  ctx.lineWidth = 0.8;
+  ctx.strokeStyle = rgba(INK.line, 0.4);
+  ctx.lineWidth = 0.8 * day.hair;
   ctx.stroke();
-  if (q > 0.01) {
-    ctx.beginPath();
-    ctx.arc(cx, cy, ro * 0.95, 0, 2 * Math.PI);
-    ctx.fillStyle = rgba(INK.amber, 0.16 * q);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(cx, cy, ri * 1.02, 0, 2 * Math.PI);
-    ctx.fillStyle = rgba(INK.amber, 0.72 * q);
-    ctx.fill();
-  }
+  if (q > 0.01) fingertip(ctx, cx, cy, Math.max(ri * 1.02, ro - 0.5 * day.hair), q, 0);
 }
 /** L3's plain hole under its finger: the fingertip over the chimney */
-function clPlain(ctx: CanvasRenderingContext2D, cx: number, cy: number, hole: number, q: number): void {
+function clPlain(ctx: CanvasRenderingContext2D, cx: number, cy: number, hole: number, q: number, hair: number): void {
   if (q <= 0.01) return;
-  ctx.beginPath();
-  ctx.arc(cx, cy, hole * 1.35, 0, 2 * Math.PI);
-  ctx.fillStyle = rgba(INK.amber, 0.72 * q);
-  ctx.fill();
-  ctx.strokeStyle = rgba(INK.amber, 0.5 + 0.35 * q);
-  ctx.lineWidth = 1 + 0.4 * q;
-  ctx.stroke();
+  fingertip(ctx, cx, cy, hole * 1.35, q, hair);
 }
-/** a key on the back, seen through the wood: its outline dashed and faint, filled amber under the thumb
- *  (`q`); a ring's hole inside it */
-function ghostKey(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, hole: number, q: number, sc: number): void {
+/** a key on the back, seen through the wood: its outline a faint dashed light line, firm and faintly
+ *  filled under the thumb (`q`); a ring's hole inside it */
+function ghostKey(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, hole: number, q: number, sc: number, hair: number): void {
   ctx.save();
-  ctx.setLineDash([0.0016 * sc, 0.0012 * sc]);
+  const dash = [0.0016 * sc, 0.0012 * sc];
+  ctx.setLineDash(q > 0.5 ? [] : dash);
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, 2 * Math.PI);
   if (q > 0.01) {
-    ctx.fillStyle = rgba(INK.amber, 0.2 * q);
+    ctx.fillStyle = rgba(INK.light, 0.12 * q);
     ctx.fill();
   }
-  ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.4 + 0.35 * q) : rgba(INK.ivory, 0.22);
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = rgba(INK.light, q > 0.5 ? 0.3 + 0.4 * q : 0.28);
+  ctx.lineWidth = hair;
   ctx.stroke();
   if (hole > 0) {
+    ctx.setLineDash(dash);
     ctx.beginPath();
     ctx.arc(cx, cy, hole, 0, 2 * Math.PI);
-    ctx.strokeStyle = rgba(INK.ivory, 0.14);
+    ctx.strokeStyle = rgba(INK.light, 0.18);
     ctx.stroke();
   }
   ctx.restore();
@@ -1158,14 +1289,20 @@ export function tipEyePaths(X: (x: number) => number, Y: (v: number) => number, 
   out.forEach(([x, y], i) => (i ? reed.lineTo(x, y) : reed.moveTo(x, y)));
   return { gap, reed, rail };
 }
-function clTipEye(ctx: CanvasRenderingContext2D, X: (x: number) => number, Y: (v: number) => number, o: number, sc: number): void {
+/** the tip's opening: the dark gap, the rail's light edge on the ebonite, and the reed's tip, which is what
+ *  moves: cane at rest, in the blue of what sounds while it is blown (`blown` 0…1) */
+function clTipEye(ctx: CanvasRenderingContext2D, X: (x: number) => number, Y: (v: number) => number, o: number, sc: number, blown: number): void {
   const { gap, reed, rail } = tipEyePaths(X, Y, o);
   ctx.fillStyle = '#050404';
   ctx.fill(gap);
-  ctx.strokeStyle = 'rgba(236,212,160,0.9)';
-  ctx.lineWidth = Math.max(0.9, 0.0004 * sc);
-  ctx.stroke(reed);
-  ctx.strokeStyle = 'rgba(210,214,224,0.45)';
+  ctx.strokeStyle = rgba(INK.light, 0.4);
   ctx.lineWidth = Math.max(0.7, 0.00025 * sc);
   ctx.stroke(rail);
+  ctx.lineWidth = Math.min(1.5, Math.max(Math.min(1, sc / 600), 0.0007 * sc));
+  ctx.strokeStyle = 'rgba(206,176,116,0.95)';
+  ctx.stroke(reed);
+  if (blown > 0.01) {
+    ctx.strokeStyle = rgba(INK.sound, 0.9 * blown);
+    ctx.stroke(reed);
+  }
 }

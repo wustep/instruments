@@ -26,9 +26,12 @@ const rectOf = (page: Page, sel: string) =>
     return { x0: r.left, x1: r.right, y0: r.top, y1: r.bottom };
   }, sel) as Promise<Box | null>;
 const overlap = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
-/** the share of a box's pixels on the stage's canvas that carry ink (anything brighter than the ground) */
-const inked = (page: Page, b: Box) =>
-  page.evaluate((b) => {
+/** the share of a box's pixels on the stage's canvas that carry ink (anything drawn: the canvas is clear where nothing is,
+ *  whatever the ground under it). `near` (px): the share of the box that has ink within that distance instead (its cells
+ *  of that size that hold any). The vector lines used to be measured with their glow, which spread every line some 8 px;
+ *  the drafting sheet's lines have none (nothing glows), so they are asked the same question, said outright. */
+const inked = (page: Page, b: Box, near = 0) =>
+  page.evaluate(({ b, near }) => {
     const cv = document.querySelector('.stage-cv') as HTMLCanvasElement;
     const r = cv.getBoundingClientRect();
     const k = cv.width / r.width;
@@ -39,12 +42,24 @@ const inked = (page: Page, b: Box) =>
     const d = c2.getImageData(x0, y0, w, h).data;
     let n = 0;
     let m = 0;
+    if (near > 0) {
+      const c = Math.max(2, Math.round(near * k));
+      for (let cy = 0; cy + c <= h; cy += c) {
+        for (let cx = 0; cx + c <= w; cx += c) {
+          m++;
+          let any = false;
+          for (let y = cy; y < cy + c && !any; y++) for (let x = cx; x < cx + c; x++) if (d[4 * (y * w + x) + 3] > 40) { any = true; break; }
+          if (any) n++;
+        }
+      }
+      return m ? n / m : 0;
+    }
     for (let i = 0; i < d.length; i += 4 * 7) {
       m++;
-      if (Math.max(d[i], d[i + 1], d[i + 2]) > 60) n++;
+      if (d[i + 3] > 40) n++;
     }
     return n / m;
-  }, b);
+  }, { b, near });
 
 /** the stage's own style or the vector lines */
 async function setStyle(page: Page, vector: boolean) {
@@ -96,7 +111,7 @@ test('the double bass alone in 2D, both styles: whole on the stage, under the fi
         const room = b.x1 - b.x0 > b.y1 - b.y0 ? d.stage.x1 - d.stage.x0 : d.stage.y1 - under;
         expect(len / room, `${where}: its share of the stage`).toBeGreaterThan(phone ? 0.7 : 0.9);
         // drawn: ink over its box
-        expect(await inked(page, b), `${where}: drawn`).toBeGreaterThan(0.2);
+        expect(await inked(page, b, vector ? 8 : 0), `${where}: drawn`).toBeGreaterThan(0.2);
         // the hair as drawn: never over the file player; on a phone, at either end of its travel, all of
         // it on the stage under the player (on a laptop the bass fills the stage's length, and its bow,
         // with the frog or the tip on the string, runs past the stage's edge, as the cello's does)

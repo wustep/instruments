@@ -2,10 +2,12 @@
 // static meshes posed by model matrices (drawn instanced), and the live lines (strings' glow,
 // stopping marks, breath, wavefronts).
 //
-// The look is a studio product shot: an image-based light from a generated studio (a large overhead
-// softbox, a key softbox, two strip lights for the rims, dark walls), a warm key light with a soft
-// shadow, a cool rim light, ground-truth ambient occlusion (GTAO) so parts sit together, AgX tone
-// mapping, and a floor that takes the shadow and occlusion and fades into the page's own ground.
+// The look is a daylight studio at midday: an image-based light from a generated room (white plaster
+// all round, a skylight overhead, a tall north window of panes at one side, the wall opposite giving
+// the light back a little warmer), a cool-white key from the window's side with a soft shadow, a warm
+// fill from the other, next to no rim, ground-truth ambient occlusion (GTAO) so parts sit together,
+// neutral tone mapping a little over-exposed, and a pale floor that takes the shadow and occlusion and
+// runs out into the page's own ground: the wall, the floor and the page are one plaster white.
 // The scene renders into an HDR target (multisampled); a last pass applies the occlusion, tone maps,
 // and composites over the ground; the lines are drawn on top, tested against the scene's depth.
 //
@@ -17,7 +19,7 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import type { Batch, Mat4, Mesh, Mirror, Vec3 } from './gl3d.ts';
 import { LINE_FS, LINE_VS, type LineSet } from './gl3d.ts';
-import { SECTION, disposeMaterials, materialFor, setEnvironment } from './mats3.ts';
+import { ROOM_SHARE, SECTION, disposeMaterials, materialFor, setEnvironment } from './mats3.ts';
 import { MAT_LIST } from './mesh.ts';
 
 /** the shadow pass of a dissolving mesh: the same screen-door as its colour pass, so the shadow
@@ -77,10 +79,11 @@ void main() {
   vec3 s = toSRGB(NeutralToneMapping(col));
   // a little dither against banding in the dark gradients
   float d = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
-  // the backdrop: a seamless studio wall lit softly behind the instrument, falling off to the page's
-  // own ground at the edges (so the canvas still meets the page without a seam)
+  // the backdrop: the studio's white wall, at its brightest behind the instrument and the page's own
+  // ground at the edges (so the canvas still meets the page without a seam)
   vec2 q = (vUv - uGlowC) / uGlowR;
-  vec3 back = uGround + vec3(0.085, 0.077, 0.068) * uGlow * exp(-dot(q, q));
+  float lit = max(0.0, exp(-dot(q, q)) - 0.1) / 0.9;
+  vec3 back = mix(uGround, vec3(0.985, 0.988, 0.992), 0.72 * uGlow * lit);
   gl_FragColor = vec4(mix(back, s, a) + d / 255.0, 1.0);
 }`;
 const FINAL_VS = /* glsl */ `
@@ -96,8 +99,9 @@ void main() {
     vec2 o = vec2(float(i % 2) - 0.5, float(i / 2) - 0.5) * uTexel * 2.0;
     vec4 t = texture2D(tColor, vUv + o);
     // a soft knee, capped: a near-mirror metal's hot spot (hundreds over white) must not flood the
-    // blur into a fog ball
-    vec3 e = max(t.rgb - vec3(2.2), vec3(0.0));
+    // blur into a fog ball. (In daylight much of the picture is near white: only what is far over it
+    // blooms, the window's panes in brass and lacquer)
+    vec3 e = max(t.rgb - vec3(3.4), vec3(0.0));
     c += min(e / (1.0 + e * 0.35), vec3(2.0));
   }
   gl_FragColor = vec4(c * 0.25, 1.0);
@@ -112,8 +116,7 @@ void main() {
 }`;
 
 // a planar mirror (the polished underside of a grand's lid): the scene, drawn from the camera's mirror
-// image, added over the lacquer by its Fresnel reflectance (a little over-exposed, as the
-// lacquer's view of the studio is: mats3.ts)
+// image, added over the lacquer by its Fresnel reflectance
 const MIRROR_VS = /* glsl */ `
 uniform mat4 uTexM; varying vec4 vP; varying vec3 vW; varying vec3 vN;
 #include <clipping_planes_pars_vertex>
@@ -131,42 +134,47 @@ void main() {
   #include <clipping_planes_fragment>
   vec4 c = texture2DProj(tMirror, vP);
   float cosT = abs(dot(normalize(cameraPosition - vW), vN));
-  float F = min(0.05 + 0.95 * pow(1.0 - cosT, 5.0), 0.42);
-  gl_FragColor = vec4(c.rgb * F * 1.3 * uK, 0.0);
+  float F = min(0.05 + 0.95 * pow(1.0 - cosT, 5.0), 0.36);
+  gl_FragColor = vec4(c.rgb * F * uK, 0.0);
 }`;
 
 // the floor: a lit, shadowed surface whose coverage (alpha) fades into the ground with distance; on
-// it, the room's light (a pool as large as the room: gl3d's Pool). uPool: its radius, its rim's
-// half-width, the light past it (a share of the pool's) and the pool's lift with the sound; uPoolHot:
-// the rim brightened while the room's knob is under the pointer, turned or focused
+// it, the room's light (the skylight's patch, as large as the room: gl3d's Pool). uPool: its radius, its
+// rim's half-width, the light past it (a share of the patch's) and the patch's lift with the sound;
+// uPoolHot: the rim drawn (a faint ring of shade: on a white floor nothing can be brightened) while the
+// room's knob is under the pointer, turned or focused
 const FLOOR_FADE = /* glsl */ `
-uniform vec3 uFloorC; uniform vec2 uFloorR; uniform vec4 uPool; uniform float uPoolHot;
+uniform vec3 uFloorC; uniform vec2 uFloorR; uniform vec4 uPool; uniform float uPoolHot; uniform float uPoolIn;
 varying vec3 vWorldP;`;
 const FLOOR_FS = /* glsl */ `
 {
   float rr = length((vWorldP - uFloorC).xz);
   float inPool = 1.0 - smoothstep(uPool.x - uPool.y, uPool.x + uPool.y, rr);
   float e = (rr - uPool.x) / max(uPool.y, 1e-3);
-  float k = mix(uPool.z, 1.0 + uPool.w, inPool) + uPoolHot * 0.3 * exp(-e * e);
+  float k = mix(uPool.z, uPoolIn + uPool.w, inPool) - uPoolHot * 0.1 * exp(-e * e);
   gl_FragColor.rgb *= k;
   gl_FragColor.a *= 1.0 - smoothstep(uFloorR.x, uFloorR.y, rr);
 }`;
 
-/** a studio to light the scene with (and to see reflected in lacquer and brass) */
+/** A daylight studio to light the scene with, and to see reflected in lacquer and brass: white plaster
+ *  all round, a skylight overhead, a tall north window of panes at the key light's side, the wall
+ *  opposite giving the light back a little warmer. (World frame: the camera stands at −z and the key
+ *  light comes from −x, above and in front, so the window is the wall at −x.) */
 function studio(): THREE.Scene {
   const s = new THREE.Scene();
-  // dark walls: polished metal and lacquer read through contrast, bright cards against black
-  const room = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.02, 0.019, 0.018), side: THREE.BackSide }));
+  // the room: plaster in daylight, a tenth or so of the window's own brightness (as a room is: the eye
+  // and the exposure make it white, but polished metal and lacquer need the window to stand out of it)
+  const room = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.34, 0.345, 0.355), side: THREE.BackSide }));
   room.scale.set(30, 14, 30);
   room.position.y = 5;
   s.add(room);
-  // a floor a little lighter than the walls (the bounce under an instrument)
-  const flo = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.07, 0.06, 0.05) }));
+  // the floor: the cyc's sweep, a little under the walls (what stands on it shades it)
+  const flo = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.3, 0.3, 0.3) }));
   flo.rotation.x = -Math.PI / 2;
   flo.position.y = -1.9;
   s.add(flo);
-  // a softbox: brightest in the middle, feathered to nothing over `soft` of its half-size (a real
-  // diffuser's falloff; a hard-edged card reflects as a paper cut-out)
+  // a card of light (or of shade: k under the walls'): brightest in the middle, feathered to nothing
+  // over `soft` of its half-size (a diffuser's falloff; a hard-edged card reflects as a paper cut-out)
   const panel = (w: number, h: number, c: [number, number, number], k: number, pos: Vec3, look: Vec3, soft = 0.5) => {
     const g = new THREE.PlaneGeometry(w, h, 24, 24);
     const P = g.attributes.position;
@@ -184,29 +192,68 @@ function studio(): THREE.Scene {
       col[i * 3 + 2] = c[2] * k * f;
     }
     g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+    // (added to the wall behind it: a feathered card has no edge of its own)
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
     m.position.set(...pos);
     m.lookAt(...look);
     s.add(m);
   };
-  // as a product studio lights lacquer and metal: a large overhead softbox; a key softbox front
-  // left; a wide, feathered card behind the camera (a piano's black front and a bell's flare need
-  // something bright to reflect, or they read as holes); tall strips behind left and right for the
-  // rims, and two beside the camera for the long highlights down tubes and case edges; a low cool
-  // card in front
-  panel(10, 7, [1, 0.96, 0.9], 2.4, [0, 9, -0.5], [0, 0, 0], 0.45);
-  panel(5, 4, [1, 0.9, 0.78], 6.5, [-6, 5, -6], [0, 0, 0], 0.4);
-  panel(20, 7, [1, 0.97, 0.93], 1.5, [0, 3.6, -11], [0, 1.4, 0], 0.9);
-  panel(1.3, 9, [0.85, 0.9, 1], 7, [-8, 3, 7], [0, 1, 0], 0.5);
-  panel(1.3, 9, [0.85, 0.9, 1], 5.5, [8, 3, 6], [0, 1, 0], 0.5);
-  panel(1.6, 8, [1, 0.95, 0.88], 3.2, [-10, 3, -3], [0, 1, 0], 0.6);
-  panel(1.6, 8, [0.9, 0.94, 1], 2.4, [10, 3, -4], [0, 1, 0], 0.6);
-  panel(9, 1.8, [0.7, 0.78, 0.9], 0.9, [0, 0.4, -9], [0, 1, 0], 0.6);
-  // the lit floor in front of the instrument: what a piano's vertical black front, a bell's underside
-  // and a rib's lower edge reflect (they face down and out, at the floor, not at the softboxes)
-  panel(22, 16, [1, 0.93, 0.84], 0.55, [0, -1.85, -5], [0, 10, -5], 1.0);
+  // the skylight: a large diffusing ceiling over the instrument and a little towards the window, cool white
+  panel(13, 10, [0.94, 0.97, 1], 3.6, [-1.5, 9.6, -1.5], [0, 0, 0], 0.4);
+  // the north window: three bays of four panes in the wall at the key's side, the glazing bars between
+  // them left as wall (a bell and a lid show the panes; without the bars they would show a white blank)
+  for (let bay = 0; bay < 3; bay++)
+    for (let row = 0; row < 4; row++) {
+      const z = -8.4 + bay * 3.3;
+      const y = 1.3 + row * 1.9;
+      panel(2.9, 1.65, [0.9, 0.95, 1], 5.2, [-12.5, y, z], [0, y, z], 0.14);
+    }
+  // the wall opposite and the one behind the instrument: daylight come back off plaster, a little warmer
+  panel(18, 9, [1, 0.96, 0.9], 0.55, [12.5, 4, -1], [0, 3, 0], 0.85);
+  panel(22, 9, [1, 0.98, 0.95], 0.4, [0, 4.2, 12.5], [0, 3, 0], 0.9);
+  // the floor in front of the instrument, lit from above: what a piano's black front, a bell's underside
+  // and a rib's lower edge reflect (they face down and out, at the floor)
+  panel(22, 16, [1, 0.98, 0.95], 0.5, [0, -1.85, -5], [0, 10, -5], 1.0);
+  // behind the camera the room is deeper and in its own shade: a dark doorway there gives polished
+  // metal and lacquer one deep tone to turn against (in an all-white room they have no form)
+  const shade = new THREE.Mesh(new THREE.PlaneGeometry(9, 6.5), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.1, 0.105, 0.115), side: THREE.DoubleSide }));
+  shade.position.set(3.5, 2.2, -14.2);
+  s.add(shade);
+  // two black cards low at the room's edge, as a photographer stands them by polished metal: a tube lying
+  // level (a flute, a slide, a lid's edge) takes a dark line along its side from them, and has a form on a
+  // pale riser. Seen only in reflections.
+  const card = (w: number, h: number, pos: Vec3, look: Vec3) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.055, 0.058, 0.064), side: THREE.DoubleSide }));
+    m.position.set(...pos);
+    m.lookAt(...look);
+    s.add(m);
+  };
+  card(17, 2.6, [12.2, -0.4, -2], [0, -0.4, -2]);
+  card(26, 1.8, [0, -0.9, -13.8], [0, -0.9, 0]);
   return s;
 }
+
+/** The studio's daylight on a whole instrument. `key`, `rim`, `fill`: the three lights' strengths (the
+ *  key from the window's side and above, with the shadow; the rim from behind, next to nothing; the fill
+ *  low from the other side, warm); `env`: how much of the room's own light the materials take; `exposure`:
+ *  a little over (a high-key picture); `floor`: the cyc floor's white, chosen so that in this light it comes
+ *  out the page's ground (#eceff1) past the skylight's patch; `pool`: the light inside the patch (the room's
+ *  size: its knob stands where it ends), over the floor's own, so the patch is the brightest thing on the
+ *  floor and brighter than the wall behind; `past`: the light past the patch, as a share of the floor's; `lift`: how much of the sound's lift the patch takes (on white
+ *  there is little room over it). */
+export const DAY = {
+  key: 2.2,
+  rim: 0.25,
+  fill: 0.7,
+  env: ROOM_SHARE,
+  exposure: 1.06,
+  floor: [0.9, 0.915, 0.93] as [number, number, number],
+  pool: 1.45,
+  past: 0.95,
+  lift: 0.06,
+  /** how deep the key's shadow is (1: a lamp's in the dark) */
+  shade: 0.62,
+};
 
 /** the light of a piano key's action close up (a section: `Renderer3.closeUp`). Directions are
  *  towards the light, in the scene's own frame for a section cut from the treble end (x is mirrored
@@ -250,7 +297,8 @@ export class Renderer3 {
   private rim: THREE.DirectionalLight;
   private fill: THREE.DirectionalLight;
   private floor: THREE.Mesh;
-  private floorU = { uFloorC: { value: new THREE.Vector3() }, uFloorR: { value: new THREE.Vector2(1, 2) }, uPool: { value: new THREE.Vector4(1e3, 1, 1, 0) }, uPoolHot: { value: 0 } };
+  private floorMat: THREE.MeshPhysicalMaterial;
+  private floorU = { uFloorC: { value: new THREE.Vector3() }, uFloorR: { value: new THREE.Vector2(1, 2) }, uPool: { value: new THREE.Vector4(1e3, 1, 1, 0) }, uPoolHot: { value: 0 }, uPoolIn: { value: 1 } };
   /** the room's light pool's rim, brightened (0 … 1: its knob under the pointer, turned or focused) */
   poolHot = 0;
   private entries = new Map<Mesh, Entry>();
@@ -306,23 +354,25 @@ export class Renderer3 {
     pm.dispose();
     this.scene.environment = this.envRT.texture;
     setEnvironment(this.envRT.texture);
-    this.scene.environmentIntensity = 1.0;
-    // key (warm, soft shadow) and rim (cool, from behind)
-    this.key = new THREE.DirectionalLight(new THREE.Color(1, 0.93, 0.84), 2.6);
+    this.scene.environmentIntensity = DAY.env;
+    // key (the window and the skylight: cool white, a soft shadow) and rim (next to none)
+    this.key = new THREE.DirectionalLight(new THREE.Color(0.96, 0.98, 1), DAY.key);
     this.key.castShadow = true;
     const sz = lite ? 1024 : 2048;
     this.key.shadow.mapSize.set(sz, sz);
-    this.key.shadow.radius = lite ? 3 : 5;
+    this.key.shadow.radius = lite ? 5 : 9;
+    // (a white room fills its own shadows: the key's is a little over half as deep as a lamp's in the dark)
+    this.key.shadow.intensity = DAY.shade;
     this.key.shadow.bias = -0.0002;
     this.key.shadow.normalBias = 0.002;
     this.root.add(this.key, this.key.target);
-    this.rim = new THREE.DirectionalLight(new THREE.Color(0.8, 0.88, 1), 1.6);
+    this.rim = new THREE.DirectionalLight(new THREE.Color(1, 1, 1), DAY.rim);
     this.root.add(this.rim, this.rim.target);
-    // a soft fill from the other side, low (no shadow)
-    this.fill = new THREE.DirectionalLight(new THREE.Color(0.9, 0.92, 1), 0.55);
+    // a soft fill from the other side, low (no shadow): the opposite wall's warm white
+    this.fill = new THREE.DirectionalLight(new THREE.Color(1, 0.95, 0.88), DAY.fill);
     this.root.add(this.fill, this.fill.target);
-    // the floor
-    const fm = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(0.075, 0.062, 0.05), roughness: 0.8, metalness: 0, specularIntensity: 0.25, envMap: this.envRT.texture, envMapIntensity: 0.35, transparent: true, depthWrite: true });
+    // the floor: the cyc's own white, matt
+    const fm = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(...DAY.floor), roughness: 0.92, metalness: 0, specularIntensity: 0.2, envMap: this.envRT.texture, envMapIntensity: 0.3, transparent: true, depthWrite: true });
     fm.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, this.floorU);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWorldP;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWorldP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
@@ -330,6 +380,7 @@ export class Renderer3 {
         .replace('#include <common>', `#include <common>\n${FLOOR_FADE}`)
         .replace('#include <dithering_fragment>', `#include <dithering_fragment>\n${FLOOR_FS}`);
     };
+    this.floorMat = fm;
     this.floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), fm);
     this.floor.rotation.x = -Math.PI / 2;
     this.floor.receiveShadow = true;
@@ -357,12 +408,15 @@ export class Renderer3 {
     this.bloom = !lite;
     this.wireL = new LineLayer(this.rt.depthTexture!, THREE.NormalBlending, true);
     this.inkL = new LineLayer(this.rt.depthTexture!, THREE.NormalBlending);
-    this.glowL = new LineLayer(this.rt.depthTexture!, THREE.AdditiveBlending);
+    // (what sounds is drawn over the picture in the blue, not added to it: in daylight an added light is lost)
+    this.glowL = new LineLayer(this.rt.depthTexture!, THREE.NormalBlending);
     this.wireL.mesh.renderOrder = 0;
     this.inkL.mesh.renderOrder = 1;
     this.glowL.mesh.renderOrder = 2;
     this.lineScene.add(this.wireL.mesh, this.inkL.mesh, this.glowL.mesh);
     this.ao = !lite;
+    // (a handle for looking at the light while it is tuned: scripts and the console)
+    (globalThis as { __day?: typeof DAY }).__day = DAY;
   }
 
   private entry(m: Mesh, need: number): Entry {
@@ -642,7 +696,7 @@ export class Renderer3 {
     const keyDir = dir(b.key ?? [0.55, 0.78, -0.5], CLOSE.key);
     this.key.position.copy(C).add(keyDir.clone().multiplyScalar(radL * 3));
     this.key.target.position.copy(C);
-    this.key.intensity = mix(2.6, CLOSE.keyI);
+    this.key.intensity = mix(DAY.key, CLOSE.keyI);
     // the section's cut faces all face its open side: lit alike, by the key and the studio (mats3.ts)
     SECTION.light.value = (this.key.intensity * Math.max(0.15, keyDir.x * side)) / Math.PI + 0.3 * mix(1, CLOSE.env);
     const sc = this.key.shadow.camera;
@@ -656,24 +710,27 @@ export class Renderer3 {
     this.key.castShadow = this.shadows;
     this.rim.position.copy(C).add(dir([-0.6, 0.5, 0.75], CLOSE.rim).multiplyScalar(radL * 3));
     this.rim.target.position.copy(C);
-    this.rim.intensity = mix(1.6, CLOSE.rimI);
+    this.rim.intensity = mix(DAY.rim, CLOSE.rimI);
     this.fill.position.copy(C).add(dir([-0.8, 0.25, -0.55], CLOSE.fill).multiplyScalar(radL * 3));
     this.fill.target.position.copy(C);
-    this.fill.intensity = mix(0.55, CLOSE.fillI);
+    this.fill.intensity = mix(DAY.fill, CLOSE.fillI);
     // (and warm: a cool fill turned pale wood in the key's shadow olive)
-    this.fill.color.setRGB(mix(0.9, 1), mix(0.92, 0.9), mix(1, 0.78));
-    this.scene.environmentIntensity = mix(1, CLOSE.env);
+    this.fill.color.setRGB(1, mix(0.95, 0.9), mix(0.88, 0.78));
+    this.scene.environmentIntensity = mix(DAY.env, CLOSE.env);
     // floor
     const f = b.floor;
     this.floor.visible = !!f;
     if (f) {
+      this.floorMat.color.setRGB(DAY.floor[0], DAY.floor[1], DAY.floor[2]);
       this.floor.position.set(f.c[0], f.y, f.c[2]);
       this.floorU.uFloorC.value.set(-f.c[0], f.y, f.c[2]);
       this.floorU.uFloorR.value.set(f.r0, f.r1);
       // (no pool: the whole floor as one, as an ensemble's)
       const p = f.pool;
-      if (p) this.floorU.uPool.value.set(p.R, p.soft, 0.5, p.lift);
+      if (p) this.floorU.uPool.value.set(p.R, p.soft, DAY.past, p.lift * DAY.lift);
       else this.floorU.uPool.value.set(1e3, 1, 1, 0);
+      // (the skylight's patch is brighter than the floor round it; with no patch, an ensemble's, the floor is one)
+      this.floorU.uPoolIn.value = p ? DAY.pool : 1;
       this.floorU.uPoolHot.value = p ? this.poolHot : 0;
     }
     // camera (in the mirrored world)
@@ -752,10 +809,10 @@ export class Renderer3 {
         this.blurQ.render(r);
       }
     }
-    u.uBloom.value = this.bloom ? 0.35 : 0;
+    u.uBloom.value = this.bloom ? 0.22 : 0;
     // exposure: capped in the close-up, where pale felt and bare wood fill the frame under the key
     // light (at the whole instrument's exposure they clip to white)
-    u.toneMappingExposure.value = this.exposure = mix(1, CLOSE.exposure);
+    u.toneMappingExposure.value = this.exposure = mix(DAY.exposure, CLOSE.exposure);
     u.uAO.value = aoTex ? 1 : 0;
     u.uGround.value.setRGB(ground[0], ground[1], ground[2]);
     u.uRes.value.set(w, h);

@@ -1811,8 +1811,11 @@ test('a key’s close-up in 3D: its own light, the near plane in, zoom about its
     await page.evaluate((p) => (window as any).__piano.setPreset(p), preset);
     await openPicker(page).then(() => page.locator('.presets button', { hasText: preset }).click());
     await page.waitForFunction(() => (window as any).__stage3d?.stats.frames > 3);
-    // the whole piano: the instrument's own exposure, a near plane sized to it
-    expect(await s3<number>('s.r3.exposure'), preset).toBe(1);
+    // the whole piano: the daylight studio's own exposure (a high-key picture: a little over one, three3d.ts
+    // DAY.exposure), a near plane sized to it
+    const whole = await s3<number>('s.r3.exposure');
+    expect(whole, preset).toBeGreaterThanOrEqual(1);
+    expect(whole, preset).toBeLessThan(1.2);
     const nearOut = await s3<number>('s.r3.cam.near');
     expect(nearOut, preset).toBeGreaterThanOrEqual(0.01);
     {
@@ -1859,7 +1862,7 @@ test('a key’s close-up in 3D: its own light, the near plane in, zoom about its
       await page.evaluate(() => (window as any).__stage3d.zoomOut());
       await expect.poll(() => s3<number | null>('s.zoomed')).toBeNull();
       await page.waitForTimeout(900);
-      expect(await s3<number>('s.r3.exposure'), `${where}: back out`).toBe(1);
+      expect(await s3<number>('s.r3.exposure'), `${where}: back out`).toBe(whole);
       expect(await s3<number>('s.r3.cam.near'), `${where}: back out`).toBe(nearOut);
     }
   }
@@ -2954,7 +2957,7 @@ test('orchestra routing: a file on the one instrument shown goes onto several fr
 });
 
 
-test('the vector display: off by default; the toggle redraws every family in blue and amber with the chrome, is remembered, fits the page, and steps aside in 3D', async ({ page }, info) => {
+test('the vector drawing: off by default; the toggle redraws every family in graphite lines with what sounds in the blue, and the chrome with it, is remembered, fits the page, and steps aside in 3D', async ({ page }, info) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await startAudio(page);
@@ -2971,10 +2974,11 @@ test('the vector display: off by default; the toggle redraws every family in blu
   await expect(root).toHaveAttribute('data-style', 'vector');
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   expect(await ground()).not.toBe(classic);
-  expect(await ground()).toMatch(/^rgb\(0, 0, 0\) \/ "?Hershey/);
+  // (the sheet of drafting film: its own cool white, and the plotter's lettering)
+  expect(await ground()).toMatch(/^rgb\(243, 245, 248\) \/ "?Hershey/);
   expect(await page.evaluate(() => document.fonts.load('500 12px Hershey').then((f) => f.length))).toBeGreaterThan(0);
-  // one instrument of each family, sounding: the instrument's lines are blue, the sound amber, and
-  // nothing is filled (most of the stage stays black)
+  // one instrument of each family, sounding: the instrument's lines are graphite, the sound the blue, and
+  // nothing is filled (most of the sheet stays clear: what hides a line behind a part is the sheet's own white)
   for (const [id, midi] of [['piano', 60], ['violin', 67], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['bassoon', 50], ['horn', 53], ['timpani', 48], ['trumpet', 67]] as const) {
     await page.evaluate(async ([i, m]) => {
       const a = (window as any).__piano;
@@ -2987,19 +2991,20 @@ test('the vector display: off by default; the toggle redraws every family in blu
     const px = await page.evaluate(() => {
       const cv = document.querySelector('.stage-cv') as HTMLCanvasElement;
       const d = cv.getContext('2d')!.getImageData(0, 0, cv.width, cv.height).data;
-      let blue = 0, amber = 0, lit = 0;
+      let ink = 0, sound = 0, drawn = 0;
       for (let i = 0; i < d.length; i += 4) {
         if (d[i + 3] < 40) continue;
         const [r, g, b] = [d[i], d[i + 1], d[i + 2]];
-        if (r + g + b > 150) lit++;
-        if (b > 150 && b > r + 60) blue++;
-        if (r > 180 && g > 90 && r > b + 90) amber++;
+        // (anything darker than the sheet is drawn; graphite is dark and near neutral, the blue is the blue)
+        if (r + g + b < 600) drawn++;
+        if (r < 130 && g < 130 && b < 140 && b - r < 50) ink++;
+        if (b > 150 && b > r + 60) sound++;
       }
-      return { blue, amber, lit: lit / (d.length / 4) };
+      return { ink, sound, drawn: drawn / (d.length / 4) };
     });
-    expect(px.blue, `${id}: blue lines`).toBeGreaterThan(1500);
-    expect(px.amber, `${id}: amber sound`).toBeGreaterThan(300);
-    expect(px.lit, `${id}: lines, not fills`).toBeLessThan(0.25);
+    expect(px.ink, `${id}: graphite lines`).toBeGreaterThan(1500);
+    expect(px.sound, `${id}: the sound in the blue`).toBeGreaterThan(300);
+    expect(px.drawn, `${id}: lines, not fills`).toBeLessThan(0.25);
     await page.evaluate(([i, m]) => {
       (window as any).__piano.noteOff(m, 'keys');
       if (i === 'timpani') (window as any).__piano.setParams({ roll: 0 });
@@ -3008,7 +3013,7 @@ test('the vector display: off by default; the toggle redraws every family in blu
   // each knob wears its slot colour
   const slots = await page.evaluate(() => Array.from(document.querySelectorAll('.knob')).map((k) => (k as HTMLElement).style.getPropertyValue('--slot')));
   // (the trumpet's four: breath, lips, noise, vibrato, as the horn's)
-  expect(slots).toEqual(['#5be381', '#ff5d40', '#ff73cf', '#eef6f8']);
+  expect(slots).toEqual(['#14804a', '#d03b22', '#b8308a', '#0e141b']);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 'no horizontal scroll').toBeLessThanOrEqual(1);
   // the other pages keep their own look; back on the stage the choice is remembered (and across a reload)
   await page.goto('/#/notes');
@@ -3027,7 +3032,7 @@ test('the vector display: off by default; the toggle redraws every family in blu
     await expect(dim).toHaveAttribute('aria-pressed', 'false');
     await expect(root).toHaveAttribute('data-style', 'vector');
   }
-  // the pianos' action close-up follows: a black panel, the section in blue lines, nothing filled
+  // the pianos' action close-up follows: a sheet of the same film, the section in graphite lines, nothing filled
   await page.evaluate(() => (window as any).__piano.setInstrument('piano'));
   await page.waitForTimeout(400);
   {
@@ -3040,20 +3045,21 @@ test('the vector display: off by default; the toggle redraws every family in blu
     const panel = page.locator('.av-panel');
     await expect(panel).toBeVisible();
     await page.waitForTimeout(300);
-    expect(await panel.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(0, 0, 0)');
+    expect(await panel.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(243, 245, 248)');
     const av = await page.evaluate(() => {
       const c = document.querySelector('.av-cv') as HTMLCanvasElement;
       const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
-      let blue = 0, lit = 0;
+      let ink = 0, drawn = 0;
       for (let i = 0; i < d.length; i += 4) {
         if (d[i + 3] < 40) continue;
-        if (d[i] + d[i + 1] + d[i + 2] > 150) lit++;
-        if (d[i + 2] > 150 && d[i + 2] > d[i] + 60) blue++;
+        const [r, g, b] = [d[i], d[i + 1], d[i + 2]];
+        if (r + g + b < 600) drawn++;
+        if (r < 130 && g < 130 && b < 140 && b - r < 50) ink++;
       }
-      return { blue, lit: lit / (d.length / 4) };
+      return { ink, drawn: drawn / (d.length / 4) };
     });
-    expect(av.blue, 'close-up: blue lines').toBeGreaterThan(1500);
-    expect(av.lit, 'close-up: lines, not fills').toBeLessThan(0.2);
+    expect(av.ink, 'close-up: graphite lines').toBeGreaterThan(1500);
+    expect(av.drawn, 'close-up: lines, not fills').toBeLessThan(0.2);
     await page.keyboard.press('Escape');
     await expect(panel).toHaveCount(0);
   }

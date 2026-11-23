@@ -1,5 +1,5 @@
 // The link preview's picture, taken from the app itself: the og:image (the grand piano in 3D, its lid
-// raised, in its pool of light on the right of the card; the title alone in the dark on the left).
+// raised, in the daylight studio on the right of the card; the title alone on the plaster at the left).
 // Nothing is drawn but the title: the picture is the 3D canvas as the app renders it.
 //   pnpm build && pnpm preview --port 5417 --strictPort &
 //   BASE=http://localhost:5417 node scripts/og-media.mjs
@@ -33,11 +33,10 @@ const VIEW = { target: [-0.842659, 0.719902, -0.031585], yaw: 0.95, pitch: 0.3, 
  *  (842, 318), 548 px high, the left half left to the title. Checked before the still is taken: a
  *  change to the model or the lens that moves the piano is said, not photographed. */
 const BOX = { x0: 616, x1: 1068, y0: 44, y1: 592 };
-/** the title's line box (100 px, line-height 1) from the card's top left. Alone on the card, the
- *  word is centred by its ink, not its box: the ink's centre of weight, measured 45.4 px under the
- *  box's top, lies on the card's middle line (315). The capital then stands from y 272, the small
- *  letters from y 292, on a baseline at y 344: the letters' own middle (318) is the piano's. */
-const TITLE_AT = { left: 72, top: 270 };
+/** the title: 72 px from the card's left, 104 px, set light as the readout sets a note. Alone on the
+ *  card, the word is centred by its ink, not its box: the card measures the word's own ink (its
+ *  capital's top to its baseline) and puts the middle of that on the card's middle line (315). */
+const TITLE_AT = { left: 72, mid: 315, size: 104 };
 
 /** A 2x PNG to the card's JPEG: Lanczos to w×h, quality 90, 4:4:4 so the type's edges stay clean.
  *  (Pillow, not ffmpeg: ffmpeg's conversion to JPEG's colours moves the dark ground about a level
@@ -51,22 +50,37 @@ im.save(sys.argv[2], "JPEG", quality=90, subsampling=0, optimize=True, progressi
 const toJpg = (png, jpg, w, h) => execFileSync('python3', ['-c', TO_JPG, png, jpg, String(w), String(h)], { stdio: ['ignore', 'pipe', 'inherit'] });
 const font = (p) => `data:font/woff2;base64,${readFileSync(join(ROOT, 'apps/web/node_modules', p)).toString('base64')}`;
 
-/** The card: the still `bg`, darkened to the left so the title has clean ground, and the title as
- *  the site sets its display type (Newsreader italic, styles.css) */
+/** The card: the still `bg` on the studio's plaster, eased into the page's own ground at the left so the
+ *  title has clean ground, and the title as the site sets its display type (Ysabeau Office, light:
+ *  styles.css). The word is an SVG text, so its baseline can be put exactly. */
 function cardHtml(bg) {
+  const face = `300 ${TITLE_AT.size}px 'Ysabeau Office Variable'`;
   return `<!doctype html><html><head><meta charset="utf-8"><style>
-@font-face { font-family: 'Newsreader Variable'; font-style: italic; font-weight: 200 800; src: url(${font('@fontsource-variable/newsreader/files/newsreader-latin-opsz-italic.woff2')}) format('woff2-variations'); }
-html, body { margin: 0; width: ${W}px; height: ${H}px; overflow: hidden; background: #0e0d0b; }
-.bg { position: absolute; left: 0; top: 0; width: ${W}px; height: ${H}px; filter: brightness(1.11) contrast(1.1) saturate(1.08); }
-.shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(14,13,11,0.82) 0%, rgba(14,13,11,0.6) 30%, rgba(14,13,11,0) 52%), radial-gradient(ellipse 80% 90% at 70% 55%, rgba(14,13,11,0) 55%, rgba(14,13,11,0.6) 100%); }
-h1 { position: absolute; left: ${TITLE_AT.left}px; top: ${TITLE_AT.top}px; margin: 0; font: italic 400 100px/1 'Newsreader Variable', serif; font-variation-settings: 'opsz' 72; letter-spacing: -0.012em; color: #ece2ce; }
-</style></head><body><img class="bg" src="data:image/png;base64,${readFileSync(bg).toString('base64')}"><div class="shade"></div><h1>${TITLE}</h1></body></html>`;
+@font-face { font-family: 'Ysabeau Office Variable'; font-style: normal; font-weight: 1 1000; src: url(${font('@fontsource-variable/ysabeau-office/files/ysabeau-office-latin-wght-normal.woff2')}) format('woff2-variations'); }
+html, body { margin: 0; width: ${W}px; height: ${H}px; overflow: hidden; background: #eceff1; }
+.bg { position: absolute; left: 0; top: 0; width: ${W}px; height: ${H}px; }
+.shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(236,239,241,0.92) 0%, rgba(236,239,241,0.7) 30%, rgba(236,239,241,0) 50%); }
+svg { position: absolute; left: 0; top: 0; }
+text { font: ${face}; letter-spacing: -0.02em; fill: #1c222a; }
+</style></head><body><img class="bg" src="data:image/png;base64,${readFileSync(bg).toString('base64')}"><div class="shade"></div>
+<svg width="${W}" height="${H}"><text id="t" x="${TITLE_AT.left}" y="${TITLE_AT.mid}">${TITLE}</text></svg>
+<script>
+document.fonts.load(${JSON.stringify(face)}).then(() => {
+  // the word's ink: from its capital's top to its baseline (it has no descender), centred on the middle line
+  const c = document.createElement('canvas').getContext('2d');
+  c.font = ${JSON.stringify(face)};
+  const m = c.measureText(${JSON.stringify(TITLE)});
+  document.getElementById('t').setAttribute('y', String(${TITLE_AT.mid} + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2));
+  document.body.dataset.set = '1';
+});
+</script></body></html>`;
 }
 
 async function renderHtml(browser, html, w, h, path) {
   const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
   await page.setContent(html, { waitUntil: 'load' });
   await page.evaluate(() => document.fonts.ready);
+  await page.waitForFunction(() => document.body.dataset.set === '1');
   const bad = await page.evaluate(() => [...document.fonts].filter((f) => f.status !== 'loaded').map((f) => f.family));
   if (bad.length) throw new Error(`fonts not loaded: ${bad}`);
   await page.screenshot({ path });

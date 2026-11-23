@@ -58,9 +58,9 @@ describe('the ring glow', () => {
     }
   });
 
-  it('is a warm light at a strength kept with the app’s others: under a third of the glockenspiel’s old one', () => {
-    expect(RING_TINT[0]).toBeGreaterThanOrEqual(RING_TINT[1]);
-    expect(RING_TINT[1]).toBeGreaterThan(RING_TINT[2]);
+  it('is the blue that means sound, at a strength kept with the app’s others: under a third of the glockenspiel’s old one', () => {
+    expect(RING_TINT[2]).toBeGreaterThan(RING_TINT[1]);
+    expect(RING_TINT[1]).toBeGreaterThan(RING_TINT[0]);
     const out: [number, number, number, number] = [0, 0, 0, 0];
     expect(ringRGBA(0, out)).toBeNull();
     const full = ringRGBA(1, out)!;

@@ -1,9 +1,9 @@
-// The ring glow of the struck instruments in 3D: a glockenspiel's bar, a timpano's head. One light for both,
-// kept with the app's other 3D light (a trumpet's pressed piston: [1, 0.62, 0.34] at 0.05; the timpani's
-// heads had 0.13; the strings' stopped note is a line of amber), never a lamp: warm, and at its strongest on
-// a fortissimo stroke a faint warmth over the metal or the calfskin. It is passed with a negative alpha:
-// mats3 then casts what the part reflects in the light's colour as well as adding the light, so a
-// near-white head shows it where added light clips (the other glows, alpha 0 … 1, are added light only).
+// The ring of the struck instruments in 3D: a glockenspiel's bar, a timpano's head. One mark for both, and
+// in daylight it is not a lamp but a cast: what rings takes a breath of the one blue that means sound (the
+// strings' sounding note is a line of it), at its strongest on a fortissimo stroke a faint blue over the
+// steel or the calfskin. It is passed with a negative alpha: mats3 then casts what the part reflects in
+// the colour as well as adding it, so a near-white head shows it where an added light would only clip (the
+// other glows, alpha 0 … 1, are added light only).
 //
 // What it follows is the engine's own measure of the ring (the glockenspiel's `amp`: 0 … 1 of a hard
 // stroke's swing; a drum's `level`): it lights on the stroke, as the engine's level is a peak held as it
@@ -14,8 +14,8 @@
 // instrument alone does.
 import type { RGBA } from './gl3d.ts';
 
-/** the light's colour (linear-ish rgb, squared in the shader: mats3 `vGlow.rgb²`) */
-export const RING_TINT: readonly [number, number, number] = [1, 0.78, 0.5];
+/** the cast's colour (linear-ish rgb, squared in the shader: mats3 `vGlow.rgb²`): the blue, paled */
+export const RING_TINT: readonly [number, number, number] = [0.42, 0.58, 1];
 /** its strength at a hard stroke (the instance's glow alpha: the shader's emission is rgb² · a · 0.55) */
 export const RING_MAX = 0.3;
 /** how far below a hard stroke the light is gone (dB) */

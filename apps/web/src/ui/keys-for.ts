@@ -2,7 +2,7 @@
 // ensemble's instruments, each a glyph, lit when the keys play it (a tap
 // adds or takes one; the last one stays), then "split" (a chord dealt out by register, one note to
 // each instrument). On a phone the row waits behind one button showing what the keys play, as the
-// knobs wait behind ◐. No words on the stage: each control has a tooltip and an accessible name.
+// knobs wait behind their dial. No words on the stage: each control has a tooltip and an accessible name.
 
 import { VOICE_INFO } from '../orchestra/assign.ts';
 import { ensemble } from '../orchestra/ensemble.ts';

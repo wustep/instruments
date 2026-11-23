@@ -46,15 +46,15 @@ export function drawHornV(ctx: CanvasRenderingContext2D, W: number, H: number, f
   /** hide what lies behind a shape: lines only, but a nearer part still covers a farther one */
   const mask = (path: Path2D) => {
     ctx.save();
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = V.ground;
     ctx.fill(path);
     ctx.restore();
   };
   // ---- the bell: its flare's edges and sections (behind the circle's tubes)
   const B = L.bell;
   mask(B.flare);
-  beam(ctx, B.edges, V.blue, lw);
-  beam(ctx, bellSections(L), V.blueDim, 1, { alpha: 0.8 });
+  beam(ctx, B.edges, V.ink, lw);
+  beam(ctx, bellSections(L), V.inkDim, 1, { alpha: 0.8 });
   // (the standing wave, hatched across the bore along the air's path: each run's drawn with its own tube,
   // so a nearer tube hides it as it hides the tube)
   const hatch = lv.sounding ? airHatch(L, lv, small) : null;
@@ -70,16 +70,16 @@ export function drawHornV(ctx: CanvasRenderingContext2D, W: number, H: number, f
       if (t.layer !== layer) continue;
       const on = onPath.has(t.id);
       mask(t.body);
-      beam(ctx, t.edges, on ? V.blue : V.blueDim, on ? lw : 1, { alpha: on ? 1 : 0.85 });
+      beam(ctx, t.edges, on ? V.ink : V.inkDim, on ? lw : 1, { alpha: on ? 1 : 0.85 });
       if (on) wave(t.id);
     }
-  beam(ctx, L.ferrules, V.blueMid, 1, { alpha: 0.7 });
-  beam(ctx, L.braces, V.blueDim, 1);
+  beam(ctx, L.ferrules, V.inkMid, 1, { alpha: 0.7 });
+  beam(ctx, L.braces, V.inkDim, 1);
   // the mouth over everything behind it: its inside masked, the rim
   mask(B.mouth);
-  beam(ctx, B.mouth, V.blue, lw + 0.3, { hot: !small });
+  beam(ctx, B.mouth, V.ink, lw + 0.3, { hot: !small });
   // the passages through the valves (dashed: the rotors cover them)
-  if (hatch) for (const [, h] of hatch) if (h.hidden) beam(ctx, h.line, V.amber, 1, { alpha: 0.5 * fade, dash: [2, 3] });
+  if (hatch) for (const [, h] of hatch) if (h.hidden) beam(ctx, h.line, V.sound, 1, { alpha: 0.5 * fade, dash: [2, 3] });
   // ---- the rotors: casing and cap rings, the passages (turning), the crank
   ROT_Y.forEach((y, k) => {
     const cx = X(ROT_X);
@@ -88,9 +88,9 @@ export function drawHornV(ctx: CanvasRenderingContext2D, W: number, H: number, f
     const casing = new Path2D();
     casing.arc(cx, cy, ROT_R * sc, 0, 2 * Math.PI);
     mask(casing);
-    beam(ctx, casing, V.blue, lw);
+    beam(ctx, casing, V.ink, lw);
     const r = CAP_R * sc;
-    ring(ctx, cx, cy, r, mix(V.blueMid, V.blue, q), 1);
+    ring(ctx, cx, cy, r, mix(V.inkMid, V.ink, q), 1);
     const a = (Math.PI / 2) * q;
     const pass = new Path2D();
     for (const sg of [-1, 1]) {
@@ -106,37 +106,37 @@ export function drawHornV(ctx: CanvasRenderingContext2D, W: number, H: number, f
     const capClip = new Path2D();
     capClip.arc(cx, cy, r * 0.98, 0, 2 * Math.PI);
     ctx.clip(capClip);
-    beam(ctx, pass, mix(V.blueDim, V.white, 0.6 * q), 1, { alpha: 0.7 + 0.3 * q, hot: q > 0.5 });
+    beam(ctx, pass, mix(V.inkDim, V.deep, 0.6 * q), 1, { alpha: 0.7 + 0.3 * q, hot: q > 0.5 });
     ctx.restore();
     const ca = crankAngle(k, lv.press[k]);
     const bx = cx + Math.cos(ca) * CRANK * sc;
     const by = cy - Math.sin(ca) * CRANK * sc;
-    seg(ctx, cx, cy, bx, by, mix(V.blueMid, V.white, 0.6 * q), lw, { hot: q > 0.5 });
-    ring(ctx, bx, by, Math.max(1.2, 0.0022 * sc), V.blue, 1);
+    seg(ctx, cx, cy, bx, by, mix(V.inkMid, V.deep, 0.6 * q), lw, { hot: q > 0.5 });
+    ring(ctx, bx, by, Math.max(1.2, 0.0022 * sc), V.ink, 1);
   });
   // ---- the lever bar, the links, the paddles (bright under the fingers)
-  seg(ctx, X(BAR_X), Y(LEVERS[0].hub[1]), X(BAR_X), Y(-0.06), V.blue, lw + 0.4, { butt: true });
+  seg(ctx, X(BAR_X), Y(LEVERS[0].hub[1]), X(BAR_X), Y(-0.06), V.ink, lw + 0.4, { butt: true });
   LEVERS.forEach((lvr, k) => {
     const q = clamp(lv.press[k], 0, 1);
     const ca = crankAngle(k, lv.press[k]);
     const bx = X(ROT_X) + Math.cos(ca) * CRANK * sc;
     const by = Y(ROT_Y[k]) - Math.sin(ca) * CRANK * sc;
-    seg(ctx, X(lvr.hub[0] - 0.006 - 0.003 * q), Y(lvr.hub[1]), bx, by, mix(V.blueDim, V.blue, q), 1);
+    seg(ctx, X(lvr.hub[0] - 0.006 - 0.003 * q), Y(lvr.hub[1]), bx, by, mix(V.inkDim, V.ink, q), 1);
     const fx = 1 - 0.1 * lv.press[k];
     const tip: P = [lvr.hub[0] + (lvr.tip[0] - lvr.hub[0]) * fx, lvr.hub[1] + (lvr.tip[1] - lvr.hub[1]) * fx];
     const p = paddle(X, Y, lvr.hub, tip, lvr.w0, lvr.w1);
     mask(p);
-    beam(ctx, p, mix(V.blueMid, V.white, 0.55 * q), lw + 0.4 * q, { hot: q > 0.5 });
-    ring(ctx, X(lvr.hub[0]), Y(lvr.hub[1]), Math.max(1.4, 0.0032 * sc), V.blue, 1);
+    beam(ctx, p, mix(V.inkMid, V.deep, 0.55 * q), lw + 0.4 * q, { hot: q > 0.5 });
+    ring(ctx, X(lvr.hub[0]), Y(lvr.hub[1]), Math.max(1.4, 0.0032 * sc), V.ink, 1);
   });
   {
     const hook = new Path2D();
     HOOK.forEach(([x, y], i) => (i ? hook.lineTo(X(x), Y(y)) : hook.moveTo(X(x), Y(y))));
-    beam(ctx, hook, V.blueMid, lw);
+    beam(ctx, hook, V.inkMid, lw);
   }
   // ---- the mouthpiece, and the slots at it
   mask(L.mp);
-  beam(ctx, L.mp, V.blue, lw);
+  beam(ctx, L.mp, V.ink, lw);
   wave('mp');
   slots(ctx, L, lv, st, fr, now, small, lw);
   ctx.restore();
@@ -231,7 +231,7 @@ export function strokeHatch(ctx: CanvasRenderingContext2D, h: Hatch, fade: numbe
     const l = (i + 1) / LEVELS;
     beam(ctx, p, heat(0.25 + 0.75 * l), 1, { alpha: Math.min(1, (0.18 + 0.82 * l) * fade), butt: true });
   });
-  beam(ctx, h.line, V.amber, small ? 1.1 : 1.4, { alpha: (0.45 + 0.4 * lvl) * fade, hot: lvl > 0.5 });
+  beam(ctx, h.line, V.sound, small ? 1.1 : 1.4, { alpha: (0.45 + 0.4 * lvl) * fade, hot: lvl > 0.5 });
 }
 
 /** the four slots at the mouthpiece, drawn as on the reeds: the breath (green) flowing into the lips, the
@@ -287,5 +287,5 @@ export function slots(ctx: CanvasRenderingContext2D, L: Pick<HnLayout, 'sc' | 'o
     pt.mean += (focus.f1 - pt.mean) * Math.min(1, dt / 0.6);
     pt.dev = focus.f1 / pt.mean - 1;
   } else pt.dev *= 0.85;
-  ring(ctx, gx, gy, hr + 3.5 + clamp(Math.abs(pt.dev) * 900, 0, 6), V.white, 1, { alpha: 0.4 + 0.5 * Math.min(1, Math.abs(pt.dev) * 300 + (playing ? 0.3 : 0)) });
+  ring(ctx, gx, gy, hr + 3.5 + clamp(Math.abs(pt.dev) * 900, 0, 6), V.deep, 1, { alpha: 0.4 + 0.5 * Math.min(1, Math.abs(pt.dev) * 300 + (playing ? 0.3 : 0)) });
 }

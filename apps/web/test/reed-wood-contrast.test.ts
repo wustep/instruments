@@ -1,5 +1,7 @@
 // The clarinet's and the oboe's grenadilla, drawn in the 2D style, must read against the stage: it was
-// #14100c on a stage of #0e0d0b to #13100d (contrast 1.0-1.03, the body vanished on a phone).
+// #14100c on a night stage of #0e0d0b to #13100d (contrast 1.0-1.03, the body vanished on a phone). The
+// stage is pale plaster now (#eceff1, a breath brighter behind the instrument), where any dark wood stands
+// off it; the wood stays grenadilla, dark, not lifted towards the ground.
 import { describe, expect, it } from 'vitest';
 import { WOOD as CLARINET_WOOD } from '../src/ui/clarinet-draw.ts';
 import { WOOD as OBOE_WOOD } from '../src/ui/oboe-draw.ts';
@@ -13,7 +15,7 @@ const contrast = (a: string, b: string): number => {
   return (x + 0.05) / (y + 0.05);
 };
 // the stage's ground (styles.css --ground) and the lightest the stage's light makes it behind the body
-const STAGE = ['#0e0d0b', '#13100d'];
+const STAGE = ['#eceff1', '#f7f9fa'];
 
 describe('the reeds’ wood against the stage', () => {
   for (const [name, wood] of [['clarinet', CLARINET_WOOD], ['oboe', OBOE_WOOD]] as const)

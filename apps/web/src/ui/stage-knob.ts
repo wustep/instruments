@@ -1,8 +1,9 @@
 // A knob on the stage itself: the grand's lid and the room (the reverb), in 2D and in 3D. Drawn as
 // the fallboard's knobs are (ui/controls.ts: ticks, track, the value's arc, the cap and its pointer;
-// the same classes, so the vector style draws it too) on a dark disc that keeps it legible over the
-// instrument, with no engraved word: the stage stays wordless, and the knob says what it is and its
-// value in a tooltip (data-tip, as the grips did) and to assistive tech (a slider).
+// the same classes, so the vector style draws it too) on a paper disc that stands off the instrument by
+// its shadow, with no engraved word: the stage stays wordless. So that the two are not one drawing
+// twice, each cap carries its sign (the lid: a lid ajar; the room: a sound and the wall it reaches), and
+// the knob says what it is and its value in a tooltip (data-tip) and to assistive tech (a slider).
 // Turned by dragging (up or right = more, Shift for fine), by the wheel, or from the keyboard (the
 // arrows by 0.05, Home and End to the ends). A knob with notches (the 3D lid: shut, the short stick,
 // the long stick) clicks from one to the next as it is turned, and its arrows step a notch; without,
@@ -83,15 +84,24 @@ const arc = (r: number, a0: number, a1: number) => {
   return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
 };
 
+/** each knob's sign on its cap (the face is 40 × 40, the cap's middle 20, 20): the lid a lid ajar on its
+ *  case, the room a point of sound and two fronts leaving it */
+const SIGNS: Record<string, string> = {
+  lid: 'M15.6 22.4h8.8M15.6 22.4l7.4-4.6',
+  room: 'M16.4 20h.01M19 17.6a3.4 3.4 0 0 1 0 4.8M21.4 15.8a6 6 0 0 1 0 8.4',
+};
+
 export function stageKnob(c: StageKnobSpec): StageKnob {
   const bg = svg('circle', { cx: 20, cy: 20, r: 19.4, class: 'sk-bg' });
   const ticks = svg('g', { class: 'k-ticks' });
   const track = svg('path', { d: arc(15, A0, A1), class: 'k-track' });
   const val = svg('path', { d: arc(15, A0, A0 + 0.01), class: 'k-val-arc' });
   const cap = svg('circle', { cx: 20, cy: 20, r: 10.5, class: 'k-cap' });
-  const ptr = svg('line', { x1: 20, y1: 20, x2: 20, y2: 11, class: 'k-ptr' });
+  const ptr = svg('line', { x1: 20, y1: 13.2, x2: 20, y2: 10.2, class: 'k-ptr' });
+  // the cap's sign (24 × 24 about the cap's middle; the pointer is a mark at the cap's rim, clear of it)
+  const sign = svg('path', { d: SIGNS[c.name] ?? '', class: 'sk-sign' });
   const face = svg('svg', { viewBox: '0 0 40 40', class: 'k-face', 'aria-hidden': 'true' });
-  face.append(bg, ticks, track, val, cap, ptr);
+  face.append(bg, ticks, track, val, cap, sign, ptr);
   const el = h('div', { class: `stage-knob knob-${c.name}`, role: 'slider', tabindex: '0', 'aria-label': c.label, 'aria-valuemin': '0', 'aria-valuemax': '1' });
   el.append(face as unknown as Node);
 
@@ -118,8 +128,11 @@ export function stageKnob(c: StageKnobSpec): StageKnob {
       shown = v;
       const a = knobAngle(v);
       val.setAttribute('d', arc(15, A0, Math.max(A0 + 0.01, a)));
-      ptr.setAttribute('x2', (20 + 9 * Math.sin(a)).toFixed(2));
-      ptr.setAttribute('y2', (20 - 9 * Math.cos(a)).toFixed(2));
+      // (a mark at the cap's rim, turned with the value: the cap's middle is its sign's)
+      ptr.setAttribute('x1', (20 + 6.9 * Math.sin(a)).toFixed(2));
+      ptr.setAttribute('y1', (20 - 6.9 * Math.cos(a)).toFixed(2));
+      ptr.setAttribute('x2', (20 + 9.9 * Math.sin(a)).toFixed(2));
+      ptr.setAttribute('y2', (20 - 9.9 * Math.cos(a)).toFixed(2));
       el.setAttribute('aria-valuenow', String(v));
     }
     const t = c.text(v);

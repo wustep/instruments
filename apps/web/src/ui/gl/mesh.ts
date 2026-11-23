@@ -175,6 +175,9 @@ export const M = {
   chrome: { col: hex('#e6e7ea'), rough: 0.07, metal: 1 },
   frameBlack: { col: hex('#141414'), rough: 0.4, metal: 0 },
   rubberGrip: { col: hex('#1a1a1a'), rough: 0.8, metal: 0 },
+  // the studio's risers (scenes3d.ts): decks of pale birch ply on fascias painted the cyc's white
+  stageDeck: { col: hex('#d4ccbc'), rough: 0.62, metal: 0 },
+  stagePaint: { col: hex('#e6e8ea'), rough: 0.88, metal: 0 },
 } satisfies Record<string, Mat>;
 for (const [k, m] of Object.entries(M)) (m as Mat).name = k;
 /** a variant of a shared material (same shading family, its own colour or maps) */

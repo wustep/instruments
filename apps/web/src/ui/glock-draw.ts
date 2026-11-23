@@ -3,15 +3,16 @@
 // rails (a wooden strip with felt on it under each row of nodes), thirty steel bars in two rows standing
 // over the tray (each casts its shadow on it), bevelled, each on its two pins through its nodes, its note
 // stamped at its near end as a glockenspiel's bars are. And its live state, the engine's own (the frame's
-// `glock`): a bar that rings is lit where it moves, as far as the engine says it swings (its first bending
-// mode, `barShape`: brightest at its ends and its middle, dark at the two nodes, which is why the pins are
-// there); a stroke leaves a ring where it landed for a fifth of a second; and the two mallets are where the
+// `glock`): a bar that rings is washed in the blue where it moves, as far as the engine says it swings (its
+// first bending mode, `barShape`: most at its ends and its middle, nothing at the two nodes, which is why the
+// pins are there); a stroke leaves a ring where it landed for a fifth of a second; and the two mallets are where the
 // engine's two hands are: each hangs over the bar it last struck, comes down on a bar as it is struck and
-// springs back up.
+// springs back up. Painted for daylight: the case casts one soft shadow on the studio's floor, and what rings
+// is drawn in the blue (a bar's motion a wash by its level and an outline, a stroke's ring), never as a glow.
 import type { VisualFrame } from '@piano-model/engine';
 import { barShape } from '@piano-model/engine';
 import { BARS, BAR_W, CASE, GK_X0, GK_X1, GK_Y0, GK_Y1, HEAD_R, HOLE_R, PIN_R, RAILS, RAIL_W, SHAFT, TRAY, barBox, barCentre, barNodes, type P, strokePlace, HOVER, malletHeight } from './glock-plan.ts';
-import { INK, rgba } from './stage-draw.ts';
+import { CANVAS_FONT, INK, SILVER, floorShadow, rgba, type FloorShadow } from './stage-draw.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface GlockState {
@@ -43,6 +44,8 @@ export interface GkLayout {
   trayPath: Path2D;
   corners: Path2D;
   rails: Path2D;
+  /** the case's shadow on the floor (made when it is first drawn; null where there is no canvas) */
+  shade?: FloorShadow | null;
 }
 const layouts = new Map<string, GkLayout>();
 
@@ -167,17 +170,23 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
   ctx.save();
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
-  // ---- the case: a wooden rim (lit along its top edges) round a dark tray, a plate on each corner
+  // ---- the case's shadow on the floor (kept with the layout)
+  if (L.shade === undefined) {
+    const k = ((GK_X1 - GK_X0) * sc) / 700;
+    L.shade = floorShadow({ x0: X(GK_X0), y0: Y(GK_Y1), x1: X(GK_X1), y1: Y(GK_Y0) }, Math.max(2, 24 * k), 7 * k, 12 * k, (c) => c.fill(L.casePath));
+  }
+  if (L.shade) ctx.drawImage(L.shade.cv, L.shade.x, L.shade.y, L.shade.w, L.shade.h);
+  // ---- the case: a wooden rim (rosewood, in daylight) round a dark tray, a plate on each corner
   {
     const g = ctx.createLinearGradient(0, Y(GK_Y1), 0, Y(GK_Y0));
-    g.addColorStop(0, '#3a2414');
-    g.addColorStop(0.5, '#4a2f1a');
-    g.addColorStop(1, '#5a3a20');
+    g.addColorStop(0, '#6a4428');
+    g.addColorStop(0.5, '#5c3a20');
+    g.addColorStop(1, '#4c2e18');
     ctx.fillStyle = g;
     ctx.fill(L.casePath);
     const t = ctx.createLinearGradient(0, Y(GK_Y1), 0, Y(GK_Y0));
-    t.addColorStop(0, '#120c07');
-    t.addColorStop(1, '#1d140c');
+    t.addColorStop(0, '#1e1610');
+    t.addColorStop(1, '#2a2018');
     ctx.fillStyle = t;
     ctx.fill(L.trayPath);
     if (!small) {
@@ -188,23 +197,24 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
       ctx.lineWidth = 0.016 * sc;
       ctx.stroke(L.trayPath);
       ctx.restore();
-      ctx.fillStyle = '#8f8a80';
+      // (nickel plates)
+      ctx.fillStyle = SILVER.body;
       ctx.fill(L.corners);
-      ctx.strokeStyle = 'rgba(20,18,16,0.7)';
+      ctx.strokeStyle = SILVER.edge;
       ctx.lineWidth = 0.8;
       ctx.stroke(L.corners);
     }
     ctx.strokeStyle = 'rgba(0,0,0,0.6)';
     ctx.lineWidth = 1;
     ctx.stroke(L.trayPath);
-    ctx.strokeStyle = rgba(INK.amber, 0.45);
+    ctx.strokeStyle = 'rgba(44,26,12,0.85)';
     ctx.stroke(L.casePath);
     // the rails: a wooden strip, felt on it
     ctx.lineCap = 'butt';
     ctx.strokeStyle = '#2a1b10';
     ctx.lineWidth = Math.max(2, (RAIL_W + 0.006) * sc);
     ctx.stroke(L.rails);
-    ctx.strokeStyle = small ? '#4d4840' : '#6b655a';
+    ctx.strokeStyle = small ? '#5a544b' : '#7a7468';
     ctx.lineWidth = Math.max(1.4, RAIL_W * sc);
     ctx.stroke(L.rails);
     ctx.lineCap = 'round';
@@ -221,10 +231,11 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
     }
   }
   // ---- the bars: brushed steel, bevelled, each on its two pins, its note stamped at its near end; a
-  // ringing bar lit where it moves, as far as it swings
+  // ringing bar washed in the blue where it moves (its first mode: nothing at the nodes), as far as it
+  // swings, and outlined in it
   const stampPx = Math.round(BAR_W * sc * 0.4);
   if (stampPx >= 7) {
-    ctx.font = `500 ${stampPx}px "IBM Plex Mono", monospace`;
+    ctx.font = `600 ${stampPx}px ${CANVAS_FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
   }
@@ -237,20 +248,15 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
     const a = lv.amp[i];
     const r = Math.min(3, 0.1 * w);
     const g = ctx.createLinearGradient(px, 0, px + w, 0);
-    g.addColorStop(0, '#7f8791');
-    g.addColorStop(0.18, '#d7dde3');
-    g.addColorStop(0.5, '#aab2bb');
-    g.addColorStop(0.82, '#c9d0d7');
-    g.addColorStop(1, '#6f7780');
-    if (a > 0.01 && !small) {
-      ctx.shadowColor = rgba(INK.amber, 0.25 + 0.6 * a);
-      ctx.shadowBlur = 4 + 14 * a;
-    }
+    g.addColorStop(0, '#98a1aa');
+    g.addColorStop(0.2, '#f1f3f5');
+    g.addColorStop(0.5, '#cdd3d9');
+    g.addColorStop(0.82, '#dfe3e7');
+    g.addColorStop(1, '#8a939c');
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.roundRect(px, py, w, h, r);
     ctx.fill();
-    ctx.shadowBlur = 0;
     if (w > 8) {
       // the bevel: the far end catching the light, the near end in its own shade
       const e = Math.max(1.5, 0.0035 * sc);
@@ -266,9 +272,9 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
     }
     if (a > 0.01) {
       // (the first mode along the bar: the screen's top is the bar's far end)
-      const k = Math.min(0.8, 0.15 + 0.7 * Math.sqrt(a));
+      const k = Math.min(0.5, 0.1 + 0.42 * Math.sqrt(a));
       const gm = ctx.createLinearGradient(0, py, 0, py + h);
-      MODE.forEach((m, j) => gm.addColorStop(j / 10, rgba('255,214,150', k * (small ? 1 : 0.25 + 0.75 * m))));
+      MODE.forEach((m, j) => gm.addColorStop(j / 10, rgba(INK.sound, k * (small ? 0.8 : 0.12 + 0.88 * m))));
       ctx.fillStyle = gm;
       ctx.beginPath();
       ctx.roundRect(px, py, w, h, r);
@@ -279,6 +285,11 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
     ctx.beginPath();
     ctx.roundRect(px, py, w, h, r);
     ctx.stroke();
+    if (a > 0.01) {
+      ctx.strokeStyle = rgba(INK.sound, Math.min(0.95, 0.3 + 0.7 * Math.sqrt(a)));
+      ctx.lineWidth = small ? 1 : 1.5;
+      ctx.stroke();
+    }
     if (w > 5) {
       // each pin in its hole: the hole's dark, the pin's head with its light
       for (const [nx, ny] of barNodes(i)) {
@@ -308,10 +319,10 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
       ctx.fillText(barStamp(i), tx, ty);
     }
   }
-  // ---- a stroke's ring where it landed
+  // ---- a stroke's ring where it landed (the stroke is what sets the bar sounding: in the blue)
   for (const { at, k } of strokeRings(fr)) {
-    ctx.strokeStyle = rgba('255,236,200', 0.85 * (1 - k));
-    ctx.lineWidth = Math.max(1, 0.003 * sc * (1 - 0.5 * k));
+    ctx.strokeStyle = rgba(INK.sound, 0.9 * (1 - k));
+    ctx.lineWidth = Math.max(1.5, 0.003 * sc * (1 - 0.5 * k));
     ctx.beginPath();
     ctx.arc(X(at[0]), Y(at[1]), HEAD_R * sc * (1 + 2.2 * k), 0, 2 * Math.PI);
     ctx.stroke();
@@ -329,12 +340,12 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
     const ey = Y(end[1]) - up * 0.012 * sc;
     const sx = up * 0.01 * sc;
     const sy = up * 0.014 * sc;
-    ctx.fillStyle = `rgba(0,0,0,${(0.32 * Math.max(0.2, 1 - 0.5 * up)).toFixed(3)})`;
+    ctx.fillStyle = `rgba(24,28,34,${(0.3 * Math.max(0.2, 1 - 0.5 * up)).toFixed(3)})`;
     ctx.beginPath();
     ctx.arc(X(head[0]) + sx, Y(head[1]) + sy, r, 0, 2 * Math.PI);
     ctx.fill();
     if (!small) {
-      ctx.strokeStyle = `rgba(0,0,0,${(0.22 * Math.max(0.2, 1 - 0.5 * up)).toFixed(3)})`;
+      ctx.strokeStyle = `rgba(24,28,34,${(0.2 * Math.max(0.2, 1 - 0.5 * up)).toFixed(3)})`;
       ctx.lineWidth = Math.max(1.2, 0.006 * sc);
       ctx.beginPath();
       ctx.moveTo(X(head[0]) + sx, Y(head[1]) + sy);
@@ -347,7 +358,7 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
     const ny = (ex - hx) / L2;
     const w0 = Math.max(0.6, 0.0017 * sc);
     const w1 = Math.max(0.8, 0.0026 * sc);
-    ctx.fillStyle = '#b89662';
+    ctx.fillStyle = '#c9a56c';
     ctx.beginPath();
     ctx.moveTo(hx + nx * w0, hy + ny * w0);
     ctx.lineTo(ex + nx * w1, ey + ny * w1);
@@ -355,6 +366,10 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
     ctx.lineTo(hx - nx * w0, hy - ny * w0);
     ctx.closePath();
     ctx.fill();
+    // (rattan is pale: an edge, for where the shaft lies over the plaster)
+    ctx.strokeStyle = 'rgba(104,74,34,0.75)';
+    ctx.lineWidth = 0.6;
+    ctx.stroke();
     ctx.strokeStyle = 'rgba(255,240,210,0.5)';
     ctx.lineWidth = Math.max(0.6, 0.0009 * sc);
     ctx.beginPath();
@@ -369,7 +384,7 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
     ctx.beginPath();
     ctx.arc(hx, hy, r, 0, 2 * Math.PI);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(40,26,8,0.6)';
+    ctx.strokeStyle = 'rgba(104,74,20,0.9)';
     ctx.lineWidth = 0.8;
     ctx.stroke();
   }

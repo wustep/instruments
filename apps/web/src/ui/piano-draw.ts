@@ -6,7 +6,10 @@
 
 import type { KeySummary, VisualFrame } from '@piano-model/engine';
 import { AutoScale, INK, ModeField, rgba } from './stage-draw.ts';
-import { Layer, SPRUCE, SYM_VISIBLE, damperMark, drawGrandPlan, hammerMark, lightString, paintEnds, paintPlate, path, plateOf, type Plate } from './grand-plan.ts';
+import { BRIDGE, Layer, RIM, STRING_STEEL, STRING_WOUND, SYM_VISIBLE, castShadow, damperMark, drawGrandPlan, hammerMark, lightString, paintBoard, paintEnds, paintPlate, path, plateOf, type Plate } from './grand-plan.ts';
+
+/** a unison's strings, told apart as tints of the one blue (they are all sound): the first, a paler, a deeper */
+const UNISON = [INK.sound, '104,140,238', '16,40,128'];
 
 export interface PianoGeom {
   keys: KeySummary[];
@@ -161,7 +164,7 @@ function drawFocus(ctx: CanvasRenderingContext2D, focus: NonNullable<VisualFrame
       [5, 0.2],
       [1.7, 0.97],
     ] as const) {
-      ctx.strokeStyle = rgba(j === 0 ? INK.vermilion : j === 1 ? INK.amber : INK.steel, a);
+      ctx.strokeStyle = rgba(UNISON[j] ?? INK.sound, a);
       ctx.lineWidth = wid;
       ctx.beginPath();
       for (let i = 0; i < s.length; i++) {
@@ -207,7 +210,7 @@ function drawAllShapes(ctx: CanvasRenderingContext2D, fr: VisualFrame | null, by
     }
     // (a struck string's shape is drawn twice: a soft wide glow under a firm line)
     for (let pass = sym ? 1 : 0; pass < 2; pass++) {
-      ctx.strokeStyle = sym ? rgba(INK.amber, alpha) : rgba(INK.vermilion, pass ? 0.92 : 0.16);
+      ctx.strokeStyle = sym ? rgba(INK.sound, alpha * 0.8) : rgba(INK.sound, pass ? 0.95 : 0.14);
       ctx.lineWidth = sym ? 1 : pass ? 1.5 : 4.5;
       ctx.beginPath();
       for (let i = 0; i < P; i++) {
@@ -375,16 +378,26 @@ function paintUpBase(lay: UpLayout, W: number, H: number, dpr: number): void {
   const treb = strings.filter((s) => !s.p.wound);
   upBase.paint(W, H, dpr, lay.key, (c) => {
     const pl = upPlate(lay);
-    // the case's walls (ebony, as the grand's rim), the spruce board in the opening
-    c.fillStyle = rgba(INK.ebony, 1);
+    // the case's walls (black lacquer, as the grand's rim) and its shadow, the spruce board in the opening
+    castShadow(c, box);
+    c.fillStyle = rgba(RIM, 1);
     c.fill(box);
-    c.fillStyle = rgba(SPRUCE, 0.4);
-    c.fill(inner);
+    paintBoard(c, inner, lay.rect);
     c.save();
     c.clip(inner);
+    // (the case stands over the board: its shade along the upper and left sides)
+    c.save();
+    c.shadowColor = 'rgba(60,42,16,0.45)';
+    c.shadowBlur = 10;
+    c.shadowOffsetX = 3;
+    c.shadowOffsetY = 5;
+    c.strokeStyle = rgba(RIM, 1);
+    c.lineWidth = 2;
+    c.stroke(inner);
+    c.restore();
     paintPlate(c, pl, inner, lay.rect);
     // the hammer rail: the line the hammers rest along
-    c.strokeStyle = rgba(INK.felt, 0.14);
+    c.strokeStyle = rgba('110,82,36', 0.3);
     c.lineWidth = 2;
     c.beginPath();
     c.moveTo(strings[0].hx - pitch, strings[0].hy + 5);
@@ -392,7 +405,7 @@ function paintUpBase(lay: UpLayout, W: number, H: number, dpr: number): void {
     c.stroke();
     // the bridges: the treble bridge along the strings' lower ends, the bass bridge on its own
     c.lineJoin = 'round';
-    c.strokeStyle = rgba(INK.felt, 0.5);
+    c.strokeStyle = rgba(BRIDGE, 0.95);
     c.lineWidth = 3;
     for (const part of [treb, bass]) {
       if (part.length < 2) continue;
@@ -401,14 +414,14 @@ function paintUpBase(lay: UpLayout, W: number, H: number, dpr: number): void {
       c.stroke();
     }
     // the pressure bar: where every speaking length begins, slanting up to the bass
-    c.strokeStyle = rgba(INK.ivory, 0.3);
+    c.strokeStyle = rgba('110,82,36', 0.65);
     c.lineWidth = 1.5;
     for (const part of [treb, bass]) if (part.length > 1) c.stroke(path(part.map((s): [number, number] => [s.x0, s.y0]), false));
     // the strings at rest: steel tenor and treble, then the copper-wound bass across them
     c.lineCap = 'butt';
     for (const part of [treb, bass]) {
       const wound = part === bass;
-      c.strokeStyle = rgba(wound ? INK.copper : INK.ivory, wound ? 0.5 : 0.24);
+      c.strokeStyle = rgba(wound ? STRING_WOUND : STRING_STEEL, wound ? 0.85 : 0.5);
       c.lineWidth = wound ? 1.3 : 0.8;
       c.beginPath();
       for (const s of part)
@@ -420,12 +433,9 @@ function paintUpBase(lay: UpLayout, W: number, H: number, dpr: number): void {
     }
     paintEnds(c, pl);
     c.restore();
-    c.strokeStyle = rgba(INK.ivory, 0.1);
+    c.strokeStyle = rgba(INK.light, 0.22);
     c.lineWidth = 1;
     c.stroke(inner);
-    c.strokeStyle = rgba(INK.ivory, 0.34);
-    c.lineWidth = 1.4;
-    c.stroke(box);
   });
 }
 
@@ -457,12 +467,10 @@ function drawUpright(ctx: CanvasRenderingContext2D, W: number, H: number, g: Pia
   ctx.clip(lay.inner);
   // ---- the board's live modes, across the whole case
   if (field.update(fr?.modes ?? null, now / 1000) > 0.01) {
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.5;
+    ctx.globalAlpha = 0.8;
     // (a little oversize: the field's still edge falls outside the case)
     ctx.drawImage(field.canvas, rect.x0 - 0.04 * (rect.x1 - rect.x0), rect.y0 - 0.04 * (rect.y1 - rect.y0), 1.08 * (rect.x1 - rect.x0), 1.08 * (rect.y1 - rect.y0));
     ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over';
   }
   // ---- the sounding strings light along their speaking length
   const lv = levelsOf(fr, st);
@@ -483,7 +491,7 @@ function drawUpright(ctx: CanvasRenderingContext2D, W: number, H: number, g: Pia
   }
   // ---- the practice muffler: a felt strip let down between the hammers and the strings
   if (st.middle > 0.02) {
-    ctx.strokeStyle = rgba(INK.felt, 0.55 * st.middle);
+    ctx.strokeStyle = rgba('236,230,214', 0.9 * st.middle);
     ctx.lineWidth = 3;
     ctx.lineJoin = 'round';
     ctx.beginPath();

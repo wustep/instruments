@@ -163,10 +163,13 @@ test('a phone: the lamp’s hint is never cut short: whole on one line, on two b
       seen[`${width}${path.slice(0, 6)}`] = h.fit!;
     }
   }
-  // the phones people hold: the words are there (one line on this project's, two on an iPhone's 390 px
-  // beside "13 players")
+  // the phones people hold: the words are there (one line on this project's and on an iPhone's 390 px, beside
+  // "13 players" too: the daylight bar has the room; two lines beside a long name there, and beside the
+  // players' count on a 360 px phone; the lamp alone on the narrowest)
   expect(seen['412/orche']).toBe('line');
-  expect(seen['390/orche']).toBe('two');
+  expect(seen['390/orche']).toBe('line');
   expect(seen['390/piano']).toBe('line');
+  expect(seen['390/tromb']).toBe('two');
+  expect(seen['360/orche']).toBe('two');
   expect(seen['320/orche']).toBe('none');
 });

@@ -62,7 +62,8 @@ for (const kind of ['grand', 'upright'] as const)
       }
       if (style === 'classic') {
         // just past a string's pin end, between two keys' pins: the plate's bronze (warm, well lit), where
-        // the case's flat brown was; and past its bridge end the open board is darker than the block
+        // the case's flat brown was; and past its bridge end the open board is another thing, spruce in
+        // daylight: paler than the block's bronze
         const s = seen[Math.floor(seen.length / 2)];
         const pitch = Math.abs(seen[1].x0 - seen[0].x0);
         const away = kind === 'grand' ? 1 : -1;
@@ -71,7 +72,8 @@ for (const kind of ['grand', 'upright'] as const)
         expect(block[0]).toBeGreaterThan(block[1] + 12);
         expect(block[1]).toBeGreaterThan(block[2] + 15);
         const board = await colourAt(page, s.x0 + pitch / 2, (s.y0 + s.y1) / 2 + away * -0.2 * Math.abs(s.y1 - s.y0));
-        expect(board[0]).toBeLessThan(block[0] - 20);
+        expect(board[0]).toBeGreaterThan(block[0] + 15);
+        expect(board[2]).toBeGreaterThan(block[2] + 30);
         info.annotations.push({ type: 'colours', description: JSON.stringify({ block, board }) });
       }
       // a string, clicked at its middle, opens its own key's close-up
@@ -109,7 +111,8 @@ test('a small piano in the Orchestra (2D and vector): the grand and the upright 
         const y = Math.round(cv.height * 0.8);
         const d = c2.getImageData(0, y, cv.width, Math.round(cv.height * 0.15)).data;
         let n = 0;
-        for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 120) n++;
+        // (anything drawn: the canvas is clear where nothing is, whatever the ground under it)
+        for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 40) n++;
         return n / (d.length / 4);
       });
       expect(ink, `${kind} ${view}`).toBeGreaterThan(0.02);

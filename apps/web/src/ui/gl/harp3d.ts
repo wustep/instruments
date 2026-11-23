@@ -155,7 +155,7 @@ let stageState: { swing: number[]; pedals: number[]; ringing: number; plucks: { 
 /** how long a pluck's mark shows (s), its ring's points */
 const PLUCK_SHOWN = 0.28;
 const RING: Vec3[] = Array.from({ length: 13 }, () => [0, 0, 0]);
-const MARK: RGBA = [1, 0.94, 0.82, 1];
+const MARK: RGBA = [0.21, 0.41, 0.925, 1];
 const SEG = 14;
 const pts: Vec3[] = Array.from({ length: SEG + 1 }, () => [0, 0, 0]);
 const two: Vec3[] = [[0, 0, 0], [0, 0, 0]];
@@ -195,10 +195,10 @@ export function poseHarp(b: Batch, hm: HarpModel, fr: VisualFrame | null, _dt: n
         pts[q] = xform(T, [x, y0 + (y1 - y0) * u, d * w]);
       }
       b.wire(pts, col, g);
-      // (a ringing string catches the light: brighter the wider it swings, dying with it)
-      LIT[0] = 0.5 + 0.5 * col[0];
-      LIT[1] = 0.45 + 0.5 * col[1];
-      LIT[2] = 0.35 + 0.5 * col[2];
+      // (a ringing string is drawn in the blue: firmer the wider it swings, dying with it)
+      LIT[0] = 0.21;
+      LIT[1] = 0.41;
+      LIT[2] = 0.925;
       LIT[3] = Math.min(0.85, 1.1 * Math.sqrt(a));
       b.line(pts, LIT, 1.1 + 1.6 * Math.sqrt(a));
     } else {

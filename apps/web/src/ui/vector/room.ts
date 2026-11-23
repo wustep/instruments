@@ -18,12 +18,12 @@ export function drawRoomV(ctx: CanvasRenderingContext2D, W: number, H: number, s
   ctx.save();
   ctx.beginPath();
   ctx.rect(g.x0, g.y0, g.x1 - g.x0, g.y1 - g.y0);
-  beam(ctx, null, V.blueDim, 1, { alpha: 0.55, dash: [2, 6] });
+  beam(ctx, null, V.inkDim, 1, { alpha: 0.55, dash: [2, 6] });
   const k = 9;
   for (const [x, sx] of [[g.x0, 1], [g.x1, -1]] as const)
     for (const [y, sy] of [[g.y0, 1], [g.y1, -1]] as const) {
-      seg(ctx, x, y, x + sx * k, y, V.blueMid, 1.1, { alpha: 0.8 });
-      seg(ctx, x, y, x, y + sy * k, V.blueMid, 1.1, { alpha: 0.8 });
+      seg(ctx, x, y, x + sx * k, y, V.inkMid, 1.1, { alpha: 0.8 });
+      seg(ctx, x, y, x, y + sy * k, V.inkMid, 1.1, { alpha: 0.8 });
     }
   const speed = Math.hypot(W, H) / 1.4; // px per second: drawn far slower than sound
   const lidGain = lid ? 0.35 + 0.65 * lid.open : 1;
@@ -55,14 +55,14 @@ function front(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, a
   if (!lid) {
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
-    beam(ctx, null, V.amber, 1.1, { alpha: 0.3 * a });
+    beam(ctx, null, V.sound, 1.1, { alpha: 0.3 * a });
     return;
   }
   // the lid throws the board's sound towards its open side: that half of the front is brighter
   ctx.beginPath();
   ctx.arc(x, y, r, lid.dir + Math.PI / 2, lid.dir + (3 * Math.PI) / 2);
-  beam(ctx, null, V.amber, 1, { alpha: 0.3 * a * (0.55 - 0.2 * lid.open) });
+  beam(ctx, null, V.sound, 1, { alpha: 0.3 * a * (0.55 - 0.2 * lid.open) });
   ctx.beginPath();
   ctx.arc(x, y, r, lid.dir - Math.PI / 2, lid.dir + Math.PI / 2);
-  beam(ctx, null, V.amber, 1 + 0.9 * lid.open, { alpha: 0.3 * a * (0.55 + 0.75 * lid.open) });
+  beam(ctx, null, V.sound, 1 + 0.9 * lid.open, { alpha: 0.3 * a * (0.55 + 0.75 * lid.open) });
 }

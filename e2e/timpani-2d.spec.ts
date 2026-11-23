@@ -25,7 +25,8 @@ const rectOf = (page: Page, sel: string) =>
     const r = e.getBoundingClientRect();
     return { x0: r.left, x1: r.right, y0: r.top, y1: r.bottom };
   }, sel) as Promise<Box | null>;
-/** the share of a box's pixels on the stage's canvas that carry ink (anything brighter than the ground) */
+/** the share of a box's pixels on the stage's canvas that carry ink (anything drawn: the canvas is clear where nothing is,
+ *  whatever the ground under it) */
 const inked = (page: Page, b: Box) =>
   page.evaluate((b) => {
     const cv = document.querySelector('.stage-cv') as HTMLCanvasElement;
@@ -40,7 +41,7 @@ const inked = (page: Page, b: Box) =>
     let m = 0;
     for (let i = 0; i < d.length; i += 4 * 5) {
       m++;
-      if (Math.max(d[i], d[i + 1], d[i + 2]) > 40) n++;
+      if (d[i + 3] > 40) n++;
     }
     return n / m;
   }, b);

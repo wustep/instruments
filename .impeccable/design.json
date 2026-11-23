@@ -1,0 +1,698 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-23T09:21:44Z",
+  "title": "Design System: Instruments",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Plaster",
+        "canonical": "#eceff1",
+        "tonalRamp": [
+          "oklch(15% 0.003 240)",
+          "oklch(27% 0.005 240)",
+          "oklch(39% 0.006 240)",
+          "oklch(51% 0.006 240)",
+          "oklch(63% 0.005 240)",
+          "oklch(75% 0.004 240)",
+          "oklch(86% 0.002 240)",
+          "oklch(95% 0.001 240)"
+        ]
+      },
+      "ground-2": {
+        "role": "neutral",
+        "displayName": "Plaster shade",
+        "canonical": "#e2e6e9",
+        "tonalRamp": [
+          "oklch(15% 0.004 240)",
+          "oklch(27% 0.006 240)",
+          "oklch(39% 0.008 240)",
+          "oklch(51% 0.008 240)",
+          "oklch(63% 0.007 240)",
+          "oklch(75% 0.005 240)",
+          "oklch(86% 0.003 240)",
+          "oklch(95% 0.001 240)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#f9fafb",
+        "tonalRamp": [
+          "oklch(15% 0.002 250)",
+          "oklch(27% 0.003 250)",
+          "oklch(39% 0.004 250)",
+          "oklch(51% 0.004 250)",
+          "oklch(63% 0.003 250)",
+          "oklch(75% 0.002 250)",
+          "oklch(86% 0.001 250)",
+          "oklch(95% 0.001 250)"
+        ]
+      },
+      "paper-2": {
+        "role": "neutral",
+        "displayName": "Paper foot",
+        "canonical": "#f1f3f5",
+        "tonalRamp": [
+          "oklch(15% 0.002 250)",
+          "oklch(27% 0.004 250)",
+          "oklch(39% 0.005 250)",
+          "oklch(51% 0.005 250)",
+          "oklch(63% 0.004 250)",
+          "oklch(75% 0.003 250)",
+          "oklch(86% 0.002 250)",
+          "oklch(95% 0.001 250)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Graphite ink",
+        "canonical": "#1c222a",
+        "tonalRamp": [
+          "oklch(15% 0.009 255)",
+          "oklch(27% 0.015 255)",
+          "oklch(39% 0.020 255)",
+          "oklch(51% 0.020 255)",
+          "oklch(63% 0.017 255)",
+          "oklch(75% 0.012 255)",
+          "oklch(86% 0.007 255)",
+          "oklch(95% 0.003 255)"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Graphite, at rest",
+        "canonical": "#424850",
+        "tonalRamp": [
+          "oklch(15% 0.007 255)",
+          "oklch(27% 0.011 255)",
+          "oklch(39% 0.015 255)",
+          "oklch(51% 0.015 255)",
+          "oklch(63% 0.013 255)",
+          "oklch(75% 0.009 255)",
+          "oklch(86% 0.005 255)",
+          "oklch(95% 0.002 255)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Label grey",
+        "canonical": "#666d74",
+        "tonalRamp": [
+          "oklch(15% 0.005 250)",
+          "oklch(27% 0.009 250)",
+          "oklch(39% 0.012 250)",
+          "oklch(51% 0.012 250)",
+          "oklch(63% 0.010 250)",
+          "oklch(75% 0.007 250)",
+          "oklch(86% 0.004 250)",
+          "oklch(95% 0.002 250)"
+        ]
+      },
+      "faint": {
+        "role": "neutral",
+        "displayName": "Sign at rest",
+        "canonical": "#7f858b",
+        "tonalRamp": [
+          "oklch(15% 0.005 250)",
+          "oklch(27% 0.007 250)",
+          "oklch(39% 0.010 250)",
+          "oklch(51% 0.010 250)",
+          "oklch(63% 0.009 250)",
+          "oklch(75% 0.006 250)",
+          "oklch(86% 0.003 250)",
+          "oklch(95% 0.002 250)"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#d6dadd",
+        "tonalRamp": [
+          "oklch(15% 0.003 240)",
+          "oklch(27% 0.005 240)",
+          "oklch(39% 0.007 240)",
+          "oklch(51% 0.007 240)",
+          "oklch(63% 0.006 240)",
+          "oklch(75% 0.004 240)",
+          "oklch(86% 0.002 240)",
+          "oklch(95% 0.001 240)"
+        ]
+      },
+      "rule-2": {
+        "role": "neutral",
+        "displayName": "Hairline, firm",
+        "canonical": "#b9bec2",
+        "tonalRamp": [
+          "oklch(15% 0.004 240)",
+          "oklch(27% 0.006 240)",
+          "oklch(39% 0.008 240)",
+          "oklch(51% 0.008 240)",
+          "oklch(63% 0.007 240)",
+          "oklch(75% 0.005 240)",
+          "oklch(86% 0.003 240)",
+          "oklch(95% 0.001 240)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Ultramarine",
+        "canonical": "#1d48d1",
+        "tonalRamp": [
+          "oklch(15% 0.090 266)",
+          "oklch(27% 0.150 266)",
+          "oklch(39% 0.200 266)",
+          "oklch(51% 0.200 266)",
+          "oklch(63% 0.170 266)",
+          "oklch(75% 0.120 266)",
+          "oklch(86% 0.070 266)",
+          "oklch(95% 0.030 266)"
+        ]
+      },
+      "accent-wash": {
+        "role": "primary",
+        "displayName": "Ultramarine wash",
+        "canonical": "#dbe6ff",
+        "tonalRamp": [
+          "oklch(15% 0.041 266)",
+          "oklch(27% 0.068 266)",
+          "oklch(39% 0.090 266)",
+          "oklch(51% 0.090 266)",
+          "oklch(63% 0.076 266)",
+          "oklch(75% 0.054 266)",
+          "oklch(86% 0.032 266)",
+          "oklch(95% 0.013 266)"
+        ]
+      },
+      "ref": {
+        "role": "secondary",
+        "displayName": "Reference slate",
+        "canonical": "#5d6b7c",
+        "tonalRamp": [
+          "oklch(15% 0.013 255)",
+          "oklch(27% 0.022 255)",
+          "oklch(39% 0.030 255)",
+          "oklch(51% 0.030 255)",
+          "oklch(63% 0.025 255)",
+          "oklch(75% 0.018 255)",
+          "oklch(86% 0.010 255)",
+          "oklch(95% 0.004 255)"
+        ]
+      },
+      "alarm": {
+        "role": "secondary",
+        "displayName": "Alarm",
+        "canonical": "#b3401a",
+        "tonalRamp": [
+          "oklch(15% 0.063 42)",
+          "oklch(27% 0.105 42)",
+          "oklch(39% 0.140 42)",
+          "oklch(51% 0.140 42)",
+          "oklch(63% 0.119 42)",
+          "oklch(75% 0.084 42)",
+          "oklch(86% 0.049 42)",
+          "oklch(95% 0.021 42)"
+        ]
+      },
+      "ivory": {
+        "role": "neutral",
+        "displayName": "Ivory",
+        "canonical": "#f8f7f1",
+        "tonalRamp": [
+          "oklch(15% 0.005 100)",
+          "oklch(27% 0.009 100)",
+          "oklch(39% 0.012 100)",
+          "oklch(51% 0.012 100)",
+          "oklch(63% 0.010 100)",
+          "oklch(75% 0.007 100)",
+          "oklch(86% 0.004 100)",
+          "oklch(95% 0.002 100)"
+        ]
+      },
+      "ebony": {
+        "role": "neutral",
+        "displayName": "Ebony",
+        "canonical": "#24272a",
+        "tonalRamp": [
+          "oklch(15% 0.004 250)",
+          "oklch(27% 0.006 250)",
+          "oklch(39% 0.008 250)",
+          "oklch(51% 0.008 250)",
+          "oklch(63% 0.007 250)",
+          "oklch(75% 0.005 250)",
+          "oklch(86% 0.003 250)",
+          "oklch(95% 0.001 250)"
+        ]
+      },
+      "film": {
+        "role": "neutral",
+        "displayName": "Drafting film",
+        "canonical": "#f3f5f8",
+        "tonalRamp": [
+          "oklch(15% 0.003 255)",
+          "oklch(27% 0.005 255)",
+          "oklch(39% 0.006 255)",
+          "oklch(51% 0.006 255)",
+          "oklch(63% 0.005 255)",
+          "oklch(75% 0.004 255)",
+          "oklch(86% 0.002 255)",
+          "oklch(95% 0.001 255)"
+        ]
+      },
+      "film-ink": {
+        "role": "neutral",
+        "displayName": "Film graphite",
+        "canonical": "#2b3644",
+        "tonalRamp": [
+          "oklch(15% 0.011 255)",
+          "oklch(27% 0.019 255)",
+          "oklch(39% 0.025 255)",
+          "oklch(51% 0.025 255)",
+          "oklch(63% 0.021 255)",
+          "oklch(75% 0.015 255)",
+          "oklch(86% 0.009 255)",
+          "oklch(95% 0.004 255)"
+        ]
+      },
+      "film-frame": {
+        "role": "neutral",
+        "displayName": "Film frame",
+        "canonical": "#c3cad2",
+        "tonalRamp": [
+          "oklch(15% 0.005 250)",
+          "oklch(27% 0.009 250)",
+          "oklch(39% 0.012 250)",
+          "oklch(51% 0.012 250)",
+          "oklch(63% 0.010 250)",
+          "oklch(75% 0.007 250)",
+          "oklch(86% 0.004 250)",
+          "oklch(95% 0.002 250)"
+        ]
+      },
+      "lead-green": {
+        "role": "tertiary",
+        "displayName": "Green lead",
+        "canonical": "#14804a",
+        "tonalRamp": [
+          "oklch(15% 0.059 155)",
+          "oklch(27% 0.098 155)",
+          "oklch(39% 0.130 155)",
+          "oklch(51% 0.130 155)",
+          "oklch(63% 0.111 155)",
+          "oklch(75% 0.078 155)",
+          "oklch(86% 0.045 155)",
+          "oklch(95% 0.019 155)"
+        ]
+      },
+      "lead-red": {
+        "role": "tertiary",
+        "displayName": "Red lead",
+        "canonical": "#d03b22",
+        "tonalRamp": [
+          "oklch(15% 0.086 33)",
+          "oklch(27% 0.143 33)",
+          "oklch(39% 0.190 33)",
+          "oklch(51% 0.190 33)",
+          "oklch(63% 0.162 33)",
+          "oklch(75% 0.114 33)",
+          "oklch(86% 0.066 33)",
+          "oklch(95% 0.028 33)"
+        ]
+      },
+      "lead-pink": {
+        "role": "tertiary",
+        "displayName": "Pink lead",
+        "canonical": "#b8308a",
+        "tonalRamp": [
+          "oklch(15% 0.081 345)",
+          "oklch(27% 0.135 345)",
+          "oklch(39% 0.180 345)",
+          "oklch(51% 0.180 345)",
+          "oklch(63% 0.153 345)",
+          "oklch(75% 0.108 345)",
+          "oklch(86% 0.063 345)",
+          "oklch(95% 0.027 345)"
+        ]
+      },
+      "lead-deep": {
+        "role": "tertiary",
+        "displayName": "Deep lead",
+        "canonical": "#0e141b",
+        "tonalRamp": [
+          "oklch(15% 0.009 255)",
+          "oklch(27% 0.015 255)",
+          "oklch(39% 0.020 255)",
+          "oklch(51% 0.020 255)",
+          "oklch(63% 0.017 255)",
+          "oklch(75% 0.012 255)",
+          "oklch(86% 0.007 255)",
+          "oklch(95% 0.003 255)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Readout",
+        "purpose": "What is sounding, in the band. Steps down to 34, 27 and 21px as it has more to say."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headings on Measurements and Notes."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Sub-headings on the two pages."
+      },
+      "prose": {
+        "displayName": "Prose",
+        "purpose": "The long read on Notes, held to the 33rem measure."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "The default text."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "A control's name: an instrument, a knob, a pedal. Never under 12px."
+      },
+      "label-strong": {
+        "displayName": "Label, strong",
+        "purpose": "The words inside the view switch and the picker pill."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Code and equations only."
+      },
+      "plotted": {
+        "displayName": "Plotted",
+        "purpose": "The vector style's lettering: Hershey Simplex, single-stroke capitals. Used only there."
+      }
+    },
+    "shadows": [
+      {
+        "name": "shadow-1",
+        "value": "0.5px 1px 2px rgba(28, 34, 42, 0.14)",
+        "purpose": "Resting: a small paper control on the wall (octave buttons, the picker pill)."
+      },
+      {
+        "name": "shadow-2",
+        "value": "1px 2px 4px rgba(28, 34, 42, 0.06), 3px 10px 24px -10px rgba(28, 34, 42, 0.26)",
+        "purpose": "Laid: the file player."
+      },
+      {
+        "name": "shadow-3",
+        "value": "2px 4px 8px rgba(28, 34, 42, 0.06), 6px 24px 48px -20px rgba(28, 34, 42, 0.34)",
+        "purpose": "Lifted: a menu or the phone sheet, open over the stage."
+      },
+      {
+        "name": "fallboard-shade",
+        "value": "0 3px 6px -2px rgba(28, 34, 42, 0.22)",
+        "purpose": "The fallboard's lower edge throwing a little shade on the keys."
+      },
+      {
+        "name": "stage-knob",
+        "value": "drop-shadow(1px 2px 3px rgba(28, 34, 42, 0.26))",
+        "purpose": "A stage knob's paper disc standing off the instrument (a filter, not a box-shadow)."
+      },
+      {
+        "name": "knob-cap",
+        "value": "drop-shadow(0.4px 1px 1px rgba(28, 34, 42, 0.26))",
+        "purpose": "A rotary knob's cap."
+      },
+      {
+        "name": "key-white",
+        "value": "inset 0 -5px 0 #dcdad2, 0.5px 2px 2px rgba(28, 34, 42, 0.22)",
+        "purpose": "A white key's lip and its shadow."
+      },
+      {
+        "name": "key-black",
+        "value": "inset 0 -6px 0 #14161a, 1px 3px 4px rgba(28, 34, 42, 0.4)",
+        "purpose": "A black key's lip and its shadow on the whites."
+      },
+      {
+        "name": "floor-shadow-2d",
+        "value": "rgba(28, 34, 42, 0.32), blur 20-26px, offset about (7px, 12px) for a body the size of a cello",
+        "purpose": "A drawn instrument's one soft shadow on the floor (stage-draw.ts floorShadow), cached, never blurred per frame."
+      },
+      {
+        "name": "room-patch-2d",
+        "value": "rgba(255, 255, 255, 0.66), border-radius 36px, filter blur(26px)",
+        "purpose": "The room as light: the floor's brighter patch under one instrument in 2D (.stage[data-room]::before), sized by the room's knob."
+      },
+      {
+        "name": "day-3d",
+        "value": "key 2.2, rim 0.25, fill 0.7, env 1.2, exposure 1.06, shadow depth 0.62",
+        "purpose": "The 3D studio daylight (three3d.ts DAY): a generated room of plaster, a skylight, a north window of panes and two black cards."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.2, 0.7, 0.2, 1)",
+        "purpose": "The one easing for state changes (--ease)."
+      },
+      {
+        "name": "state",
+        "value": "0.15s",
+        "purpose": "Default colour, background and border transitions on controls."
+      },
+      {
+        "name": "state-quick",
+        "value": "0.12s",
+        "purpose": "The player's buttons and an ensemble part going blue."
+      },
+      {
+        "name": "lamp",
+        "value": "0.2s",
+        "purpose": "The lamp's fill and border."
+      },
+      {
+        "name": "readout-dim",
+        "value": "0.3s",
+        "purpose": "The readout dimming to 0.36 when nothing sounds."
+      },
+      {
+        "name": "key-travel",
+        "value": "0.04s",
+        "purpose": "A key going down 2px."
+      },
+      {
+        "name": "pedal-travel",
+        "value": "0.06s",
+        "purpose": "A pedal or an octave button going down."
+      },
+      {
+        "name": "lamp-pulse",
+        "value": "0.9s ease-in-out infinite",
+        "purpose": "The lamp while the sound is starting; the only looping animation in the chrome."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "Motion that is not the instrument's own is removed; every state still changes, at once."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "bar-tight",
+        "value": "1480px",
+        "purpose": "The bar's gaps draw in so the lamp's hint stays on one line."
+      },
+      {
+        "name": "picker-fold",
+        "value": "1340px",
+        "purpose": "The sixteen instruments fold to one pill that opens a sheet, four to a row."
+      },
+      {
+        "name": "phone",
+        "value": "760px",
+        "purpose": "The phone layout: a 48px bar, the keys under a position strip."
+      },
+      {
+        "name": "narrow",
+        "value": "600px",
+        "purpose": "The pages and the close-up tighten."
+      },
+      {
+        "name": "small-phone",
+        "value": "480px",
+        "purpose": "The player's menus and the 404 page tighten."
+      },
+      {
+        "name": "narrowest",
+        "value": "360px",
+        "purpose": "The narrowest phones: the fallboard still fits."
+      },
+      {
+        "name": "landscape-phone",
+        "value": "(max-height: 500px) and (orientation: landscape)",
+        "purpose": "A phone held sideways: one slim band; the picker folds here too."
+      },
+      {
+        "name": "touch",
+        "value": "(pointer: coarse)",
+        "purpose": "Targets grow to a finger's size (36px player buttons, 44px stage knobs)."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Player pill and play disc",
+      "kind": "button",
+      "refersTo": "play-disc",
+      "description": "The file player: a paper pill on the stage. Play is the one solid thing on it, an ink disc; the hairline fills in blue with the place in the piece.",
+      "html": "<div class=\"ds-player\"><button class=\"ds-pl-btn ds-pl-play\" aria-label=\"Play\"><svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M5 3.2v9.6L13 8z\"/></svg></button><button class=\"ds-pl-btn\" aria-label=\"Pieces\"><svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M2 4h8v1.4H2zM2 7.3h8v1.4H2zM2 10.6h5v1.4H2zM12.3 4h1.4v6.4a1.9 1.9 0 1 1-1.4-1.8z\"/></svg></button><div class=\"ds-pl-bar\"><div class=\"ds-pl-fill\"></div></div></div>",
+      "css": ".ds-player { display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px 3px 5px; border: 1px solid var(--rule); border-radius: 20px; background: var(--paper); box-shadow: var(--shadow-2); } .ds-pl-btn { flex: none; width: 30px; height: 30px; padding: 6px; border: 0; border-radius: 50%; background: none; color: var(--ink-2); cursor: pointer; transition: color 0.12s var(--ease), background-color 0.12s var(--ease); } .ds-pl-btn:hover { color: var(--ink); background: var(--ground-2); } .ds-pl-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; } .ds-pl-btn svg { display: block; width: 100%; height: 100%; fill: currentColor; } .ds-pl-play { background: var(--ink); color: var(--paper); padding: 7px; } .ds-pl-play:hover { background: #000; color: #fff; } .ds-pl-play:active { transform: scale(0.94); } .ds-pl-bar { position: relative; width: 160px; height: 2px; border-radius: 1px; background: var(--rule-2); } .ds-pl-fill { position: absolute; inset: 0; border-radius: 1px; background: var(--accent); transform-origin: left; transform: scaleX(0.38); }"
+    },
+    {
+      "name": "View switch",
+      "kind": "nav",
+      "refersTo": "view-switch",
+      "description": "One choice of three (2d, vector, 3d); the chosen one is an ink pill. The piano kind (grand, upright) is the same control.",
+      "html": "<div class=\"ds-view-seg\" role=\"group\" aria-label=\"View\"><button aria-pressed=\"true\">2d</button><button aria-pressed=\"false\">vector</button><button aria-pressed=\"false\">3d</button></div>",
+      "css": ".ds-view-seg { display: inline-flex; padding: 2px; border-radius: 999px; background: var(--ground-2); } .ds-view-seg button { border: 0; border-radius: 999px; background: none; padding: 5px 11px 6px; font: 550 12.5px/1.15 var(--font); font-variant-numeric: lining-nums; color: var(--ink-2); cursor: pointer; transition: color 0.15s var(--ease), background-color 0.15s var(--ease); } .ds-view-seg button:hover { color: var(--ink); } .ds-view-seg button[aria-pressed=\"true\"] { color: var(--paper); background: var(--ink); } .ds-view-seg button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }"
+    },
+    {
+      "name": "Instrument pick",
+      "kind": "nav",
+      "refersTo": "pick",
+      "description": "An instrument in the bar: a drawn glyph over its name. Chosen is ink with a 1.5px ink rule under the name.",
+      "html": "<div class=\"ds-picks\"><button class=\"ds-pick\" aria-pressed=\"true\"><svg class=\"ds-glyph\" viewBox=\"0 0 36 36\" aria-hidden=\"true\"><path class=\"ds-g-body\" d=\"M9 30V12c0-4 3-7 7-7s5 3 7 6 4 4 4 8v11z\"/><path d=\"M12 30V15M16 30V13M20 30V16M24 30V20\"/></svg><span class=\"ds-pick-name\">piano</span></button><button class=\"ds-pick\" aria-pressed=\"false\"><svg class=\"ds-glyph\" viewBox=\"0 0 36 36\" aria-hidden=\"true\"><path class=\"ds-g-body\" d=\"M9 30V12c0-4 3-7 7-7s5 3 7 6 4 4 4 8v11z\"/><path d=\"M12 30V15M16 30V13M20 30V16M24 30V20\"/></svg><span class=\"ds-pick-name\">harp</span></button></div>",
+      "css": ".ds-picks { display: flex; } .ds-pick { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 40px; padding: 3px 3px 6px; border: 0; border-radius: 9px; background: none; color: var(--muted); cursor: pointer; transition: color 0.15s var(--ease), background-color 0.15s var(--ease); } .ds-pick:hover { color: var(--ink); background: var(--ground-2); } .ds-pick[aria-pressed=\"true\"] { color: var(--ink); } .ds-pick[aria-pressed=\"true\"]::after { content: \"\"; position: absolute; left: 10px; right: 10px; bottom: 1px; height: 1.5px; border-radius: 1px; background: var(--ink); } .ds-pick:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; } .ds-glyph { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.15; stroke-linejoin: round; stroke-linecap: round; overflow: visible; } .ds-g-body { fill: var(--paper); } .ds-pick-name { font: 500 12px/1.25 var(--font); white-space: nowrap; }"
+    },
+    {
+      "name": "Orchestra pill",
+      "kind": "chip",
+      "refersTo": "orchestra-pill",
+      "description": "The Orchestra is a mode, not a seventeenth instrument: an outlined pill with its drawn sign and its word; on, it is ink.",
+      "html": "<button class=\"ds-ens\" aria-pressed=\"false\"><svg class=\"ds-ens-icon\" viewBox=\"0 0 20 20\" aria-hidden=\"true\"><circle cx=\"4\" cy=\"12\" r=\"1.6\"/><circle cx=\"8\" cy=\"7.5\" r=\"1.6\"/><circle cx=\"12.5\" cy=\"7.5\" r=\"1.6\"/><circle cx=\"16\" cy=\"12\" r=\"1.6\"/><circle cx=\"10\" cy=\"13\" r=\"1.6\"/></svg><span>orchestra</span></button>",
+      "css": ".ds-ens { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 13px 0 9px; border: 1px solid var(--rule-2); border-radius: 999px; background: none; color: var(--ink-2); font: 500 12px/1.25 var(--font); cursor: pointer; transition: color 0.15s var(--ease), background-color 0.15s var(--ease), border-color 0.15s var(--ease); } .ds-ens:hover { color: var(--ink); border-color: var(--ink-2); } .ds-ens[aria-pressed=\"true\"] { color: var(--paper); background: var(--ink); border-color: var(--ink); } .ds-ens:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; } .ds-ens-icon { width: 20px; height: 20px; } .ds-ens-icon circle { fill: currentColor; }"
+    },
+    {
+      "name": "Rotary knob",
+      "kind": "input",
+      "refersTo": "knob",
+      "description": "A pale dial on the fallboard: its setting is an arc of ink and a pointer on the cap; its reading stands over it while it is under the hand.",
+      "html": "<label class=\"ds-knob\" tabindex=\"0\"><svg viewBox=\"0 0 40 40\" class=\"ds-k-face\" aria-hidden=\"true\"><path class=\"ds-k-track\" d=\"M9.39 30.61 A15 15 0 1 1 30.61 30.61\"/><path class=\"ds-k-val\" d=\"M9.39 30.61 A15 15 0 0 1 24.6 5.72\"/><circle class=\"ds-k-cap\" cx=\"20\" cy=\"20\" r=\"10.5\"/><line class=\"ds-k-ptr\" x1=\"20\" y1=\"20\" x2=\"22.76\" y2=\"11.43\"/></svg><span class=\"ds-k-read\">0.62</span><span class=\"ds-k-name\">hammer</span></label>",
+      "css": ".ds-knob { position: relative; display: inline-flex; flex-direction: column; align-items: center; width: 58px; margin-top: 26px; cursor: ns-resize; user-select: none; outline: none; } .ds-k-face { width: 38px; height: 38px; overflow: visible; display: block; } .ds-k-track { fill: none; stroke: var(--rule); stroke-width: 2; stroke-linecap: round; } .ds-k-val { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; } .ds-k-cap { fill: #fff; stroke: var(--rule-2); stroke-width: 0.7; filter: drop-shadow(0.4px 1px 1px rgba(28, 34, 42, 0.26)); transition: stroke 0.15s var(--ease); } .ds-k-ptr { stroke: var(--ink); stroke-width: 1.7; stroke-linecap: round; } .ds-knob:hover .ds-k-cap { stroke: var(--ink-2); } .ds-knob:focus-visible .ds-k-cap { stroke: var(--ink); stroke-width: 1.4; } .ds-k-name { font: 500 12px/1.25 var(--font); color: var(--muted); white-space: nowrap; } .ds-knob:hover .ds-k-name, .ds-knob:focus-visible .ds-k-name { color: var(--ink); } .ds-k-read { position: absolute; left: 50%; bottom: calc(100% + 3px); transform: translateX(-50%); display: none; padding: 2px 7px; border-radius: 6px; background: var(--ink); color: var(--paper); font: 500 12px/1.35 var(--font); font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; } .ds-knob:hover .ds-k-read, .ds-knob:focus-visible .ds-k-read { display: block; }"
+    },
+    {
+      "name": "Stage knob",
+      "kind": "custom",
+      "refersTo": "stage-knob",
+      "description": "The room and lid knobs on the stage: the same dial on a paper disc that stands off the instrument by its shadow. No word; a drawn sign on the cap says which it is.",
+      "html": "<div class=\"ds-stage-knob\" role=\"slider\" tabindex=\"0\" aria-label=\"Lid\" aria-valuemin=\"0\" aria-valuemax=\"1\" aria-valuenow=\"0.6\"><svg viewBox=\"0 0 40 40\" class=\"ds-k-face\" aria-hidden=\"true\"><circle class=\"ds-sk-bg\" cx=\"20\" cy=\"20\" r=\"19.4\"/><path class=\"ds-k-track\" d=\"M9.39 30.61 A15 15 0 1 1 30.61 30.61\"/><path class=\"ds-k-val\" d=\"M9.39 30.61 A15 15 0 0 1 24.6 5.72\"/><circle class=\"ds-k-cap\" cx=\"20\" cy=\"20\" r=\"10.5\"/><path class=\"ds-sk-sign\" d=\"M15.6 22.4h8.8M15.6 22.4l7.4-4.6\"/></svg></div>",
+      "css": ".ds-stage-knob { display: inline-block; width: 38px; height: 38px; border-radius: 50%; cursor: ns-resize; filter: drop-shadow(1px 2px 3px rgba(28, 34, 42, 0.26)); } .ds-stage-knob:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; } .ds-k-face { width: 38px; height: 38px; overflow: visible; display: block; } .ds-k-track { fill: none; stroke: var(--rule); stroke-width: 2; stroke-linecap: round; } .ds-k-val { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; } .ds-k-cap { fill: #fff; stroke: var(--rule-2); stroke-width: 0.7; transition: stroke 0.15s var(--ease); } .ds-k-ptr { stroke: var(--ink); stroke-width: 1.7; stroke-linecap: round; } .ds-sk-bg { fill: var(--paper); stroke: var(--rule-2); stroke-width: 0.8; transition: stroke 0.15s var(--ease); } .ds-sk-sign { fill: none; stroke: var(--muted); stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; } .ds-stage-knob:hover .ds-sk-bg, .ds-stage-knob:focus-visible .ds-sk-bg, .ds-stage-knob:hover .ds-sk-sign, .ds-stage-knob:focus-visible .ds-sk-sign { stroke: var(--ink); }"
+    },
+    {
+      "name": "Piano keys",
+      "kind": "custom",
+      "refersTo": "key-white",
+      "description": "Ivory and ebony, lit from the left. A key pressed goes down and stays its own colour; a key whose note sounds takes the blue (the second white key and the second black key here).",
+      "html": "<div class=\"ds-keys\"><div class=\"ds-key ds-white\" style=\"left:0\"></div><div class=\"ds-key ds-white ds-sounding\" style=\"left:36px\"></div><div class=\"ds-key ds-white\" style=\"left:72px\"></div><div class=\"ds-key ds-white\" style=\"left:108px\"></div><div class=\"ds-key ds-black\" style=\"left:25px\"></div><div class=\"ds-key ds-black ds-sounding\" style=\"left:61px\"></div></div>",
+      "css": ".ds-keys { position: relative; width: 144px; height: 130px; } .ds-key { position: absolute; top: 0; cursor: pointer; } .ds-white { width: 36px; height: 100%; background: linear-gradient(180deg, #e3e1d9 0%, var(--ivory) 7%, #fcfbf7 80%, #edece5 100%); border-left: 1px solid #b3b0a6; border-right: 1px solid #fff; border-radius: 0 0 5px 5px; box-shadow: inset 0 -5px 0 #dcdad2, 0.5px 2px 2px rgba(28, 34, 42, 0.22); z-index: 1; transition: transform 0.04s, box-shadow 0.04s; } .ds-black { width: 22px; height: 62%; background: linear-gradient(90deg, #4a5057 0 1px, rgba(74, 80, 87, 0) 1px calc(100% - 1px), #0e1013 calc(100% - 1px)), linear-gradient(180deg, #17191c 0%, #2c3035 70%, #3b4046 92%, #1d2023 100%); border-radius: 0 0 3px 3px; box-shadow: inset 0 -6px 0 #14161a, 1px 3px 4px rgba(28, 34, 42, 0.4); z-index: 2; transition: transform 0.04s, box-shadow 0.04s; } .ds-white:active { transform: translateY(2px); box-shadow: inset 0 -2px 0 #dcdad2, 0 0 0 rgba(28, 34, 42, 0); background: linear-gradient(180deg, #d6d4cc 0%, #f0efe8 12%, #f4f3ec 100%); } .ds-black:active { transform: translateY(2px); box-shadow: inset 0 -2px 0 #14161a, 0.5px 1px 2px rgba(28, 34, 42, 0.4); } .ds-white.ds-sounding { background: linear-gradient(180deg, #bccdf6 0%, var(--accent-wash) 14%, #e6edff 100%); border-left-color: #9fb3e6; box-shadow: inset 0 -2px 0 #b7c8f2, 0 0 0 rgba(28, 34, 42, 0); } .ds-black.ds-sounding { background: linear-gradient(90deg, #5f85f0 0 1px, rgba(95, 133, 240, 0) 1px calc(100% - 1px), #12308f calc(100% - 1px)), linear-gradient(180deg, #1637a8 0%, #2553e0 72%, #3a66ea 92%, #1a3fb8 100%); box-shadow: inset 0 -2px 0 #12308f, 0.5px 1px 2px rgba(28, 34, 42, 0.4); }"
+    },
+    {
+      "name": "Readout",
+      "kind": "custom",
+      "refersTo": "readout",
+      "description": "Everything that is sounding, light and large, with one line under it. It keeps its 260 by 60px box and dims when nothing sounds.",
+      "html": "<div class=\"ds-readout\"><div class=\"ds-r-note\">C4 E4 G4</div><div class=\"ds-r-hz\">C major</div></div>",
+      "css": ".ds-readout { width: 260px; height: 60px; display: flex; flex-direction: column; justify-content: center; transition: opacity 0.3s var(--ease); } .ds-r-note { height: 40px; font: 300 40px/40px var(--font); letter-spacing: -0.005em; color: var(--ink); white-space: nowrap; overflow: hidden; } .ds-r-hz { height: 16px; margin-top: 4px; font: 500 12.5px/16px var(--font); font-variant-numeric: tabular-nums lining-nums; color: var(--ink-2); white-space: nowrap; }"
+    },
+    {
+      "name": "Tooltip",
+      "kind": "custom",
+      "refersTo": "tooltip",
+      "description": "The name of an icon-only control: paper text on an ink label, as small as it can be read.",
+      "html": "<span class=\"ds-tip\">reset knobs</span>",
+      "css": ".ds-tip { display: inline-block; padding: 3px 8px 4px; border-radius: 7px; font: 500 12.5px/1.3 var(--font); font-variant-numeric: tabular-nums lining-nums; color: var(--paper); background: var(--ink); white-space: nowrap; }"
+    },
+    {
+      "name": "Pedal",
+      "kind": "button",
+      "refersTo": "pedal",
+      "description": "A drawn foot with its name under it. Held, it goes down and takes ink (press it here).",
+      "html": "<button class=\"ds-pedal\" aria-pressed=\"false\"><svg class=\"ds-p-face\" viewBox=\"0 0 30 28\" aria-hidden=\"true\"><path class=\"ds-p-foot\" d=\"M6 3h18l3 19a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z\"/><path class=\"ds-p-shine\" d=\"M8.5 6h13\"/></svg><span class=\"ds-p-name\">sustain</span></button>",
+      "css": ".ds-pedal { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; width: 48px; padding: 3px 0 0; border: 0; background: none; color: var(--muted); cursor: pointer; user-select: none; } .ds-p-face { width: 30px; height: 28px; transition: transform 0.06s; filter: drop-shadow(0.5px 1.5px 1.5px rgba(28, 34, 42, 0.22)); } .ds-p-foot { fill: var(--paper); stroke: var(--ink-2); stroke-width: 1.1; } .ds-p-shine { fill: none; stroke: var(--rule-2); stroke-width: 1; } .ds-pedal:hover .ds-p-foot { stroke: var(--ink); } .ds-pedal:active .ds-p-face { transform: translateY(3px) scaleY(0.9); filter: drop-shadow(0.5px 0.5px 1.5px rgba(28, 34, 42, 0.22)); } .ds-pedal:active .ds-p-foot { fill: var(--ink); stroke: var(--ink); } .ds-pedal:active .ds-p-shine { stroke: rgba(249, 250, 251, 0.4); } .ds-pedal:active .ds-p-name { color: var(--ink); } .ds-pedal:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; } .ds-p-name { font: 500 12px/1.25 var(--font); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Day Studio",
+    "overview": "A north-lit white studio at midday. The instrument stands in it, and the page is the same plaster as the wall. The brief that pins it: a bright, minimal daylight studio; high-key, pale ground, soft north light; the feeling of a quiet photography studio or a modern practice room at midday. Air, space and clarity.\n\nThe mood is quiet, bright, exact and unhurried. The instrument is the largest thing on the screen by far. Everything round it is small, pale, round and drawn: discs, pills and hairlines set straight on the wall, with no panel behind them. Daylight has no glows, so state has only two forms. Ink is what is chosen or held. Blue is what sounds.\n\nIt rejects two looks. One is the incumbent night bench: a near-black ground, amber glows, a serif readout. The other is the generic SaaS light theme: cards, borders round regions, a tinted accent on every control.\n\nThe same room is shown three ways and they keep one grammar. The drawn 2D stage is an opaque object in its daylight materials on the bright field. The vector style is a drawing in graphite on a sheet of drafting film. The 3D stage is a generated daylight room.",
+    "keyCharacteristics": [
+      "One plaster white for wall, floor and page; paper white for what is laid on it.",
+      "Light from the upper left; every shadow falls down and a little right, and is soft.",
+      "Two forms of state: ink for chosen or held, one ultramarine for what sounds.",
+      "Nothing glows, anywhere.",
+      "One sans, light and large for the readout, medium and small for labels.",
+      "Signs are drawn, never typed.",
+      "The stage is nearly wordless; icon-only controls carry a tooltip."
+    ],
+    "rules": [
+      {
+        "name": "The One Plaster Rule",
+        "body": "One white (`ground`) is the wall, the floor and the page. No panel stands behind the bar or the band. What is laid on the ground is paper white and casts a soft shadow down and to the right (the window is up and to the left).",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Forms of State Rule",
+        "body": "Ink is what is chosen or held: the instrument on the stage, the view, a knob's setting, a key pressed, a valve down. Blue is what sounds: a string's shape, a key sounding, a part playing, the place in a piece, a wavefront, a plate's motion. Nothing else is blue.",
+        "section": "colors"
+      },
+      {
+        "name": "The Leads Are a Key Rule",
+        "body": "The vector style's green, red, pink and deep leads tie a knob to the part of the drawing it moves. They are a key, not an accent: never on chrome outside the vector style.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Face Rule",
+        "body": "Ysabeau Office sets the page. Sometype Mono is for code and equations only. Hershey Simplex is the vector style's lettering, a third face used only there and on purpose. A canvas letters in `CANVAS_FONT` (`ui/stage-draw.ts`), never in a face named in a string.",
+        "section": "typography"
+      },
+      {
+        "name": "The Twelve Pixel Rule",
+        "body": "A control's name is never under 12px. Smaller figures exist only as counts and legends beside a sign (a seat count, a key's computer-key letter), never as the name of a control.",
+        "section": "typography"
+      },
+      {
+        "name": "The Nothing Glows Rule",
+        "body": "No additive compositing, no coloured halo, in CSS, on a canvas or in 3D. Where a glow once said \"this is active\", ink or blue says it. A struck bar or drumhead in 3D takes a faint cast of the blue while it rings (`ui/gl/ring-glow.ts`): a cast on the material, not a lamp.",
+        "section": "elevation"
+      },
+      {
+        "name": "The One Window Rule",
+        "body": "Light comes from the upper left. A shadow that falls any other way, or straight down, is wrong.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Drawn Signs Rule",
+        "body": "Icons and control marks are drawn SVG or CSS shapes (`ui/icons.ts`, `ui/controls.ts`, `ui/stage-knob.ts`), never a character of a font. Lines are 1.1 to 1.5px in the current colour with round caps and joins; an instrument's glyph has its body filled paper.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do keep one plaster white (`ground`) as wall, floor and page, and set the bar and the band straight on it.",
+      "Do lay anything that floats (the player, a menu, a sheet, a stage knob) on paper white with one of the three shadows, falling down and to the right.",
+      "Do mark what is chosen or held in ink: a filled ink pill, a 1.5px ink rule, an ink arc, an ink outline.",
+      "Do keep the blue for what sounds, and use it firmly where it is used.",
+      "Do draw every sign as SVG or a CSS shape (`ui/icons.ts`, `ui/controls.ts`, `ui/stage-knob.ts`) and give an icon-only control a tooltip and an `aria-label`.",
+      "Do set control names at 12px or more, weight 500, and figures that change in tabular numerals.",
+      "Do paint a drawn object's floor shadow once, into its cached layer.",
+      "Do give pale materials (silver, ivory, a drumhead, bow hair) a graphite hairline or a shade side so they stand off the pale ground.",
+      "Do letter a canvas in `CANVAS_FONT`."
+    ],
+    "donts": [
+      "Don't bring back the night bench: a near-black ground, amber glows, a serif readout.",
+      "Don't build a generic SaaS light theme: cards, borders round regions, a tinted accent on every control.",
+      "Don't put a panel, a fill or a rule behind the bar or the band.",
+      "Don't use blue for a mechanical state (a key held, a valve down, a view chosen), for decoration, or for a link.",
+      "Don't make anything glow: no additive compositing (`'lighter'`, `'screen'`), no coloured `shadowBlur` halo, no bloom, in CSS, on a canvas or in 3D.",
+      "Don't use a character of a font as an icon or a control mark.",
+      "Don't use the vector style's leads (green, red, pink, deep) on chrome outside the vector style.",
+      "Don't use the Alarm colour for anything but a fault.",
+      "Don't use Sometype Mono outside code and equations, or Hershey outside the vector style.",
+      "Don't add permanent explanatory words to the stage."
+    ]
+  }
+}

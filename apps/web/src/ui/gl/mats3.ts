@@ -51,7 +51,7 @@ export const SECTION = { light: { value: 0.6 } };
 
 const P: Record<string, Phys> = {
   // (cut open, a lacquered case part shows the wood under its lacquer: `cut`, CORE)
-  lacquer: { color: '#050505', roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.035, envMapIntensity: 1.7, tex: 0, cap: 1, cut: CORE },
+  lacquer: { color: '#050505', roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.035, envMapIntensity: 0.95, tex: 0, cap: 1, cut: CORE },
   lacquerSatin: { color: '#0a0909', roughness: 0.42, clearcoat: 0.6, clearcoatRoughness: 0.22, cap: 1, cut: CORE },
   caseInner: { color: '#1d140e', roughness: 0.5, clearcoat: 0.4, clearcoatRoughness: 0.3, tex: 3, axis: [1, 0, 0], texScale: 3, cut: CORE },
   // the plate: gold-bronze lacquer over cast iron (a lacquered paint, not bare metal)
@@ -83,7 +83,7 @@ const P: Record<string, Phys> = {
   // the glockenspiel's bars (glock3d.ts): tool steel ground along the bar and polished, a satin's long
   // highlight across the grain
   glockBar: { color: '#b9bdc3', metalness: 0.85, roughness: 0.4, tex: 8, axis: [0, 0, 1] },
-  glockHead: { color: '#d7b065', metalness: 1, roughness: 0.24, envMapIntensity: 1.4 },
+  glockHead: { color: '#d7b065', metalness: 1, roughness: 0.24, envMapIntensity: 1.1 },
   // the harp's gilding (harp3d.ts: the crown, the capital, the column's rings, the feet): gold leaf over
   // carved wood, burnished: warmer and softer than lacquered brass
   harpGilt: { color: '#d9ab4c', metalness: 1, roughness: 0.3, envMapIntensity: 1.1 },
@@ -118,22 +118,25 @@ const P: Record<string, Phys> = {
   stringSteel: { color: '#c9ccd2', metalness: 1, roughness: 0.24, anisotropy: 0.7, tex: 8 },
   stringWound: { color: '#a7a9ad', metalness: 1, roughness: 0.3, anisotropy: 0.8, tex: 8 },
   floor: { color: '#13110e', roughness: 0.7 },
-  // winds3d: polished sterling silver and nickel silver read in a dark studio through their
-  // reflections, so the environment counts for more (a product shot's big white cards); the lacquer
-  // is a clear coat over polished yellow brass (no texture: a polished part shows no grain)
-  silverPolish: { color: '#f3f3f1', metalness: 1, roughness: 0.2, envMapIntensity: 1.6, tex: 8, axis: [0, 1, 0] },
+  // the studio's risers: birch ply under a matt seal (its grain along the row), and painted fascias
+  stageDeck: { color: '#d4ccbc', roughness: 0.6, clearcoat: 0.12, clearcoatRoughness: 0.55, tex: 3, axis: [1, 0, 0], texScale: 3 },
+  stagePaint: { color: '#e8eaec', roughness: 0.9 },
+  // winds3d: polished sterling silver and nickel silver are what they reflect: the daylight room, its
+  // window and its skylight; the lacquer is a clear coat over polished yellow brass (no texture: a
+  // polished part shows no grain)
+  silverPolish: { color: '#f3f3f1', metalness: 1, roughness: 0.2, envMapIntensity: 1.1, tex: 8, axis: [0, 1, 0] },
   boreDark: { color: '#2e2e2c', metalness: 1, roughness: 0.4, envMapIntensity: 0.35 },
-  brassLacquer: { color: '#f6d382', metalness: 1, roughness: 0.16, clearcoat: 1, clearcoatRoughness: 0.1, envMapIntensity: 1.6 },
-  nickelSilver: { color: '#e4e2db', metalness: 1, roughness: 0.18, envMapIntensity: 1.5, tex: 8, axis: [0, 1, 0] },
+  brassLacquer: { color: '#e9bf62', metalness: 1, roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.1, envMapIntensity: 1.15 },
+  nickelSilver: { color: '#e4e2db', metalness: 1, roughness: 0.18, envMapIntensity: 1.1, tex: 8, axis: [0, 1, 0] },
   valveFelt: { color: '#4d1c15', roughness: 1, sheen: 0.8, sheenColor: '#a0584a', sheenRoughness: 0.6, tex: 6 },
   cork: { color: '#a98458', roughness: 0.92, tex: 6 },
   // the valve buttons' mother-of-pearl: a satin coat (a mirror-sharp coat on a small dome made a
   // hot spot the bloom turned into a fog)
   pearlInlay: { color: '#f2ede4', roughness: 0.32, clearcoat: 0.5, clearcoatRoughness: 0.22, iridescence: 0.8, iridescenceIOR: 1.35, iridescenceThicknessRange: [220, 620] },
   // the valve caps' faces: satin, as most are (and a polished dome facing the key light blooms)
-  nickelSatin: { color: '#e0ded7', metalness: 1, roughness: 0.32, envMapIntensity: 1.5, tex: 8, axis: [1, 0, 0] },
+  nickelSatin: { color: '#e0ded7', metalness: 1, roughness: 0.32, envMapIntensity: 1.1, tex: 8, axis: [1, 0, 0] },
   // the flute's keys, rings and fittings and the mouthpiece: polished, without the drawn tube's grain
-  silverKeys: { color: '#f3f3f1', metalness: 1, roughness: 0.19, envMapIntensity: 1.6 },
+  silverKeys: { color: '#f3f3f1', metalness: 1, roughness: 0.19, envMapIntensity: 1.1 },
   // pianos: the plate is lacquered metal-flake paint over cast iron (a thin, slightly rough coat; a
   // heavy clearcoat would wash it to cream under the softbox). Its colour is matched to grand-inside.jpg,
   // whose lit plate averages sRGB ≈ (130–160, 100–125, 70–85): a dark, warm bronze-gold. The flake
@@ -262,6 +265,12 @@ const cache = new Map<Mat, THREE.Material>();
  *  an intensity (the winds' metals 1.4–1.6, the bores, the f-holes' and the case's insides
  *  0.18–0.35, the upright's plate 0.75) are given the environment itself to have it honoured */
 let envTex: THREE.Texture | null = null;
+/** how much of the room such a material takes in the daylight studio. The intensities above were set in
+ *  a dark studio, where polished metal reads only through its reflections and was given up to twice the
+ *  environment; in a daylight room a metal takes the room as it is, so what is over 1 is drawn in to a
+ *  quarter of it (1.6 → 1.15), and the whole follows the room's own share (three3d.ts DAY.env). */
+export const ROOM_SHARE = 1.2;
+export const dayEnv = (v: number): number => ROOM_SHARE * (v <= 1 ? v : 1 + (v - 1) * 0.25);
 export function setEnvironment(t: THREE.Texture | null): void {
   envTex = t;
 }
@@ -278,7 +287,10 @@ export function materialFor(m: Mat, lite: boolean): THREE.Material {
   const metal = (params.metalness ?? 0) >= 0.5;
   const cap = cap0 ?? (WOODS.includes(tex) ? 1 : tex === 6 || tex === 12 ? 2 : metal ? 3 : 0);
   const pm = new THREE.MeshPhysicalMaterial({ side: THREE.DoubleSide, ...params });
-  if (params.envMapIntensity !== undefined && envTex) pm.envMap = envTex;
+  if (params.envMapIntensity !== undefined && envTex) {
+    pm.envMap = envTex;
+    pm.envMapIntensity = dayEnv(params.envMapIntensity);
+  }
   if (m.tint) pm.color.setRGB(m.col[0], m.col[1], m.col[2], THREE.SRGBColorSpace);
   if (pm.anisotropy) pm.anisotropyRotation = 0;
   const kind = m.kind ?? 0;

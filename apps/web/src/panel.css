@@ -1,17 +1,18 @@
 /* The top panel: everything over the stage that is not the instrument.
 
-   Two bands, each with one job.
-   · The bar (main.ts .top) is what is on the stage and how it is seen: the instruments by family, the
-     orchestra; at the far end the piano's kind, the view (one choice of three) and the two pages.
+   Two rows, each with one job, and no panel behind either: they are set on the wall.
+   · The bar (main.ts .top) is what is on the stage and how it is seen: the instruments by family, parted by
+     space; the Orchestra, which is a mode and is drawn as one; at the far end the piano's kind, the view
+     (one choice of three) and the two pages.
    · The band under it (views/stage.ts .stage-top) is what is sounding: the readout (every note, not one of
      them), the spectrum, and one instrument's excitation or an ensemble's parts.
    Where the instruments cannot all sit side by side at a size to read and to touch, one button names what
-   is on the stage and opens them as a sheet (COMPACT in views/stage.ts: the same query as below). */
+   is on the stage and opens them as a sheet (COMPACT in views/stage.ts: the same query as below).
+
+   Ink is what is chosen; blue is what sounds. */
 
 :root {
-  --top-h: 38px;
-  --chip-line: rgba(236, 226, 206, 0.18);
-  --chip-on: rgba(236, 226, 206, 0.82);
+  --top-h: 40px;
 }
 :root[data-route='stage'] {
   --top-h: 60px;
@@ -23,12 +24,11 @@
   z-index: 3;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   height: var(--top-h);
   padding: 0 var(--gutter);
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.02em;
+  font-size: 12.5px;
+  font-weight: 500;
   color: var(--muted);
 }
 /* (the open sheet lies over the file player) */
@@ -45,7 +45,7 @@
   align-items: center;
   flex: none;
 }
-/* (the lamp's words give way first: "tap a key", a failure's reason; its title has them whole) */
+/* (the hint's words give way first: "tap a key", a failure's reason; its title has them whole) */
 .status {
   min-width: 0;
 }
@@ -56,7 +56,7 @@
   min-width: 0;
 }
 /* (the hint is never cut short, main.ts fitLamp: on two lines where one does not fit, and where two
-   do not, the lamp alone) */
+   do not, the sign alone) */
 .status[data-fit='two'] .lamp-text {
   max-height: 24px;
   line-height: 12px;
@@ -66,7 +66,7 @@
 .status[data-fit='none'] .lamp-text {
   display: none;
 }
-/* (Measurements and Notes have no keys to tap: there the lamp alone; its title still says how sound starts) */
+/* (Measurements and Notes have no keys to tap: there the sign alone; its title still says how sound starts) */
 :root:not([data-route='stage'])[data-audio='idle'] .lamp-text,
 :root:not([data-route='stage'])[data-audio='suspended'] .lamp-text {
   display: none;
@@ -77,27 +77,38 @@
 }
 .top a {
   text-decoration: none;
+  transition: color 0.15s var(--ease);
 }
 .top a:hover,
 .top a[aria-current='page'] {
   color: var(--ink);
 }
-/* the pages: two words in the corner, each a target a finger finds, the one shown underlined */
+/* the pages: two words in the corner, each a target a finger finds, the one shown underlined in ink */
 .links {
   display: flex;
-  gap: 2px;
+  gap: 4px;
   margin-right: -6px;
 }
 .links a {
-  padding: 7px 6px;
-  border-radius: 3px;
+  padding: 8px 6px;
+  border-radius: 6px;
 }
 .links a[aria-current='page'] {
-  box-shadow: inset 0 -1.5px 0 var(--amber);
+  box-shadow: inset 0 -1.5px 0 var(--ink);
+  border-radius: 0;
 }
 .back {
-  font-size: 15px;
-  padding: 6px 10px 6px 0;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-left: -8px;
+  border-radius: 50%;
+  font-size: 16px;
+  color: var(--ink-2);
+}
+.back:hover {
+  background: var(--ground-2);
 }
 :root[data-route='stage'] .back {
   display: none;
@@ -132,7 +143,7 @@
 .picker {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 .pick-open {
   display: none;
@@ -140,104 +151,117 @@
 .picker-pop {
   display: flex;
   align-items: center;
-  padding-right: 8px;
-  border-right: 1px solid var(--rule);
 }
 .instruments {
   display: flex;
 }
-/* a family: its instruments close together, a hairline before the next */
+/* a family: its instruments close together, air before the next */
 .fam {
   display: flex;
-  gap: 1px;
-  padding: 0 6px;
-  border-left: 1px solid var(--rule);
+  padding: 0 8px;
 }
 .fam:first-child {
   padding-left: 0;
-  border-left: 0;
 }
 .fam:last-child {
   padding-right: 0;
 }
-.pick,
-.ens-toggle {
+.pick {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   min-width: 40px;
-  padding: 3px 3px 5px;
+  padding: 3px 3px 6px;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 9px;
   background: none;
   color: var(--muted);
   cursor: pointer;
   transition:
-    color 0.15s,
-    background-color 0.15s;
+    color 0.15s var(--ease),
+    background-color 0.15s var(--ease);
 }
-.pick:hover,
-.ens-toggle:hover {
-  color: var(--ink-2);
-  background: rgba(236, 226, 206, 0.05);
+.pick:hover {
+  color: var(--ink);
+  background: var(--ground-2);
 }
-/* the one on the stage (an orchestra: each it has): lit, and a short rule under its name */
-.pick[aria-pressed='true'],
-.ens-toggle[aria-pressed='true'] {
+/* the one on the stage (an orchestra: each it has): in ink, and a short rule of ink under its name */
+.pick[aria-pressed='true'] {
   color: var(--ink);
 }
-.pick[aria-pressed='true']::after,
-.ens-toggle[aria-pressed='true']::after {
+.pick[aria-pressed='true']::after {
   content: '';
   position: absolute;
-  left: 9px;
-  right: 9px;
-  bottom: 0;
+  left: 10px;
+  right: 10px;
+  bottom: 1px;
   height: 1.5px;
   border-radius: 1px;
-  background: var(--amber);
+  background: var(--ink);
 }
-/* (an orchestra lights every instrument it has: their glyphs and counts say so, the rule is the orchestra's) */
+/* (an orchestra inks every instrument it has: their glyphs and counts say so, the mode's own button too) */
 :root[data-ensemble] .pick[aria-pressed='true']::after {
   content: none;
 }
 /* the keyboard-focus ring is drawn inside the button's own box: the picker sits against the bar's top
    and left edges */
 .pick:focus-visible,
-.ens-toggle:focus-visible,
 .pick-open:focus-visible {
-  outline-offset: -1.5px;
+  outline-offset: -2px;
 }
 .pick .glyph {
-  width: 32px;
-  height: 32px;
-}
-.pick[aria-pressed='true'] .glyph {
-  stroke: var(--amber);
-  filter: drop-shadow(0 0 4px rgba(242, 166, 70, 0.45));
+  width: 30px;
+  height: 30px;
 }
 .pick-name {
-  font-family: var(--mono);
-  font-size: 10px;
-  line-height: 1.3;
-  letter-spacing: 0.02em;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
   white-space: nowrap;
 }
 /* how many of an instrument the ensemble has (two or more) */
 .pick-n {
   position: absolute;
   top: 1px;
-  right: 2px;
-  font: 500 10px/1 var(--mono);
-  color: var(--amber);
+  right: 1px;
+  font: 600 10.5px/1 var(--font);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--ink);
 }
 .pick-n:empty {
   display: none;
 }
+/* the Orchestra: a mode, not a seventeenth instrument. A pill with its sign and its word; on, it is ink */
+.ens-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 13px 0 9px;
+  border: 1px solid var(--rule-2);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition:
+    color 0.15s var(--ease),
+    background-color 0.15s var(--ease),
+    border-color 0.15s var(--ease);
+}
+.ens-toggle:hover {
+  color: var(--ink);
+  border-color: var(--ink-2);
+}
+.ens-toggle[aria-pressed='true'] {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
 .ens-toggle .ens-icon {
-  width: 26px;
-  height: 32px;
+  width: 20px;
+  height: 20px;
 }
 .ens-icon circle {
   fill: currentColor;
@@ -247,36 +271,34 @@
   fill: none;
   stroke-linecap: round;
 }
-.ens-toggle[aria-pressed='true'] .ens-icon {
-  color: var(--amber);
-  filter: drop-shadow(0 0 4px rgba(242, 166, 70, 0.45));
-}
 
-/* ------------------------------------------------------------ the stage's tools: one frame, one of them lit */
+/* ------------------------------------------------------------ the stage's tools: one track, one of them in ink */
 .stage-tools {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 .view-seg,
 .presets {
   display: inline-flex;
-  gap: 1px;
-  padding: 1px;
-  border: 1px solid var(--chip-line);
-  border-radius: 5px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--ground-2);
 }
 .view-seg button,
 .presets button {
   border: 0;
-  border-radius: 3px;
+  border-radius: 999px;
   background: none;
-  padding: 5px 7px;
-  font: 500 10.5px/1 var(--mono);
-  letter-spacing: 0.04em;
-  color: var(--muted);
+  padding: 5px 11px 6px;
+  font: 550 12.5px/1.15 var(--font);
+  font-variant-numeric: lining-nums;
+  /* (on the track's own tone, a shade under the wall's: the darker of the two greys, 7:1) */
+  color: var(--ink-2);
   cursor: pointer;
-  transition: color 0.15s;
+  transition:
+    color 0.15s var(--ease),
+    background-color 0.15s var(--ease);
 }
 .view-seg button:hover,
 .presets button:hover {
@@ -284,32 +306,35 @@
 }
 .view-seg button[aria-pressed='true'],
 .presets button[aria-pressed='true'] {
-  color: var(--ground);
-  background: var(--chip-on);
+  color: var(--paper);
+  background: var(--ink);
 }
 .view-seg button:focus-visible,
-.presets button:focus-visible,
-.case-toggle:focus-visible {
-  outline: 1px solid rgba(242, 166, 70, 0.8);
+.presets button:focus-visible {
   outline-offset: 1px;
 }
 .case-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 25px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   color: var(--ink-2);
-  background: none;
-  border: 1px solid var(--chip-line);
-  border-radius: 5px;
+  background: var(--ground-2);
+  border: 0;
+  border-radius: 50%;
   cursor: pointer;
+  transition:
+    color 0.15s var(--ease),
+    background-color 0.15s var(--ease);
+}
+.case-toggle:hover {
+  color: var(--ink);
 }
 .case-toggle[aria-pressed='true'] {
-  color: var(--ground);
-  background: var(--chip-on);
-  border-color: transparent;
+  color: var(--paper);
+  background: var(--ink);
 }
 .case-toggle[hidden] {
   display: none;
@@ -327,55 +352,57 @@
 /* the readout keeps its box whatever it says: nothing under it moves when a note sounds */
 .readout {
   flex: none;
-  width: 250px;
-  height: 58px;
+  width: 260px;
+  height: 60px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  transition: opacity 0.3s;
+  transition: opacity 0.3s var(--ease);
 }
 /* (let go: what was last heard, dimmed) */
 .readout[data-idle] {
-  opacity: 0.4;
+  opacity: 0.36;
 }
 .r-note {
-  height: 38px;
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 38px;
+  height: 40px;
+  font-family: var(--font);
+  font-weight: 300;
+  font-size: 40px;
   /* (one line box whatever the size: the smaller settings sit on the same line) */
-  line-height: 38px;
+  line-height: 40px;
   overflow: hidden;
-  font-variation-settings: 'opsz' 60;
+  letter-spacing: -0.005em;
   color: var(--ink);
   white-space: nowrap;
 }
 /* an accidental: a sign beside its letter, not a letter of its own */
 .r-note .acc {
-  font-family: 'Apple Symbols', 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'DejaVu Sans', sans-serif;
-  font-style: normal;
-  font-size: 0.7em;
+  font-family: var(--font), 'Apple Symbols', 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'DejaVu Sans', sans-serif;
+  font-size: 0.74em;
   line-height: 1;
-  margin: 0 0.03em 0 0.05em;
+  margin: 0 0.02em 0 0.04em;
   vertical-align: 0.1em;
 }
 /* more to say, set smaller: two notes or a chord's name; three or four notes; the longest */
 .readout[data-size='2'] .r-note {
-  font-size: 32px;
+  font-size: 34px;
 }
 .readout[data-size='3'] .r-note {
-  font-size: 25px;
+  font-size: 27px;
+  font-weight: 350;
 }
 .readout[data-size='4'] .r-note {
-  font-size: 19px;
+  font-size: 21px;
+  font-weight: 400;
 }
 .r-hz {
-  height: 15px;
+  height: 16px;
   margin-top: 4px;
-  font-family: var(--mono);
-  font-size: 11px;
-  line-height: 15px;
-  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums lining-nums;
+  line-height: 16px;
+  color: var(--ink-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -400,10 +427,9 @@
   width: 100%;
   height: 42px;
 }
-/* an ensemble: its instruments in the scope's place, each lit while it sounds, its notes under it. A long
-   lineup in a window with no room for it (sixteen kinds beside the readout on a tablet held upright: 578 px
-   of them in 304) stands closer, each instrument its share of the room: the strip never widens the page
-   (at 768 px Pass It On's scrolled it sideways by 200 px) */
+/* an ensemble: its instruments in the scope's place, each blue while it sounds, its notes under it. A long
+   lineup in a window with no room for it (sixteen kinds beside the readout on a tablet held upright)
+   stands closer, each instrument its share of the room: the strip never widens the page */
 .parts {
   display: none;
   flex: 0 1 auto;
@@ -426,34 +452,32 @@
   flex: 0 1 auto;
   width: 40px;
   min-width: 0;
-  color: var(--muted);
-  opacity: 0.45;
-  transition: opacity 0.12s;
+  color: var(--faint);
+  transition: color 0.12s var(--ease);
 }
 .part[data-on] {
-  opacity: 1;
-  color: var(--ink);
+  color: var(--accent);
 }
 .part .glyph {
   width: 28px;
   max-width: 100%;
   height: 28px;
 }
-.part[data-on] .glyph {
-  stroke: var(--amber);
-}
 .part-n {
   position: absolute;
   top: 0;
   right: 0;
-  font: 500 8.5px/1 var(--mono);
-  color: var(--amber);
+  font: 600 9.5px/1 var(--font);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--ink-2);
 }
 .part-notes {
   width: 100%;
-  height: 22px;
+  height: 24px;
   overflow: hidden;
-  font: 400 9px/11px var(--mono);
+  font: 500 10.5px/12px var(--font);
+  font-variant-numeric: lining-nums;
+  color: var(--ink);
   text-align: center;
 }
 /* (silent: its last notes are not shown as if still sounding) */
@@ -470,36 +494,65 @@
     height: 24px;
   }
 }
+/* a laptop with every tool in the bar (an upright in 3D, and the hint before any sound): the row draws in
+   a little, so the hint's three words stay on one line at 1366 px */
+@media (max-width: 1480px) {
+  .top {
+    gap: 8px;
+  }
+  .fam {
+    padding: 0 4px;
+  }
+  .picker {
+    gap: 8px;
+  }
+  .ens-toggle {
+    gap: 5px;
+    padding: 0 10px 0 8px;
+  }
+  .stage-tools {
+    gap: 6px;
+  }
+  .view-seg button,
+  .presets button {
+    padding: 5px 8px 6px;
+  }
+  .links {
+    gap: 0;
+  }
+}
 
-/* ------------------------------------------------------------ no room for thirteen: one button, a sheet */
+/* ------------------------------------------------------------ no room for sixteen: one button, a sheet */
 @media (max-width: 1340px), (max-height: 500px) and (orientation: landscape) {
   .picker {
-    gap: 6px;
+    gap: 8px;
   }
   .pick-open {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    height: 34px;
-    padding: 0 9px 0 4px;
-    border: 1px solid var(--chip-line);
-    border-radius: 6px;
-    background: none;
+    gap: 6px;
+    height: 36px;
+    padding: 0 12px 0 6px;
+    border: 1px solid var(--rule-2);
+    border-radius: 999px;
+    background: var(--paper);
     color: var(--ink);
-    font: 500 11px/1 var(--mono);
-    letter-spacing: 0.02em;
+    font: 550 13px/1 var(--font);
+    font-variant-numeric: lining-nums;
     cursor: pointer;
+    box-shadow: var(--shadow-1);
+    transition: border-color 0.15s var(--ease);
   }
+  .pick-open:hover,
   .picker[data-open] .pick-open {
-    border-color: rgba(242, 166, 70, 0.6);
+    border-color: var(--ink);
   }
   .pick-open .glyph {
     width: 26px;
     height: 26px;
-    stroke: var(--amber);
   }
   .pick-open[data-count] {
-    padding-left: 10px;
+    padding-left: 13px;
   }
   .po-name {
     white-space: nowrap;
@@ -508,38 +561,18 @@
     width: 6px;
     height: 6px;
     margin: -3px 0 0 2px;
-    border-right: 1.3px solid currentColor;
-    border-bottom: 1.3px solid currentColor;
+    border-right: 1.4px solid currentColor;
+    border-bottom: 1.4px solid currentColor;
     transform: rotate(45deg);
     opacity: 0.6;
+    transition: transform 0.15s var(--ease);
   }
   .picker[data-open] .po-chev {
     margin-top: 3px;
     transform: rotate(225deg);
   }
-  /* the orchestra beside it: a square button, its name its tooltip */
   .ens-toggle {
-    justify-content: center;
-    min-width: 0;
-    width: 36px;
-    height: 34px;
-    padding: 0;
-    border: 1px solid var(--chip-line);
-    border-radius: 6px;
-    color: var(--ink-2);
-  }
-  .ens-toggle .pick-name {
-    display: none;
-  }
-  .ens-toggle .ens-icon {
-    width: 20px;
-    height: 20px;
-  }
-  .ens-toggle[aria-pressed='true'] {
-    border-color: rgba(242, 166, 70, 0.6);
-  }
-  .ens-toggle[aria-pressed='true']::after {
-    content: none;
+    height: 36px;
   }
   /* the sheet: four to a row and every row a kind. The first is what is struck or plucked (the piano and the
      percussion: the keys' family, then the percussion's, brought up beside it), then the strings, the
@@ -548,16 +581,18 @@
     display: none;
     position: fixed;
     z-index: 30;
-    top: calc(var(--top-h) + 2px);
+    top: calc(var(--top-h) + 4px);
     left: var(--gutter);
-    width: min(372px, calc(100vw - 2 * var(--gutter)));
-    max-height: calc(100dvh - var(--top-h) - 10px);
+    width: min(380px, calc(100vw - 2 * var(--gutter)));
+    max-height: calc(100dvh - var(--top-h) - 12px);
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--rule-2) transparent;
     padding: 8px;
-    border: 1px solid var(--rule-2);
-    border-radius: 8px;
-    background: #14110d;
-    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.65);
+    border: 1px solid var(--rule);
+    border-radius: 18px;
+    background: var(--paper);
+    box-shadow: var(--shadow-3);
   }
   .picker[data-open] .picker-pop {
     display: block;
@@ -587,40 +622,52 @@
   }
   .pick {
     min-width: 0;
-    padding: 6px 0 7px;
+    padding: 7px 0 9px;
+    border-radius: 12px;
   }
   .pick .glyph {
     width: 34px;
     height: 34px;
   }
   .pick-name {
-    font-size: 10.5px;
+    font-size: 12.5px;
+  }
+  .pick[aria-pressed='true'] {
+    background: var(--ground-2);
+  }
+  .pick[aria-pressed='true']::after {
+    left: 50%;
+    right: auto;
+    width: 22px;
+    margin-left: -11px;
+    bottom: 5px;
   }
   .pick-n {
-    top: 4px;
+    top: 5px;
     right: 14px;
+    font-size: 11.5px;
   }
   /* the piano's kind, where the bar has no room for it (a phone, a narrow window): at the sheet's foot, under
      the instruments, a hairline between */
   .picker-pop .presets {
     display: flex;
     width: max-content;
-    margin: 9px 0 1px 6px;
+    margin: 13px 0 3px 6px;
     position: relative;
   }
   .picker-pop .presets::before {
     content: '';
     position: absolute;
     left: -6px;
-    top: -6px;
-    width: min(356px, calc(100vw - 2 * var(--gutter) - 16px));
+    top: -7px;
+    width: min(364px, calc(100vw - 2 * var(--gutter) - 16px));
     border-top: 1px solid var(--rule);
   }
   .picker-pop .presets[hidden] {
     display: none;
   }
   .picker-pop .presets button {
-    padding: 7px 12px;
+    padding: 8px 14px 9px;
   }
 }
 
@@ -628,16 +675,26 @@
 @media (max-width: 760px) {
   :root,
   :root[data-route='stage'] {
-    --top-h: 44px;
+    --top-h: 48px;
   }
   .top {
-    gap: 6px;
+    gap: 8px;
   }
   .links a {
-    padding: 7px 4px;
+    padding: 9px 4px;
   }
   .links {
+    gap: 2px;
     margin-right: -4px;
+  }
+  /* the Orchestra beside the instrument's button: its sign alone, its name its tooltip */
+  .ens-toggle {
+    justify-content: center;
+    width: 36px;
+    padding: 0;
+  }
+  .ens-toggle .pick-name {
+    display: none;
   }
   :root[data-route='stage'] main {
     /* the 6 px is the keyboard's bottom padding: the page does not scroll */
@@ -658,28 +715,28 @@
   }
   .r-note {
     height: 28px;
-    font-size: 28px;
+    font-size: 29px;
     line-height: 28px;
   }
   .readout[data-size='2'] .r-note {
-    font-size: 25px;
+    font-size: 26px;
   }
   .readout[data-size='3'] .r-note {
     font-size: 20px;
   }
   .readout[data-size='4'] .r-note {
-    font-size: 16px;
+    font-size: 16.5px;
   }
   .r-hz {
     margin-top: 2px;
-    font-size: 10.5px;
+    font-size: 12px;
   }
   .view-seg button {
-    padding: 7px 8px;
+    padding: 9px 11px 10px;
   }
   .case-toggle {
-    width: 30px;
-    height: 29px;
+    width: 38px;
+    height: 38px;
   }
   .spec-wrap {
     grid-column: 1 / -1;
@@ -700,13 +757,16 @@
   .pick-open:not([data-count]) .po-name {
     display: none;
   }
+  .view-seg button {
+    padding: 9px 8px 10px;
+  }
 }
 
 /* ------------------------------------------------------------ a phone held sideways: one slim band */
 @media (max-height: 500px) and (orientation: landscape) {
   :root,
   :root[data-route='stage'] {
-    --top-h: 30px;
+    --top-h: 32px;
   }
   :root[data-route='stage'] main {
     /* the 6 px is the keyboard's bottom padding */
@@ -715,7 +775,16 @@
   }
   .pick-open,
   .ens-toggle {
-    height: 26px;
+    height: 28px;
+    box-shadow: none;
+  }
+  .ens-toggle {
+    justify-content: center;
+    width: 30px;
+    padding: 0;
+  }
+  .ens-toggle .pick-name {
+    display: none;
   }
   .pick-open .glyph {
     width: 20px;
@@ -727,10 +796,17 @@
   }
   .view-seg button,
   .presets button {
-    padding: 4px 7px;
+    padding: 4px 9px 5px;
+  }
+  .case-toggle {
+    width: 28px;
+    height: 28px;
   }
   .pick {
-    padding: 2px 0 3px;
+    padding: 2px 0 6px;
+  }
+  .pick[aria-pressed='true']::after {
+    bottom: 2px;
   }
   .stage-top {
     display: flex;
@@ -750,11 +826,11 @@
   .readout[data-size] .r-note {
     height: 26px;
     line-height: 26px;
-    font-size: 22px;
+    font-size: 23px;
   }
   .readout[data-size='3'] .r-note,
   .readout[data-size='4'] .r-note {
-    font-size: 17px;
+    font-size: 17.5px;
   }
   .r-hz {
     margin-top: 0;
@@ -774,112 +850,129 @@
   }
 }
 
-/* ------------------------------------------------------------ the vector display's chrome */
+@media (prefers-reduced-motion: reduce) {
+  .top a,
+  .pick,
+  .ens-toggle,
+  .view-seg button,
+  .presets button,
+  .case-toggle,
+  .readout,
+  .part,
+  .po-chev {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------ the vector drawing's chrome */
+/* the sheet's own lettering (Hershey, single-stroke capitals) and its square corners; frames are
+   hairlines, what is chosen is framed in ink, what sounds is the same blue */
 :root[data-style='vector'] .top {
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-weight: 500;
+  letter-spacing: 0.1em;
+  font-size: 11px;
 }
 :root[data-style='vector'] .pick,
 :root[data-style='vector'] .ens-toggle {
   text-transform: uppercase;
-  color: var(--v-blue-dim);
+  border-radius: 0;
 }
-:root[data-style='vector'] .pick:hover,
-:root[data-style='vector'] .ens-toggle:hover {
-  color: var(--v-blue-mid);
+:root[data-style='vector'] .pick:hover {
   background: none;
 }
-:root[data-style='vector'] .pick[aria-pressed='true'],
-:root[data-style='vector'] .ens-toggle[aria-pressed='true'] {
-  color: var(--v-text);
-}
-:root[data-style='vector'] .pick[aria-pressed='true']::after,
-:root[data-style='vector'] .ens-toggle[aria-pressed='true']::after {
-  background: var(--v-blue);
-  box-shadow: 0 0 5px rgba(79, 182, 242, 0.8);
-}
 :root[data-style='vector'] .pick-name {
+  font-size: 10px;
   letter-spacing: 0.06em;
 }
-:root[data-style='vector'] .pick[aria-pressed='true'] .glyph,
-:root[data-style='vector'] .pick-open .glyph,
-:root[data-style='vector'] .part[data-on] .glyph {
-  stroke: var(--v-blue);
-  filter: drop-shadow(0 0 3px rgba(79, 182, 242, 0.7));
+:root[data-style='vector'] .ens-toggle .pick-name {
+  font-size: 11px;
 }
-:root[data-style='vector'] .ens-toggle[aria-pressed='true'] .ens-icon {
-  color: var(--v-blue);
-  filter: drop-shadow(0 0 3px rgba(79, 182, 242, 0.7));
+:root[data-style='vector'] .ens-toggle {
+  border-color: var(--v-frame);
 }
-:root[data-style='vector'] .pick-n,
-:root[data-style='vector'] .part-n {
-  color: var(--v-amber);
+:root[data-style='vector'] .ens-toggle[aria-pressed='true'] {
+  color: var(--v-ink);
+  background: none;
+  border-color: var(--v-ink);
+  box-shadow: inset 0 0 0 1px var(--v-ink);
 }
-:root[data-style='vector'] .fam,
 :root[data-style='vector'] .picker-pop {
   border-color: var(--v-frame);
 }
-/* chips: a framed label, lit when on (never a filled block) */
+/* chips: a framed label, framed in ink when on (never a filled block) */
 :root[data-style='vector'] .view-seg,
-:root[data-style='vector'] .presets,
+:root[data-style='vector'] .presets {
+  padding: 0;
+  gap: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--v-frame);
+}
 :root[data-style='vector'] .case-toggle,
 :root[data-style='vector'] .pick-open {
-  border-color: var(--v-frame);
   border-radius: 0;
-  color: var(--v-blue-mid);
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--v-frame);
+  border: 0;
 }
 :root[data-style='vector'] .view-seg button,
 :root[data-style='vector'] .presets button {
+  font: 500 11px/1.15 var(--font);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--v-blue-mid);
   border-radius: 0;
+  padding: 7px 9px;
 }
 :root[data-style='vector'] .view-seg button[aria-pressed='true'],
 :root[data-style='vector'] .presets button[aria-pressed='true'],
 :root[data-style='vector'] .case-toggle[aria-pressed='true'] {
-  color: var(--v-text);
+  color: var(--v-ink);
   background: none;
-  box-shadow:
-    0 0 6px rgba(79, 182, 242, 0.45),
-    inset 0 0 0 1px var(--v-blue),
-    inset 0 0 6px rgba(79, 182, 242, 0.25);
+  box-shadow: inset 0 0 0 1.5px var(--v-ink);
 }
 :root[data-style='vector'] .pick-open {
-  color: var(--v-text);
   text-transform: uppercase;
   letter-spacing: 0.1em;
+  font-size: 11px;
 }
-:root[data-style='vector'] .links a[aria-current='page'] {
-  box-shadow: inset 0 -1.5px 0 var(--v-amber);
+:root[data-style='vector'] .picker[data-open] .pick-open {
+  box-shadow: inset 0 0 0 1.5px var(--v-ink);
 }
-/* the notes are the sound: amber */
+/* the notes are the sound: the blue */
 :root[data-style='vector'] .r-note {
-  font-style: normal;
   font-weight: 300;
   letter-spacing: 0.04em;
-  color: var(--v-amber);
-  text-shadow: 0 0 10px rgba(255, 179, 64, 0.45);
+  color: var(--accent);
+}
+:root[data-style='vector'] .readout[data-size='3'] .r-note,
+:root[data-style='vector'] .readout[data-size='4'] .r-note {
+  font-weight: 300;
+  letter-spacing: 0.02em;
 }
 :root[data-style='vector'] .r-hz {
-  color: var(--v-amber);
-  opacity: 0.75;
+  color: var(--accent);
   text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.08em;
 }
-:root[data-style='vector'] .part[data-on] {
-  color: var(--v-amber);
+:root[data-style='vector'] .part-notes {
+  font-size: 9px;
 }
 @media (max-width: 1340px), (max-height: 500px) and (orientation: landscape) {
   :root[data-style='vector'] .picker-pop {
-    background: #000;
     border-radius: 0;
+    background: var(--ground);
   }
-  :root[data-style='vector'] .ens-toggle {
-    border-color: var(--v-frame);
-    border-radius: 0;
+  :root[data-style='vector'] .pick[aria-pressed='true'] {
+    background: none;
+    box-shadow: inset 0 0 0 1px var(--v-ink);
   }
-  :root[data-style='vector'] .ens-toggle[aria-pressed='true'] {
-    border-color: var(--v-blue);
+  :root[data-style='vector'] .pick[aria-pressed='true']::after {
+    content: none;
+  }
+}
+@media (max-width: 760px) {
+  :root[data-style='vector'] .view-seg button {
+    padding: 11px 9px;
   }
 }

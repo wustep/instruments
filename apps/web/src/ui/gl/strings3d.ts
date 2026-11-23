@@ -27,7 +27,6 @@
 import type { VisualFrame } from '@piano-model/engine';
 import { ShapeUtils, Vector2 } from 'three';
 import type { BowedGeom } from '../stage-draw.ts';
-import { INK } from '../stage-draw.ts';
 import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, add, chain, cross, ink, lerp3, mul, norm, rotY, rotZ, scale, sub, translate, xdir, xform } from './gl3d.ts';
 import { M, MeshBuilder, cyl, grid, lathe, spline, tube, variant, type Mat, type PaintSpec } from './mesh.ts';
 import { fholeOf } from './fholes.ts';
@@ -2476,9 +2475,11 @@ function invertRigid(m: Mat4): Mat4 {
   return r;
 }
 
+// what sounds, drawn over the picture in the blue (a brighter one than the page's: it lies on dark
+// fingerboards and varnish as often as on the pale floor)
+const SOUND = '54,104,236';
 const C = {
-  verm: (a: number) => ink(INK.vermilion, a),
-  amber: (a: number) => ink(INK.amber, a),
+  verm: (a: number) => ink(SOUND, a),
 };
 
 export function poseBowed(b: Batch, bm: BowedModel, fr: VisualFrame | null, str: { of(v: number): number }): void {
@@ -2513,15 +2514,15 @@ export function poseBowed(b: Batch, bm: BowedModel, fr: VisualFrame | null, str:
     b.wire([W(bm.pegEnd[i]), W(at(i, bm.xn)), W(br), W(bm.tailEnd[i])], col, sp.dia[i]);
     const stopFrac = s ? (s.stopNow ?? s.stop) : 1;
     const xs = bm.xb - stopFrac * bm.L;
-    if (l > 0.03) b.line([W(at(i, Math.max(bm.xn, xs))), W(br)], s?.bowing ? C.verm(0.18 + 0.45 * l) : C.amber(0.12 + 0.4 * l), 1.4);
-    // the stopping point: a glowing bar on the fingerboard under the string
+    if (l > 0.03) b.line([W(at(i, Math.max(bm.xn, xs))), W(br)], C.verm(s?.bowing ? 0.3 + 0.55 * l : 0.14 + 0.4 * l), 1.4);
+    // the stopping point, where the sounding length begins: a bar of the blue on the fingerboard under the string
     if (s && s.stop < 0.999 && s.level > 0.002) {
       const y = bm.fbY(xs) + 0.0006;
       const zc = at(i, xs)[2];
       const half = sp.spreadN * 0.75;
-      b.line([W([xs, y, zc - half * 1.6]), W([xs, y, zc + half * 1.6])], C.amber(0.24), 14);
-      b.line([W([xs, y, zc - half]), W([xs, y, zc + half])], C.amber(0.9), 6);
-      b.line([W([xs, y, zc]), W(at(i, xs))], C.amber(0.7), 2.5);
+      b.line([W([xs, y, zc - half * 1.6]), W([xs, y, zc + half * 1.6])], C.verm(0.22), 12);
+      b.line([W([xs, y, zc - half]), W([xs, y, zc + half])], C.verm(0.95), 5);
+      b.line([W([xs, y, zc]), W(at(i, xs))], C.verm(0.8), 2.5);
     }
     // the bowed string, moving in the bowing direction between the stop and the bridge
     if (focus && i === bowedIdx && focus.shapes[0]) {
@@ -2534,7 +2535,7 @@ export function poseBowed(b: Batch, bm: BowedModel, fr: VisualFrame | null, str:
         const d = (sh[k] / sc) * 0.008 * (sp.body / 0.356);
         line.push(W(add(p, scale(dirL, d))));
       }
-      b.line(line, C.verm(0.85), 1.8);
+      b.line(line, C.verm(0.95), 1.8);
     }
   }
   // the bow: hair on the bowed string at its contact point, at the hair position along the bow

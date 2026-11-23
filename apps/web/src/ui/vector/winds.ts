@@ -104,7 +104,7 @@ export function drawFluteV(ctx: CanvasRenderingContext2D, W: number, H: number, 
       }
       env.lineTo(X(xFar), Y(sgn * FL_RB));
       strokeBuckets(ctx, ribs, 1, fade);
-      beam(ctx, env, V.amber, 1, { alpha: (0.3 + 0.35 * lvl) * fade });
+      beam(ctx, env, V.sound, 1, { alpha: (0.3 + 0.35 * lvl) * fade });
     }
   }
   // ---- behind the tube: the thumb's key and the G♯ key, on the player's side
@@ -113,16 +113,16 @@ export function drawFluteV(ctx: CanvasRenderingContext2D, W: number, H: number, 
     cupV(ctx, X(k.x), Y(FL_YC * Math.sin(k.phi * D2R)), k.r * sc, k.r * sc * Math.abs(Math.cos(k.phi * D2R)), false, keyPos[i], lw, 0.55);
   });
   // ---- the tube, its joints, the lip plate and the embouchure hole
-  beam(ctx, L.seams, V.blueMid, 1, { alpha: 0.7, butt: true });
-  beam(ctx, L.tube, V.blue, lw + 0.1);
-  beam(ctx, L.plate, V.blue, lw);
-  beam(ctx, L.hole, V.blue, lw, { hot: true });
+  beam(ctx, L.seams, V.inkMid, 1, { alpha: 0.7, butt: true });
+  beam(ctx, L.tube, V.ink, lw + 0.1);
+  beam(ctx, L.plate, V.ink, lw);
+  beam(ctx, L.hole, V.ink, lw, { hot: true });
   // ---- the mechanism: rods, hinge tubes, posts, the touches and rollers
-  beam(ctx, L.rods, V.blueMid, 1);
-  beam(ctx, L.hinges, V.blueDim, 1);
-  beam(ctx, L.touches, V.blueMid, 1, { alpha: 0.9 });
-  beam(ctx, L.rollers, V.blueMid, 1, { alpha: 0.9 });
-  beam(ctx, L.posts, V.blueMid, 1);
+  beam(ctx, L.rods, V.inkMid, 1);
+  beam(ctx, L.hinges, V.inkDim, 1);
+  beam(ctx, L.touches, V.inkMid, 1, { alpha: 0.9 });
+  beam(ctx, L.rollers, V.inkMid, 1, { alpha: 0.9 });
+  beam(ctx, L.posts, V.inkMid, 1);
   // ---- the keys: each cup a ring on a hairline arm from its hinge tube
   const arms = new Path2D();
   for (let i = 0; i < FL_KEYS.length; i++) {
@@ -143,7 +143,7 @@ export function drawFluteV(ctx: CanvasRenderingContext2D, W: number, H: number, 
       cupV(ctx, X(0.338), Y(0), 0.0083 * sc, 0.0083 * sc, false, keyPos[i], lw, 1);
     }
   }
-  beam(ctx, arms, V.blueDim, 1);
+  beam(ctx, arms, V.inkDim, 1);
   // ---- the embouchure: the four slots, each where its knob acts
   const plateR = flHead(FL_EMB) + 0.0011;
   const vL = -plateR; // the lips, at the plate's edge on the player's side
@@ -185,7 +185,7 @@ export function drawFluteV(ctx: CanvasRenderingContext2D, W: number, H: number, 
   const yLip = Y(vL - 0.0085);
   seg(ctx, X(FL_EMB), yLip + hr, X(FL_EMB), Y(vL), V.green, 1, { alpha: 0.5 * live });
   handle(ctx, X(FL_EMB), yLip, V.green, hr, live);
-  ring(ctx, X(FL_EMB), yLip, hr + 3.5 + clamp(vib * 60, -2.5, 6), V.white, 1, { alpha: 0.5 + 0.5 * Math.min(1, Math.abs(vib) * 30 + blow) });
+  ring(ctx, X(FL_EMB), yLip, hr + 3.5 + clamp(vib * 60, -2.5, 6), V.deep, 1, { alpha: 0.5 + 0.5 * Math.min(1, Math.abs(vib) * 30 + blow) });
   // the lip-to-edge distance (red): a bracket from the lips to the edge, its handle beyond the plate
   const xr = X(FL_EMB) - Math.max(0.0085 * sc, hr + 5);
   const dim = new Path2D();
@@ -211,9 +211,9 @@ export function drawFluteV(ctx: CanvasRenderingContext2D, W: number, H: number, 
       if (i) axis.lineTo(X(x), Y(-v * FL_BORE * 0.7));
       else axis.moveTo(X(x), Y(-v * FL_BORE * 0.7));
     }
-    beam(ctx, axis, V.amber, small ? 1.2 : 1.5, { alpha: Math.min(1, 3 * lvl), hot: true });
+    beam(ctx, axis, V.sound, small ? 1.2 : 1.5, { alpha: Math.min(1, 3 * lvl), hot: true });
     // (the sounding length's far end: where the wave leaves the tube, at the first open hole)
-    if (!small && !vertical) label(ctx, `${Math.round(Leff * 1000)} mm`, X(xb) + 6, Y(-FL_RB) - 8, { size: 10, color: V.amber, alpha: 0.75 * Math.min(1, 3 * lvl) });
+    if (!small && !vertical) label(ctx, `${Math.round(Leff * 1000)} mm`, X(xb) + 6, Y(-FL_RB) - 8, { size: 10, color: V.sound, alpha: 0.75 * Math.min(1, 3 * lvl) });
   }
   ctx.restore();
 }
@@ -227,11 +227,11 @@ function cupV(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number,
   ry *= s;
   ctx.beginPath();
   ctx.ellipse(cx, cy, rx, Math.max(0.5, ry), 0, 0, 2 * Math.PI);
-  beam(ctx, null, mix(V.blueMid, V.blue, shut), lw + 0.5 * shut, { alpha: alpha * (0.75 + 0.25 * shut), hot: shut > 0.5 });
+  beam(ctx, null, mix(V.inkMid, V.ink, shut), lw + 0.5 * shut, { alpha: alpha * (0.75 + 0.25 * shut), hot: shut > 0.5 });
   if (holed) {
     ctx.beginPath();
     ctx.ellipse(cx, cy, rx * 0.4, Math.max(0.4, ry * 0.4), 0, 0, 2 * Math.PI);
-    beam(ctx, null, V.blueMid, 1, { alpha: alpha * 0.8 });
+    beam(ctx, null, V.inkMid, 1, { alpha: alpha * 0.8 });
   }
   if (shut > 0.05) {
     // seated: a cross on the pad
@@ -241,7 +241,7 @@ function cupV(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number,
     ctx.lineTo(cx + rx * k, cy + ry * k);
     ctx.moveTo(cx + rx * k, cy - ry * k);
     ctx.lineTo(cx - rx * k, cy + ry * k);
-    beam(ctx, null, V.blue, lw, { alpha: alpha * shut, hot: true });
+    beam(ctx, null, V.ink, lw, { alpha: alpha * shut, hot: true });
   }
 }
 
@@ -311,13 +311,13 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
     ctx.save();
     ctx.setLineDash([]);
     if (strokeWidth) {
-      ctx.strokeStyle = '#000';
+      ctx.strokeStyle = V.ground;
       ctx.lineWidth = strokeWidth;
       ctx.lineCap = 'butt';
       ctx.lineJoin = 'round';
       ctx.stroke(path);
     } else {
-      ctx.fillStyle = '#000';
+      ctx.fillStyle = V.ground;
       ctx.fill(path);
     }
     ctx.restore();
@@ -360,7 +360,7 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
     if (o) ctx.restore();
   };
   // ---- the bell section, farthest: the tail and bow, the flare's two edges, its sections, the mouth
-  walls('bellTail', () => [TR_TAIL, TR_BOW], V.blue, 0.85);
+  walls('bellTail', () => [TR_TAIL, TR_BOW], V.ink, 0.85);
   const B = memo('bell', () => {
     const pts = Array.from({ length: 61 }, (_, i) => {
       const t = Math.pow(i / 60, 0.6);
@@ -389,9 +389,9 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
     for (const d of [0.012, 0.035, 0.075, 0.14]) section(sections, d);
     return { edges, mouth, sections, nx, ny, c: P3([TR_XB, TR_BELL_END[1], TR_ZB]) };
   });
-  beam(ctx, B.sections, V.blueDim, 1, { alpha: 0.9 });
-  beam(ctx, B.edges, V.blue, lw);
-  beam(ctx, B.mouth, V.blue, lw + 0.3, { hot: true });
+  beam(ctx, B.sections, V.inkDim, 1, { alpha: 0.9 });
+  beam(ctx, B.edges, V.ink, lw);
+  beam(ctx, B.mouth, V.ink, lw + 0.3, { hot: true });
   st.src = { x: B.c[0] + 0.012 * S, y: B.c[1] };
   // ---- the valves: casings and caps (the near halves of their rims), pistons, stems, buttons
   TR_VX.forEach((x, k) => {
@@ -436,37 +436,37 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
     mask(sides.body);
     mask(rim(-TR_CY - 0.0086, TR_RC + 0.0018, 20));
     mask(rim(TR_CY + 0.006, TR_RC + 0.0018));
-    beam(ctx, sides.p, V.blue, lw);
-    beam(ctx, rim(-TR_CY - 0.0086, TR_RC + 0.0018, 20), V.blue, lw);
-    beam(ctx, rim(-TR_CY, TR_RC + 0.0018, 20), V.blueMid, 1);
-    beam(ctx, rim(TR_CY, TR_RC + 0.0018, 20), V.blueMid, 1);
-    beam(ctx, rim(TR_CY + 0.006, TR_RC + 0.0018), V.blue, lw);
+    beam(ctx, sides.p, V.ink, lw);
+    beam(ctx, rim(-TR_CY - 0.0086, TR_RC + 0.0018, 20), V.ink, lw);
+    beam(ctx, rim(-TR_CY, TR_RC + 0.0018, 20), V.inkMid, 1);
+    beam(ctx, rim(TR_CY, TR_RC + 0.0018, 20), V.inkMid, 1);
+    beam(ctx, rim(TR_CY + 0.006, TR_RC + 0.0018), V.ink, lw);
     // the piston inside its casing (its top and bottom faces), the stem and the button, down by the stroke
     const [, dy] = shift([0, -TR_STROKE * press[k], 0]);
     const lit = clamp(press[k], 0, 1);
     ctx.save();
     ctx.translate(0, dy);
     if (!small) {
-      beam(ctx, rim(TR_CY - 0.012, TR_RC - 0.0012), V.blueMid, 1, { alpha: 0.5 + 0.5 * lit, dash: [2, 3] });
-      beam(ctx, rim(-TR_CY + 0.022, TR_RC - 0.0012), V.blueMid, 1, { alpha: 0.5 + 0.5 * lit, dash: [2, 3] });
+      beam(ctx, rim(TR_CY - 0.012, TR_RC - 0.0012), V.inkMid, 1, { alpha: 0.5 + 0.5 * lit, dash: [2, 3] });
+      beam(ctx, rim(-TR_CY + 0.022, TR_RC - 0.0012), V.inkMid, 1, { alpha: 0.5 + 0.5 * lit, dash: [2, 3] });
     }
     const yb = TR_CAP_TOP + TR_STEM;
     const s1 = P3([x, yb, 0]);
     const s0 = P3([x, TR_CY + 0.006, 0]);
-    seg(ctx, s0[0], s0[1] - dy, s1[0], s1[1], V.blue, lw + 0.4, { butt: true });
-    const col = mix(V.blue, V.white, 0.6 * lit);
+    seg(ctx, s0[0], s0[1] - dy, s1[0], s1[1], V.ink, lw + 0.4, { butt: true });
+    const col = mix(V.ink, V.deep, 0.6 * lit);
     beam(ctx, rim(yb, 0.0084, 20), col, lw, { alpha: 0.9 });
     beam(ctx, rim(yb + 0.0045, 0.0084), col, lw + 0.4 * lit, { hot: lit > 0.5 });
-    if (lit > 0.05) beam(ctx, rim(yb + 0.0045, 0.0045), V.white, 1, { alpha: lit });
+    if (lit > 0.05) beam(ctx, rim(yb + 0.0045, 0.0045), V.deep, 1, { alpha: lit });
     ctx.restore();
   });
   // ---- the slides: the main tuning slide, then each valve's (dim until its piston routes the air
   // through it), the 1st and 3rd riding out when kicked
-  walls('main', () => [TR_MAIN], V.blue, 1, undefined, true);
+  walls('main', () => [TR_MAIN], V.ink, 1, undefined, true);
   for (const k of [2, 0, 1]) {
     const sl = TR_SLIDES[k];
     const on = clamp(press[k], 0, 1);
-    const col = mix(V.blueDim, V.blue, on);
+    const col = mix(V.inkDim, V.ink, on);
     walls(`fixed${k}`, () => [sl.out, sl.back], col, 0.9, undefined, true);
     walls(`sleeve${k}`, () => [sl.sleeve], col, 0.9, slideOff(k), true);
     if (kick[k] > 0.0005) {
@@ -474,7 +474,7 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
       const [ox, oy] = shift([sl.dir[0] * kick[k], 0, 0]);
       for (const e of [sl.out[sl.out.length - 1], sl.back[0]]) {
         const a = P3(e);
-        seg(ctx, a[0], a[1], a[0] + ox, a[1] + oy, V.blueMid, 1, { dash: [2, 2] });
+        seg(ctx, a[0], a[1], a[0] + ox, a[1] + oy, V.inkMid, 1, { dash: [2, 2] });
       }
     }
   }
@@ -483,8 +483,8 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
     const o3 = slideOff(2);
     const c3 = P3(v3add([0.075, 0.0135, TR_ZL - 0.0042], o3));
     const b3 = P3(v3add([0.075, -0.004 + TR_RT, TR_ZL], o3));
-    ring(ctx, c3[0], c3[1], 0.0105 * S, V.blueMid, 1);
-    seg(ctx, b3[0], b3[1], c3[0], c3[1] + 0.0105 * S, V.blueMid, 1);
+    ring(ctx, c3[0], c3[1], 0.0105 * S, V.inkMid, 1);
+    seg(ctx, b3[0], b3[1], c3[0], c3[1] + 0.0105 * S, V.inkMid, 1);
     const o1 = slideOff(0);
     ctx.beginPath();
     [[-0.0786, 0.016], [-0.078, 0.003], [-0.0752, -0.0028], [-0.0668, -0.01 + TR_RT - 0.0004], [-0.0584, -0.0028], [-0.0556, 0.003], [-0.055, 0.016]].forEach(([x, y], i) => {
@@ -492,7 +492,7 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
       if (i) ctx.lineTo(...q);
       else ctx.moveTo(...q);
     });
-    beam(ctx, null, V.blueMid, 1);
+    beam(ctx, null, V.inkMid, 1);
     const xb = 0.0545;
     const y0 = trLeadY(xb);
     ctx.beginPath();
@@ -501,10 +501,10 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
       if (i) ctx.lineTo(...q);
       else ctx.moveTo(...q);
     });
-    beam(ctx, null, V.blueMid, 1);
+    beam(ctx, null, V.inkMid, 1);
   }
   // ---- the leadpipe and the mouthpiece (its silhouette along the leadpipe's axis, rim to shank)
-  walls('lead', () => [TR_LEAD], V.blue, 1, undefined, true);
+  walls('lead', () => [TR_LEAD], V.ink, 1, undefined, true);
   const rimPt = P3(trAlong(-TR_MP));
   const ax1 = P3(trAlong(0));
   const al = Math.hypot(ax1[0] - rimPt[0], ax1[1] - rimPt[1]);
@@ -522,7 +522,7 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
     return p;
   });
   mask(mp);
-  beam(ctx, mp, V.blue, lw);
+  beam(ctx, mp, V.ink, lw);
 
   // ---- the air: its path for this fingering (lips to rim), hatched across by the standing wave
   if (sounding) {
@@ -591,8 +591,8 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
       }
     });
     strokeBuckets(ctx, ribs, 1, fade);
-    beam(ctx, inside, V.amber, 1, { alpha: 0.5 * fade, dash: [2, 3] });
-    beam(ctx, line, V.amber, small ? 1.1 : 1.4, { alpha: (0.45 + 0.4 * lvl) * fade, hot: lvl > 0.5 });
+    beam(ctx, inside, V.sound, 1, { alpha: 0.5 * fade, dash: [2, 3] });
+    beam(ctx, line, V.sound, small ? 1.1 : 1.4, { alpha: (0.45 + 0.4 * lvl) * fade, hot: lvl > 0.5 });
   }
 
   // ---- the mouthpiece's slots: the breath (green) into the lips (red), the vibrato (pink)

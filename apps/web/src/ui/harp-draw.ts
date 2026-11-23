@@ -5,10 +5,12 @@
 // (the frame's `harp`): each string swings as wide as the engine says it does (the loudest few in their own
 // shapes: the plucked triangle running out and back), the strings that only answer shimmer faintly, each
 // pedal stands in its notch (up flat, middle natural, down sharp) and moves when the engine moves it, and
-// the discs on the neck close on the strings of a pedal that is down.
+// the discs on the neck close on the strings of a pedal that is down. Painted for daylight: maple and gilding
+// on the studio's pale ground, one soft shadow on the floor, the strings in tones that read on the plaster (a
+// string that sounds is drawn in the blue), a pedal out of its middle notch and a disc closed in ink.
 import type { VisualFrame } from '@piano-model/engine';
 import { BASE, BOARD_A, BOARD_B, BODY, COLUMN_R, COLUMN_X, COLUMN_Y0, COLUMN_Y1, CROWN_Y, DISC_DY, FEET, HP_X0, HP_X1, HP_Y0, HP_Y1, PEDAL_LEN, PEDAL_X, PEDAL_Y, PIN_DY, STRINGS, STRING_X, STRING_Y0, STRING_Y1, discScale, neckLower, neckUpper, pedalFoot, pedalOf, plateLower, stopY, type P } from './harp-plan.ts';
-import { INK, rgba } from './stage-draw.ts';
+import { BRASS, INK, floorShadow, rgba, type FloorShadow } from './stage-draw.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface HarpState {
@@ -43,6 +45,8 @@ export interface HpLayout {
   /** the brass action plate under the neck, the column's flutes */
   plate: Path2D;
   flutes: Path2D;
+  /** its shadow on the floor (made when it is first drawn; null where there is no canvas) */
+  shade?: FloorShadow | null;
 }
 const layouts = new Map<string, HpLayout>();
 const poly = (pts: P[], X: (x: number) => number, Y: (y: number) => number, close = true): Path2D => {
@@ -157,7 +161,9 @@ export function pluckXY(L: HpLayout, i: number, at: number, ped: number): { x: n
   return { x: L.ox + STRING_X[i] * L.sc, y: L.oy - (y0 + (stopY(i, ped) - y0) * at) * L.sc };
 }
 
-const STRING_INK = { red: '214,72,58', black: '96,112,150', gut: '236,226,206', nylon: '244,240,232', wire: '196,168,120' };
+// the strings' tones on the plaster: every C red, every F dark (a blue-black), gut a tan, nylon a cool grey,
+// the wound wire strings of the bass a bronze
+const STRING_INK = { red: '204,52,42', black: '34,44,78', gut: '156,130,92', nylon: '128,136,146', wire: '134,98,40' };
 export const stringInk = (i: number): string => (STRINGS[i].colour === 'red' ? STRING_INK.red : STRINGS[i].colour === 'black' ? STRING_INK.black : STRINGS[i].material === 'wire' ? STRING_INK.wire : STRINGS[i].material === 'nylon' ? STRING_INK.nylon : STRING_INK.gut);
 
 /** The harp from its side. `top`: the file player's px over the box's top. */
@@ -170,70 +176,86 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   ctx.save();
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
+  // ---- its shadow on the floor (kept with the layout)
+  if (L.shade === undefined) {
+    const k = ((HP_Y1 - HP_Y0) * sc) / 700;
+    L.shade = floorShadow({ x0: X(HP_X0), y0: Y(HP_Y1), x1: X(HP_X1), y1: Y(HP_Y0) }, Math.max(2, 24 * k), 7 * k, 12 * k, (c) => {
+      for (const q of [L.body, L.base, L.column, L.crown, L.neck, L.plate]) c.fill(q);
+    });
+  }
+  if (L.shade) ctx.drawImage(L.shade.cv, L.shade.x, L.shade.y, L.shade.w, L.shade.h);
   // ---- the body: the soundbox's side (maple, darker towards its back), the soundboard's edge (spruce)
+  const WOOD_EDGE = 'rgba(58,36,14,0.85)';
   {
     const g = ctx.createLinearGradient(X(BOARD_A[0]), Y(BOARD_A[1]), X(BOARD_A[0] + 0.3), Y(BOARD_A[1] - 0.2));
-    g.addColorStop(0, '#6a4a22');
-    g.addColorStop(0.5, '#4a3216');
-    g.addColorStop(1, '#2a1b0c');
+    g.addColorStop(0, '#a87838');
+    g.addColorStop(0.5, '#855a28');
+    g.addColorStop(1, '#5e3d1a');
     ctx.fillStyle = g;
     ctx.fill(L.body);
-    ctx.strokeStyle = rgba(INK.amber, 0.5);
+    ctx.strokeStyle = WOOD_EDGE;
     ctx.lineWidth = 1;
     ctx.stroke(L.body);
-    ctx.strokeStyle = 'rgba(226,190,130,0.85)';
-    ctx.lineWidth = Math.max(1.5, 0.012 * sc);
+    // (the board's edge is pale spruce, towards the plaster: an edge under it)
+    const bw = Math.max(1.5, 0.012 * sc);
+    ctx.strokeStyle = 'rgba(96,66,26,0.9)';
+    ctx.lineWidth = bw + 1.4;
+    ctx.stroke(L.board);
+    ctx.strokeStyle = '#ead2a0';
+    ctx.lineWidth = bw;
     ctx.stroke(L.board);
   }
   // ---- the base and its feet, the pedals' slots
-  ctx.fillStyle = '#3a2812';
+  ctx.fillStyle = '#6a4a22';
   ctx.fill(L.base);
-  ctx.strokeStyle = rgba(INK.amber, 0.5);
+  ctx.strokeStyle = WOOD_EDGE;
   ctx.lineWidth = 1;
   ctx.stroke(L.base);
-  // ---- the column (fluted maple, gilded) and its crown
+  // ---- the column (fluted maple, gilded) and its crown: gold in daylight, lit from the left
   {
     const g = ctx.createLinearGradient(X(COLUMN_X - COLUMN_R), 0, X(COLUMN_X + COLUMN_R), 0);
-    g.addColorStop(0, '#5a3f1a');
-    g.addColorStop(0.3, '#c9a25a');
-    g.addColorStop(0.55, '#7a5826');
-    g.addColorStop(1, '#3a2812');
+    g.addColorStop(0, '#c9a04c');
+    g.addColorStop(0.28, BRASS.lit);
+    g.addColorStop(0.56, BRASS.body);
+    g.addColorStop(1, BRASS.shade);
     ctx.fillStyle = g;
     ctx.fill(L.column);
-    ctx.strokeStyle = rgba(INK.amber, 0.55);
+    ctx.strokeStyle = BRASS.edge;
     ctx.stroke(L.column);
     // (the shaft's flutes)
-    ctx.strokeStyle = 'rgba(40,26,10,0.45)';
+    ctx.strokeStyle = 'rgba(125,92,34,0.6)';
     ctx.lineWidth = Math.max(0.8, 0.004 * sc);
     ctx.stroke(L.flutes);
-    ctx.fillStyle = '#b8924a';
+    ctx.fillStyle = g;
     ctx.fill(L.crown);
-    ctx.fillStyle = 'rgba(255,236,190,0.18)';
+    ctx.fillStyle = 'rgba(243,220,154,0.35)';
     ctx.fill(L.crown);
-    ctx.strokeStyle = rgba(INK.amber, 0.7);
+    ctx.strokeStyle = BRASS.edge;
+    ctx.lineWidth = 1;
     ctx.stroke(L.crown);
   }
   // ---- the neck (the action's brass plates along its lower edge)
   {
     const g = ctx.createLinearGradient(0, Y(CROWN_Y), 0, Y(1.3));
-    g.addColorStop(0, '#7a5826');
-    g.addColorStop(1, '#3f2b12');
+    g.addColorStop(0, '#b08040');
+    g.addColorStop(1, '#7a5424');
     ctx.fillStyle = g;
     ctx.fill(L.neck);
-    ctx.strokeStyle = rgba(INK.amber, 0.55);
+    ctx.strokeStyle = WOOD_EDGE;
     ctx.lineWidth = 1;
     ctx.stroke(L.neck);
     // (the action plate: brass, from the neck's lower edge down past the discs)
     const gp = ctx.createLinearGradient(0, Y(CROWN_Y), 0, Y(1.2));
-    gp.addColorStop(0, 'rgba(186,150,82,0.9)');
-    gp.addColorStop(1, 'rgba(120,94,48,0.9)');
+    gp.addColorStop(0, '#ecd28a');
+    gp.addColorStop(1, '#cfa850');
     ctx.fillStyle = gp;
     ctx.fill(L.plate);
-    ctx.strokeStyle = 'rgba(232,200,130,0.7)';
+    ctx.strokeStyle = BRASS.edge;
     ctx.lineWidth = 1;
     ctx.stroke(L.plate);
   }
-  // ---- the strings: each from the board to its sounding top (under its discs when its pedal is down)
+  // ---- the strings: each from the board to its sounding top (under its discs when its pedal is down); at
+  // rest in its own tone, sounding in the blue (its swing's envelope a wash, its shape a firm line)
   const small = sc < 260;
   for (let i = 0; i < STRINGS.length; i++) {
     const s = STRINGS[i];
@@ -248,7 +270,7 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     const lw = Math.max(small ? 0.7 : 0.9, (s.material === 'wire' ? 0.0026 : s.material === 'gut' ? 0.0016 : 0.0012) * sc);
     // (the length above the disc that stops it: still, dimmer)
     if (y1 > yTop + 0.5) {
-      ctx.strokeStyle = rgba(ink, 0.35);
+      ctx.strokeStyle = rgba(ink, 0.5);
       ctx.lineWidth = lw;
       ctx.beginPath();
       ctx.moveTo(x, yTop);
@@ -256,16 +278,26 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
       ctx.stroke();
     }
     if (w > 0) {
-      // its swing: the envelope, and (the loudest few) its own shape now
+      // its swing, in the blue by its level (a string that only answers keeps its own tone, with a breath
+      // of the blue): the envelope, and (the loudest few) its own shape now
       const sh = lv.shapes.get(i);
-      ctx.fillStyle = rgba(ink, 0.1 + 0.2 * Math.min(1, a * 3));
+      const lvl = Math.pow(Math.min(1, 2.2 * Math.sqrt(a)), 1.4);
+      if (lvl < 0.98) {
+        ctx.strokeStyle = rgba(ink, (s.colour === 'plain' ? 0.78 : 0.95) * (1 - lvl));
+        ctx.lineWidth = lw;
+        ctx.beginPath();
+        ctx.moveTo(x, y0);
+        ctx.lineTo(x, y1);
+        ctx.stroke();
+      }
+      ctx.fillStyle = rgba(INK.sound, 0.18 * lvl);
       ctx.beginPath();
       ctx.moveTo(x, y1);
       ctx.quadraticCurveTo(x + 2 * w, (y0 + y1) / 2, x, y0);
       ctx.quadraticCurveTo(x - 2 * w, (y0 + y1) / 2, x, y1);
       ctx.fill();
-      ctx.strokeStyle = rgba(ink, 0.95);
-      ctx.lineWidth = lw;
+      ctx.strokeStyle = rgba(INK.sound, 0.92 * lvl);
+      ctx.lineWidth = lw + (Math.max(lw, small ? 1.1 : 1.5) - lw) * lvl;
       ctx.beginPath();
       if (sh && sh.length > 2) {
         let pk = 1e-9;
@@ -284,59 +316,68 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
       }
       ctx.stroke();
     } else {
-      ctx.strokeStyle = rgba(ink, s.colour === 'plain' ? 0.62 : 0.9);
+      ctx.strokeStyle = rgba(ink, s.colour === 'plain' ? 0.78 : 0.95);
       ctx.lineWidth = lw;
       ctx.beginPath();
       ctx.moveTo(x, y0);
       ctx.lineTo(x, y1);
       ctx.stroke();
     }
-    // the discs on the plate: the upper closes for the natural, the lower too for the sharp; over them the
-    // bridge pin at the string's sounding top, and its tuning pin in the neck
+    // the discs on the plate: the upper closes for the natural, the lower too for the sharp (a disc closed
+    // is in ink, one open a brass dot beside the string); over them the bridge pin at the string's sounding
+    // top, and its tuning pin in the neck
     if (!small) {
       for (let d = 0; d < 2; d++) {
         const on = acc >= d;
-        ctx.fillStyle = on ? 'rgba(255,232,170,0.98)' : 'rgba(84,62,28,0.85)';
+        ctx.fillStyle = on ? rgba(INK.line, 0.95) : 'rgba(125,92,34,0.9)';
         ctx.beginPath();
         ctx.arc(x + (on ? 0 : 0.004 * sc), yTop + DISC_DY[d] * discScale(i) * sc, Math.max(0.9, 0.0032 * sc), 0, 2 * Math.PI);
         ctx.fill();
       }
-      ctx.strokeStyle = rgba(ink, 0.3);
+      ctx.strokeStyle = rgba(ink, 0.4);
       ctx.lineWidth = lw;
       ctx.beginPath();
       ctx.moveTo(x, yTop);
       ctx.lineTo(x, yTop - PIN_DY * sc);
       ctx.stroke();
-      ctx.fillStyle = 'rgba(206,210,216,0.9)';
+      ctx.fillStyle = 'rgba(226,230,234,0.95)';
       ctx.beginPath();
       ctx.arc(x, yTop - PIN_DY * sc, Math.max(0.8, 0.0026 * sc), 0, 2 * Math.PI);
       ctx.fill();
     }
   }
-  // ---- the fingers: where each string plucked a moment ago was taken (the engine's own place: no two alike)
+  // ---- the fingers: where each string plucked a moment ago was taken (the engine's own place: no two alike);
+  // the pluck is what sets the string sounding: a ring in the blue, widening and fading
   for (const p of lv.plucks) {
     const { x, y } = pluckXY(L, p.string, p.at, lv.ped[pedalOf(p.string)]);
     const u = p.age / PLUCK_SHOWN;
-    ctx.strokeStyle = `rgba(255,240,212,${(0.9 * (1 - u) * (1 - u)).toFixed(3)})`;
-    ctx.lineWidth = Math.max(1, 0.003 * sc);
+    ctx.strokeStyle = rgba(INK.sound, 0.9 * (1 - u) * (1 - u));
+    ctx.lineWidth = Math.max(1.5, 0.003 * sc);
     ctx.beginPath();
     ctx.arc(x, y, (0.006 + 0.022 * u) * sc, 0, 2 * Math.PI);
     ctx.stroke();
   }
-  // ---- the pedals: seven levers in their slots, each at its notch (up flat, middle natural, down sharp)
-  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+  // ---- the pedals: seven levers in their slots, each at its notch (up flat, middle natural, down sharp): brass
+  // in its middle notch, in ink out of it (a pedal set is a mechanical fact)
+  ctx.strokeStyle = rgba(INK.line, 0.5);
   ctx.lineWidth = Math.max(2, 0.014 * sc);
   ctx.stroke(L.slots);
   for (let k = 0; k < 7; k++) {
     const [fx, fy] = pedalFoot(k, lv.ped[k]);
     const moved = Math.abs(lv.ped[k]) > 0.02;
-    ctx.strokeStyle = moved ? 'rgba(236,206,140,0.95)' : 'rgba(190,160,100,0.8)';
-    ctx.lineWidth = Math.max(1.6, 0.011 * sc);
+    const pw = Math.max(1.6, 0.011 * sc);
     ctx.beginPath();
     ctx.moveTo(X(PEDAL_X[k] - 0.035), Y(PEDAL_Y + 0.004));
     ctx.lineTo(X(fx), Y(fy));
     ctx.lineTo(X(fx + PEDAL_LEN * 0.5), Y(fy - 0.004));
+    ctx.strokeStyle = moved ? rgba(INK.line, 0.95) : BRASS.edge;
+    ctx.lineWidth = pw + (moved ? 0.6 : 1.2);
     ctx.stroke();
+    if (!moved) {
+      ctx.strokeStyle = '#e6c777';
+      ctx.lineWidth = Math.max(0.8, pw - 0.6);
+      ctx.stroke();
+    }
   }
   ctx.restore();
   harpRecord(L, st, lv);

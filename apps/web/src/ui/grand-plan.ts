@@ -68,22 +68,20 @@ export class Layer {
   }
 }
 
-/** a sounding unison lit over its resting lines: struck strings vermilion with a soft bloom,
- *  sympathetic ones amber and faint (at most 0.55 alpha even when they move like a struck string) */
+/** a sounding unison drawn over its resting lines: struck strings in the blue over a soft wash of it,
+ *  sympathetic ones fainter and thin (at most 0.5 alpha even when they move like a struck string) */
 export function lightString(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, off: number[], l: number, sym: number): void {
   if (l <= 0.02 && sym <= SYM_VISIBLE) return;
   const struck = l >= sym;
   if (struck) {
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.strokeStyle = rgba(INK.vermilion, 0.16 * l);
+    ctx.strokeStyle = rgba(INK.sound, 0.14 * l);
     ctx.lineWidth = 7;
     ctx.beginPath();
     ctx.moveTo(x0, y0);
     ctx.lineTo(x1, y1);
     ctx.stroke();
-    ctx.globalCompositeOperation = 'source-over';
   }
-  ctx.strokeStyle = struck ? rgba(INK.vermilion, 0.15 + 0.85 * l) : rgba(INK.amber, 0.08 + 0.47 * sym);
+  ctx.strokeStyle = struck ? rgba(INK.sound, 0.2 + 0.8 * l) : rgba(INK.sound, 0.08 + 0.42 * sym);
   ctx.lineWidth = struck ? 1 + 1.6 * l : 0.9 + 0.9 * sym;
   ctx.beginPath();
   for (const o of off) {
@@ -93,18 +91,18 @@ export function lightString(ctx: CanvasRenderingContext2D, x0: number, y0: numbe
   ctx.stroke();
 }
 
-/** a hammer's mark: a short felt dash that swells and lights at the strike; amber under the soft pedal */
+/** a hammer's mark: a short dash of graphite that swells and turns blue at the strike; bronze under the soft pedal */
 export function hammerMark(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, soft: number): void {
   const flash = h > 0.6 ? (h - 0.6) / 0.4 : 0;
   const hh = 3 + 3 * h;
   ctx.beginPath();
   ctx.roundRect(x - (w * (1 + 0.3 * h)) / 2, y - hh / 2, w * (1 + 0.3 * h), hh, 1.5);
-  ctx.fillStyle = flash > 0.02 ? `rgba(${Math.round(205 + 50 * flash)},${Math.round(181 - 87 * flash)},${Math.round(146 - 90 * flash)},${(0.55 + 0.45 * flash).toFixed(3)})` : soft > 0.05 ? rgba(INK.amber, 0.34 + 0.3 * soft) : rgba(INK.felt, 0.34 + 0.3 * h);
+  ctx.fillStyle = flash > 0.02 ? `rgba(${Math.round(60 - 31 * flash)},${Math.round(66 + 6 * flash)},${Math.round(74 + 135 * flash)},${(0.6 + 0.4 * flash).toFixed(3)})` : soft > 0.05 ? rgba(INK.amber, 0.5 + 0.3 * soft) : rgba(INK.line, 0.3 + 0.3 * h);
   ctx.fill();
 }
 
 /** a damper: a black head lying along its strings (`len` px long, turned by `ang` with a leaning string;
- *  x, y its middle); lifted, it moves off them and its edge turns amber */
+ *  x, y its middle); lifted, it moves off them, thins and takes a firm edge */
 export function damperMark(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, d: number, len = 4, ang = 0): void {
   const cx = x + 2 * d;
   const cy = y - 3 * d;
@@ -122,7 +120,7 @@ export function damperMark(ctx: CanvasRenderingContext2D, x: number, y: number, 
   ctx.fillStyle = rgba(INK.ebony, 0.94 - 0.5 * d);
   ctx.fill();
   ctx.lineJoin = 'round';
-  ctx.strokeStyle = d > 0.05 ? rgba(INK.amber, 0.2 + 0.45 * d) : rgba(INK.felt, 0.22);
+  ctx.strokeStyle = d > 0.05 ? rgba(INK.line, 0.3 + 0.5 * d) : rgba(INK.line, 0.2);
   ctx.lineWidth = 0.8;
   ctx.stroke();
 }
@@ -447,16 +445,45 @@ export function grandPlate(lay: Layout, H: number): Plate {
   return pl;
 }
 
-/** gold-bronze lacquer over the plate's iron: one soft light across the whole casting */
-export const BRONZE = '156,118,62';
-export const BRONZE_HI = '226,188,120';
-const BRONZE_LIT = [190, 148, 84];
-const BRONZE_SHADE = [118, 88, 46];
-/** the pin block, opaque: lit along its edge (as BRONZE lies over the board), darkening under the front */
-const BLOCK_LIT = [112, 86, 48];
-const BLOCK_DARK = [34, 28, 21];
-/** the soundboard: spruce, warmer and lighter than the case */
-export const SPRUCE = '108,78,44';
+/** gold-bronze lacquer over the plate's iron, in daylight: one soft light across the whole casting */
+export const BRONZE = '191,149,76';
+export const BRONZE_HI = '240,212,152';
+const BRONZE_LIT = [208, 170, 98];
+const BRONZE_SHADE = [166, 124, 58];
+/** the pin block, opaque: lit along its edge (as BRONZE lies over the board), deepening under the front */
+const BLOCK_LIT = [210, 176, 112];
+const BLOCK_DARK = [176, 138, 78];
+/** the soundboard: spruce in daylight, pale and warm (its lit corner, and its far one) */
+export const SPRUCE = '238,223,194';
+const SPRUCE_LIT = '245,234,210';
+const SPRUCE_SHADE = '228,209,174';
+/** the rim: black lacquer seen from above */
+export const RIM = '26,28,32';
+/** a steel string at rest on the board, and a wound one */
+export const STRING_STEEL = '84,92,102';
+export const STRING_WOUND = '142,80,40';
+/** the bridges: maple, a little deeper than the board they stand on */
+export const BRIDGE = '158,118,66';
+/** the shadow a case throws on the studio's floor: the window is up and to the left */
+export function castShadow(c: CanvasRenderingContext2D, shape: Path2D, k = 1): void {
+  c.save();
+  c.shadowColor = 'rgba(28,34,42,0.3)';
+  c.shadowBlur = 26 * k;
+  c.shadowOffsetX = 7 * k;
+  c.shadowOffsetY = 12 * k;
+  c.fillStyle = rgba(RIM, 1);
+  c.fill(shape);
+  c.restore();
+}
+/** the board in its opening: spruce, the light falling off across it */
+export function paintBoard(c: CanvasRenderingContext2D, inner: Path2D, box: { x0: number; y0: number; x1: number; y1: number }): void {
+  const g = c.createLinearGradient(box.x0, Math.max(0, box.y0), box.x1, box.y1);
+  g.addColorStop(0, rgba(SPRUCE_LIT, 1));
+  g.addColorStop(0.5, rgba(SPRUCE, 1));
+  g.addColorStop(1, rgba(SPRUCE_SHADE, 1));
+  c.fillStyle = g;
+  c.fill(inner);
+}
 const mix = (a: number[], b: number[], t: number, alpha: number) => `rgba(${Math.round(a[0] + (b[0] - a[0]) * t)},${Math.round(a[1] + (b[1] - a[1]) * t)},${Math.round(a[2] + (b[2] - a[2]) * t)},${alpha})`;
 
 /** the plate, drawn: bronze where the iron is, the board open between. `perimeter` is the case's inner
@@ -464,9 +491,9 @@ const mix = (a: number[], b: number[], t: number, alpha: number) => `rgba(${Math
 export function paintPlate(c: CanvasRenderingContext2D, pl: Plate, perimeter: Path2D, box: { x0: number; y0: number; x1: number; y1: number }): void {
   // one light for the whole casting: from the upper left, falling off to the lower right
   const g = c.createLinearGradient(box.x0, Math.max(0, box.y0), box.x1, box.y1);
-  g.addColorStop(0, mix(BRONZE_LIT, BRONZE_LIT, 0, 0.52));
-  g.addColorStop(0.4, `rgba(${BRONZE},0.5)`);
-  g.addColorStop(1, mix(BRONZE_SHADE, BRONZE_SHADE, 0, 0.52));
+  g.addColorStop(0, mix(BRONZE_LIT, BRONZE_LIT, 0, 0.96));
+  g.addColorStop(0.4, `rgba(${BRONZE},0.96)`);
+  g.addColorStop(1, mix(BRONZE_SHADE, BRONZE_SHADE, 0, 0.96));
   c.lineJoin = 'round';
   c.lineCap = 'round';
   c.strokeStyle = g;
@@ -492,9 +519,12 @@ export function paintPlate(c: CanvasRenderingContext2D, pl: Plate, perimeter: Pa
     c.stroke(q);
   }
   c.lineCap = 'butt';
-  c.strokeStyle = rgba(BRONZE_HI, 0.2);
+  c.strokeStyle = rgba(BRONZE_HI, 0.7);
   c.lineWidth = 1;
   for (const r of pl.rails) c.stroke(path(r.map(([x, y]): P => [x, y - pl.railW / 2 + 1]), false));
+  // (and the shade each throws on the board, down and to the right)
+  c.strokeStyle = 'rgba(96,70,30,0.3)';
+  for (const r of pl.rails) c.stroke(path(r.map(([x, y]): P => [x + 0.5, y + pl.railW / 2 + 0.5]), false));
   // the pin block: bronze along its edge, where the pins stand, then falling into shade towards the case
   // (so a narrow screen's deep block is not a slab). Opaque steps, each over the last: no seams.
   if (pl.edge.length > 1) {
@@ -515,7 +545,7 @@ export function paintPlate(c: CanvasRenderingContext2D, pl: Plate, perimeter: Pa
       c.closePath();
       c.fill();
     }
-    c.strokeStyle = rgba(BRONZE_HI, 0.34);
+    c.strokeStyle = rgba(BRONZE_HI, 0.75);
     c.lineWidth = 1;
     c.stroke(path(e, false));
   }
@@ -524,7 +554,7 @@ export function paintPlate(c: CanvasRenderingContext2D, pl: Plate, perimeter: Pa
 export function paintEnds(c: CanvasRenderingContext2D, pl: Plate): void {
   if (!pl.detail) return;
   c.lineCap = 'butt';
-  c.strokeStyle = rgba(INK.ivory, 0.14);
+  c.strokeStyle = rgba(STRING_STEEL, 0.4);
   c.lineWidth = 0.7;
   c.beginPath();
   for (const [a, b] of pl.leads) {
@@ -537,14 +567,14 @@ export function paintEnds(c: CanvasRenderingContext2D, pl: Plate): void {
   }
   c.stroke();
   // tuning pins: steel; hitch pins: dark in the rail
-  c.fillStyle = rgba('208,202,190', 0.82);
+  c.fillStyle = rgba('92,96,102', 0.92);
   c.beginPath();
   for (const [x, y] of pl.pins) {
     c.moveTo(x + pl.pinR, y);
     c.arc(x, y, pl.pinR, 0, Math.PI * 2);
   }
   c.fill();
-  c.fillStyle = rgba('36,29,20', 0.9);
+  c.fillStyle = rgba('70,52,26', 0.9);
   c.beginPath();
   for (const [x, y] of pl.hitch) {
     c.moveTo(x + pl.pinR * 0.8, y);
@@ -559,32 +589,44 @@ function paintBase(lay: Layout, W: number, H: number, dpr: number): void {
   const bass = strs.filter((s) => s.p.wound);
   const treb = strs.filter((s) => !s.p.wound);
   base.paint(W, H, dpr, lay.key, (c) => {
-    c.fillStyle = rgba(INK.ebony, 1);
+    // the case on the floor, its shadow under it; the rim's black lacquer; the spruce in its opening
+    castShadow(c, outline);
+    c.fillStyle = rgba(RIM, 1);
     c.fill(outline);
-    c.fillStyle = rgba(SPRUCE, 0.4);
-    c.fill(inner);
+    const box = { x0: lay.box.x0, y0: lay.box.y0, x1: lay.box.x1, y1: H };
+    paintBoard(c, inner, box);
     c.save();
     c.clip(inner);
+    // (the rim stands over the board: its shade along the upper and left sides)
+    c.save();
+    c.shadowColor = 'rgba(60,42,16,0.45)';
+    c.shadowBlur = 10;
+    c.shadowOffsetX = 3;
+    c.shadowOffsetY = 5;
+    c.strokeStyle = rgba(RIM, 1);
+    c.lineWidth = 2;
+    c.stroke(inner);
+    c.restore();
     // the plate's frame over the board
     const pl = grandPlate(lay, H);
-    paintPlate(c, pl, inner, { x0: lay.box.x0, y0: lay.box.y0, x1: lay.box.x1, y1: H });
+    paintPlate(c, pl, inner, box);
     // the bridges: the long treble bridge and the bass bridge, each one line under the string ends
     c.lineJoin = 'round';
-    c.strokeStyle = rgba(INK.felt, 0.5);
+    c.strokeStyle = rgba(BRIDGE, 0.95);
     c.lineWidth = 3;
     for (const part of [treb, bass]) {
       if (part.length < 2) continue;
       c.stroke(path(catmull(part.filter((_, k) => k % 3 === 0 || k === part.length - 1).map((s) => s.b), 4), false));
     }
     // where the speaking lengths begin (agraffes, the capo bar): a hairline along the string fronts
-    c.strokeStyle = rgba(INK.ivory, 0.22);
+    c.strokeStyle = rgba('110,82,36', 0.6);
     c.lineWidth = 1.2;
     for (const part of [treb, bass]) if (part.length > 1) c.stroke(path(part.map((s) => s.a), false));
     // the strings at rest: steel trebles, then the copper-wound bass crossing over the tenor
     c.lineCap = 'butt';
     for (const part of [treb, bass]) {
       const wound = part === bass;
-      c.strokeStyle = rgba(wound ? INK.copper : INK.ivory, wound ? 0.5 : 0.24);
+      c.strokeStyle = rgba(wound ? STRING_WOUND : STRING_STEEL, wound ? 0.85 : 0.5);
       c.lineWidth = wound ? 1.3 : 0.8;
       c.beginPath();
       for (const s of part)
@@ -596,11 +638,9 @@ function paintBase(lay: Layout, W: number, H: number, dpr: number): void {
     }
     paintEnds(c, pl);
     c.restore();
+    // (the lacquer's edge catching the window: a pale line just inside the rim's outer edge)
     c.lineJoin = 'round';
-    c.strokeStyle = rgba(INK.ivory, 0.34);
-    c.lineWidth = 1.4;
-    c.stroke(outline);
-    c.strokeStyle = rgba(INK.ivory, 0.1);
+    c.strokeStyle = rgba(INK.light, 0.22);
     c.lineWidth = 1;
     c.stroke(inner);
   });
@@ -626,8 +666,7 @@ export function drawGrandPlan(ctx: CanvasRenderingContext2D, W: number, H: numbe
     ctx.rect(0, 0, W, H);
     ctx.clip();
     ctx.clip(lay.inner);
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.65;
+    ctx.globalAlpha = 0.8;
     // (over the part of the case in view, a little oversize: the field's still edge falls outside)
     const fy = Math.max(0, yTop);
     ctx.drawImage(field.canvas, xL - 0.04 * (xR - xL), fy - 0.04 * (yKey - fy), 1.08 * (xR - xL), 1.08 * (yKey - fy));
@@ -654,8 +693,7 @@ export function drawGrandPlan(ctx: CanvasRenderingContext2D, W: number, H: numbe
     if (s.p.k.hasDamper) damperMark(ctx, s.x + (yS - yD + dLen / 2 - 2) * (s.lean / sv), yD - dLen / 2 + 2, pitch * 0.6, st.damper[s.p.i], dLen, Math.atan(s.lean / sv));
     hammerMark(ctx, s.x + sh, yS, pitch * 0.5, st.hammer[s.p.i], st.shift);
   }
-  // ---- a strike flares where the hammer meets the strings
-  ctx.globalCompositeOperation = 'lighter';
+  // ---- a strike: a puff of the blue where the hammer meets the strings
   for (const s of strs) {
     const t = st.strikes.get(s.p.midi);
     if (t === undefined || !vis(s)) continue;
@@ -665,13 +703,12 @@ export function drawGrandPlan(ctx: CanvasRenderingContext2D, W: number, H: numbe
     const r = (0.7 + 1.1 * v) * pitch * (0.8 + 0.7 * age);
     const a = (1 - age) ** 2 * (0.35 + 0.5 * v);
     const g = ctx.createRadialGradient(s.x + sh, yS, 0, s.x + sh, yS, r);
-    g.addColorStop(0, rgba('255,200,160', a));
-    g.addColorStop(0.35, rgba(INK.vermilion, a * 0.6));
-    g.addColorStop(1, rgba(INK.vermilion, 0));
+    g.addColorStop(0, rgba(INK.sound, a * 0.9));
+    g.addColorStop(0.4, rgba(INK.sound, a * 0.4));
+    g.addColorStop(1, rgba(INK.sound, 0));
     ctx.fillStyle = g;
     ctx.fillRect(s.x + sh - r, yS - r, 2 * r, 2 * r);
   }
-  ctx.globalCompositeOperation = 'source-over';
   // ---- the lid: hinged on the spine, it rises towards the viewer and is seen foreshortened;
   //      closed, it covers the strings
   st.caseBox = lay.box;
@@ -684,23 +721,23 @@ export function drawGrandPlan(ctx: CanvasRenderingContext2D, W: number, H: numbe
   ctx.translate(-xL, 0);
   // (its shade: whole when it is down; raised, it thins towards the free edge, so the edge is no seam
   // across the plate)
-  const shade = 0.22 + 0.6 * (1 - lidOpen);
+  const shade = 0.07 + 0.86 * (1 - lidOpen) ** 1.5;
   const sg = ctx.createLinearGradient(xL, 0, xR, 0);
-  sg.addColorStop(0, rgba(INK.ebony, shade));
-  sg.addColorStop(0.45, rgba(INK.ebony, shade));
-  sg.addColorStop(1, rgba(INK.ebony, shade * (1 - lidOpen)));
+  sg.addColorStop(0, rgba(RIM, shade));
+  sg.addColorStop(0.45, rgba(RIM, shade));
+  sg.addColorStop(1, rgba(RIM, shade * (1 - lidOpen)));
   ctx.fillStyle = sg;
   ctx.fill(lay.outline);
   ctx.restore();
   // its outline, foreshortened, and its free edge catching the light
-  ctx.strokeStyle = rgba(INK.ivory, 0.12 + 0.2 * (1 - lidOpen));
+  ctx.strokeStyle = rgba(INK.line, 0.3 + 0.2 * (1 - lidOpen));
   ctx.lineWidth = 1;
   ctx.beginPath();
   lay.outer.forEach(([x, y], k) => (k ? ctx.lineTo(xL + (x - xL) * cphi, y) : ctx.moveTo(xL + (x - xL) * cphi, y)));
   ctx.stroke();
   const edgeX = xL + (xR - xL) * cphi;
   // (the free edge: quiet, since it crosses the strings)
-  ctx.strokeStyle = rgba(INK.ivory, 0.1 + 0.1 * lidOpen);
+  ctx.strokeStyle = rgba(INK.line, 0.22 + 0.14 * lidOpen);
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(edgeX, yTop + (yKey - yTop) * 0.25);

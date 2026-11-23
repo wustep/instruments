@@ -26,9 +26,12 @@ const rectOf = (page: Page, sel: string) =>
     const r = e.getBoundingClientRect();
     return { x0: r.left, x1: r.right, y0: r.top, y1: r.bottom };
   }, sel) as Promise<Box | null>;
-/** the share of a box's pixels on the stage's canvas that carry ink (anything brighter than the ground) */
-const inked = (page: Page, b: Box) =>
-  page.evaluate((b) => {
+/** the share of a box's pixels on the stage's canvas that carry ink (anything drawn: the canvas is clear where nothing is,
+ *  whatever the ground under it). `near` (px): the share of the box that has ink within that distance instead (its cells
+ *  of that size that hold any). The vector lines used to be measured with their glow, which spread every line some 8 px;
+ *  the drafting sheet's lines have none (nothing glows), so they are asked the same question, said outright. */
+const inked = (page: Page, b: Box, near = 0) =>
+  page.evaluate(({ b, near }) => {
     const cv = document.querySelector('.stage-cv') as HTMLCanvasElement;
     const r = cv.getBoundingClientRect();
     const k = cv.width / r.width;
@@ -39,12 +42,24 @@ const inked = (page: Page, b: Box) =>
     const d = c2.getImageData(x0, y0, w, h).data;
     let n = 0;
     let m = 0;
+    if (near > 0) {
+      const c = Math.max(2, Math.round(near * k));
+      for (let cy = 0; cy + c <= h; cy += c) {
+        for (let cx = 0; cx + c <= w; cx += c) {
+          m++;
+          let any = false;
+          for (let y = cy; y < cy + c && !any; y++) for (let x = cx; x < cx + c; x++) if (d[4 * (y * w + x) + 3] > 40) { any = true; break; }
+          if (any) n++;
+        }
+      }
+      return m ? n / m : 0;
+    }
     for (let i = 0; i < d.length; i += 4 * 5) {
       m++;
-      if (Math.max(d[i], d[i + 1], d[i + 2]) > 40) n++;
+      if (d[i + 3] > 40) n++;
     }
     return n / m;
-  }, b);
+  }, { b, near });
 async function setStyle(page: Page, vector: boolean) {
   if (vector !== (await page.evaluate(() => document.documentElement.dataset.style === 'vector'))) await page.locator('.vec-toggle').click();
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.style === 'vector')).toBe(vector);
@@ -99,7 +114,7 @@ test('the bassoon alone in 2D, both styles: whole on the stage under the file pl
         expect((b.x1 - b.x0) / (d.stage.x1 - d.stage.x0), `${where}: its share of the stage`).toBeGreaterThan(0.88);
         expect(d.reed.y, `${where}: the reed above the body`).toBeLessThan((b.y0 + b.y1) / 2);
       }
-      expect(await inked(page, d.keys), `${where}: drawn`).toBeGreaterThan(0.3);
+      expect(await inked(page, d.keys, vector ? 8 : 0), `${where}: drawn`).toBeGreaterThan(0.3);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${where}: no horizontal scroll`).toBe(true);
       // a high note: the A flick key and the C♯ key, the whisper key off
       await page.evaluate(() => (window as any).__piano.piano.noteOff(41));

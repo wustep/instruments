@@ -520,9 +520,9 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
 export const ensembleRisers = (parts: SeatIn[], aspect = 2): Riser[] => seatRisers(parts.map(seatKind), aspect);
 
 /** a riser: a stepped platform of the stage, an arc round the podium, its top edge chamfered (2 cm), a
- *  dark stained wood top over a black fascia */
-const RISER_TOP = M.caseInner;
-const RISER_SIDE = M.caseRaw;
+ *  deck of pale birch over a fascia painted the studio's white */
+const RISER_TOP = M.stageDeck;
+const RISER_SIDE = M.stagePaint;
 function riserMesh(r: Riser): Mesh {
   const mb = new MeshBuilder();
   const n = Math.max(8, Math.ceil(((r.a1 - r.a0) * r.r1) / 0.12));

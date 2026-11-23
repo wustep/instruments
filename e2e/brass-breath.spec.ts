@@ -10,8 +10,9 @@ async function startAudio(page: Page) {
   await page.waitForFunction(() => (window as any).__piano?.status === 'running' && (window as any).__piano?.piano, null, { timeout: 30_000 });
 }
 type Box = { x0: number; x1: number; y0: number; y1: number };
-/** the pixels of a box on the stage's canvas in the breath's ink: the drawn style's steel (bluer than it is
- *  red, over the warm dark ground), the vector style's green */
+/** the pixels of a box on the stage's canvas in the breath's ink: the drawn style's slate (bluer than it is red
+ *  by more than the silver of a mouthpiece or the shadow it casts on the plaster are, 19 and 9 at most, but
+ *  not the saturated blue the sound itself is drawn in), the vector style's green */
 const breathPx = (page: Page, b: Box, vector: boolean) =>
   page.evaluate(
     ([b, vector]) => {
@@ -26,7 +27,7 @@ const breathPx = (page: Page, b: Box, vector: boolean) =>
       let n = 0;
       for (let i = 0; i < d.length; i += 4) {
         const [R, G, B] = [d[i], d[i + 1], d[i + 2]];
-        if (vector ? G > R + 40 && G > B + 10 && G > 60 : B > R + 8 && B > 35) n++;
+        if (vector ? G > R + 40 && G > B + 10 && G > 60 : B > R + 22 && B > 35 && B - R < 100) n++;
       }
       return n;
     },

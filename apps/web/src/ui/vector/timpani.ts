@@ -40,7 +40,7 @@ export function drawTimpaniV(ctx: CanvasRenderingContext2D, W: number, H: number
 /** hide what lies behind a shape: lines only, but a nearer drum still covers a farther one */
 function mask(ctx: CanvasRenderingContext2D, path: Path2D): void {
   ctx.save();
-  ctx.fillStyle = '#000';
+  ctx.fillStyle = V.ground;
   ctx.fill(path);
   ctx.restore();
 }
@@ -49,45 +49,45 @@ function drum(ctx: CanvasRenderingContext2D, L: TpLayout, i: number, lv: TpLive,
   const d = L.drums[i];
   const pl = SET[i];
   // ---- behind the bowl: the back strut, the legs, the hub, the pull rod, the casters, the pedal
-  beam(ctx, d.backStrut, V.blueDim, 1, { alpha: 0.8 });
-  beam(ctx, d.legs, V.blueDim, lw);
-  ring(ctx, d.hub.x, d.hub.y, Math.max(1, d.hub.rx * 0.6), V.blueDim, 1);
-  seg(ctx, d.pull[0], d.pull[1], d.pull[2], d.pull[3], V.blueDim, 1);
-  for (const [x, y] of d.casters) ring(ctx, x, y, Math.max(1, 0.022 * L.sc), V.blueDim, 1);
+  beam(ctx, d.backStrut, V.inkDim, 1, { alpha: 0.8 });
+  beam(ctx, d.legs, V.inkDim, lw);
+  ring(ctx, d.hub.x, d.hub.y, Math.max(1, d.hub.rx * 0.6), V.inkDim, 1);
+  seg(ctx, d.pull[0], d.pull[1], d.pull[2], d.pull[3], V.inkDim, 1);
+  for (const [x, y] of d.casters) ring(ctx, x, y, Math.max(1, 0.022 * L.sc), V.inkDim, 1);
   const f = pedalPts(L, pl, lv.pedal[i]);
   const board = new Path2D();
   f.quad.forEach(([x, y], k) => (k ? board.lineTo(x, y) : board.moveTo(x, y)));
   board.closePath();
-  seg(ctx, d.hub.x, d.hub.y, f.hinge[0], f.hinge[1], V.blueDim, 1);
-  seg(ctx, f.hinge[0], f.hinge[1], f.toe[0], f.toe[1], V.blueMid, 1);
+  seg(ctx, d.hub.x, d.hub.y, f.hinge[0], f.hinge[1], V.inkDim, 1);
+  seg(ctx, f.hinge[0], f.hinge[1], f.toe[0], f.toe[1], V.inkMid, 1);
   mask(ctx, board);
-  beam(ctx, board, V.blue, lw);
+  beam(ctx, board, V.ink, lw);
   // ---- the kettle: masked, its outline and sections; the struts and near rods over it
   mask(ctx, d.bowl);
-  beam(ctx, d.bowl, V.blue, lw);
-  beam(ctx, d.sections, V.blueDim, 1, { alpha: 0.7 });
-  beam(ctx, d.frontStruts, V.blueMid, lw);
-  beam(ctx, d.rods, V.blueDim, 1);
+  beam(ctx, d.bowl, V.ink, lw);
+  beam(ctx, d.sections, V.inkDim, 1, { alpha: 0.7 });
+  beam(ctx, d.frontStruts, V.inkMid, lw);
+  beam(ctx, d.rods, V.inkDim, 1);
   // ---- the hoop's face and top, the head masked
   mask(ctx, d.hoopFace);
-  beam(ctx, d.hoopFace, V.blueMid, 1);
+  beam(ctx, d.hoopFace, V.inkMid, 1);
   const hoop = new Path2D();
   hoop.ellipse(d.hx, d.hy, d.orx, d.ory, 0, 0, 2 * Math.PI);
   mask(ctx, hoop);
-  beam(ctx, hoop, V.blue, lw + 0.2);
+  beam(ctx, hoop, V.ink, lw + 0.2);
   const inner = new Path2D();
   inner.ellipse(d.hx, d.hy, d.rx, d.ry, 0, 0, 2 * Math.PI);
-  beam(ctx, inner, V.blueMid, 1);
+  beam(ctx, inner, V.inkMid, 1);
   // ---- the head's field, traced
   const h = st.heads![i];
   if (lv.lvl[i] > 0.01 && h.peak > 0) field(ctx, L, i, h, lv, small);
   // ---- the T-handles, the gauge (its pointer at the pitch, amber)
-  beam(ctx, d.handles, V.blueMid, 1);
+  beam(ctx, d.handles, V.inkMid, 1);
   mask(ctx, d.plate);
-  beam(ctx, d.plate, V.blue, 1);
-  beam(ctx, d.ticks, V.blueDim, 1);
+  beam(ctx, d.plate, V.ink, 1);
+  beam(ctx, d.ticks, V.inkDim, 1);
   const [tx, ty, bx, by] = pointerAt(d, lv.pedal[i]);
-  seg(ctx, bx, by, tx, ty, V.amber, small ? 1 : 1.3, { alpha: 0.7 + 0.3 * lv.lvl[i], hot: lv.lvl[i] > 0.3 });
+  seg(ctx, bx, by, tx, ty, V.sound, small ? 1 : 1.3, { alpha: 0.7 + 0.3 * lv.lvl[i], hot: lv.lvl[i] > 0.3 });
 }
 
 /** the head's field as lines: the nodal lines (bright), a contour either side at 40 % of the swing (the
@@ -173,9 +173,9 @@ function field(ctx: CanvasRenderingContext2D, L: TpLayout, i: number, h: HeadFie
     return p;
   };
   const c = 0.4 * h.peak;
-  beam(ctx, at(c), V.amber, small ? 0.8 : 1, { alpha: 0.35 + 0.45 * strong });
-  beam(ctx, at(-c), V.amber, small ? 0.8 : 1, { alpha: 0.35 + 0.45 * strong, dash: [3, 3] });
-  if (strong > 0.12) beam(ctx, at(0), V.amber, small ? 1 : 1.4, { alpha: Math.min(1, 0.3 + lv.lvl[i]), hot: strong > 0.5 });
+  beam(ctx, at(c), V.sound, small ? 0.8 : 1, { alpha: 0.35 + 0.45 * strong });
+  beam(ctx, at(-c), V.sound, small ? 0.8 : 1, { alpha: 0.35 + 0.45 * strong, dash: [3, 3] });
+  if (strong > 0.12) beam(ctx, at(0), V.sound, small ? 1 : 1.4, { alpha: Math.min(1, 0.3 + lv.lvl[i]), hot: strong > 0.5 });
 }
 
 /** the mallets: the shafts (masked, their edges), the balls (green: the felt's slot; white on the head), a
@@ -190,7 +190,7 @@ function mallets(ctx: CanvasRenderingContext2D, L: TpLayout, lv: TpLive, st: Tim
     const gy = Y(m.grip[0], m.grip[1], m.grip[2]);
     const br = Math.max(2, BALL_R * sc);
     const sy = Y(m.ball[0], m.ball[1], pl.zh);
-    if (m.lift > 0.01) seg(ctx, bx, sy, bx, by + br, V.blueDim, 1, { alpha: 0.6, dash: [1, 3] });
+    if (m.lift > 0.01) seg(ctx, bx, sy, bx, by + br, V.inkDim, 1, { alpha: 0.6, dash: [1, 3] });
     const h = st.hands![k];
     const since = (now - h.t) / 1000;
     if (since >= 0 && since < 0.09 && Number.isFinite(h.fx)) seg(ctx, h.fx, h.fy, bx, by, V.green, br, { alpha: 0.35 * (1 - since / 0.09) });
@@ -198,7 +198,7 @@ function mallets(ctx: CanvasRenderingContext2D, L: TpLayout, lv: TpLive, st: Tim
       const r = br * (1.2 + 5 * m.ago);
       ctx.beginPath();
       ctx.ellipse(bx, sy, r, r * SIN_E, 0, 0, 2 * Math.PI);
-      beam(ctx, null, V.amber, 1, { alpha: 0.8 * (1 - m.ago / 0.25) });
+      beam(ctx, null, V.sound, 1, { alpha: 0.8 * (1 - m.ago / 0.25) });
     }
     const dx = gx - bx;
     const dy = gy - by;
@@ -212,11 +212,11 @@ function mallets(ctx: CanvasRenderingContext2D, L: TpLayout, lv: TpLive, st: Tim
     shaft.lineTo(bx - nx, by - ny);
     shaft.closePath();
     mask(ctx, shaft);
-    beam(ctx, shaft, V.blue, small ? 1 : lw);
+    beam(ctx, shaft, V.ink, small ? 1 : lw);
     const ball = new Path2D();
     ball.arc(bx, by, br, 0, 2 * Math.PI);
     mask(ctx, ball);
-    beam(ctx, ball, m.on ? V.white : V.green, lw + (m.on ? 0.6 : 0.2), { hot: m.on || m.ago < 0.08 });
+    beam(ctx, ball, m.on ? V.deep : V.green, lw + (m.on ? 0.6 : 0.2), { hot: m.on || m.ago < 0.08 });
   });
 }
 
@@ -271,6 +271,6 @@ function slots(ctx: CanvasRenderingContext2D, L: TpLayout, lv: TpLive, dm: Float
   const g0y = L.Y(m0.grip[0], m0.grip[1], m0.grip[2]);
   const g1x = L.X(m1.grip[0]);
   const g1y = L.Y(m1.grip[0], m1.grip[1], m1.grip[2]);
-  if (rolling) seg(ctx, g0x, g0y, g1x, g1y, V.white, 1, { alpha: 0.6, dash: [2, 4] });
-  handle(ctx, (g0x + g1x) / 2, (g0y + g1y) / 2, mix(V.white, V.blue, 0.4 * (1 - rolling)), hr * 0.8, 0.45 + 0.55 * rolling);
+  if (rolling) seg(ctx, g0x, g0y, g1x, g1y, V.deep, 1, { alpha: 0.6, dash: [2, 4] });
+  handle(ctx, (g0x + g1x) / 2, (g0y + g1y) / 2, mix(V.deep, V.ink, 0.4 * (1 - rolling)), hr * 0.8, 0.45 + 0.55 * rolling);
 }
