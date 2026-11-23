@@ -90,7 +90,7 @@ function spy() {
 }
 const dist = (a: Pt, b: Pt) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 /** the drawn style's breath: dashed strokes in the steel ink */
-const steelDashed = (ops: Op[]) => ops.filter((o) => o.kind === 'stroke' && o.dash.length > 0 && typeof o.style === 'string' && o.style.startsWith(`rgba(${INK.steel},`));
+const steelDashed = (ops: Op[]) => ops.filter((o) => o.kind === 'stroke' && o.dash.length > 0 && typeof o.style === 'string' && o.style.startsWith(`rgba(${INK.cool},`));
 /** the lips' opening over four cycles, shut for part of each, open to 1.4 between */
 const lipTrace = (midi: number, rate = 48000) => {
   const P = rate / et(midi);
@@ -213,7 +213,7 @@ describe('the breath, drawn alike on every wind', () => {
     const s = spy();
     breathFlow(s.ctx, at, 0.02, [0.0034, 0.0018, 0.0006], 0.0016, false, 1, 0);
     lipLine(s.ctx, at, 0.002, 0.0125, 1.4, 1, true);
-    const green = s.ops.filter((o) => o.style === V.green && o.path);
+    const green = s.ops.filter((o) => o.style === V.verdigris && o.path);
     expect(green.length).toBe(1);
     expect(green[0].dash.length).toBe(2);
     // three streams: start, end; the ends 1.6 mm out, 1.2 mm apart
@@ -223,7 +223,7 @@ describe('the breath, drawn alike on every wind', () => {
       expect(tip[0] - g[2 * j][0]).toBeCloseTo(20, 6);
       expect(tip[0] - g[2 * j + 1][0]).toBeCloseTo(1.6, 6);
     }
-    const red = s.ops.filter((o) => o.style === V.red && o.path);
+    const red = s.ops.filter((o) => o.style === V.rose && o.path);
     expect(red.length).toBeGreaterThan(0);
     // (a beam strokes its path once, and again for a hot core)
     const r = red[0].pts;
@@ -263,15 +263,15 @@ describe('the breath, drawn alike on every wind', () => {
       const st = b.state();
       const { at: rim, sc } = b.rim();
       const rest = await run(b.drawV, st, () => null, 3);
-      expect(rest.filter((o) => o.style === V.green && o.path && o.dash.length).length, 'at rest: no breath').toBe(0);
+      expect(rest.filter((o) => o.style === V.verdigris && o.path && o.dash.length).length, 'at rest: no breath').toBe(0);
       const ops = await run(b.drawV, st, (k) => b.frame(k * 0.4), 12);
-      const flows = ops.filter((o) => o.style === V.green && o.path && o.dash.length);
+      const flows = ops.filter((o) => o.style === V.verdigris && o.path && o.dash.length);
       expect(flows.length, 'one breath').toBe(1);
       const f = flows[0].pts;
       expect(f.length).toBe(6);
       for (let j = 0; j < 3; j++) expect(dist(f[2 * j + 1], rim) / sc, `${b.name}: the stream's end`).toBeLessThan(0.0018);
       // the lips: red paths at the rim of two strokes across it (no cushion of many points)
-      const lips = ops.filter((o) => o.style === V.red && o.path && o.pts.every((p) => dist(p, rim) < 0.02 * sc));
+      const lips = ops.filter((o) => o.style === V.rose && o.path && o.pts.every((p) => dist(p, rim) < 0.02 * sc));
       expect(lips.length).toBeGreaterThan(0);
       for (const l of lips) expect(l.pts.length, `${b.name}: the lips' path`).toBe(4);
     });
@@ -304,7 +304,7 @@ describe('the horn’s bell is empty: no hand in it (the engine has none)', () =
 });
 
 describe('the breath in 3D: faint steel streams into the mouthpiece while it sounds, as the flute’s jet', () => {
-  const steel = INK.steel.split(',').map((c) => Number(c) / 255);
+  const steel = INK.cool.split(',').map((c) => Number(c) / 255);
   /** the lines' points (world) and colours */
   const linesOf = (b: Batch): { p: Vec3; c: number[] }[] => {
     const out: { p: Vec3; c: number[] }[] = [];
@@ -347,7 +347,7 @@ describe('the breath in 3D: faint steel streams into the mouthpiece while it sou
     { name: 'trumpet', lips: xform(um.T, um.lips), pose: (b: Batch, fr: VisualFrame | null, p: ReturnType<typeof newWindPose>, k: number, rms: number) => poseTrumpet(b, um, fr, p, 1 / 60, k * 16.7, rms), frame: () => trumpetFrame(67, 0) },
   ];
   for (const md of MODELS)
-    it(`${md.name}: no line at rest; sounding, only the steel streams at the mouthpiece (no vermilion lips)`, () => {
+    it(`${md.name}: no line at rest; sounding, only the cool streams at the mouthpiece (no lit lips)`, () => {
       const pose = newWindPose();
       const b = new Batch();
       for (let k = 0; k < 20; k++) {

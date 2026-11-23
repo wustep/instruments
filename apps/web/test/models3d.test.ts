@@ -194,7 +194,7 @@ describe('3D instruments', () => {
   // Stephen: "for the pianos on 3d, don't turn the string/key/etc red when playing them (just on 3d)".
   // In 3D the played parts keep their own materials and show the playing by their motion: a held,
   // sounding chord of white and black keys, struck, with both pedals down, tints no key, stick, jack,
-  // hammer, damper or pedal, and lays no vermilion or amber line over its strings; its strings
+  // hammer, damper or pedal, and lays no lit or amber line over its strings; its strings
   // (struck and sympathetic) are the wires themselves in their live shapes. (2D keeps its highlights.)
   it('in 3D a played piano tints nothing: keys, action, dampers, pedals and strings keep their materials; the strings move as wires', () => {
     const chord = [55, 58, 60, 61, 64, 66];

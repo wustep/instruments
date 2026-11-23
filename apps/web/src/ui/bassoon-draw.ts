@@ -908,7 +908,7 @@ export function borePx(L: BsLayout, x: number): { px: number; py: number; nx: nu
 const silver = (a: number) => rgba('240,230,212', a);
 const SILVER_BODY = 'rgb(72,66,58)';
 const WOOD = '#3a140e';
-const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
+const waveInk = (v: number) => (v >= 0 ? INK.light : INK.cool);
 
 /** the envelope's base and side for each leg: (lying frame) the narrow bore's to the left of the wing and
  *  boot (up, lying), the wide bore's to the right of the long joint (down) */
@@ -954,9 +954,9 @@ export function drawBassoon(ctx: CanvasRenderingContext2D, W: number, H: number,
       const [hb] = boreHU(b);
       ctx.lineTo(X(hb), Y(g.base));
       ctx.closePath();
-      ctx.fillStyle = rgba(INK.vermilion, 0.07 * lvl + 0.03);
+      ctx.fillStyle = rgba(INK.light, 0.07 * lvl + 0.03);
       ctx.fill();
-      ctx.strokeStyle = rgba(INK.vermilion, 0.16 + 0.22 * lvl);
+      ctx.strokeStyle = rgba(INK.light, 0.16 + 0.22 * lvl);
       ctx.lineWidth = 1;
       ctx.stroke();
     }
@@ -1100,7 +1100,7 @@ export function drawBassoon(ctx: CanvasRenderingContext2D, W: number, H: number,
     for (const q of L.glowQ) {
       const A = lv.ampAt(q.x);
       if (Math.abs(A) < 0.02) continue;
-      ctx.fillStyle = rgba(INK.vermilion, 0.36 * Math.min(1, Math.pow(Math.abs(A), 1.5)));
+      ctx.fillStyle = rgba(INK.light, 0.36 * Math.min(1, Math.pow(Math.abs(A), 1.5)));
       ctx.fill(q.p);
       ctx.fillStyle = rgba(waveInk(A * ph), 0.56 * Math.min(1, Math.pow(Math.abs(A * ph), 1.15)));
       ctx.fill(q.pi);
@@ -1114,7 +1114,7 @@ export function drawBassoon(ctx: CanvasRenderingContext2D, W: number, H: number,
       const N = 48;
       for (let i = 0; i <= N; i++) {
         const A = lv.ampAt(g.a + ((g.b - g.a) * i) / N);
-        ge.addColorStop(i / N, rgba(INK.vermilion, 0.36 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+        ge.addColorStop(i / N, rgba(INK.light, 0.36 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
         gw.addColorStop(i / N, rgba(waveInk(A * ph), 0.56 * Math.min(1, Math.pow(Math.abs(A * ph), 1.15))));
       }
       ctx.save();

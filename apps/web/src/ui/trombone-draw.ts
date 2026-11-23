@@ -544,7 +544,7 @@ const NICKEL_BODY = '#3c3a36';
 /** a polished nickel-silver tube's body (the slide's inner tubes, the sleeves, the braces) */
 const NICKEL_TUBE = '#55534e';
 const nickel = (a: number) => rgba('236,230,216', a);
-const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
+const waveInk = (v: number) => (v >= 0 ? INK.light : INK.cool);
 
 /** The slide trombone from the player's right: the bell section (the tuning slide, the valve loops, the
  *  bell), the rotors and the thumb's levers, the inner slide and the outer slide standing out by the engine's
@@ -653,7 +653,7 @@ export function drawTrombone(ctx: CanvasRenderingContext2D, W: number, H: number
     ctx.fill(B.mouth);
     if (lv.sounding) {
       const A = Math.min(1, Math.abs(lv.ampAt(lv.air.total - 0.001)));
-      ctx.fillStyle = rgba(INK.vermilion, 0.1 + 0.22 * A * lv.lvl);
+      ctx.fillStyle = rgba(INK.light, 0.1 + 0.22 * A * lv.lvl);
       ctx.fill(B.mouth);
     }
     ctx.strokeStyle = rgba(INK.amber, 0.88);
@@ -752,7 +752,7 @@ export function drawTrombone(ctx: CanvasRenderingContext2D, W: number, H: number
 }
 
 /** the wave along a run of the air's path (a tube of the bell section, or the slide's runs as they stand):
- *  its envelope (vermilion, by strength) and its sign (warm compression, cool rarefaction), drawn slowed */
+ *  its envelope (the light, by strength) and its sign (warm compression, cool rarefaction), drawn slowed */
 function glowRun(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive, id: string, rTube: number): void {
   const runs = lv.air.runs;
   const ri = runs.findIndex((r) => r.id === id);
@@ -813,13 +813,13 @@ function glowRun(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive, id: str
   ctx.save();
   ctx.lineCap = 'butt';
   for (const [key, q] of env) {
-    ctx.strokeStyle = rgba(INK.vermilion, (Math.floor(key / 1000) / 10) * 0.2);
+    ctx.strokeStyle = rgba(INK.light, (Math.floor(key / 1000) / 10) * 0.2);
     ctx.lineWidth = 2.1 * (key % 1000);
     ctx.stroke(q);
   }
   for (const [key, q] of sgn) {
     const a = Math.abs(key);
-    ctx.strokeStyle = rgba(key > 0 ? INK.vermilion : INK.steel, (Math.floor(a / 1000) / 10) * 0.46);
+    ctx.strokeStyle = rgba(key > 0 ? INK.light : INK.cool, (Math.floor(a / 1000) / 10) * 0.46);
     ctx.lineWidth = 1.24 * (a % 1000);
     ctx.stroke(q);
   }
@@ -836,7 +836,7 @@ function bellGlow(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive): void 
   for (let i = 0; i <= 20; i++) {
     const u = i / 20;
     const A = lv.ampAt(sB + u * len);
-    ge.addColorStop(u, rgba(INK.vermilion, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+    ge.addColorStop(u, rgba(INK.light, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
     gw.addColorStop(u, rgba(waveInk(A * lv.ph), 0.46 * Math.min(1, Math.pow(Math.abs(A * lv.ph), 1.2))));
   }
   ctx.fillStyle = ge;
@@ -888,7 +888,7 @@ function drawRotor(ctx: CanvasRenderingContext2D, L: TbLayout, r: { c: P; R: num
     ctx.strokeStyle = 'rgba(14,12,10,0.7)';
     ctx.stroke();
     if (lit) {
-      ctx.strokeStyle = rgba(INK.vermilion, lit * 0.6);
+      ctx.strokeStyle = rgba(INK.light, lit * 0.6);
       ctx.lineWidth = Math.max(0.8, rc * 0.07);
       ctx.stroke();
       ctx.lineWidth = Math.max(1, rc * 0.13);

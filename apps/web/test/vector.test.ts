@@ -66,8 +66,8 @@ describe('colour roles', () => {
   it('the first four knobs take the four slots; any further knob is the structure’s blue', () => {
     expect(new Set([0, 1, 2, 3].map(slotColor)).size).toBe(4);
     expect([0, 1, 2, 3].map(slotColor)).toEqual([...SLOTS]);
-    expect(slotColor(4)).toBe(V.blue);
-    for (const s of SLOTS) expect([V.blue, V.amber]).not.toContain(s);
+    expect(slotColor(4)).toBe(V.line);
+    for (const s of SLOTS) expect([V.line, V.sound]).not.toContain(s);
   });
   it('mix and heat run between their ends', () => {
     expect(mix('#000000', '#ffffff', 0)).toBe('#000000');
@@ -75,7 +75,7 @@ describe('colour roles', () => {
     const luma = (h: string) => [16, 8, 0].reduce((a, s) => a + ((parseInt(h.slice(1), 16) >> s) & 255), 0);
     const ramp = [0, 0.2, 0.4, 0.6, 0.8, 1].map(heat).map(luma);
     for (let i = 1; i < ramp.length; i++) expect(ramp[i]).toBeGreaterThan(ramp[i - 1]);
-    expect(heat(0.6)).toBe(V.amber);
+    expect(heat(0.6)).toBe(V.sound);
   });
 });
 
@@ -98,8 +98,8 @@ describe('the line pen (the action close-up drawn in lines)', () => {
     };
     return { c, log };
   };
-  const blue = '79,182,242';
-  const amber = '255,179,64';
+  const blue = '232,222,200';
+  const amber = '255,190,85';
   it('a solid fill becomes a black mask with its outline traced; the dark edge line after it is dropped', () => {
     const { c, log } = fake();
     const pen = linePen(c as unknown as CanvasRenderingContext2D);
@@ -110,12 +110,12 @@ describe('the line pen (the action close-up drawn in lines)', () => {
     pen.strokeStyle = 'rgba(0,0,0,0.550)';
     pen.lineWidth = 0.8;
     pen.stroke();
-    expect(log).toEqual(['begin', 'rect', 'fill #000', `stroke rgba(${blue},0.870) 1`]);
+    expect(log).toEqual(['begin', 'rect', `fill ${V.ground}`, `stroke rgba(${blue},0.870) 1`]);
     expect(c.lineWidth).toBe(0.8);
   });
   it('a faint fill is only outlined; a line keeps its width; named colours take their role', () => {
     const { c, log } = fake();
-    const pen = linePen(c as unknown as CanvasRenderingContext2D, { '255,94,56': V.amber });
+    const pen = linePen(c as unknown as CanvasRenderingContext2D, { '255,94,56': V.sound });
     pen.beginPath();
     pen.fillStyle = 'rgba(125,115,84,0.120)';
     pen.fill();

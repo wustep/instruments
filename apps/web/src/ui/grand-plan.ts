@@ -68,14 +68,14 @@ export class Layer {
   }
 }
 
-/** a sounding unison lit over its resting lines: struck strings vermilion with a soft bloom,
+/** a sounding unison lit over its resting lines: struck strings in the light with a soft bloom,
  *  sympathetic ones amber and faint (at most 0.55 alpha even when they move like a struck string) */
 export function lightString(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, off: number[], l: number, sym: number): void {
   if (l <= 0.02 && sym <= SYM_VISIBLE) return;
   const struck = l >= sym;
   if (struck) {
     ctx.globalCompositeOperation = 'lighter';
-    ctx.strokeStyle = rgba(INK.vermilion, 0.16 * l);
+    ctx.strokeStyle = rgba(INK.light, 0.16 * l);
     ctx.lineWidth = 7;
     ctx.beginPath();
     ctx.moveTo(x0, y0);
@@ -83,7 +83,7 @@ export function lightString(ctx: CanvasRenderingContext2D, x0: number, y0: numbe
     ctx.stroke();
     ctx.globalCompositeOperation = 'source-over';
   }
-  ctx.strokeStyle = struck ? rgba(INK.vermilion, 0.15 + 0.85 * l) : rgba(INK.amber, 0.08 + 0.47 * sym);
+  ctx.strokeStyle = struck ? rgba(INK.light, 0.15 + 0.85 * l) : rgba(INK.amber, 0.08 + 0.47 * sym);
   ctx.lineWidth = struck ? 1 + 1.6 * l : 0.9 + 0.9 * sym;
   ctx.beginPath();
   for (const o of off) {
@@ -666,8 +666,8 @@ export function drawGrandPlan(ctx: CanvasRenderingContext2D, W: number, H: numbe
     const a = (1 - age) ** 2 * (0.35 + 0.5 * v);
     const g = ctx.createRadialGradient(s.x + sh, yS, 0, s.x + sh, yS, r);
     g.addColorStop(0, rgba('255,200,160', a));
-    g.addColorStop(0.35, rgba(INK.vermilion, a * 0.6));
-    g.addColorStop(1, rgba(INK.vermilion, 0));
+    g.addColorStop(0.35, rgba(INK.light, a * 0.6));
+    g.addColorStop(1, rgba(INK.light, 0));
     ctx.fillStyle = g;
     ctx.fillRect(s.x + sh - r, yS - r, 2 * r, 2 * r);
   }

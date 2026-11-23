@@ -244,7 +244,7 @@ const BRASS_BODY = '#4a3416';
 const BRASS_DEEP = '#2a1d0c';
 const NICKEL_BODY = '#3c3a36';
 const nickel = (a: number) => rgba('236,230,216', a);
-const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
+const waveInk = (v: number) => (v >= 0 ? INK.light : INK.cool);
 
 /** The tuba from its valve side: the body's spiral into the bell, the leadpipe across the stack's front, the four
  *  pistons with their loops, the main tuning slide; the pistons going down for the engine's fingering, the
@@ -329,8 +329,8 @@ export function drawTuba(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     if (lv.sounding) {
       const A = Math.min(1, Math.abs(lv.ampAt(lv.air.total - 0.001)));
       const rg = ctx.createRadialGradient(X(BELL_TOP_X), Y(RIM_Y), 0, X(BELL_TOP_X), Y(RIM_Y), RIM_R * sc);
-      rg.addColorStop(0, rgba(INK.vermilion, 0.1 + 0.22 * A * lv.lvl));
-      rg.addColorStop(1, rgba(INK.vermilion, 0));
+      rg.addColorStop(0, rgba(INK.light, 0.1 + 0.22 * A * lv.lvl));
+      rg.addColorStop(1, rgba(INK.light, 0));
       ctx.fillStyle = rg;
       ctx.fill(B.mouth);
     }
@@ -426,7 +426,7 @@ function bellGlow(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive): void 
   for (let i = 0; i <= 20; i++) {
     const u = i / 20;
     const A = lv.ampAt(sB + u * len);
-    ge.addColorStop(u, rgba(INK.vermilion, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+    ge.addColorStop(u, rgba(INK.light, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
     gw.addColorStop(u, rgba(waveInk(A * lv.ph), 0.46 * Math.min(1, Math.pow(Math.abs(A * lv.ph), 1.2))));
   }
   ctx.fillStyle = ge;

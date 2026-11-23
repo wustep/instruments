@@ -224,7 +224,7 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
   // ringing bar lit where it moves, as far as it swings
   const stampPx = Math.round(BAR_W * sc * 0.4);
   if (stampPx >= 7) {
-    ctx.font = `500 ${stampPx}px "IBM Plex Mono", monospace`;
+    ctx.font = `600 ${stampPx}px "Cabin Variable", "Gill Sans", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
   }

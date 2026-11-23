@@ -8,16 +8,19 @@ import { fholeOf } from './gl/fholes.ts';
 import { CELLO, VIOLIN, type Outline } from './gl/outlines.ts';
 import { BASS } from './gl/bass-outline.ts';
 
+/** The 2D stage's inks, as the hall has them: ivory for the instrument's lines; `light` for whatever
+ *  sounds (it is in the stage's light: a pale gold, the brightest thing drawn); amber for the board and
+ *  the warm half of a wave; `cool`, verdigris, for the other half, for air, and for "ideal / reference". */
 export const INK = {
-  ground: '#0e0d0b',
-  ivory: '236,226,206',
-  vermilion: '255,94,56',
-  amber: '242,166,70',
-  copper: '196,128,82',
-  steel: '150,182,210',
+  ground: '#140a0b',
+  ivory: '241,231,211',
+  light: '255,212,128',
+  amber: '238,150,58',
+  copper: '204,128,84',
+  cool: '138,196,178',
   felt: '205,181,146',
-  wood: '58,42,28',
-  ebony: '22,19,16',
+  wood: '66,40,24',
+  ebony: '20,14,12',
 };
 export const rgba = (c: string, a: number) => `rgba(${c},${Math.max(0, Math.min(1, a)).toFixed(3)})`;
 
@@ -1760,7 +1763,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     if (l > 0.03 && !(focus && i === bowedIdx)) {
       const x0 = Math.max(xn, fingerX[i]);
       for (const [w, a] of [[5, 0.12], [1.6, 0.85]] as const) {
-        ctx.strokeStyle = rgba(s?.bowing ? INK.vermilion : INK.amber, a * (0.25 + 0.75 * l));
+        ctx.strokeStyle = rgba(s?.bowing ? INK.light : INK.amber, a * (0.25 + 0.75 * l));
         ctx.lineWidth = w;
         ctx.beginPath();
         ctx.moveTo(X(x0), X(zAt(i, x0)));
@@ -1823,9 +1826,9 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     for (let k = 0; k < n; k++) ctx.lineTo(X(xk(k)), X(zAt(bowedIdx, xk(k)) - lv.env[k] * 0.9 * p.spreadB));
     for (let k = n - 1; k >= 0; k--) ctx.lineTo(X(xk(k)), X(zAt(bowedIdx, xk(k)) + lv.env[k] * 0.9 * p.spreadB));
     ctx.closePath();
-    ctx.fillStyle = rgba(INK.vermilion, 0.1);
+    ctx.fillStyle = rgba(INK.light, 0.1);
     ctx.fill();
-    ctx.strokeStyle = rgba(INK.vermilion, 0.42);
+    ctx.strokeStyle = rgba(INK.light, 0.42);
     ctx.lineWidth = 0.7;
     ctx.stroke();
     let kc = 1;
@@ -1838,7 +1841,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
       }
     }
     for (const [w, a] of [[5, 0.16], [1.7, 1]] as const) {
-      ctx.strokeStyle = rgba(INK.vermilion, a);
+      ctx.strokeStyle = rgba(INK.light, a);
       ctx.lineWidth = w;
       ctx.beginPath();
       for (let k = 0; k < n; k++) {
@@ -1852,8 +1855,8 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     const cxk = xk(kc);
     const czk = zAt(bowedIdx, cxk) - shp[kc] * amp;
     const hg = ctx.createRadialGradient(X(cxk), X(czk), 0, X(cxk), X(czk), 9);
-    hg.addColorStop(0, rgba(INK.vermilion, 0.55));
-    hg.addColorStop(1, rgba(INK.vermilion, 0));
+    hg.addColorStop(0, rgba(INK.light, 0.55));
+    hg.addColorStop(1, rgba(INK.light, 0));
     ctx.fillStyle = hg;
     ctx.fillRect(X(cxk) - 9, X(czk) - 9, 18, 18);
     ctx.fillStyle = rgba(INK.ivory, 0.95);
@@ -2063,8 +2066,8 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
       const gz = X(lv.cz);
       const rc = Math.max(4, X(p.spreadB) * (0.35 + 0.45 * Math.min(1.5, Math.sqrt(F / 0.5))));
       const gr = ctx.createRadialGradient(gx, gz, 0, gx, gz, rc);
-      gr.addColorStop(0, rgba(INK.vermilion, 0.9 * pw));
-      gr.addColorStop(1, rgba(INK.vermilion, 0));
+      gr.addColorStop(0, rgba(INK.light, 0.9 * pw));
+      gr.addColorStop(1, rgba(INK.light, 0));
       ctx.fillStyle = gr;
       ctx.fillRect(gx - rc, gz - rc, 2 * rc, 2 * rc);
       // (no mark for the bow's direction here: the bow itself moves; the vector style keeps its chevron)
@@ -2157,7 +2160,7 @@ export const boreAt = (amp: Float32Array, u: number): number => {
  *  quicker for higher notes, so the lobes visibly swing between compression and rarefaction */
 export const slowPhase = (f1: number, now: number): number => 2 * Math.PI * (0.55 * Math.sqrt(Math.max(0.25, f1 / 262))) * (now / 1000);
 /** compression warm, rarefaction cool */
-const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
+const waveInk = (v: number) => (v >= 0 ? INK.light : INK.cool);
 
 /** a stream of the breath: where it starts, where it bends and where it ends, each as [back from the tip
  *  towards the player, out from the axis] (m) */
@@ -2170,7 +2173,7 @@ export function breathStream(ctx: CanvasRenderingContext2D, at: (a: number, w: n
   ctx.save();
   ctx.setLineDash([0.003 * sc, 0.0025 * sc]);
   ctx.lineDashOffset = -((now / 1000) * 0.03 * sc);
-  ctx.strokeStyle = rgba(INK.steel, alpha);
+  ctx.strokeStyle = rgba(INK.cool, alpha);
   ctx.lineWidth = 1;
   const [p0, p1, p2] = path;
   for (const j of [-1, 0, 1]) {
@@ -2537,9 +2540,9 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
         }
         ctx.lineTo(X(xFar), Y(sgn * FL_RB));
         ctx.closePath();
-        ctx.fillStyle = rgba(INK.vermilion, 0.07 * lvl + 0.03);
+        ctx.fillStyle = rgba(INK.light, 0.07 * lvl + 0.03);
         ctx.fill();
-        ctx.strokeStyle = rgba(INK.vermilion, 0.16 + 0.22 * lvl);
+        ctx.strokeStyle = rgba(INK.light, 0.16 + 0.22 * lvl);
         ctx.lineWidth = 1;
         ctx.stroke();
       }
@@ -2550,7 +2553,7 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
     for (let i = 0; i <= N; i++) {
       const x = xa + ((xb - xa) * i) / N;
       const A = boreAt(w.amp, (x - xNear) / Leff) / scale;
-      ge.addColorStop(i / N, rgba(INK.vermilion, 0.26 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+      ge.addColorStop(i / N, rgba(INK.light, 0.26 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
       gw.addColorStop(i / N, rgba(waveInk(A * ph), 0.42 * Math.min(1, Math.pow(Math.abs(A * ph), 1.15))));
     }
     ctx.save();
@@ -2630,9 +2633,9 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
     const t = now / 1000;
     const a = Math.min(1, 0.35 + blow) * (1 + 2.5 * vib);
     const gj = ctx.createLinearGradient(0, Y(vL), 0, Y(vE));
-    gj.addColorStop(0, rgba(INK.steel, 0));
-    gj.addColorStop(0.35, rgba(INK.steel, 0.5 * a));
-    gj.addColorStop(1, rgba(INK.steel, 0.75 * a));
+    gj.addColorStop(0, rgba(INK.cool, 0));
+    gj.addColorStop(0.35, rgba(INK.cool, 0.5 * a));
+    gj.addColorStop(1, rgba(INK.cool, 0.75 * a));
     ctx.strokeStyle = gj;
     for (let j = -2; j <= 2; j++) {
       ctx.beginPath();
@@ -2760,7 +2763,7 @@ export interface SpectrumInk {
   partial: string;
   font: string;
 }
-const SPECTRUM_INK: SpectrumInk = { line: INK.ivory, label: INK.ivory, ideal: INK.steel, partial: INK.vermilion, font: '10px "IBM Plex Mono", monospace' };
+const SPECTRUM_INK: SpectrumInk = { line: INK.ivory, label: INK.ivory, ideal: INK.cool, partial: INK.light, font: '500 11px "Cabin Variable", "Gill Sans", sans-serif' };
 export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, an: AnalyserNode | null, buf: Float32Array, focus: VisualFrame['focus'] | null, family: string, ink: SpectrumInk = SPECTRUM_INK, marks: number[] | null = null): void {
   const f0 = 30;
   const f1 = 12000;
@@ -2769,7 +2772,17 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
   const dbHi = -25;
   const Y = (db: number) => y0 + h * (1 - (db - dbLo) / (dbHi - dbLo));
   ctx.font = ink.font;
-  ctx.fillStyle = rgba(ink.label, 0.3);
+  // (the labels in the muted ink, 6:1 on the ground; with no sound yet, their axis under them: three
+  // numbers floating over nothing say nothing)
+  if (!an) {
+    ctx.strokeStyle = rgba(ink.line, 0.28);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x0, Math.round(y0 + h) - 0.5);
+    ctx.lineTo(x0 + w, Math.round(y0 + h) - 0.5);
+    ctx.stroke();
+  }
+  ctx.fillStyle = rgba(ink.label, 0.64);
   for (const [f, t] of [
     [100, '100'],
     [1000, '1k'],
@@ -2812,7 +2825,7 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
     ctx.fillStyle = rgba(ink.partial, 0.9);
     for (const f of marks) if (f >= f0 && f <= f1) ctx.fillRect(X(f) - 0.75, y0 + 3, 1.5, 6);
   } else if (focus) {
-    // where the partials should be: stiff-string series (vermilion) vs ideal harmonics (steel)
+    // where the partials should be: stiff-string series (the light) vs ideal harmonics (verdigris)
     const fz = focus.f1 / Math.sqrt(1 + focus.B);
     for (let k = 1; k <= 60; k++) {
       const fk = k * fz * Math.sqrt(1 + focus.B * k * k);
@@ -3325,12 +3338,12 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     ctx.lineWidth = 0.56 * D;
     ctx.stroke(base);
     for (const [e, bp] of envB) {
-      ctx.strokeStyle = rgba(INK.vermilion, (e / 10) * 0.32);
+      ctx.strokeStyle = rgba(INK.light, (e / 10) * 0.32);
       ctx.stroke(bp);
     }
     ctx.lineWidth = 0.32 * D;
     for (const [key, bp] of buckets) {
-      ctx.strokeStyle = rgba(key > 0 ? INK.vermilion : INK.steel, (Math.abs(key) / 10) * 0.44);
+      ctx.strokeStyle = rgba(key > 0 ? INK.light : INK.cool, (Math.abs(key) / 10) * 0.44);
       ctx.stroke(bp);
     }
     ctx.lineCap = 'round';
@@ -3394,7 +3407,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
       for (let i = 0; i <= 24; i++) {
         const u = i / 24;
         const A = ampAt(sBell + u * TR_BELL_LEN);
-        ge.addColorStop(u, rgba(INK.vermilion, 0.32 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+        ge.addColorStop(u, rgba(INK.light, 0.32 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
         gw.addColorStop(u, rgba(waveInk(A * ph), 0.5 * Math.min(1, Math.pow(Math.abs(A * ph), 1.2))));
       }
       ctx.fillStyle = rgba(INK.amber, 0.05 + 0.04 * lvl);

@@ -22,6 +22,33 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
+/** The chrome's drawn icons: one pen (1.5 px at 16 px, round ends), never a character standing in for one. */
+const ICONS = {
+  back: 'M9.5 3.5 5 8l4.5 4.5M5.5 8H13',
+  prev: 'M10 3.5 5.5 8l4.5 4.5',
+  next: 'M6 3.5 10.5 8 6 12.5',
+  close: 'M4 4l8 8M12 4l-8 8',
+  reset: 'M3.6 6.2A5 5 0 1 1 3 8.6M3.4 2.6v3.7h3.7',
+  // a knob: its cap, its pointer, a tick either side
+  knob: 'M8 2.6a5.4 5.4 0 1 1-.01 0M8 8l2.5-3.3M1.2 12.4l1.3-.9M14.8 12.4l-1.3-.9',
+} as const;
+export function icon(name: keyof typeof ICONS): SVGSVGElement {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('class', 'icon');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '1.5');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  const p = document.createElementNS(ns, 'path');
+  p.setAttribute('d', ICONS[name]);
+  svg.appendChild(p);
+  return svg;
+}
+
 export interface View {
   el: HTMLElement;
   mount?(): void;

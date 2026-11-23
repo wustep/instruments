@@ -442,7 +442,7 @@ const BRASS_BODY = '#4a3416';
 const BRASS_DEEP = '#2a1d0c';
 const NICKEL_BODY = '#3c3a36';
 const nickel = (a: number) => rgba('236,230,216', a);
-const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
+const waveInk = (v: number) => (v >= 0 ? INK.light : INK.cool);
 
 /** The double horn from its outside: the body wound round the circle into the bell, the leadpipe and its
  *  tuning slide, the F horn's loop and the B♭ horn's, the valve slides (each valve's F slide behind its B♭
@@ -540,8 +540,8 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
       // the sound leaving the mouth: a warm shimmer over the inside, with the wave's level at the rim
       const A = Math.min(1, Math.abs(lv.ampAt(lv.air.total - 0.001)));
       const rg = ctx.createRadialGradient(c[0], c[1], 0, c[0], c[1], RIM_R * sc);
-      rg.addColorStop(0, rgba(INK.vermilion, 0.1 + 0.22 * A * lv.lvl));
-      rg.addColorStop(1, rgba(INK.vermilion, 0));
+      rg.addColorStop(0, rgba(INK.light, 0.1 + 0.22 * A * lv.lvl));
+      rg.addColorStop(1, rgba(INK.light, 0));
       ctx.fillStyle = rg;
       ctx.fill(B.mouth);
     }
@@ -586,7 +586,7 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   hornRecord(L, st, lv);
 }
 
-/** the wave along a tube on the air's path: its envelope (vermilion, by strength) and its sign (warm
+/** the wave along a tube on the air's path: its envelope (the light, by strength) and its sign (warm
  *  compression, cool rarefaction), drawn slowed */
 export function glowTube(ctx: CanvasRenderingContext2D, t: TubePx, lv: Pick<HnLive, 'ampAt' | 'ph'> & { air: { runs: { id: string; offset?: number }[]; starts: number[] } }): void {
   const runs = lv.air.runs;
@@ -626,13 +626,13 @@ export function glowTube(ctx: CanvasRenderingContext2D, t: TubePx, lv: Pick<HnLi
   ctx.save();
   ctx.lineCap = 'butt';
   for (const [k, p] of env) {
-    ctx.strokeStyle = rgba(INK.vermilion, (Math.floor(k / 1000) / 10) * 0.2);
+    ctx.strokeStyle = rgba(INK.light, (Math.floor(k / 1000) / 10) * 0.2);
     ctx.lineWidth = 1.05 * (k % 1000);
     ctx.stroke(p);
   }
   for (const [k, p] of sgn) {
     const a = Math.abs(k);
-    ctx.strokeStyle = rgba(k > 0 ? INK.vermilion : INK.steel, (Math.floor(a / 1000) / 10) * 0.46);
+    ctx.strokeStyle = rgba(k > 0 ? INK.light : INK.cool, (Math.floor(a / 1000) / 10) * 0.46);
     ctx.lineWidth = 0.62 * (a % 1000);
     ctx.stroke(p);
   }
@@ -651,7 +651,7 @@ function bellGlow(ctx: CanvasRenderingContext2D, L: HnLayout, lv: HnLive): void 
   for (let i = 0; i <= 20; i++) {
     const u = i / 20;
     const A = lv.ampAt(sB + u * len);
-    ge.addColorStop(u, rgba(INK.vermilion, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+    ge.addColorStop(u, rgba(INK.light, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
     gw.addColorStop(u, rgba(waveInk(A * lv.ph), 0.46 * Math.min(1, Math.pow(Math.abs(A * lv.ph), 1.2))));
   }
   ctx.fillStyle = ge;
@@ -698,7 +698,7 @@ function drawRotor(ctx: CanvasRenderingContext2D, cx: number, cy: number, sc: nu
     ctx.strokeStyle = 'rgba(14,12,10,0.7)';
     ctx.stroke();
     if (lit) {
-      ctx.strokeStyle = rgba(INK.vermilion, lit * 0.6);
+      ctx.strokeStyle = rgba(INK.light, lit * 0.6);
       ctx.lineWidth = Math.max(0.8, r * 0.07);
       ctx.stroke();
       ctx.lineWidth = Math.max(1, r * 0.13);

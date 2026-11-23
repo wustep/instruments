@@ -376,6 +376,9 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
   const clear = (q: [number, number] | null, m: number): q is [number, number] => !!q && q[0] >= m && q[0] <= cssW - m && q[1] >= Math.max(m, clearNow + m) && q[1] <= cssH - m;
   let roomHot = false;
   let hot = 0;
+  /** the stage's light (three3d `up`): waiting before the first sound, come up with it (−1: not yet set) */
+  let lightUp = -1;
+  const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const api: Stage3D = {
     el,
@@ -723,8 +726,8 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       }
       const eye: Vec3 = [target[0] + dist * dir[0], target[1] + dist * dir[1], target[2] + dist * dir[2]];
       lastEye = eye;
-      const g = getComputedStyle(document.body).getPropertyValue('--ground').trim() || '#0e0d0b';
-      const hex = /^#([0-9a-f]{6})$/i.exec(g)?.[1] ?? '0e0d0b';
+      const g = getComputedStyle(document.body).getPropertyValue('--ground').trim() || '#140a0b';
+      const hex = /^#([0-9a-f]{6})$/i.exec(g)?.[1] ?? '140a0b';
       const ground: [number, number, number] = [parseInt(hex.slice(0, 2), 16) / 255, parseInt(hex.slice(2, 4), 16) / 255, parseInt(hex.slice(4, 6), 16) / 255];
       // the lid: what this frame shows; the pool's rim brightens while the room's knob is under the
       // pointer, turned or focused (τ 0.1 s)
@@ -734,6 +737,11 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       seen.caseShown = !si.caseHidden;
       hot += ((roomHot && seen.single ? 1 : 0) - hot) * (1 - Math.exp(-dt / 0.1));
       r.poolHot = hot;
+      // the light comes up with the first sound (τ 0.45 s; at once where motion is to be spared, and on
+      // the first frame: a stage opened while it sounds is lit)
+      const upT = document.documentElement.dataset.audio === 'running' ? 1 : 0;
+      lightUp = lightUp < 0 || still ? upT : lightUp + (upT - lightUp) * (1 - Math.exp(-dt / 0.45));
+      r.up = lightUp;
       r.shadows = stats.shadows;
       r.ao = stats.ao;
       r.closeUp = zoom ? closeK : 0;

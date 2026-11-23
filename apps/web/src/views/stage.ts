@@ -4,7 +4,7 @@
 
 import { audio } from '../audio.ts';
 import { DEFAULT_PARAMS, INSTRUMENT_IDS, INSTRUMENT_INFO, PRESETS, PRESET_IDS, bowedGeometry, pianoKeySummary, tromboneSizeOf, type InstrumentId, type KeySummary, type VisualFrame } from '@piano-model/engine';
-import { cssVar, fitCanvas, fmt, h, type View } from '../ui/dom.ts';
+import { cssVar, fitCanvas, fmt, h, icon, type View } from '../ui/dom.ts';
 import type { KeyboardHandle } from '../ui/keyboard.ts';
 import { openActionView } from '../ui/action-view.ts';
 import type { Stage3D } from '../ui/gl/stage3d.ts';
@@ -816,7 +816,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
           buildKnobs();
         },
       },
-      '↺',
+      icon('reset'),
     );
     knobSlot.replaceChildren(...knobEls.map((x) => x.k.el), reset);
   };
@@ -1100,8 +1100,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       const fMax = s.peak * 1.1 || 1;
       const X = (t: number) => (w * 0.66 * t) / tMax;
       const Y = (f: number) => hh - 4 - ((hh - 10) * f) / fMax;
-      ctx.fillStyle = rgba(INK.vermilion, 0.18);
-      ctx.strokeStyle = rgba(INK.vermilion, 0.95);
+      ctx.fillStyle = rgba(INK.light, 0.18);
+      ctx.strokeStyle = rgba(INK.light, 0.95);
       ctx.lineWidth = 1.4;
       ctx.beginPath();
       ctx.moveTo(X(0), Y(0));
@@ -1137,7 +1137,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       scopeCap.textContent = '';
       return;
     }
-    const rows: [Float32Array, string][] = [[e.trace, INK.vermilion]];
+    const rows: [Float32Array, string][] = [[e.trace, INK.light]];
     if (e.trace2) rows.push([e.trace2, INK.ivory]);
     const rh = hh / rows.length;
     rows.forEach(([tr, col], r) => {

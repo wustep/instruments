@@ -2477,7 +2477,7 @@ function invertRigid(m: Mat4): Mat4 {
 }
 
 const C = {
-  verm: (a: number) => ink(INK.vermilion, a),
+  verm: (a: number) => ink(INK.light, a),
   amber: (a: number) => ink(INK.amber, a),
 };
 

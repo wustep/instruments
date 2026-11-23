@@ -2572,8 +2572,9 @@ test('orchestra keys: a piano on the stage takes the keys, and keeps them throug
  * from the canvas's own pixels, each a small patch across the hair, for the colours of a bow being
  * played. On the stage's own style: light and warm, the hair's ivory and the lit side of the stick
  * (the ground is near black, the varnish dark, strings and a flute's silver cool). On the vector
- * lines: the red of the hair's two edges, or white where the stick's blue lies over it (an outline's
- * blue has little red). `drawn` is the share of the stations that have it, `first` and `last` the
+ * lines: the rose of the hair's two edges (far more red than green), or white where the stick's line lies
+ * over it (an outline alone is ivory: nearly as green as it is red, and not white). `drawn` is the share
+ * of the stations that have it, `first` and `last` the
  * outermost ones that do (0 the frog, 1 the tip).
  */
 const bowsDrawn = (page: Page, vector: boolean) =>
@@ -2591,7 +2592,7 @@ const bowsDrawn = (page: Page, vector: boolean) =>
       if (x < 0 || y < 0 || x >= cv.width || y >= cv.height) return false;
       const i = 4 * (y * cv.width + x);
       const [R, G, B] = [px[i], px[i + 1], px[i + 2]];
-      return vector ? R >= 110 && R + 20 >= G : Math.min(R, G, B) >= 100 && R >= B + 8;
+      return vector ? (R >= 110 && R >= G + 40) || (R >= 240 && G >= 240 && B >= 235) : Math.min(R, G, B) >= 100 && R >= B + 8;
     };
     type Part = { voice: string; cell: { x: number; y: number; w: number; h: number }; bow: { fx: number; fy: number; tx: number; ty: number; pos: number } | null } | null;
     return ((window as any).__ens2d() as Part[])
@@ -2954,7 +2955,7 @@ test('orchestra routing: a file on the one instrument shown goes onto several fr
 });
 
 
-test('the vector display: off by default; the toggle redraws every family in blue and amber with the chrome, is remembered, fits the page, and steps aside in 3D', async ({ page }, info) => {
+test('the vector display: off by default; the toggle redraws every family in ivory and gold with the chrome, is remembered, fits the page, and steps aside in 3D', async ({ page }, info) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await startAudio(page);
@@ -2971,10 +2972,12 @@ test('the vector display: off by default; the toggle redraws every family in blu
   await expect(root).toHaveAttribute('data-style', 'vector');
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   expect(await ground()).not.toBe(classic);
-  expect(await ground()).toMatch(/^rgb\(0, 0, 0\) \/ "?Hershey/);
+  // (the plate's ground: claret-black, vector.css --v-ground)
+  expect(await ground()).toMatch(/^rgb\(11, 4, 5\) \/ "?Hershey/);
   expect(await page.evaluate(() => document.fonts.load('500 12px Hershey').then((f) => f.length))).toBeGreaterThan(0);
-  // one instrument of each family, sounding: the instrument's lines are blue, the sound amber, and
-  // nothing is filled (most of the stage stays black)
+  // one instrument of each family, sounding: the instrument's lines are ivory (pale and barely warm:
+  // kit.ts V.line, V.lineMid), the sound gold (far more red than blue), and nothing is filled (most of
+  // the stage stays clear)
   for (const [id, midi] of [['piano', 60], ['violin', 67], ['flute', 74], ['oboe', 74], ['clarinet', 67], ['bassoon', 50], ['horn', 53], ['timpani', 48], ['trumpet', 67]] as const) {
     await page.evaluate(async ([i, m]) => {
       const a = (window as any).__piano;
@@ -2987,18 +2990,18 @@ test('the vector display: off by default; the toggle redraws every family in blu
     const px = await page.evaluate(() => {
       const cv = document.querySelector('.stage-cv') as HTMLCanvasElement;
       const d = cv.getContext('2d')!.getImageData(0, 0, cv.width, cv.height).data;
-      let blue = 0, amber = 0, lit = 0;
+      let ivory = 0, gold = 0, lit = 0;
       for (let i = 0; i < d.length; i += 4) {
         if (d[i + 3] < 40) continue;
         const [r, g, b] = [d[i], d[i + 1], d[i + 2]];
         if (r + g + b > 150) lit++;
-        if (b > 150 && b > r + 60) blue++;
-        if (r > 180 && g > 90 && r > b + 90) amber++;
+        if (r > 150 && g > 140 && b > 110 && r - b < 70) ivory++;
+        if (r > 180 && g > 90 && r > b + 90) gold++;
       }
-      return { blue, amber, lit: lit / (d.length / 4) };
+      return { ivory, gold, lit: lit / (d.length / 4) };
     });
-    expect(px.blue, `${id}: blue lines`).toBeGreaterThan(1500);
-    expect(px.amber, `${id}: amber sound`).toBeGreaterThan(300);
+    expect(px.ivory, `${id}: ivory lines`).toBeGreaterThan(1500);
+    expect(px.gold, `${id}: gold sound`).toBeGreaterThan(300);
     expect(px.lit, `${id}: lines, not fills`).toBeLessThan(0.25);
     await page.evaluate(([i, m]) => {
       (window as any).__piano.noteOff(m, 'keys');
@@ -3008,7 +3011,8 @@ test('the vector display: off by default; the toggle redraws every family in blu
   // each knob wears its slot colour
   const slots = await page.evaluate(() => Array.from(document.querySelectorAll('.knob')).map((k) => (k as HTMLElement).style.getPropertyValue('--slot')));
   // (the trumpet's four: breath, lips, noise, vibrato, as the horn's)
-  expect(slots).toEqual(['#5be381', '#ff5d40', '#ff73cf', '#eef6f8']);
+  // (the hall's four: verdigris, a claret rose, gilt, white)
+  expect(slots).toEqual(['#62cfa9', '#f08a94', '#d9b25f', '#fffaf0']);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 'no horizontal scroll').toBeLessThanOrEqual(1);
   // the other pages keep their own look; back on the stage the choice is remembered (and across a reload)
   await page.goto('/#/notes');
@@ -3027,7 +3031,7 @@ test('the vector display: off by default; the toggle redraws every family in blu
     await expect(dim).toHaveAttribute('aria-pressed', 'false');
     await expect(root).toHaveAttribute('data-style', 'vector');
   }
-  // the pianos' action close-up follows: a black panel, the section in blue lines, nothing filled
+  // the pianos' action close-up follows: a panel of the plate's ground, the section in ivory lines, nothing filled
   await page.evaluate(() => (window as any).__piano.setInstrument('piano'));
   await page.waitForTimeout(400);
   {
@@ -3040,19 +3044,20 @@ test('the vector display: off by default; the toggle redraws every family in blu
     const panel = page.locator('.av-panel');
     await expect(panel).toBeVisible();
     await page.waitForTimeout(300);
-    expect(await panel.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(0, 0, 0)');
+    expect(await panel.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(11, 4, 5)');
     const av = await page.evaluate(() => {
       const c = document.querySelector('.av-cv') as HTMLCanvasElement;
       const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
-      let blue = 0, lit = 0;
+      let ivory = 0, lit = 0;
       for (let i = 0; i < d.length; i += 4) {
         if (d[i + 3] < 40) continue;
-        if (d[i] + d[i + 1] + d[i + 2] > 150) lit++;
-        if (d[i + 2] > 150 && d[i + 2] > d[i] + 60) blue++;
+        const [r, g, b] = [d[i], d[i + 1], d[i + 2]];
+        if (r + g + b > 150) lit++;
+        if (r > 150 && g > 140 && b > 110 && r - b < 70) ivory++;
       }
-      return { blue, lit: lit / (d.length / 4) };
+      return { ivory, lit: lit / (d.length / 4) };
     });
-    expect(av.blue, 'close-up: blue lines').toBeGreaterThan(1500);
+    expect(av.ivory, 'close-up: ivory lines').toBeGreaterThan(1500);
     expect(av.lit, 'close-up: lines, not fills').toBeLessThan(0.2);
     await page.keyboard.press('Escape');
     await expect(panel).toHaveCount(0);

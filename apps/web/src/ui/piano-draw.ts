@@ -161,7 +161,7 @@ function drawFocus(ctx: CanvasRenderingContext2D, focus: NonNullable<VisualFrame
       [5, 0.2],
       [1.7, 0.97],
     ] as const) {
-      ctx.strokeStyle = rgba(j === 0 ? INK.vermilion : j === 1 ? INK.amber : INK.steel, a);
+      ctx.strokeStyle = rgba(j === 0 ? INK.light : j === 1 ? INK.amber : INK.cool, a);
       ctx.lineWidth = wid;
       ctx.beginPath();
       for (let i = 0; i < s.length; i++) {
@@ -177,7 +177,7 @@ function drawFocus(ctx: CanvasRenderingContext2D, focus: NonNullable<VisualFrame
 }
 
 
-/** every sounding string at once: struck strings vermilion, sympathetic ones amber and
+/** every sounding string at once: struck strings in the light, sympathetic ones amber and
  *  (being quieter) smaller; all on one scale, so a decaying note visibly settles */
 function drawAllShapes(ctx: CanvasRenderingContext2D, fr: VisualFrame | null, byMidi: Map<number, Pt>, ends: (p: Pt) => [number, number, number, number], st: PianoState, W: number, skip: number): void {
   const ps = fr?.pianoShapes;
@@ -207,7 +207,7 @@ function drawAllShapes(ctx: CanvasRenderingContext2D, fr: VisualFrame | null, by
     }
     // (a struck string's shape is drawn twice: a soft wide glow under a firm line)
     for (let pass = sym ? 1 : 0; pass < 2; pass++) {
-      ctx.strokeStyle = sym ? rgba(INK.amber, alpha) : rgba(INK.vermilion, pass ? 0.92 : 0.16);
+      ctx.strokeStyle = sym ? rgba(INK.amber, alpha) : rgba(INK.light, pass ? 0.92 : 0.16);
       ctx.lineWidth = sym ? 1 : pass ? 1.5 : 4.5;
       ctx.beginPath();
       for (let i = 0; i < P; i++) {

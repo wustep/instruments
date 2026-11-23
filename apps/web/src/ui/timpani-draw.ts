@@ -917,7 +917,7 @@ function drawMallets(ctx: CanvasRenderingContext2D, L: TpLayout, lv: TpLive, st:
       const r = br * (1.2 + 5 * m.ago);
       ctx.beginPath();
       ctx.ellipse(sx, sy, r, r * SIN_E, 0, 0, 2 * Math.PI);
-      ctx.strokeStyle = rgba(INK.vermilion, 0.55 * a * Math.min(1, m.vel / 90));
+      ctx.strokeStyle = rgba(INK.light, 0.55 * a * Math.min(1, m.vel / 90));
       ctx.lineWidth = Math.max(1, 0.004 * sc);
       ctx.stroke();
     }
@@ -953,7 +953,7 @@ function drawMallets(ctx: CanvasRenderingContext2D, L: TpLayout, lv: TpLive, st:
     ctx.arc(bx, by, br, 0, 2 * Math.PI);
     ctx.fillStyle = g;
     ctx.fill();
-    ctx.strokeStyle = m.on ? rgba(INK.vermilion, 0.9) : 'rgba(60,50,40,0.7)';
+    ctx.strokeStyle = m.on ? rgba(INK.light, 0.9) : 'rgba(60,50,40,0.7)';
     ctx.lineWidth = m.on ? 1.4 : 0.8;
     ctx.stroke();
     ctx.strokeStyle = 'rgba(120,110,96,0.5)';

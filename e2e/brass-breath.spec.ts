@@ -10,8 +10,8 @@ async function startAudio(page: Page) {
   await page.waitForFunction(() => (window as any).__piano?.status === 'running' && (window as any).__piano?.piano, null, { timeout: 30_000 });
 }
 type Box = { x0: number; x1: number; y0: number; y1: number };
-/** the pixels of a box on the stage's canvas in the breath's ink: the drawn style's steel (bluer than it is
- *  red, over the warm dark ground), the vector style's green */
+/** the pixels of a box on the stage's canvas in the breath's ink: the drawn style's cool ink, verdigris
+ *  (bluer than it is red, over the warm dark ground), the vector style's green */
 const breathPx = (page: Page, b: Box, vector: boolean) =>
   page.evaluate(
     ([b, vector]) => {

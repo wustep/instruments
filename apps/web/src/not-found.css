@@ -1,20 +1,24 @@
-/* The page for an address that is none of the app's (404.html): the stage's ground, the readout's two
-   lines (a word in the serif italic, a line of mono under it), and the places that do exist, by family
-   as the picker has them. Its own small sheet: the app's is not loaded. Colours and type as styles.css. */
-@import '@fontsource-variable/newsreader/opsz-italic.css';
-@import '@fontsource/ibm-plex-mono/400.css';
+/* The page for an address that is none of the app's (404.html): the hall with nobody on its stage. An
+   empty pool of light on the boards, the readout's two lines over it (a word in the readout's display face, a
+   line of labels under it), and the places that do exist, by family as the picker has them. Its own small
+   sheet: the app's is not loaded. Colours and type as styles.css. */
+@import '@fontsource/libre-caslon-display/400.css';
+@import '@fontsource-variable/cabin/wdth.css';
 
 :root {
-  --ground: #0e0d0b;
-  --ink: #ece2ce;
-  --ink-2: #c9bfab;
-  --muted: #8a8172;
-  --rule: #2a261f;
-  --accent: #ff5e38;
-  --amber: #f2a646;
-  --serif: 'Newsreader Variable', 'Iowan Old Style', Palatino, Georgia, serif;
-  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --ground: #140a0b;
+  --ink: #f1e7d3;
+  --ink-2: #d3c5ab;
+  /* (the muted words lie over the lit boards here: a step lighter than the app's, 5.6:1 on them) */
+  --muted: #bdad94;
+  --gilt: #c9a253;
+  --on: #ecbb62;
+  --display: 'Libre Caslon Display', 'Big Caslon', 'Book Antiqua', Palatino, Georgia, serif;
+  --label: 'Cabin Variable', 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
   color-scheme: dark;
+  scrollbar-color: #4a322b var(--ground);
+  /* the stage's boards, as styles.css draws them */
+  --boards: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1140' height='228'%3E%3Crect width='1140' height='228' fill='%2327150d'/%3E%3Crect x='-291' y='0' width='759' height='37' fill='%233b2315'/%3E%3Crect x='469' y='0' width='699' height='37' fill='%23372013'/%3E%3Crect x='-360' y='38' width='519' height='37' fill='%23361f13'/%3E%3Crect x='160' y='38' width='759' height='37' fill='%233b2315'/%3E%3Crect x='920' y='38' width='759' height='37' fill='%23361f13'/%3E%3Crect x='-108' y='76' width='699' height='37' fill='%23331d11'/%3E%3Crect x='592' y='76' width='519' height='37' fill='%23392114'/%3E%3Crect x='1112' y='76' width='759' height='37' fill='%23392114'/%3E%3Crect x='-364' y='114' width='699' height='37' fill='%233b2315'/%3E%3Crect x='336' y='114' width='759' height='37' fill='%23361f13'/%3E%3Crect x='1096' y='114' width='759' height='37' fill='%23392114'/%3E%3Crect x='-330' y='152' width='429' height='37' fill='%23392114'/%3E%3Crect x='100' y='152' width='429' height='37' fill='%23361f13'/%3E%3Crect x='530' y='152' width='519' height='37' fill='%23372013'/%3E%3Crect x='1050' y='152' width='429' height='37' fill='%233b2315'/%3E%3Crect x='-227' y='190' width='699' height='37' fill='%23372013'/%3E%3Crect x='473' y='190' width='519' height='37' fill='%23372013'/%3E%3Crect x='993' y='190' width='519' height='37' fill='%23331d11'/%3E%3C/svg%3E");
 }
 * {
   box-sizing: border-box;
@@ -25,43 +29,56 @@ body {
   background: var(--ground);
   color: var(--ink);
 }
+::selection {
+  background: rgba(236, 187, 98, 0.3);
+}
 body {
+  position: relative;
   min-height: 100dvh;
   display: flex;
-  /* (the stage's own floor: a warm light from below) */
-  background:
-    radial-gradient(120% 90% at 50% 100%, rgba(58, 42, 28, 0.35), transparent 60%),
-    var(--ground);
+  font-family: var(--label);
+  font-variant-numeric: lining-nums;
   -webkit-font-smoothing: antialiased;
 }
+/* the empty stage: the spot's pool on the boards, the house falling away round it */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 46% 40% at 50% 42%, rgba(255, 214, 150, 0.17), rgba(244, 176, 104, 0.08) 46%, transparent 74%),
+    var(--boards) 50% 42% / 1140px 228px;
+  -webkit-mask-image: radial-gradient(ellipse 60% 54% at 50% 42%, #000 20%, transparent 80%);
+  mask-image: radial-gradient(ellipse 60% 54% at 50% 42%, #000 20%, transparent 80%);
+}
 .nf {
+  position: relative;
   margin: auto;
   width: min(100%, 720px);
   padding: 48px clamp(20px, 6vw, 56px) 72px;
 }
 .nf-word {
   margin: 0;
-  font: italic 400 clamp(72px, 19vw, 132px) / 1 var(--serif);
-  font-variation-settings: 'opsz' 72;
-  letter-spacing: -0.01em;
+  font: 400 clamp(72px, 19vw, 128px) / 1 var(--display);
+  font-variant-numeric: normal;
+  text-shadow: 0 2px 24px rgba(8, 3, 4, 0.8);
 }
 .nf-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 14px 0 0 1px;
-  font: 400 11px/15px var(--mono);
-  letter-spacing: 0.02em;
+  margin: 16px 0 0 2px;
+  font: 400 13px/16px var(--label);
+  letter-spacing: 0.03em;
   color: var(--muted);
 }
-/* the pilot lamp, as it is before any sound: vermilion, unlit */
+/* the house lamp, as it is before any sound: unlit */
 .nf-lamp {
-  flex: none;
+  display: inline-block;
+  margin-right: 9px;
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #ffb59f, var(--accent) 55%, #5a1a0c);
-  box-shadow: 0 0 8px rgba(255, 94, 56, 0.55);
+  border: 1px solid var(--gilt);
+  background: rgba(201, 162, 83, 0.16);
 }
 #nf-path {
   overflow-wrap: anywhere;
@@ -70,24 +87,28 @@ body {
 .nf-pages {
   display: flex;
   flex-wrap: wrap;
-  font: 400 11px/1 var(--mono);
-  letter-spacing: 0.02em;
+  font: 500 12px/1 var(--label);
+  font-stretch: 88%;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 .nf-places {
   gap: 10px 0;
-  margin: 44px 0 0 -12px;
+  margin: 46px 0 0 -12px;
   /* (a family that starts a row has no hairline before it: its own, a pixel left of the row, is cut off) */
   overflow: hidden;
 }
-/* a family: its instruments together, a hairline before the next */
+/* a family: its instruments together, a gilt hairline before the next (one too long for a phone's row,
+   the orchestra and the pieces, goes on to a second: no place is ever cut off) */
 .nf-fam {
   display: flex;
+  flex-wrap: wrap;
   margin-left: -1px;
   padding: 0 6px;
-  border-left: 1px solid var(--rule);
+  border-left: 1px solid rgba(201, 162, 83, 0.34);
 }
 .nf-pages {
-  margin: 22px 0 0 -12px;
+  margin: 20px 0 0 -12px;
   padding: 0 5px;
 }
 .nf a {
@@ -95,16 +116,17 @@ body {
   border-radius: 3px;
   color: var(--ink-2);
   text-decoration: none;
+  transition: color 0.15s;
 }
 .nf-pages a {
   color: var(--muted);
 }
 .nf a:hover {
   color: var(--ink);
-  box-shadow: inset 0 -1.5px 0 var(--amber);
+  box-shadow: inset 0 -1.5px 0 var(--on);
 }
 .nf a:focus-visible {
-  outline: 1.5px solid var(--amber);
+  outline: 1.5px solid var(--on);
   outline-offset: -1px;
 }
 /* a phone: the families one under the other would be six rows; they wrap as they fit, each whole */
@@ -113,6 +135,10 @@ body {
     gap: 6px 0;
   }
   .nf a {
-    padding: 11px 6px;
+    padding: 16px 6px;
+  }
+  /* (the families wrap here: a rule between two that happen to share a row would be the only one) */
+  .nf-fam {
+    border-left-color: transparent;
   }
 }

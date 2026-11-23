@@ -1,13 +1,15 @@
-// The vector display: the 2D stage's other style. Thin glowing lines on black, after the screens
+// The vector display: the 2D stage's other style. Thin glowing lines on a claret-black ground (in the hall
+// it is an engraver's plate: ivory for the instrument, gold for the sound), after the screens
 // Jameson Hodge drew for his Chimera vocal synth (github.com/jamesondh/chimera-vocal-synth,
 // docs/ui-redesign.md), themselves after the NORAD displays in WarGames and the OP-1's colour-coded
 // encoders. Nothing is filled: an instrument is its outline, and the sound is drawn over it.
 //
 // Colour roles, the same on every instrument:
-//   blue   the instrument: outlines, strings at rest, the room
-//   amber  sound: string shapes, plate modes, bore pressure, wavefronts, spectra
-//   green, red, pink, white: the four control slots. A knob takes a slot colour (the first four of an
-//   instrument's knobs, in order) and whatever it moves on the drawing is drawn in that colour.
+//   line   the instrument: outlines, strings at rest, the room (ivory, as the hall's ink is)
+//   sound  string shapes, plate modes, bore pressure, wavefronts, spectra (the light's gold)
+//   verdigris, rose, gilt, white: the four control slots. A knob takes a slot colour (the first four of
+//   an instrument's knobs, in order) and whatever it moves on the drawing is drawn in that colour. They
+//   are the knobs' own colours, not states: the rose is no failure.
 //
 // Beams are added ('lighter'), so crossings brighten as on a tube. One cheap glow pass per frame
 // (`glow`) copies the canvas down and adds it back blurred. Coordinates are CSS pixels.
@@ -16,20 +18,22 @@
 // document (apps/web/test/models3d.test.ts).
 
 export const V = {
-  blue: '#4fb6f2',
-  blueMid: '#3487c4',
-  blueDim: '#1f5f8c',
-  frame: '#133954',
-  green: '#5be381',
-  red: '#ff5d40',
-  pink: '#ff73cf',
-  white: '#eef6f8',
-  amber: '#ffb340',
+  line: '#e8dec8',
+  lineMid: '#b3a68c',
+  lineDim: '#7d7260',
+  frame: '#5c4a2a',
+  verdigris: '#62cfa9',
+  rose: '#f08a94',
+  gilt: '#d9b25f',
+  white: '#fffaf0',
+  sound: '#ffbe55',
+  /** the plate's ground (vector.css --v-ground): what a mask is painted in, so it is not seen */
+  ground: '#0b0405',
 } as const;
 /** the four control slots, in knob order */
-export const SLOTS = [V.green, V.red, V.pink, V.white] as const;
-/** a knob's colour: its slot, or the structure's blue past the fourth */
-export const slotColor = (i: number): string => SLOTS[i] ?? V.blue;
+export const SLOTS = [V.verdigris, V.rose, V.gilt, V.white] as const;
+/** a knob's colour: its slot, or the structure's line past the fourth */
+export const slotColor = (i: number): string => SLOTS[i] ?? V.line;
 
 /** mix two #rrggbb colours */
 export function mix(hex: string, to: string, u: number): string {
@@ -44,7 +48,7 @@ export const core = (hex: string): string => mix(hex, '#ffffff', 0.55);
 const HEAT: [number, string][] = [
   [0, '#3a2408'],
   [0.35, '#c9822a'],
-  [0.6, '#ffb340'],
+  [0.6, '#ffbe55'],
   [0.82, '#ffe39a'],
   [1, '#fff8ec'],
 ];
@@ -57,12 +61,13 @@ export function heat(level: number): string {
 
 /** the palette as rgb triplets, for the drawings shared with the stage's own style (they take an ink) */
 const rgb = (hex: string) => [16, 8, 0].map((sh) => (parseInt(hex.slice(1), 16) >> sh) & 255).join(',');
-/** the excitation scope: the trace is sound (amber), its second row and the axis the structure's blue */
-export const SCOPE_INK_V = { ivory: rgb(V.blue), vermilion: rgb(V.amber) };
-/** the spectrum: the measured line amber, and where the partials should fall in blue. On a piano the
- *  stiff string's series is in the stiffness knob's slot (red) against the ideal harmonics in blue. */
-export const SPECTRUM_INK_V = { line: rgb(V.amber), label: rgb(V.blue), ideal: rgb(V.blueMid), partial: rgb(V.blue), font: '500 10px "Hershey", "IBM Plex Mono", monospace' };
-export const SPECTRUM_INK_V_PIANO = { ...SPECTRUM_INK_V, partial: rgb(V.red) };
+/** the excitation scope: the trace is sound (gold), its second row and the axis the structure's line */
+export const SCOPE_INK_V = { ivory: rgb(V.line), light: rgb(V.sound) };
+/** the spectrum: the measured line in the sound's gold, and where the partials should fall in the
+ *  structure's line. On a piano the stiff string's series is in the stiffness knob's slot (rose) against
+ *  the ideal harmonics in the line. */
+export const SPECTRUM_INK_V = { line: rgb(V.sound), label: rgb(V.line), ideal: rgb(V.lineMid), partial: rgb(V.line), font: '500 10px "Hershey", ui-monospace, monospace' };
+export const SPECTRUM_INK_V_PIANO = { ...SPECTRUM_INK_V, partial: rgb(V.rose) };
 
 export type Pt = [number, number];
 export interface BeamOpts {
@@ -151,7 +156,7 @@ export function breathFlow(ctx: CanvasRenderingContext2D, at: TipAt, from: numbe
   const d = small ? 3 : 5;
   ctx.save();
   ctx.lineDashOffset = -(((now / 1000) * 30) % (d * 1.8));
-  beam(ctx, flow, V.green, small ? 1 : 1.2, { alpha, dash: [d, d * 0.8] });
+  beam(ctx, flow, V.verdigris, small ? 1 : 1.2, { alpha, dash: [d, d * 0.8] });
   ctx.restore();
 }
 /** The lips on a brass mouthpiece (the red slot), as the reeds' pinch is drawn: pressed on the rim either
@@ -163,7 +168,7 @@ export function lipLine(ctx: CanvasRenderingContext2D, at: TipAt, gap: number, r
     p.moveTo(...at(0.0008, sg * gap * 0.5));
     p.lineTo(...at(0.0008, sg * (gap * 0.5 + reach)));
   }
-  beam(ctx, p, V.red, lw, { alpha, hot });
+  beam(ctx, p, V.rose, lw, { alpha, hot });
 }
 /** a control's handle: a ring with crosshair ticks, where a slot's control acts on the drawing */
 export function handle(ctx: CanvasRenderingContext2D, x: number, y: number, color: string, r = 7, alpha = 1): void {
@@ -182,8 +187,8 @@ export function handle(ctx: CanvasRenderingContext2D, x: number, y: number, colo
 }
 
 // ---------------------------------------------------------------- type
-/** Hershey Simplex (single-stroke capitals); what it lacks (×, ·, ♯, Greek) falls to the mono */
-export const HERSHEY = '"Hershey", "IBM Plex Mono", ui-monospace, monospace';
+/** Hershey Simplex (single-stroke capitals); what it lacks (×, ·, ♯, Greek) falls to the system's mono */
+export const HERSHEY = '"Hershey", ui-monospace, "SF Mono", Menlo, monospace';
 export const hfont = (size: number, weight: 'l' | 'm' = 'm') => `${weight === 'm' ? 500 : 300} ${size}px ${HERSHEY}`;
 let fontAsked = false;
 /** ask for the faces once (a canvas does not fetch a font by drawing with it) */
@@ -213,7 +218,7 @@ export function label(ctx: CanvasRenderingContext2D, text: string, x: number, y:
   if ('letterSpacing' in ctx) (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${((o.ls ?? 0.12) * size).toFixed(2)}px`;
   ctx.textAlign = o.align ?? 'left';
   ctx.textBaseline = o.baseline ?? 'alphabetic';
-  ctx.fillStyle = o.color ?? V.blue;
+  ctx.fillStyle = o.color ?? V.line;
   ctx.fillText(text.toUpperCase(), x, y);
   ctx.restore();
 }
@@ -416,8 +421,8 @@ export class Contours {
   draw(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, gain = 1): void {
     const lv = this.level * gain;
     if (lv < 0.02) return;
-    beam(ctx, this.path(0.5, x, y, w, h), V.amber, 0.8, { alpha: 0.3 * lv });
-    beam(ctx, this.path(-0.5, x, y, w, h), V.amber, 0.8, { alpha: 0.3 * lv, dash: [3, 4] });
-    beam(ctx, this.path(0, x, y, w, h), V.amber, 1.3, { alpha: Math.min(1, 0.25 + 0.75 * lv), hot: lv > 0.55 });
+    beam(ctx, this.path(0.5, x, y, w, h), V.sound, 0.8, { alpha: 0.3 * lv });
+    beam(ctx, this.path(-0.5, x, y, w, h), V.sound, 0.8, { alpha: 0.3 * lv, dash: [3, 4] });
+    beam(ctx, this.path(0, x, y, w, h), V.sound, 1.3, { alpha: Math.min(1, 0.25 + 0.75 * lv), hot: lv > 0.55 });
   }
 }

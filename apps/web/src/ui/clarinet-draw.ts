@@ -679,7 +679,7 @@ const silver = (a: number) => rgba('230,232,236', a);
 const SILVER_BODY = 'rgb(62,64,68)';
 /** the grenadilla's fill: dark wood, lifted just enough to read against the stage (contrast over 1.3:1, test) */
 export const WOOD = '#332820';
-const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
+const waveInk = (v: number) => (v >= 0 ? INK.light : INK.cool);
 const D2R = Math.PI / 180;
 
 /** The clarinet from the front: the mouthpiece's beak with its ligature and the reed's tip opening and
@@ -721,9 +721,9 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
       }
       ctx.lineTo(X(end), Y(sgn * clLobeBase(Math.min(CL_LEN, end))));
       ctx.closePath();
-      ctx.fillStyle = rgba(INK.vermilion, 0.07 * lvl + 0.03);
+      ctx.fillStyle = rgba(INK.light, 0.07 * lvl + 0.03);
       ctx.fill();
-      ctx.strokeStyle = rgba(INK.vermilion, 0.16 + 0.22 * lvl);
+      ctx.strokeStyle = rgba(INK.light, 0.16 + 0.22 * lvl);
       ctx.lineWidth = 1;
       ctx.stroke();
     }
@@ -811,7 +811,7 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
     const N = 56;
     for (let i = 0; i <= N; i++) {
       const A = lv.ampAt((end * i) / N);
-      ge.addColorStop(i / N, rgba(INK.vermilion, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+      ge.addColorStop(i / N, rgba(INK.light, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
       gw.addColorStop(i / N, rgba(waveInk(A * ph), 0.46 * Math.min(1, Math.pow(Math.abs(A * ph), 1.15))));
     }
     ctx.save();

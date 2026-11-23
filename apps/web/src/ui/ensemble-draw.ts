@@ -22,6 +22,7 @@ import { drawHarp, harpBox, newHarpState, type HarpState } from './harp-draw.ts'
 import { drawGlock, glockBox, newGlockState, type GlockState } from './glock-draw.ts';
 import { drawTimpani, timpaniBox, newTimpaniState, type TimpaniState } from './timpani-draw.ts';
 import { AutoScale, BOWED_PLAN, FL_LEN, ModeField, bowReach, bowedShapes, bowedSpan, drawBowed, drawFlute, drawTrumpet, trumpetBox, type BowedGeom, type BowedState, type FluteState, type TrumpetState } from './stage-draw.ts';
+import { V } from './vector/kit.ts';
 
 export interface Cell {
   x: number;
@@ -520,23 +521,23 @@ export function drawOwnKeys(ctx: CanvasRenderingContext2D, c: Cell, down: Readon
   if (vector) {
     // lines only: the whites' frame and partings, the blacks hatched boxes; a held key amber
     ctx.lineWidth = 1;
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = V.ground;
     ctx.fillRect(x0, y, x1 - x0, kh);
     for (const k of keys) {
       const lit = down.has(k.midi);
       if (k.black) {
-        ctx.fillStyle = '#000';
+        ctx.fillStyle = V.ground;
         ctx.fillRect(k.x, k.y, k.w, k.h);
-        ctx.fillStyle = lit ? 'rgba(255, 179, 64, 0.55)' : 'rgba(79, 182, 242, 0.22)';
+        ctx.fillStyle = lit ? 'rgba(255, 190, 85, 0.55)' : 'rgba(195, 208, 220, 0.2)';
         ctx.fillRect(k.x, k.y, k.w, k.h);
-        ctx.strokeStyle = lit ? '#ffb340' : '#3487c4';
+        ctx.strokeStyle = lit ? V.sound : V.lineMid;
         ctx.strokeRect(k.x + 0.5, k.y + 0.5, k.w - 1, k.h - 1);
       } else {
         if (lit) {
-          ctx.fillStyle = 'rgba(255, 179, 64, 0.3)';
+          ctx.fillStyle = 'rgba(255, 190, 85, 0.3)';
           ctx.fillRect(k.x, k.y, k.w, k.h);
         }
-        ctx.strokeStyle = lit ? '#ffb340' : '#1f5f8c';
+        ctx.strokeStyle = lit ? V.sound : V.lineDim;
         ctx.strokeRect(k.x + 0.5, k.y + 0.5, k.w - 1, k.h - 1);
       }
     }

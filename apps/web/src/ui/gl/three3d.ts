@@ -2,12 +2,16 @@
 // static meshes posed by model matrices (drawn instanced), and the live lines (strings' glow,
 // stopping marks, breath, wavefronts).
 //
-// The look is a studio product shot: an image-based light from a generated studio (a large overhead
-// softbox, a key softbox, two strip lights for the rims, dark walls), a warm key light with a soft
-// shadow, a cool rim light, ground-truth ambient occlusion (GTAO) so parts sit together, AgX tone
-// mapping, and a floor that takes the shadow and occlusion and fades into the page's own ground.
+// The look is a recital: the instrument on a stage in a concert hall at night. One warm spot from above
+// and in front (a key light with a deep, fairly hard shadow, and the lantern itself in the image-based
+// light, so lacquer and brass catch one hot light), very little fill, a dim warm bounce off the stage's
+// boards, a faint gold back light, and the house's glow far behind the camera (`hall`). The floor is a
+// stage's: dark boards that show where the spot's pool falls. Behind it a velvet curtain takes the
+// spill, and the spot's beam hangs in the air (the last pass). Ground-truth ambient occlusion (GTAO)
+// seats the parts; Khronos neutral tone mapping keeps wood, brass and silver their own colours.
+// Before the first sound the stage waits under a low light; the light comes up with the sound (`up`).
 // The scene renders into an HDR target (multisampled); a last pass applies the occlusion, tone maps,
-// and composites over the ground; the lines are drawn on top, tested against the scene's depth.
+// and composites over the hall; the lines are drawn on top, tested against the scene's depth.
 //
 // The scenes are laid out with the bass at −x; seen from the player's side (−z) that would put the
 // bass on the right, so the whole world is mirrored in x (as a parent group, which three.js renders
@@ -63,7 +67,12 @@ const FINAL_FS = /* glsl */ `
 #include <tonemapping_pars_fragment>
 uniform sampler2D tColor; uniform sampler2D tAO; uniform float uAO; uniform vec3 uGround; uniform vec2 uRes;
 uniform sampler2D tBloom; uniform float uBloom;
-uniform vec2 uGlowC; uniform vec2 uGlowR; uniform float uGlow;
+// the hall behind the stage: the camera's rays (uInvVP, uEye), the stage's middle on its floor and
+// its size (uStage: xyz, radius), how much of the hall shows (uHall: 0 in a key's close-up)
+uniform mat4 uInvVP; uniform vec3 uEye; uniform vec4 uStage; uniform float uHall;
+// the spot's beam on the picture: where its axis meets the floor and a point up it (uv), its
+// half-width at the floor (in picture heights), its strength
+uniform vec2 uBeamB; uniform vec2 uBeamA; uniform float uBeamW; uniform float uBeam;
 varying vec2 vUv;
 vec3 toSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
 void main() {
@@ -77,11 +86,61 @@ void main() {
   vec3 s = toSRGB(NeutralToneMapping(col));
   // a little dither against banding in the dark gradients
   float d = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
-  // the backdrop: a seamless studio wall lit softly behind the instrument, falling off to the page's
-  // own ground at the edges (so the canvas still meets the page without a seam)
-  vec2 q = (vUv - uGlowC) / uGlowR;
-  vec3 back = uGround + vec3(0.085, 0.077, 0.068) * uGlow * exp(-dot(q, q));
-  gl_FragColor = vec4(mix(back, s, a) + d / 255.0, 1.0);
+  // the backdrop: a velvet curtain hung round the back of the stage, a cylinder about its middle, down
+  // to the boards. It is lit only by what the spot spills: most just above the boards, less with height,
+  // and its pleats catch it on their ridges. It turns with the camera, as a curtain there would. Towards
+  // the picture's top it has gone to the page's own ground (so the canvas meets the page without a seam).
+  vec3 back = uGround;
+  if (uHall > 0.001) {
+    vec4 pw = uInvVP * vec4(vUv * 2.0 - 1.0, 1.0, 1.0);
+    vec3 dir = normalize(pw.xyz / pw.w - uEye);
+    float R = uStage.w * 3.4 + 2.4;
+    vec2 o = uEye.xz - uStage.xz;
+    float qa = dot(dir.xz, dir.xz);
+    float qb = dot(o, dir.xz);
+    float qc = dot(o, o) - R * R;
+    float disc = qb * qb - qa * qc;
+    if (qa > 1e-6 && disc > 0.0) {
+      float t = (-qb + sqrt(disc)) / qa;
+      vec3 P = uEye + dir * t;
+      float h = P.y - uStage.y;
+      float th = atan(P.z - uStage.z, P.x - uStage.x);
+      // pleats, no two alike: their phase wanders (so their widths do), and their depth with it
+      float u0 = th * R * 6.2832 / (0.3 + 0.06 * uStage.w);
+      float u = u0 + 1.5 * sin(u0 * 0.173 + 1.1) + 0.9 * sin(u0 * 0.071 + 2.3);
+      float deep = 0.72 + 0.28 * sin(u0 * 0.113 + 0.7);
+      float f = sin(u) + 0.34 * sin(u * 2.31 + 1.7);
+      float pleat = pow(clamp(0.5 + 0.36 * deep * f, 0.0, 1.0), 1.8);
+      float H = 1.2 * uStage.w + 0.8;
+      // it hangs to the boards: lit most just over them, a darker hem where it meets them
+      float fall = exp(-max(h, 0.0) / H) * smoothstep(-0.004 * H, 0.004 * H, h) * (0.38 + 0.62 * smoothstep(0.0, 0.08 * H, h));
+      float top = smoothstep(1.0, 0.5, vUv.y);
+      back += vec3(0.2, 0.034, 0.05) * (0.22 + 0.78 * pleat) * fall * top * uHall;
+    }
+  }
+  vec3 outc = mix(back, s, a);
+  // the beam: the spot's light in the hall's air, a soft cone down to its pool (over the picture, and
+  // fainter over what stands in it)
+  if (uBeam > 0.001) {
+    vec2 asp = vec2(uRes.x / uRes.y, 1.0);
+    vec2 ab = (uBeamA - uBeamB) * asp;
+    float L = max(length(ab), 1e-4);
+    vec2 n = ab / L;
+    vec2 q = (vUv - uBeamB) * asp;
+    float t = dot(q, n) / L;
+    float dd = abs(q.x * n.y - q.y * n.x);
+    // one cone, wider towards its pool, feathered right across; gone before the picture's top (the band
+    // over the canvas never cuts it), and not drawn where the camera would see it lying across the picture
+    float w = uBeamW * (0.26 + 0.74 * clamp(1.0 - t / 2.6, 0.0, 1.0));
+    float e = dd / w;
+    float cone = exp(-e * e * 1.7) * smoothstep(-0.05, 0.3, t) * (0.6 + 0.25 * clamp(t, 0.0, 2.0));
+    cone *= smoothstep(1.0, 0.82, vUv.y) * smoothstep(0.6, 0.3, abs(n.x));
+    outc += vec3(1.0, 0.84, 0.6) * cone * uBeam * mix(1.0, 0.28, a);
+  }
+  // the house's falloff: the picture's far corners sink towards the ground
+  vec2 vq = (vUv - 0.5) * vec2(1.7, 2.0);
+  outc = mix(outc, uGround, 0.42 * smoothstep(0.6, 1.5, length(vq)));
+  gl_FragColor = vec4(outc + d / 255.0, 1.0);
 }`;
 const FINAL_VS = /* glsl */ `
 varying vec2 vUv;
@@ -135,38 +194,66 @@ void main() {
   gl_FragColor = vec4(c.rgb * F * 1.3 * uK, 0.0);
 }`;
 
-// the floor: a lit, shadowed surface whose coverage (alpha) fades into the ground with distance; on
-// it, the room's light (a pool as large as the room: gl3d's Pool). uPool: its radius, its rim's
+// the floor: a stage's boards, lit and shadowed, whose coverage (alpha) fades into the ground with
+// distance; on it, the spot's pool (as large as the room: gl3d's Pool). uPool: its radius, its rim's
 // half-width, the light past it (a share of the pool's) and the pool's lift with the sound; uPoolHot:
-// the rim brightened while the room's knob is under the pointer, turned or focused
+// the rim brightened while the room's knob is under the pointer, turned or focused; uUp: the light
+// come up (0 … 1). The boards run up and down the stage, 14 cm wide, each a little its own tone, butted
+// at lengths of their own (3.4 m); their seams go as they grow finer than the picture can draw.
 const FLOOR_FADE = /* glsl */ `
-uniform vec3 uFloorC; uniform vec2 uFloorR; uniform vec4 uPool; uniform float uPoolHot;
+uniform vec3 uFloorC; uniform vec2 uFloorR; uniform vec4 uPool; uniform float uPoolHot; uniform float uUp;
 varying vec3 vWorldP;`;
 const FLOOR_FS = /* glsl */ `
 {
   float rr = length((vWorldP - uFloorC).xz);
+  float bu = vWorldP.x / 0.14;
+  float bi = floor(bu);
+  float h1 = fract(sin(bi * 12.9898) * 43758.5453);
+  float fu = fwidth(bu);
+  float eu = min(fract(bu), 1.0 - fract(bu));
+  float seam = (1.0 - smoothstep(fu * 0.5, fu * 1.5 + 0.02, eu)) * (1.0 - smoothstep(0.16, 0.5, fu));
+  float bv = vWorldP.z / 3.4 + h1 * 7.0;
+  float fv = fwidth(bv);
+  float ev = min(fract(bv), 1.0 - fract(bv));
+  float butt = (1.0 - smoothstep(fv * 0.5, fv * 1.5 + 0.002, ev)) * (1.0 - smoothstep(0.01, 0.035, fv));
+  float h2 = fract(sin((bi + floor(bv) * 57.0) * 78.233) * 12543.123);
+  gl_FragColor.rgb *= (0.84 + 0.2 * h1 + 0.1 * h2) * (1.0 - max(0.46 * seam, 0.3 * butt));
   float inPool = 1.0 - smoothstep(uPool.x - uPool.y, uPool.x + uPool.y, rr);
   float e = (rr - uPool.x) / max(uPool.y, 1e-3);
-  float k = mix(uPool.z, 1.0 + uPool.w, inPool) + uPoolHot * 0.3 * exp(-e * e);
+  float k = mix(uPool.z, (1.0 + uPool.w) * mix(0.62, 1.0, uUp), inPool) + uPoolHot * 0.3 * exp(-e * e);
   gl_FragColor.rgb *= k;
   gl_FragColor.a *= 1.0 - smoothstep(uFloorR.x, uFloorR.y, rr);
 }`;
 
-/** a studio to light the scene with (and to see reflected in lacquer and brass) */
-function studio(): THREE.Scene {
+/** the stage's own key light: towards it from the instrument (the scenes' frame), from above and in front */
+const KEY_DIR: Vec3 = [0.4, 0.86, -0.32];
+/** the lights of an instrument shown whole (a key's close-up has its own: CLOSE) */
+const STAGE = {
+  /** the spot: tungsten, the one light that models the instrument */
+  keyI: 4.1,
+  /** from behind: a thin gold edge that keeps a black case off the dark */
+  rimI: 0.9,
+  /** from below and in front: what the lit boards send back up */
+  bounceI: 0.34,
+  bounce: [-0.2, -0.78, -0.6] as Vec3,
+  /** the pool's light on the boards past its rim, as a share of the pool's */
+  spill: 0.17,
+  /** the light before the first sound (a share of the spot's, of the beam's and of the curtain's) */
+  wait: 0.5,
+  /** the beam's and the curtain's strengths, come up */
+  beam: 0.085,
+  curtain: 1,
+};
+
+/** the hall to light the scene with (and to see reflected in lacquer and brass): dark, with one lantern */
+function hall(): THREE.Scene {
   const s = new THREE.Scene();
-  // dark walls: polished metal and lacquer read through contrast, bright cards against black
-  const room = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.02, 0.019, 0.018), side: THREE.BackSide }));
-  room.scale.set(30, 14, 30);
-  room.position.y = 5;
+  // the house: near black, warm
+  const room = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.011, 0.006, 0.006), side: THREE.BackSide }));
+  room.scale.set(34, 16, 34);
+  room.position.y = 6;
   s.add(room);
-  // a floor a little lighter than the walls (the bounce under an instrument)
-  const flo = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.07, 0.06, 0.05) }));
-  flo.rotation.x = -Math.PI / 2;
-  flo.position.y = -1.9;
-  s.add(flo);
-  // a softbox: brightest in the middle, feathered to nothing over `soft` of its half-size (a real
-  // diffuser's falloff; a hard-edged card reflects as a paper cut-out)
+  // a card: brightest in the middle, feathered to nothing over `soft` of its half-size
   const panel = (w: number, h: number, c: [number, number, number], k: number, pos: Vec3, look: Vec3, soft = 0.5) => {
     const g = new THREE.PlaneGeometry(w, h, 24, 24);
     const P = g.attributes.position;
@@ -189,22 +276,22 @@ function studio(): THREE.Scene {
     m.lookAt(...look);
     s.add(m);
   };
-  // as a product studio lights lacquer and metal: a large overhead softbox; a key softbox front
-  // left; a wide, feathered card behind the camera (a piano's black front and a bell's flare need
-  // something bright to reflect, or they read as holes); tall strips behind left and right for the
-  // rims, and two beside the camera for the long highlights down tubes and case edges; a low cool
-  // card in front
-  panel(10, 7, [1, 0.96, 0.9], 2.4, [0, 9, -0.5], [0, 0, 0], 0.45);
-  panel(5, 4, [1, 0.9, 0.78], 6.5, [-6, 5, -6], [0, 0, 0], 0.4);
-  panel(20, 7, [1, 0.97, 0.93], 1.5, [0, 3.6, -11], [0, 1.4, 0], 0.9);
-  panel(1.3, 9, [0.85, 0.9, 1], 7, [-8, 3, 7], [0, 1, 0], 0.5);
-  panel(1.3, 9, [0.85, 0.9, 1], 5.5, [8, 3, 6], [0, 1, 0], 0.5);
-  panel(1.6, 8, [1, 0.95, 0.88], 3.2, [-10, 3, -3], [0, 1, 0], 0.6);
-  panel(1.6, 8, [0.9, 0.94, 1], 2.4, [10, 3, -4], [0, 1, 0], 0.6);
-  panel(9, 1.8, [0.7, 0.78, 0.9], 0.9, [0, 0.4, -9], [0, 1, 0], 0.6);
-  // the lit floor in front of the instrument: what a piano's vertical black front, a bell's underside
-  // and a rib's lower edge reflect (they face down and out, at the floor, not at the softboxes)
-  panel(22, 16, [1, 0.93, 0.84], 0.55, [0, -1.85, -5], [0, 10, -5], 1.0);
+  // the lantern: one small, very bright source where the key light comes from (the world is mirrored in
+  // x: the scenes' +x is this scene's −x), so lacquer and brass show one hot light and not a ring of cards
+  panel(1.5, 1.5, [1, 0.87, 0.68], 46, [-KEY_DIR[0] * 12, KEY_DIR[1] * 12, KEY_DIR[2] * 12], [0, 0.6, 0], 0.75);
+  // the boards in the spot's pool, under the instrument and out towards the house: what a case's black
+  // front, a bell's underside and a rib's lower edge look down at
+  panel(13, 13, [1, 0.64, 0.36], 0.62, [0, -1.85, -2.2], [0, 10, -2.2], 0.95);
+  // the spot's own haze and the proscenium over the stage: a broad, low glow high in front, which keeps a
+  // lid's top and a tube's upper side from being holes
+  panel(18, 9, [1, 0.8, 0.6], 0.2, [-3, 10, -6], [0, 0, 0], 0.95);
+  // the house, far behind the camera: a balcony front's gilt in a low light, and a row of wall lamps
+  panel(30, 1.3, [1, 0.72, 0.42], 0.85, [0, 3.0, -15], [0, 1.6, 0], 0.6);
+  for (let i = -3; i <= 3; i++) panel(0.42, 0.6, [1, 0.74, 0.44], 3.4, [i * 3.6, 2.3 + 0.25 * Math.abs(i), -15.5], [0, 1.6, 0], 0.9);
+  // the curtain behind the stage, in the spill: velvet, low
+  panel(26, 5, [0.62, 0.07, 0.1], 0.075, [0, 1.6, 13], [0, 1.4, 0], 0.9);
+  // a thin gold light from behind, where the back light hangs: the edge on a case, the line down a tube
+  panel(1.1, 5, [1, 0.78, 0.5], 4.2, [8, 5, 8], [0, 1, 0], 0.6);
   return s;
 }
 
@@ -250,9 +337,12 @@ export class Renderer3 {
   private rim: THREE.DirectionalLight;
   private fill: THREE.DirectionalLight;
   private floor: THREE.Mesh;
-  private floorU = { uFloorC: { value: new THREE.Vector3() }, uFloorR: { value: new THREE.Vector2(1, 2) }, uPool: { value: new THREE.Vector4(1e3, 1, 1, 0) }, uPoolHot: { value: 0 } };
+  private floorU = { uFloorC: { value: new THREE.Vector3() }, uFloorR: { value: new THREE.Vector2(1, 2) }, uPool: { value: new THREE.Vector4(1e3, 1, 1, 0) }, uPoolHot: { value: 0 }, uUp: { value: 1 } };
   /** the room's light pool's rim, brightened (0 … 1: its knob under the pointer, turned or focused) */
   poolHot = 0;
+  /** the stage's light come up (0: waiting, before the first sound … 1: the spot at full). The stage eases
+   *  it (stage3d.ts); the spot, its pool, its beam and the curtain's spill follow */
+  up = 1;
   private entries = new Map<Mesh, Entry>();
   private lineScene = new THREE.Scene();
   private inkL: LineLayer;
@@ -300,29 +390,29 @@ export class Renderer3 {
     r.autoClear = false;
     this.root.scale.x = -1;
     this.scene.add(this.root);
-    // image-based light: the studio, pre-filtered
+    // image-based light: the hall, pre-filtered
     const pm = new THREE.PMREMGenerator(r);
-    this.envRT = pm.fromScene(studio(), 0.02);
+    this.envRT = pm.fromScene(hall(), 0.02);
     pm.dispose();
     this.scene.environment = this.envRT.texture;
     setEnvironment(this.envRT.texture);
     this.scene.environmentIntensity = 1.0;
-    // key (warm, soft shadow) and rim (cool, from behind)
-    this.key = new THREE.DirectionalLight(new THREE.Color(1, 0.93, 0.84), 2.6);
+    // the spot (tungsten, a deep and fairly hard shadow) and the back light (gold, thin)
+    this.key = new THREE.DirectionalLight(new THREE.Color(1, 0.86, 0.66), STAGE.keyI);
     this.key.castShadow = true;
     const sz = lite ? 1024 : 2048;
     this.key.shadow.mapSize.set(sz, sz);
-    this.key.shadow.radius = lite ? 3 : 5;
+    this.key.shadow.radius = lite ? 2.4 : 3.4;
     this.key.shadow.bias = -0.0002;
     this.key.shadow.normalBias = 0.002;
     this.root.add(this.key, this.key.target);
-    this.rim = new THREE.DirectionalLight(new THREE.Color(0.8, 0.88, 1), 1.6);
+    this.rim = new THREE.DirectionalLight(new THREE.Color(1, 0.78, 0.5), STAGE.rimI);
     this.root.add(this.rim, this.rim.target);
-    // a soft fill from the other side, low (no shadow)
-    this.fill = new THREE.DirectionalLight(new THREE.Color(0.9, 0.92, 1), 0.55);
+    // the boards' bounce: warm, from below and in front, low (no shadow). There is no other fill
+    this.fill = new THREE.DirectionalLight(new THREE.Color(1, 0.68, 0.42), STAGE.bounceI);
     this.root.add(this.fill, this.fill.target);
-    // the floor
-    const fm = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(0.075, 0.062, 0.05), roughness: 0.8, metalness: 0, specularIntensity: 0.25, envMap: this.envRT.texture, envMapIntensity: 0.35, transparent: true, depthWrite: true });
+    // the floor: stained boards under a worn varnish
+    const fm = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(0.125, 0.064, 0.032), roughness: 0.46, metalness: 0, specularIntensity: 0.55, envMap: this.envRT.texture, envMapIntensity: 0.45, transparent: true, depthWrite: true });
     fm.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, this.floorU);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWorldP;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWorldP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
@@ -338,7 +428,22 @@ export class Renderer3 {
     // targets
     this.rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: lite ? 2 : 4, depthTexture: new THREE.DepthTexture(1, 1, THREE.UnsignedIntType) });
     this.finalMat = new THREE.ShaderMaterial({
-      uniforms: { tColor: { value: this.rt.texture }, tAO: { value: null }, uAO: { value: 0 }, uGround: { value: new THREE.Color() }, uRes: { value: new THREE.Vector2() }, uGlowC: { value: new THREE.Vector2(0.5, 0.5) }, uGlowR: { value: new THREE.Vector2(0.4, 0.5) }, uGlow: { value: 1 }, toneMappingExposure: { value: 1.0 } },
+      uniforms: {
+        tColor: { value: this.rt.texture },
+        tAO: { value: null },
+        uAO: { value: 0 },
+        uGround: { value: new THREE.Color() },
+        uRes: { value: new THREE.Vector2() },
+        uInvVP: { value: new THREE.Matrix4() },
+        uEye: { value: new THREE.Vector3() },
+        uStage: { value: new THREE.Vector4(0, 0, 0, 1) },
+        uHall: { value: 1 },
+        uBeamB: { value: new THREE.Vector2(0.5, 0.3) },
+        uBeamA: { value: new THREE.Vector2(0.5, 1) },
+        uBeamW: { value: 0.3 },
+        uBeam: { value: 0 },
+        toneMappingExposure: { value: 1.0 },
+      },
       vertexShader: FINAL_VS,
       fragmentShader: FINAL_FS,
       depthTest: false,
@@ -627,11 +732,12 @@ export class Renderer3 {
       this.clipPlane.constant = clip.side * clip.at;
     }
     this.section(!!clip);
-    // lights fitted to the scene: the key from the front left, above; the rim from behind right.
+    // lights fitted to the scene: the spot from above and in front, a little to the left; the back light
+    // from behind right; the boards' bounce from below. Before the first sound the spot waits low (`up`).
     // In a key's close-up (k → 1) they are the section's own: the key from the open side, above and
     // in front (whichever end the section was cut from), fitted to the action so its shadow map
     // resolves a jack; the rim and the fill, which cast no shadow and would shine through the keys
-    // left standing, turned down; the studio's ambient too, so the key models the parts
+    // left standing, turned down; the hall's ambient too, so the key models the parts
     const { c, r: rad } = b.bounds;
     const k = clip && b.clip ? Math.max(0, Math.min(1, this.closeUp)) : 0;
     const mix = (a: number, z: number) => a + (z - a) * k;
@@ -639,10 +745,12 @@ export class Renderer3 {
     const C = new THREE.Vector3(mix(c[0], target[0]), mix(c[1], target[1]), mix(c[2], target[2]));
     const radL = mix(rad, CLOSE.radius);
     const dir = (a: Vec3, z: Vec3) => new THREE.Vector3(mix(a[0], z[0] * side), mix(a[1], z[1]), mix(a[2], z[2])).normalize();
-    const keyDir = dir(b.key ?? [0.55, 0.78, -0.5], CLOSE.key);
+    const up = Math.max(0, Math.min(1, this.up));
+    const lit = STAGE.wait + (1 - STAGE.wait) * up;
+    const keyDir = dir(b.key ?? KEY_DIR, CLOSE.key);
     this.key.position.copy(C).add(keyDir.clone().multiplyScalar(radL * 3));
     this.key.target.position.copy(C);
-    this.key.intensity = mix(2.6, CLOSE.keyI);
+    this.key.intensity = mix(STAGE.keyI * lit, CLOSE.keyI);
     // the section's cut faces all face its open side: lit alike, by the key and the studio (mats3.ts)
     SECTION.light.value = (this.key.intensity * Math.max(0.15, keyDir.x * side)) / Math.PI + 0.3 * mix(1, CLOSE.env);
     const sc = this.key.shadow.camera;
@@ -656,12 +764,12 @@ export class Renderer3 {
     this.key.castShadow = this.shadows;
     this.rim.position.copy(C).add(dir([-0.6, 0.5, 0.75], CLOSE.rim).multiplyScalar(radL * 3));
     this.rim.target.position.copy(C);
-    this.rim.intensity = mix(1.6, CLOSE.rimI);
-    this.fill.position.copy(C).add(dir([-0.8, 0.25, -0.55], CLOSE.fill).multiplyScalar(radL * 3));
+    this.rim.intensity = mix(STAGE.rimI, CLOSE.rimI);
+    this.fill.position.copy(C).add(dir(STAGE.bounce, CLOSE.fill).multiplyScalar(radL * 3));
     this.fill.target.position.copy(C);
-    this.fill.intensity = mix(0.55, CLOSE.fillI);
-    // (and warm: a cool fill turned pale wood in the key's shadow olive)
-    this.fill.color.setRGB(mix(0.9, 1), mix(0.92, 0.9), mix(1, 0.78));
+    this.fill.intensity = mix(STAGE.bounceI * lit, CLOSE.fillI);
+    // (warm either way: a cool fill turned pale wood in the key's shadow olive)
+    this.fill.color.setRGB(1, mix(0.68, 0.9), mix(0.42, 0.78));
     this.scene.environmentIntensity = mix(1, CLOSE.env);
     // floor
     const f = b.floor;
@@ -672,9 +780,12 @@ export class Renderer3 {
       this.floorU.uFloorR.value.set(f.r0, f.r1);
       // (no pool: the whole floor as one, as an ensemble's)
       const p = f.pool;
-      if (p) this.floorU.uPool.value.set(p.R, p.soft, 0.5, p.lift);
-      else this.floorU.uPool.value.set(1e3, 1, 1, 0);
+      if (p) this.floorU.uPool.value.set(p.R, p.soft, STAGE.spill, p.lift);
+      // (no pool: an orchestra's wash over the whole floor, a little under a solo's pool so the players
+      // stand out of it)
+      else this.floorU.uPool.value.set(1e3, 1, 1, -0.3);
       this.floorU.uPoolHot.value = p ? this.poolHot : 0;
+      this.floorU.uUp.value = up;
     }
     // camera (in the mirrored world)
     this.cam.fov = fovDeg;
@@ -759,13 +870,40 @@ export class Renderer3 {
     u.uAO.value = aoTex ? 1 : 0;
     u.uGround.value.setRGB(ground[0], ground[1], ground[2]);
     u.uRes.value.set(w, h);
-    // the backdrop's light centred a little above the instrument's middle, sized to it on screen
+    // the hall: the curtain round the back of the stage, and the spot's beam down to its pool (none in a
+    // key's close-up, where the camera is inside the instrument)
     {
-      const pc = new THREE.Vector3(-c[0], c[1] + rad * 0.15, c[2]).project(this.cam);
-      const pr = new THREE.Vector3(-c[0], c[1] + rad * 1.15, c[2]).project(this.cam);
-      const ry = Math.max(0.25, Math.min(0.9, Math.abs(pr.y - pc.y) * 0.5 * 1.6));
-      u.uGlowC.value.set(pc.x * 0.5 + 0.5, pc.y * 0.5 + 0.5);
-      u.uGlowR.value.set((ry * h) / w * 1.3, ry);
+      const fy = f ? f.y : c[1] - rad;
+      const fx = f ? -f.c[0] : -c[0];
+      const fz = f ? f.c[2] : c[2];
+      (u.uInvVP.value as THREE.Matrix4).multiplyMatrices(this.cam.projectionMatrix, this.cam.matrixWorldInverse).invert();
+      (u.uEye.value as THREE.Vector3).copy(this.cam.position);
+      (u.uStage.value as THREE.Vector4).set(fx, fy, fz, rad);
+      // (the curtain is drawn only where a fair share of it shows: a camera looking down on a grand has a
+      // strip of it along the picture's top, which reads as smudges. The point watched is behind the
+      // stage on the curtain, at the height where its light has fallen to a third)
+      const ax = fx - this.cam.position.x;
+      const az = fz - this.cam.position.z;
+      const al = Math.hypot(ax, az) || 1;
+      const Rc = rad * 3.4 + 2.4;
+      const up3 = new THREE.Vector3(fx + (ax / al) * Rc, fy + 1.2 * rad + 0.8, fz + (az / al) * Rc).project(this.cam);
+      const show = up3.z < 1 ? Math.max(0, Math.min(1, (1.08 - (up3.y * 0.5 + 0.5)) / 0.3)) : 0;
+      u.uHall.value = (1 - k) * STAGE.curtain * lit * show;
+      // the beam's axis: from the pool's middle on the floor up towards the lantern (three's world: x mirrored)
+      const kd = b.key ?? KEY_DIR;
+      const pb = new THREE.Vector3(fx, fy, fz).project(this.cam);
+      const pa = new THREE.Vector3(fx - kd[0] * rad * 2, fy + kd[1] * rad * 2, fz + kd[2] * rad * 2).project(this.cam);
+      const R = f?.pool ? f.pool.R : rad * 1.1;
+      // (the pool's radius as the picture sees it, across the beam: a point R to the camera's right)
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.cam.quaternion);
+      const pe = new THREE.Vector3(fx + right.x * R, fy, fz + right.z * R).project(this.cam);
+      const ok = pb.z < 1 && pa.z < 1 && !!f;
+      u.uBeamB.value.set(pb.x * 0.5 + 0.5, pb.y * 0.5 + 0.5);
+      u.uBeamA.value.set(pa.x * 0.5 + 0.5, pa.y * 0.5 + 0.5);
+      // (what is seen of a beam in the air is its core: half the pool's width, and never most of the picture)
+      u.uBeamW.value = Math.max(0.04, Math.min(0.3, Math.abs(pe.x - pb.x) * 0.5 * (w / h) * 0.55));
+      // (an orchestra stands in a wash, not in one spot: no beam)
+      u.uBeam.value = ok && f?.pool ? (1 - k) * STAGE.beam * up : 0;
     }
     r.setRenderTarget(null);
     r.clear(true, true, false);

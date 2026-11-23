@@ -31,11 +31,12 @@ test('an unknown address: the 404 page names it and links every instrument, the 
       const cs = (s: string) => getComputedStyle(document.querySelector(s)!);
       return { word: cs('.nf-word').fontFamily, style: cs('.nf-word').fontStyle, line: cs('.nf-line').fontFamily, ground: cs('html').backgroundColor, loaded: [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family.replace(/"/g, '')), scroll: document.documentElement.scrollWidth };
     });
-    expect(look.word).toMatch(/^"?Newsreader Variable/);
-    expect(look.style).toBe('italic');
-    expect(look.line).toMatch(/^"?IBM Plex Mono/);
-    expect(look.ground).toBe('rgb(14, 13, 11)');
-    expect(look.loaded).toEqual(expect.arrayContaining(['Newsreader Variable', 'IBM Plex Mono']));
+    // (the word in the readout's display face, upright; the line in the labels' face)
+    expect(look.word).toMatch(/^"?Libre Caslon Display/);
+    expect(look.style).toBe('normal');
+    expect(look.line).toMatch(/^"?Cabin Variable/);
+    expect(look.ground).toBe('rgb(20, 10, 11)');
+    expect(look.loaded).toEqual(expect.arrayContaining(['Libre Caslon Display', 'Cabin Variable']));
     expect(look.scroll, 'no horizontal scroll').toBeLessThanOrEqual(page.viewportSize()!.width);
   }
   // the places: sixteen instruments by family, the Orchestra and the five pieces' own addresses, the two pages; each whole on the page,

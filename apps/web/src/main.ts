@@ -6,7 +6,7 @@ diagEnvironment();
 import { audio } from './audio.ts';
 import { INSTRUMENT_INFO, midiName, type InstrumentId } from '@piano-model/engine';
 import { ComputerKeys, createKeyboard } from './ui/keyboard.ts';
-import { h, type View } from './ui/dom.ts';
+import { h, icon, type View } from './ui/dom.ts';
 import { pedal } from './ui/controls.ts';
 import { MidiPlayer } from './ui/player.ts';
 import { ensemble } from './orchestra/ensemble.ts';
@@ -42,14 +42,14 @@ const syncPedals = () => {
   softPedal.rename('soft', up ? 'Soft pedal: the hammers rest nearer the strings (hold; Shift on a keyboard, CC67 on MIDI)' : 'Una corda: the action shifts, the hammers miss a string (hold; Shift on a keyboard, CC67 on MIDI)');
 };
 const knobSlot = h('div', { class: 'knobs', role: 'group', 'aria-label': 'Physical controls' });
-const knobToggle = h('button', { class: 'knob-toggle', type: 'button', 'aria-label': 'Show the knobs', 'aria-expanded': 'false', 'data-tip': 'knobs' }, '◐');
+const knobToggle = h('button', { class: 'knob-toggle', type: 'button', 'aria-label': 'Show the knobs', 'aria-expanded': 'false', 'data-tip': 'knobs' }, icon('knob'));
 knobToggle.addEventListener('click', () => {
   const open = document.documentElement.toggleAttribute('data-knobs');
   knobToggle.setAttribute('aria-expanded', String(open));
 });
 // octave: shifts the computer keys (Z/X or −/=) and brings the on-screen keys along
-const octDown = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave down', 'data-tip': 'octave down · Z', onclick: () => keys.octave(-1) }, '‹');
-const octUp = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave up', 'data-tip': 'octave up · X', onclick: () => keys.octave(1) }, '›');
+const octDown = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave down', 'data-tip': 'octave down · Z', onclick: () => keys.octave(-1) }, icon('prev'));
+const octUp = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave up', 'data-tip': 'octave up · X', onclick: () => keys.octave(1) }, icon('next'));
 const octLabel = h('span', { class: 'oct-label', 'aria-live': 'polite' });
 const octave = h('div', { class: 'octave', role: 'group', 'aria-label': 'Octave' }, octDown, octLabel, octUp);
 // an ensemble: in the knobs' place, the instruments the keys play (a phone: behind one button)
@@ -77,7 +77,7 @@ const links = [
   h('a', { href: '/measurements', 'data-route': 'measurements' }, 'measurements'),
   h('a', { href: '/notes', 'data-route': 'notes' }, 'notes'),
 ];
-const backLink = h('a', { class: 'back', href: '/', 'data-route': 'stage', 'aria-label': 'back to the instruments', 'data-tip': 'back' }, '←');
+const backLink = h('a', { class: 'back', href: '/', 'data-route': 'stage', 'aria-label': 'back to the instruments', 'data-tip': 'back' }, icon('back'));
 // (the stage puts its picker and its view's tools in the bar while it shows: views/stage.ts)
 const pickSlot = h('div', { class: 'top-pick' });
 const toolSlot = h('div', { class: 'top-tools' });
