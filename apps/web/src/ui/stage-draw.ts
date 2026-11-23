@@ -2008,7 +2008,10 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     const s0 = 0.003 * S2;
     const s1 = Hh - 0.002 * S2;
     const ac = bwClamp(pos * Hh, s0 + 1e-4, s1 - 1e-4);
-    const d0 = playing ? Math.min(0.6 * p.hairW, (3 * F * ac * (Hh - ac)) / (60 * Hh)) : 0;
+    // (drawn larger to be seen; where the whole ribbon is 2–3 px, an orchestra's seat, that much would only
+    // carry it under the stick: there it is drawn straight)
+    const seen = bwClamp((Math.abs(X(p.hairW * tiltC)) - 3) / 5, 0, 1);
+    const d0 = playing ? seen * Math.min(0.6 * p.hairW, (3 * F * ac * (Hh - ac)) / (60 * Hh)) : 0;
     const defl = (s: number) => (s <= ac ? (d0 * s) / Math.max(1e-6, ac) : (d0 * (Hh - s)) / Math.max(1e-6, Hh - ac));
     const Xh = (s: number, h: number) => X(lv.cx - h * tilt - defl(bwClamp(s, 0, Hh)));
     const alpha = 1 - 0.55 * lv.lift;
@@ -2047,18 +2050,22 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     for (const s of [s0, ac, s1]) ctx.lineTo(Xh(s, 0) - X(hw), X(Zs(s)));
     for (const s of [s1, ac, s0]) ctx.lineTo(Xh(s, 0) + X(hw), X(Zs(s)));
     ctx.closePath();
+    // (the edge under the ribbon: its outer half shows on the plaster; the ribbon itself stays pale where it
+    // crosses a varnish, however narrow it is drawn: an orchestra's violin bow has 2–3 px of hair)
+    ctx.strokeStyle = rgba(INK.line, 0.42);
+    ctx.lineWidth = 1;
+    ctx.stroke();
     ctx.fillStyle = 'rgba(244,239,226,0.95)';
     ctx.fill();
-    ctx.strokeStyle = rgba(INK.line, 0.42);
-    ctx.lineWidth = 0.7;
-    ctx.stroke();
     ctx.lineCap = 'butt';
     ctx.lineWidth = 0.7;
     const dashes = [[18, 4, 30, 3, 11, 5], [26, 3, 9, 6, 20, 4], [12, 5, 34, 2, 16, 3], [22, 4, 14, 3, 28, 5]];
-    for (let k = 0; k < 4; k++) {
+    // (its strands only where the ribbon is wide enough to carry them: four lines in 3 px are a grey bar)
+    const strands = Math.max(0, Math.min(1, (2 * Math.abs(X(hw)) - 3) / 4));
+    for (let k = 0; k < 4 && strands > 0; k++) {
       const off = X(hw) * ((k + 0.5) / 2 - 1);
       ctx.setLineDash(dashes[k]);
-      ctx.strokeStyle = 'rgba(122,108,86,0.6)';
+      ctx.strokeStyle = `rgba(122,108,86,${(0.6 * strands).toFixed(3)})`;
       ctx.beginPath();
       for (const s of [s0, ac, s1]) ctx.lineTo(Xh(s, 0) + off, X(Zs(s)));
       ctx.stroke();
