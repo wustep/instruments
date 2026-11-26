@@ -7,18 +7,13 @@ import { CC, CS, EB, GS, L1, L2, L3, R1, R2, R3, RH, TB, TBB, fingersFor } from 
 import { fholeOf } from './gl/fholes.ts';
 import { CELLO, VIOLIN, type Outline } from './gl/outlines.ts';
 import { BASS } from './gl/bass-outline.ts';
+import { onTheme, theme, type Ink } from '../themes/index.ts';
 
-export const INK = {
-  ground: '#0e0d0b',
-  ivory: '236,226,206',
-  vermilion: '255,94,56',
-  amber: '242,166,70',
-  copper: '196,128,82',
-  steel: '150,182,210',
-  felt: '205,181,146',
-  wood: '58,42,28',
-  ebony: '22,19,16',
-};
+/** The 2D stage's inks: the theme's (themes/types.ts `Ink`: by role, never by hue), kept current as the
+ *  theme changes. A drawing reads them as it draws, so the next frame is the new theme's; a picture kept
+ *  from one frame to the next is kept with `themeEpoch()`. */
+export const INK: Ink = { ...theme().ink };
+onTheme((t) => Object.assign(INK, t.ink));
 export const rgba = (c: string, a: number) => `rgba(${c},${Math.max(0, Math.min(1, a)).toFixed(3)})`;
 
 // ---------------------------------------------------------------- mode field
@@ -956,7 +951,7 @@ function paintBassPin(c: CanvasRenderingContext2D, B: number, sc: number, dpr: n
   c.fillStyle = 'rgb(150,158,166)';
   c.fill(bwPoly(pin.knob, sc));
   c.restore();
-  c.strokeStyle = rgba(INK.ivory, 0.3);
+  c.strokeStyle = rgba(INK.line, 0.3);
   c.lineWidth = 0.7;
   c.stroke(sockP);
   c.strokeStyle = 'rgba(30,34,38,0.8)';
@@ -1095,7 +1090,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   bwInsetLine(a, body, p.purf[0] * sc, Math.max(1.4, p.purf[1] * sc), 'rgba(10,6,3,0.85)');
   bwInsetLine(a, body, p.purf[0] * sc, Math.max(0.5, p.purf[1] * sc * 0.3), 'rgba(236,214,180,0.16)');
   bwInsetLine(a, body, 1.6 * MM * S * sc, Math.max(0.8, 1.2 * MM * S * sc), 'rgba(250,200,150,0.10)');
-  a.strokeStyle = rgba(INK.ivory, 0.55);
+  a.strokeStyle = rgba(INK.line, 0.55);
   a.lineWidth = 1.1;
   a.lineJoin = 'round';
   a.stroke(body);
@@ -1135,7 +1130,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   c.restore();
   c.fillStyle = ebony(xn, fbEnd, (p.fbW[1] / 2) * sc);
   c.fill(fb);
-  c.strokeStyle = rgba(INK.ivory, 0.2);
+  c.strokeStyle = rgba(INK.line, 0.2);
   c.lineWidth = 0.8;
   c.stroke(fb);
   // the head: pegbox and scroll, front view
@@ -1168,7 +1163,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   for (const q of [boxP, crownP, ...earP]) c.fill(q);
   c.restore();
   // the outline: stroked wide, then the fill laid over it, so only the silhouette's edge shows
-  c.strokeStyle = rgba(INK.ivory, 0.5);
+  c.strokeStyle = rgba(INK.line, 0.5);
   c.lineWidth = 1.8;
   c.lineJoin = 'round';
   c.stroke(headP);
@@ -1250,7 +1245,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   const nutW = 0.0042 * S ** 0.5;
   c.fillStyle = 'rgb(30,27,24)';
   c.fillRect(X(xn - nutW), X(-fbw(xn) * 0.51), X(nutW), X(fbw(xn) * 1.02));
-  c.strokeStyle = rgba(INK.ivory, 0.4);
+  c.strokeStyle = rgba(INK.line, 0.4);
   c.lineWidth = 0.8;
   c.beginPath();
   c.moveTo(X(xn), X(-fbw(xn) * 0.51));
@@ -1337,7 +1332,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
     c.fill(head);
     c.fill(collar);
     c.fill(shaft);
-    c.strokeStyle = rgba(INK.ivory, 0.3);
+    c.strokeStyle = rgba(INK.line, 0.3);
     c.lineWidth = 0.7;
     c.stroke(head);
     c.stroke(collar);
@@ -1356,7 +1351,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   const sadW = 0.034 * S ** 0.8;
   c.fillStyle = 'rgb(22,19,17)';
   c.fillRect(X(sadX - 0.0035 * S ** 0.6), X(-sadW / 2), X(0.007 * S ** 0.6), X(sadW));
-  c.strokeStyle = rgba(INK.ivory, 0.22);
+  c.strokeStyle = rgba(INK.line, 0.22);
   c.lineWidth = 0.7;
   c.strokeRect(X(sadX - 0.0035 * S ** 0.6), X(-sadW / 2), X(0.007 * S ** 0.6), X(sadW));
   if (bass) {
@@ -1420,7 +1415,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
     c.fillStyle = 'rgb(20,17,15)';
     c.fill(sockP);
     c.restore();
-    c.strokeStyle = rgba(INK.ivory, 0.3);
+    c.strokeStyle = rgba(INK.line, 0.3);
     c.lineWidth = 0.7;
     c.stroke(sockP);
     c.fillStyle = 'rgba(200,206,212,0.85)';
@@ -1430,7 +1425,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
     c.ellipse(X(B + 0.0035 * S), 0, X(0.004 * S), X(0.0052 * S), 0, 0, Math.PI * 2);
     c.fillStyle = 'rgb(22,19,17)';
     c.fill();
-    c.strokeStyle = rgba(INK.ivory, 0.3);
+    c.strokeStyle = rgba(INK.line, 0.3);
     c.lineWidth = 0.7;
     c.stroke();
   }
@@ -1456,7 +1451,7 @@ function paintBowedLayers(g: BowedGeom, p: BowedPlan, sh: BowedShapes, lay: Bowe
   c.restore();
   c.fillStyle = ebony(tpTop, tpEnd, (wTop / 2) * sc);
   c.fill(tp);
-  c.strokeStyle = rgba(INK.ivory, 0.22);
+  c.strokeStyle = rgba(INK.line, 0.22);
   c.lineWidth = 0.8;
   c.stroke(tp);
   if (bass) {
@@ -1705,7 +1700,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     const zBar = 0.4 * p.bridgeW;
     const x0 = (B - p.bar[1]) / 2;
     ctx.setLineDash([2, 3]);
-    ctx.strokeStyle = rgba(INK.amber, 0.1 + 0.3 * lvl);
+    ctx.strokeStyle = rgba(INK.warm, 0.1 + 0.3 * lvl);
     ctx.lineWidth = 0.7;
     ctx.beginPath();
     for (const sg of [-1, 1]) {
@@ -1760,7 +1755,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     if (l > 0.03 && !(focus && i === bowedIdx)) {
       const x0 = Math.max(xn, fingerX[i]);
       for (const [w, a] of [[5, 0.12], [1.6, 0.85]] as const) {
-        ctx.strokeStyle = rgba(s?.bowing ? INK.vermilion : INK.amber, a * (0.25 + 0.75 * l));
+        ctx.strokeStyle = rgba(s?.bowing ? INK.sound : INK.warm, a * (0.25 + 0.75 * l));
         ctx.lineWidth = w;
         ctx.beginPath();
         ctx.moveTo(X(x0), X(zAt(i, x0)));
@@ -1781,7 +1776,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     const pad = 0.0066;
     ctx.globalAlpha = a;
     if (lv.vhi[i] - lv.vlo[i] > 0.0004) {
-      ctx.strokeStyle = rgba(INK.amber, 0.3 * lit);
+      ctx.strokeStyle = rgba(INK.warm, 0.3 * lit);
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(X(lv.fx[i] + lv.vlo[i]), X(z) + X(pad) * 0.95);
@@ -1797,7 +1792,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     ctx.beginPath();
     ctx.ellipse(X(x - roll), X(z), X(pad * 0.85), X(pad), 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = rgba(INK.amber, 0.95 * lit);
+    ctx.strokeStyle = rgba(INK.warm, 0.95 * lit);
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(X(x), X(z - pad * 0.55));
@@ -1823,9 +1818,9 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     for (let k = 0; k < n; k++) ctx.lineTo(X(xk(k)), X(zAt(bowedIdx, xk(k)) - lv.env[k] * 0.9 * p.spreadB));
     for (let k = n - 1; k >= 0; k--) ctx.lineTo(X(xk(k)), X(zAt(bowedIdx, xk(k)) + lv.env[k] * 0.9 * p.spreadB));
     ctx.closePath();
-    ctx.fillStyle = rgba(INK.vermilion, 0.1);
+    ctx.fillStyle = rgba(INK.sound, 0.1);
     ctx.fill();
-    ctx.strokeStyle = rgba(INK.vermilion, 0.42);
+    ctx.strokeStyle = rgba(INK.sound, 0.42);
     ctx.lineWidth = 0.7;
     ctx.stroke();
     let kc = 1;
@@ -1838,7 +1833,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
       }
     }
     for (const [w, a] of [[5, 0.16], [1.7, 1]] as const) {
-      ctx.strokeStyle = rgba(INK.vermilion, a);
+      ctx.strokeStyle = rgba(INK.sound, a);
       ctx.lineWidth = w;
       ctx.beginPath();
       for (let k = 0; k < n; k++) {
@@ -1852,11 +1847,11 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     const cxk = xk(kc);
     const czk = zAt(bowedIdx, cxk) - shp[kc] * amp;
     const hg = ctx.createRadialGradient(X(cxk), X(czk), 0, X(cxk), X(czk), 9);
-    hg.addColorStop(0, rgba(INK.vermilion, 0.55));
-    hg.addColorStop(1, rgba(INK.vermilion, 0));
+    hg.addColorStop(0, rgba(INK.sound, 0.55));
+    hg.addColorStop(1, rgba(INK.sound, 0));
     ctx.fillStyle = hg;
     ctx.fillRect(X(cxk) - 9, X(czk) - 9, 18, 18);
-    ctx.fillStyle = rgba(INK.ivory, 0.95);
+    ctx.fillStyle = rgba(INK.line, 0.95);
     ctx.beginPath();
     ctx.arc(X(cxk), X(czk), 2.4, 0, Math.PI * 2);
     ctx.fill();
@@ -1987,7 +1982,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     ctx.stroke(head);
     ctx.fillStyle = 'rgb(132,62,28)';
     ctx.fill(pathOf(proj(headProf).map(([x, y]): Pt => [x + X((headT / 2) * tiltC), y])));
-    ctx.fillStyle = rgba(INK.ivory, 0.92);
+    ctx.fillStyle = rgba(INK.line, 0.92);
     ctx.fill(pathOf(plateP));
     // the stick is round: lit along one side, in shade along the other
     for (const [off, w, col] of [[-0.2, 0.34, 'rgba(206,120,70,0.55)'], [-0.24, 0.1, 'rgba(255,214,176,0.7)'], [0.3, 0.22, 'rgba(30,10,4,0.45)']] as const) {
@@ -2033,7 +2028,7 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
     const frog = pathOf(slab(frogProf, fw));
     ctx.fillStyle = 'rgb(14,12,11)';
     ctx.fill(frog);
-    ctx.strokeStyle = rgba(INK.ivory, 0.4);
+    ctx.strokeStyle = rgba(INK.line, 0.4);
     ctx.lineWidth = 0.8;
     ctx.stroke(frog);
     // its near side face (the one the tilt turns up towards us): polished ebony, the pearl slide along
@@ -2063,8 +2058,8 @@ export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g
       const gz = X(lv.cz);
       const rc = Math.max(4, X(p.spreadB) * (0.35 + 0.45 * Math.min(1.5, Math.sqrt(F / 0.5))));
       const gr = ctx.createRadialGradient(gx, gz, 0, gx, gz, rc);
-      gr.addColorStop(0, rgba(INK.vermilion, 0.9 * pw));
-      gr.addColorStop(1, rgba(INK.vermilion, 0));
+      gr.addColorStop(0, rgba(INK.sound, 0.9 * pw));
+      gr.addColorStop(1, rgba(INK.sound, 0));
       ctx.fillStyle = gr;
       ctx.fillRect(gx - rc, gz - rc, 2 * rc, 2 * rc);
       // (no mark for the bow's direction here: the bow itself moves; the vector style keeps its chevron)
@@ -2157,7 +2152,7 @@ export const boreAt = (amp: Float32Array, u: number): number => {
  *  quicker for higher notes, so the lobes visibly swing between compression and rarefaction */
 export const slowPhase = (f1: number, now: number): number => 2 * Math.PI * (0.55 * Math.sqrt(Math.max(0.25, f1 / 262))) * (now / 1000);
 /** compression warm, rarefaction cool */
-const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
+const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.cool);
 
 /** a stream of the breath: where it starts, where it bends and where it ends, each as [back from the tip
  *  towards the player, out from the axis] (m) */
@@ -2170,7 +2165,7 @@ export function breathStream(ctx: CanvasRenderingContext2D, at: (a: number, w: n
   ctx.save();
   ctx.setLineDash([0.003 * sc, 0.0025 * sc]);
   ctx.lineDashOffset = -((now / 1000) * 0.03 * sc);
-  ctx.strokeStyle = rgba(INK.steel, alpha);
+  ctx.strokeStyle = rgba(INK.cool, alpha);
   ctx.lineWidth = 1;
   const [p0, p1, p2] = path;
   for (const j of [-1, 0, 1]) {
@@ -2537,9 +2532,9 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
         }
         ctx.lineTo(X(xFar), Y(sgn * FL_RB));
         ctx.closePath();
-        ctx.fillStyle = rgba(INK.vermilion, 0.07 * lvl + 0.03);
+        ctx.fillStyle = rgba(INK.sound, 0.07 * lvl + 0.03);
         ctx.fill();
-        ctx.strokeStyle = rgba(INK.vermilion, 0.16 + 0.22 * lvl);
+        ctx.strokeStyle = rgba(INK.sound, 0.16 + 0.22 * lvl);
         ctx.lineWidth = 1;
         ctx.stroke();
       }
@@ -2550,7 +2545,7 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
     for (let i = 0; i <= N; i++) {
       const x = xa + ((xb - xa) * i) / N;
       const A = boreAt(w.amp, (x - xNear) / Leff) / scale;
-      ge.addColorStop(i / N, rgba(INK.vermilion, 0.26 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+      ge.addColorStop(i / N, rgba(INK.sound, 0.26 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
       gw.addColorStop(i / N, rgba(waveInk(A * ph), 0.42 * Math.min(1, Math.pow(Math.abs(A * ph), 1.15))));
     }
     ctx.save();
@@ -2630,9 +2625,9 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
     const t = now / 1000;
     const a = Math.min(1, 0.35 + blow) * (1 + 2.5 * vib);
     const gj = ctx.createLinearGradient(0, Y(vL), 0, Y(vE));
-    gj.addColorStop(0, rgba(INK.steel, 0));
-    gj.addColorStop(0.35, rgba(INK.steel, 0.5 * a));
-    gj.addColorStop(1, rgba(INK.steel, 0.75 * a));
+    gj.addColorStop(0, rgba(INK.cool, 0));
+    gj.addColorStop(0.35, rgba(INK.cool, 0.5 * a));
+    gj.addColorStop(1, rgba(INK.cool, 0.75 * a));
     ctx.strokeStyle = gj;
     for (let j = -2; j <= 2; j++) {
       ctx.beginPath();
@@ -2661,7 +2656,7 @@ export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, f
       if (i) ctx.lineTo(X(x), Y(-v * FL_BORE * 0.62));
       else ctx.moveTo(X(x), Y(-v * FL_BORE * 0.62));
     }
-    ctx.strokeStyle = rgba(INK.ivory, 0.75 * Math.min(1, 3 * lvl));
+    ctx.strokeStyle = rgba(INK.line, 0.75 * Math.min(1, 3 * lvl));
     ctx.lineWidth = 1.2;
     ctx.stroke();
   }
@@ -2687,15 +2682,15 @@ function drawFlCup(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: nu
   ctx.fillStyle = g;
   ctx.fill();
   if (shut > 0.01) {
-    ctx.fillStyle = rgba(INK.amber, 0.14 * shut);
+    ctx.fillStyle = rgba(INK.warm, 0.14 * shut);
     ctx.fill();
   }
-  ctx.strokeStyle = shut > 0.5 ? rgba(INK.amber, 0.5 + 0.3 * shut) : rgba(INK.ivory, 0.5);
+  ctx.strokeStyle = shut > 0.5 ? rgba(INK.warm, 0.5 + 0.3 * shut) : rgba(INK.line, 0.5);
   ctx.lineWidth = 1 + 0.5 * shut;
   ctx.stroke();
   ctx.beginPath();
   ctx.ellipse(cx, cy, rx * 0.78, ry * 0.78, 0, 0, 2 * Math.PI);
-  ctx.strokeStyle = rgba(INK.ivory, 0.16);
+  ctx.strokeStyle = rgba(INK.line, 0.16);
   ctx.lineWidth = 1;
   ctx.stroke();
   if (style === 'open') {
@@ -2705,20 +2700,20 @@ function drawFlCup(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: nu
     ctx.fillStyle = '#050403';
     ctx.fill();
     if (shut > 0.01) {
-      ctx.fillStyle = rgba(INK.amber, 0.7 * shut);
+      ctx.fillStyle = rgba(INK.warm, 0.7 * shut);
       ctx.fill();
     }
     ctx.beginPath();
     ctx.ellipse(cx, cy, rx * 0.43, ry * 0.43, 0, 0, 2 * Math.PI);
-    ctx.strokeStyle = rgba(INK.ivory, 0.45);
+    ctx.strokeStyle = rgba(INK.line, 0.45);
     ctx.stroke();
   } else if (style !== 'dome') {
     // the pad washer's button
     ctx.beginPath();
     ctx.ellipse(cx, cy, rx * 0.13, ry * 0.13, 0, 0, 2 * Math.PI);
-    ctx.fillStyle = shut > 0.5 ? rgba(INK.amber, 0.6 * shut) : rgba(INK.ivory, 0.15);
+    ctx.fillStyle = shut > 0.5 ? rgba(INK.warm, 0.6 * shut) : rgba(INK.line, 0.15);
     ctx.fill();
-    ctx.strokeStyle = rgba(INK.ivory, 0.35);
+    ctx.strokeStyle = rgba(INK.line, 0.35);
     ctx.stroke();
   }
 }
@@ -2733,7 +2728,7 @@ function flNeck(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number
   ctx.closePath();
   ctx.fillStyle = '#262421';
   ctx.fill();
-  ctx.strokeStyle = rgba(INK.ivory, 0.42);
+  ctx.strokeStyle = rgba(INK.line, 0.42);
   ctx.lineWidth = 0.9;
   ctx.stroke();
 }
@@ -2746,7 +2741,7 @@ function flArm(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number,
   ctx.closePath();
   ctx.fillStyle = '#2b2925';
   ctx.fill();
-  ctx.strokeStyle = rgba(INK.ivory, 0.42);
+  ctx.strokeStyle = rgba(INK.line, 0.42);
   ctx.lineWidth = 0.9;
   ctx.stroke();
 }
@@ -2760,7 +2755,9 @@ export interface SpectrumInk {
   partial: string;
   font: string;
 }
-const SPECTRUM_INK: SpectrumInk = { line: INK.ivory, label: INK.ivory, ideal: INK.steel, partial: INK.vermilion, font: '10px "IBM Plex Mono", monospace' };
+const spectrumInk = (): SpectrumInk => ({ line: INK.line, label: INK.line, ideal: INK.cool, partial: INK.sound, font: theme().figures });
+const SPECTRUM_INK: SpectrumInk = spectrumInk();
+onTheme(() => Object.assign(SPECTRUM_INK, spectrumInk()));
 export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, an: AnalyserNode | null, buf: Float32Array, focus: VisualFrame['focus'] | null, family: string, ink: SpectrumInk = SPECTRUM_INK, marks: number[] | null = null): void {
   const f0 = 30;
   const f1 = 12000;
@@ -3204,7 +3201,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
   const D = 2 * TR_RT * S;
   /** tubes along 3D polylines: an edge, the body, a lacquer highlight on the side towards the light
    *  (above, a little behind); their paths are kept per canvas size under `key` */
-  const tubes = (key: string, polys: () => V3[][], d = D, edge = rgba(INK.amber, 0.7), body = BRASS_BODY, off?: V3) => {
+  const tubes = (key: string, polys: () => V3[][], d = D, edge = rgba(INK.warm, 0.7), body = BRASS_BODY, off?: V3) => {
     const { p, hp } = memo(`tube:${key}`, () => {
       const p = new Path2D();
       const hp = new Path2D();
@@ -3235,7 +3232,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     ctx.strokeStyle = body;
     ctx.lineWidth = d;
     ctx.stroke(p);
-    ctx.strokeStyle = rgba(INK.amber, 0.26);
+    ctx.strokeStyle = rgba(INK.warm, 0.26);
     ctx.lineWidth = Math.max(1, 0.16 * d);
     ctx.stroke(hp);
     if (o) ctx.restore();
@@ -3257,9 +3254,9 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     ctx.closePath();
     ctx.fillStyle = BRASS_BODY;
     ctx.fill();
-    ctx.fillStyle = rgba(INK.amber, 0.16);
+    ctx.fillStyle = rgba(INK.warm, 0.16);
     ctx.fill();
-    ctx.strokeStyle = rgba(INK.amber, 0.7);
+    ctx.strokeStyle = rgba(INK.warm, 0.7);
     ctx.lineWidth = 1;
     ctx.stroke();
   };
@@ -3321,16 +3318,16 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
       }
     });
     ctx.lineCap = 'butt';
-    ctx.strokeStyle = rgba(INK.amber, 0.06 + 0.05 * lvl);
+    ctx.strokeStyle = rgba(INK.warm, 0.06 + 0.05 * lvl);
     ctx.lineWidth = 0.56 * D;
     ctx.stroke(base);
     for (const [e, bp] of envB) {
-      ctx.strokeStyle = rgba(INK.vermilion, (e / 10) * 0.32);
+      ctx.strokeStyle = rgba(INK.sound, (e / 10) * 0.32);
       ctx.stroke(bp);
     }
     ctx.lineWidth = 0.32 * D;
     for (const [key, bp] of buckets) {
-      ctx.strokeStyle = rgba(key > 0 ? INK.vermilion : INK.steel, (Math.abs(key) / 10) * 0.44);
+      ctx.strokeStyle = rgba(key > 0 ? INK.sound : INK.cool, (Math.abs(key) / 10) * 0.44);
       ctx.stroke(bp);
     }
     ctx.lineCap = 'round';
@@ -3375,14 +3372,14 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     // burnished lacquer: brighter along the upper flank
     const a0 = B.e0;
     const g = ctx.createLinearGradient(a0[0] + nx * -0.06 * S, a0[1] + ny * -0.06 * S, a0[0] + nx * 0.06 * S, a0[1] + ny * 0.06 * S);
-    g.addColorStop(0, rgba(INK.amber, 0.04));
-    g.addColorStop(0.3, rgba(INK.amber, 0.22));
-    g.addColorStop(0.5, rgba(INK.amber, 0.06));
-    g.addColorStop(0.75, rgba(INK.amber, 0.12));
-    g.addColorStop(1, rgba(INK.amber, 0.02));
+    g.addColorStop(0, rgba(INK.warm, 0.04));
+    g.addColorStop(0.3, rgba(INK.warm, 0.22));
+    g.addColorStop(0.5, rgba(INK.warm, 0.06));
+    g.addColorStop(0.75, rgba(INK.warm, 0.12));
+    g.addColorStop(1, rgba(INK.warm, 0.02));
     ctx.fillStyle = g;
     ctx.fill(bell);
-    ctx.strokeStyle = rgba(INK.amber, 0.7);
+    ctx.strokeStyle = rgba(INK.warm, 0.7);
     ctx.lineWidth = 1.1;
     ctx.stroke(B.edges);
     // the wave inside the bell: a gradient along its axis, as wide as the flare lets it be
@@ -3394,10 +3391,10 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
       for (let i = 0; i <= 24; i++) {
         const u = i / 24;
         const A = ampAt(sBell + u * TR_BELL_LEN);
-        ge.addColorStop(u, rgba(INK.vermilion, 0.32 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+        ge.addColorStop(u, rgba(INK.sound, 0.32 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
         gw.addColorStop(u, rgba(waveInk(A * ph), 0.5 * Math.min(1, Math.pow(Math.abs(A * ph), 1.2))));
       }
-      ctx.fillStyle = rgba(INK.amber, 0.05 + 0.04 * lvl);
+      ctx.fillStyle = rgba(INK.warm, 0.05 + 0.04 * lvl);
       ctx.fill(inner);
       ctx.fillStyle = ge;
       ctx.fill(inner);
@@ -3409,10 +3406,10 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     const tg = ctx.createRadialGradient(c[0] - 0.01 * S, c[1], 0, c[0], c[1], TR_RIM * S);
     tg.addColorStop(0, BRASS_DEEP);
     tg.addColorStop(0.55, '#1e150c');
-    tg.addColorStop(1, rgba(INK.amber, 0.3));
+    tg.addColorStop(1, rgba(INK.warm, 0.3));
     ctx.fillStyle = tg;
     ctx.fill(mouth);
-    ctx.strokeStyle = rgba(INK.amber, 0.85);
+    ctx.strokeStyle = rgba(INK.warm, 0.85);
     ctx.lineWidth = 1.6;
     ctx.stroke(mouth);
     st.src = { x: c[0] + 0.012 * S, y: c[1] };
@@ -3451,10 +3448,10 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
       ctx.fill(body);
       ctx.fill(ell(a));
       const gx = ctx.createLinearGradient(sx0, 0, sx1, 0);
-      gx.addColorStop(0, rgba(INK.amber, 0.04));
-      gx.addColorStop(0.28, rgba(INK.amber, 0.22));
-      gx.addColorStop(0.45, rgba(INK.amber, 0.06));
-      gx.addColorStop(1, rgba(INK.amber, 0.02));
+      gx.addColorStop(0, rgba(INK.warm, 0.04));
+      gx.addColorStop(0.28, rgba(INK.warm, 0.22));
+      gx.addColorStop(0.45, rgba(INK.warm, 0.06));
+      gx.addColorStop(1, rgba(INK.warm, 0.02));
       ctx.fillStyle = gx;
       ctx.fill(body);
       ctx.strokeStyle = edge;
@@ -3475,14 +3472,14 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
         ctx.stroke(e);
       }
     };
-    const edge = rgba(INK.amber, 0.7);
-    const nickel = rgba(INK.ivory, 0.6);
+    const edge = rgba(INK.warm, 0.7);
+    const nickel = rgba(INK.line, 0.6);
     // bottom cap (nickel, knurled), the casing, the top cap
     cyl(-TR_CY - 0.0086, -TR_CY, TR_RC + 0.0018, '#1c1a17', nickel, false);
     cyl(-TR_CY, TR_CY, TR_RC, BRASS_BODY, edge);
     cyl(TR_CY, TR_CY + 0.006, TR_RC + 0.0018, '#1c1a17', nickel);
     // the casing's collars (the knuckles' bands, the guide ring): their near halves
-    ctx.strokeStyle = rgba(INK.amber, 0.38);
+    ctx.strokeStyle = rgba(INK.warm, 0.38);
     ctx.lineWidth = 1;
     for (const y of [-TR_CY + 0.0062, 0.0129, TR_CY - 0.0072]) {
       ctx.beginPath();
@@ -3495,7 +3492,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     const s0 = P(trProj([x, TR_CY + 0.006, 0]));
     const s1 = P(trProj([x, yb, 0]));
     s1[1] += dy;
-    ctx.strokeStyle = rgba(INK.ivory, 0.55);
+    ctx.strokeStyle = rgba(INK.line, 0.55);
     ctx.lineWidth = Math.max(1.5, 0.005 * S);
     ctx.lineCap = 'butt';
     ctx.beginPath();
@@ -3512,7 +3509,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     ctx.beginPath();
     ring(yb + 0.0045, 0.0053).forEach((q, i) => (i ? ctx.lineTo(...q) : ctx.moveTo(...q)));
     ctx.closePath();
-    ctx.fillStyle = pressed[k] ? rgba(INK.amber, 0.75) : rgba(INK.ivory, 0.32);
+    ctx.fillStyle = pressed[k] ? rgba(INK.warm, 0.75) : rgba(INK.line, 0.32);
     ctx.fill();
     ctx.restore();
   });
@@ -3520,7 +3517,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
   const slideTubes = (k: number) => {
     const sl = TR_SLIDES[k];
     const on = pressed[k];
-    tubes(`fixed${k}`, () => [sl.out, sl.back], D, rgba(INK.amber, on ? 0.78 : 0.48), on ? BRASS_BODY : BRASS_DEEP);
+    tubes(`fixed${k}`, () => [sl.out, sl.back], D, rgba(INK.warm, on ? 0.78 : 0.48), on ? BRASS_BODY : BRASS_DEEP);
     // kicked out, the slide shows its nickel-silver inner tubes between the fixed tubes and its sleeve
     if (kick[k] > 0.0005) {
       const ends = [sl.out[sl.out.length - 1], sl.back[0]];
@@ -3528,7 +3525,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
       const [ox, oy] = shift([sl.dir[0] * (kick[k] + 0.003), 0, 0]);
       // the inner tubes: from the fixed tube's end out to the sleeve, stretched with the kick
       ctx.lineCap = 'butt';
-      for (const [wd, col] of [[D * 0.9 + 2, rgba(INK.ivory, 0.55)], [D * 0.9, '#1c1a17']] as const) {
+      for (const [wd, col] of [[D * 0.9 + 2, rgba(INK.line, 0.55)], [D * 0.9, '#1c1a17']] as const) {
         ctx.strokeStyle = col;
         ctx.lineWidth = wd;
         ctx.beginPath();
@@ -3541,7 +3538,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
       }
       ctx.restore();
     }
-    tubes(`sleeve${k}`, () => [sl.sleeve], D, rgba(INK.amber, on ? 0.78 : 0.48), on ? BRASS_BODY : BRASS_DEEP, slideOff(k));
+    tubes(`sleeve${k}`, () => [sl.sleeve], D, rgba(INK.warm, on ? 0.78 : 0.48), on ? BRASS_BODY : BRASS_DEEP, slideOff(k));
   };
   tubes('main', () => [TR_MAIN]);
   slideTubes(2);
@@ -3552,7 +3549,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     const o3 = slideOff(2);
     const c3 = P(trProj(v3add([0.075, 0.0135, TR_ZL - 0.0042], o3)));
     const b3 = P(trProj(v3add([0.075, -0.004 + TR_RT, TR_ZL], o3)));
-    ctx.strokeStyle = rgba(INK.amber, 0.55);
+    ctx.strokeStyle = rgba(INK.warm, 0.55);
     ctx.lineWidth = Math.max(1, 0.0022 * S);
     ctx.beginPath();
     ctx.ellipse(c3[0], c3[1], 0.0105 * S, 0.0105 * S * 0.96, 0, 0, 2 * Math.PI);
@@ -3579,7 +3576,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     const zr = TR_ZL - TR_RT - 0.0027;
     const r0 = P(trProj(v3add([0.018, -0.004, zr], o3)));
     const r1 = P(trProj(v3add([0.113, -0.004, zr], o3)));
-    ctx.strokeStyle = rgba(INK.ivory, 0.42);
+    ctx.strokeStyle = rgba(INK.line, 0.42);
     ctx.lineWidth = Math.max(1, 0.0024 * S);
     ctx.beginPath();
     ctx.moveTo(...r0);
@@ -3587,7 +3584,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     ctx.stroke();
     const nut = P(trProj(v3add([0.0225, -0.004, zr], o3)));
     ctx.fillStyle = '#1c1a17';
-    ctx.strokeStyle = rgba(INK.ivory, 0.6);
+    ctx.strokeStyle = rgba(INK.line, 0.6);
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.roundRect(nut[0], nut[1] - 0.0031 * S, 0.0048 * S, 0.0062 * S, 0.001 * S);
@@ -3598,7 +3595,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     ctx.arc(gd[0], gd[1], 0.0026 * S, 0, 2 * Math.PI);
     ctx.fillStyle = BRASS_BODY;
     ctx.fill();
-    ctx.strokeStyle = rgba(INK.amber, 0.6);
+    ctx.strokeStyle = rgba(INK.warm, 0.6);
     ctx.stroke();
   }
   {
@@ -3612,7 +3609,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
       return [q[0] + ((q[0] - c[0]) / l) * out, q[1] + ((q[1] - c[1]) / l) * out, q[2] + ((q[2] - c[2]) / l) * out];
     };
     // the lever lies along the crook's outside, from its cup back past the hinge to the paddle
-    ctx.strokeStyle = rgba(INK.ivory, 0.5);
+    ctx.strokeStyle = rgba(INK.line, 0.5);
     ctx.lineWidth = Math.max(1, 0.0017 * S);
     ctx.beginPath();
     for (let i = 0; i <= 10; i++) {
@@ -3638,7 +3635,7 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     const xb = 0.0545;
     const y0 = trLeadY(xb);
     const hook = [[xb, y0 + TR_RT - 0.001], [xb - 0.0035, y0 + 0.0095], [xb - 0.0098, y0 + 0.0165], [xb - 0.0098, y0 + 0.0228], [xb - 0.0045, y0 + 0.0262], [xb + 0.0006, y0 + 0.0244], [xb + 0.0016, y0 + 0.0212]].map(([x, y]) => P(trProj([x, y, TR_ZL])));
-    ctx.strokeStyle = rgba(INK.amber, 0.55);
+    ctx.strokeStyle = rgba(INK.warm, 0.55);
     ctx.lineWidth = Math.max(1, 0.0026 * S);
     ctx.beginPath();
     hook.forEach((q, i) => (i ? ctx.lineTo(...q) : ctx.moveTo(...q)));
@@ -3664,13 +3661,13 @@ export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number,
     ctx.fillStyle = '#1c1a17';
     ctx.fill(mp);
     const gm = ctx.createLinearGradient(...at(0.03, 0.013), ...at(0.03, -0.013));
-    gm.addColorStop(0, rgba(INK.ivory, 0.05));
-    gm.addColorStop(0.3, rgba(INK.ivory, 0.22));
-    gm.addColorStop(0.55, rgba(INK.ivory, 0.07));
-    gm.addColorStop(1, rgba(INK.ivory, 0.03));
+    gm.addColorStop(0, rgba(INK.line, 0.05));
+    gm.addColorStop(0.3, rgba(INK.line, 0.22));
+    gm.addColorStop(0.55, rgba(INK.line, 0.07));
+    gm.addColorStop(1, rgba(INK.line, 0.03));
     ctx.fillStyle = gm;
     ctx.fill(mp);
-    ctx.strokeStyle = rgba(INK.ivory, 0.6);
+    ctx.strokeStyle = rgba(INK.line, 0.6);
     ctx.lineWidth = 1.1;
     ctx.stroke(mp);
   }

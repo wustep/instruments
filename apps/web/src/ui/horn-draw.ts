@@ -442,7 +442,7 @@ const BRASS_BODY = '#4a3416';
 const BRASS_DEEP = '#2a1d0c';
 const NICKEL_BODY = '#3c3a36';
 const nickel = (a: number) => rgba('236,230,216', a);
-const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
+const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.cool);
 
 /** The double horn from its outside: the body wound round the circle into the bell, the leadpipe and its
  *  tuning slide, the F horn's loop and the B♭ horn's, the valve slides (each valve's F slide behind its B♭
@@ -467,13 +467,13 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
       ctx.fillStyle = on ? 'rgb(84,80,72)' : 'rgb(52,50,46)';
       ctx.fill(t.nickel);
     }
-    ctx.strokeStyle = rgba(INK.amber, on ? 0.16 : 0.08);
+    ctx.strokeStyle = rgba(INK.warm, on ? 0.16 : 0.08);
     ctx.lineWidth = Math.max(1, 0.0034 * sc);
     ctx.stroke(t.sh);
-    ctx.strokeStyle = rgba(INK.amber, on ? 0.34 : 0.2);
+    ctx.strokeStyle = rgba(INK.warm, on ? 0.34 : 0.2);
     ctx.lineWidth = Math.max(0.8, 0.0018 * sc);
     ctx.stroke(t.hi);
-    ctx.strokeStyle = rgba(INK.amber, on ? 0.72 : 0.42);
+    ctx.strokeStyle = rgba(INK.warm, on ? 0.72 : 0.42);
     ctx.lineWidth = 1;
     ctx.stroke(t.edges);
   };
@@ -486,16 +486,16 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     // (the lacquer brighter towards the rim, where the flare faces the light)
     const n2 = B.ax.length / 2 - 1;
     const g = ctx.createLinearGradient(B.ax[0], B.ax[1], B.ax[2 * n2], B.ax[2 * n2 + 1]);
-    g.addColorStop(0, rgba(INK.amber, 0.1));
-    g.addColorStop(0.6, rgba(INK.amber, 0.18));
-    g.addColorStop(1, rgba(INK.amber, 0.3));
+    g.addColorStop(0, rgba(INK.warm, 0.1));
+    g.addColorStop(0.6, rgba(INK.warm, 0.18));
+    g.addColorStop(1, rgba(INK.warm, 0.3));
     ctx.fillStyle = g;
     ctx.fill(B.hi);
     ctx.fillStyle = rgba('255,226,160', 0.16);
     ctx.fill(B.spec);
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.fill(B.shade);
-    ctx.strokeStyle = rgba(INK.amber, 0.72);
+    ctx.strokeStyle = rgba(INK.warm, 0.72);
     ctx.lineWidth = 1.1;
     ctx.stroke(B.edges);
     if (lv.sounding) bellGlow(ctx, L, lv);
@@ -515,12 +515,12 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     }
   ctx.fillStyle = BRASS_BODY;
   ctx.fill(L.ferrules);
-  ctx.fillStyle = rgba(INK.amber, 0.18);
+  ctx.fillStyle = rgba(INK.warm, 0.18);
   ctx.fill(L.ferrules);
-  ctx.strokeStyle = rgba(INK.amber, 0.7);
+  ctx.strokeStyle = rgba(INK.warm, 0.7);
   ctx.lineWidth = 1;
   ctx.stroke(L.ferrules);
-  ctx.strokeStyle = rgba(INK.amber, 0.45);
+  ctx.strokeStyle = rgba(INK.warm, 0.45);
   ctx.lineWidth = Math.max(1, 0.0022 * sc);
   ctx.stroke(L.braces);
   // ---- the bell's mouth: its inside (the far wall, lit at the top), the rim's bead
@@ -540,13 +540,13 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
       // the sound leaving the mouth: a warm shimmer over the inside, with the wave's level at the rim
       const A = Math.min(1, Math.abs(lv.ampAt(lv.air.total - 0.001)));
       const rg = ctx.createRadialGradient(c[0], c[1], 0, c[0], c[1], RIM_R * sc);
-      rg.addColorStop(0, rgba(INK.vermilion, 0.1 + 0.22 * A * lv.lvl));
-      rg.addColorStop(1, rgba(INK.vermilion, 0));
+      rg.addColorStop(0, rgba(INK.sound, 0.1 + 0.22 * A * lv.lvl));
+      rg.addColorStop(1, rgba(INK.sound, 0));
       ctx.fillStyle = rg;
       ctx.fill(B.mouth);
     }
     // the rim's rolled bead: its edge, and its bright crown
-    ctx.strokeStyle = rgba(INK.amber, 0.9);
+    ctx.strokeStyle = rgba(INK.warm, 0.9);
     ctx.lineWidth = Math.max(1.4, 0.004 * sc);
     ctx.stroke(B.mouth);
     ctx.strokeStyle = rgba('255,236,190', 0.45);
@@ -558,7 +558,7 @@ export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   // ---- the lever bar (its springs), the paddles
   drawLevers(ctx, L, lv);
   // ---- the little finger's hook
-  ctx.strokeStyle = rgba(INK.amber, 0.6);
+  ctx.strokeStyle = rgba(INK.warm, 0.6);
   ctx.lineWidth = Math.max(1, 0.0026 * sc);
   ctx.stroke(L.hook);
   // ---- the mouthpiece (silver), the breath going into it
@@ -626,13 +626,13 @@ export function glowTube(ctx: CanvasRenderingContext2D, t: TubePx, lv: Pick<HnLi
   ctx.save();
   ctx.lineCap = 'butt';
   for (const [k, p] of env) {
-    ctx.strokeStyle = rgba(INK.vermilion, (Math.floor(k / 1000) / 10) * 0.2);
+    ctx.strokeStyle = rgba(INK.sound, (Math.floor(k / 1000) / 10) * 0.2);
     ctx.lineWidth = 1.05 * (k % 1000);
     ctx.stroke(p);
   }
   for (const [k, p] of sgn) {
     const a = Math.abs(k);
-    ctx.strokeStyle = rgba(k > 0 ? INK.vermilion : INK.steel, (Math.floor(a / 1000) / 10) * 0.46);
+    ctx.strokeStyle = rgba(k > 0 ? INK.sound : INK.cool, (Math.floor(a / 1000) / 10) * 0.46);
     ctx.lineWidth = 0.62 * (a % 1000);
     ctx.stroke(p);
   }
@@ -651,7 +651,7 @@ function bellGlow(ctx: CanvasRenderingContext2D, L: HnLayout, lv: HnLive): void 
   for (let i = 0; i <= 20; i++) {
     const u = i / 20;
     const A = lv.ampAt(sB + u * len);
-    ge.addColorStop(u, rgba(INK.vermilion, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+    ge.addColorStop(u, rgba(INK.sound, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
     gw.addColorStop(u, rgba(waveInk(A * lv.ph), 0.46 * Math.min(1, Math.pow(Math.abs(A * lv.ph), 1.2))));
   }
   ctx.fillStyle = ge;
@@ -668,7 +668,7 @@ function drawRotor(ctx: CanvasRenderingContext2D, cx: number, cy: number, sc: nu
   ctx.arc(cx, cy, R, 0, 2 * Math.PI);
   ctx.fillStyle = BRASS_BODY;
   ctx.fill();
-  ctx.strokeStyle = rgba(INK.amber, 0.75);
+  ctx.strokeStyle = rgba(INK.warm, 0.75);
   ctx.lineWidth = 1;
   ctx.stroke();
   ctx.beginPath();
@@ -698,7 +698,7 @@ function drawRotor(ctx: CanvasRenderingContext2D, cx: number, cy: number, sc: nu
     ctx.strokeStyle = 'rgba(14,12,10,0.7)';
     ctx.stroke();
     if (lit) {
-      ctx.strokeStyle = rgba(INK.vermilion, lit * 0.6);
+      ctx.strokeStyle = rgba(INK.sound, lit * 0.6);
       ctx.lineWidth = Math.max(0.8, r * 0.07);
       ctx.stroke();
       ctx.lineWidth = Math.max(1, r * 0.13);
@@ -719,7 +719,7 @@ function drawRotor(ctx: CanvasRenderingContext2D, cx: number, cy: number, sc: nu
   const ca = crankAngle(k, press);
   const bx = cx + Math.cos(ca) * CRANK * sc;
   const by = cy - Math.sin(ca) * CRANK * sc;
-  ctx.strokeStyle = press > 0.05 ? rgba(INK.amber, 0.5 + 0.4 * press) : nickel(0.7);
+  ctx.strokeStyle = press > 0.05 ? rgba(INK.warm, 0.5 + 0.4 * press) : nickel(0.7);
   ctx.lineWidth = Math.max(1.2, 0.0024 * sc);
   ctx.beginPath();
   ctx.moveTo(cx, cy);
@@ -771,7 +771,7 @@ function drawLevers(ctx: CanvasRenderingContext2D, L: HnLayout, lv: HnLive): voi
     const by = Y(ROT_Y[k]) - Math.sin(ca) * CRANK * sc;
     const hx = X(lvr.hub[0] - 0.006 - 0.003 * q);
     const hy = Y(lvr.hub[1]);
-    ctx.strokeStyle = q > 0.05 ? rgba(INK.amber, 0.45 + 0.4 * q) : nickel(0.55);
+    ctx.strokeStyle = q > 0.05 ? rgba(INK.warm, 0.45 + 0.4 * q) : nickel(0.55);
     ctx.lineWidth = Math.max(1, 0.0018 * sc);
     ctx.beginPath();
     ctx.moveTo(hx, hy);
@@ -791,10 +791,10 @@ function drawLevers(ctx: CanvasRenderingContext2D, L: HnLayout, lv: HnLive): voi
     ctx.fillStyle = g;
     ctx.fill(p);
     if (q > 0.01) {
-      ctx.fillStyle = rgba(INK.amber, 0.55 * q);
+      ctx.fillStyle = rgba(INK.warm, 0.55 * q);
       ctx.fill(p);
     }
-    ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.6 + 0.35 * q) : nickel(0.6);
+    ctx.strokeStyle = q > 0.5 ? rgba(INK.warm, 0.6 + 0.35 * q) : nickel(0.6);
     ctx.lineWidth = 1 + 0.4 * q;
     ctx.stroke(p);
     // the hub on the bar

@@ -4,7 +4,7 @@
 
 import { audio } from '../audio.ts';
 import { DEFAULT_PARAMS, INSTRUMENT_IDS, INSTRUMENT_INFO, PRESETS, PRESET_IDS, bowedGeometry, pianoKeySummary, tromboneSizeOf, type InstrumentId, type KeySummary, type VisualFrame } from '@piano-model/engine';
-import { cssVar, fitCanvas, fmt, h, type View } from '../ui/dom.ts';
+import { cssVar, fitCanvas, fmt, h, sign, type View } from '../ui/dom.ts';
 import type { KeyboardHandle } from '../ui/keyboard.ts';
 import { openActionView } from '../ui/action-view.ts';
 import type { Stage3D } from '../ui/gl/stage3d.ts';
@@ -816,8 +816,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
           buildKnobs();
         },
       },
-      '↺',
     );
+    sign(reset, 'reset');
     knobSlot.replaceChildren(...knobEls.map((x) => x.k.el), reset);
   };
   const syncKnobs = (p: Record<string, number>) => {
@@ -1083,7 +1083,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     const { ctx, w, h: hh } = fitCanvas(scopeCv);
     ctx.clearRect(0, 0, w, hh);
     const mid = hh / 2;
-    ctx.strokeStyle = rgba(INK.ivory, 0.12);
+    ctx.strokeStyle = rgba(INK.line, 0.12);
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, mid);
@@ -1100,8 +1100,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       const fMax = s.peak * 1.1 || 1;
       const X = (t: number) => (w * 0.66 * t) / tMax;
       const Y = (f: number) => hh - 4 - ((hh - 10) * f) / fMax;
-      ctx.fillStyle = rgba(INK.vermilion, 0.18);
-      ctx.strokeStyle = rgba(INK.vermilion, 0.95);
+      ctx.fillStyle = rgba(INK.sound, 0.18);
+      ctx.strokeStyle = rgba(INK.sound, 0.95);
       ctx.lineWidth = 1.4;
       ctx.beginPath();
       ctx.moveTo(X(0), Y(0));
@@ -1114,7 +1114,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       for (let i = 0; i < n; i++) xm = Math.max(xm, s.compression[i]);
       const ix = w * 0.72;
       const iw = w - ix - 2;
-      ctx.strokeStyle = rgba(INK.ivory, 0.8);
+      ctx.strokeStyle = rgba(INK.line, 0.8);
       ctx.lineWidth = 1;
       ctx.beginPath();
       let on = false;
@@ -1137,8 +1137,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       scopeCap.textContent = '';
       return;
     }
-    const rows: [Float32Array, string][] = [[e.trace, INK.vermilion]];
-    if (e.trace2) rows.push([e.trace2, INK.ivory]);
+    const rows: [Float32Array, string][] = [[e.trace, INK.sound]];
+    if (e.trace2) rows.push([e.trace2, INK.line]);
     const rh = hh / rows.length;
     rows.forEach(([tr, col], r) => {
       let mx = 0;

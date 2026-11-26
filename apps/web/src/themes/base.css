@@ -1,0 +1,11 @@
+/* What is every theme's (this sheet is not scoped): the little that the themes' own sheets, each written
+   for one look, cannot say between them. */
+
+/* An element some looks have and others do not names the looks it belongs to (data-themes="a b"):
+   under any other it is not there. */
+:root[data-theme='night-bench'] [data-themes]:not([data-themes~='night-bench']),
+:root[data-theme='evening-hall'] [data-themes]:not([data-themes~='evening-hall']),
+:root[data-theme='day-studio'] [data-themes]:not([data-themes~='day-studio']),
+:root[data-theme='night-gallery'] [data-themes]:not([data-themes~='night-gallery']) {
+  display: none !important;
+}

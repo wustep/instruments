@@ -627,7 +627,7 @@ const silver = (a: number) => rgba('230,232,236', a);
 const SILVER_BODY = 'rgb(62,64,68)';
 /** the grenadilla's fill: dark wood, lifted just enough to read against the stage (contrast over 1.3:1, test) */
 export const WOOD = '#332820';
-const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
+const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.cool);
 const D2R = Math.PI / 180;
 
 /** The oboe from the front: the reed (its blades fluttering open and shut with the engine's reed, drawn
@@ -667,9 +667,9 @@ export function drawOboe(ctx: CanvasRenderingContext2D, W: number, H: number, fr
       }
       ctx.lineTo(X(end), Y(sgn * obLobeBase(Math.min(OB_LEN, end))));
       ctx.closePath();
-      ctx.fillStyle = rgba(INK.vermilion, 0.07 * lvl + 0.03);
+      ctx.fillStyle = rgba(INK.sound, 0.07 * lvl + 0.03);
       ctx.fill();
-      ctx.strokeStyle = rgba(INK.vermilion, 0.16 + 0.22 * lvl);
+      ctx.strokeStyle = rgba(INK.sound, 0.16 + 0.22 * lvl);
       ctx.lineWidth = 1;
       ctx.stroke();
     }
@@ -744,19 +744,19 @@ export function drawOboe(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   ctx.strokeStyle = 'rgba(0,0,0,0.55)';
   ctx.lineWidth = 1;
   ctx.stroke(L.seams);
-  ctx.strokeStyle = rgba(INK.ivory, 0.4);
+  ctx.strokeStyle = rgba(INK.line, 0.4);
   ctx.lineWidth = 1;
   ctx.stroke(L.body);
-  ctx.strokeStyle = rgba(INK.ivory, 0.32);
+  ctx.strokeStyle = rgba(INK.line, 0.32);
   ctx.stroke(L.rimUp);
   // the bell's mouth: its rim's face, the inner lip, the dark of the bore
   ctx.fillStyle = '#41342a';
   ctx.fill(L.mouth);
-  ctx.strokeStyle = rgba(INK.ivory, 0.3);
+  ctx.strokeStyle = rgba(INK.line, 0.3);
   ctx.stroke(L.mouth);
   ctx.fillStyle = '#050403';
   ctx.fill(L.mouthIn);
-  ctx.strokeStyle = rgba(INK.ivory, 0.14);
+  ctx.strokeStyle = rgba(INK.line, 0.14);
   ctx.stroke(L.mouthIn);
   // ---- the tone holes (dark in the wood: the rings' always, a pad's when it lifts)
   OB_KEYS.forEach((k, i) => {
@@ -776,7 +776,7 @@ export function drawOboe(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     const N = 48;
     for (let i = 0; i <= N; i++) {
       const A = lv.ampAt((end * i) / N);
-      ge.addColorStop(i / N, rgba(INK.vermilion, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+      ge.addColorStop(i / N, rgba(INK.sound, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
       gw.addColorStop(i / N, rgba(waveInk(A * ph), 0.46 * Math.min(1, Math.pow(Math.abs(A * ph), 1.15))));
     }
     ctx.save();
@@ -840,10 +840,10 @@ export function drawOboe(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     ctx.fillStyle = g;
     ctx.fill(path);
     if (q > 0.01) {
-      ctx.fillStyle = rgba(INK.amber, 0.5 * q);
+      ctx.fillStyle = rgba(INK.warm, 0.5 * q);
       ctx.fill(path);
     }
-    ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.55 + 0.35 * q) : rgba(INK.ivory, 0.45);
+    ctx.strokeStyle = q > 0.5 ? rgba(INK.warm, 0.55 + 0.35 * q) : rgba(INK.line, 0.45);
     ctx.lineWidth = 1 + 0.4 * q;
     ctx.stroke(path);
     ctx.restore();
@@ -872,7 +872,7 @@ export function drawOboe(ctx: CanvasRenderingContext2D, W: number, H: number, fr
       if (i) ctx.lineTo(X(x), Y(-v));
       else ctx.moveTo(X(x), Y(-v));
     }
-    ctx.strokeStyle = rgba(INK.ivory, 0.75 * Math.min(1, 3 * lvl));
+    ctx.strokeStyle = rgba(INK.line, 0.75 * Math.min(1, 3 * lvl));
     ctx.lineWidth = 1.2;
     ctx.stroke();
   }
@@ -902,7 +902,7 @@ function obArm(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number,
   ctx.closePath();
   ctx.fillStyle = '#282623';
   ctx.fill();
-  ctx.strokeStyle = rgba(INK.ivory, 0.4);
+  ctx.strokeStyle = rgba(INK.line, 0.4);
   ctx.lineWidth = 0.9;
   ctx.stroke();
 }
@@ -933,10 +933,10 @@ function obCup(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number
   ctx.fillStyle = g;
   ctx.fill();
   if (moved > 0.01) {
-    ctx.fillStyle = rgba(INK.amber, 0.14 * moved);
+    ctx.fillStyle = rgba(INK.warm, 0.14 * moved);
     ctx.fill();
   }
-  ctx.strokeStyle = moved > 0.5 ? rgba(INK.amber, 0.45 + 0.35 * moved) : rgba(INK.ivory, 0.5);
+  ctx.strokeStyle = moved > 0.5 ? rgba(INK.warm, 0.45 + 0.35 * moved) : rgba(INK.line, 0.5);
   ctx.lineWidth = 1 + 0.4 * moved;
   ctx.stroke();
   if (p > 0.05) {
@@ -948,7 +948,7 @@ function obCup(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number
   }
   ctx.beginPath();
   ctx.ellipse(cx, cy, rx * 0.74, Math.max(0.4, ry * 0.74), 0, 0, 2 * Math.PI);
-  ctx.strokeStyle = rgba(INK.ivory, 0.16);
+  ctx.strokeStyle = rgba(INK.line, 0.16);
   ctx.lineWidth = 1;
   ctx.stroke();
   // the dome's highlight
@@ -976,25 +976,25 @@ function obRing(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number
   g.addColorStop(1, silver(0.1));
   ctx.fillStyle = g;
   ctx.fill('evenodd');
-  ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.5 + 0.35 * q) : rgba(INK.ivory, 0.5);
+  ctx.strokeStyle = q > 0.5 ? rgba(INK.warm, 0.5 + 0.35 * q) : rgba(INK.line, 0.5);
   ctx.lineWidth = 1 + 0.4 * q;
   ctx.beginPath();
   ctx.arc(cx, cy, ro, 0, 2 * Math.PI);
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(cx, cy, ri, 0, 2 * Math.PI);
-  ctx.strokeStyle = rgba(INK.ivory, 0.4);
+  ctx.strokeStyle = rgba(INK.line, 0.4);
   ctx.lineWidth = 0.9;
   ctx.stroke();
   if (q > 0.01) {
     // the fingertip, over the ring and its hole
     ctx.beginPath();
     ctx.arc(cx, cy, ro * 0.92, 0, 2 * Math.PI);
-    ctx.fillStyle = rgba(INK.amber, 0.16 * q);
+    ctx.fillStyle = rgba(INK.warm, 0.16 * q);
     ctx.fill();
     ctx.beginPath();
     ctx.arc(cx, cy, ri * 1.05, 0, 2 * Math.PI);
-    ctx.fillStyle = rgba(INK.amber, 0.72 * q);
+    ctx.fillStyle = rgba(INK.warm, 0.72 * q);
     ctx.fill();
   }
 }
@@ -1019,7 +1019,7 @@ function obPlate(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: numbe
   g.addColorStop(1, silver(0.1));
   ctx.fillStyle = g;
   ctx.fill();
-  ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.5 + 0.35 * q) : rgba(INK.ivory, 0.5);
+  ctx.strokeStyle = q > 0.5 ? rgba(INK.warm, 0.5 + 0.35 * q) : rgba(INK.line, 0.5);
   ctx.lineWidth = 1 + 0.4 * q;
   ctx.stroke();
   // the perforation, towards the reed
@@ -1028,7 +1028,7 @@ function obPlate(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: numbe
   ctx.arc(hx, cy, Math.max(0.8, 0.0011 * sc), 0, 2 * Math.PI);
   ctx.fillStyle = '#040303';
   ctx.fill();
-  ctx.strokeStyle = rgba(INK.ivory, 0.45);
+  ctx.strokeStyle = rgba(INK.line, 0.45);
   ctx.lineWidth = 0.8;
   ctx.stroke();
   if (q > 0.01) {
@@ -1040,7 +1040,7 @@ function obPlate(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: numbe
     ctx.clip();
     ctx.beginPath();
     ctx.ellipse(cx + roll * 0.0021 * sc, cy, rr * (0.95 - 0.3 * roll), rr * 0.9, 0, 0, 2 * Math.PI);
-    ctx.fillStyle = rgba(INK.amber, 0.55 * q);
+    ctx.fillStyle = rgba(INK.warm, 0.55 * q);
     ctx.fill();
     ctx.restore();
   }

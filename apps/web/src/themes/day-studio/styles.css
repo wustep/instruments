@@ -1,0 +1,2839 @@
+@import '@fontsource-variable/ysabeau-office/wght.css';
+@import '@fontsource-variable/ysabeau-office/wght-italic.css';
+@import '@fontsource-variable/sometype-mono/wght.css';
+
+/* Day Studio: an instrument in a north-lit white room at midday.
+   One plaster white is the wall, the floor and the page; what is laid on it is paper white and casts a
+   soft shadow down and to the right (the window is up and to the left). Nothing glows. State has two
+   forms and no more:  ink  is what is chosen (the instrument on the stage, the view, a knob's setting);
+   blue  is what sounds (a string, a key, a part, the place in a piece). */
+:root {
+  /* plaster, paper, ink (neutrals leaning a breath towards the north light's blue) */
+  --ground: #eceff1;
+  --ground-2: #e2e6e9;
+  --paper: #f9fafb;
+  --paper-2: #f1f3f5;
+  --ink: #1c222a;
+  --ink-2: #424850;
+  --muted: #666d74;
+  /* (not for words: a sign at rest, 3.2:1 on the ground) */
+  --faint: #7f858b;
+  --rule: #d6dadd;
+  --rule-2: #b9bec2;
+  /* the one blue: sound */
+  --accent: #1d48d1;
+  --accent-wash: #dbe6ff;
+  /* the measured thing a model is held against (charts), and a fault (the only warm colour in the chrome) */
+  --ref: #5d6b7c;
+  --alarm: #b3401a;
+  /* the keys */
+  --ivory: #f8f7f1;
+  --ebony: #24272a;
+  /* light from the upper left: shadows fall down and a little right, soft */
+  --shadow-1: 0.5px 1px 2px rgba(28, 34, 42, 0.14);
+  --shadow-2: 1px 2px 4px rgba(28, 34, 42, 0.06), 3px 10px 24px -10px rgba(28, 34, 42, 0.26);
+  --shadow-3: 2px 4px 8px rgba(28, 34, 42, 0.06), 6px 24px 48px -20px rgba(28, 34, 42, 0.34);
+  --font: 'Ysabeau Office Variable', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'Sometype Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* (a line of prose: about seventy characters of this narrow face at 17.5 px) */
+  --measure: 33rem;
+  --gutter: clamp(14px, 3vw, 28px);
+  --kbd-h: clamp(118px, 17vh, 168px);
+  --fall-h: 62px;
+  /* the keys' position strip (only where the keys do not all fit: see .keymap) */
+  --pos-h: 0px;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+[hidden] {
+  display: none !important;
+}
+html,
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+}
+html {
+  scrollbar-color: var(--rule-2) transparent;
+  scrollbar-width: thin;
+}
+body {
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 450;
+  line-height: 1.5;
+  font-variant-numeric: lining-nums;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+  overscroll-behavior: none;
+  caret-color: var(--accent);
+}
+a {
+  color: inherit;
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+}
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+::selection {
+  background: rgba(29, 72, 209, 0.2);
+}
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+#app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+main:focus {
+  outline: none;
+}
+/* the way past the bar, for a keyboard: out of sight until it has the focus */
+.skip {
+  position: fixed;
+  left: 8px;
+  top: 8px;
+  z-index: 60;
+  padding: 7px 12px 8px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font: 550 13px/1 var(--font);
+  text-decoration: none;
+  transform: translateY(-64px);
+}
+.skip:focus {
+  transform: none;
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------ the sound's sign, and what to do */
+/* a ring while there is no sound; filled blue once it runs; the warm colour only for a fault */
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.lamp {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink-2);
+  background: none;
+  transition:
+    background-color 0.2s var(--ease),
+    border-color 0.2s var(--ease);
+}
+:root[data-audio='running'] .lamp {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+:root[data-audio='starting'] .lamp {
+  animation: pulse 0.9s ease-in-out infinite;
+}
+:root[data-audio='error'] .lamp,
+:root[data-audio='stalled'] .lamp {
+  border-color: var(--alarm);
+  background: var(--alarm);
+}
+.lamp-text {
+  color: var(--ink-2);
+  /* (one line is 16 px high; two, 12 px each: panel.css, main.ts fitLamp) */
+  line-height: 16px;
+  max-width: min(60vw, 520px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:root[data-audio='error'] .lamp-text,
+:root[data-audio='stalled'] .lamp-text {
+  color: var(--alarm);
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ------------------------------------------------------------ stage */
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* the 2D ground: the plaster under the window's light, a breath brighter behind the instrument and the
+   wall's own tone again at every edge (where it meets the bar and the fallboard, with no step); no
+   vignette to speak of */
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(62% 58% at 40% 56%, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0) 100%),
+    var(--ground);
+}
+/* the room, as light: where one instrument stands in 2D the floor's brighter patch is the room's own size
+   (its knob: a small studio's hugs the instrument, a hall's fills the stage; views/stage.ts places it), soft
+   at its edge, under the drawing. No wall is drawn. */
+.stage[data-room] {
+  background: var(--ground);
+}
+.stage[data-room]::before {
+  content: '';
+  position: absolute;
+  left: var(--room-l);
+  top: var(--room-t);
+  width: var(--room-w);
+  height: var(--room-h);
+  border-radius: 36px;
+  background: rgba(255, 255, 255, 0.66);
+  filter: blur(26px);
+  pointer-events: none;
+}
+/* (in 3D the picture brings its own wall and floor, and meets the page at its edges in the ground's own tone) */
+.stage.is-3d,
+.stage.sheet-on {
+  background: var(--ground);
+}
+.stage-cv {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+/* the bowed strings: the stage is where the bow is dragged, so a touch there is never a pan (the
+   browser would take the gesture and cancel the pointer) */
+.stage[data-family='bowed'] .stage-cv {
+  touch-action: none;
+  cursor: grab;
+}
+
+/* ------------------------------------------------------------ the instruments' signs */
+/* line drawings in ink, their bodies paper: small objects on the ground */
+.glyph {
+  width: 36px;
+  height: 36px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.15;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  overflow: visible;
+}
+.glyph .g-body {
+  fill: var(--paper);
+}
+.glyph .g-thin {
+  stroke-width: 0.65;
+  opacity: 0.85;
+}
+.glyph .g-str {
+  stroke-width: 0.4;
+  opacity: 0.8;
+}
+.glyph .g-ebony {
+  fill: currentColor;
+  stroke-width: 0.5;
+}
+.glyph .g-bridge {
+  stroke-width: 0.9;
+}
+.glyph .g-steel {
+  stroke-width: 0.65;
+}
+.glyph .g-fill {
+  fill: currentColor;
+  stroke: none;
+  opacity: 0.85;
+}
+.glyph .g-keys {
+  fill: var(--paper);
+  stroke-width: 0.6;
+}
+.glyph .g-tube-body {
+  fill: var(--paper);
+  stroke-width: 0.75;
+}
+.glyph .g-key {
+  fill: var(--paper);
+  stroke-width: 0.5;
+}
+
+.scope-cap {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 16px;
+  line-height: 16px;
+}
+
+/* ------------------------------------------------------------ fallboard and keyboard */
+.dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  background: var(--ground);
+}
+/* the fallboard: a pale satin board over the keys, its lower edge throwing a little shade on them */
+.fallboard {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  height: var(--fall-h);
+  padding: 0 var(--gutter);
+  background: linear-gradient(180deg, var(--paper), var(--paper-2));
+  border-top: 1px solid var(--rule);
+  box-shadow: 0 3px 6px -2px rgba(28, 34, 42, 0.22);
+}
+.pedals {
+  display: flex;
+  gap: 6px;
+}
+/* a pedal: drawn, and held it goes down and takes ink */
+.pedal {
+  --depress: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: 48px;
+  padding: 3px 0 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+.p-face {
+  width: 30px;
+  height: 28px;
+  transform: translateY(calc(var(--depress) * 3px)) scaleY(calc(1 - var(--depress) * 0.1));
+  transition: transform 0.06s;
+  filter: drop-shadow(0.5px calc(1.5px - var(--depress) * 1px) 1.5px rgba(28, 34, 42, 0.22));
+}
+.p-foot {
+  fill: var(--paper);
+  stroke: var(--ink-2);
+  stroke-width: 1.1;
+}
+.p-shine {
+  fill: none;
+  stroke: var(--rule-2);
+  stroke-width: 1;
+}
+.pedal:hover .p-foot {
+  stroke: var(--ink);
+}
+.pedal[aria-pressed='true'] .p-foot {
+  fill: var(--ink);
+  stroke: var(--ink);
+}
+.pedal[aria-pressed='true'] .p-shine {
+  stroke: rgba(249, 250, 251, 0.4);
+}
+.p-name {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+.pedal[aria-pressed='true'] .p-name {
+  color: var(--ink);
+}
+.knobs {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.knob-toggle {
+  display: none;
+}
+/* a knob: a pale dial, its setting an arc of ink and a line on the cap; its name stays under it, and
+   its reading stands over it while it is under the hand */
+.knob {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 58px;
+  cursor: ns-resize;
+  user-select: none;
+}
+.knob input {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 38px;
+  width: 100%;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.k-face {
+  width: 38px;
+  height: 38px;
+  touch-action: none;
+  overflow: visible;
+}
+.k-ticks line {
+  stroke: var(--rule-2);
+  stroke-width: 0.8;
+}
+.k-track {
+  fill: none;
+  stroke: var(--rule);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.k-val-arc {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.k-cap {
+  fill: #fff;
+  stroke: var(--rule-2);
+  stroke-width: 0.7;
+  filter: drop-shadow(0.4px 1px 1px rgba(28, 34, 42, 0.26));
+  transition: stroke 0.15s var(--ease);
+}
+.k-ptr {
+  stroke: var(--ink);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+.knob:hover .k-cap,
+.knob.turning .k-cap,
+.knob:focus-within .k-cap {
+  stroke: var(--ink-2);
+}
+.knob:focus-within .k-cap {
+  stroke: var(--ink);
+  stroke-width: 1.4;
+}
+.k-name {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.knob:hover .k-name,
+.knob.turning .k-name,
+.knob:focus-within .k-name {
+  color: var(--ink);
+}
+.k-read {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 3px);
+  z-index: 6;
+  transform: translateX(-50%);
+  display: none;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums lining-nums;
+  line-height: 1.35;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.knob:hover .k-read,
+.knob.turning .k-read,
+.knob:focus-within .k-read {
+  display: block;
+}
+.k-reset {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-left: 2px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 0.15s var(--ease),
+    background-color 0.15s var(--ease);
+}
+.k-reset:hover {
+  color: var(--ink);
+  background: var(--ground-2);
+}
+
+/* the key bed: the keys stand in a shallow well under the fallboard */
+.kbd-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  background: linear-gradient(180deg, #cfd4d8, var(--ground-2) 14px);
+  padding: 0 var(--gutter) 6px;
+}
+.kbd-scroll::-webkit-scrollbar {
+  display: none;
+}
+.keyboard {
+  position: relative;
+  height: var(--kbd-h);
+  min-width: 100%;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.key {
+  position: absolute;
+  top: 0;
+  cursor: pointer;
+}
+.key.white {
+  height: 100%;
+  background: linear-gradient(180deg, #e3e1d9 0%, var(--ivory) 7%, #fcfbf7 80%, #edece5 100%);
+  border-left: 1px solid #b3b0a6;
+  border-right: 1px solid #fff;
+  border-radius: 0 0 5px 5px;
+  box-shadow:
+    inset 0 -5px 0 #dcdad2,
+    0.5px 2px 2px rgba(28, 34, 42, 0.22);
+  z-index: 1;
+  transition:
+    transform 0.04s,
+    box-shadow 0.04s;
+}
+.key.black {
+  height: 62%;
+  /* (the window is at the left: a key's left edge takes the light, its right edge is in its own shade) */
+  --bevel: linear-gradient(90deg, #4a5057 0 1px, rgba(74, 80, 87, 0) 1px calc(100% - 1px), #0e1013 calc(100% - 1px));
+  background:
+    var(--bevel),
+    linear-gradient(180deg, #17191c 0%, #2c3035 70%, #3b4046 92%, #1d2023 100%);
+  border-radius: 0 0 3px 3px;
+  box-shadow:
+    inset 0 -6px 0 #14161a,
+    1px 3px 4px rgba(28, 34, 42, 0.4);
+  z-index: 2;
+  transition:
+    transform 0.04s,
+    box-shadow 0.04s;
+}
+/* pressed (any source): it goes down */
+.key.down.white {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 -2px 0 #dcdad2,
+    0 0 0 rgba(28, 34, 42, 0);
+  background: linear-gradient(180deg, #d6d4cc 0%, #f0efe8 12%, #f4f3ec 100%);
+}
+.key.down.black {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 -2px 0 #14161a,
+    0.5px 1px 2px rgba(28, 34, 42, 0.4);
+}
+/* its note really sounds (the engine's allocation): it takes the blue */
+.key.sounding.white {
+  background: linear-gradient(180deg, #bccdf6 0%, var(--accent-wash) 14%, #e6edff 100%);
+  border-left-color: #9fb3e6;
+  box-shadow:
+    inset 0 -2px 0 #b7c8f2,
+    0 0 0 rgba(28, 34, 42, 0);
+}
+.key.sounding.black {
+  background:
+    linear-gradient(90deg, #5f85f0 0 1px, rgba(95, 133, 240, 0) 1px calc(100% - 1px), #12308f calc(100% - 1px)),
+    linear-gradient(180deg, #1637a8 0%, #2553e0 72%, #3a66ea 92%, #1a3fb8 100%);
+  box-shadow:
+    inset 0 -2px 0 #12308f,
+    0.5px 1px 2px rgba(28, 34, 42, 0.4);
+}
+/* outside the instrument's compass: flat and grey, plainly not to be played */
+.key.out.white {
+  background: linear-gradient(180deg, #cfd3d6, #dadee1);
+  border-left-color: #b9bec2;
+  border-right-color: #e6e9eb;
+  box-shadow: inset 0 -5px 0 #c6cbcf;
+}
+.key.out.black {
+  background: #878d93;
+  box-shadow: inset 0 -5px 0 #777d83;
+}
+.key .lbl {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--muted);
+  pointer-events: none;
+}
+.key.black .lbl {
+  bottom: 9px;
+  color: #c3c8cd;
+}
+.key.out .lbl,
+.key.out .cname {
+  color: var(--ink-2);
+}
+.key .cname {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 30px;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--muted);
+  pointer-events: none;
+}
+.key.sounding .lbl,
+.key.sounding .cname {
+  color: var(--accent);
+}
+.key.sounding.black .lbl {
+  color: #fff;
+}
+.key.prep::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: var(--ref);
+}
+/* a touch screen has no computer keyboard: its letters stay off the keys, and each C's name takes
+   their line (they come back with the first key played on a keyboard that is plugged in) */
+@media (hover: none) and (pointer: coarse) {
+  :root:not([data-hardkeys]) .key .lbl {
+    display: none;
+  }
+  :root:not([data-hardkeys]) .key .cname {
+    bottom: 12px;
+  }
+}
+
+/* ------------------------------------------------------------ the keys' position strip */
+/* Where the keys do not all fit (a phone, a narrow window, a touch screen: its keys stay a finger
+   wide), all 88 in miniature over them, with a window on the ones in view. Dragging on the strip
+   slides the keys; a drag on the keys themselves stays a glissando. Notes show here too, so one off
+   the screen's edge is still seen. */
+.keymap {
+  display: none;
+  position: relative;
+  height: var(--pos-h);
+  background: var(--paper-2);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.keymap.dragging {
+  cursor: grabbing;
+}
+.keymap:focus-visible {
+  outline-offset: -2px;
+}
+.km-track {
+  position: absolute;
+  left: var(--gutter);
+  right: var(--gutter);
+  top: 6px;
+  bottom: 6px;
+  pointer-events: none;
+}
+.km-keys {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.km-w {
+  fill: #fff;
+  stroke: var(--rule-2);
+  stroke-width: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+.km-b {
+  fill: var(--ebony);
+}
+.km-w.out {
+  fill: var(--rule);
+}
+.km-b.out {
+  fill: var(--faint);
+}
+.km-k.on {
+  fill: var(--accent);
+}
+.km-shade {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+/* (what is not in view is veiled in the ground's own white) */
+.km-lens {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--l, 0%);
+  width: var(--w, 100%);
+  box-shadow: 0 0 0 100vmax rgba(241, 243, 245, 0.66);
+}
+.km-win {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: var(--l, 0%);
+  width: var(--w, 100%);
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  box-shadow: var(--shadow-1);
+}
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1559px) {
+  :root {
+    --pos-h: 24px;
+  }
+  .keymap {
+    display: block;
+  }
+  .keyboard {
+    min-width: 1560px;
+  }
+}
+
+/* ------------------------------------------------------------ text pages (measurements, notes) */
+:root:not([data-route='stage']) main {
+  padding: clamp(18px, 4vw, 44px) var(--gutter) 64px;
+}
+.view {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+.stage.view {
+  max-width: none;
+}
+h1,
+h2,
+h3 {
+  font-family: var(--font);
+  font-weight: 350;
+  letter-spacing: -0.005em;
+  margin: 0;
+  text-wrap: balance;
+}
+h2 {
+  font-size: clamp(27px, 3vw, 34px);
+  line-height: 1.12;
+  font-weight: 300;
+}
+h3 {
+  font-size: 19px;
+  line-height: 1.25;
+  font-weight: 550;
+  letter-spacing: 0;
+}
+.prose {
+  font-size: 17.5px;
+  line-height: 1.6;
+  max-width: var(--measure);
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+.prose p {
+  margin: 0 0 0.85em;
+}
+code {
+  font-family: var(--mono);
+  font-size: 0.82em;
+}
+.label {
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--muted);
+}
+.num {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.hint {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------ phone */
+@media (max-width: 760px) {
+  :root {
+    --kbd-h: 150px;
+    --fall-h: 54px;
+  }
+  .knob-toggle {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    margin-left: auto;
+    margin-right: -8px;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: var(--ink-2);
+    font-size: 21px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .knob-toggle[aria-expanded='true'] {
+    color: var(--ink);
+    background: var(--ground-2);
+  }
+  .knobs {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    margin: 0;
+    padding: 12px var(--gutter) 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    background: var(--paper);
+    border-top: 1px solid var(--rule);
+    box-shadow: 0 -10px 24px -14px rgba(28, 34, 42, 0.3);
+    display: none;
+  }
+  :root[data-knobs] .knobs {
+    display: flex;
+  }
+  /* (six knobs and the way back to their defaults on one row of a 390 px phone: the trombone's) */
+  .knobs {
+    gap: 0;
+  }
+  .knob {
+    width: 52px;
+  }
+  .k-reset {
+    margin-left: 0;
+  }
+}
+/* the narrowest phones (320 px): three pedals, the octave and the knob toggle still fit the bar */
+@media (max-width: 360px) {
+  .fallboard {
+    gap: 10px;
+  }
+  .pedals {
+    gap: 0;
+  }
+  .pedal {
+    width: 44px;
+  }
+  .knob-toggle {
+    width: 36px;
+    margin-right: -6px;
+  }
+}
+/* ------------------------------------------------------------ a phone held sideways */
+/* a short viewport (844×390): one slim band over the stage, the knobs behind ◐, shorter keys; the
+   stage takes all the height that is left and the page does not scroll */
+@media (max-height: 500px) and (orientation: landscape) {
+  :root {
+    --kbd-h: 96px;
+    --fall-h: 38px;
+  }
+  .pedal {
+    padding-top: 0;
+  }
+  .p-face {
+    width: 26px;
+    height: 24px;
+  }
+  .p-name {
+    display: none;
+  }
+  .knob-toggle {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 36px;
+    margin-left: auto;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: var(--ink-2);
+    font-size: 21px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .knobs {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    margin: 0;
+    padding: 8px var(--gutter) 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+    background: var(--paper);
+    border-top: 1px solid var(--rule);
+    box-shadow: 0 -10px 24px -14px rgba(28, 34, 42, 0.3);
+    display: none;
+  }
+  :root[data-knobs] .knobs {
+    display: flex;
+  }
+}
+/* (sideways, the position strip is thinner: the stage keeps its height) */
+@media (max-height: 500px) and (orientation: landscape) and (pointer: coarse), (max-height: 500px) and (orientation: landscape) and (max-width: 760px) {
+  :root {
+    --pos-h: 18px;
+  }
+  .km-track {
+    top: 4px;
+    bottom: 4px;
+  }
+}
+/* motion that is not the instrument's own: none where it is not wanted (every state still changes, at once) */
+@media (prefers-reduced-motion: reduce) {
+  .lamp {
+    animation: none !important;
+  }
+  .key,
+  .p-face,
+  .lamp,
+  .k-cap,
+  .k-reset,
+  .oct-btn,
+  .pl-btn,
+  .pl-line,
+  .pl-pick,
+  .sk-bg,
+  .kf-part,
+  .kf-split,
+  .ab-item .btns button,
+  .notes .toc button {
+    transition: none;
+  }
+  .pl-play:active {
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------ measurements */
+.measure-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: clamp(24px, 5vw, 64px);
+  align-items: end;
+}
+.figs {
+  margin-top: 56px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 52px 44px;
+}
+figure {
+  margin: 0;
+  min-width: 0;
+}
+figure.wide {
+  grid-column: 1 / -1;
+}
+/* three small charts side by side (a note at pp, mf, ff) */
+.trio {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 14px;
+}
+/* A phone: one chart to a row, the heading over its numbers. A chart made to be wide keeps a width its
+   figures can be read at and is moved sideways in its own box (the page itself does not scroll sideways). */
+@media (max-width: 760px) {
+  .measure-head {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+  .figs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .trio {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  figure.wide > .chart,
+  figure.wide > div > .chart {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+  figure.wide > .chart > svg,
+  figure.wide > div > .chart > svg {
+    min-width: 700px;
+  }
+  figure.wide .trio .chart > svg,
+  figure.wide .ens-grid .chart > svg {
+    min-width: 0;
+  }
+}
+figure h3 {
+  margin-bottom: 3px;
+}
+figure .fig-sub {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+figure svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+figcaption {
+  margin-top: 12px;
+  font-size: 15.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: var(--measure);
+}
+.legend {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.legend i {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  vertical-align: 3px;
+  margin-right: 6px;
+}
+.legend i.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  vertical-align: 0;
+}
+.axis text {
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums lining-nums;
+  fill: var(--muted);
+}
+.axis line,
+.axis path {
+  stroke: var(--rule-2);
+}
+.grid line {
+  stroke: var(--rule);
+}
+.ab {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px 20px;
+  margin-top: 14px;
+}
+.ab-item {
+  border-top: 1px solid var(--rule);
+  padding-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+.ab-item .t {
+  font-size: 17px;
+}
+.ab-item .btns {
+  display: flex;
+  gap: 6px;
+}
+.ab-item .btns button {
+  border: 1px solid var(--rule-2);
+  background: var(--paper);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color 0.15s var(--ease),
+    color 0.15s var(--ease);
+}
+.ab-item .btns button:hover {
+  border-color: var(--ink-2);
+}
+/* (what is playing is sound: the blue) */
+.ab-item .btns button.playing {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+table.rounds {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+  margin-top: 10px;
+}
+table.rounds th,
+table.rounds td {
+  text-align: right;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+table.rounds th:first-child,
+table.rounds td:first-child {
+  text-align: left;
+}
+table.rounds th {
+  color: var(--muted);
+  font-weight: 550;
+}
+.shortfalls {
+  margin-top: 64px;
+  padding-top: 28px;
+  border-top: 1px solid var(--rule);
+}
+.shortfalls ul {
+  padding-left: 1.1em;
+}
+.shortfalls li {
+  margin-bottom: 0.5em;
+}
+
+/* ------------------------------------------------------------ notes view */
+.notes {
+  max-width: 40rem;
+}
+.notes h2 {
+  margin: 48px 0 12px;
+}
+
+/* ------------------------------------------------------------ charts */
+.chart {
+  position: relative;
+}
+.chart svg .series-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.chart svg .dot {
+  stroke: var(--ground);
+  stroke-width: 2;
+}
+.chart svg .crosshair {
+  stroke: var(--rule-2);
+  stroke-width: 1;
+}
+.chart svg .axis-label {
+  font-family: var(--font);
+  font-size: 12px;
+  fill: var(--muted);
+}
+.chart svg .panel-title {
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 550;
+  fill: var(--ink-2);
+}
+/* a chart's own reading under the pointer: a slip of paper */
+.chart > .tip {
+  position: absolute;
+  left: auto;
+  top: auto;
+  z-index: 4;
+  min-width: 140px;
+  padding: 8px 11px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-2);
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+.chart > .tip .tt {
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.chart > .tip .row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.chart > .tip .row i {
+  display: inline-block;
+  width: 12px;
+  height: 2px;
+  border-radius: 1px;
+}
+.chart > .tip .row b {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--ink);
+}
+.chart > .tip .row span {
+  color: var(--muted);
+}
+details.data {
+  margin-top: 8px;
+  font-size: 14px;
+}
+details.data summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  cursor: pointer;
+  color: var(--muted);
+  list-style: none;
+}
+details.data summary::-webkit-details-marker {
+  display: none;
+}
+/* its sign, drawn: a chevron that turns down when the table is open */
+details.data summary::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-left: 2px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s var(--ease);
+}
+details.data[open] summary::before {
+  transform: translateY(-2px) rotate(45deg);
+}
+details.data summary:hover {
+  color: var(--ink);
+}
+details.data table {
+  border-collapse: collapse;
+  margin-top: 6px;
+  width: 100%;
+}
+details.data td,
+details.data th {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums lining-nums;
+  text-align: right;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--rule);
+}
+details.data th {
+  font-weight: 550;
+  color: var(--muted);
+}
+details.data .scroll {
+  max-height: 220px;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-2) transparent;
+}
+/* the figures at the head: each a reading, set light and large, its name under it */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 22px 28px;
+}
+.tile .v {
+  font-size: 34px;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.005em;
+  line-height: 1.05;
+  color: var(--ink);
+}
+.tile .s {
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* ------------------------------------------------------------ strings & flute measurements */
+.ensemble {
+  margin-top: 80px;
+  padding-top: 32px;
+  border-top: 1px solid var(--rule);
+}
+.ensemble .tiles {
+  margin-top: 24px;
+}
+.ens-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 4px 14px;
+}
+
+/* ------------------------------------------------------------ notes (short) */
+.note-list {
+  margin-top: 10px;
+}
+.note-item h3 {
+  margin: 24px 0 4px;
+  font-size: 17.5px;
+  color: var(--ink);
+}
+.note-item p {
+  margin: 0;
+}
+.notes .refs {
+  /* (small type: a shorter measure than the prose's, so a line stays under eighty characters) */
+  max-width: 31rem;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.55;
+  padding-left: 22px;
+}
+.notes .tbl .hint {
+  max-width: 28rem;
+  text-wrap: pretty;
+}
+.notes .refs li {
+  margin-bottom: 6px;
+  text-wrap: pretty;
+}
+figure[title] {
+  cursor: help;
+}
+
+/* ------------------------------------------------------------ octave */
+.octave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.oct-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 30px;
+  padding: 0 0 2px;
+  border: 1px solid var(--rule-2);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink-2);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow-1);
+  transition:
+    transform 0.06s,
+    box-shadow 0.06s,
+    color 0.15s var(--ease);
+}
+.oct-btn:hover {
+  color: var(--ink);
+  border-color: var(--ink-2);
+}
+.oct-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 0 0 rgba(28, 34, 42, 0);
+}
+/* a finger's size on touch (the fallboard's row is 54 px high there) */
+@media (pointer: coarse) {
+  .oct-btn {
+    width: 36px;
+    height: 36px;
+  }
+  .k-reset {
+    width: 40px;
+    height: 40px;
+  }
+}
+/* (the narrowest phones: three pedals, the octave and the knobs' dial still share the row) */
+@media (pointer: coarse) and (max-width: 360px) {
+  .oct-btn {
+    width: 32px;
+  }
+}
+.oct-label {
+  min-width: 32px;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--ink-2);
+}
+
+/* ------------------------------------------------------------ MIDI socket */
+/* a keyboard plugged in: its word beside the sound's sign, a dot that takes the blue with each message */
+.midi {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-2);
+}
+.midi::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink-2);
+}
+.midi.blink::before {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+/* ------------------------------------------------------------ MIDI file player */
+/* a small pale object on the stage: icons, a hairline for the place, and one solid button: play */
+.player {
+  /* top middle of the stage, just under its top band (the stage sets --stage-band-y): clear of the
+     picker, the note readout and the spectrum, in 2D and over the 3D canvas */
+  position: fixed;
+  z-index: 5;
+  left: 50%;
+  top: calc(var(--stage-band-y, 140px) + 8px);
+  transform: translateX(-50%);
+  /* (as wide as its contents: a fixed box from the middle would otherwise get half the screen) */
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 5px;
+  border: 1px solid var(--rule);
+  border-radius: 20px;
+  background: var(--paper);
+  box-shadow: var(--shadow-2);
+}
+.pl-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+/* an ensemble's file: its lines, each showing its instrument (blue while it sounds) */
+.pl-lines {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 1px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 0 4px 2px;
+}
+.pl-lines[hidden] {
+  display: none;
+}
+/* (a phone: a symphony's lines in one row, each chip its share of it (--n of them: player.ts), from
+   28 px down to 22 px: thirteen fit a 390 px screen, fifteen at the narrowest. A second row lay over
+   the orchestra's back row. The strip is 100vw − 44 px inside; a pixel is kept for rounding.) */
+@media (max-width: 480px) {
+  .pl-lines .pl-line {
+    width: clamp(22px, calc((100vw - 45px - (var(--n, 12) - 1) * 1px) / var(--n, 12)), 28px);
+  }
+}
+.pl-line,
+.pl-pick {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--faint);
+  cursor: pointer;
+  transition:
+    color 0.12s var(--ease),
+    background-color 0.12s var(--ease);
+}
+.pl-line .glyph,
+.pl-pick .glyph {
+  width: 24px;
+  height: 24px;
+}
+.pl-line:hover,
+.pl-pick:hover:not(:disabled) {
+  color: var(--ink);
+}
+.pl-line.on {
+  color: var(--accent);
+}
+.pl-line[aria-expanded='true'] {
+  color: var(--ink);
+  background: var(--ground-2);
+}
+.pl-line[data-voice='none'] {
+  opacity: 0.6;
+}
+.mute-glyph path {
+  fill: currentColor;
+  stroke: none;
+  opacity: 0.75;
+}
+.pl-line:focus-visible,
+.pl-pick:focus-visible {
+  outline-offset: -2px;
+}
+/* a line's instruments: a row of glyphs under its chip (on a phone, two rows: thirteen voices and their
+   extras are wider than its screen) */
+.pl-menu {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: calc(100vw - 12px);
+  box-sizing: border-box;
+  gap: 1px;
+  padding: 5px;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: var(--shadow-3);
+}
+.pl-pick {
+  color: var(--muted);
+}
+.pl-pick[aria-checked='true'] {
+  color: var(--paper);
+  background: var(--ink);
+}
+.pl-pick:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+/* a line on more than one instrument (+1), a second seat of a voice (2) */
+.pl-line,
+.pg-row {
+  position: relative;
+}
+.pl-more {
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--ink-2);
+  pointer-events: none;
+}
+.pl-pick svg:not(.glyph) {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+.pl-off {
+  margin-left: 6px;
+}
+/* a section's menu, in rows: its instruments; from the stage, the file's lines (numbered as the grid's
+   columns, inked where the section plays); another desk, one fewer, off */
+.pl-sep {
+  flex-basis: 100%;
+  height: 0;
+  margin: 3px 4px;
+  border-top: 1px solid var(--rule);
+}
+/* (a section's menu is as wide as the fourteen instruments, seven a row on a phone; the line numbers
+   on the glyphs' pitch) */
+.pl-menu.pl-seat {
+  width: 446px;
+  justify-content: flex-start;
+}
+@media (max-width: 480px) {
+  .pl-menu.pl-seat {
+    width: 228px;
+  }
+}
+.pl-ln {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  font-size: 11.5px;
+  font-weight: 550;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--muted);
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--rule-2);
+}
+.pl-ln:hover {
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink-2);
+}
+.pl-ln[aria-checked='true'] {
+  color: var(--paper);
+  background: var(--ink);
+  box-shadow: none;
+}
+.pl-route[hidden] {
+  display: none;
+}
+/* automatic expression: a hairpin, inked while on; dim when the file has dynamics of its own */
+.pl-btn svg.pl-hairpin {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* a button that is a choice (the sheet, the expression) or has its menu open: ink, and a point under it */
+.pl-expr,
+.pl-sheet,
+.pl-route,
+.pl-pieces {
+  position: relative;
+}
+.pl-expr[aria-pressed='true'],
+.pl-sheet[aria-pressed='true'],
+.pl-route[aria-expanded='true'],
+.pl-pieces[aria-expanded='true'] {
+  color: var(--ink);
+}
+.pl-expr[aria-pressed='true']::after,
+.pl-sheet[aria-pressed='true']::after,
+.pl-route[aria-expanded='true']::after,
+.pl-pieces[aria-expanded='true']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 1px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+.pl-expr[aria-pressed='false'],
+.pl-sheet[aria-pressed='false'] {
+  color: var(--faint);
+}
+.pl-expr.own {
+  opacity: 0.5;
+}
+/* routing: instruments (rows) by lines (columns), a last column for every line, a row to add one */
+.pl-grid {
+  position: absolute;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: 34px repeat(var(--n), minmax(18px, 26px)) 30px;
+  grid-auto-rows: 26px;
+  grid-template-rows: 18px;
+  align-items: center;
+  justify-items: center;
+  max-width: calc(100vw - 12px);
+  max-height: calc(100dvh - var(--stage-band-y, 140px) - 120px);
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-2) transparent;
+  padding: 6px 8px 6px 6px;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: var(--shadow-3);
+}
+.pg-col {
+  font-size: 11px;
+  font-weight: 550;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--muted);
+}
+.pg-col svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+.pg-row,
+.pg-cell {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.pg-row .glyph {
+  width: 22px;
+  height: 22px;
+}
+.pg-row svg:not(.glyph) {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+.pg-row:hover:not(:disabled),
+.pg-cell:hover {
+  color: var(--ink);
+}
+.pg-row.on {
+  color: var(--accent);
+}
+.pg-row[aria-expanded='true'] {
+  color: var(--ink);
+  background: var(--ground-2);
+}
+.pg-row:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+/* the families (woodwinds, brass, percussion, strings, keyboards) a little apart: a hairline between */
+.pg-gap {
+  grid-column: 1 / -1;
+  align-self: center;
+  width: 100%;
+  height: 1px;
+  background: var(--rule);
+}
+/* the corner: by section, or desk by desk */
+.pg-mode {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.pg-mode svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+.pg-mode:hover,
+.pg-mode[aria-pressed='true'] {
+  color: var(--ink);
+}
+/* a cell: a ring, inked when this instrument plays this line */
+.pg-cell::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: 0.6;
+}
+.pg-cell[aria-pressed='true']::before {
+  border-color: var(--ink);
+  background: var(--ink);
+  opacity: 1;
+}
+.pg-all::before {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.pg-all[aria-pressed='true']::before {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+.pg-row:focus-visible,
+.pg-cell:focus-visible,
+.pg-mode:focus-visible {
+  outline-offset: -2px;
+}
+.player[hidden] {
+  display: none;
+}
+/* at rest (nothing loaded): two icons and play */
+.player.idle .pl-row {
+  gap: 2px;
+}
+.pl-btn[hidden],
+.pl-bar[hidden] {
+  display: none;
+}
+:root:not([data-route='stage']) .player {
+  display: none;
+}
+.pl-btns {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.pl-btn {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 6px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition:
+    color 0.12s var(--ease),
+    background-color 0.12s var(--ease);
+}
+.pl-btn:hover {
+  color: var(--ink);
+  background: var(--ground-2);
+}
+.pl-btn svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+/* play: the one solid thing on the stage */
+.pl-play {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 7px;
+}
+.pl-play:hover {
+  background: #000;
+  color: #fff;
+}
+.pl-play:active {
+  transform: scale(0.94);
+}
+/* phones: the overlay is how a piece or a file starts, so a fingertip's target */
+/* (36 px and not more: a symphony's seven icons and the hairline share a 390 px phone's one row) */
+@media (pointer: coarse) {
+  .pl-btn {
+    width: 36px;
+    height: 36px;
+    padding: 8px;
+  }
+  .pl-play {
+    padding: 10px;
+  }
+  .pl-row {
+    gap: 6px;
+  }
+  .player {
+    border-radius: 22px;
+  }
+}
+.pl-bar {
+  position: relative;
+  width: min(160px, 34vw);
+  /* (the icons keep their size; on a narrow phone with every icon shown the hairline gives way) */
+  flex: 0 1 auto;
+  min-width: 56px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--rule-2);
+  cursor: pointer;
+  touch-action: none;
+}
+.pl-bar::before {
+  content: '';
+  position: absolute;
+  inset: -10px 0;
+}
+/* (the place in the piece is sound: the blue) */
+.pl-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 1px;
+  background: var(--accent);
+  transform-origin: left;
+  transform: scaleX(0);
+}
+/* the sheet music: a page with a staff and a note (ui/player.ts) */
+.pl-btn svg.pl-sheet-icon .ln {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+/* ------------------------------------------------------------ the sheet music (sheet/view.ts) */
+/* In the instrument's place, under the file player (the stage sets its top): a part on a sheet of white
+   paper lying on the plaster, black ink; the notes sounding in the one blue. */
+.sheet {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 120px;
+  --sheet-paper: #fdfdfb;
+  --sheet-ink: #1c222a;
+  --sheet-rule: rgba(28, 34, 42, 0.5);
+  --sheet-dim: #666d74;
+  --sheet-on: var(--accent);
+}
+.stage.sheet-on .stage-cv,
+.stage.sheet-on .stage-3d {
+  visibility: hidden;
+}
+.sheet-page {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px clamp(8px, 2vw, 24px) 22px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-2) transparent;
+}
+.sheet-paper {
+  position: relative;
+  max-width: 980px;
+  min-height: calc(100% - 4px);
+  margin: 0 auto;
+  padding: 14px clamp(10px, 2.2vw, 28px) 28px;
+  background: var(--sheet-paper);
+  color: var(--sheet-ink);
+  border-radius: 3px;
+  box-shadow:
+    0 0 0 1px rgba(28, 34, 42, 0.05),
+    var(--shadow-3);
+}
+.sheet-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-height: 24px;
+  margin-bottom: 2px;
+}
+.sheet-part,
+.sheet-part-name {
+  flex: none;
+  font: 550 15px/1.2 var(--font);
+  color: var(--sheet-ink);
+}
+.sheet-part {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: -3px 0 0 -6px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+.sheet-part:hover,
+.sheet-part[aria-expanded='true'] {
+  background: rgba(28, 34, 42, 0.07);
+}
+.sheet-caret {
+  width: 0;
+  height: 0;
+  border: 3.5px solid transparent;
+  border-top: 4.5px solid currentColor;
+  border-bottom: 0;
+  opacity: 0.55;
+}
+.sheet-title {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  font: 450 14px/1.2 var(--font);
+  color: var(--sheet-dim);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.sheet-body {
+  position: relative;
+}
+.sheet-sys {
+  position: relative;
+  cursor: pointer;
+}
+.sheet-sys svg {
+  display: block;
+  overflow: visible;
+}
+.sheet-n {
+  position: absolute;
+  font: 500 11px/1 var(--font);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--sheet-dim);
+  pointer-events: none;
+}
+.sheet-at {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.5px;
+  margin-left: -0.75px;
+  border-radius: 1px;
+  background: var(--sheet-on);
+  opacity: 0.75;
+  pointer-events: none;
+  will-change: transform;
+}
+/* VexFlow's black, as the sheet's ink (what inherits it, and what carries its own); its staff lines a little lighter */
+.sheet svg {
+  fill: var(--sheet-ink);
+  stroke: var(--sheet-ink);
+}
+.sheet svg [fill]:not([fill='none']) {
+  fill: var(--sheet-ink);
+}
+.sheet svg [stroke]:not([stroke='none']) {
+  stroke: var(--sheet-ink);
+}
+.sheet svg .vf-stave > path {
+  stroke: var(--sheet-rule);
+}
+/* (a note's glyphs inherit its colour; its stem and ledger lines carry their own) */
+.sheet svg .vf-stavenote.on,
+.sheet svg .vf-stavenote.on [fill]:not([fill='none']) {
+  fill: var(--sheet-on);
+}
+.sheet svg .vf-stavenote.on,
+.sheet svg .vf-stavenote.on [stroke]:not([stroke='none']) {
+  stroke: var(--sheet-on);
+}
+/* the parts: a menu under the part's name */
+.sheet-menu {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 5px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-2) transparent;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: var(--shadow-3);
+}
+.sheet-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 2px 12px 2px 5px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--ink-2);
+  font: 500 13.5px/1.2 var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+.sheet-pick .glyph {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+.sheet-pick-score {
+  padding-left: 37px;
+}
+.sheet-pick:hover {
+  color: var(--ink);
+  background: var(--ground-2);
+}
+.sheet-pick[aria-checked='true'] {
+  color: var(--paper);
+  background: var(--ink);
+}
+.sheet-pick:focus-visible {
+  outline-offset: -2px;
+}
+@media (pointer: coarse) {
+  .sheet-pick {
+    min-height: 44px;
+  }
+}
+
+/* a file is being dragged over the page: a line of ink round the stage */
+:root[data-drop] .stage {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+/* ------------------------------------------------------------ ?debug start-up log */
+.diag {
+  position: fixed;
+  z-index: 50;
+  left: 8px;
+  top: 44px;
+  width: min(560px, calc(100vw - 16px));
+  max-height: 46vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border: 1px solid var(--rule-2);
+  border-radius: 10px;
+  box-shadow: var(--shadow-3);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+.diag pre {
+  margin: 0;
+  padding: 6px 10px 10px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.diag button {
+  align-self: flex-end;
+  margin: 6px 8px 0;
+  border: 1px solid var(--rule-2);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+  font-size: 11px;
+  padding: 1px 8px;
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------ room and lid knobs (on the stage) */
+/* the fallboard's dial (.k-*) on a paper disc that stands off the instrument by its shadow; no word: a
+   sign on its cap says which it is (the lid: a lid ajar; the room: a wave from a wall) */
+.stage-knob {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  filter: drop-shadow(1px 2px 3px rgba(28, 34, 42, 0.26));
+}
+.stage-knob:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.stage-knob[hidden] {
+  display: none;
+}
+.stage-knob .k-face {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.sk-bg {
+  fill: var(--paper);
+  stroke: var(--rule-2);
+  stroke-width: 0.8;
+  transition: stroke 0.15s var(--ease);
+}
+.stage-knob .k-cap {
+  filter: none;
+  fill: #fff;
+}
+.stage-knob .k-ticks .sk-notch {
+  stroke: var(--ink-2);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+.sk-sign {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.stage-knob:hover .sk-bg,
+.stage-knob.dragging .sk-bg,
+.stage-knob:focus-visible .sk-bg {
+  stroke: var(--ink);
+}
+.stage-knob:hover .sk-sign,
+.stage-knob.dragging .sk-sign,
+.stage-knob:focus-visible .sk-sign {
+  stroke: var(--ink);
+}
+/* touch: a finger's size (44 px) */
+@media (pointer: coarse) {
+  .stage-knob {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* ------------------------------------------------------------ tooltip (icon-only controls) */
+/* a name in ink, as small as it can be read */
+.tip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 50;
+  pointer-events: none;
+  padding: 3px 8px 4px;
+  border-radius: 7px;
+  font: 500 12.5px/1.3 var(--font);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--paper);
+  background: var(--ink);
+  white-space: nowrap;
+}
+.tip[hidden] {
+  display: none;
+}
+
+/* ------------------------------------------------------------ single-key action view */
+.action-view {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: rgba(236, 239, 241, 0.72);
+}
+.av-panel {
+  position: relative;
+  width: min(820px, calc(100% - 32px));
+  height: min(460px, calc(100% - 32px));
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  box-shadow: var(--shadow-3);
+  overflow: hidden;
+}
+.av-panel:focus {
+  outline: none;
+}
+.av-cv {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  touch-action: none;
+}
+.av-name {
+  position: absolute;
+  left: 18px;
+  top: 12px;
+  font: 300 28px/1.1 var(--font);
+  color: var(--ink);
+  pointer-events: none;
+}
+.av-speed {
+  position: absolute;
+  left: 19px;
+  top: 46px;
+  font: 500 12.5px/1 var(--font);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--muted);
+  pointer-events: none;
+}
+.av-close {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0 0 2px;
+  border: 1px solid var(--rule-2);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink-2);
+  font: 400 19px/1 var(--font);
+  cursor: pointer;
+}
+.av-close:hover,
+.av-close:focus-visible {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+@media (pointer: coarse) {
+  .av-close {
+    width: 44px;
+    height: 44px;
+    right: 6px;
+    top: 6px;
+  }
+}
+@media (max-width: 600px) {
+  .action-view {
+    place-items: end center;
+  }
+  .av-panel {
+    width: 100%;
+    height: min(62vh, 520px);
+    border-radius: 16px 16px 0 0;
+    border-bottom: 0;
+  }
+  /* (the grand's section is long and low: its panel leaves the rest of the stage in view) */
+  .av-panel[data-kind='grand'] {
+    height: min(62vh, 300px);
+  }
+}
+/* a low stage (a phone on its side): the panel takes its whole height */
+@media (max-height: 500px) {
+  .av-panel {
+    height: calc(100% - 12px);
+  }
+}
+
+.ens-icon circle {
+  fill: currentColor;
+}
+.ens-icon path {
+  stroke: currentColor;
+  fill: none;
+  stroke-linecap: round;
+}
+
+:root[data-ensemble] .knob-toggle,
+:root[data-ensemble] .knobs {
+  display: none !important;
+}
+/* the pieces: a list on paper, each a composer, a title and who plays it */
+.score-menu {
+  position: absolute;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  min-width: 232px;
+  padding: 5px;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: var(--shadow-3);
+  /* (its height is kept to the window's: player.ts; a short window scrolls it) */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-2) transparent;
+}
+.sm-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: 'who what' 'lineup lineup';
+  align-items: baseline;
+  gap: 0 8px;
+  padding: 7px 9px 5px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--ink-2);
+  text-align: left;
+  cursor: pointer;
+}
+.sm-item:hover,
+.sm-item:focus-visible {
+  background: var(--ground-2);
+  color: var(--ink);
+  outline: none;
+}
+.sm-item:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+.sm-who {
+  grid-area: who;
+  font: 550 16px/1.2 var(--font);
+  color: var(--ink);
+}
+.sm-what {
+  grid-area: what;
+  font: 450 13px/1.3 var(--font);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.sm-lineup {
+  grid-area: lineup;
+  display: flex;
+  gap: 0;
+  margin-top: 2px;
+  color: var(--muted);
+}
+.sm-lineup .glyph {
+  width: 20px;
+  height: 20px;
+}
+/* a large orchestra: each kind once, its count over its shoulder (thirteen kinds, "Toward Morning"'s,
+   are 13 × 15 + 12 px: inside the item's 214 px) */
+.sm-many .sm-v {
+  position: relative;
+  display: inline-flex;
+  margin-right: 1px;
+}
+.sm-many .glyph {
+  width: 15px;
+  height: 17px;
+}
+/* more kinds than a row holds (sixteen, "Pass It On"'s): two rows of eight, 8 × 15 + 8 px */
+.sm-two {
+  flex-wrap: wrap;
+  max-width: 130px;
+  row-gap: 3px;
+}
+.sm-n {
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  font: 600 8.5px/1 var(--font);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--ink-2);
+}
+.sm-credit {
+  padding: 5px 9px 3px;
+  border-top: 1px solid var(--rule);
+  margin-top: 3px;
+  font: 450 12px/1.3 var(--font);
+  color: var(--muted);
+  text-decoration: none;
+  /* (one line: it broke before its last word) */
+  white-space: nowrap;
+}
+.sm-credit:hover {
+  color: var(--ink);
+}
+.case-toggle svg {
+  display: block;
+}
+/* a key's action close up (3D): the way back, small, at the stage's top right under the top band */
+.zoom-back {
+  position: absolute;
+  right: 16px;
+  top: 140px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: var(--ink-2);
+  background: var(--paper);
+  border: 1px solid var(--rule-2);
+  border-radius: 50%;
+  box-shadow: var(--shadow-1);
+  cursor: pointer;
+}
+.zoom-back:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.zoom-back[hidden] {
+  display: none;
+}
+@media (pointer: coarse) {
+  .zoom-back {
+    width: 44px;
+    height: 44px;
+    right: 10px;
+  }
+}
+.stage-3d {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  z-index: 2;
+  cursor: grab;
+  touch-action: none;
+}
+.stage-3d:active {
+  cursor: grabbing;
+}
+
+/* ------------------------------------------------------------ notes: the long read */
+/* the contents: plain words in a row, each its section */
+.notes .toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  margin: 10px 0 36px;
+}
+.notes .toc button {
+  font: 500 14px/1.5 var(--font);
+  color: var(--muted);
+  background: none;
+  border: none;
+  padding: 3px 0;
+  cursor: pointer;
+  box-shadow: inset 0 -1px 0 var(--rule-2);
+  transition:
+    color 0.15s var(--ease),
+    box-shadow 0.15s var(--ease);
+}
+.notes .toc button:hover,
+.notes .toc button:focus-visible {
+  color: var(--ink);
+  box-shadow: inset 0 -1.5px 0 var(--ink);
+}
+.notes section {
+  scroll-margin-top: 24px;
+}
+.notes h2.sec {
+  font: 300 32px/1.15 var(--font);
+  color: var(--ink);
+  margin: 60px 0 14px;
+}
+.notes h3 {
+  font: 600 15px/1.4 var(--font);
+  letter-spacing: 0;
+  color: var(--ink);
+  margin: 30px 0 6px;
+}
+.notes .prose ul {
+  padding-left: 1.1em;
+  margin: 0 0 1em;
+}
+.notes .prose li {
+  margin-bottom: 0.55em;
+}
+/* an equation: set in the mono on a slip of paper */
+.notes .eq {
+  font: 400 13.5px/1.65 var(--mono);
+  color: var(--ink);
+  margin: 12px 0 18px;
+  padding: 11px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-2) transparent;
+}
+.notes .eq div + div {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.notes .tbl {
+  margin: 12px 0 22px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-2) transparent;
+}
+.notes table {
+  border-collapse: collapse;
+  font: 450 14px/1.45 var(--font);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--ink-2);
+  min-width: 100%;
+}
+.notes th,
+.notes td {
+  text-align: left;
+  padding: 6px 14px 6px 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.notes th {
+  color: var(--muted);
+  font-weight: 550;
+}
+.notes figure.diagram {
+  margin: 16px 0 24px;
+  color: var(--ink-2);
+}
+.notes figure.diagram svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.notes figure.diagram .lbl {
+  font: 500 13px var(--font);
+}
+/* (in a diagram: what sounds, and what drives it) */
+.notes figure.diagram .hot {
+  stroke: var(--accent);
+}
+.notes figure.diagram .warm {
+  stroke: var(--ink);
+}
+.notes figcaption {
+  font: 450 14.5px/1.45 var(--font);
+  color: var(--muted);
+  margin-top: 8px;
+}
+.notes .refs-title {
+  margin-top: 56px;
+}
+/* what the work stands on that is not a paper: a line under the sources, in their type, each a link */
+.notes .thanks {
+  max-width: 31rem;
+  margin: 22px 0 0;
+  font: 450 14px/1.6 var(--font);
+  text-wrap: pretty;
+  color: var(--muted);
+}
+.notes .thanks a {
+  color: var(--ink-2);
+  text-decoration-color: var(--rule-2);
+}
+.notes .thanks a:hover {
+  color: var(--ink);
+  text-decoration-color: var(--ink);
+}
+.notes .credit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.2em 0.7em;
+  margin: 40px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+  font: 450 15px/1.5 var(--font);
+  color: var(--ink-2);
+}
+.notes .credit-line {
+  margin: 0;
+}
+.notes .credit-icons {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45em;
+  flex: 0 0 auto;
+}
+.notes .credit-icon {
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 0.82em;
+  height: 0.82em;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: none;
+  text-decoration: none;
+  /* flex baseline is the box bottom; sit it on the type baseline */
+}
+.notes .credit-icon:hover,
+.notes .credit-icon:focus-visible {
+  color: var(--ink);
+  outline: none;
+}
+.notes .credit-icon:focus-visible {
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px var(--ink);
+}
+.notes .credit-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.notes .credit-icon[href='https://x.com/wustep'] {
+  /* the filled X reads heavier than the stroked globe at the same box */
+  width: 0.72em;
+  height: 0.72em;
+}
+@media (max-width: 600px) {
+  .notes h2.sec {
+    font-size: 27px;
+  }
+  .notes .eq {
+    font-size: 12.5px;
+  }
+}
+
+/* ------------------------------------------------------------ an ensemble: what the keys play */
+/* in the knobs' place on the fallboard: the instruments, each on a keycap (inked: the keys play it),
+   then split; a phone keeps the row behind one button showing what the keys play */
+.kf,
+.kf-toggle {
+  display: none;
+}
+/* (a long lineup in a window with no room for it, seventeen seats and the fork on a tablet held upright: the
+   caps stand closer, each its share of the row, down to 22 px) */
+:root[data-ensemble] .kf {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  min-width: 0;
+}
+.kf-sign {
+  flex: none;
+  color: var(--muted);
+}
+.kf-part,
+.kf-split {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 1 auto;
+  width: 36px;
+  min-width: 22px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: 3px 3px 7px 7px;
+  background: var(--paper);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color 0.12s var(--ease),
+    background-color 0.12s var(--ease),
+    border-color 0.12s var(--ease);
+}
+.kf-part .glyph {
+  width: 30px;
+  max-width: 100%;
+  height: 30px;
+}
+.kf-part:hover,
+.kf-split:hover {
+  color: var(--ink);
+  border-color: var(--rule-2);
+}
+.kf-part[aria-pressed='true'],
+.kf-split[aria-pressed='true'] {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.kf-part[aria-pressed='true'] .glyph .g-body,
+.kf-part[aria-pressed='true'] .glyph .g-keys,
+.kf-part[aria-pressed='true'] .glyph .g-tube-body,
+.kf-part[aria-pressed='true'] .glyph .g-key,
+.pl-pick[aria-checked='true'] .glyph .g-body,
+.pl-pick[aria-checked='true'] .glyph .g-keys,
+.pl-pick[aria-checked='true'] .glyph .g-tube-body,
+.pl-pick[aria-checked='true'] .glyph .g-key,
+.sheet-pick[aria-checked='true'] .glyph .g-body,
+.sheet-pick[aria-checked='true'] .glyph .g-keys,
+.sheet-pick[aria-checked='true'] .glyph .g-tube-body,
+.sheet-pick[aria-checked='true'] .glyph .g-key {
+  fill: none;
+}
+/* a section some of whose desks the keys play (by default the first flute of two) */
+.kf-part[aria-pressed='mixed'] {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.kf-split {
+  margin-left: 8px;
+  border-radius: 7px;
+}
+.kf-n,
+.kf-more {
+  font: 600 10.5px/1 var(--font);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--ink-2);
+  pointer-events: none;
+}
+.kf-part[aria-pressed='true'] .kf-n {
+  color: var(--paper);
+}
+.kf-n {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+}
+.kf-part:focus-visible,
+.kf-split:focus-visible {
+  outline-offset: 1px;
+}
+.kf-toggle {
+  align-items: center;
+  gap: 4px;
+  height: 40px;
+  margin-left: auto;
+  padding: 0 8px;
+  border: 1px solid var(--rule-2);
+  border-radius: 3px 3px 8px 8px;
+  background: var(--paper);
+  color: var(--ink-2);
+  cursor: pointer;
+  box-shadow: var(--shadow-1);
+}
+.kf-toggle .glyph {
+  width: 24px;
+  height: 24px;
+  color: var(--ink);
+}
+.kf-toggle .kf-split-sign {
+  color: var(--ink);
+}
+.kf-toggle[aria-expanded='true'] {
+  border-color: var(--ink);
+}
+@media (max-width: 760px), (max-height: 500px) and (orientation: landscape) {
+  :root[data-ensemble] .kf-toggle {
+    display: flex;
+  }
+  :root[data-ensemble] .kf {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    z-index: 5;
+    margin: 0;
+    padding: 10px var(--gutter);
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+    background: var(--paper);
+    border-top: 1px solid var(--rule);
+    box-shadow: 0 -10px 24px -14px rgba(28, 34, 42, 0.3);
+    display: none;
+  }
+  :root[data-ensemble][data-keys-open] .kf {
+    display: flex;
+  }
+  .kf-part,
+  .kf-split {
+    width: 44px;
+    height: 44px;
+  }
+  .kf-part .glyph {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+/* ------------------------------------------------------------ the drawn signs (ui/icons.ts) */
+.ico {
+  display: block;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

@@ -75,7 +75,7 @@ export function lightString(ctx: CanvasRenderingContext2D, x0: number, y0: numbe
   const struck = l >= sym;
   if (struck) {
     ctx.globalCompositeOperation = 'lighter';
-    ctx.strokeStyle = rgba(INK.vermilion, 0.16 * l);
+    ctx.strokeStyle = rgba(INK.sound, 0.16 * l);
     ctx.lineWidth = 7;
     ctx.beginPath();
     ctx.moveTo(x0, y0);
@@ -83,7 +83,7 @@ export function lightString(ctx: CanvasRenderingContext2D, x0: number, y0: numbe
     ctx.stroke();
     ctx.globalCompositeOperation = 'source-over';
   }
-  ctx.strokeStyle = struck ? rgba(INK.vermilion, 0.15 + 0.85 * l) : rgba(INK.amber, 0.08 + 0.47 * sym);
+  ctx.strokeStyle = struck ? rgba(INK.sound, 0.15 + 0.85 * l) : rgba(INK.warm, 0.08 + 0.47 * sym);
   ctx.lineWidth = struck ? 1 + 1.6 * l : 0.9 + 0.9 * sym;
   ctx.beginPath();
   for (const o of off) {
@@ -99,7 +99,7 @@ export function hammerMark(ctx: CanvasRenderingContext2D, x: number, y: number, 
   const hh = 3 + 3 * h;
   ctx.beginPath();
   ctx.roundRect(x - (w * (1 + 0.3 * h)) / 2, y - hh / 2, w * (1 + 0.3 * h), hh, 1.5);
-  ctx.fillStyle = flash > 0.02 ? `rgba(${Math.round(205 + 50 * flash)},${Math.round(181 - 87 * flash)},${Math.round(146 - 90 * flash)},${(0.55 + 0.45 * flash).toFixed(3)})` : soft > 0.05 ? rgba(INK.amber, 0.34 + 0.3 * soft) : rgba(INK.felt, 0.34 + 0.3 * h);
+  ctx.fillStyle = flash > 0.02 ? `rgba(${Math.round(205 + 50 * flash)},${Math.round(181 - 87 * flash)},${Math.round(146 - 90 * flash)},${(0.55 + 0.45 * flash).toFixed(3)})` : soft > 0.05 ? rgba(INK.warm, 0.34 + 0.3 * soft) : rgba(INK.felt, 0.34 + 0.3 * h);
   ctx.fill();
 }
 
@@ -122,7 +122,7 @@ export function damperMark(ctx: CanvasRenderingContext2D, x: number, y: number, 
   ctx.fillStyle = rgba(INK.ebony, 0.94 - 0.5 * d);
   ctx.fill();
   ctx.lineJoin = 'round';
-  ctx.strokeStyle = d > 0.05 ? rgba(INK.amber, 0.2 + 0.45 * d) : rgba(INK.felt, 0.22);
+  ctx.strokeStyle = d > 0.05 ? rgba(INK.warm, 0.2 + 0.45 * d) : rgba(INK.felt, 0.22);
   ctx.lineWidth = 0.8;
   ctx.stroke();
 }
@@ -524,7 +524,7 @@ export function paintPlate(c: CanvasRenderingContext2D, pl: Plate, perimeter: Pa
 export function paintEnds(c: CanvasRenderingContext2D, pl: Plate): void {
   if (!pl.detail) return;
   c.lineCap = 'butt';
-  c.strokeStyle = rgba(INK.ivory, 0.14);
+  c.strokeStyle = rgba(INK.line, 0.14);
   c.lineWidth = 0.7;
   c.beginPath();
   for (const [a, b] of pl.leads) {
@@ -577,14 +577,14 @@ function paintBase(lay: Layout, W: number, H: number, dpr: number): void {
       c.stroke(path(catmull(part.filter((_, k) => k % 3 === 0 || k === part.length - 1).map((s) => s.b), 4), false));
     }
     // where the speaking lengths begin (agraffes, the capo bar): a hairline along the string fronts
-    c.strokeStyle = rgba(INK.ivory, 0.22);
+    c.strokeStyle = rgba(INK.line, 0.22);
     c.lineWidth = 1.2;
     for (const part of [treb, bass]) if (part.length > 1) c.stroke(path(part.map((s) => s.a), false));
     // the strings at rest: steel trebles, then the copper-wound bass crossing over the tenor
     c.lineCap = 'butt';
     for (const part of [treb, bass]) {
       const wound = part === bass;
-      c.strokeStyle = rgba(wound ? INK.copper : INK.ivory, wound ? 0.5 : 0.24);
+      c.strokeStyle = rgba(wound ? INK.copper : INK.line, wound ? 0.5 : 0.24);
       c.lineWidth = wound ? 1.3 : 0.8;
       c.beginPath();
       for (const s of part)
@@ -597,10 +597,10 @@ function paintBase(lay: Layout, W: number, H: number, dpr: number): void {
     paintEnds(c, pl);
     c.restore();
     c.lineJoin = 'round';
-    c.strokeStyle = rgba(INK.ivory, 0.34);
+    c.strokeStyle = rgba(INK.line, 0.34);
     c.lineWidth = 1.4;
     c.stroke(outline);
-    c.strokeStyle = rgba(INK.ivory, 0.1);
+    c.strokeStyle = rgba(INK.line, 0.1);
     c.lineWidth = 1;
     c.stroke(inner);
   });
@@ -666,8 +666,8 @@ export function drawGrandPlan(ctx: CanvasRenderingContext2D, W: number, H: numbe
     const a = (1 - age) ** 2 * (0.35 + 0.5 * v);
     const g = ctx.createRadialGradient(s.x + sh, yS, 0, s.x + sh, yS, r);
     g.addColorStop(0, rgba('255,200,160', a));
-    g.addColorStop(0.35, rgba(INK.vermilion, a * 0.6));
-    g.addColorStop(1, rgba(INK.vermilion, 0));
+    g.addColorStop(0.35, rgba(INK.sound, a * 0.6));
+    g.addColorStop(1, rgba(INK.sound, 0));
     ctx.fillStyle = g;
     ctx.fillRect(s.x + sh - r, yS - r, 2 * r, 2 * r);
   }
@@ -693,14 +693,14 @@ export function drawGrandPlan(ctx: CanvasRenderingContext2D, W: number, H: numbe
   ctx.fill(lay.outline);
   ctx.restore();
   // its outline, foreshortened, and its free edge catching the light
-  ctx.strokeStyle = rgba(INK.ivory, 0.12 + 0.2 * (1 - lidOpen));
+  ctx.strokeStyle = rgba(INK.line, 0.12 + 0.2 * (1 - lidOpen));
   ctx.lineWidth = 1;
   ctx.beginPath();
   lay.outer.forEach(([x, y], k) => (k ? ctx.lineTo(xL + (x - xL) * cphi, y) : ctx.moveTo(xL + (x - xL) * cphi, y)));
   ctx.stroke();
   const edgeX = xL + (xR - xL) * cphi;
   // (the free edge: quiet, since it crosses the strings)
-  ctx.strokeStyle = rgba(INK.ivory, 0.1 + 0.1 * lidOpen);
+  ctx.strokeStyle = rgba(INK.line, 0.1 + 0.1 * lidOpen);
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(edgeX, yTop + (yKey - yTop) * 0.25);

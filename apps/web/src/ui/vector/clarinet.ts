@@ -76,33 +76,33 @@ export function drawClarinetV(ctx: CanvasRenderingContext2D, W: number, H: numbe
         const l = (i + 1) / LEVELS;
         beam(ctx, p, heat(0.25 + 0.75 * l), 1, { alpha: Math.min(1, (0.18 + 0.82 * l) * fade), butt: true });
       });
-      beam(ctx, env, V.amber, 1, { alpha: (0.3 + 0.35 * lvl) * fade });
+      beam(ctx, env, V.sound, 1, { alpha: (0.3 + 0.35 * lvl) * fade });
     }
   }
   // ---- the mouthpiece: its beak, the reed behind it (dashed), the ligature's sleeve and screws
-  beam(ctx, L.reed, V.blueDim, 1, { alpha: 0.8, dash: [3, 3] });
-  beam(ctx, L.vamp, V.blueDim, 1, { alpha: 0.55, dash: [3, 3] });
-  beam(ctx, L.mp, V.blue, lw);
-  beam(ctx, L.mpRidge, V.blueDim, 1, { alpha: 0.6 });
-  beam(ctx, L.lig, V.blueMid, lw);
-  if (!small) beam(ctx, L.ligRib, V.blueDim, 0.8, { alpha: 0.8, butt: true });
-  beam(ctx, L.screwTabs, V.blueMid, 1);
-  beam(ctx, L.screwHeads, V.blueMid, 1);
-  if (!small) beam(ctx, L.screwKnurl, V.blueDim, 0.8, { alpha: 0.7, butt: true });
+  beam(ctx, L.reed, V.lineDim, 1, { alpha: 0.8, dash: [3, 3] });
+  beam(ctx, L.vamp, V.lineDim, 1, { alpha: 0.55, dash: [3, 3] });
+  beam(ctx, L.mp, V.line, lw);
+  beam(ctx, L.mpRidge, V.lineDim, 1, { alpha: 0.6 });
+  beam(ctx, L.lig, V.lineMid, lw);
+  if (!small) beam(ctx, L.ligRib, V.lineDim, 0.8, { alpha: 0.8, butt: true });
+  beam(ctx, L.screwTabs, V.lineMid, 1);
+  beam(ctx, L.screwHeads, V.lineMid, 1);
+  if (!small) beam(ctx, L.screwKnurl, V.lineDim, 0.8, { alpha: 0.7, butt: true });
   // ---- the wood: its outline, the rings and joints, the bell's mouth
-  beam(ctx, L.silver, V.blueMid, 1, { alpha: 0.9 });
-  beam(ctx, L.seams, V.blueMid, 1, { alpha: 0.7, butt: true });
-  beam(ctx, L.body, V.blue, lw + 0.1);
-  beam(ctx, L.mouth, V.blue, lw, { hot: !small });
-  beam(ctx, L.mouthIn, V.blueMid, 1);
+  beam(ctx, L.silver, V.lineMid, 1, { alpha: 0.9 });
+  beam(ctx, L.seams, V.lineMid, 1, { alpha: 0.7, butt: true });
+  beam(ctx, L.body, V.line, lw + 0.1);
+  beam(ctx, L.mouth, V.line, lw, { hot: !small });
+  beam(ctx, L.mouthIn, V.lineMid, 1);
   // ---- the mechanism: rods, hinge tubes, the touches, the pillars
-  beam(ctx, L.rods, V.blueMid, 1);
-  beam(ctx, L.hinges, V.blueDim, 1);
+  beam(ctx, L.rods, V.lineMid, 1);
+  beam(ctx, L.hinges, V.lineDim, 1);
   CL_TOUCHES.forEach((t, i) => {
     const q = lv.touchPress[i];
-    beam(ctx, L.touches[i], mix(t.fixed || t.back ? V.blueDim : V.blueMid, V.blue, q), lw * (t.back ? 0.8 : 1) + 0.5 * q, { alpha: (t.back ? 0.55 : 0.9) + 0.1 * q, hot: q > 0.5, dash: t.back && q < 0.5 ? [3, 3] : undefined });
+    beam(ctx, L.touches[i], mix(t.fixed || t.back ? V.lineDim : V.lineMid, V.line, q), lw * (t.back ? 0.8 : 1) + 0.5 * q, { alpha: (t.back ? 0.55 : 0.9) + 0.1 * q, hot: q > 0.5, dash: t.back && q < 0.5 ? [3, 3] : undefined });
   });
-  beam(ctx, L.posts, V.blueMid, 1);
+  beam(ctx, L.posts, V.lineMid, 1);
   // ---- the keys: each a circle on a hairline arm from its hinge; shut, bright and crossed (the back's
   // dashed, bright under the thumb)
   const arms = new Path2D();
@@ -129,18 +129,18 @@ export function drawClarinetV(ctx: CanvasRenderingContext2D, W: number, H: numbe
       const on = k.style === 'ring' ? lv.keyPress[i] : p;
       ctx.beginPath();
       ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
-      beam(ctx, null, mix(V.blueDim, V.blue, on), 1 + 0.5 * on, { alpha: 0.6 + 0.4 * on, dash: on < 0.5 ? [3, 3] : undefined, hot: on > 0.5 });
+      beam(ctx, null, mix(V.lineDim, V.line, on), 1 + 0.5 * on, { alpha: 0.6 + 0.4 * on, dash: on < 0.5 ? [3, 3] : undefined, hot: on > 0.5 });
       return;
     }
     const s = 0.965 + 0.035 * p;
     ctx.beginPath();
     ctx.ellipse(cx, cy, rx * s, ry * s, 0, 0, 2 * Math.PI);
-    beam(ctx, null, mix(V.blueMid, V.blue, shut), lw + 0.5 * shut, { alpha: 0.75 + 0.25 * shut, hot: shut > 0.5 && k.style !== 'cup' });
+    beam(ctx, null, mix(V.lineMid, V.line, shut), lw + 0.5 * shut, { alpha: 0.75 + 0.25 * shut, hot: shut > 0.5 && k.style !== 'cup' });
     if (k.style !== 'cup') {
       // a ring's (or the plain hole's) tone hole
       const hr = k.hole * sc;
-      ring(ctx, cx, cy, Math.max(0.6, hr), mix(V.blueMid, V.blue, shut), 1, { alpha: 0.8 + 0.2 * shut });
-      if (shut > 0.05) dot(ctx, cx, cy, Math.max(0.6, hr * 0.7), V.blue, 0.8 * shut);
+      ring(ctx, cx, cy, Math.max(0.6, hr), mix(V.lineMid, V.line, shut), 1, { alpha: 0.8 + 0.2 * shut });
+      if (shut > 0.05) dot(ctx, cx, cy, Math.max(0.6, hr * 0.7), V.line, 0.8 * shut);
     }
     if (shut > 0.05 && ry > 1.5) {
       // shut: a cross on the pad (on a ring, the finger over its hole)
@@ -150,13 +150,13 @@ export function drawClarinetV(ctx: CanvasRenderingContext2D, W: number, H: numbe
       ctx.lineTo(cx + rx * kx, cy + ry * kx);
       ctx.moveTo(cx + rx * kx, cy - ry * kx);
       ctx.lineTo(cx - rx * kx, cy + ry * kx);
-      beam(ctx, null, V.blue, lw, { alpha: shut * (k.style === 'cup' ? 0.75 : 1), hot: true });
+      beam(ctx, null, V.line, lw, { alpha: shut * (k.style === 'cup' ? 0.75 : 1), hot: true });
     }
   });
-  beam(ctx, arms, V.blueDim, 1);
+  beam(ctx, arms, V.lineDim, 1);
   // ---- the tip: the opening between the reed and the tip rail, an eye (exaggerated), shut once a cycle when loud
   const eye = tipEyePaths(X, Y, Math.max(0, lv.open) * 0.0024);
-  beam(ctx, eye.reed, V.blue, lw, { hot: true });
+  beam(ctx, eye.reed, V.line, lw, { hot: true });
   // ---- the slots at the mouthpiece, each where its knob acts
   const hr = clamp(0.0034 * sc, 2.6, 6);
   const live = Math.min(1, 0.45 + 2 * lv.blow);
@@ -171,15 +171,15 @@ export function drawClarinetV(ctx: CanvasRenderingContext2D, W: number, H: numbe
     for (let i = 0; i < nd; i++) {
       const hx = hash(frame * 13 + i * 7.3);
       const hv = hash(frame * 5 + i * 3.1 + 40);
-      dot(ctx, X(0.0006 + hx * 0.007), Y((hv * 2 - 1) * 0.0034), small ? 0.9 : 1.2, V.pink, Math.min(1, 0.35 + lv.blow) * (0.5 + 0.5 * hash(frame + i)));
+      dot(ctx, X(0.0006 + hx * 0.007), Y((hv * 2 - 1) * 0.0034), small ? 0.9 : 1.2, V.slot3, Math.min(1, 0.35 + lv.blow) * (0.5 + 0.5 * hash(frame + i)));
     }
   }
   // the lips' handle (green: the breath), and round it the vibrato's ring (white), breathing with it
   // (kept inside the box: an Orchestra cell leaves a narrow margin past the tip)
   const xh = Math.max((L.vertical ? L.top : 0) + hr + 10, X(xb) - hr - 2);
-  if (X(xb) > xh + hr) seg(ctx, xh + hr, Y(0), X(xb), Y(0), V.green, 1, { alpha: 0.5 * live });
-  handle(ctx, xh, Y(0), V.green, hr, live);
-  ring(ctx, xh, Y(0), hr + 3.5 + clamp(lv.vib * 60, -2.5, 6), V.white, 1, { alpha: 0.5 + 0.5 * Math.min(1, Math.abs(lv.vib) * 30 + lv.blow) });
+  if (X(xb) > xh + hr) seg(ctx, xh + hr, Y(0), X(xb), Y(0), V.slot1, 1, { alpha: 0.5 * live });
+  handle(ctx, xh, Y(0), V.slot1, hr, live);
+  ring(ctx, xh, Y(0), hr + 3.5 + clamp(lv.vib * 60, -2.5, 6), V.slot4, 1, { alpha: 0.5 + 0.5 * Math.min(1, Math.abs(lv.vib) * 30 + lv.blow) });
   // the embouchure (red): the lips round the beak and the reed, a little from the tip, its handle beside
   const xl = 0.013;
   const hw = mpHW(xl);
@@ -188,10 +188,10 @@ export function drawClarinetV(ctx: CanvasRenderingContext2D, W: number, H: numbe
     pinch.moveTo(X(xl - 0.0045), Y(sg * (hw + 0.0012)));
     pinch.lineTo(X(xl + 0.0045), Y(sg * (hw + 0.0012)));
   }
-  beam(ctx, pinch, V.red, 1, { alpha: 0.85 * live });
+  beam(ctx, pinch, V.slot2, 1, { alpha: 0.85 * live });
   const yr = Y(-(hw + 0.0012)) - Math.max(0.0085 * sc, hr + 6);
-  seg(ctx, X(xl), Y(-(hw + 0.0012)), X(xl), yr + hr, V.red, 1, { alpha: 0.5 * live });
-  handle(ctx, X(xl), yr, V.red, hr, live);
+  seg(ctx, X(xl), Y(-(hw + 0.0012)), X(xl), yr + hr, V.slot2, 1, { alpha: 0.5 * live });
+  handle(ctx, X(xl), yr, V.slot2, hr, live);
   // ---- the wave's line along the bore's axis, over everything (its nodes stand still, marked)
   if (lv.sounding) {
     const axis = new Path2D();
@@ -202,15 +202,15 @@ export function drawClarinetV(ctx: CanvasRenderingContext2D, W: number, H: numbe
       if (i) axis.lineTo(X(x), Y(-v));
       else axis.moveTo(X(x), Y(-v));
     }
-    beam(ctx, axis, V.amber, small ? 1.2 : 1.5, { alpha: Math.min(1, 3 * lvl), hot: true });
+    beam(ctx, axis, V.sound, small ? 1.2 : 1.5, { alpha: Math.min(1, 3 * lvl), hot: true });
     const ticks = new Path2D();
     for (const x of lv.nodes) {
       ticks.moveTo(X(x), Y(-0.0035));
       ticks.lineTo(X(x), Y(0.0035));
     }
-    beam(ctx, ticks, V.amber, 1, { alpha: 0.6 * Math.min(1, 3 * lvl), butt: true });
+    beam(ctx, ticks, V.sound, 1, { alpha: 0.6 * Math.min(1, 3 * lvl), butt: true });
     // (the sounding length's far end: where the wave leaves the bore, past the first open hole)
-    if (!small && !L.vertical) label(ctx, `${Math.round(end * 1000)} mm`, X(Math.min(end, CL_LEN)) + 6, Y(-clR(Math.min(end, CL_LEN))) - 10, { size: 10, color: V.amber, alpha: 0.75 * Math.min(1, 3 * lvl) });
+    if (!small && !L.vertical) label(ctx, `${Math.round(end * 1000)} mm`, X(Math.min(end, CL_LEN)) + 6, Y(-clR(Math.min(end, CL_LEN))) - 10, { size: 10, color: V.sound, alpha: 0.75 * Math.min(1, 3 * lvl) });
   }
   ctx.restore();
   clRecord(L, W, st, lv.fingers);

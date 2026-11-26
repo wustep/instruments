@@ -52,9 +52,9 @@ import { M, MeshBuilder, box, cyl, ellipsoid, grid, variant, type Mat } from './
 type P2 = [number, number];
 const TAU = Math.PI * 2;
 const C = {
-  verm: (a: number) => ink(INK.vermilion, a),
-  amber: (a: number) => ink(INK.amber, a),
-  steel: (a: number) => ink(INK.steel, a),
+  verm: (a: number) => ink(INK.sound, a),
+  amber: (a: number) => ink(INK.warm, a),
+  steel: (a: number) => ink(INK.cool, a),
 };
 
 // ---------------------------------------------------------------- materials

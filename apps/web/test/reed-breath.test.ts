@@ -10,7 +10,7 @@ import { buildClarinetModel, poseClarinet } from '../src/ui/gl/clarinet3d.ts';
 import { REED_TIP, buildBassoonModel, poseBassoon } from '../src/ui/gl/bassoon3d.ts';
 import { newWindPose } from '../src/ui/gl/winds3d.ts';
 
-const steel = INK.steel.split(',').map((c) => Number(c) / 255);
+const steel = INK.cool.split(',').map((c) => Number(c) / 255);
 const frame = (midi: number | null): VisualFrame =>
   ({
     focus: midi === null ? null : { midi, lengthM: 1, f1: 440, shapes: [Float32Array.from({ length: 64 }, (_, i) => Math.cos((Math.PI / 2) * (i / 63)))] },

@@ -21,16 +21,16 @@ export function drawGlockV(ctx: CanvasRenderingContext2D, W: number, H: number, 
   const lw = small ? 1 : 1.2;
   ctx.save();
   // the case's rim (its outside and the tray's edge inside it), its corner plates; each rail's two edges
-  beam(ctx, L.casePath, V.blue, lw);
-  beam(ctx, L.trayPath, V.blueDim, 1, { alpha: 0.9 });
-  if (!small) beam(ctx, L.corners, V.blueDim, 1, { alpha: 0.7 });
-  if (small) beam(ctx, L.rails, V.blueDim, 1, { alpha: 0.8 });
+  beam(ctx, L.casePath, V.line, lw);
+  beam(ctx, L.trayPath, V.lineDim, 1, { alpha: 0.9 });
+  if (!small) beam(ctx, L.corners, V.lineDim, 1, { alpha: 0.7 });
+  if (small) beam(ctx, L.rails, V.lineDim, 1, { alpha: 0.8 });
   else {
     const d = (RAIL_W / 2) * sc;
     for (const side of [-1, 1]) {
       ctx.save();
       ctx.translate(0, side * d);
-      beam(ctx, L.rails, V.blueDim, 1, { alpha: 0.8 });
+      beam(ctx, L.rails, V.lineDim, 1, { alpha: 0.8 });
       ctx.restore();
     }
   }
@@ -43,9 +43,9 @@ export function drawGlockV(ctx: CanvasRenderingContext2D, W: number, H: number, 
     ctx.fillStyle = '#000';
     ctx.fill(p);
     ctx.restore();
-    beam(ctx, p, a > 0.01 ? mix(V.blue, V.amber, Math.min(1, 0.3 + a)) : V.blueMid, a > 0.01 ? lw : 1, { hot: a > 0.3 && !small });
+    beam(ctx, p, a > 0.01 ? mix(V.line, V.sound, Math.min(1, 0.3 + a)) : V.lineMid, a > 0.01 ? lw : 1, { hot: a > 0.3 && !small });
     // its two pins
-    if (!small) for (const [nx, ny] of barNodes(i)) ring(ctx, X(nx), Y(ny), Math.max(1, PIN_R * sc), a > 0.01 ? V.amber : V.blueDim, 1, { alpha: 0.9 });
+    if (!small) for (const [nx, ny] of barNodes(i)) ring(ctx, X(nx), Y(ny), Math.max(1, PIN_R * sc), a > 0.01 ? V.sound : V.lineDim, 1, { alpha: 0.9 });
     if (a > 0.01) {
       // the bar's bending along its length, drawn across it: its middle one way, its ends the other
       const w = (x1 - x0) * sc * 0.42 * Math.min(1, 0.25 + Math.sqrt(a));
@@ -64,12 +64,12 @@ export function drawGlockV(ctx: CanvasRenderingContext2D, W: number, H: number, 
     }
   }
   // a stroke's ring where it landed, opening as it fades
-  for (const { at, k } of strokeRings(fr)) ring(ctx, X(at[0]), Y(at[1]), HEAD_R * sc * (1 + 2.2 * k), V.white, 1, { alpha: 0.9 * (1 - k) });
+  for (const { at, k } of strokeRings(fr)) ring(ctx, X(at[0]), Y(at[1]), HEAD_R * sc * (1 + 2.2 * k), V.slot4, 1, { alpha: 0.9 * (1 - k) });
   for (const h of [0, 1] as const) {
     const head = lv.head[h];
     const up = lv.lift[h];
     const end = shaftEnd(head, h);
-    const c = mix(V.white, V.blue, Math.min(1, up));
+    const c = mix(V.slot4, V.line, Math.min(1, up));
     seg(ctx, X(head[0]), Y(head[1]), X(end[0]), Y(end[1]), c, lw, { alpha: 0.9 });
     ring(ctx, X(head[0]), Y(head[1]), HEAD_R * sc * (1 + 0.18 * up), c, lw + 0.3, { hot: up < 0.3 });
   }

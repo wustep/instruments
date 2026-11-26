@@ -244,7 +244,7 @@ const BRASS_BODY = '#4a3416';
 const BRASS_DEEP = '#2a1d0c';
 const NICKEL_BODY = '#3c3a36';
 const nickel = (a: number) => rgba('236,230,216', a);
-const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
+const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.cool);
 
 /** The tuba from its valve side: the body's spiral into the bell, the leadpipe across the stack's front, the four
  *  pistons with their loops, the main tuning slide; the pistons going down for the engine's fingering, the
@@ -265,13 +265,13 @@ export function drawTuba(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     const rm = t.r[t.r.length >> 1];
     ctx.fillStyle = on ? BRASS_BODY : BRASS_DEEP;
     ctx.fill(t.body);
-    ctx.strokeStyle = rgba(INK.amber, on ? 0.16 : 0.08);
+    ctx.strokeStyle = rgba(INK.warm, on ? 0.16 : 0.08);
     ctx.lineWidth = Math.max(1, 0.5 * rm);
     ctx.stroke(t.sh);
-    ctx.strokeStyle = rgba(INK.amber, on ? 0.34 : 0.2);
+    ctx.strokeStyle = rgba(INK.warm, on ? 0.34 : 0.2);
     ctx.lineWidth = Math.max(0.8, 0.3 * rm);
     ctx.stroke(t.hi);
-    ctx.strokeStyle = rgba(INK.amber, on ? 0.72 : 0.42);
+    ctx.strokeStyle = rgba(INK.warm, on ? 0.72 : 0.42);
     ctx.lineWidth = 1;
     ctx.stroke(t.edges);
   };
@@ -281,16 +281,16 @@ export function drawTuba(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     ctx.fillStyle = BRASS_BODY;
     ctx.fill(B.flare);
     const g = ctx.createLinearGradient(0, Y(STACK_Y0), 0, Y(RIM_Y));
-    g.addColorStop(0, rgba(INK.amber, 0.1));
-    g.addColorStop(0.6, rgba(INK.amber, 0.18));
-    g.addColorStop(1, rgba(INK.amber, 0.3));
+    g.addColorStop(0, rgba(INK.warm, 0.1));
+    g.addColorStop(0.6, rgba(INK.warm, 0.18));
+    g.addColorStop(1, rgba(INK.warm, 0.3));
     ctx.fillStyle = g;
     ctx.fill(B.hi);
     ctx.fillStyle = rgba('255,226,160', 0.16);
     ctx.fill(B.spec);
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.fill(B.shade);
-    ctx.strokeStyle = rgba(INK.amber, 0.72);
+    ctx.strokeStyle = rgba(INK.warm, 0.72);
     ctx.lineWidth = 1.1;
     ctx.stroke(B.edges);
     if (lv.sounding) bellGlow(ctx, L, lv);
@@ -305,16 +305,16 @@ export function drawTuba(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     }
     if (layer === 0) {
       // the stays, on the body and under the small tubing
-      ctx.strokeStyle = rgba(INK.amber, 0.45);
+      ctx.strokeStyle = rgba(INK.warm, 0.45);
       ctx.lineWidth = Math.max(1, 0.003 * sc);
       ctx.stroke(L.braces);
     }
   }
   ctx.fillStyle = BRASS_BODY;
   ctx.fill(L.ferrules);
-  ctx.fillStyle = rgba(INK.amber, 0.18);
+  ctx.fillStyle = rgba(INK.warm, 0.18);
   ctx.fill(L.ferrules);
-  ctx.strokeStyle = rgba(INK.amber, 0.7);
+  ctx.strokeStyle = rgba(INK.warm, 0.7);
   ctx.lineWidth = 1;
   ctx.stroke(L.ferrules);
   // ---- the bell's mouth: its inside (the far wall lit along the rim, dark down the throat), the rim's bead
@@ -329,12 +329,12 @@ export function drawTuba(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     if (lv.sounding) {
       const A = Math.min(1, Math.abs(lv.ampAt(lv.air.total - 0.001)));
       const rg = ctx.createRadialGradient(X(BELL_TOP_X), Y(RIM_Y), 0, X(BELL_TOP_X), Y(RIM_Y), RIM_R * sc);
-      rg.addColorStop(0, rgba(INK.vermilion, 0.1 + 0.22 * A * lv.lvl));
-      rg.addColorStop(1, rgba(INK.vermilion, 0));
+      rg.addColorStop(0, rgba(INK.sound, 0.1 + 0.22 * A * lv.lvl));
+      rg.addColorStop(1, rgba(INK.sound, 0));
       ctx.fillStyle = rg;
       ctx.fill(B.mouth);
     }
-    ctx.strokeStyle = rgba(INK.amber, 0.9);
+    ctx.strokeStyle = rgba(INK.warm, 0.9);
     ctx.lineWidth = Math.max(1.4, 0.005 * sc);
     ctx.stroke(B.mouth);
     ctx.strokeStyle = rgba('255,236,190', 0.45);
@@ -345,7 +345,7 @@ export function drawTuba(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   // each piston's stem and pearl button at its travel
   ctx.fillStyle = BRASS_BODY;
   ctx.fill(L.knuckles);
-  ctx.strokeStyle = rgba(INK.amber, 0.6);
+  ctx.strokeStyle = rgba(INK.warm, 0.6);
   ctx.lineWidth = 1;
   ctx.stroke(L.knuckles);
   ctx.fillStyle = BRASS_BODY;
@@ -357,9 +357,9 @@ export function drawTuba(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     ctx.rotate(-PISTON_LEAN);
     const yy = (y: number) => -(y - VALVE_Y) * sc;
     const g = ctx.createLinearGradient(-CASING_R * sc, 0, CASING_R * sc, 0);
-    g.addColorStop(0, rgba(INK.amber, 0.1));
+    g.addColorStop(0, rgba(INK.warm, 0.1));
     g.addColorStop(0.28, rgba('255,226,160', lv.down[k] ? 0.42 : 0.3));
-    g.addColorStop(0.55, rgba(INK.amber, 0.1));
+    g.addColorStop(0.55, rgba(INK.warm, 0.1));
     g.addColorStop(1, 'rgba(0,0,0,0.3)');
     ctx.fillStyle = g;
     ctx.fillRect(-CASING_R * sc, yy(CASING_Y1), 2 * CASING_R * sc, (CASING_Y1 - CASING_Y0) * sc);
@@ -377,7 +377,7 @@ export function drawTuba(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     ctx.fill();
     ctx.restore();
   });
-  ctx.strokeStyle = rgba(INK.amber, 0.7);
+  ctx.strokeStyle = rgba(INK.warm, 0.7);
   ctx.lineWidth = 1;
   ctx.stroke(L.casings);
   ctx.fillStyle = NICKEL_BODY;
@@ -426,7 +426,7 @@ function bellGlow(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive): void 
   for (let i = 0; i <= 20; i++) {
     const u = i / 20;
     const A = lv.ampAt(sB + u * len);
-    ge.addColorStop(u, rgba(INK.vermilion, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+    ge.addColorStop(u, rgba(INK.sound, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
     gw.addColorStop(u, rgba(waveInk(A * lv.ph), 0.46 * Math.min(1, Math.pow(Math.abs(A * lv.ph), 1.2))));
   }
   ctx.fillStyle = ge;

@@ -2477,8 +2477,8 @@ function invertRigid(m: Mat4): Mat4 {
 }
 
 const C = {
-  verm: (a: number) => ink(INK.vermilion, a),
-  amber: (a: number) => ink(INK.amber, a),
+  verm: (a: number) => ink(INK.sound, a),
+  amber: (a: number) => ink(INK.warm, a),
 };
 
 export function poseBowed(b: Batch, bm: BowedModel, fr: VisualFrame | null, str: { of(v: number): number }): void {

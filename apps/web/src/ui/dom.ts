@@ -1,5 +1,7 @@
 // Tiny DOM helper.
 
+import { onTheme, theme, type GlyphName, type Theme } from '../themes/index.ts';
+
 type Child = Node | string | number | null | undefined | false;
 
 export function h<K extends keyof HTMLElementTagNameMap>(
@@ -21,6 +23,35 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   }
   return el;
 }
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+function drawSign(host: Element, t: Theme): void {
+  const g = t.glyphs[host.getAttribute('data-sign') as GlyphName];
+  if (g === undefined) return;
+  if (typeof g === 'string') return host.replaceChildren(g);
+  const svg = document.createElementNS(SVGNS, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('class', t.glyphs.svgClass);
+  svg.setAttribute('aria-hidden', 'true');
+  if (g.size) {
+    svg.setAttribute('width', String(g.size));
+    svg.setAttribute('height', String(g.size));
+  }
+  for (const [k, v] of Object.entries(t.glyphs.svgAttrs ?? {})) svg.setAttribute(k, v);
+  const path = document.createElementNS(SVGNS, 'path');
+  path.setAttribute('d', g.d);
+  svg.appendChild(path);
+  host.replaceChildren(svg);
+}
+/** One of the chrome's signs as `host`'s content (the way back, the octave's arrows, shut, as it was,
+ *  the knobs): the theme's own, a character of its type or a drawn path (themes/types.ts `Glyphs`), and
+ *  the new theme's when the theme changes. */
+export function sign<T extends Element>(host: T, name: GlyphName): T {
+  host.setAttribute('data-sign', name);
+  drawSign(host, theme());
+  return host;
+}
+if (typeof document !== 'undefined') onTheme((t) => document.querySelectorAll('[data-sign]').forEach((el) => drawSign(el, t)));
 
 export interface View {
   el: HTMLElement;

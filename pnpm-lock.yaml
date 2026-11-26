@@ -29,13 +29,34 @@ importers:
 
   apps/web:
     dependencies:
+      '@fontsource-variable/cabin':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/libre-franklin':
+        specifier: 5.3.0
+        version: 5.3.0
       '@fontsource-variable/newsreader':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/public-sans':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/sometype-mono':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/ysabeau-office':
         specifier: 5.3.0
         version: 5.3.0
       '@fontsource/ibm-plex-mono':
         specifier: 5.3.0
         version: 5.3.0
       '@fontsource/ibm-plex-sans':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/libre-caslon-display':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/libre-caslon-text':
         specifier: 5.3.0
         version: 5.3.0
       '@piano-model/engine':
@@ -215,14 +236,35 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@fontsource-variable/cabin@5.3.0':
+    resolution: {integrity: sha512-VDe9LHdI/XrmYDPCgBVkY+9ZLxAZFrTD3KhpJ/I0y3Ug9uCMDiNr0uKRaI7l1s1InANj1xH/Nsc7mOjkFJfK9w==}
+
+  '@fontsource-variable/libre-franklin@5.3.0':
+    resolution: {integrity: sha512-PEQemCKVRtkLZJNpfvR4wG7x87c8iG05XJuEaX59ogMcAQpdtCZz/NXZUrXLJyvyx3/HD70W4LUppWLBdEdU2g==}
+
   '@fontsource-variable/newsreader@5.3.0':
     resolution: {integrity: sha512-rrzYi43qMpbzwuFtf9OkWH8sxAPVPcQQQEwXpPtwaKYeJ8yVg5aLs5kawmo1f2Q1t1M38TLmEKCkGVDsYwgdFw==}
+
+  '@fontsource-variable/public-sans@5.3.0':
+    resolution: {integrity: sha512-AVfkmAt50BMXWpOO21FAntiJFKGX6xTc2dSL8dxtDteONe9IuRXJWGbs0EbG955vAMCq23ENeuopuW87cGWDSQ==}
+
+  '@fontsource-variable/sometype-mono@5.3.0':
+    resolution: {integrity: sha512-nElQNPNNNvuauTpkRKCBJh4IAiaOlVugWND3c1JnJMykTVMw5npmj8PIGo28ndnONwb6f/pb/lOWnwC8D3pMTg==}
+
+  '@fontsource-variable/ysabeau-office@5.3.0':
+    resolution: {integrity: sha512-bsfzFCRVg7IP77t5rDLsHYaiCJW7HEn3JgAsh0FEnewsoOXo51+ZMJHxZ8+WVM3M1H3jwtalm1IPNfD7QjCFvg==}
 
   '@fontsource/ibm-plex-mono@5.3.0':
     resolution: {integrity: sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q==}
 
   '@fontsource/ibm-plex-sans@5.3.0':
     resolution: {integrity: sha512-CbE4CbbEEZJX860XyUiRpsksXIQR8Rp2XDva2VO53NJox9tVNtusrysd2x5YkUEY3ErQ66W1IiiQL8/wihhw5w==}
+
+  '@fontsource/libre-caslon-display@5.3.0':
+    resolution: {integrity: sha512-WZEyiWTKBoXHWHNfdFQcexxmUOQ22XpSK4ivzczY2AnSt/u8DfmzRpYX6eKwUaFjva5BhSbUUArmouHTDwSEFQ==}
+
+  '@fontsource/libre-caslon-text@5.3.0':
+    resolution: {integrity: sha512-zuGBMEtekNBbeH4YIbL2sUu8BZKFGr1o6b41v/QPnWaEAOgZHSf4ZFdr90YmRbE3uB5G1oAEIIACgwnFRk/F7w==}
 
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
@@ -867,11 +909,25 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
+  '@fontsource-variable/cabin@5.3.0': {}
+
+  '@fontsource-variable/libre-franklin@5.3.0': {}
+
   '@fontsource-variable/newsreader@5.3.0': {}
+
+  '@fontsource-variable/public-sans@5.3.0': {}
+
+  '@fontsource-variable/sometype-mono@5.3.0': {}
+
+  '@fontsource-variable/ysabeau-office@5.3.0': {}
 
   '@fontsource/ibm-plex-mono@5.3.0': {}
 
   '@fontsource/ibm-plex-sans@5.3.0': {}
+
+  '@fontsource/libre-caslon-display@5.3.0': {}
+
+  '@fontsource/libre-caslon-text@5.3.0': {}
 
   '@jridgewell/resolve-uri@3.1.2': {}
 

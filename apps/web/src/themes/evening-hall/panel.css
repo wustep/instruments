@@ -1,0 +1,1101 @@
+/* The top panel: everything over the stage that is not the instrument.
+
+   Two bands, each with one job.
+   · The bar (main.ts .top) is what is on the stage and how it is seen: the instruments by family, the
+     orchestra; at the far end the piano's kind, the view (one choice of three) and the two pages. It is
+     the hall's velvet rail: a dark garnet field with a gilt rule under it. What is chosen on it is lit,
+     as the stage is; nothing is boxed.
+   · The band under it (views/stage.ts .stage-top) is what is sounding: the readout (every note, not one of
+     them), the spectrum, and one instrument's excitation or an ensemble's parts.
+   Where the instruments cannot all sit side by side at a size to read and to touch, one button names what
+   is on the stage and opens them as a sheet of the programme (COMPACT in views/stage.ts: the same query as
+   below). */
+
+:root {
+  --top-h: 38px;
+  --chip-line: rgba(var(--gilt-rgb), 0.45);
+  --on-velvet: rgba(var(--ink-rgb), 0.68);
+}
+:root[data-route='stage'] {
+  --top-h: 60px;
+}
+
+/* ------------------------------------------------------------ the bar */
+.top {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--top-h);
+  padding: 0 var(--gutter);
+  font-family: var(--label);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--on-velvet);
+  /* the velvet, and at its foot the programme's rule in gilt: a line, a gap, a fainter line */
+  background:
+    linear-gradient(rgba(var(--gilt-rgb), 0.85), rgba(var(--gilt-rgb), 0.85)) left bottom / 100% 1px no-repeat,
+    linear-gradient(rgba(var(--gilt-rgb), 0.3), rgba(var(--gilt-rgb), 0.3)) left bottom 3px / 100% 1px no-repeat,
+    linear-gradient(180deg, var(--velvet-hi), var(--velvet) 42%, var(--velvet-lo));
+}
+/* the house lights: a shade over the velvet itself, behind everything that stands on the rail (the
+   picker's open sheet is paper at its full white), which comes down as the sound begins */
+.top::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 4px;
+  z-index: -1;
+  pointer-events: none;
+  background: rgba(8, 2, 4, 0.34);
+  opacity: 0;
+  transition: opacity 1.4s var(--ease-light);
+}
+/* (the rail's shadow on the stage under it) */
+.top::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 16px;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(4, 1, 2, 0.5), transparent);
+}
+:root[data-route='stage'][data-audio='running'] .top::before {
+  opacity: 1;
+}
+/* (the open sheet lies over the file player) */
+:root[data-picker] .top {
+  z-index: 8;
+}
+.top .spacer {
+  flex: 1;
+}
+.top-pick,
+.top-tools,
+.links {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+/* (the lamp's words give way first: "tap a key", a failure's reason; its title has them whole) */
+.status {
+  min-width: 0;
+}
+.lamp {
+  flex: none;
+}
+.lamp-text {
+  min-width: 0;
+}
+/* (the hint is never cut short, main.ts fitLamp: on two lines where one does not fit, and where two
+   do not, the lamp alone) */
+.status[data-fit='two'] .lamp-text {
+  max-height: 24px;
+  line-height: 12px;
+  white-space: normal;
+  text-overflow: clip;
+}
+.status[data-fit='none'] .lamp-text {
+  display: none;
+}
+/* (Measurements and Notes have no keys to tap: there the lamp alone; its title still says how sound starts) */
+:root:not([data-route='stage'])[data-audio='idle'] .lamp-text,
+:root:not([data-route='stage'])[data-audio='suspended'] .lamp-text {
+  display: none;
+}
+.top-pick:empty,
+.top-tools:empty {
+  display: none;
+}
+.top a {
+  text-decoration: none;
+}
+/* the pages: two words in the corner, in the programme's italic, each a target a finger finds, the one
+   shown underlined in gilt */
+.links {
+  display: flex;
+  gap: 2px;
+  margin-right: -7px;
+}
+.links a {
+  padding: 8px 5px;
+  border-radius: 3px;
+  font: italic 400 13.5px/1 var(--serif);
+  letter-spacing: 0;
+  color: rgba(var(--ink-rgb), 0.8);
+  transition: color 0.15s;
+}
+.links a:hover,
+.links a[aria-current='page'] {
+  color: var(--ink);
+}
+.links a[aria-current='page'] {
+  box-shadow: inset 0 -1.5px 0 var(--on);
+}
+.back {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-left: -9px;
+  border-radius: 50%;
+  color: rgba(var(--ink-rgb), 0.8);
+  transition: color 0.15s;
+}
+.back:hover {
+  color: var(--ink);
+}
+.back svg {
+  width: 16px;
+  height: 16px;
+}
+:root[data-route='stage'] .back {
+  display: none;
+}
+:root[data-route='stage'] main {
+  height: calc(100dvh - var(--top-h) - var(--fall-h) - var(--pos-h) - var(--kbd-h));
+  min-height: 300px;
+}
+/* An address opened with keys=0 (main.ts): no fallboard, no position strip, no keys. The stage has
+   their room, down to the window's edge, at every size (the rules below take the keys' heights off). */
+:root[data-nokeys] {
+  --kbd-h: 0px;
+  --fall-h: 0px;
+  --pos-h: 0px;
+}
+:root[data-nokeys][data-route='stage'] main {
+  height: calc(100dvh - var(--top-h));
+}
+/* An address opened with ui=0: the stage and nothing else. The bar, the band and the file player are not
+   shown; the stage is the whole window, down to the keys where they stay (a piano drawn flat, or keys=1:
+   look.ts; elsewhere they are off too, data-nokeys). The other pages keep their bar: it is the way back. */
+:root[data-noui][data-route='stage'] {
+  --top-h: 0px;
+}
+:root[data-noui][data-route='stage'] .top,
+:root[data-noui] .stage-top,
+:root[data-noui] .player {
+  display: none;
+}
+
+/* ------------------------------------------------------------ the picker */
+.picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pick-open {
+  display: none;
+}
+.picker-pop {
+  display: flex;
+  align-items: center;
+}
+/* (a gilt hairline after the last family, before the orchestra) */
+.instruments {
+  display: flex;
+  padding-right: 6px;
+  border-right: 1px solid rgba(var(--gilt-rgb), 0.3);
+}
+/* a family: its instruments close together, a gilt hairline before the next */
+.fam {
+  display: flex;
+  gap: 1px;
+  padding: 0 4px;
+  border-left: 1px solid rgba(var(--gilt-rgb), 0.3);
+}
+.fam:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.fam:last-child {
+  padding-right: 0;
+}
+.pick,
+.ens-toggle {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 36px;
+  padding: 3px 2px 5px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--on-velvet);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background-color 0.15s;
+}
+.pick:hover,
+.ens-toggle:hover {
+  color: var(--ink);
+  background: rgba(var(--ink-rgb), 0.06);
+}
+/* the one on the stage (an orchestra: each it has) stands in the light: a small pool behind it, its
+   drawing lit, and a short gilt rule under its name */
+.pick[aria-pressed='true'],
+.ens-toggle[aria-pressed='true'] {
+  color: var(--ink);
+}
+.pick[aria-pressed='true']::before,
+.ens-toggle[aria-pressed='true']::before {
+  content: '';
+  position: absolute;
+  inset: -6px -8px 10px;
+  pointer-events: none;
+  background: radial-gradient(ellipse 50% 54% at 50% 46%, rgba(255, 214, 150, 0.3), transparent 74%);
+}
+.pick[aria-pressed='true']::after,
+.ens-toggle[aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  bottom: 0;
+  height: 1.5px;
+  background: var(--on);
+}
+/* (an orchestra lights every instrument it has: their glyphs and counts say so, the rule is the orchestra's) */
+:root[data-ensemble] .pick[aria-pressed='true']::after {
+  content: none;
+}
+/* the keyboard-focus ring is drawn inside the button's own box: the picker sits against the bar's top
+   and left edges */
+.pick:focus-visible,
+.ens-toggle:focus-visible,
+.pick-open:focus-visible {
+  outline-offset: -1.5px;
+}
+.pick .glyph {
+  position: relative;
+  width: 32px;
+  height: 32px;
+}
+.pick[aria-pressed='true'] .glyph {
+  stroke: var(--gilt-hi);
+  filter: drop-shadow(0 0 5px rgba(var(--on-rgb), 0.5));
+}
+.pick-name {
+  position: relative;
+  font-family: var(--label);
+  font-size: 11px;
+  font-stretch: 76%;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+/* how many of an instrument the ensemble has (two or more) */
+.pick-n {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font: 600 11px/1 var(--label);
+  color: var(--on);
+}
+.pick-n:empty {
+  display: none;
+}
+.ens-toggle .ens-icon {
+  position: relative;
+  width: 26px;
+  height: 32px;
+}
+.ens-icon circle {
+  fill: currentColor;
+}
+.ens-icon path {
+  stroke: currentColor;
+  fill: none;
+  stroke-linecap: round;
+}
+.ens-toggle[aria-pressed='true'] .ens-icon {
+  color: var(--gilt-hi);
+  filter: drop-shadow(0 0 5px rgba(var(--on-rgb), 0.5));
+}
+
+/* ------------------------------------------------------------ the stage's tools: three words, the chosen one lit */
+/* A choice of three (and the piano's two kinds) is set as words in a row. The chosen one is in the light's
+   gold with the picker's own short rule under it; nothing is boxed. */
+.stage-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.view-seg,
+.presets {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+/* (two choices side by side are two groups: a gilt hairline after the piano's kinds) */
+.presets::after {
+  content: '';
+  width: 1px;
+  height: 18px;
+  margin-left: 8px;
+  background: rgba(var(--gilt-rgb), 0.42);
+}
+.view-seg button,
+.presets button {
+  position: relative;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  padding: 8px 6px 9px;
+  font: 500 11px/1 var(--label);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(var(--ink-rgb), 0.72);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.view-seg button:hover,
+.presets button:hover {
+  color: var(--ink);
+}
+.view-seg button[aria-pressed='true'],
+.presets button[aria-pressed='true'] {
+  color: var(--gilt-hi);
+}
+.view-seg button[aria-pressed='true']::after,
+.presets button[aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 3px;
+  height: 1.5px;
+  background: var(--on);
+}
+.view-seg button:focus-visible,
+.presets button:focus-visible,
+.case-toggle:focus-visible {
+  outline: 1.5px solid var(--gilt-hi);
+  outline-offset: 1px;
+}
+.case-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: rgba(var(--ink-rgb), 0.72);
+  background: none;
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.case-toggle:hover {
+  color: var(--ink);
+}
+.case-toggle[aria-pressed='true'] {
+  color: var(--gilt-hi);
+  filter: drop-shadow(0 0 4px rgba(var(--on-rgb), 0.55));
+}
+.case-toggle[hidden] {
+  display: none;
+}
+
+/* ------------------------------------------------------------ the band: what is sounding */
+.stage-top {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 2px var(--gutter) 8px;
+}
+/* the readout keeps its box whatever it says: nothing under it moves when a note sounds */
+.readout {
+  flex: none;
+  width: 250px;
+  height: 58px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: opacity 0.3s;
+}
+/* (let go: what was last heard, dimmed) */
+.readout[data-idle] {
+  opacity: 0.45;
+}
+.r-note {
+  height: 38px;
+  font-family: var(--display);
+  font-size: 37px;
+  /* (one line box whatever the size: the smaller settings sit on the same line) */
+  line-height: 38px;
+  overflow: hidden;
+  font-variant-numeric: lining-nums proportional-nums;
+  color: var(--ink);
+  white-space: nowrap;
+  text-shadow: 0 1px 10px rgba(8, 3, 4, 0.9);
+}
+/* an accidental: a sign beside its letter, not a letter of its own */
+.r-note .acc {
+  font-family: 'Apple Symbols', 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'DejaVu Sans', sans-serif;
+  font-style: normal;
+  font-size: 0.7em;
+  line-height: 1;
+  margin: 0 0.03em 0 0.05em;
+  vertical-align: 0.1em;
+}
+/* more to say, set smaller: two notes or a chord's name; three or four notes; the longest (the small
+   sizes in the text face: the display's hairlines are too fine there) */
+.readout[data-size='2'] .r-note {
+  font-size: 31px;
+}
+.readout[data-size='3'] .r-note {
+  font-family: var(--serif);
+  font-size: 23px;
+}
+.readout[data-size='4'] .r-note {
+  font-family: var(--serif);
+  font-size: 17.5px;
+}
+.r-hz {
+  height: 15px;
+  margin-top: 4px;
+  font-family: var(--label);
+  font-size: 12px;
+  line-height: 15px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 6px rgba(8, 3, 4, 0.9);
+}
+.spec-wrap {
+  flex: 1;
+  min-width: 120px;
+  max-width: 640px;
+  margin-left: auto;
+}
+.spec {
+  display: block;
+  width: 100%;
+  height: 58px;
+}
+.scope {
+  width: 250px;
+  flex: none;
+}
+.scope-cv {
+  display: block;
+  width: 100%;
+  height: 42px;
+}
+/* an ensemble: its instruments in the scope's place, each lit while it sounds, its notes under it. A long
+   lineup in a window with no room for it (sixteen kinds beside the readout on a tablet held upright: 578 px
+   of them in 304) stands closer, each instrument its share of the room: the strip never widens the page
+   (at 768 px Pass It On's scrolled it sideways by 200 px) */
+.parts {
+  display: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 2px;
+  height: 58px;
+}
+.stage[data-ensemble] .parts {
+  display: flex;
+}
+.stage[data-ensemble] .scope {
+  display: none;
+}
+.part {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 1 auto;
+  width: 40px;
+  min-width: 0;
+  color: rgba(var(--muted-rgb), 0.7);
+  transition: color 0.12s;
+}
+.part[data-on] {
+  color: var(--ink);
+}
+.part .glyph {
+  width: 28px;
+  max-width: 100%;
+  height: 28px;
+}
+.part[data-on] .glyph {
+  stroke: var(--gilt-hi);
+  filter: drop-shadow(0 0 4px rgba(var(--on-rgb), 0.45));
+}
+.part-n {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font: 600 9.5px/1 var(--label);
+  color: var(--on);
+}
+.part-notes {
+  width: 100%;
+  height: 22px;
+  overflow: hidden;
+  font: 500 11px/11px var(--label);
+  font-stretch: 75%;
+  text-align: center;
+}
+/* (silent: its last notes are not shown as if still sounding) */
+.part:not([data-on]) .part-notes {
+  visibility: hidden;
+}
+/* a long lineup in a window too narrow for the spectrum beside it: closer set */
+@media (max-width: 1500px) {
+  .part {
+    width: 34px;
+  }
+  .part .glyph {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* ------------------------------------------------------------ no room for sixteen: one button, a sheet of the programme */
+@media (max-width: 1340px), (max-height: 500px) and (orientation: landscape) {
+  .picker {
+    gap: 6px;
+  }
+  .pick-open {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 10px 0 4px;
+    border: 1px solid var(--chip-line);
+    border-radius: 4px;
+    background: rgba(8, 2, 4, 0.34);
+    color: var(--ink);
+    font: 500 12px/1 var(--label);
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .pick-open:hover {
+    border-color: rgba(var(--gilt-rgb), 0.85);
+  }
+  .pick-open .glyph {
+    width: 26px;
+    height: 26px;
+    stroke: var(--gilt-hi);
+  }
+  .pick-open[data-count] {
+    padding-left: 10px;
+  }
+  .po-name {
+    white-space: nowrap;
+  }
+  .po-chev {
+    width: 6px;
+    height: 6px;
+    margin: -3px 0 0 2px;
+    border-right: 1.3px solid currentColor;
+    border-bottom: 1.3px solid currentColor;
+    transform: rotate(45deg);
+    opacity: 0.7;
+  }
+  .picker[data-open] .po-chev {
+    margin-top: 3px;
+    transform: rotate(225deg);
+  }
+  /* the orchestra beside it: a square button, its name its tooltip */
+  .ens-toggle {
+    justify-content: center;
+    min-width: 0;
+    width: 36px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid var(--chip-line);
+    border-radius: 4px;
+    background: rgba(8, 2, 4, 0.34);
+    color: rgba(var(--ink-rgb), 0.82);
+  }
+  .ens-toggle .pick-name {
+    display: none;
+  }
+  .ens-toggle .ens-icon {
+    width: 20px;
+    height: 20px;
+  }
+  /* (on: its dots are in the light, as on the wide rail; its frame is the button's, and does not change) */
+  .ens-toggle[aria-pressed='true']::before,
+  .ens-toggle[aria-pressed='true']::after {
+    content: none;
+  }
+  /* the sheet: four to a row and every row a kind. The first is what is struck or plucked (the piano and the
+     percussion: the keys' family, then the percussion's, brought up beside it), then the strings, the
+     woodwinds, the brass: with a harp and a glockenspiel, four rows of four. It is paper, as everything
+     that opens is: ink for the instruments, the one on the stage in the printer's claret */
+  .picker-pop {
+    --paper: #f2e9d6;
+    --ground-rgb: 242, 233, 214;
+    --ink: #2a1a14;
+    --ink-rgb: 42, 26, 20;
+    --ink-2: #4b382c;
+    --muted: #6c594a;
+    --muted-rgb: 108, 89, 74;
+    --rule: #dccfb3;
+    --rule-2: #bcab8b;
+    --on: #8c1c2b;
+    --on-rgb: 140, 28, 43;
+    --on-ink: #f6eedd;
+    --on-velvet: rgba(42, 26, 20, 0.74);
+    --chip-line: #bcab8b;
+    display: none;
+    position: fixed;
+    z-index: 30;
+    top: calc(var(--top-h) + 4px);
+    left: var(--gutter);
+    width: min(372px, calc(100vw - 2 * var(--gutter)));
+    max-height: calc(100dvh - var(--top-h) - 12px);
+    overflow-y: auto;
+    padding: 8px;
+    border: 0;
+    border-radius: 2px;
+    background: var(--paper);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      0 2px 5px rgba(0, 0, 0, 0.45),
+      0 22px 48px -12px rgba(0, 0, 0, 0.85);
+    scrollbar-width: thin;
+    scrollbar-color: var(--rule-2) transparent;
+  }
+  .picker[data-open] .picker-pop {
+    display: block;
+  }
+  .instruments {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px;
+    padding-right: 0;
+    border-right: 0;
+  }
+  .fam {
+    display: contents;
+  }
+  .fam[data-fam='percussion'] > .pick {
+    order: 1;
+  }
+  .fam[data-fam='strings'] > .pick {
+    order: 2;
+  }
+  .fam[data-fam='woodwinds'] > .pick {
+    order: 3;
+  }
+  .fam[data-fam='brass'] > .pick {
+    order: 4;
+  }
+  .fam:not([data-fam='percussion']) > .pick:first-child {
+    grid-column-start: 1;
+  }
+  .pick {
+    min-width: 0;
+    padding: 7px 0 8px;
+  }
+  .pick .glyph {
+    width: 34px;
+    height: 34px;
+  }
+  .pick-name {
+    font-size: 11.5px;
+    font-stretch: 88%;
+  }
+  .pick-n {
+    top: 4px;
+    right: 14px;
+  }
+  .pick[aria-pressed='true']::before {
+    content: none;
+  }
+  .pick[aria-pressed='true'] {
+    color: var(--on);
+  }
+  .pick[aria-pressed='true'] .glyph {
+    stroke: var(--on);
+    filter: none;
+  }
+  /* the piano's kind, where the bar has no room for it (a phone, a narrow window): at the sheet's foot, under
+     the instruments, a hairline between */
+  .picker-pop .presets {
+    display: flex;
+    width: max-content;
+    margin: 9px 0 1px 0;
+    position: relative;
+  }
+  .picker-pop .presets::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: -6px;
+    width: min(356px, calc(100vw - 2 * var(--gutter) - 16px));
+    border-top: 1px solid var(--rule);
+  }
+  .picker-pop .presets::after {
+    content: none;
+  }
+  .picker-pop .presets[hidden] {
+    display: none;
+  }
+  .picker-pop .presets button {
+    padding: 11px 12px 12px;
+    color: var(--ink-2);
+  }
+  .picker-pop .presets button[aria-pressed='true'] {
+    color: var(--on);
+  }
+  .picker-pop .presets button[aria-pressed='true']::after {
+    left: 12px;
+    right: 12px;
+    bottom: 6px;
+  }
+}
+
+/* ------------------------------------------------------------ a phone */
+@media (max-width: 760px) {
+  :root,
+  :root[data-route='stage'] {
+    --top-h: 44px;
+  }
+  .top {
+    gap: 5px;
+  }
+  .links {
+    gap: 0;
+    margin-right: -3px;
+  }
+  .links a {
+    padding: 13px 3px;
+    font-size: 12.5px;
+  }
+  .lamp-text {
+    font-size: 13px;
+  }
+  .status {
+    gap: 6px;
+  }
+  .picker {
+    gap: 5px;
+  }
+  .pick-open,
+  .ens-toggle {
+    height: 38px;
+  }
+  .pick-open {
+    gap: 5px;
+    padding: 0 8px 0 3px;
+    letter-spacing: 0.06em;
+  }
+  .ens-toggle {
+    width: 38px;
+  }
+  .back {
+    width: 40px;
+    height: 40px;
+  }
+  :root[data-route='stage'] main {
+    /* the 6 px is the keyboard's bottom padding: the page does not scroll */
+    height: calc(100dvh - var(--top-h) - var(--fall-h) - var(--pos-h) - var(--kbd-h) - 6px);
+  }
+  /* the readout and the view side by side, the spectrum under them */
+  .stage-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 2px 10px;
+    padding: 0 var(--gutter) 4px;
+  }
+  .readout {
+    width: auto;
+    min-width: 0;
+    height: 46px;
+  }
+  .r-note {
+    height: 28px;
+    font-size: 27px;
+    line-height: 28px;
+  }
+  .readout[data-size='2'] .r-note {
+    font-size: 24px;
+  }
+  .readout[data-size='3'] .r-note {
+    font-size: 19px;
+  }
+  .readout[data-size='4'] .r-note {
+    font-size: 15px;
+  }
+  .r-hz {
+    margin-top: 2px;
+    font-size: 11.5px;
+  }
+  /* (over the stage here, not on the rail: a hairline track on its own dark ground) */
+  .view-seg {
+    border-radius: 3px;
+    background: rgba(12, 6, 6, 0.7);
+    box-shadow: inset 0 0 0 1px rgba(var(--gilt-rgb), 0.3);
+  }
+  .view-seg button {
+    padding: 12px 11px 13px;
+  }
+  .view-seg button[aria-pressed='true']::after {
+    left: 11px;
+    right: 11px;
+    bottom: 7px;
+  }
+  .case-toggle {
+    width: 36px;
+    height: 36px;
+    border-radius: 3px;
+    background: rgba(12, 6, 6, 0.7);
+    box-shadow: inset 0 0 0 1px rgba(var(--gilt-rgb), 0.3);
+  }
+  .spec-wrap {
+    grid-column: 1 / -1;
+    max-width: none;
+    margin: 0;
+  }
+  .spec {
+    height: 36px;
+  }
+  .scope,
+  .stage[data-ensemble] .parts {
+    display: none;
+  }
+}
+
+/* the narrowest phones (320 px): the button is the instrument's glyph alone (an orchestra's count stays,
+   set closer, and the pages' words a size down: the bar never widens the page) */
+@media (max-width: 360px) {
+  .pick-open:not([data-count]) .po-name {
+    display: none;
+  }
+  .pick-open {
+    padding: 0 7px 0 4px;
+    font-stretch: 80%;
+    letter-spacing: 0.03em;
+  }
+  .pick-open[data-count] {
+    padding-left: 7px;
+  }
+  .ens-toggle {
+    width: 36px;
+  }
+  .links a {
+    padding: 13px 2px;
+    font-size: 12.5px;
+  }
+  .view-seg button {
+    padding: 12px 8px 13px;
+  }
+  .view-seg button[aria-pressed='true']::after {
+    left: 8px;
+    right: 8px;
+  }
+}
+
+/* ------------------------------------------------------------ a phone held sideways: one slim band */
+@media (max-height: 500px) and (orientation: landscape) {
+  :root,
+  :root[data-route='stage'] {
+    --top-h: 30px;
+  }
+  :root[data-route='stage'] main {
+    /* the 6 px is the keyboard's bottom padding */
+    height: calc(100dvh - var(--top-h) - var(--fall-h) - var(--pos-h) - var(--kbd-h) - 6px);
+    min-height: 0;
+  }
+  .pick-open,
+  .ens-toggle {
+    height: 26px;
+  }
+  .pick-open .glyph {
+    width: 20px;
+    height: 20px;
+  }
+  .ens-toggle .ens-icon {
+    width: 17px;
+    height: 17px;
+  }
+  .view-seg button,
+  .presets button {
+    padding: 5px 7px 7px;
+  }
+  .view-seg button[aria-pressed='true']::after,
+  .presets button[aria-pressed='true']::after {
+    left: 7px;
+    right: 7px;
+    bottom: 2px;
+  }
+  .links a {
+    padding: 6px 5px;
+  }
+  .pick {
+    padding: 2px 0 3px;
+  }
+  .stage-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 var(--gutter) 2px;
+  }
+  .readout {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 250px;
+    height: 30px;
+  }
+  .r-note,
+  .readout[data-size] .r-note {
+    height: 26px;
+    line-height: 26px;
+    font-size: 21px;
+  }
+  .readout[data-size='3'] .r-note,
+  .readout[data-size='4'] .r-note {
+    font-size: 16px;
+  }
+  .r-hz {
+    margin-top: 0;
+  }
+  .spec-wrap {
+    flex: 1 1 auto;
+    min-width: 90px;
+    max-width: none;
+    margin: 0;
+  }
+  .spec {
+    height: 30px;
+  }
+  .scope,
+  .stage[data-ensemble] .parts {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------ the vector display's chrome */
+:root[data-style='vector'] .top {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 500;
+}
+:root[data-style='vector'] .pick[aria-pressed='true']::before,
+:root[data-style='vector'] .ens-toggle[aria-pressed='true']::before {
+  content: none;
+}
+:root[data-style='vector'] .links a {
+  font: 500 11px/1 var(--hershey);
+  letter-spacing: 0.12em;
+}
+:root[data-style='vector'] .pick,
+:root[data-style='vector'] .ens-toggle {
+  text-transform: uppercase;
+  color: var(--v-line-mid);
+}
+:root[data-style='vector'] .pick:hover,
+:root[data-style='vector'] .ens-toggle:hover {
+  color: var(--v-line);
+  background: none;
+}
+:root[data-style='vector'] .pick[aria-pressed='true'],
+:root[data-style='vector'] .ens-toggle[aria-pressed='true'] {
+  color: var(--v-text);
+}
+:root[data-style='vector'] .pick[aria-pressed='true']::after,
+:root[data-style='vector'] .ens-toggle[aria-pressed='true']::after {
+  background: var(--v-line);
+  box-shadow: 0 0 5px rgba(var(--v-line-rgb), 0.8);
+}
+:root[data-style='vector'] .pick-name {
+  letter-spacing: 0.06em;
+}
+:root[data-style='vector'] .pick[aria-pressed='true'] .glyph,
+:root[data-style='vector'] .pick-open .glyph,
+:root[data-style='vector'] .part[data-on] .glyph {
+  stroke: var(--v-line);
+  filter: drop-shadow(0 0 3px rgba(var(--v-line-rgb), 0.7));
+}
+:root[data-style='vector'] .ens-toggle[aria-pressed='true'] .ens-icon {
+  color: var(--v-line);
+  filter: drop-shadow(0 0 3px rgba(var(--v-line-rgb), 0.7));
+}
+:root[data-style='vector'] .pick-n,
+:root[data-style='vector'] .part-n {
+  color: var(--v-sound);
+}
+:root[data-style='vector'] .fam,
+:root[data-style='vector'] .picker-pop {
+  border-color: var(--v-frame);
+}
+/* the view's words, the piano's kinds: Hershey capitals, the chosen one bright with its rule in gold */
+:root[data-style='vector'] .pick-open {
+  border-color: var(--v-frame);
+  border-radius: 0;
+}
+:root[data-style='vector'] .view-seg button,
+:root[data-style='vector'] .presets button {
+  letter-spacing: 0.1em;
+  color: var(--v-line-mid);
+  border-radius: 0;
+}
+:root[data-style='vector'] .view-seg button[aria-pressed='true'],
+:root[data-style='vector'] .presets button[aria-pressed='true'] {
+  color: var(--v-text);
+}
+:root[data-style='vector'] .case-toggle {
+  color: var(--v-line-mid);
+}
+:root[data-style='vector'] .case-toggle[aria-pressed='true'] {
+  color: var(--v-text);
+}
+:root[data-style='vector'] .pick-open {
+  color: var(--v-text);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+:root[data-style='vector'] .links a[aria-current='page'] {
+  box-shadow: inset 0 -1.5px 0 var(--v-sound);
+}
+/* the notes are the sound: amber */
+:root[data-style='vector'] .r-note {
+  font-style: normal;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  color: var(--v-sound);
+  text-shadow: 0 0 10px rgba(var(--v-sound-rgb), 0.45);
+}
+:root[data-style='vector'] .r-hz {
+  color: var(--v-sound);
+  opacity: 1;
+  text-transform: uppercase;
+}
+:root[data-style='vector'] .part[data-on] {
+  color: var(--v-sound);
+}
+@media (max-width: 1340px), (max-height: 500px) and (orientation: landscape) {
+  :root[data-style='vector'] .picker-pop {
+    background: #000;
+    border-radius: 0;
+  }
+  :root[data-style='vector'] .ens-toggle {
+    border-color: var(--v-frame);
+    border-radius: 0;
+  }
+  :root[data-style='vector'] .ens-toggle[aria-pressed='true'] {
+    border-color: var(--v-line);
+  }
+}
