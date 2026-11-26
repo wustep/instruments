@@ -7,7 +7,8 @@ import { CC, CS, EB, GS, L1, L2, L3, R1, R2, R3, RH, TB, TBB, fingersFor } from 
 import { fholeOf } from './gl/fholes.ts';
 import { CELLO, VIOLIN, type Outline } from './gl/outlines.ts';
 import { BASS } from './gl/bass-outline.ts';
-import { onTheme, theme, type Ink } from '../themes/index.ts';
+import { onTheme, theme, themeEpoch, type Ink } from '../themes/index.ts';
+import { ownDrawer } from '../themes/drawers.ts';
 
 /** The 2D stage's inks: the theme's (themes/types.ts `Ink`: by role, never by hue), kept current as the
  *  theme changes. A drawing reads them as it draws, so the next frame is the new theme's; a picture kept
@@ -42,6 +43,9 @@ export class ModeField {
     readonly gh: number,
     aspect: number,
     stiffRatio = 1,
+    /** on a dark plate (a violin's varnish; a piano's spruce is pale): told to a theme that paints the
+     *  sand itself, in an ink that reads there */
+    readonly pale = false,
   ) {
     this.canvas = document.createElement('canvas');
     this.canvas.width = gw;
@@ -120,6 +124,13 @@ export class ModeField {
     for (let i = 0; i < f.length; i++) mx = Math.max(mx, Math.abs(f[i]));
     const d = this.img.data;
     const lv = this.level;
+    // (a theme with drawers of its own lays its own sand: themes/drawers.ts)
+    const own = ownDrawer('field');
+    if (own) {
+      own(d, f, mx, lv, this.pale);
+      this.ctx.putImageData(this.img, 0, 0);
+      return lv;
+    }
     for (let i = 0; i < f.length; i++) {
       const x = Math.abs(f[i]) / mx;
       // nodal lines (off them, e^-z is below 1e-17 of a step: not computed)
@@ -247,7 +258,7 @@ export const BOWED_PLAN: Record<BowedGeom['id'], BowedPlan> = {
 };
 /** the instruments that stand on an endpin (the cello, the double bass) */
 export const hasEndpin = (id: BowedGeom['id']): boolean => id === 'cello' || id === 'bass';
-type Pt = [number, number];
+export type Pt = [number, number];
 export const bwClamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 export const bwSstep = (a: number, b: number, x: number) => {
   const t = bwClamp((x - a) / (b - a), 0, 1);
@@ -732,7 +743,7 @@ export const bwPoly = (pts: Pt[], sc: number, close = true): Path2D => {
   if (close) path.closePath();
   return path;
 };
-const bwRng = (seed: number) => () => {
+export const bwRng = (seed: number) => () => {
   seed = (seed * 1664525 + 1013904223) >>> 0;
   return seed / 4294967296;
 };
@@ -745,7 +756,7 @@ interface BowedLayer {
   w: number;
   h: number;
 }
-interface BowedLayers {
+export interface BowedLayers {
   key: string;
   lay: BowedLayout;
   plate: BowedLayer;
@@ -1620,7 +1631,7 @@ export const bwForce = (meta: string | undefined): number => {
 };
 
 /** convex hull (monotone chain), for the frog's outline */
-function bwHull(pts: Pt[]): Pt[] {
+export function bwHull(pts: Pt[]): Pt[] {
   const s = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const cr = (o: Pt, a: Pt, b: Pt) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
   const lo: Pt[] = [];
@@ -1644,10 +1655,13 @@ function bwHull(pts: Pt[]): Pt[] {
  * its instrument's cell is wide, and it lies over the neighbours.
  */
 export function drawBowed(ctx: CanvasRenderingContext2D, W: number, H: number, g: BowedGeom, fr: VisualFrame | null, st: BowedState, field: ModeField, now: number, bowLater = false, scale?: number, top = 0): (() => void) | null {
+  const own = ownDrawer('bowed');
+  if (own) return own(ctx, W, H, g, fr, st, field, now, bowLater, scale, top);
   const p = BOWED_PLAN[g.id];
   const sh = bowedShapes(g.id, p, g.L);
   const dpr = Math.max(1, Math.abs(ctx.getTransform().a) || 1);
-  const key = `${g.id}|${g.L}|${W}|${H}|${dpr}|${scale ?? ''}|${top}`;
+  // (the painted layers are a theme's: its linework is in them)
+  const key = `${g.id}|${g.L}|${W}|${H}|${dpr}|${scale ?? ''}|${top}|${themeEpoch()}`;
   let ly = bowedLayers.get(key);
   if (!ly) {
     ly = paintBowedLayers(g, p, sh, bowedLayout(g, p, sh, W, H, scale, top), W, H, dpr, key);
@@ -2152,7 +2166,7 @@ export const boreAt = (amp: Float32Array, u: number): number => {
  *  quicker for higher notes, so the lobes visibly swing between compression and rarefaction */
 export const slowPhase = (f1: number, now: number): number => 2 * Math.PI * (0.55 * Math.sqrt(Math.max(0.25, f1 / 262))) * (now / 1000);
 /** compression warm, rarefaction cool */
-const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.cool);
+export const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.cool);
 
 /** a stream of the breath: where it starts, where it bends and where it ends, each as [back from the tip
  *  towards the player, out from the axis] (m) */
@@ -2162,6 +2176,8 @@ export type BreathPath = readonly [readonly [number, number], readonly [number, 
  *  dashes flowing in. `at(a, w)`: the screen point `a` m back from the tip and `w` m across the axis; `sc`
  *  px per metre; `alpha` the streams' strength (a reed's 0.45 at full breath). */
 export function breathStream(ctx: CanvasRenderingContext2D, at: (a: number, w: number) => readonly [number, number], sc: number, path: BreathPath, alpha: number, now: number): void {
+  const own = ownDrawer('breath');
+  if (own) return own(ctx, at, sc, path, alpha, now);
   ctx.save();
   ctx.setLineDash([0.003 * sc, 0.0025 * sc]);
   ctx.lineDashOffset = -((now / 1000) * 0.03 * sc);
@@ -2239,8 +2255,8 @@ export const flHead = (x: number) => 0.0089 + 0.0008 * Math.pow(Math.max(0, Math
 export const FL_YC = FL_RB + 0.0016; // a closed pad's face from the axis
 export const FL_ROD_V = 0.0137 * Math.sin((79.5 * Math.PI) / 180); // the main rod, seen from above
 export const FL_FOOT_V = 0.0148 * Math.sin((10 * Math.PI) / 180); // the foot's rod
-const FL_MAIN_POSTS = [0.2965, 0.348, 0.412, 0.4605, 0.5375];
-const FL_FOOT_POSTS = [0.5505, 0.608, 0.6455];
+export const FL_MAIN_POSTS = [0.2965, 0.348, 0.412, 0.4605, 0.5375];
+export const FL_FOOT_POSTS = [0.5505, 0.608, 0.6455];
 /** The total end correction of the 3D model's holes, c/2f less the embouchure-to-hole distance, is
  *  56 mm at the open foot and 59–64 mm at the tone holes (the C♯ vent's small hole 73): an open
  *  pipe end's 0.61·a ≈ 6 mm (Levine & Schwinger) at the far end leaves ≈ 50 mm at the embouchure
@@ -2284,7 +2300,7 @@ export const fluteKeysOpen = (m: number): { x: number; open: boolean }[] => FL_K
 export const D2R = Math.PI / 180;
 /** the tube's outline, radius against x (the crown's dome, the tapered head, the socket's two rings,
  *  the foot's ring and the end ring; winds3d buildFluteModel's profiles) */
-const FL_PROFILE: [number, number][] = (() => {
+export const FL_PROFILE: [number, number][] = (() => {
   const p: [number, number][] = [
     [0, 0], [0.0003, 0.005], [0.0016, 0.0078], [0.0034, 0.009], [0.0046, 0.0093], [0.0052, 0.0096], [0.006, 0.0096], [0.0064, 0.0093],
     [0.0068, 0.0096], [0.0076, 0.0096], [0.008, 0.0093], [0.0112, 0.0093],
@@ -2300,9 +2316,9 @@ const FL_PROFILE: [number, number][] = (() => {
   return p;
 })();
 /** the joints' and rings' edges, drawn as hairlines across the tube */
-const FL_SEAMS = [0.0052, 0.0076, 0.0112, FL_HEAD, FL_HEAD + 0.0023, FL_HEAD + 0.0048, 0.229, 0.2313, 0.2338, FL_FOOT, FL_FOOT + 0.0047, FL_FOOT + 0.0108, FL_LEN - 0.0045];
+export const FL_SEAMS = [0.0052, 0.0076, 0.0112, FL_HEAD, FL_HEAD + 0.0023, FL_HEAD + 0.0048, 0.229, 0.2313, 0.2338, FL_FOOT, FL_FOOT + 0.0047, FL_FOOT + 0.0108, FL_LEN - 0.0045];
 /** a superellipse, centre (cx, cy), half-sizes a, b, exponent n */
-function superEllipse(p: Path2D | CanvasRenderingContext2D, cx: number, cy: number, a: number, b: number, n: number, seg = 48): void {
+export function superEllipse(p: Path2D | CanvasRenderingContext2D, cx: number, cy: number, a: number, b: number, n: number, seg = 48): void {
   for (let i = 0; i <= seg; i++) {
     const t = (i / seg) * 2 * Math.PI;
     const c = Math.cos(t);
@@ -2315,7 +2331,7 @@ function superEllipse(p: Path2D | CanvasRenderingContext2D, cx: number, cy: numb
   p.closePath();
 }
 /** a teardrop touch lying along x from x0 (its narrow end) to x1 (round), at v, half-width w */
-function teardrop(p: Path2D, X: (x: number) => number, Y: (v: number) => number, x0: number, x1: number, v0: number, v1: number, w: number, sc: number): void {
+export function teardrop(p: Path2D, X: (x: number) => number, Y: (v: number) => number, x0: number, x1: number, v0: number, v1: number, w: number, sc: number): void {
   const n = 14;
   const pts: [number, number][] = [];
   for (let i = 0; i <= n; i++) {
@@ -2440,6 +2456,8 @@ export function fluteLayout(Lw: number, Cw: number, vertical: boolean): FluteLay
  *  above the embouchure (the end corrections), the lobes swinging between compression and
  *  rarefaction (drawn slowed). */
 export function drawFlute(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: FluteState, top = 0): void {
+  const own = ownDrawer('flute');
+  if (own) return own(ctx, W, H, fr, st, top);
   const vertical = H > W * 1.05;
   // (standing on a phone: in the box under the file player, as the reeds are)
   const under = vertical ? top : 0;
@@ -2758,6 +2776,15 @@ export interface SpectrumInk {
 const spectrumInk = (): SpectrumInk => ({ line: INK.line, label: INK.line, ideal: INK.cool, partial: INK.sound, font: theme().figures });
 const SPECTRUM_INK: SpectrumInk = spectrumInk();
 onTheme(() => Object.assign(SPECTRUM_INK, spectrumInk()));
+/** The trace's box in a band `bandH` px tall, [its top, its height]: the partials' marks over it and, where
+ *  the look hangs the scale's figures under the trace's floor (`DrawLook.spectrum.foot`), their room under
+ *  it (a low band, a phone's, gives the marks less). */
+export function spectrumBox(bandH: number): [number, number] {
+  const foot = theme().draw.spectrum.foot;
+  if (!foot) return [6, bandH - 8];
+  const y = bandH < 44 ? 4 : 6;
+  return [y, bandH - y - foot];
+}
 export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, an: AnalyserNode | null, buf: Float32Array, focus: VisualFrame['focus'] | null, family: string, ink: SpectrumInk = SPECTRUM_INK, marks: number[] | null = null): void {
   const f0 = 30;
   const f1 = 12000;
@@ -2766,22 +2793,44 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
   const dbHi = -25;
   const Y = (db: number) => y0 + h * (1 - (db - dbLo) / (dbHi - dbLo));
   ctx.font = ink.font;
-  ctx.fillStyle = rgba(ink.label, 0.3);
-  for (const [f, t] of [
-    [100, '100'],
-    [1000, '1k'],
-    [10000, '10k'],
-  ] as const) {
-    // (the last label sits left of its frequency where it would run off the end)
-    const tw = ctx.measureText(t).width;
-    ctx.fillText(t, X(f) + 3 + tw > x0 + w ? X(f) - tw - 3 : X(f) + 3, y0 + h - 2);
+  // what of it is the look's own (themes/types.ts `DrawLook.spectrum`): each pair the drawn style's, then
+  // vector lines'
+  const look = theme().draw.spectrum;
+  const v = ink === SPECTRUM_INK ? 0 : 1;
+  // the scale's three figures. They stand in the trace's box, at its foot, under the trace; or, where the
+  // look keeps room under the floor (`foot` px, left there by `spectrumBox`), they hang under it, each from
+  // a tick at its frequency, laid after the trace, which is whole over them.
+  const scale = () => {
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = rgba(ink.label, look.label[v]);
+    for (const [f, t] of [
+      [100, '100'],
+      [1000, '1k'],
+      [10000, '10k'],
+    ] as const) {
+      // (the last label sits left of its frequency where it would run off the end)
+      const tw = ctx.measureText(t).width;
+      const lx = X(f) + 3 + tw > x0 + w ? X(f) - tw - 3 : X(f) + 3;
+      if (look.foot) ctx.fillRect(Math.round(X(f)) - 0.5, y0 + h, 1, 4);
+      ctx.fillText(t, lx, look.foot ? y0 + h + look.foot - 2 : y0 + h - 2);
+    }
+  };
+  if (!look.foot) scale();
+  if (!an && look.floor[v] > 0) {
+    // before any sound: the line the trace will rise from, so its figures stand on something
+    ctx.strokeStyle = rgba(ink.line, look.floor[v]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x0, Math.round(Y(dbLo)) - 0.5);
+    ctx.lineTo(x0 + w, Math.round(Y(dbLo)) - 0.5);
+    ctx.stroke();
   }
   if (an) {
     const bins = an.frequencyBinCount;
     const data = (bins <= buf.length ? buf.subarray(0, bins) : new Float32Array(bins)) as Float32Array<ArrayBuffer>;
     an.getFloatFrequencyData(data);
     const binHz = an.context.sampleRate / an.fftSize;
-    ctx.strokeStyle = rgba(ink.line, ink === SPECTRUM_INK ? 0.55 : 0.9);
+    ctx.strokeStyle = rgba(ink.line, look.trace[v]);
     ctx.lineWidth = 1;
     ctx.beginPath();
     let started = false;
@@ -2804,6 +2853,7 @@ export function drawSpectrum(ctx: CanvasRenderingContext2D, x0: number, y0: numb
     }
     ctx.stroke();
   }
+  if (look.foot) scale();
   if (marks && marks.length > 1) {
     // several notes sounding: a mark at each one's fundamental (one note's partials would speak for one of them)
     ctx.fillStyle = rgba(ink.partial, 0.9);
@@ -2865,19 +2915,19 @@ const TR_XR = -0.15; // the receiver's end
 export const TR_XB = 0.33; // the bell rim, 480 mm from the receiver
 export const TR_MP = 0.066; // the 7C mouthpiece out of the receiver
 export const trLeadY = (x: number) => 0.036 + ((x - TR_XR) * 0.011) / 0.255;
-const TR_LEAD_END = 0.098;
+export const TR_LEAD_END = 0.098;
 export const TR_CAP_TOP = TR_CY + 0.0104;
 export const TR_STEM = 0.017;
 export const TR_STROKE = 0.0155; // piston travel
 export const TR_SLIDE_TRAVEL = [0.012, 0, 0.017];
 const TR_VALVE_PASSAGES = 0.11;
-const TR_BOW_C: V3 = [-0.103, 0.0055, TR_ZB];
+export const TR_BOW_C: V3 = [-0.103, 0.0055, TR_ZB];
 const TR_BOW_R = 0.0255;
 export const TR_BELL0: V3 = [-0.103, 0.031, TR_ZB];
 export const TR_BELL_END: V3 = [TR_XB, 0.0492, TR_ZB];
-const TR_MS_TOP = trLeadY(TR_LEAD_END);
-const TR_MS_LOW = -0.034;
-const TR_MS_X = 0.15;
+export const TR_MS_TOP = trLeadY(TR_LEAD_END);
+export const TR_MS_LOW = -0.034;
+export const TR_MS_X = 0.15;
 export const TR_RIM = 0.0611; // 122 mm bell
 /** the bell's radius by distance from the rim: the side photograph's profile at a Bessel horn's rate */
 const TR_BELL_D = [0, 0.002, 0.005, 0.01, 0.016, 0.025, 0.04, 0.06, 0.085, 0.115, 0.15, 0.2, 0.26, 0.33, 0.434];
@@ -3094,7 +3144,7 @@ export function trAir(key: string, down: readonly boolean[]): { runs: TrRun[]; r
 /** the air path's length for a fingering (lips to rim, m) */
 export const trumpetAirLength = (valves: string): number => trAir(valves, VALVE_DOWN[valves] ?? VALVE_DOWN.open).total;
 /** a projected strip of tube: the screen polyline (unit metres) for a 3D one */
-const trPoly = (pts: V3[], off: V3 = [0, 0, 0]) => pts.map((p) => trProj(v3add(p, off)));
+export const trPoly = (pts: V3[], off: V3 = [0, 0, 0]) => pts.map((p) => trProj(v3add(p, off)));
 export interface TrLayout {
   key: string;
   S: number;
@@ -3105,7 +3155,7 @@ export interface TrLayout {
 }
 let trLayout: TrLayout | null = null;
 /** the fit: the instrument's projected extent (mouthpiece rim to bell rim, bottom caps to buttons) */
-const TR_BOUNDS = (() => {
+export const TR_BOUNDS = (() => {
   const pts: [number, number][] = [];
   const add = (p: V3) => pts.push(trProj(p));
   add(trAlong(-TR_MP - 0.014));
@@ -3147,6 +3197,8 @@ const BRASS_DEEP = '#251a0c';
  *  pressed valves' slides glows faintly, and the bore's standing wave (the engine's, with its sign;
  *  drawn slowed) runs along that path from the lips to the bell; the breath goes into the mouthpiece. */
 export function drawTrumpet(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: TrumpetState): void {
+  const own = ownDrawer('trumpet');
+  if (own) return own(ctx, W, H, fr, st);
   const L = trumpetLayout(W, H);
   const { S } = L;
   const P = (q: [number, number]): [number, number] => [L.ox + q[0] * S, L.oy + q[1] * S];

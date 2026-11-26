@@ -45,6 +45,7 @@ import type { VisualFrame } from '@piano-model/engine';
 import { FA, FB, FD, HALF, L1, L2, L3, LB, LBB, LC, LCS, LD, LEB, PF, PFS, PGS, R1, R2, R3, RBB, RE, RFS, RGS, SBB, SE, SEB, TCS, W as WK, bassoonFingersFor, bassoonOctave } from './bassoon-fingering.ts';
 import { spatula, type ClTouch } from './clarinet-draw.ts';
 import { AutoScale, INK, boreAt, breathStream, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
+import { ownDrawer } from '../themes/drawers.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface BassoonState {
@@ -84,10 +85,10 @@ const H_BR1 = 1.048;
 const H_LIP = 1.329;
 const R_LONG = 0.0235;
 const R_WING = 0.0145;
-const R_WCAP = 0.0149;
+export const R_WCAP = 0.0149;
 /** the boot's half-width up its wood (the photograph's: it widens to the ring) */
 const BOOT_HW: [number, number][] = [[H_CAP, 0.0312], [0.156, 0.0335], [0.237, 0.0352], [H_BOOT, 0.0372]];
-const BOOT_RING_HW = 0.0378;
+export const BOOT_RING_HW = 0.0378;
 const CAP_HW: [number, number][] = [[0, 0.0292], [0.004, 0.0299], [0.05, 0.0306], [H_CAP, 0.0309]];
 /** the bell's outer radius (its swell, its waist, the lip) */
 const BELL_R: [number, number][] = [
@@ -908,7 +909,7 @@ export function borePx(L: BsLayout, x: number): { px: number; py: number; nx: nu
 const silver = (a: number) => rgba('240,230,212', a);
 const SILVER_BODY = 'rgb(72,66,58)';
 const WOOD = '#3a140e';
-const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.cool);
+export const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.cool);
 
 /** the envelope's base and side for each leg: (lying frame) the narrow bore's to the left of the wing and
  *  boot (up, lying), the wide bore's to the right of the long joint (down) */
@@ -923,6 +924,8 @@ export const LEGS: { a: number; b: number; base: number; sgn: number }[] = [
  *  faint through the wood; and the bore's standing wave glowing along the folded bore from the reed to
  *  where it leaves the tube, its envelope beside each leg. `top`: the file player's px over the box's top. */
 export function drawBassoon(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: BassoonState, top = 0): void {
+  const own = ownDrawer('bassoon');
+  if (own) return own(ctx, W, H, fr, st, top);
   const L = bassoonLayout(W, H, top);
   const { sc, Hm } = L;
   const X = (h: number) => L.x0 + h * sc;

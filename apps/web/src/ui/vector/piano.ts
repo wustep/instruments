@@ -13,6 +13,7 @@ import type { VisualFrame } from '@piano-model/engine';
 import { GZ, Layer, SYM_VISIBLE, catmull, grandDepth, grandPlate, layout, path, type GStr, type Layout, type Plate } from '../grand-plan.ts';
 import { levelsOf, stepAction, upLayout, upPlate, type PianoGeom, type PianoState, type Pt, type UpLayout, type UpString } from '../piano-draw.ts';
 import { V, beam, handle, ring, seg, type Contours } from './kit.ts';
+import { theme } from '../../themes/index.ts';
 
 
 /** each piano's still lines (strings at rest, bridges), repainted when its layout changes; one per
@@ -51,7 +52,7 @@ function plateV(c: CanvasRenderingContext2D, pl: Plate): void {
   beam(c, null, V.lineDim, 0.8, { alpha: 0.6, butt: true });
   if (!pl.detail) return;
   c.save();
-  c.globalCompositeOperation = 'lighter';
+  c.globalCompositeOperation = theme().vector.blend;
   c.fillStyle = V.lineMid;
   c.globalAlpha = 0.9;
   c.beginPath();
@@ -257,7 +258,7 @@ function grandV(ctx: CanvasRenderingContext2D, W: number, H: number, pts: Pt[], 
   });
   // (a closed lid covers them: they dim under it)
   ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalCompositeOperation = theme().vector.blend;
   ctx.globalAlpha = 0.3 + 0.7 * lidOpen;
   ctx.drawImage(layer.canvas, 0, 0, W, H);
   ctx.restore();
@@ -386,7 +387,7 @@ function uprightV(ctx: CanvasRenderingContext2D, W: number, H: number, pts: Pt[]
     c.restore();
   });
   ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalCompositeOperation = theme().vector.blend;
   ctx.drawImage(layer.canvas, 0, 0, W, H);
   ctx.restore();
   beam(ctx, lay.inner, V.lineDim, 0.9, { alpha: 0.7 });

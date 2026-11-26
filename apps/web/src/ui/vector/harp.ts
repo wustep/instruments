@@ -20,7 +20,7 @@ export function drawHarpV(ctx: CanvasRenderingContext2D, W: number, H: number, f
   ctx.save();
   const mask = (path: Path2D) => {
     ctx.save();
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = V.ground;
     ctx.fill(path);
     ctx.restore();
   };

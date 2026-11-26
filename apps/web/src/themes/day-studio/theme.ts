@@ -50,6 +50,10 @@ export const dayStudio: Theme = {
     glow: false,
     mono: 'ui-monospace, monospace',
     figures: '500 11px "Hershey", ui-monospace, monospace',
+    // (lettering is laid plainly on the sheet; the travelling corner is the deepest ink)
+    labelBlend: 'source-over',
+    corner: '#0e141b',
+    ownKeys: { black: 'rgba(43, 54, 68, 0.3)', blackDown: 'rgba(29, 72, 209, 0.6)', whiteDown: 'rgba(29, 72, 209, 0.2)', blackEdge: 'line', whiteEdge: 'lineMid' },
   },
   // drawn, in one weight (1.5 px on a 16 px box, round ends: its sheet's .ico)
   glyphs: {
@@ -62,5 +66,23 @@ export const dayStudio: Theme = {
     // a dial and its pointer
     knobs: { d: 'M8 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM8 8l2.6-2.6', size: 20 },
   },
+  // a knob on the stage carries its sign on its cap (the lid: a lid ajar on its case; the room: a point of
+  // sound and two fronts leaving it), so its pointer is a mark at the cap's rim, clear of it; and for a
+  // keyboard and a screen reader the page has a way past the bar and its name
+  chrome: {
+    knobPointer: [0, 9],
+    stagePointer: [6.9, 9.9],
+    stageSigns: { cls: 'sk-sign', over: false, lid: 'M15.6 22.4h8.8M15.6 22.4l7.4-4.6', room: 'M16.4 20h.01M19 17.6a3.4 3.4 0 0 1 0 4.8M21.4 15.8a6 6 0 0 1 0 8.4' },
+    skip: true,
+  },
   figures: '500 11.5px "Ysabeau Office Variable", "Avenir Next", "Segoe UI", system-ui, sans-serif',
+  // the spectrum's figures and its trace firm on the plaster, and before any sound the line it will rise
+  // from; an orchestra's piano's own keys paper white, a held one in the blue's wash as the screen's are
+  draw: {
+    spectrum: { label: [0.62, 0.7], trace: [0.8, 0.9], floor: [0.28, 0.28], foot: 0 },
+    scopeAxisAtRest: true,
+    roomLight: true,
+    stamp: { weight: 600, family: '"Ysabeau Office Variable", "Avenir Next", "Segoe UI", system-ui, sans-serif' },
+    ownKeys: { white: '#f8f7f1', whiteDown: '#c9d8fb', parting: 'rgba(126, 124, 116, 0.8)', front: 'rgba(70, 66, 56, 0.22)', slip: 'rgba(28, 34, 42, 0.22)', black: '#24272a', blackDown: '#2553e0' },
+  },
 };

@@ -50,6 +50,9 @@ export const eveningHall: Theme = {
     glow: true,
     mono: 'ui-monospace, "SF Mono", Menlo, monospace',
     figures: '500 10px "Hershey", ui-monospace, monospace',
+    labelBlend: 'lighter',
+    corner: '#fff8ec',
+    ownKeys: { black: 'rgba(195, 208, 220, 0.2)', blackDown: 'rgba(255, 190, 85, 0.55)', whiteDown: 'rgba(255, 190, 85, 0.3)', blackEdge: 'lineMid', whiteEdge: 'lineDim' },
   },
   // one pen (1.5 px at 16 px, round ends), never a character standing in for a sign
   glyphs: {
@@ -63,5 +66,16 @@ export const eveningHall: Theme = {
     // a knob: its cap, its pointer, a tick either side
     knobs: { d: 'M8 2.6a5.4 5.4 0 1 1-.01 0M8 8l2.5-3.3M1.2 12.4l1.3-.9M14.8 12.4l-1.3-.9' },
   },
+  // the bench's dials (brass by its sheet): a hand from the middle of the cap
+  chrome: { knobPointer: [0, 9], stagePointer: [0, 9], skip: false },
   figures: '500 11px "Cabin Variable", "Gill Sans", sans-serif',
+  // the spectrum's figures in the muted ink (6:1 on the ground) and, with no sound yet, their axis under
+  // them: three numbers floating over nothing say nothing. An orchestra's piano's own keys are the bench's.
+  draw: {
+    spectrum: { label: [0.64, 0.64], trace: [0.55, 0.9], floor: [0.28, 0.28], foot: 0 },
+    scopeAxisAtRest: true,
+    roomLight: false,
+    stamp: { weight: 600, family: '"Cabin Variable", "Gill Sans", sans-serif' },
+    ownKeys: { white: '#efe7d6', whiteDown: '#f2c3ad', parting: 'rgba(120, 106, 84, 0.75)', front: 'rgba(60, 48, 30, 0.28)', slip: 'rgba(0, 0, 0, 0.3)', black: '#15120f', blackDown: '#6a2a1a' },
+  },
 };

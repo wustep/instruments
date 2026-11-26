@@ -14,6 +14,7 @@ import { glowTube, lipsLive, tubePx, type HornState, type TubePx } from './horn-
 import type { P, Run } from './horn-plan.ts';
 import { BELL_LEN, BELL_PTS, BELL_TILT, BELL_TOP_X, LEAD_X, LEAD_Y0, BORE, BUTTON_Y, CASING_R, CASING_Y0, CASING_Y1, MOUTH_K, MPIECE, MP_DIR, MP_RIM, RIM_R, RIM_Y, STACK_Y0, TB_X0, TB_X1, TB_Y0, TB_Y1, TRAVEL, TUBES, VALVE_X, VALVE_Y, bellR, tubaAir, PISTON_LEAN, lean } from './tuba-plan.ts';
 import { AutoScale, BRASS_BREATH, INK, boreAt, brassBreath, breathStream, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
+import { ownDrawer } from '../themes/drawers.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface TubaState {
@@ -251,6 +252,8 @@ const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.cool);
  *  air's path lit, the standing wave along it, the breath going into the mouthpiece. `top`: the file player's
  *  px over the box's top. */
 export function drawTuba(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: TubaState, top = 0): void {
+  const own = ownDrawer('tuba');
+  if (own) return own(ctx, W, H, fr, st, top);
   const L = tubaLayout(W, H, top);
   const { sc } = L;
   const X = (x: number) => L.ox + x * sc;

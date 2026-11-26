@@ -9,3 +9,89 @@
 :root[data-theme='night-gallery'] [data-themes]:not([data-themes~='night-gallery']) {
   display: none !important;
 }
+
+/* Every theme's sheet begins `* { box-sizing: border-box }`; scoped to its theme, that rule is of what
+   is under the root, and no longer of the root itself. */
+:root {
+  box-sizing: border-box;
+}
+
+/* ------------------------------------------------------------ the theme button (ui/theme-pick.ts)
+   One sign, in every theme's bar alike: four dots, the four looks' own colours. Every theme's bar is
+   full at a laptop's width and at a phone's (the picker's row, the lamp's words), so the sign takes none
+   of the row: it stands in the bar's own right margin, past the pages' links, and its box is that margin
+   (a finger's target is the margin and the bar's whole height). Its pick is drawn by each theme's own
+   sheet (it is laid out as the sheet music's list of parts is); here only where it hangs. */
+header.top {
+  position: relative;
+}
+.theme-btn {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: max(var(--gutter, 28px), 22px);
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+.theme-dots {
+  display: block;
+  width: 14px;
+  height: 14px;
+  overflow: visible;
+}
+/* (each dot stands off any bar by a hairline of the bar's own ink; the look in use is ringed) */
+.theme-dots .td {
+  stroke: currentColor;
+  stroke-width: 0.6;
+  stroke-opacity: 0.45;
+  transition: stroke-opacity 0.15s;
+}
+.theme-dots .td.on {
+  stroke-width: 1.3;
+  stroke-opacity: 1;
+}
+.theme-btn:hover .td,
+.theme-btn[aria-expanded='true'] .td {
+  stroke-opacity: 1;
+}
+.theme-menu {
+  position: fixed;
+  z-index: 60;
+}
+/* A phone's margin is too narrow for the sign: the pages' links end a little sooner (each theme's own
+   sheet takes that back from their spacing where its row is counted to the pixel), and the sign's box is
+   the corner, the bar's height. */
+@media (max-width: 760px) {
+  header.top nav.links {
+    margin-right: 6px;
+  }
+  .theme-btn {
+    height: 100%;
+  }
+  .theme-dots {
+    width: 12px;
+    height: 12px;
+  }
+}
+/* (with ui=0 the stage is all there is: the bar goes, and its sign with it; each theme's sheet hides the bar) */
+
+/* ------------------------------------------------------------ the way back to the stage (main.ts)
+   On Measurements and Notes the pages' links begin with "player": a word like its neighbours, drawn by
+   each theme's sheet as they are. A finger's target for it is taller than the word. */
+.links a.to-stage {
+  position: relative;
+}
+.links a.to-stage::after {
+  content: '';
+  position: absolute;
+  inset: -9px -3px;
+}

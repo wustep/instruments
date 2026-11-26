@@ -313,15 +313,27 @@ test('the bar on a phone: the button, the orchestra, the lamp and the two pages 
     await expect(page.locator('.stage-3d')).toBeVisible();
     const vp = page.viewportSize()!;
     const bar = await box(page, 'header.top');
-    const row = [await box(page, '.pick-open'), await box(page, '.ens-toggle'), await box(page, '.lamp'), await box(page, 'header nav a >> nth=0'), await box(page, 'header nav a >> nth=1')];
+    // (the theme's sign stands past the pages in the bar's corner; "player", the pages' third link, is not on the stage's bar)
+    const row = [await box(page, '.pick-open'), await box(page, '.ens-toggle'), await box(page, '.lamp'), await box(page, 'header nav a[data-route="measurements"]'), await box(page, 'header nav a[data-route="notes"]'), await box(page, 'header .theme-btn')];
+    await expect(page.locator('header nav a.to-stage')).toBeHidden();
     for (const [i, b] of row.entries()) {
       expect(b.y, where).toBeGreaterThanOrEqual(bar.y - 0.5);
       expect(b.y + b.height, where).toBeLessThanOrEqual(bar.y + bar.height + 0.5);
       expect(b.x + b.width, where).toBeLessThanOrEqual(vp.width);
       if (i) expect(b.x, `${where}: #${i} clear of #${i - 1}`).toBeGreaterThanOrEqual(row[i - 1].x + row[i - 1].width);
     }
-    // the pages' links: a finger's height
+    // the pages' links: a finger's height; the theme's sign: the bar's own height, in its corner, and its
+    // dots clear of the last link's word
     expect(row[3].height).toBeGreaterThanOrEqual(28);
+    expect(row[5].height, where).toBeGreaterThanOrEqual(40);
+    expect(row[5].width, where).toBeGreaterThanOrEqual(22);
+    expect(Math.round(row[5].x + row[5].width), where).toBe(vp.width);
+    const clear = await page.evaluate(() => {
+      const range = document.createRange();
+      range.selectNodeContents(document.querySelector('header nav a[data-route="notes"]')!);
+      return document.querySelector('header .theme-dots')!.getBoundingClientRect().left - range.getBoundingClientRect().right;
+    });
+    expect(clear, `${where}: the sign clear of “notes”`).toBeGreaterThanOrEqual(3);
     // in the band: the readout on the left, the view (with the piano's case, in 3D) on the right, the spectrum under both
     const band = async () => (await box(page, '.stage-top')).height;
     const before = await band();
@@ -380,19 +392,19 @@ test('the pages: two words in the corner, the open one marked; the stage’s con
   await page.goto('/violin?view=2d');
   const [m, n] = [page.locator('header nav a[data-route="measurements"]'), page.locator('header nav a[data-route="notes"]')];
   await expect(m).not.toHaveAttribute('aria-current', 'page');
-  await expect(page.locator('header .back')).toBeHidden();
+  await expect(page.locator('header .to-stage')).toBeHidden();
   await m.click();
   await expect.poll(() => page.evaluate(() => location.pathname)).toBe('/measurements');
   await expect(m).toHaveAttribute('aria-current', 'page');
   expect(await m.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe('none');
   // the stage's own controls are gone from the bar; the way back shows
   for (const sel of ['.picker', '.pick-open', '.view-seg', '.ens-toggle']) await expect(page.locator(sel), sel).toHaveCount(0);
-  await expect(page.locator('header .back')).toBeVisible();
+  await expect(page.locator('header .to-stage')).toBeVisible();
   const slim = (await box(page, 'header.top')).height;
   await n.click();
   await expect(n).toHaveAttribute('aria-current', 'page');
   await expect(m).not.toHaveAttribute('aria-current', 'page');
-  await page.locator('header .back').click();
+  await page.locator('header .to-stage').click();
   await expect.poll(() => page.evaluate(() => location.pathname)).toBe('/violin');
   await expect(page.locator('.view-seg')).toBeVisible();
   await expect(page.locator('.picker')).toHaveCount(1);

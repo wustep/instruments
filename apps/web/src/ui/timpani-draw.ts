@@ -16,6 +16,7 @@
 import type { VisualFrame, TimpaniVisual } from '@piano-model/engine';
 import { TIMPANI_DRUMS, besselJ } from '@piano-model/engine';
 import { AutoScale, INK, rgba } from './stage-draw.ts';
+import { ownDrawer } from '../themes/drawers.ts';
 import {
   BALL_R, COS_E, EXT, FOOT_R, FOOT_Z, GAUGE_HALF, GAUGE_OUT, GAUGE_Z0, GAUGE_Z1, HOOP_H, HOOP_W, HUB_Z, PAINT_ORDER, PEDAL_AT, PEDAL_HALF,
   PEDAL_LEN, PEDAL_TILT, PEDAL_Z, REST_LIFT, ROD_OUT, SET, SHAFT_R, SIN_E, STRUT_AZ, STRUT_W, T_HALF, T_UP, around, bowlR, malletLift, malletPose, type DrumPlan,
@@ -606,6 +607,8 @@ const COPPER_STOPS: [number, string][] = [
 /** The set of four drums, far to near, then the mallets over them. `top`: the file player's px over the box's
  *  top. */
 export function drawTimpani(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: TimpaniState, top = 0): void {
+  const own = ownDrawer('timpani');
+  if (own) return own(ctx, W, H, fr, st, top);
   const L = timpaniLayout(W, H, top);
   const now = performance.now();
   const lv = timpaniLive(fr, st, now);

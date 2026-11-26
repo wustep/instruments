@@ -45,7 +45,7 @@ export function drawTubaV(ctx: CanvasRenderingContext2D, W: number, H: number, f
   /** hide what lies behind a shape: lines only, but a nearer part still covers a farther one */
   const mask = (path: Path2D) => {
     ctx.save();
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = V.ground;
     ctx.fill(path);
     ctx.restore();
   };

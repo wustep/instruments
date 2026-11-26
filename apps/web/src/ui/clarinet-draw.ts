@@ -34,6 +34,7 @@
 import type { VisualFrame } from '@piano-model/engine';
 import { L1, L2, L3, LA, LCS, LE, LFS, LGS, R1, R2, R3, RAB, RB, RE, REG, RF, SEB, T, clarinetFingersFor, clarinetRegister } from './clarinet-fingering.ts';
 import { AutoScale, INK, boreAt, breathStream, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
+import { ownDrawer } from '../themes/drawers.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface ClarinetState {
@@ -679,8 +680,8 @@ const silver = (a: number) => rgba('230,232,236', a);
 const SILVER_BODY = 'rgb(62,64,68)';
 /** the grenadilla's fill: dark wood, lifted just enough to read against the stage (contrast over 1.3:1, test) */
 export const WOOD = '#332820';
-const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.cool);
-const D2R = Math.PI / 180;
+export const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.cool);
+export const D2R = Math.PI / 180;
 
 /** The clarinet from the front: the mouthpiece's beak with its ligature and the reed's tip opening and
  *  shutting with the engine's reed (drawn slowed), the grenadilla joints with their silver rings and
@@ -689,6 +690,8 @@ const D2R = Math.PI / 180;
  *  reed to where it leaves the tube, its envelope either side. `top`: the file player's px over the box's
  *  top. */
 export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: ClarinetState, top = 0): void {
+  const own = ownDrawer('clarinet');
+  if (own) return own(ctx, W, H, fr, st, top);
   const L = clarinetLayout(W, H, top);
   const { sc, c, Hm } = L;
   const X = (x: number) => L.x0 + x * sc;

@@ -11,6 +11,8 @@ import { lidKnobPoints, lidPoint, lidRay, zoomFrame, type PianoModel } from './p
 import { Renderer3 } from './three3d.ts';
 import { blocked, invert4, lidFor, rayAt } from './handles3d.ts';
 import { tromboneSizeIn } from './trombone3d.ts';
+import { onTheme, theme } from '../../themes/index.ts';
+import { world, worldOf } from '../../themes/worlds.ts';
 
 /** the lens: a 24° vertical field (about a 55 mm lens on full frame at the stage's aspect), not the
  *  wide 34° the views were first set for; the views' distances are scaled to keep the framing */
@@ -134,9 +136,11 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
   el.setAttribute('role', 'img');
   el.setAttribute('aria-label', 'The instrument in 3D, moving as the simulation computes it. Drag to turn, pinch or scroll to zoom, double-click to reset.');
   const phone = Math.min(window.innerWidth, window.innerHeight) < 600 || matchMedia('(pointer: coarse)').matches;
-  const r = Renderer3.create(el, phone);
+  const r = Renderer3.create(el, phone, world());
   if (!r) return null;
   host.append(el);
+  // another theme while the stage shows: its room, its lights and its floor take the place of these
+  const offTheme = onTheme((t) => r.setWorld(worldOf(t.id)));
   const batch = new Batch();
   const st = newScene3State();
   let view: View3 | null = null;
@@ -376,6 +380,10 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
   const clear = (q: [number, number] | null, m: number): q is [number, number] => !!q && q[0] >= m && q[0] <= cssW - m && q[1] >= Math.max(m, clearNow + m) && q[1] <= cssH - m;
   let roomHot = false;
   let hot = 0;
+  /** the stage's light (three3d `up`): waiting before the first sound, come up with it (−1: not yet set).
+   *  A world whose light waits follows it (an evening hall's spot); the others are lit as ever. */
+  let lightUp = -1;
+  const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const api: Stage3D = {
     el,
@@ -581,6 +589,7 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       return project(lastVP, [(s.a[0] + s.b[0]) / 2, (s.a[1] + s.b[1]) / 2, (s.a[2] + s.b[2]) / 2], cssW, cssH);
     },
     dispose() {
+      offTheme();
       r.dispose();
       el.remove();
     },
@@ -723,8 +732,9 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       }
       const eye: Vec3 = [target[0] + dist * dir[0], target[1] + dist * dir[1], target[2] + dist * dir[2]];
       lastEye = eye;
-      const g = getComputedStyle(document.body).getPropertyValue('--ground').trim() || '#0e0d0b';
-      const hex = /^#([0-9a-f]{6})$/i.exec(g)?.[1] ?? '0e0d0b';
+      // (the page's own ground, which the theme's sheet sets; failing that, the theme's)
+      const g = getComputedStyle(document.body).getPropertyValue('--ground').trim() || theme().ink.ground;
+      const hex = /^#([0-9a-f]{6})$/i.exec(g)?.[1] ?? theme().ink.ground.slice(1);
       const ground: [number, number, number] = [parseInt(hex.slice(0, 2), 16) / 255, parseInt(hex.slice(2, 4), 16) / 255, parseInt(hex.slice(4, 6), 16) / 255];
       // the lid: what this frame shows; the pool's rim brightens while the room's knob is under the
       // pointer, turned or focused (τ 0.1 s)
@@ -734,9 +744,16 @@ export function createStage3D(host: HTMLElement): Stage3D | null {
       seen.caseShown = !si.caseHidden;
       hot += ((roomHot && seen.single ? 1 : 0) - hot) * (1 - Math.exp(-dt / 0.1));
       r.poolHot = hot;
+      // the light comes up with the first sound (τ 0.45 s; at once where motion is to be spared, and on
+      // the first frame: a stage opened while it sounds is lit)
+      const upT = document.documentElement.dataset.audio === 'running' ? 1 : 0;
+      lightUp = lightUp < 0 || still ? upT : lightUp + (upT - lightUp) * (1 - Math.exp(-dt / 0.45));
+      r.up = lightUp;
       r.shadows = stats.shadows;
       r.ao = stats.ao;
       r.closeUp = zoom ? closeK : 0;
+      // (a room turned to where its scene is first seen from is told where that is)
+      if (view) r.bearing = view.yaw;
       const progs = r.r.info.programs?.length ?? 0;
       r.draw(batch, eye, target, FOV, pw, ph, ground);
       lastVP = r.vp.elements as unknown as Mat4;

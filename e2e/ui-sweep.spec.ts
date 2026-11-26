@@ -139,19 +139,48 @@ test('a window between a phone’s and a computer’s (a tablet held upright): a
   expect(errors).toEqual([]);
 });
 
-test('Measurements and Notes have no keys: the lamp’s “tap a key” is the stage’s alone', async ({ page }) => {
+test('Measurements and Notes have no keys: the lamp, its “tap a key” and the MIDI socket are the stage’s alone; there the bar has “player”, the way back to the stage as it was', async ({ page }, info) => {
   const errors = collectErrors(page);
   const hint = () => page.locator('.lamp-text');
-  await page.goto('/piano');
+  const player = () => page.locator('header nav.links a.to-stage');
+  await page.goto('/cello?view=2d');
   await expect(hint()).toBeVisible();
   await expect(hint()).toHaveText('tap a key');
-  for (const p of ['/measurements', '/notes']) {
-    await page.goto(p);
-    await expect(page.locator('.lamp')).toBeVisible();
-    await expect(hint()).toBeHidden();
-    // (its title still says how sound starts)
-    expect(await page.locator('.status').getAttribute('title')).toBe('tap a key to start');
+  await expect(page.locator('.lamp')).toBeVisible();
+  await expect(player()).toBeHidden();
+  for (const p of ['measurements', 'notes']) {
+    await page.locator(`header nav.links a[data-route="${p}"]`).click();
+    await expect(page.locator('html')).toHaveAttribute('data-route', p);
+    // no lamp, no words of it, no MIDI socket: the status is not in the bar at all
+    for (const sel of ['.status', '.lamp', '.lamp-text', '.status .midi']) await expect(page.locator(sel), `${p}: ${sel}`).toBeHidden();
+    // “player”: one of the pages' links, first among them, in their type; it goes where the stage was
+    await expect(player()).toBeVisible();
+    await expect(player()).toHaveText('player');
+    await expect(player()).toHaveAttribute('href', '/cello');
+    const d = await page.evaluate(() => {
+      const [a, b] = [document.querySelector<HTMLElement>('nav.links a.to-stage')!, document.querySelector<HTMLElement>('nav.links a[data-route="measurements"]')!];
+      const [ca, cb] = [getComputedStyle(a), getComputedStyle(b)];
+      const r = a.getBoundingClientRect();
+      // (what a finger can hit: the link's box and its target's, which reaches past the word)
+      const t = getComputedStyle(a, '::after');
+      const reach = r.height - 2 * parseFloat(t.top || '0');
+      return { first: a.parentElement!.firstElementChild === a, font: [ca.fontFamily === cb.fontFamily, ca.fontSize === cb.fontSize, ca.letterSpacing === cb.letterSpacing], left: r.left, right: r.right, next: b.getBoundingClientRect().left, reach, win: innerWidth, over: document.documentElement.scrollWidth - innerWidth };
+    });
+    expect(d.first, p).toBe(true);
+    expect(d.font, `${p}: set as its neighbours are`).toEqual([true, true, true]);
+    expect(d.left, p).toBeGreaterThanOrEqual(0);
+    expect(d.right, `${p}: clear of the next link`).toBeLessThanOrEqual(d.next + 0.5);
+    expect(d.over, `${p}: the bar does not widen the page`).toBeLessThanOrEqual(0);
+    // (a finger's target: 44 px on a phone)
+    if (info.project.name === 'phone') expect(d.reach, `${p}: a finger's target`).toBeGreaterThanOrEqual(44);
   }
+  // back on the stage: the instrument that was there, the lamp again, no “player”
+  await player().click();
+  await expect(page.locator('html')).toHaveAttribute('data-route', 'stage');
+  await expect.poll(() => page.evaluate(() => location.pathname)).toBe('/cello');
+  await expect(page.locator('.lamp')).toBeVisible();
+  await expect(hint()).toHaveText('tap a key');
+  await expect(player()).toBeHidden();
   expect(errors).toEqual([]);
 });
 

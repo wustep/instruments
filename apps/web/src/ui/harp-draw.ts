@@ -9,6 +9,7 @@
 import type { VisualFrame } from '@piano-model/engine';
 import { BASE, BOARD_A, BOARD_B, BODY, COLUMN_R, COLUMN_X, COLUMN_Y0, COLUMN_Y1, CROWN_Y, DISC_DY, FEET, HP_X0, HP_X1, HP_Y0, HP_Y1, PEDAL_LEN, PEDAL_X, PEDAL_Y, PIN_DY, STRINGS, STRING_X, STRING_Y0, STRING_Y1, discScale, neckLower, neckUpper, pedalFoot, pedalOf, plateLower, stopY, type P } from './harp-plan.ts';
 import { INK, rgba } from './stage-draw.ts';
+import { ownDrawer } from '../themes/drawers.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface HarpState {
@@ -162,6 +163,8 @@ export const stringInk = (i: number): string => (STRINGS[i].colour === 'red' ? S
 
 /** The harp from its side. `top`: the file player's px over the box's top. */
 export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: HarpState, top = 0): void {
+  const own = ownDrawer('harp');
+  if (own) return own(ctx, W, H, fr, st, top);
   const L = harpLayout(W, H, top);
   const { sc } = L;
   const X = (x: number) => L.ox + x * sc;

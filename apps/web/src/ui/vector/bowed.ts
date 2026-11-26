@@ -11,6 +11,7 @@
 import type { VisualFrame } from '@piano-model/engine';
 import { BASS_MACH, BOWED_PLAN, HEAD_EAR, HEAD_PROJ, MM, PEG_A, PEG_OF, PEG_SIDE, bassAdjusters, bassHead, bassPinParts, bassTailWire, bowFit, bowLift, bowedDrawn, bowedLayout, bowedShapes, bwBridge, bwClamp, bwForce, bwHeadParts, bwPegboxW, bwPlace, bwPoly, bwSstep, bwTailpiece, type BowedDrawn, type BowedGeom, type BowedLayout, type BowedState } from '../stage-draw.ts';
 import { V, beam, dot, handle, label, ring, seg, type Contours, type Pt } from './kit.ts';
+import { theme } from '../../themes/index.ts';
 
 
 /** the still parts as paths (px, in the local frame bwPlace sets: x along the strings from the body's
@@ -395,7 +396,7 @@ export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, 
     const cxk = xk(kc);
     const czk = zAt(bowedIdx, cxk) - shp[kc] * amp;
     ring(ctx, X(cxk), X(czk), small ? 3 : 4.5, V.sound, 1.1);
-    dot(ctx, X(cxk), X(czk), 1.8, '#fff8ec');
+    dot(ctx, X(cxk), X(czk), 1.8, theme().vector.corner);
   }
 
   // ---- the bow (its pose as the stage's own drawing: stage-draw.ts has the sources)

@@ -40,7 +40,7 @@ export function drawGlockV(ctx: CanvasRenderingContext2D, W: number, H: number, 
     const p = new Path2D();
     p.rect(X(x0), Y(y1), (x1 - x0) * sc, (y1 - y0) * sc);
     ctx.save();
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = V.ground;
     ctx.fill(p);
     ctx.restore();
     beam(ctx, p, a > 0.01 ? mix(V.line, V.sound, Math.min(1, 0.3 + a)) : V.lineMid, a > 0.01 ? lw : 1, { hot: a > 0.3 && !small });

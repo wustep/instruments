@@ -6,6 +6,7 @@
 
 import type { KeySummary, VisualFrame } from '@piano-model/engine';
 import { AutoScale, INK, ModeField, rgba } from './stage-draw.ts';
+import { ownDrawer } from '../themes/drawers.ts';
 import { Layer, SPRUCE, SYM_VISIBLE, damperMark, drawGrandPlan, hammerMark, lightString, paintEnds, paintPlate, path, plateOf, type Plate } from './grand-plan.ts';
 
 export interface PianoGeom {
@@ -235,6 +236,8 @@ export function keysAcross(stage: { left: number; width: number }): { left: numb
 
 // ================================================================ grand (from above)
 export function drawPiano(ctx: CanvasRenderingContext2D, W: number, H: number, g: PianoGeom, fr: VisualFrame | null, st: PianoState, field: ModeField, now: number): void {
+  const own = ownDrawer('piano');
+  if (own) return own(ctx, W, H, g, fr, st, field, now);
   if (g.kind === 'upright') return drawUpright(ctx, W, H, g, fr, st, field, now);
   const keys = g.keys;
   if (!keys.length) return;

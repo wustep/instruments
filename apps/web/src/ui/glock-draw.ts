@@ -12,6 +12,8 @@ import type { VisualFrame } from '@piano-model/engine';
 import { barShape } from '@piano-model/engine';
 import { BARS, BAR_W, CASE, GK_X0, GK_X1, GK_Y0, GK_Y1, HEAD_R, HOLE_R, PIN_R, RAILS, RAIL_W, SHAFT, TRAY, barBox, barCentre, barNodes, type P, strokePlace, HOVER, malletHeight } from './glock-plan.ts';
 import { INK, rgba } from './stage-draw.ts';
+import { ownDrawer } from '../themes/drawers.ts';
+import { theme } from '../themes/index.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface GlockState {
@@ -152,12 +154,14 @@ export function strokeRings(fr: VisualFrame | null): { at: P; k: number }[] {
 }
 /** a bar's light along its length where it rings: its first mode's motion (0 at the nodes, 1 at the ends),
  *  at eleven places */
-const MODE: number[] = Array.from({ length: 11 }, (_, k) => Math.min(1, Math.abs(barShape(k / 10)) / Math.abs(barShape(0))));
+export const MODE: number[] = Array.from({ length: 11 }, (_, k) => Math.min(1, Math.abs(barShape(k / 10)) / Math.abs(barShape(0))));
 /** a bar's stamped name: its letter, a sharp after it (no octave: the bars are in order) */
 export const barStamp = (i: number): string => BARS[i].name.replace(/\d+$/, '').replace('#', '♯');
 
 /** The glockenspiel from above. `top`: the file player's px over the box's top. */
 export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: GlockState, top = 0): void {
+  const own = ownDrawer('glock');
+  if (own) return own(ctx, W, H, fr, st, top);
   const L = glockLayout(W, H, top);
   const { sc } = L;
   const X = (x: number) => L.ox + x * sc;
@@ -224,7 +228,8 @@ export function drawGlock(ctx: CanvasRenderingContext2D, W: number, H: number, f
   // ringing bar lit where it moves, as far as it swings
   const stampPx = Math.round(BAR_W * sc * 0.4);
   if (stampPx >= 7) {
-    ctx.font = `500 ${stampPx}px "IBM Plex Mono", monospace`;
+    const face = theme().draw.stamp;
+    ctx.font = `${face.weight} ${stampPx}px ${face.family}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
   }

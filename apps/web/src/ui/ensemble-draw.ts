@@ -12,6 +12,8 @@ import { isOrchestral, orchestraPlan, seatKinds } from '../orchestra/seats.ts';
 import type { PartLive } from '../orchestra/ensemble.ts';
 import { drawPiano, newPianoState, type PianoState } from './piano-draw.ts';
 import { Contours, drawBassoonV, drawBowedV, drawClarinetV, drawFluteV, drawHarpV, drawGlockV, drawHornV, drawOboeV, drawPianoV, drawTromboneV, drawTrumpetV, drawTubaV, drawTimpaniV } from './vector/index.ts';
+import { V } from './vector/kit.ts';
+import { theme } from '../themes/index.ts';
 import { drawOboe, newOboeState, oboeBox, type OboeState } from './oboe-draw.ts';
 import { clarinetBox, drawClarinet, newClarinetState, type ClarinetState } from './clarinet-draw.ts';
 import { bassoonBox, drawBassoon, newBassoonState, type BassoonState } from './bassoon-draw.ts';
@@ -56,7 +58,7 @@ export function newPartDraw(v: Voice): PartDraw {
   const inst = VOICE_INFO[v].instrument;
   if (inst === 'violin' || inst === 'viola' || inst === 'cello' || inst === 'bass')
     // (a coarser mode field than the single instrument's: six of them are drawn every frame)
-    return { voice: v, bowed: { geom: { id: inst, ...bowedGeometry(inst) }, st: { strScale: new AutoScale(2e-6), lvlScale: new AutoScale(1e-6, 0.995) }, field: new ModeField(96, 54, 1.8, 0.6) } };
+    return { voice: v, bowed: { geom: { id: inst, ...bowedGeometry(inst) }, st: { strScale: new AutoScale(2e-6), lvlScale: new AutoScale(1e-6, 0.995) }, field: new ModeField(96, 54, 1.8, 0.6, true) } };
   if (inst === 'flute') return { voice: v, flute: { pScale: new AutoScale(1e-6), jetScale: new AutoScale(1e-9), env: new Float32Array(0) } as FluteState };
   if (inst === 'trumpet') return { voice: v, trumpet: { pScale: new AutoScale(1e-6), env: new Float32Array(0) } };
   if (inst === 'trombone') return { voice: v, trombone: newTromboneState() };
@@ -518,54 +520,59 @@ export function drawOwnKeys(ctx: CanvasRenderingContext2D, c: Cell, down: Readon
   const y = c.h - kh;
   ctx.save();
   if (vector) {
-    // lines only: the whites' frame and partings, the blacks hatched boxes; a held key amber
+    // lines only: the whites' frame and partings, the blacks washed boxes; a held key the sound's colour
+    // (the washes and the edges' weights are the look's: themes/types.ts `VectorLook.ownKeys`; under them
+    // the display's own ground)
+    const look = theme().vector.ownKeys;
     ctx.lineWidth = 1;
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = V.ground;
     ctx.fillRect(x0, y, x1 - x0, kh);
     for (const k of keys) {
       const lit = down.has(k.midi);
       if (k.black) {
-        ctx.fillStyle = '#000';
+        ctx.fillStyle = V.ground;
         ctx.fillRect(k.x, k.y, k.w, k.h);
-        ctx.fillStyle = lit ? 'rgba(255, 179, 64, 0.55)' : 'rgba(79, 182, 242, 0.22)';
+        ctx.fillStyle = lit ? look.blackDown : look.black;
         ctx.fillRect(k.x, k.y, k.w, k.h);
-        ctx.strokeStyle = lit ? '#ffb340' : '#3487c4';
+        ctx.strokeStyle = lit ? V.sound : V[look.blackEdge];
         ctx.strokeRect(k.x + 0.5, k.y + 0.5, k.w - 1, k.h - 1);
       } else {
         if (lit) {
-          ctx.fillStyle = 'rgba(255, 179, 64, 0.3)';
+          ctx.fillStyle = look.whiteDown;
           ctx.fillRect(k.x, k.y, k.w, k.h);
         }
-        ctx.strokeStyle = lit ? '#ffb340' : '#1f5f8c';
+        ctx.strokeStyle = lit ? V.sound : V[look.whiteEdge];
         ctx.strokeRect(k.x + 0.5, k.y + 0.5, k.w - 1, k.h - 1);
       }
     }
     ctx.restore();
     return;
   }
-  // the key slip over them (the strings end at it), the whites as one ivory field with their partings, a
-  // held one warm as the screen's are; the blacks over them
-  ctx.fillStyle = '#efe7d6';
+  // the key slip over them (the strings end at it), the whites as one field with their partings, a held
+  // one lit as the screen's are; the blacks over them (the colours are the look's, as its screen's keys
+  // are: themes/types.ts `DrawLook.ownKeys`)
+  const look = theme().draw.ownKeys;
+  ctx.fillStyle = look.white;
   ctx.fillRect(x0, y, x1 - x0, kh);
   for (const k of keys) {
     if (k.black) continue;
     if (down.has(k.midi)) {
-      ctx.fillStyle = '#f2c3ad';
+      ctx.fillStyle = look.whiteDown;
       ctx.fillRect(k.x, k.y, k.w, k.h);
     }
-    ctx.fillStyle = 'rgba(120, 106, 84, 0.75)';
+    ctx.fillStyle = look.parting;
     ctx.fillRect(Math.round(k.x), k.y, 1, k.h);
   }
-  ctx.fillStyle = 'rgba(120, 106, 84, 0.75)';
+  ctx.fillStyle = look.parting;
   ctx.fillRect(Math.round(x1) - 1, y, 1, kh);
   // (the whites' front edge in shade, the slip's shadow on their far end)
-  ctx.fillStyle = 'rgba(60, 48, 30, 0.28)';
+  ctx.fillStyle = look.front;
   ctx.fillRect(x0, y + kh - Math.max(1, Math.round(kh * 0.08)), x1 - x0, Math.max(1, Math.round(kh * 0.08)));
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+  ctx.fillStyle = look.slip;
   ctx.fillRect(x0, y, x1 - x0, Math.max(1, Math.round(kh * 0.06)));
   for (const k of keys) {
     if (!k.black) continue;
-    ctx.fillStyle = down.has(k.midi) ? '#6a2a1a' : '#15120f';
+    ctx.fillStyle = down.has(k.midi) ? look.blackDown : look.black;
     ctx.fillRect(k.x, k.y, k.w, k.h);
   }
   ctx.restore();

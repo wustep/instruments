@@ -204,7 +204,7 @@ export interface LabelOpts {
 export function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, o: LabelOpts = {}): void {
   const size = o.size ?? 11;
   ctx.save();
-  ctx.globalCompositeOperation = theme().vector.blend;
+  ctx.globalCompositeOperation = theme().vector.labelBlend;
   ctx.globalAlpha *= o.alpha ?? 1;
   ctx.font = hfont(size, o.weight);
   if ('letterSpacing' in ctx) (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${((o.ls ?? 0.12) * size).toFixed(2)}px`;

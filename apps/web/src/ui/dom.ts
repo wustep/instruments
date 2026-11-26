@@ -1,6 +1,6 @@
 // Tiny DOM helper.
 
-import { onTheme, theme, type GlyphName, type Theme } from '../themes/index.ts';
+import { THEMES, onTheme, theme, type GlyphName, type Theme } from '../themes/index.ts';
 
 type Child = Node | string | number | null | undefined | false;
 
@@ -52,6 +52,21 @@ export function sign<T extends Element>(host: T, name: GlyphName): T {
   return host;
 }
 if (typeof document !== 'undefined') onTheme((t) => document.querySelectorAll('[data-sign]').forEach((el) => drawSign(el, t)));
+
+/** The looks that have something, as an element's `data-themes` names them: what only some looks have is
+ *  made for all and is not there under the others (themes/base.css). */
+export const looksWith = (has: (t: Theme) => unknown): string =>
+  THEMES.filter((t) => has(t))
+    .map((t) => t.id)
+    .join(' ');
+
+// (the body keeps its own copy of the page's ground for the overscroll colour, views/stage.ts: another
+// theme's ground is another colour, and the copy would stay the old one's over everything in the body)
+if (typeof document !== 'undefined') {
+  onTheme(() => {
+    if (document.body?.style.getPropertyValue('--ground')) document.body.style.setProperty('--ground', cssVar('--ground'));
+  });
+}
 
 export interface View {
   el: HTMLElement;

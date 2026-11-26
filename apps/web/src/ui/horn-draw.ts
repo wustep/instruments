@@ -15,6 +15,7 @@
 import { hornFingering, type HornFingering, type VisualFrame } from '@piano-model/engine';
 import { AXIS, CAP_R, MOUTH_K, MPIECE, MP_DIR, MP_LEN, MP_RIM, RECV, RIM_C, RIM_R, ROT_R, ROT_X, ROT_Y, TR, TUBES, bellR, hornAir, valvesDown, type P, type Run, type Tube } from './horn-plan.ts';
 import { AutoScale, BRASS_BREATH, INK, boreAt, brassBreath, breathStream, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
+import { ownDrawer } from '../themes/drawers.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface HornState {
@@ -37,8 +38,8 @@ export const newHornState = (): HornState => ({});
 // ---------------------------------------------------------------- the levers (plan, m)
 /** the lever bar (the springs' barrel) across, its top and bottom */
 export const BAR_X = 0.098;
-const BAR_Y0 = -0.06;
-const BAR_Y1 = 0.046;
+export const BAR_Y0 = -0.06;
+export const BAR_Y1 = 0.046;
 /** each lever's hub on the bar and its paddle's tip (thumb, 1, 2, 3); the paddles' half-widths at the hub
  *  and at the spoon */
 export const LEVERS: { hub: P; tip: P; w0: number; w1: number }[] = [
@@ -450,6 +451,8 @@ const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.cool);
  *  fingering; the air's path lit, the standing wave along it, the breath going into the mouthpiece. `top`:
  *  the file player's px over the box's top. */
 export function drawHorn(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: HornState, top = 0): void {
+  const own = ownDrawer('horn');
+  if (own) return own(ctx, W, H, fr, st, top);
   const L = hornLayout(W, H, top);
   const { sc } = L;
   const X = (x: number) => L.ox + x * sc;
@@ -828,7 +831,7 @@ export function paddle(X: (x: number) => number, Y: (y: number) => number, hub: 
 }
 /** the breath into the mouthpiece while the note is blown: the reeds' streams (stage-draw breathStream),
  *  converging on the lips' aperture at the rim's middle, pulsing with the lips' opening (drawn slowed) */
-function drawBreath(ctx: CanvasRenderingContext2D, L: HnLayout, lv: HnLive, now: number): void {
+export function drawBreath(ctx: CanvasRenderingContext2D, L: HnLayout, lv: HnLive, now: number): void {
   if (!(lv.sounding && lv.blow > 0.01)) return;
   const { sc } = L;
   const rx = L.ox + MP_RIM[0] * sc;

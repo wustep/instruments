@@ -16,6 +16,7 @@ import { h, sign } from './dom.ts';
 import { AutoScale, INK, rgba } from './stage-draw.ts';
 import { glow, V } from './vector/kit.ts';
 import { linePen } from './vector/pen.ts';
+import { themeEpoch } from '../themes/index.ts';
 
 /** the drawn section's box on the canvas (CSS px), and where the key's front is */
 export interface SectionBox {
@@ -70,6 +71,8 @@ export function openActionView(opts: { midi: number; kind: () => Kind; host: HTM
   // under the vector display the same section is drawn through a line pen (ui/vector/pen.ts): blue
   // structure, the string's motion and the strike amber, the hammer's felt in the hammer knob's green
   let pen: CanvasRenderingContext2D | null = null;
+  /** the theme the pen was made in (its roles and the inks it has worked out are that theme's) */
+  let penEpoch = -1;
   /** part names at canvas positions, from the last frame */
   let hover: [string, number, number][] = [];
   canvas.addEventListener('pointermove', (e) => {
@@ -193,7 +196,11 @@ export function openActionView(opts: { midi: number; kind: () => Kind; host: HTM
     const parts: [string, number, number][] = [];
     const geo: GrandGeo = { soft: f?.soft ?? 0, middle: f?.middle ?? 0, parts, X, Y, s, y: st.y, comp: st.comp, keyPos: st.keyPos, escaped: st.escaped, damperOn: hasDamper ? st.damperOn : 0, hasDamper, shape, sc, beta: w?.beta ?? 0.12, active: st.active, contact: st.contact, jackOut: st.jackOut, dt, mem, midi, watch: w, sustain: f?.sustain ?? 0 };
     const vector = document.documentElement.dataset.style === 'vector';
-    const c = vector ? (pen ??= linePen(ctx, { [INK.sound]: V.sound, [INK.warm]: V.slot4, [GC.hFelt]: V.slot1 })) : ctx;
+    if (vector && (!pen || penEpoch !== themeEpoch())) {
+      pen = linePen(ctx, { [INK.sound]: V.sound, [INK.warm]: V.slot4, [GC.hFelt]: V.slot1 });
+      penEpoch = themeEpoch();
+    }
+    const c = vector && pen ? pen : ctx;
     box = kind === 'grand' ? drawGrand(c, geo) : drawUpright(c, geo);
     if (vector) glow(ctx);
     hover = parts.map(([n, px, py]) => [n, X(px), Y(py)] as [string, number, number]);

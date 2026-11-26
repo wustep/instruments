@@ -15,8 +15,9 @@
 import type { VisualFrame } from '@piano-model/engine';
 import type { PianoState, Pt } from './piano-draw.ts';
 import { INK, type ModeField, rgba } from './stage-draw.ts';
+import { themeEpoch } from '../themes/index.ts';
 
-type P = [number, number];
+export type P = [number, number];
 
 /** the 3D grand's plan (metres; z from the key fronts towards the tail) */
 export const GZ = {
@@ -43,7 +44,8 @@ const KB = 0.611; // half the keyboard (52 × 23.5 mm)
 /** below this relative displacement (−30 dB) a sympathetic string is not drawn as moving */
 export const SYM_VISIBLE = 0.03;
 
-/** a layer the size of the stage, repainted only when its key changes (one canvas, reused) */
+/** a layer the size of the stage, repainted only when its key changes (one canvas, reused), or the theme
+ *  (what is painted on it is in a theme's inks) */
 export class Layer {
   /** made on first use: the module is also loaded where there is no document (the model tests) */
   private cv: HTMLCanvasElement | null = null;
@@ -52,6 +54,7 @@ export class Layer {
   }
   private key = '';
   paint(W: number, H: number, dpr: number, key: string, draw: (ctx: CanvasRenderingContext2D) => void): void {
+    key = `${themeEpoch()}|${key}`;
     if (key === this.key) return;
     this.key = key;
     const w = Math.max(1, Math.round(W * dpr));
@@ -457,7 +460,7 @@ const BLOCK_LIT = [112, 86, 48];
 const BLOCK_DARK = [34, 28, 21];
 /** the soundboard: spruce, warmer and lighter than the case */
 export const SPRUCE = '108,78,44';
-const mix = (a: number[], b: number[], t: number, alpha: number) => `rgba(${Math.round(a[0] + (b[0] - a[0]) * t)},${Math.round(a[1] + (b[1] - a[1]) * t)},${Math.round(a[2] + (b[2] - a[2]) * t)},${alpha})`;
+export const mix = (a: number[], b: number[], t: number, alpha: number) => `rgba(${Math.round(a[0] + (b[0] - a[0]) * t)},${Math.round(a[1] + (b[1] - a[1]) * t)},${Math.round(a[2] + (b[2] - a[2]) * t)},${alpha})`;
 
 /** the plate, drawn: bronze where the iron is, the board open between. `perimeter` is the case's inner
  *  face (the caller clips to it), `box` the case on the stage (the light runs across it). */

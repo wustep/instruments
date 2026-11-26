@@ -5,6 +5,7 @@
 // closed, they stay dim and short. Driven by the real output level.
 
 import { INK, rgba } from './stage-draw.ts';
+import { ownDrawer } from '../themes/drawers.ts';
 
 export interface Wave {
   t0: number;
@@ -44,6 +45,8 @@ export function drawRoom(
   now: number,
   lid: { open: number; dir: number } | null,
 ): RoomGeom {
+  const own = ownDrawer('room');
+  if (own) return own(ctx, W, H, st, src, room, rms, now, lid);
   const g = roomRect(W, H, room);
   const t60 = 0.7 + 1.7 * room;
   // spawn: on onsets (a jump in level), and steadily while sound continues

@@ -18,6 +18,7 @@
 import type { TromboneVisual, VisualFrame } from '@piano-model/engine';
 import { SIZES, bellRuns, extent, plan, positionOut, slideRuns, type Down, type P, type Plan, type Run, type Size, type Tube } from './trombone-plan.ts';
 import { AutoScale, BRASS_BREATH, INK, boreAt, brassBreath, breathStream, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
+import { ownDrawer } from '../themes/drawers.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface TromboneState {
@@ -59,7 +60,7 @@ export interface TromboneState {
 export const newTromboneState = (): TromboneState => ({});
 
 // ---------------------------------------------------------------- the box: all three sizes at one scale
-const EXT = Object.fromEntries(SIZES.map((s) => [s, extent(plan(s))])) as Record<Size, ReturnType<typeof extent>>;
+export const EXT = Object.fromEntries(SIZES.map((s) => [s, extent(plan(s))])) as Record<Size, ReturnType<typeof extent>>;
 /** the widest and the tallest of the three (m) */
 export const TB_W = Math.max(...SIZES.map((s) => EXT[s].x1 - EXT[s].x0));
 export const TB_H = Math.max(...SIZES.map((s) => EXT[s].y1 - EXT[s].y0));
@@ -551,6 +552,8 @@ const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.cool);
  *  slide, the mouthpiece with the breath going into it; the air's path lit and the standing wave along it.
  *  `top`: the file player's px over the box's top. */
 export function drawTrombone(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: TromboneState, top = 0): void {
+  const own = ownDrawer('trombone');
+  if (own) return own(ctx, W, H, fr, st, top);
   const now = performance.now();
   const lv = tromboneLive(fr, st, now);
   const L = tromboneLayout(W, H, top, lv.size);
@@ -972,7 +975,7 @@ function drawLevers(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive): voi
 }
 /** the breath into the mouthpiece while the note is blown: the reeds' streams (stage-draw breathStream),
  *  converging on the lips' aperture at the rim's middle, pulsing with the lips' opening (drawn slowed) */
-function drawBreath(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive, now: number): void {
+export function drawBreath(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive, now: number): void {
   if (!(lv.sounding && lv.blow > 0.05)) return;
   const { sc, p } = L;
   const rx = L.ox - p.mpVis * sc;

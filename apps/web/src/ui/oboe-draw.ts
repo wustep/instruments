@@ -22,6 +22,7 @@
 import type { VisualFrame } from '@piano-model/engine';
 import { HALF, L1, L2, L3, LB, LBB, LEB, LGS, OCT1, OCT2, R1, R2, R3, RC, RCS, REB, RF, oboeFingersFor } from './oboe-fingering.ts';
 import { AutoScale, INK, boreAt, breathStream, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
+import { ownDrawer } from '../themes/drawers.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface OboeState {
@@ -627,14 +628,16 @@ const silver = (a: number) => rgba('230,232,236', a);
 const SILVER_BODY = 'rgb(62,64,68)';
 /** the grenadilla's fill: dark wood, lifted just enough to read against the stage (contrast over 1.3:1, test) */
 export const WOOD = '#332820';
-const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.cool);
-const D2R = Math.PI / 180;
+export const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.cool);
+export const D2R = Math.PI / 180;
 
 /** The oboe from the front: the reed (its blades fluttering open and shut with the engine's reed, drawn
  *  slowed), the grenadilla body with its silver rings and keywork, the keys closing for the engine's note
  *  by the chart (each on a spring), and the bore's standing wave glowing inside the cone from the reed to
  *  the first open hole, its envelope either side. `top`: the file player's px over the box's top. */
 export function drawOboe(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: OboeState, top = 0): void {
+  const own = ownDrawer('oboe');
+  if (own) return own(ctx, W, H, fr, st, top);
   const L = oboeLayout(W, H, top);
   const { sc, c, Hm } = L;
   const X = (x: number) => L.x0 + x * sc;

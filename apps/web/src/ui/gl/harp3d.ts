@@ -12,6 +12,7 @@ import type { VisualFrame } from '@piano-model/engine';
 import { type Batch, type Mat4, type Mesh, type RGBA, type Vec3, mulInto, rotX, translate, xform } from './gl3d.ts';
 import { M, box, cyl, extrude, grid, variant } from './mesh.ts';
 import { boxOf, latheOn, make } from './horn3d.ts';
+import { world } from '../../themes/worlds.ts';
 import { BASE, BOARD_A, BOARD_B, COLUMN_X, COLUMN_Y0, COLUMN_Y1, CROWN_Y, DISC_DY, PEDAL_STEP, PEDAL_Y, PIN_DY, STRINGS, STRING_X, STRING_Y0, STRING_Y1, discScale, neckLower, neckUpper, pedalOf, plateLower, stopY } from '../harp-plan.ts';
 
 type P2 = [number, number];
@@ -155,7 +156,8 @@ let stageState: { swing: number[]; pedals: number[]; ringing: number; plucks: { 
 /** how long a pluck's mark shows (s), its ring's points */
 const PLUCK_SHOWN = 0.28;
 const RING: Vec3[] = Array.from({ length: 13 }, () => [0, 0, 0]);
-const MARK: RGBA = [1, 0.94, 0.82, 1];
+/** (its colour is the room's: a world's `harp`) */
+const MARK: RGBA = [1, 1, 1, 1];
 const SEG = 14;
 const pts: Vec3[] = Array.from({ length: SEG + 1 }, () => [0, 0, 0]);
 const two: Vec3[] = [[0, 0, 0], [0, 0, 0]];
@@ -164,6 +166,7 @@ const LIT: RGBA = [1, 1, 1, 1];
 
 export function poseHarp(b: Batch, hm: HarpModel, fr: VisualFrame | null, _dt: number, _now: number, T: Mat4 = hm.T): void {
   for (const s of hm.statics) b.mesh(s, T);
+  const look = world().harp;
   const hv = fr?.harp ?? null;
   const swing: number[] = [];
   let ringing = 0;
@@ -195,10 +198,11 @@ export function poseHarp(b: Batch, hm: HarpModel, fr: VisualFrame | null, _dt: n
         pts[q] = xform(T, [x, y0 + (y1 - y0) * u, d * w]);
       }
       b.wire(pts, col, g);
-      // (a ringing string catches the light: brighter the wider it swings, dying with it)
-      LIT[0] = 0.5 + 0.5 * col[0];
-      LIT[1] = 0.45 + 0.5 * col[1];
-      LIT[2] = 0.35 + 0.5 * col[2];
+      // (a ringing string catches the light: brighter the wider it swings, dying with it; in a room where
+      // nothing glows it is drawn in the colour that means sound: the world's `harp`)
+      LIT[0] = look.lit[0] + look.own * col[0];
+      LIT[1] = look.lit[1] + look.own * col[1];
+      LIT[2] = look.lit[2] + look.own * col[2];
       LIT[3] = Math.min(0.85, 1.1 * Math.sqrt(a));
       b.line(pts, LIT, 1.1 + 1.6 * Math.sqrt(a));
     } else {
@@ -222,6 +226,9 @@ export function poseHarp(b: Batch, hm: HarpModel, fr: VisualFrame | null, _dt: n
         const a = (2 * Math.PI * q) / (RING.length - 1);
         RING[q] = xform(T, [STRING_X[i] + r * Math.cos(a), y + r * Math.sin(a), 0]);
       }
+      MARK[0] = look.mark[0];
+      MARK[1] = look.mark[1];
+      MARK[2] = look.mark[2];
       MARK[3] = 0.9 * (1 - u) * (1 - u);
       b.line(RING, MARK, 1.6);
       plucks.push({ string: i, at: [STRING_X[i], y, 0] });

@@ -311,13 +311,13 @@ export function drawTrumpetV(ctx: CanvasRenderingContext2D, W: number, H: number
     ctx.save();
     ctx.setLineDash([]);
     if (strokeWidth) {
-      ctx.strokeStyle = '#000';
+      ctx.strokeStyle = V.ground;
       ctx.lineWidth = strokeWidth;
       ctx.lineCap = 'butt';
       ctx.lineJoin = 'round';
       ctx.stroke(path);
     } else {
-      ctx.fillStyle = '#000';
+      ctx.fillStyle = V.ground;
       ctx.fill(path);
     }
     ctx.restore();

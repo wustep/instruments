@@ -2,12 +2,16 @@
 // static meshes posed by model matrices (drawn instanced), and the live lines (strings' glow,
 // stopping marks, breath, wavefronts).
 //
-// The look is a studio product shot: an image-based light from a generated studio (a large overhead
-// softbox, a key softbox, two strip lights for the rims, dark walls), a warm key light with a soft
-// shadow, a cool rim light, ground-truth ambient occlusion (GTAO) so parts sit together, AgX tone
-// mapping, and a floor that takes the shadow and occlusion and fades into the page's own ground.
+// The look is the theme's world (world.ts; each theme's in themes/<id>/world.ts): the room an
+// image-based light is generated from, three lights (the key with a soft shadow), the floor, the
+// backdrop, the bloom and the exposure. In the first of them, Night Bench's, a studio product shot: a
+// large overhead softbox, a key softbox, two strip lights for the rims, dark walls, a warm key light, a
+// cool rim light, and a floor that takes the shadow and occlusion and fades into the page's own ground.
+// The renderer is the same for every world: ground-truth ambient occlusion (GTAO) so parts sit
+// together, Khronos neutral tone mapping, and the passes below. It asks the world for what differs and
+// never which theme it is; `setWorld` changes the room while the stage is showing.
 // The scene renders into an HDR target (multisampled); a last pass applies the occlusion, tone maps,
-// and composites over the ground; the lines are drawn on top, tested against the scene's depth.
+// and composites over the world's backdrop; the lines are drawn on top, tested against the scene's depth.
 //
 // The scenes are laid out with the bass at −x; seen from the player's side (−z) that would put the
 // bass on the right, so the whole world is mirrored in x (as a parent group, which three.js renders
@@ -17,8 +21,9 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import type { Batch, Mat4, Mesh, Mirror, Vec3 } from './gl3d.ts';
 import { LINE_FS, LINE_VS, type LineSet } from './gl3d.ts';
-import { SECTION, disposeMaterials, materialFor, setEnvironment } from './mats3.ts';
+import { SECTION, disposeMaterials, materialFor, setEnvironment, setLook, turnEnvironment } from './mats3.ts';
 import { MAT_LIST } from './mesh.ts';
+import { FINAL_VS, MIRROR_VS, brightFS, finalFS, floorPars, mirrorFS, type Light3, type Uniforms, type World } from './world.ts';
 
 /** the shadow pass of a dissolving mesh: the same screen-door as its colour pass, so the shadow
  *  thins out with the part instead of popping */
@@ -36,6 +41,18 @@ function fadeDepthMaterial(): THREE.MeshDepthMaterial {
   };
   fadeDepth = m;
   return m;
+}
+/** A part to compile a full-screen pass's program on before the pass first draws (`Renderer3.hold`): what
+ *  the pass's own triangle has, positions and uv and no normals (a program is keyed by its part's
+ *  attributes too: compiled on a part with normals, the pass would compile its own again as it drew). It is
+ *  never drawn. */
+let passGeo: THREE.BufferGeometry | null = null;
+function passGeometry(): THREE.BufferGeometry {
+  if (passGeo) return passGeo;
+  passGeo = new THREE.BufferGeometry();
+  passGeo.setAttribute('position', new THREE.Float32BufferAttribute([-1, 3, 0, -1, -1, 0, 3, -1, 0], 3));
+  passGeo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 2, 0, 0, 2, 0], 2));
+  return passGeo;
 }
 /** a depth-only pass before the colour pass (a section: `Renderer3.draw`) */
 function depthFirstMaterial(): THREE.MeshBasicMaterial {
@@ -59,49 +76,9 @@ interface Entry {
   ver?: number;
 }
 
-const FINAL_FS = /* glsl */ `
-#include <tonemapping_pars_fragment>
-uniform sampler2D tColor; uniform sampler2D tAO; uniform float uAO; uniform vec3 uGround; uniform vec2 uRes;
-uniform sampler2D tBloom; uniform float uBloom;
-uniform vec2 uGlowC; uniform vec2 uGlowR; uniform float uGlow;
-varying vec2 vUv;
-vec3 toSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
-void main() {
-  vec4 c = texture2D(tColor, vUv);
-  float a = clamp(c.a, 0.0, 1.0);
-  vec3 col = a > 1e-4 ? c.rgb / a : vec3(0.0);
-  float ao = texture2D(tAO, vUv).r;
-  col *= mix(1.0, ao, uAO);
-  // a slight bloom, only from the specular hot spots (the bright-pass keeps what is far over white)
-  col += texture2D(tBloom, vUv).rgb * uBloom;
-  vec3 s = toSRGB(NeutralToneMapping(col));
-  // a little dither against banding in the dark gradients
-  float d = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
-  // the backdrop: a seamless studio wall lit softly behind the instrument, falling off to the page's
-  // own ground at the edges (so the canvas still meets the page without a seam)
-  vec2 q = (vUv - uGlowC) / uGlowR;
-  vec3 back = uGround + vec3(0.085, 0.077, 0.068) * uGlow * exp(-dot(q, q));
-  gl_FragColor = vec4(mix(back, s, a) + d / 255.0, 1.0);
-}`;
-const FINAL_VS = /* glsl */ `
-varying vec2 vUv;
-void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
-
+// (the last pass, the bloom's bright-pass, the lid's mirror and the floor each have a part that is the
+// world's: world.ts `finalFS`, `brightFS`, `mirrorFS`, `floorPars`)
 // bloom: a bright-pass at quarter resolution, then a separable blur
-const BRIGHT_FS = /* glsl */ `
-uniform sampler2D tColor; uniform vec2 uTexel; varying vec2 vUv;
-void main() {
-  vec3 c = vec3(0.0);
-  for (int i = 0; i < 4; i++) {
-    vec2 o = vec2(float(i % 2) - 0.5, float(i / 2) - 0.5) * uTexel * 2.0;
-    vec4 t = texture2D(tColor, vUv + o);
-    // a soft knee, capped: a near-mirror metal's hot spot (hundreds over white) must not flood the
-    // blur into a fog ball
-    vec3 e = max(t.rgb - vec3(2.2), vec3(0.0));
-    c += min(e / (1.0 + e * 0.35), vec3(2.0));
-  }
-  gl_FragColor = vec4(c * 0.25, 1.0);
-}`;
 const BLUR_FS = /* glsl */ `
 uniform sampler2D tIn; uniform vec2 uDir; varying vec2 vUv;
 void main() {
@@ -110,103 +87,6 @@ void main() {
   c += (texture2D(tIn, vUv + uDir * 3.2308).rgb + texture2D(tIn, vUv - uDir * 3.2308).rgb) * 0.0703;
   gl_FragColor = vec4(c, 1.0);
 }`;
-
-// a planar mirror (the polished underside of a grand's lid): the scene, drawn from the camera's mirror
-// image, added over the lacquer by its Fresnel reflectance (a little over-exposed, as the
-// lacquer's view of the studio is: mats3.ts)
-const MIRROR_VS = /* glsl */ `
-uniform mat4 uTexM; varying vec4 vP; varying vec3 vW; varying vec3 vN;
-#include <clipping_planes_pars_vertex>
-void main() {
-  vec4 w = modelMatrix * vec4(position, 1.0);
-  vP = uTexM * w; vW = w.xyz; vN = normalize(mat3(modelMatrix) * vec3(0.0, -1.0, 0.0));
-  vec4 mvPosition = viewMatrix * w;
-  gl_Position = projectionMatrix * mvPosition;
-  #include <clipping_planes_vertex>
-}`;
-const MIRROR_FS = /* glsl */ `
-uniform sampler2D tMirror; uniform float uK; varying vec4 vP; varying vec3 vW; varying vec3 vN;
-#include <clipping_planes_pars_fragment>
-void main() {
-  #include <clipping_planes_fragment>
-  vec4 c = texture2DProj(tMirror, vP);
-  float cosT = abs(dot(normalize(cameraPosition - vW), vN));
-  float F = min(0.05 + 0.95 * pow(1.0 - cosT, 5.0), 0.42);
-  gl_FragColor = vec4(c.rgb * F * 1.3 * uK, 0.0);
-}`;
-
-// the floor: a lit, shadowed surface whose coverage (alpha) fades into the ground with distance; on
-// it, the room's light (a pool as large as the room: gl3d's Pool). uPool: its radius, its rim's
-// half-width, the light past it (a share of the pool's) and the pool's lift with the sound; uPoolHot:
-// the rim brightened while the room's knob is under the pointer, turned or focused
-const FLOOR_FADE = /* glsl */ `
-uniform vec3 uFloorC; uniform vec2 uFloorR; uniform vec4 uPool; uniform float uPoolHot;
-varying vec3 vWorldP;`;
-const FLOOR_FS = /* glsl */ `
-{
-  float rr = length((vWorldP - uFloorC).xz);
-  float inPool = 1.0 - smoothstep(uPool.x - uPool.y, uPool.x + uPool.y, rr);
-  float e = (rr - uPool.x) / max(uPool.y, 1e-3);
-  float k = mix(uPool.z, 1.0 + uPool.w, inPool) + uPoolHot * 0.3 * exp(-e * e);
-  gl_FragColor.rgb *= k;
-  gl_FragColor.a *= 1.0 - smoothstep(uFloorR.x, uFloorR.y, rr);
-}`;
-
-/** a studio to light the scene with (and to see reflected in lacquer and brass) */
-function studio(): THREE.Scene {
-  const s = new THREE.Scene();
-  // dark walls: polished metal and lacquer read through contrast, bright cards against black
-  const room = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.02, 0.019, 0.018), side: THREE.BackSide }));
-  room.scale.set(30, 14, 30);
-  room.position.y = 5;
-  s.add(room);
-  // a floor a little lighter than the walls (the bounce under an instrument)
-  const flo = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.07, 0.06, 0.05) }));
-  flo.rotation.x = -Math.PI / 2;
-  flo.position.y = -1.9;
-  s.add(flo);
-  // a softbox: brightest in the middle, feathered to nothing over `soft` of its half-size (a real
-  // diffuser's falloff; a hard-edged card reflects as a paper cut-out)
-  const panel = (w: number, h: number, c: [number, number, number], k: number, pos: Vec3, look: Vec3, soft = 0.5) => {
-    const g = new THREE.PlaneGeometry(w, h, 24, 24);
-    const P = g.attributes.position;
-    const col = new Float32Array(P.count * 3);
-    for (let i = 0; i < P.count; i++) {
-      const u = Math.abs(P.getX(i)) / (w / 2);
-      const v = Math.abs(P.getY(i)) / (h / 2);
-      const e = (x: number) => {
-        const t = Math.max(0, Math.min(1, (1 - x) / soft));
-        return t * t * (3 - 2 * t);
-      };
-      const f = e(u) * e(v);
-      col[i * 3] = c[0] * k * f;
-      col[i * 3 + 1] = c[1] * k * f;
-      col[i * 3 + 2] = c[2] * k * f;
-    }
-    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
-    m.position.set(...pos);
-    m.lookAt(...look);
-    s.add(m);
-  };
-  // as a product studio lights lacquer and metal: a large overhead softbox; a key softbox front
-  // left; a wide, feathered card behind the camera (a piano's black front and a bell's flare need
-  // something bright to reflect, or they read as holes); tall strips behind left and right for the
-  // rims, and two beside the camera for the long highlights down tubes and case edges; a low cool
-  // card in front
-  panel(10, 7, [1, 0.96, 0.9], 2.4, [0, 9, -0.5], [0, 0, 0], 0.45);
-  panel(5, 4, [1, 0.9, 0.78], 6.5, [-6, 5, -6], [0, 0, 0], 0.4);
-  panel(20, 7, [1, 0.97, 0.93], 1.5, [0, 3.6, -11], [0, 1.4, 0], 0.9);
-  panel(1.3, 9, [0.85, 0.9, 1], 7, [-8, 3, 7], [0, 1, 0], 0.5);
-  panel(1.3, 9, [0.85, 0.9, 1], 5.5, [8, 3, 6], [0, 1, 0], 0.5);
-  panel(1.6, 8, [1, 0.95, 0.88], 3.2, [-10, 3, -3], [0, 1, 0], 0.6);
-  panel(1.6, 8, [0.9, 0.94, 1], 2.4, [10, 3, -4], [0, 1, 0], 0.6);
-  panel(9, 1.8, [0.7, 0.78, 0.9], 0.9, [0, 0.4, -9], [0, 1, 0], 0.6);
-  // the lit floor in front of the instrument: what a piano's vertical black front, a bell's underside
-  // and a rib's lower edge reflect (they face down and out, at the floor, not at the softboxes)
-  panel(22, 16, [1, 0.93, 0.84], 0.55, [0, -1.85, -5], [0, 10, -5], 1.0);
-  return s;
-}
 
 /** the light of a piano key's action close up (a section: `Renderer3.closeUp`). Directions are
  *  towards the light, in the scene's own frame for a section cut from the treble end (x is mirrored
@@ -241,24 +121,38 @@ export class Renderer3 {
   private bloomB: THREE.WebGLRenderTarget;
   private brightQ: FullScreenQuad;
   private blurQ: FullScreenQuad;
-  private brightMat: THREE.ShaderMaterial;
+  private brightMat!: THREE.ShaderMaterial;
   private blurMat: THREE.ShaderMaterial;
   /** bloom on the specular hot spots (off on phones) */
   bloom = true;
-  private finalMat: THREE.ShaderMaterial;
+  private finalMat!: THREE.ShaderMaterial;
+  /** the light that casts the shadow (a world's `key`: a studio's key, a hall's spot, a gallery's light
+   *  from behind), and the two that cast none */
   private key: THREE.DirectionalLight;
   private rim: THREE.DirectionalLight;
   private fill: THREE.DirectionalLight;
   private floor: THREE.Mesh;
+  private floorMat!: THREE.MeshPhysicalMaterial;
   private floorU = { uFloorC: { value: new THREE.Vector3() }, uFloorR: { value: new THREE.Vector2(1, 2) }, uPool: { value: new THREE.Vector4(1e3, 1, 1, 0) }, uPoolHot: { value: 0 } };
+  /** the floor's uniforms that are the world's own */
+  private floorX: Uniforms = {};
   /** the room's light pool's rim, brightened (0 … 1: its knob under the pointer, turned or focused) */
   poolHot = 0;
+  /** the world in use: the room, its lights, its floor and its backdrop (`setWorld` changes it) */
+  private world: World;
+  /** the stage's light come up (0: waiting, before the first sound … 1: at full). The stage eases it
+   *  (stage3d.ts); a world whose light waits (`lights.wait`) follows it */
+  up = 1;
+  /** where the scene is first seen from (its home view's yaw; null: not known yet): a world whose room is
+   *  turned to it (`lights.bearing`) follows it */
+  bearing: number | null = null;
+  private turned = 0;
   private entries = new Map<Mesh, Entry>();
   private lineScene = new THREE.Scene();
   private inkL: LineLayer;
   private glowL: LineLayer;
   private wireL: LineLayer;
-  private envRT: THREE.WebGLRenderTarget;
+  private envRT!: THREE.WebGLRenderTarget;
   /** the planar mirrors' passes (a grand's lid; two grands in an ensemble): a target, a material and
    *  the surface each */
   private mirrorSlots: { rt: THREE.WebGLRenderTarget; mat: THREE.ShaderMaterial; mesh: THREE.Mesh | null; poly: unknown }[] = [];
@@ -277,22 +171,23 @@ export class Renderer3 {
   /** the last frame's exposure (1 for a whole instrument; capped in a close-up) */
   exposure = 1;
 
-  static create(canvas: HTMLCanvasElement, lite: boolean): Renderer3 | null {
+  static create(canvas: HTMLCanvasElement, lite: boolean, world: World): Renderer3 | null {
     try {
       const r = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: false });
       if (!r.capabilities.isWebGL2) {
         r.dispose();
         return null;
       }
-      return new Renderer3(r, lite);
+      return new Renderer3(r, lite, world);
     } catch {
       return null;
     }
   }
 
-  private constructor(r: THREE.WebGLRenderer, lite: boolean) {
+  private constructor(r: THREE.WebGLRenderer, lite: boolean, world: World) {
     this.r = r;
     this.lite = lite;
+    this.world = world;
     r.setPixelRatio(1);
     r.toneMapping = THREE.NoToneMapping;
     r.shadowMap.enabled = true;
@@ -300,60 +195,33 @@ export class Renderer3 {
     r.autoClear = false;
     this.root.scale.x = -1;
     this.scene.add(this.root);
-    // image-based light: the studio, pre-filtered
-    const pm = new THREE.PMREMGenerator(r);
-    this.envRT = pm.fromScene(studio(), 0.02);
-    pm.dispose();
-    this.scene.environment = this.envRT.texture;
-    setEnvironment(this.envRT.texture);
-    this.scene.environmentIntensity = 1.0;
-    // key (warm, soft shadow) and rim (cool, from behind)
-    this.key = new THREE.DirectionalLight(new THREE.Color(1, 0.93, 0.84), 2.6);
+    // the three lights (their colours, strengths and places are the world's, set each frame: `draw`)
+    this.key = new THREE.DirectionalLight();
     this.key.castShadow = true;
     const sz = lite ? 1024 : 2048;
     this.key.shadow.mapSize.set(sz, sz);
-    this.key.shadow.radius = lite ? 3 : 5;
     this.key.shadow.bias = -0.0002;
     this.key.shadow.normalBias = 0.002;
     this.root.add(this.key, this.key.target);
-    this.rim = new THREE.DirectionalLight(new THREE.Color(0.8, 0.88, 1), 1.6);
+    this.rim = new THREE.DirectionalLight();
     this.root.add(this.rim, this.rim.target);
-    // a soft fill from the other side, low (no shadow)
-    this.fill = new THREE.DirectionalLight(new THREE.Color(0.9, 0.92, 1), 0.55);
+    this.fill = new THREE.DirectionalLight();
     this.root.add(this.fill, this.fill.target);
-    // the floor
-    const fm = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(0.075, 0.062, 0.05), roughness: 0.8, metalness: 0, specularIntensity: 0.25, envMap: this.envRT.texture, envMapIntensity: 0.35, transparent: true, depthWrite: true });
-    fm.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, this.floorU);
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWorldP;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWorldP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-      sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', `#include <common>\n${FLOOR_FADE}`)
-        .replace('#include <dithering_fragment>', `#include <dithering_fragment>\n${FLOOR_FS}`);
-    };
-    this.floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), fm);
+    // the floor (its material is the world's: `enter`)
+    this.floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40));
     this.floor.rotation.x = -Math.PI / 2;
     this.floor.receiveShadow = true;
     this.floor.renderOrder = -1;
     this.root.add(this.floor);
     // targets
     this.rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: lite ? 2 : 4, depthTexture: new THREE.DepthTexture(1, 1, THREE.UnsignedIntType) });
-    this.finalMat = new THREE.ShaderMaterial({
-      uniforms: { tColor: { value: this.rt.texture }, tAO: { value: null }, uAO: { value: 0 }, uGround: { value: new THREE.Color() }, uRes: { value: new THREE.Vector2() }, uGlowC: { value: new THREE.Vector2(0.5, 0.5) }, uGlowR: { value: new THREE.Vector2(0.4, 0.5) }, uGlow: { value: 1 }, toneMappingExposure: { value: 1.0 } },
-      vertexShader: FINAL_VS,
-      fragmentShader: FINAL_FS,
-      depthTest: false,
-      depthWrite: false,
-    });
-    this.final = new FullScreenQuad(this.finalMat);
     const bo = { type: THREE.HalfFloatType, depthBuffer: false };
     this.bloomA = new THREE.WebGLRenderTarget(1, 1, bo);
     this.bloomB = new THREE.WebGLRenderTarget(1, 1, bo);
-    this.brightMat = new THREE.ShaderMaterial({ uniforms: { tColor: { value: this.rt.texture }, uTexel: { value: new THREE.Vector2() } }, vertexShader: FINAL_VS, fragmentShader: BRIGHT_FS, depthTest: false, depthWrite: false });
     this.blurMat = new THREE.ShaderMaterial({ uniforms: { tIn: { value: null }, uDir: { value: new THREE.Vector2() } }, vertexShader: FINAL_VS, fragmentShader: BLUR_FS, depthTest: false, depthWrite: false });
-    this.brightQ = new FullScreenQuad(this.brightMat);
+    this.final = new FullScreenQuad();
+    this.brightQ = new FullScreenQuad();
     this.blurQ = new FullScreenQuad(this.blurMat);
-    this.finalMat.uniforms.tBloom = { value: this.bloomA.texture };
-    this.finalMat.uniforms.uBloom = { value: 0 };
     this.bloom = !lite;
     this.wireL = new LineLayer(this.rt.depthTexture!, THREE.NormalBlending, true);
     this.inkL = new LineLayer(this.rt.depthTexture!, THREE.NormalBlending);
@@ -363,6 +231,96 @@ export class Renderer3 {
     this.glowL.mesh.renderOrder = 2;
     this.lineScene.add(this.wireL.mesh, this.inkL.mesh, this.glowL.mesh);
     this.ao = !lite;
+    this.enter(world);
+  }
+
+  /** Another world, while the stage is showing: its room, its lights, its floor and its backdrop take
+   *  the place of the ones in use, which are let go. The instruments' materials stay and take the new
+   *  room in place (mats3 `setEnvironment`, `setLook`), so none of their programs is made again; the
+   *  floor's and the last passes' are the new world's own, compiled as a new instrument's are (`hold`):
+   *  the canvas keeps its picture until they are ready, and the page never waits. */
+  setWorld(w: World): void {
+    if (w === this.world) return;
+    this.world = w;
+    this.enter(w);
+    // (the room's turn is set again for the new one, and its programs are compiled before it is drawn)
+    this.turned = NaN;
+    this.fresh = true;
+    this.entered = true;
+  }
+  /** a world entered (`setWorld`) since the last frame drew: its own programs are still to compile */
+  private entered = false;
+
+  /** everything of the renderer that is a world's: made for `w`, what it replaces disposed of */
+  private enter(w: World): void {
+    const r = this.r;
+    // image-based light: the room, pre-filtered. (The room itself was only to be photographed.)
+    const pm = new THREE.PMREMGenerator(r);
+    const room = w.room();
+    const env = pm.fromScene(room, 0.02);
+    pm.dispose();
+    room.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      m.geometry.dispose();
+      (m.material as THREE.Material).dispose();
+    });
+    const was = this.envRT as THREE.WebGLRenderTarget | undefined;
+    this.envRT = env;
+    this.scene.environment = env.texture;
+    setEnvironment(env.texture);
+    setLook(w.materials);
+    was?.dispose();
+    this.scene.environmentIntensity = w.lights.env;
+    // the key's shadow: how soft
+    this.key.shadow.radius = this.lite ? w.lights.shadow.lite : w.lights.shadow.radius;
+    // the floor
+    const fl = w.floor;
+    const fm = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(fl.color[0], fl.color[1], fl.color[2]), roughness: fl.roughness, metalness: 0, specularIntensity: fl.specular, envMap: env.texture, envMapIntensity: fl.env, transparent: true, depthWrite: true });
+    const own = fl.uniforms?.() ?? {};
+    const pars = floorPars(fl);
+    fm.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, this.floorU, own);
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWorldP;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWorldP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', `#include <common>\n${pars}`)
+        .replace('#include <dithering_fragment>', `#include <dithering_fragment>\n${fl.body}`);
+    };
+    // (each world's floor is a program of its own: three keys a program by this, and by default it is
+    // the text of the function above, which is every world's)
+    fm.customProgramCacheKey = () => `floor|${w.id}`;
+    this.floorMat?.dispose();
+    this.floorMat = fm;
+    this.floorX = own;
+    this.floor.material = fm;
+    // the last pass: the world's backdrop behind the instrument
+    this.finalMat?.dispose();
+    this.finalMat = new THREE.ShaderMaterial({
+      uniforms: { tColor: { value: this.rt.texture }, tAO: { value: null }, uAO: { value: 0 }, uGround: { value: new THREE.Color() }, uRes: { value: new THREE.Vector2() }, tBloom: { value: this.bloomA.texture }, uBloom: { value: 0 }, toneMappingExposure: { value: 1.0 }, ...w.final.uniforms() },
+      vertexShader: FINAL_VS,
+      fragmentShader: finalFS(w.final),
+      depthTest: false,
+      depthWrite: false,
+    });
+    this.final.material = this.finalMat;
+    // bloom's bright-pass: how far over white a pixel blooms is the world's (two worlds that agree on it
+    // share the pass)
+    const bright = brightFS(w.bloom.over);
+    if (this.brightMat?.fragmentShader !== bright) {
+      this.brightMat?.dispose();
+      this.brightMat = new THREE.ShaderMaterial({ uniforms: { tColor: { value: this.rt.texture }, uTexel: { value: new THREE.Vector2() } }, vertexShader: FINAL_VS, fragmentShader: bright, depthTest: false, depthWrite: false });
+      this.brightQ.material = this.brightMat;
+    }
+    // the lids' mirrors: how much they reflect (likewise)
+    const mirror = mirrorFS(w.mirror);
+    for (const ms of this.mirrorSlots) {
+      if (ms.mat.fragmentShader === mirror) continue;
+      ms.mat.dispose();
+      ms.mat = this.mirrorMat(ms.rt);
+      if (ms.mesh) ms.mesh.material = ms.mat;
+    }
+    // what sounds: a line of light added to the picture, or laid over it
+    this.glowL.blend(w.glow === 'added' ? THREE.AdditiveBlending : THREE.NormalBlending);
   }
 
   private entry(m: Mesh, need: number): Entry {
@@ -444,6 +402,23 @@ export class Renderer3 {
       const mats = new Set<THREE.Material>();
       for (const e of this.entries.values()) if (e.im.visible) for (const m of e.im.material as THREE.Material[]) mats.add(m);
       r.compile(this.scene, this.cam);
+      if (this.entered) {
+        // a world entered while the stage shows (`setWorld`): its floor and its mirrors were sent with
+        // the scene; its last pass and its bright-pass are sent as they will draw (onto the canvas,
+        // into the bloom's target), each on a part of its own, and all of them are waited for
+        this.entered = false;
+        mats.add(this.floorMat);
+        for (const ms of this.mirrorSlots) if (ms.mesh) mats.add(ms.mat);
+        r.setRenderTarget(null);
+        r.compile(new THREE.Mesh(passGeometry(), this.finalMat), this.cam);
+        mats.add(this.finalMat);
+        if (this.bloom) {
+          r.setRenderTarget(this.bloomA);
+          r.compile(new THREE.Mesh(passGeometry(), this.brightMat), this.cam);
+          mats.add(this.brightMat);
+        }
+        r.setRenderTarget(this.rt);
+      }
       this.compiling = { mats, t0: performance.now() };
     }
     const c = this.compiling;
@@ -627,11 +602,12 @@ export class Renderer3 {
       this.clipPlane.constant = clip.side * clip.at;
     }
     this.section(!!clip);
-    // lights fitted to the scene: the key from the front left, above; the rim from behind right.
+    // lights fitted to the scene, the world's (in a studio: the key from the front left, above; the rim
+    // from behind right; a low fill). A scene may point the key itself (Batch.key).
     // In a key's close-up (k → 1) they are the section's own: the key from the open side, above and
     // in front (whichever end the section was cut from), fitted to the action so its shadow map
     // resolves a jack; the rim and the fill, which cast no shadow and would shine through the keys
-    // left standing, turned down; the studio's ambient too, so the key models the parts
+    // left standing, turned down; the room's ambient too, so the key models the parts
     const { c, r: rad } = b.bounds;
     const k = clip && b.clip ? Math.max(0, Math.min(1, this.closeUp)) : 0;
     const mix = (a: number, z: number) => a + (z - a) * k;
@@ -639,10 +615,31 @@ export class Renderer3 {
     const C = new THREE.Vector3(mix(c[0], target[0]), mix(c[1], target[1]), mix(c[2], target[2]));
     const radL = mix(rad, CLOSE.radius);
     const dir = (a: Vec3, z: Vec3) => new THREE.Vector3(mix(a[0], z[0] * side), mix(a[1], z[1]), mix(a[2], z[2])).normalize();
-    const keyDir = dir(b.key ?? [0.55, 0.78, -0.5], CLOSE.key);
+    const world = this.world;
+    const L = world.lights;
+    // a light that waits before the first sound stands at a share of its strength until then (`up`)
+    const up = Math.max(0, Math.min(1, this.up));
+    const lit = L.wait + (1 - L.wait) * up;
+    const whole = (l: Light3) => (l.waits ? l.intensity * lit : l.intensity);
+    // (a light's colour on its way to the close-up's, where the world names one)
+    const mixC = (l: THREE.DirectionalLight, a: Vec3, z: Vec3 = a) => l.color.setRGB(mix(a[0], z[0]), mix(a[1], z[1]), mix(a[2], z[2]));
+    // a room turned to where the scene is first seen from: its lights, and what is seen in lacquer and brass
+    const turnBy = L.bearing === undefined || this.bearing === null ? 0 : this.bearing - L.bearing;
+    const ct = Math.cos(turnBy);
+    const sn = Math.sin(turnBy);
+    const turn = (v: Vec3): Vec3 => (L.bearing === undefined ? v : [v[0] * ct - v[2] * sn, v[1], v[2] * ct + v[0] * sn]);
+    if (turnBy !== this.turned) {
+      this.turned = turnBy;
+      this.scene.environmentRotation.set(0, turnBy, 0);
+      turnEnvironment(turnBy);
+      this.floorMat.envMapRotation.set(0, turnBy, 0);
+    }
+    const keyDir = dir(b.key ?? turn(L.key.dir), CLOSE.key);
     this.key.position.copy(C).add(keyDir.clone().multiplyScalar(radL * 3));
     this.key.target.position.copy(C);
-    this.key.intensity = mix(2.6, CLOSE.keyI);
+    this.key.intensity = mix(whole(L.key), CLOSE.keyI);
+    mixC(this.key, L.key.color, L.key.close);
+    this.key.shadow.intensity = L.shadow.depth;
     // the section's cut faces all face its open side: lit alike, by the key and the studio (mats3.ts)
     SECTION.light.value = (this.key.intensity * Math.max(0.15, keyDir.x * side)) / Math.PI + 0.3 * mix(1, CLOSE.env);
     const sc = this.key.shadow.camera;
@@ -654,26 +651,29 @@ export class Renderer3 {
     // (the offset along the normal is in metres: 2 mm for a case, a fraction of a jack's width close up)
     this.key.shadow.normalBias = mix(0.002, CLOSE.normalBias);
     this.key.castShadow = this.shadows;
-    this.rim.position.copy(C).add(dir([-0.6, 0.5, 0.75], CLOSE.rim).multiplyScalar(radL * 3));
+    this.rim.position.copy(C).add(dir(turn(L.rim.dir), CLOSE.rim).multiplyScalar(radL * 3));
     this.rim.target.position.copy(C);
-    this.rim.intensity = mix(1.6, CLOSE.rimI);
-    this.fill.position.copy(C).add(dir([-0.8, 0.25, -0.55], CLOSE.fill).multiplyScalar(radL * 3));
+    this.rim.intensity = mix(whole(L.rim), CLOSE.rimI);
+    mixC(this.rim, L.rim.color, L.rim.close);
+    this.fill.position.copy(C).add(dir(turn(L.fill.dir), CLOSE.fill).multiplyScalar(radL * 3));
     this.fill.target.position.copy(C);
-    this.fill.intensity = mix(0.55, CLOSE.fillI);
-    // (and warm: a cool fill turned pale wood in the key's shadow olive)
-    this.fill.color.setRGB(mix(0.9, 1), mix(0.92, 0.9), mix(1, 0.78));
-    this.scene.environmentIntensity = mix(1, CLOSE.env);
+    this.fill.intensity = mix(whole(L.fill), CLOSE.fillI);
+    // (close up, warm: a cool fill turned pale wood in the key's shadow olive)
+    mixC(this.fill, L.fill.color, L.fill.close);
+    this.scene.environmentIntensity = mix(L.env, CLOSE.env);
     // floor
     const f = b.floor;
     this.floor.visible = !!f;
     if (f) {
+      const fl = world.floor;
+      this.floorMat.color.setRGB(fl.color[0], fl.color[1], fl.color[2]);
       this.floor.position.set(f.c[0], f.y, f.c[2]);
       this.floorU.uFloorC.value.set(-f.c[0], f.y, f.c[2]);
       this.floorU.uFloorR.value.set(f.r0, f.r1);
       // (no pool: the whole floor as one, as an ensemble's)
       const p = f.pool;
-      if (p) this.floorU.uPool.value.set(p.R, p.soft, 0.5, p.lift);
-      else this.floorU.uPool.value.set(1e3, 1, 1, 0);
+      if (p) this.floorU.uPool.value.set(p.R, p.soft, fl.past, p.lift * fl.lift);
+      else this.floorU.uPool.value.set(1e3, 1, 1, fl.wash);
       this.floorU.uPoolHot.value = p ? this.poolHot : 0;
     }
     // camera (in the mirrored world)
@@ -689,8 +689,10 @@ export class Renderer3 {
     this.cam.updateProjectionMatrix();
     this.cam.updateMatrixWorld();
     this.vp.multiplyMatrices(this.cam.projectionMatrix, this.cam.matrixWorldInverse).multiply(new THREE.Matrix4().makeScale(-1, 1, 1));
-    // a new instrument's shaders: compiled in parallel, the frame held (the canvas keeps its last
-    // picture) until they are ready (`held`)
+    // the world's own of this frame: where its backdrop stands on the picture, what its floor needs
+    world.frame({ floor: this.floorX, final: this.finalMat.uniforms }, { cam: this.cam, w, h, c, rad, floor: f, key: b.key, k, mix, up, lit });
+    // a new instrument's shaders (a new world's too): compiled in parallel, the frame held (the canvas
+    // keeps its last picture) until they are ready (`held`)
     if (this.hold()) return;
     // the lids' mirrors: the scene from the camera's mirror image, cut at the mirror's plane
     const mirrored = clip ? 0 : this.drawMirrors(b, w, h);
@@ -752,21 +754,14 @@ export class Renderer3 {
         this.blurQ.render(r);
       }
     }
-    u.uBloom.value = this.bloom ? 0.35 : 0;
+    u.uBloom.value = this.bloom ? world.bloom.strength : 0;
     // exposure: capped in the close-up, where pale felt and bare wood fill the frame under the key
     // light (at the whole instrument's exposure they clip to white)
-    u.toneMappingExposure.value = this.exposure = mix(1, CLOSE.exposure);
+    u.toneMappingExposure.value = this.exposure = mix(world.exposure, CLOSE.exposure);
     u.uAO.value = aoTex ? 1 : 0;
     u.uGround.value.setRGB(ground[0], ground[1], ground[2]);
     u.uRes.value.set(w, h);
-    // the backdrop's light centred a little above the instrument's middle, sized to it on screen
-    {
-      const pc = new THREE.Vector3(-c[0], c[1] + rad * 0.15, c[2]).project(this.cam);
-      const pr = new THREE.Vector3(-c[0], c[1] + rad * 1.15, c[2]).project(this.cam);
-      const ry = Math.max(0.25, Math.min(0.9, Math.abs(pr.y - pc.y) * 0.5 * 1.6));
-      u.uGlowC.value.set(pc.x * 0.5 + 0.5, pc.y * 0.5 + 0.5);
-      u.uGlowR.value.set((ry * h) / w * 1.3, ry);
-    }
+    // (the backdrop's own uniforms were set with the camera: the world's `frame`)
     r.setRenderTarget(null);
     r.clear(true, true, false);
     this.final.render(r);
@@ -811,26 +806,30 @@ export class Renderer3 {
   private mirrorSlot(i: number) {
     while (this.mirrorSlots.length <= i) {
       const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 0, depthTexture: new THREE.DepthTexture(1, 1, THREE.UnsignedIntType) });
-      const mat = new THREE.ShaderMaterial({
-        uniforms: { tMirror: { value: rt.texture }, uTexM: { value: new THREE.Matrix4() }, uK: { value: 1 } },
-        vertexShader: MIRROR_VS,
-        fragmentShader: MIRROR_FS,
-        clipping: true,
-        transparent: true,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-        blending: THREE.CustomBlending,
-        blendSrc: THREE.OneFactor,
-        blendDst: THREE.OneFactor,
-        blendSrcAlpha: THREE.ZeroFactor,
-        blendDstAlpha: THREE.OneFactor,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
-        polygonOffsetUnits: -2,
-      });
-      this.mirrorSlots.push({ rt, mat, mesh: null, poly: null });
+      this.mirrorSlots.push({ rt, mat: this.mirrorMat(rt), mesh: null, poly: null });
     }
     return this.mirrorSlots[i];
+  }
+
+  /** a mirror's surface: what its target holds, added over the lacquer as much as the world's lid reflects */
+  private mirrorMat(rt: THREE.WebGLRenderTarget): THREE.ShaderMaterial {
+    return new THREE.ShaderMaterial({
+      uniforms: { tMirror: { value: rt.texture }, uTexM: { value: new THREE.Matrix4() }, uK: { value: 1 } },
+      vertexShader: MIRROR_VS,
+      fragmentShader: mirrorFS(this.world.mirror),
+      clipping: true,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.CustomBlending,
+      blendSrc: THREE.OneFactor,
+      blendDst: THREE.OneFactor,
+      blendSrcAlpha: THREE.ZeroFactor,
+      blendDstAlpha: THREE.OneFactor,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -2,
+    });
   }
 
   /** place the i-th mirror's surface; false (and hidden) when there is nothing to mirror */
@@ -955,6 +954,7 @@ export class Renderer3 {
       ms.mesh?.geometry.dispose();
     }
     this.depthPre.dispose();
+    this.floorMat.dispose();
     this.final.dispose();
     this.finalMat.dispose();
     this.bloomA.dispose();
@@ -1119,6 +1119,11 @@ class LineLayer {
     this.idx.addUpdateRange(0, ni);
     this.idx.needsUpdate = true;
     this.geo.setDrawRange(0, ni);
+  }
+  /** how the layer meets the picture (added to it, or laid over it): no program is made again */
+  blend(b: THREE.Blending): void {
+    this.mat.blending = b;
+    this.matZ.blending = b;
   }
   dispose(): void {
     this.geo.dispose();

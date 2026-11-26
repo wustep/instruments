@@ -3,11 +3,16 @@
 // the same classes, so the vector style draws it too) on a dark disc that keeps it legible over the
 // instrument, with no engraved word: the stage stays wordless, and the knob says what it is and its
 // value in a tooltip (data-tip, as the grips did) and to assistive tech (a slider).
+// What a look makes of it is the theme's (themes/types.ts `Chrome`): where its pointer is (a hand from
+// the cap's middle, a mark at its rim), and, in the looks that do not have the two be one dial twice, a
+// sign on its cap for what it moves (a lid ajar, a room), drawn by that look's sheet.
 // Turned by dragging (up or right = more, Shift for fine), by the wheel, or from the keyboard (the
 // arrows by 0.05, Home and End to the ends). A knob with notches (the 3D lid: shut, the short stick,
 // the long stick) clicks from one to the next as it is turned, and its arrows step a notch; without,
 // it is continuous and stays wherever it is let go.
 
+import { theme, themeEpoch } from '../themes/index.ts';
+import { pointTo } from './controls.ts';
 import { h } from './dom.ts';
 
 /** the arrows' step on a continuous knob (the grips' before them) */
@@ -110,16 +115,32 @@ export function stageKnob(c: StageKnobSpec): StageKnob {
     }
     el.classList.toggle('notched', !!n);
   };
+  // the theme's own of it: its sign on the cap, if the look has one (under the pointer or over it), and
+  // where the pointer is, the next time the value is painted
   let shown = NaN;
+  let epoch = -1;
+  let signed: SVGElement | null = null;
+  const dress = () => {
+    epoch = themeEpoch();
+    shown = NaN;
+    signed?.remove();
+    signed = null;
+    const s = theme().chrome.stageSigns;
+    const d = s && (c.name === 'lid' ? s.lid : c.name === 'room' ? s.room : '');
+    if (!s || !d) return;
+    signed = svg('path', { d, class: s.cls });
+    if (s.over) face.append(signed);
+    else face.insertBefore(signed, ptr);
+  };
   let said = '';
   const show = (v: number) => {
+    if (epoch !== themeEpoch()) dress();
     paintTicks(c.notches());
     if (v !== shown) {
       shown = v;
       const a = knobAngle(v);
       val.setAttribute('d', arc(15, A0, Math.max(A0 + 0.01, a)));
-      ptr.setAttribute('x2', (20 + 9 * Math.sin(a)).toFixed(2));
-      ptr.setAttribute('y2', (20 - 9 * Math.cos(a)).toFixed(2));
+      pointTo(ptr, a, theme().chrome.stagePointer);
       el.setAttribute('aria-valuenow', String(v));
     }
     const t = c.text(v);

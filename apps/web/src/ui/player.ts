@@ -24,6 +24,7 @@ import { ensemble, stageCap } from '../orchestra/ensemble.ts';
 import { dbGain, DEMOS, demoSong, PIECES, pieceForLineup, pieceSong, type Demo, type Piece } from '../orchestra/pieces.ts';
 import { tidyName } from '../orchestra/rules.ts';
 import { familyOf, seatNames, sectionName, type Family, type Section } from '../orchestra/sections.ts';
+import { onTheme } from '../themes/index.ts';
 import { voiceGlyph } from './controls.ts';
 import { h } from './dom.ts';
 import { BOW_LOOK, type InstrumentId } from '@piano-model/engine';
@@ -270,6 +271,12 @@ export class MidiPlayer {
       else if (this.grid) this.closeGrid(true);
       else return;
       e.stopPropagation();
+    });
+    // (a menu is set where the player stood when it opened: under another theme the player stands elsewhere)
+    onTheme(() => {
+      this.closeMenu();
+      this.closeGrid();
+      this.closePieces();
     });
   }
 

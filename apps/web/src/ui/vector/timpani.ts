@@ -40,7 +40,7 @@ export function drawTimpaniV(ctx: CanvasRenderingContext2D, W: number, H: number
 /** hide what lies behind a shape: lines only, but a nearer drum still covers a farther one */
 function mask(ctx: CanvasRenderingContext2D, path: Path2D): void {
   ctx.save();
-  ctx.fillStyle = '#000';
+  ctx.fillStyle = V.ground;
   ctx.fill(path);
   ctx.restore();
 }
