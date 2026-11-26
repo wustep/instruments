@@ -4,7 +4,7 @@
 
 import { audio } from '../audio.ts';
 import { DEFAULT_PARAMS, INSTRUMENT_IDS, INSTRUMENT_INFO, PRESETS, PRESET_IDS, bowedGeometry, pianoKeySummary, tromboneSizeOf, type InstrumentId, type KeySummary, type VisualFrame } from '@piano-model/engine';
-import { cssVar, fitCanvas, fmt, h, type View } from '../ui/dom.ts';
+import { cssVar, fitCanvas, fmt, h, sign, type View } from '../ui/dom.ts';
 import type { KeyboardHandle } from '../ui/keyboard.ts';
 import { openActionView } from '../ui/action-view.ts';
 import type { Stage3D } from '../ui/gl/stage3d.ts';
@@ -19,12 +19,13 @@ import { drawEnsemble, ensembleCells, newPartDraw, ownKeys, syncPianoState, type
 import type { EnsPartIn } from '../ui/gl/scenes3d.ts';
 import type { MidiPlayer } from '../ui/player.ts';
 import type { Sheet, SheetHost } from '../sheet/view.ts';
-import { AutoScale, INK as STAGE_INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, type BowedGeom, type BowedState } from '../ui/stage-draw.ts';
+import { AutoScale, INK as STAGE_INK, ModeField, drawBowed, drawFlute, drawSpectrum, drawTrumpet, rgba, spectrumBox, type BowedGeom, type BowedState } from '../ui/stage-draw.ts';
 import { drawPiano, keysAcross, newPianoState, stringAt } from '../ui/piano-draw.ts';
-import { drawRoom, newRoomState } from '../ui/room-draw.ts';
+import { drawRoom, newRoomState, roomRect } from '../ui/room-draw.ts';
 import { createHandBow, type HandBow } from '../ui/hand-bow.ts';
 import { stageKnob } from '../ui/stage-knob.ts';
 import { LID_RESTS, lidNotch, lidSettle, onNotch } from '../ui/lid.ts';
+import { theme, themeEpoch } from '../themes/index.ts';
 import { Contours, SCOPE_INK_V, SPECTRUM_INK_V, SPECTRUM_INK_V_PIANO, drawBassoonV, drawBowedV, drawClarinetV, drawFluteV, drawGlockV, drawHarpV, drawOboeV, drawPianoV, drawRoomV, drawTrumpetV, drawHornV, drawTromboneV, drawTubaV, drawTimpaniV, glow, loadVectorFont, slotColor } from '../ui/vector/index.ts';
 import { drawOboe, newOboeState } from '../ui/oboe-draw.ts';
 import { drawClarinet, newClarinetState } from '../ui/clarinet-draw.ts';
@@ -781,6 +782,12 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     return f === 'piano' ? PIANO_KNOBS : f === 'bowed' ? BOWED_KNOBS : f === 'plucked' ? HARP_KNOBS : f === 'mallet' ? GLOCK_KNOBS : f === 'percussion' ? TIMPANI_KNOBS : id === 'horn' ? HORN_KNOBS : id === 'tuba' ? TUBA_KNOBS : id === 'trombone' ? TROMBONE_KNOBS : f === 'brass' ? TRUMPET_KNOBS : f === 'reed' ? OBOE_KNOBS : FLUTE_KNOBS;
   };
   let knobEls: { c: KnobSpec; k: ReturnType<typeof knob> }[] = [];
+  /** the theme the knobs' slot colours were last set in (the palette is a theme's) */
+  let slotEpoch = -1;
+  const slotKnobs = () => {
+    slotEpoch = themeEpoch();
+    knobEls.forEach((x, i) => x.k.el.style.setProperty('--slot', slotColor(i)));
+  };
   const currentParams = (): Record<string, number> => ({ ...(inst === 'piano' ? DEFAULT_PARAMS : {}), ...(audio.piano?.params ?? {}) }) as Record<string, number>;
   const buildKnobs = () => {
     const p = currentParams();
@@ -797,7 +804,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       return { c, k };
     });
     // each knob's slot colour (the vector display draws what the knob moves in it)
-    knobEls.forEach((x, i) => x.k.el.style.setProperty('--slot', slotColor(i)));
+    slotKnobs();
     const reset = h(
       'button',
       {
@@ -816,8 +823,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
           buildKnobs();
         },
       },
-      '↺',
     );
+    sign(reset, 'reset');
     knobSlot.replaceChildren(...knobEls.map((x) => x.k.el), reset);
   };
   const syncKnobs = (p: Record<string, number>) => {
@@ -846,7 +853,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
   const timpaniState = newTimpaniState();
   const roomState = newRoomState();
   const tdBuf = new Float32Array(2048);
-  const fields = { piano: new ModeField(208, 100, 2.2, 3), bowed: new ModeField(150, 84, 1.8, 0.6) };
+  const fields = { piano: new ModeField(208, 100, 2.2, 3), bowed: new ModeField(150, 84, 1.8, 0.6, true) };
   // the same plates on the vector display, traced as lines (made when first shown)
   let vfields: { piano: Contours; bowed: Contours } | null = null;
   let bowedGeom: BowedGeom | null = null;
@@ -1083,7 +1090,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     const { ctx, w, h: hh } = fitCanvas(scopeCv);
     ctx.clearRect(0, 0, w, hh);
     const mid = hh / 2;
-    ctx.strokeStyle = rgba(INK.ivory, 0.12);
+    ctx.strokeStyle = rgba(INK.line, 0.12);
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, mid);
@@ -1092,6 +1099,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     if (family() === 'piano') {
       const s = strike;
       if (!s || s.force.length < 2) {
+        // (no key struck yet: the axis alone, or, where the look shows nothing with nothing on it, nothing)
+        if (!theme().draw.scopeAxisAtRest) ctx.clearRect(0, 0, w, hh);
         scopeCap.textContent = '';
         return;
       }
@@ -1100,8 +1109,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       const fMax = s.peak * 1.1 || 1;
       const X = (t: number) => (w * 0.66 * t) / tMax;
       const Y = (f: number) => hh - 4 - ((hh - 10) * f) / fMax;
-      ctx.fillStyle = rgba(INK.vermilion, 0.18);
-      ctx.strokeStyle = rgba(INK.vermilion, 0.95);
+      ctx.fillStyle = rgba(INK.sound, 0.18);
+      ctx.strokeStyle = rgba(INK.sound, 0.95);
       ctx.lineWidth = 1.4;
       ctx.beginPath();
       ctx.moveTo(X(0), Y(0));
@@ -1114,7 +1123,7 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       for (let i = 0; i < n; i++) xm = Math.max(xm, s.compression[i]);
       const ix = w * 0.72;
       const iw = w - ix - 2;
-      ctx.strokeStyle = rgba(INK.ivory, 0.8);
+      ctx.strokeStyle = rgba(INK.line, 0.8);
       ctx.lineWidth = 1;
       ctx.beginPath();
       let on = false;
@@ -1137,8 +1146,8 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
       scopeCap.textContent = '';
       return;
     }
-    const rows: [Float32Array, string][] = [[e.trace, INK.vermilion]];
-    if (e.trace2) rows.push([e.trace2, INK.ivory]);
+    const rows: [Float32Array, string][] = [[e.trace, INK.sound]];
+    if (e.trace2) rows.push([e.trace2, INK.line]);
     const rh = hh / rows.length;
     rows.forEach(([tr, col], r) => {
       let mx = 0;
@@ -1175,9 +1184,12 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     return lines ? Math.max(0, lines.getBoundingClientRect().bottom - top.getBoundingClientRect().bottom) : overTop();
   };
   let raf = 0;
+  /** what the room's patch of light was last placed by (size, room; '' while it is not shown) */
+  let roomLit = '';
   const loop = (now: number) => {
     const { ctx, w, h: hh } = fitCanvas(canvas);
     ctx.clearRect(0, 0, w, hh);
+    if (slotEpoch !== themeEpoch()) slotKnobs();
     const topH = top.getBoundingClientRect().height;
     const ih = hh - topH;
     const focus = frame?.focus ?? lastFocus;
@@ -1271,6 +1283,21 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     const src = ens ? { x: w / 2, y: ih / 2 } : fam === 'piano' ? pianoState.src : fam === 'bowed' ? { x: w * 0.62, y: ih / 2 } : fam === 'brass' ? ((inst === 'horn' ? hornState : inst === 'trombone' ? tromboneState : inst === 'tuba' ? tubaState : trumpetState).src ?? { x: w * 0.85, y: ih * 0.55 }) : fam === 'reed' ? ((inst === 'clarinet' ? clarinetState : inst === 'bassoon' ? bassoonState : oboeState).src ?? { x: w * 0.8, y: ih * 0.5 }) : fam === 'percussion' ? (timpaniState.src ?? { x: w * 0.5, y: ih * 0.45 }) : fam === 'plucked' ? (harpState.src ?? { x: w * 0.5, y: ih * 0.5 }) : fam === 'mallet' ? (glockState.src ?? { x: w * 0.5, y: ih * 0.5 }) : { x: w * 0.5, y: ih * 0.45 };
     // (an ensemble's cells have no room drawn round them: its outline would cross the instruments)
     if (!in3d && !ens && !sheetOn) (vec ? drawRoomV : drawRoom)(ctx, w, ih, roomState, src, roomVal(), rms, now, grand ? { open: lidVal(), dir: -Math.PI / 4 } : null);
+    // where the look shows the room as light (`DrawLook.roomLight`): the floor's brighter patch, the room's
+    // size, under the canvas (placed only when it changes; vector lines draw the room's walls instead)
+    const lit = theme().draw.roomLight && !in3d && !ens && !sheetOn && !vec;
+    const litKey = lit ? `${w}|${ih}|${topH}|${roomVal().toFixed(3)}` : '';
+    if (litKey !== roomLit) {
+      roomLit = litKey;
+      if (lit) {
+        const g = roomRect(w, ih, roomVal());
+        el.style.setProperty('--room-l', `${g.x0.toFixed(1)}px`);
+        el.style.setProperty('--room-t', `${(topH + g.y0).toFixed(1)}px`);
+        el.style.setProperty('--room-w', `${(g.x1 - g.x0).toFixed(1)}px`);
+        el.style.setProperty('--room-h', `${(g.y1 - g.y0).toFixed(1)}px`);
+      } else for (const k of ['l', 't', 'w', 'h']) el.style.removeProperty(`--room-${k}`);
+      el.toggleAttribute('data-room', lit);
+    }
     ctx.restore();
     // the display's glow, over everything drawn this frame
     if (vec) glow(ctx);
@@ -1349,13 +1376,15 @@ export function stageView(kb: KeyboardHandle, knobSlot: HTMLElement, player: Mid
     sp.ctx.clearRect(0, 0, sp.w, sp.h);
     showHeard(ens);
     const sink = vec ? (f: string) => (f === 'piano' ? SPECTRUM_INK_V_PIANO : SPECTRUM_INK_V) : () => undefined;
+    // (the trace's box in the band: the partials' marks over it, and whatever the look keeps under it)
+    const [sy, sh] = spectrumBox(sp.h);
     if (ens) {
       // (one part alone: its note's partials; several: a mark at each note)
       const lead = heard.length === 1 ? leadPart() : null;
       const lfam = lead ? familyOf(lead.voice) : 'ensemble';
-      drawSpectrum(sp.ctx, 0, 6, sp.w, sp.h - 8, audio.analyser, specBuf, lead?.frame?.focus ?? null, lfam, sink(lfam), marks);
+      drawSpectrum(sp.ctx, 0, sy, sp.w, sh, audio.analyser, specBuf, lead?.frame?.focus ?? null, lfam, sink(lfam), marks);
     } else {
-      drawSpectrum(sp.ctx, 0, 6, sp.w, sp.h - 8, audio.analyser, specBuf, focus, family(), sink(family()), marks);
+      drawSpectrum(sp.ctx, 0, sy, sp.w, sh, audio.analyser, specBuf, focus, family(), sink(family()), marks);
       drawScope(frame, family(), strike, bowedGeom);
     }
     raf = requestAnimationFrame(loop);

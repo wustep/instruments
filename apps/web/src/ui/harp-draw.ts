@@ -9,6 +9,7 @@
 import type { VisualFrame } from '@piano-model/engine';
 import { BASE, BOARD_A, BOARD_B, BODY, COLUMN_R, COLUMN_X, COLUMN_Y0, COLUMN_Y1, CROWN_Y, DISC_DY, FEET, HP_X0, HP_X1, HP_Y0, HP_Y1, PEDAL_LEN, PEDAL_X, PEDAL_Y, PIN_DY, STRINGS, STRING_X, STRING_Y0, STRING_Y1, discScale, neckLower, neckUpper, pedalFoot, pedalOf, plateLower, stopY, type P } from './harp-plan.ts';
 import { INK, rgba } from './stage-draw.ts';
+import { ownDrawer } from '../themes/drawers.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface HarpState {
@@ -162,6 +163,8 @@ export const stringInk = (i: number): string => (STRINGS[i].colour === 'red' ? S
 
 /** The harp from its side. `top`: the file player's px over the box's top. */
 export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: HarpState, top = 0): void {
+  const own = ownDrawer('harp');
+  if (own) return own(ctx, W, H, fr, st, top);
   const L = harpLayout(W, H, top);
   const { sc } = L;
   const X = (x: number) => L.ox + x * sc;
@@ -178,7 +181,7 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     g.addColorStop(1, '#2a1b0c');
     ctx.fillStyle = g;
     ctx.fill(L.body);
-    ctx.strokeStyle = rgba(INK.amber, 0.5);
+    ctx.strokeStyle = rgba(INK.warm, 0.5);
     ctx.lineWidth = 1;
     ctx.stroke(L.body);
     ctx.strokeStyle = 'rgba(226,190,130,0.85)';
@@ -188,7 +191,7 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
   // ---- the base and its feet, the pedals' slots
   ctx.fillStyle = '#3a2812';
   ctx.fill(L.base);
-  ctx.strokeStyle = rgba(INK.amber, 0.5);
+  ctx.strokeStyle = rgba(INK.warm, 0.5);
   ctx.lineWidth = 1;
   ctx.stroke(L.base);
   // ---- the column (fluted maple, gilded) and its crown
@@ -200,7 +203,7 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     g.addColorStop(1, '#3a2812');
     ctx.fillStyle = g;
     ctx.fill(L.column);
-    ctx.strokeStyle = rgba(INK.amber, 0.55);
+    ctx.strokeStyle = rgba(INK.warm, 0.55);
     ctx.stroke(L.column);
     // (the shaft's flutes)
     ctx.strokeStyle = 'rgba(40,26,10,0.45)';
@@ -210,7 +213,7 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     ctx.fill(L.crown);
     ctx.fillStyle = 'rgba(255,236,190,0.18)';
     ctx.fill(L.crown);
-    ctx.strokeStyle = rgba(INK.amber, 0.7);
+    ctx.strokeStyle = rgba(INK.warm, 0.7);
     ctx.stroke(L.crown);
   }
   // ---- the neck (the action's brass plates along its lower edge)
@@ -220,7 +223,7 @@ export function drawHarp(ctx: CanvasRenderingContext2D, W: number, H: number, fr
     g.addColorStop(1, '#3f2b12');
     ctx.fillStyle = g;
     ctx.fill(L.neck);
-    ctx.strokeStyle = rgba(INK.amber, 0.55);
+    ctx.strokeStyle = rgba(INK.warm, 0.55);
     ctx.lineWidth = 1;
     ctx.stroke(L.neck);
     // (the action plate: brass, from the neck's lower edge down past the discs)

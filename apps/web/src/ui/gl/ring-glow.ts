@@ -4,6 +4,8 @@
 // a fortissimo stroke a faint warmth over the metal or the calfskin. It is passed with a negative alpha:
 // mats3 then casts what the part reflects in the light's colour as well as adding the light, so a
 // near-white head shows it where added light clips (the other glows, alpha 0 … 1, are added light only).
+// Its colour is the room's (a world's `ring`): warm in the rooms at night; in daylight, where an added
+// light would be lost, the cast is what shows, a breath of the blue that means sound.
 //
 // What it follows is the engine's own measure of the ring (the glockenspiel's `amp`: 0 … 1 of a hard
 // stroke's swing; a drum's `level`): it lights on the stroke, as the engine's level is a peak held as it
@@ -13,9 +15,18 @@
 // remembered: the engine's level is smoothed already (a 50 ms fall), so a seat in the Orchestra glows as the
 // instrument alone does.
 import type { RGBA } from './gl3d.ts';
+import { onTheme } from '../../themes/index.ts';
+import { world } from '../../themes/worlds.ts';
 
-/** the light's colour (linear-ish rgb, squared in the shader: mats3 `vGlow.rgb²`) */
-export const RING_TINT: readonly [number, number, number] = [1, 0.78, 0.5];
+/** the light's colour (linear-ish rgb, squared in the shader: mats3 `vGlow.rgb²`): the world's in use,
+ *  kept in step with the theme */
+export const RING_TINT: [number, number, number] = [...world().ring];
+onTheme(() => {
+  const t = world().ring;
+  RING_TINT[0] = t[0];
+  RING_TINT[1] = t[1];
+  RING_TINT[2] = t[2];
+});
 /** its strength at a hard stroke (the instance's glow alpha: the shader's emission is rgb² · a · 0.55) */
 export const RING_MAX = 0.3;
 /** how far below a hard stroke the light is gone (dB) */

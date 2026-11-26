@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { defineConfig, type Plugin } from 'vite';
 import { computeDesigns } from '../../packages/engine/src/core/precompute.ts';
+import { themeBoot, themeScope } from './theme-plugins.ts';
 
 // The piano's string filter designs (dispersion all-pass chains for 88 keys × 2
 // polarisations) take ~0.35 s of CPU on a fast machine and several seconds on a
@@ -78,7 +79,8 @@ function preloadPages(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [pianoDesigns(), preloadPages()],
+  plugins: [pianoDesigns(), preloadPages(), themeBoot()],
+  css: { postcss: { plugins: [themeScope()] } },
   // Safari 14.1 is the first WebKit with AudioWorklet; the worklet bundle is lowered to what it
   // parses, and `pnpm build` checks that (scripts/check-worklet-syntax.mjs)
   // (the 3D stage — three.js — is its own chunk, loaded only when 3D is switched on)

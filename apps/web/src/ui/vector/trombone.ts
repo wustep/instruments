@@ -47,13 +47,13 @@ export function drawTromboneV(ctx: CanvasRenderingContext2D, W: number, H: numbe
   /** hide what lies behind a shape: lines only, but a nearer part still covers a farther one */
   const mask = (path: Path2D) => {
     ctx.save();
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = V.ground;
     ctx.fill(path);
     ctx.restore();
   };
-  const walls = (t: TubePx, on: boolean, color: string = V.blue) => {
+  const walls = (t: TubePx, on: boolean, color: string = V.line) => {
     mask(t.body);
-    beam(ctx, t.edges, on ? color : V.blueDim, on ? lw : 1, { alpha: on ? 1 : 0.85 });
+    beam(ctx, t.edges, on ? color : V.lineDim, on ? lw : 1, { alpha: on ? 1 : 0.85 });
   };
   const hatch = lv.sounding ? airHatch(L, lv, small) : null;
   const fade = Math.min(1, 3 * lv.lvl);
@@ -69,19 +69,19 @@ export function drawTromboneV(ctx: CanvasRenderingContext2D, W: number, H: numbe
       walls(t, on);
       if (on) wave(t.id);
     }
-  for (const t of L.sleeves) beam(ctx, t.edges, V.blueMid, 1, { alpha: 0.75 });
-  beam(ctx, L.stays, V.blueDim, 1);
+  for (const t of L.sleeves) beam(ctx, t.edges, V.lineMid, 1, { alpha: 0.75 });
+  beam(ctx, L.stays, V.lineDim, 1);
   // ---- the bell: its flare's edges and sections, the wave in it, the mouth
   const B = L.bell;
   mask(B.flare);
-  beam(ctx, B.edges, V.blue, lw);
-  beam(ctx, bellSections(L), V.blueDim, 1, { alpha: 0.8 });
+  beam(ctx, B.edges, V.line, lw);
+  beam(ctx, bellSections(L), V.lineDim, 1, { alpha: 0.8 });
   wave('bell');
   mask(B.mouth);
-  beam(ctx, B.mouth, V.blue, lw + 0.3, { hot: !small });
+  beam(ctx, B.mouth, V.line, lw + 0.3, { hot: !small });
   // ---- the bell brace and its flange; the receiver, the rotors, the levers
-  beam(ctx, L.flange, V.blueDim, 1);
-  walls(L.bellBrace, true, V.blueMid);
+  beam(ctx, L.flange, V.lineDim, 1);
+  walls(L.bellBrace, true, V.lineMid);
   for (const t of L.tubes) {
     if (t.layer !== 3) continue;
     const on = onPath.has(t.id);
@@ -89,7 +89,7 @@ export function drawTromboneV(ctx: CanvasRenderingContext2D, W: number, H: numbe
     if (on) wave(t.id);
   }
   // the passages through the rotors (dashed: the rotors cover them)
-  if (hatch) for (const [, h] of hatch) if (h.hidden) beam(ctx, h.line, V.amber, 1, { alpha: 0.5 * fade, dash: [2, 3] });
+  if (hatch) for (const [, h] of hatch) if (h.hidden) beam(ctx, h.line, V.sound, 1, { alpha: 0.5 * fade, dash: [2, 3] });
   p.rotors.forEach((r, k) => {
     const cx = X(r.c[0]);
     const cy = Y(r.c[1]);
@@ -97,9 +97,9 @@ export function drawTromboneV(ctx: CanvasRenderingContext2D, W: number, H: numbe
     const casing = new Path2D();
     casing.arc(cx, cy, r.R * sc, 0, 2 * Math.PI);
     mask(casing);
-    beam(ctx, casing, V.blue, lw);
+    beam(ctx, casing, V.line, lw);
     const rc = r.cap * sc;
-    ring(ctx, cx, cy, rc, mix(V.blueMid, V.blue, q), 1);
+    ring(ctx, cx, cy, rc, mix(V.lineMid, V.line, q), 1);
     const a = (Math.PI / 2) * q;
     const pass = new Path2D();
     for (const sg of [-1, 1]) {
@@ -114,22 +114,22 @@ export function drawTromboneV(ctx: CanvasRenderingContext2D, W: number, H: numbe
     const capClip = new Path2D();
     capClip.arc(cx, cy, rc * 0.98, 0, 2 * Math.PI);
     ctx.clip(capClip);
-    beam(ctx, pass, mix(V.blueDim, V.white, 0.6 * q), 1, { alpha: 0.7 + 0.3 * q, hot: q > 0.5 });
+    beam(ctx, pass, mix(V.lineDim, V.slot4, 0.6 * q), 1, { alpha: 0.7 + 0.3 * q, hot: q > 0.5 });
     ctx.restore();
   });
   levers(ctx, L, lv, lw);
   // ---- the inner slide (fixed), its brace, the collars and the slide lock's nut
-  for (const t of L.inner) walls(t, true, V.blueMid);
+  for (const t of L.inner) walls(t, true, V.lineMid);
   for (const t of [...L.collars, ...L.innerBrace, L.nut]) {
     mask(t.body);
-    beam(ctx, t.edges, V.blueMid, 1, { alpha: 0.85 });
+    beam(ctx, t.edges, V.lineMid, 1, { alpha: 0.85 });
   }
   // the seven positions, faint, the one held brighter
   {
     const tl = Math.max(2, 0.006 * sc);
     for (let k = 0; k < 7; k++) {
       const on = lv.sounding && lv.position === k + 1 && (lv.side === 'Bb' || lv.side === 'Eb');
-      seg(ctx, L.ticks[k], L.tickY, L.ticks[k], L.tickY + tl, on ? V.amber : V.blueDim, 1, { alpha: on ? 0.9 : 0.55, butt: true });
+      seg(ctx, L.ticks[k], L.tickY, L.ticks[k], L.tickY + tl, on ? V.sound : V.lineDim, 1, { alpha: on ? 0.9 : 0.55, butt: true });
     }
   }
   // ---- the outer slide where the engine has it: its walls over the inner tubes, its sleeves, the hand brace,
@@ -139,15 +139,15 @@ export function drawTromboneV(ctx: CanvasRenderingContext2D, W: number, H: numbe
   walls(L.outer, true);
   for (const t of [...L.outerSleeves, ...L.handBrace, ...L.waterKey]) {
     mask(t.body);
-    beam(ctx, t.edges, V.blueMid, 1, { alpha: 0.85 });
+    beam(ctx, t.edges, V.lineMid, 1, { alpha: 0.85 });
   }
-  beam(ctx, L.waterCup, V.blueMid, 1);
-  beam(ctx, L.bumper, V.blueDim, 1);
+  beam(ctx, L.waterCup, V.lineMid, 1);
+  beam(ctx, L.bumper, V.lineDim, 1);
   ctx.restore();
   for (const id of ['up', 'crook', 'down']) wave(id);
   // ---- the mouthpiece, and the slots at it
   mask(L.mp);
-  beam(ctx, L.mp, V.blue, lw);
+  beam(ctx, L.mp, V.line, lw);
   wave('mp');
   slots(ctx, L, lv, st, fr, now, small, lw);
   ctx.restore();
@@ -236,7 +236,7 @@ function strokeHatch(ctx: CanvasRenderingContext2D, h: Hatch, fade: number, smal
     const l = (i + 1) / LEVELS;
     beam(ctx, q, heat(0.25 + 0.75 * l), 1, { alpha: Math.min(1, (0.18 + 0.82 * l) * fade), butt: true });
   });
-  beam(ctx, h.line, V.amber, small ? 1.1 : 1.4, { alpha: (0.45 + 0.4 * lvl) * fade, hot: lvl > 0.5 });
+  beam(ctx, h.line, V.sound, small ? 1.1 : 1.4, { alpha: (0.45 + 0.4 * lvl) * fade, hot: lvl > 0.5 });
 }
 
 /** the thumb's levers: each crank and link, the lever on its pivot, its hook (bright when pulled) */
@@ -252,14 +252,14 @@ function levers(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive, lw: numb
     const ca = crankAngle(p, k, lv.press[k]);
     const bx = r.c[0] + Math.cos(ca) * CRANK;
     const by = r.c[1] + Math.sin(ca) * CRANK;
-    seg(ctx, X(r.c[0]), Y(r.c[1]), X(bx), Y(by), mix(V.blueMid, V.white, 0.6 * q), lw, { hot: q > 0.5 });
-    ring(ctx, X(bx), Y(by), Math.max(1.2, 0.002 * sc), V.blue, 1);
-    seg(ctx, X(bx), Y(by), X(back[0]), Y(back[1]), mix(V.blueDim, V.blue, q), 1);
+    seg(ctx, X(r.c[0]), Y(r.c[1]), X(bx), Y(by), mix(V.lineMid, V.slot4, 0.6 * q), lw, { hot: q > 0.5 });
+    ring(ctx, X(bx), Y(by), Math.max(1.2, 0.002 * sc), V.line, 1);
+    seg(ctx, X(bx), Y(by), X(back[0]), Y(back[1]), mix(V.lineDim, V.line, q), 1);
     const hook = new Path2D();
     const pts: P[] = [back, lvr.pivot, ...lvr.paddle.map((x) => turned(x, lvr.pivot, a))];
     pts.forEach(([x, y], i) => (i ? hook.lineTo(X(x), Y(y)) : hook.moveTo(X(x), Y(y))));
-    beam(ctx, hook, mix(V.blueMid, V.white, 0.55 * q), lw + 0.4 * q, { hot: q > 0.5 });
-    ring(ctx, X(lvr.pivot[0]), Y(lvr.pivot[1]), Math.max(1.4, 0.003 * sc), V.blue, 1);
+    beam(ctx, hook, mix(V.lineMid, V.slot4, 0.55 * q), lw + 0.4 * q, { hot: q > 0.5 });
+    ring(ctx, X(lvr.pivot[0]), Y(lvr.pivot[1]), Math.max(1.4, 0.003 * sc), V.line, 1);
   });
 }
 
@@ -282,15 +282,15 @@ function slots(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive, st: Tromb
   // behind it): the lips' over the rim, the breath's back towards the player
   const lx = rim[0] + 0.014 * sc;
   const ly = rim[1] - (reach + 0.011) * sc;
-  seg(ctx, rim[0] + 0.002 * sc, rim[1] - (reach - 0.002) * sc, lx - hr * 0.7, ly + hr * 0.7, V.red, 1, { alpha: 0.5 * live });
-  handle(ctx, lx, ly, V.red, hr, live);
+  seg(ctx, rim[0] + 0.002 * sc, rim[1] - (reach - 0.002) * sc, lx - hr * 0.7, ly + hr * 0.7, V.slot2, 1, { alpha: 0.5 * live });
+  handle(ctx, lx, ly, V.slot2, hr, live);
   const gx = rim[0] - 0.02 * sc;
   const gy = rim[1] - (reach + 0.007) * sc;
   // (the breath flows in along the axis, from a little behind the lips, a few px long however small the
   // stage, as on the reeds; its handle's lead down to it)
   const from = Math.max(0.014, 0.0016 + (hr + 8) / sc);
   const f0 = at(from, 0);
-  seg(ctx, gx + hr * 0.7, gy + hr * 0.7, f0[0], f0[1], V.green, 1, { alpha: 0.5 * live });
+  seg(ctx, gx + hr * 0.7, gy + hr * 0.7, f0[0], f0[1], V.slot1, 1, { alpha: 0.5 * live });
   if (playing) {
     breathFlow(ctx, at, from, [0.0034, 0.0018, 0.0006], 0.0016, small, Math.min(1, 0.4 + lv.lvl) * (0.7 + 0.3 * Math.min(1, o)), now);
     // noise (pink): turbulence in the lips' slit and just inside the cup
@@ -299,10 +299,10 @@ function slots(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive, st: Tromb
     for (let i = 0; i < nd; i++) {
       const a = 0.001 + hash(frame * 13 + i * 7.3) * 0.01;
       const w = (hash(frame * 5 + i * 3.1 + 40) * 2 - 1) * 0.0045;
-      dot(ctx, rim[0] + a * sc, rim[1] + w * sc, small ? 0.9 : 1.2, V.pink, Math.min(1, 0.35 + lv.blow / 4) * (0.5 + 0.5 * hash(frame + i)));
+      dot(ctx, rim[0] + a * sc, rim[1] + w * sc, small ? 0.9 : 1.2, V.slot3, Math.min(1, 0.35 + lv.blow / 4) * (0.5 + 0.5 * hash(frame + i)));
     }
   }
-  handle(ctx, gx, gy, V.green, hr, live);
+  handle(ctx, gx, gy, V.slot1, hr, live);
   // the vibrato (white): a ring round the breath's handle, wider as the pitch swings about its mean
   const focus = fr?.focus ?? null;
   const pt = pitchTrack.get(st) ?? { mean: 0, dev: 0, t: now };
@@ -314,5 +314,5 @@ function slots(ctx: CanvasRenderingContext2D, L: TbLayout, lv: TbLive, st: Tromb
     pt.mean += (focus.f1 - pt.mean) * Math.min(1, dt / 0.6);
     pt.dev = focus.f1 / pt.mean - 1;
   } else pt.dev *= 0.85;
-  ring(ctx, gx, gy, hr + 3.5 + clamp(Math.abs(pt.dev) * 900, 0, 6), V.white, 1, { alpha: 0.4 + 0.5 * Math.min(1, Math.abs(pt.dev) * 300 + (playing ? 0.3 : 0)) });
+  ring(ctx, gx, gy, hr + 3.5 + clamp(Math.abs(pt.dev) * 900, 0, 6), V.slot4, 1, { alpha: 0.4 + 0.5 * Math.min(1, Math.abs(pt.dev) * 300 + (playing ? 0.3 : 0)) });
 }

@@ -300,8 +300,8 @@ test('ui=0 on one instrument: the stage’s own knobs stay, the piano changed fr
   // a page that is not the stage keeps its bar: it is the way back; the stage then is as it was
   await page.goto('/notes?ui=0');
   await expect(page.locator('header.top')).toBeVisible();
-  await expect(page.locator('a.back')).toBeVisible();
-  await page.locator('a.back').click();
+  await expect(page.locator('a.to-stage')).toBeVisible();
+  await page.locator('a.to-stage').click();
   await expect(page.locator('html')).toHaveAttribute('data-route', 'stage');
   await expect.poll(() => path(page)).toMatch(/ui=0$/);
   await page.waitForTimeout(250);

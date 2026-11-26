@@ -1,12 +1,10 @@
-import './styles.css';
-import './panel.css';
-import './vector.css';
+import './themes/sheets.ts';
 import { diag, diagEnvironment, diagPanel } from './diag.ts';
 diagEnvironment();
 import { audio } from './audio.ts';
 import { INSTRUMENT_INFO, midiName, type InstrumentId } from '@piano-model/engine';
 import { ComputerKeys, createKeyboard } from './ui/keyboard.ts';
-import { h, type View } from './ui/dom.ts';
+import { h, looksWith, sign, type View } from './ui/dom.ts';
 import { pedal } from './ui/controls.ts';
 import { MidiPlayer } from './ui/player.ts';
 import { ensemble } from './orchestra/ensemble.ts';
@@ -15,6 +13,9 @@ import { keysRange } from './orchestra/keys.ts';
 import { keysForControl } from './ui/keys-for.ts';
 import { PIECES } from './orchestra/pieces.ts';
 import { installTips } from './ui/tip.ts';
+import { themePick } from './ui/theme-pick.ts';
+import { THEMES, onTheme, setTheme, theme } from './themes/index.ts';
+import { drawersReady } from './themes/drawers.ts';
 import { stageView } from './views/stage.ts';
 import { startNav } from './nav.ts';
 import { look } from './look.ts';
@@ -42,14 +43,14 @@ const syncPedals = () => {
   softPedal.rename('soft', up ? 'Soft pedal: the hammers rest nearer the strings (hold; Shift on a keyboard, CC67 on MIDI)' : 'Una corda: the action shifts, the hammers miss a string (hold; Shift on a keyboard, CC67 on MIDI)');
 };
 const knobSlot = h('div', { class: 'knobs', role: 'group', 'aria-label': 'Physical controls' });
-const knobToggle = h('button', { class: 'knob-toggle', type: 'button', 'aria-label': 'Show the knobs', 'aria-expanded': 'false', 'data-tip': 'knobs' }, '◐');
+const knobToggle = sign(h('button', { class: 'knob-toggle', type: 'button', 'aria-label': 'Show the knobs', 'aria-expanded': 'false', 'data-tip': 'knobs' }), 'knobs');
 knobToggle.addEventListener('click', () => {
   const open = document.documentElement.toggleAttribute('data-knobs');
   knobToggle.setAttribute('aria-expanded', String(open));
 });
 // octave: shifts the computer keys (Z/X or −/=) and brings the on-screen keys along
-const octDown = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave down', 'data-tip': 'octave down · Z', onclick: () => keys.octave(-1) }, '‹');
-const octUp = h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave up', 'data-tip': 'octave up · X', onclick: () => keys.octave(1) }, '›');
+const octDown = sign(h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave down', 'data-tip': 'octave down · Z', onclick: () => keys.octave(-1) }), 'prev');
+const octUp = sign(h('button', { class: 'oct-btn', type: 'button', 'aria-label': 'Octave up', 'data-tip': 'octave up · X', onclick: () => keys.octave(1) }), 'next');
 const octLabel = h('span', { class: 'oct-label', 'aria-live': 'polite' });
 const octave = h('div', { class: 'octave', role: 'group', 'aria-label': 'Octave' }, octDown, octLabel, octUp);
 // an ensemble: in the knobs' place, the instruments the keys play (a phone: behind one button)
@@ -72,20 +73,30 @@ const lampText = h('span', { class: 'lamp-text' }, 'tap a key');
 const midiText = h('span', { class: 'midi' });
 const srStatus = h('span', { class: 'sr' }, '');
 const status = h('div', { class: 'status', 'aria-live': 'polite' }, h('i', { class: 'lamp' }), lampText, midiText, srStatus);
-// (each page has its own address: nav.ts; the back link goes to the stage as it is)
+// (each page has its own address: nav.ts; "player" goes to the stage as it is: the instrument or the
+// orchestra that was on it. It is one of the pages' links, and shown only on the other two pages)
+const playerLink = h('a', { class: 'to-stage', href: '/', 'data-route': 'stage', hidden: true }, 'player');
 const links = [
+  playerLink,
   h('a', { href: '/measurements', 'data-route': 'measurements' }, 'measurements'),
   h('a', { href: '/notes', 'data-route': 'notes' }, 'notes'),
 ];
-const backLink = h('a', { class: 'back', href: '/', 'data-route': 'stage', 'aria-label': 'back to the instruments', 'data-tip': 'back' }, '←');
 // (the stage puts its picker and its view's tools in the bar while it shows: views/stage.ts)
 const pickSlot = h('div', { class: 'top-pick' });
 const toolSlot = h('div', { class: 'top-tools' });
-const header = h('header', { class: 'top' }, backLink, pickSlot, h('span', { class: 'spacer' }), toolSlot, status, h('nav', { class: 'links', 'aria-label': 'Pages' }, links));
+// (the theme button: one sign, in every page's bar; ui/theme-pick.ts)
+const header = h('header', { class: 'top' }, pickSlot, h('span', { class: 'spacer' }), toolSlot, status, h('nav', { class: 'links', 'aria-label': 'Pages' }, links), themePick());
 const main = h('main', { id: 'main' });
+// (for a keyboard and a screen reader, in the looks that have them (themes/types.ts `Chrome.skip`): the
+// page's name, which nothing shows, and a way past the bar's two dozen stops to the stage, which can then
+// be given the focus; under any other look neither is there)
+const skipIn = looksWith((t) => t.chrome.skip);
+const title = h('h1', { class: 'sr', 'data-themes': skipIn }, WORDMARK);
+const skip = h('a', { class: 'skip', href: '#main', 'data-themes': skipIn }, 'Skip to the instrument');
+onTheme((t) => (t.chrome.skip ? main.setAttribute('tabindex', '-1') : main.removeAttribute('tabindex')), true);
 // drop a .mid file anywhere to hear it (an ensemble's file on an ensemble)
 const player = new MidiPlayer();
-app.append(header, main, player.el, dock);
+app.append(skip, title, header, main, player.el, dock);
 
 /** A page whose code loads when it is first opened (its own chunk: the stage's first load does not
  *  carry it). Its box stands in until then; left before it has loaded, it is never made. */
@@ -146,7 +157,12 @@ function render(id: Page): void {
   main.replaceChildren(current.el);
   syncKeys();
   document.documentElement.dataset.route = id;
-  links.forEach((a) => (a.dataset.route === id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
+  // The lamp, its words and the MIDI socket are the stage's: Measurements and Notes have no keys to tap
+  // and nothing to play, so there the bar has none of them (the sound and MIDI themselves go on), and
+  // the way back to the stage instead.
+  status.hidden = id !== 'stage';
+  playerLink.hidden = id === 'stage';
+  links.forEach((a) => (a !== playerLink && a.dataset.route === id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
   document.title = r.title ? `${r.title} · ${WORDMARK}` : WORDMARK;
   current.mount?.();
   window.scrollTo(0, 0);
@@ -291,4 +307,7 @@ installTips();
 (window as unknown as { __piano: typeof audio; __engine: unknown }).__piano = audio;
 (window as unknown as { __engine: unknown }).__engine = { renderOffline };
 (window as unknown as { __player: MidiPlayer }).__player = player;
+// (the theme, for a test or a script: `set(id, keep)` as the button's pick does; with keep false, for this page
+// only; `ready()`: the theme's own 2D drawers, where it has them, have come)
+(window as unknown as { __themes: unknown }).__themes = { set: setTheme, get: () => theme().id, all: THEMES.map((t) => t.id), ready: drawersReady };
 (window as unknown as { __orchestra: unknown }).__orchestra = { ensemble, pieces: PIECES, loadPiece: (i: number) => player.loadPiece(i) };

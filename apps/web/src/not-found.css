@@ -1,9 +1,18 @@
 /* The page for an address that is none of the app's (404.html): the stage's ground, the readout's two
-   lines (a word in the serif italic, a line of mono under it), and the places that do exist, by family
-   as the picker has them. Its own small sheet: the app's is not loaded. Colours and type as styles.css. */
+   lines (a word, a line under it), and the places that do exist, by family as the picker has them. Its own
+   small sheet: the app's is not loaded. It is in the device's theme, as the app is (the build's boot
+   script has put it on <html data-theme> before the first paint: vite.config.ts `themeBoot`): first the
+   bench's rules, which are also those of a page whose script never ran, then, for each other look, its
+   tokens and the rules that are not the bench's. Colours and type as each theme's styles.css. */
 @import '@fontsource-variable/newsreader/opsz-italic.css';
 @import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/libre-caslon-display/400.css';
+@import '@fontsource-variable/cabin/wdth.css';
+@import '@fontsource-variable/ysabeau-office/wght.css';
+@import '@fontsource-variable/libre-franklin/wght.css';
 
+/* ------------------------------------------------------------ Night Bench: a word in the serif italic,
+   a line of mono under it */
 :root {
   --ground: #0e0d0b;
   --ink: #ece2ce;
@@ -114,5 +123,308 @@ body {
   }
   .nf a {
     padding: 11px 6px;
+  }
+}
+/* (the line's words, less its lamp: one box in the looks that lay the line out as lamp and words; here
+   the line is a row of its parts, as it always was) */
+.nf-said {
+  display: contents;
+}
+
+/* ------------------------------------------------------------ Evening Hall: the hall with nobody on its
+   stage. An empty pool of light on the boards, the two lines over it (a word in the readout's display
+   face, a line of labels under it). */
+:root[data-theme='evening-hall'] {
+  --ground: #140a0b;
+  --ink: #f1e7d3;
+  --ink-2: #d3c5ab;
+  /* (the muted words lie over the lit boards here: a step lighter than the app's, 5.6:1 on them) */
+  --muted: #bdad94;
+  --gilt: #c9a253;
+  --on: #ecbb62;
+  --display: 'Libre Caslon Display', 'Big Caslon', 'Book Antiqua', Palatino, Georgia, serif;
+  --label: 'Cabin Variable', 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+  color-scheme: dark;
+  scrollbar-color: #4a322b var(--ground);
+  /* the stage's boards, as styles.css draws them */
+  --boards: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1140' height='228'%3E%3Crect width='1140' height='228' fill='%2327150d'/%3E%3Crect x='-291' y='0' width='759' height='37' fill='%233b2315'/%3E%3Crect x='469' y='0' width='699' height='37' fill='%23372013'/%3E%3Crect x='-360' y='38' width='519' height='37' fill='%23361f13'/%3E%3Crect x='160' y='38' width='759' height='37' fill='%233b2315'/%3E%3Crect x='920' y='38' width='759' height='37' fill='%23361f13'/%3E%3Crect x='-108' y='76' width='699' height='37' fill='%23331d11'/%3E%3Crect x='592' y='76' width='519' height='37' fill='%23392114'/%3E%3Crect x='1112' y='76' width='759' height='37' fill='%23392114'/%3E%3Crect x='-364' y='114' width='699' height='37' fill='%233b2315'/%3E%3Crect x='336' y='114' width='759' height='37' fill='%23361f13'/%3E%3Crect x='1096' y='114' width='759' height='37' fill='%23392114'/%3E%3Crect x='-330' y='152' width='429' height='37' fill='%23392114'/%3E%3Crect x='100' y='152' width='429' height='37' fill='%23361f13'/%3E%3Crect x='530' y='152' width='519' height='37' fill='%23372013'/%3E%3Crect x='1050' y='152' width='429' height='37' fill='%233b2315'/%3E%3Crect x='-227' y='190' width='699' height='37' fill='%23372013'/%3E%3Crect x='473' y='190' width='519' height='37' fill='%23372013'/%3E%3Crect x='993' y='190' width='519' height='37' fill='%23331d11'/%3E%3C/svg%3E");
+}
+:root[data-theme='evening-hall'] ::selection {
+  background: rgba(236, 187, 98, 0.3);
+}
+:root[data-theme='evening-hall'] body {
+  position: relative;
+  background: var(--ground);
+  font-family: var(--label);
+  font-variant-numeric: lining-nums;
+}
+/* the empty stage: the spot's pool on the boards, the house falling away round it */
+:root[data-theme='evening-hall'] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 46% 40% at 50% 42%, rgba(255, 214, 150, 0.17), rgba(244, 176, 104, 0.08) 46%, transparent 74%),
+    var(--boards) 50% 42% / 1140px 228px;
+  -webkit-mask-image: radial-gradient(ellipse 60% 54% at 50% 42%, #000 20%, transparent 80%);
+  mask-image: radial-gradient(ellipse 60% 54% at 50% 42%, #000 20%, transparent 80%);
+}
+:root[data-theme='evening-hall'] .nf {
+  position: relative;
+}
+:root[data-theme='evening-hall'] .nf-word {
+  font: 400 clamp(72px, 19vw, 128px) / 1 var(--display);
+  font-variation-settings: normal;
+  font-variant-numeric: normal;
+  letter-spacing: normal;
+  text-shadow: 0 2px 24px rgba(8, 3, 4, 0.8);
+}
+:root[data-theme='evening-hall'] .nf-line {
+  display: block;
+  align-items: normal;
+  gap: normal;
+  margin: 16px 0 0 2px;
+  font: 400 13px/16px var(--label);
+  letter-spacing: 0.03em;
+}
+/* the house lamp, as it is before any sound: unlit */
+:root[data-theme='evening-hall'] .nf-lamp {
+  display: inline-block;
+  flex: initial;
+  margin-right: 9px;
+  border: 1px solid var(--gilt);
+  background: rgba(201, 162, 83, 0.16);
+  box-shadow: none;
+}
+:root[data-theme='evening-hall'] .nf-places,
+:root[data-theme='evening-hall'] .nf-pages {
+  font: 500 12px/1 var(--label);
+  font-stretch: 88%;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+:root[data-theme='evening-hall'] .nf-places {
+  margin: 46px 0 0 -12px;
+}
+/* a family: its instruments together, a gilt hairline before the next (one too long for a phone's row,
+   the orchestra and the pieces, goes on to a second: no place is ever cut off) */
+:root[data-theme='evening-hall'] .nf-fam {
+  flex-wrap: wrap;
+  border-left: 1px solid rgba(201, 162, 83, 0.34);
+}
+:root[data-theme='evening-hall'] .nf-pages {
+  margin: 20px 0 0 -12px;
+}
+:root[data-theme='evening-hall'] .nf a {
+  transition: color 0.15s;
+}
+:root[data-theme='evening-hall'] .nf a:hover {
+  box-shadow: inset 0 -1.5px 0 var(--on);
+}
+:root[data-theme='evening-hall'] .nf a:focus-visible {
+  outline: 1.5px solid var(--on);
+}
+@media (max-width: 480px) {
+  :root[data-theme='evening-hall'] .nf a {
+    padding: 16px 6px;
+  }
+  /* (the families wrap here: a rule between two that happen to share a row would be the only one) */
+  :root[data-theme='evening-hall'] .nf-fam {
+    border-left-color: transparent;
+  }
+}
+
+/* ------------------------------------------------------------ Day Studio: the studio's wall, a word set
+   light and large, a line under it, the families parted by space */
+:root[data-theme='day-studio'] {
+  --ground: #eceff1;
+  --ground-2: #e2e6e9;
+  --ink: #1c222a;
+  --ink-2: #424850;
+  --muted: #666d74;
+  --rule-2: #b9bec2;
+  --font: 'Ysabeau Office Variable', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  color-scheme: light;
+}
+:root[data-theme='day-studio'] body {
+  /* (the stage's own ground: the plaster, a breath brighter in the middle) */
+  background:
+    radial-gradient(62% 58% at 40% 50%, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0) 100%),
+    var(--ground);
+  font-family: var(--font);
+  font-variant-numeric: lining-nums;
+}
+:root[data-theme='day-studio'] ::selection {
+  background: rgba(29, 72, 209, 0.2);
+}
+:root[data-theme='day-studio'] .nf-word {
+  font: 250 clamp(72px, 19vw, 96px) / 1 var(--font);
+  font-variation-settings: normal;
+  letter-spacing: -0.02em;
+}
+:root[data-theme='day-studio'] .nf-line {
+  gap: 9px;
+  margin: 16px 0 0 3px;
+  font: 500 14px/18px var(--font);
+  letter-spacing: normal;
+}
+/* (the line is its lamp and its words: the words one box, spaced as words are) */
+:root[data-theme='day-studio'] .nf-said {
+  display: inline;
+}
+/* the sound's sign, as it is before any sound: a ring */
+:root[data-theme='day-studio'] .nf-lamp {
+  border: 1.5px solid var(--ink-2);
+  background: none;
+  box-shadow: none;
+}
+:root[data-theme='day-studio'] .nf-places,
+:root[data-theme='day-studio'] .nf-pages {
+  font: 500 14px/1 var(--font);
+  letter-spacing: normal;
+}
+/* a family: its instruments together, air before the next */
+:root[data-theme='day-studio'] .nf-places {
+  gap: 6px 22px;
+  margin: 48px 0 0 -7px;
+  overflow: visible;
+}
+:root[data-theme='day-studio'] .nf-fam {
+  margin-left: 0;
+  padding: 0;
+  border-left: 0;
+}
+:root[data-theme='day-studio'] .nf-pages {
+  margin: 22px 0 0 -7px;
+  padding: 0;
+}
+:root[data-theme='day-studio'] .nf a {
+  padding: 10px 7px;
+  border-radius: 6px;
+  transition: color 0.15s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+:root[data-theme='day-studio'] .nf a:hover {
+  border-radius: 0;
+  box-shadow: inset 0 -1.5px 0 var(--ink);
+}
+:root[data-theme='day-studio'] .nf a:focus-visible {
+  outline: 2px solid var(--ink);
+}
+/* a phone: the families wrap as they fit, each whole */
+@media (max-width: 480px) {
+  :root[data-theme='day-studio'] .nf-places {
+    gap: 2px 16px;
+  }
+  :root[data-theme='day-studio'] .nf a {
+    padding: 11px 6px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme='day-studio'] .nf a {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------ Night Gallery: the gallery's wall with no
+   work on it (one scallop of light from the rail, falling on nothing), the label's two lines */
+:root[data-theme='night-gallery'] {
+  --ground: #111315;
+  --wall-0: #090a0c;
+  --ink: #e6e8ea;
+  --ink-2: #bbbec1;
+  --muted: #919497;
+  --rule: #282a2d;
+  --light: #f5f7f9;
+  /* (the rail's one way to say "this one", as panel.css has it: a fixture, and its light) */
+  --spot: radial-gradient(50% 72% at 50% 0%, rgb(245 247 249 / 0.26), rgb(245 247 249 / 0.08) 55%, transparent 100%);
+  --fixture: inset 0 1px 0 var(--light);
+  --face: 'Libre Franklin Variable', 'Franklin Gothic Medium', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color-scheme: dark;
+  scrollbar-color: #3d4043 transparent;
+}
+:root[data-theme='night-gallery'] ::selection {
+  background: rgb(139 168 198 / 0.42);
+  color: var(--light);
+}
+:root[data-theme='night-gallery'] body {
+  font-family: var(--face);
+  /* (the stage's own wall: a wash from above, the corners falling away) */
+  background:
+    radial-gradient(60% 70% at 50% 0%, rgb(194 200 207 / 0.11), transparent 72%),
+    radial-gradient(130% 115% at 50% 28%, transparent 52%, rgb(9 10 12 / 0.62) 100%),
+    var(--ground);
+}
+:root[data-theme='night-gallery'] .nf-word {
+  font: 200 clamp(64px, 17vw, 96px) / 1 var(--face);
+  font-variation-settings: normal;
+  letter-spacing: -0.04em;
+  color: var(--light);
+}
+:root[data-theme='night-gallery'] .nf-line {
+  gap: normal;
+  margin: 16px 0 0 3px;
+  font: 400 13px/18px var(--face);
+  letter-spacing: normal;
+}
+/* the lamp, as it is before any sound: a ring, unlit */
+:root[data-theme='night-gallery'] .nf-lamp {
+  margin-right: 9px;
+  border: 1.5px solid var(--ink-2);
+  background: none;
+  box-shadow: none;
+}
+/* (the line is a row of its parts: the address asked for keeps a word's space either side) */
+:root[data-theme='night-gallery'] #nf-path {
+  margin: 0 0.26em;
+}
+:root[data-theme='night-gallery'] .nf-places,
+:root[data-theme='night-gallery'] .nf-pages {
+  font: 400 13px/1 var(--face);
+  letter-spacing: normal;
+}
+:root[data-theme='night-gallery'] .nf-places {
+  gap: 8px 14px;
+  margin: 44px 0 0 -6px;
+  overflow: visible;
+}
+/* a family: its instruments together, room before the next */
+:root[data-theme='night-gallery'] .nf-fam {
+  margin-left: 0;
+  padding: 0;
+  border-left: 0;
+}
+:root[data-theme='night-gallery'] .nf-pages {
+  margin: 20px 0 0 -6px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--rule);
+}
+:root[data-theme='night-gallery'] .nf a {
+  padding: 10px 6px;
+  border-radius: 0;
+  text-transform: capitalize;
+  transition: color 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* under the pointer a place is lit, as the one on the stage is in the rail */
+:root[data-theme='night-gallery'] .nf a:hover {
+  color: var(--light);
+  background: var(--spot);
+  box-shadow: var(--fixture);
+  transition-duration: 90ms;
+}
+:root[data-theme='night-gallery'] .nf a:focus-visible {
+  outline: 1px solid var(--light);
+}
+@media (max-width: 480px) {
+  :root[data-theme='night-gallery'] .nf-places {
+    gap: 4px 10px;
+  }
+  :root[data-theme='night-gallery'] .nf a {
+    padding: 16px 6px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme='night-gallery'] .nf a {
+    transition: none;
   }
 }

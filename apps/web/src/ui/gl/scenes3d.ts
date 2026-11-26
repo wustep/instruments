@@ -20,7 +20,8 @@ import { GLOCK_SEAT, GLOCK_VIEW, buildGlockModel, poseGlock, type GlockModel } f
 import { TUBA_HELD, TUBA_SEAT, TUBA_VIEW, buildTubaModel, poseTuba, type TubaModel } from './tuba3d.ts';
 import { TIMPANI_SEAT, TIMPANI_VIEW, buildTimpaniModel, newTimpaniPose, poseTimpani, type TimpaniModel, type TimpaniPose } from './timpani3d.ts';
 import { TALL, seatPlaces, seatRisers, type Inst, type Riser, type SeatKind } from '../../orchestra/seats.ts';
-import { M, MeshBuilder, extrude, fanCap } from './mesh.ts';
+import { M, MeshBuilder, extrude, fanCap, type Mat } from './mesh.ts';
+import { world } from '../../themes/worlds.ts';
 
 export { keyX3 } from './piano3d.ts';
 
@@ -519,11 +520,10 @@ export function ensembleSeats(parts: SeatIn[], aspect = 2): Seat[] {
 /** the risers an ensemble's rows stand on (none for a few players) */
 export const ensembleRisers = (parts: SeatIn[], aspect = 2): Riser[] => seatRisers(parts.map(seatKind), aspect);
 
-/** a riser: a stepped platform of the stage, an arc round the podium, its top edge chamfered (2 cm), a
- *  dark stained wood top over a black fascia */
-const RISER_TOP = M.caseInner;
-const RISER_SIDE = M.caseRaw;
-function riserMesh(r: Riser): Mesh {
+/** a riser: a stepped platform of the stage, an arc round the podium, its top edge chamfered (2 cm), its
+ *  deck and its fascia the room's own (a world's `riser`: a dark studio's a dark stained wood top over a
+ *  black fascia) */
+function riserMesh(r: Riser, RISER_TOP: Mat, RISER_SIDE: Mat): Mesh {
   const mb = new MeshBuilder();
   const n = Math.max(8, Math.ceil(((r.a1 - r.a0) * r.r1) / 0.12));
   const ch = Math.min(0.02, r.y / 3);
@@ -563,12 +563,13 @@ function riserMesh(r: Riser): Mesh {
 }
 /** an ensemble's risers, built once per shape */
 function drawRisers(b: Batch, st: Scene3State, rs: Riser[]): void {
+  const { top, side } = world().riser;
   for (const r of rs) {
-    const key = `riser:${[r.zc, r.r0, r.r1, r.a0, r.a1, r.y].map((v) => v.toFixed(3)).join(',')}`;
+    const key = `riser:${top}/${side}:${[r.zc, r.r0, r.r1, r.a0, r.a1, r.y].map((v) => v.toFixed(3)).join(',')}`;
     let m = st.floors.get(key);
     if (!m) {
       const rr = r;
-      m = timed(st, () => riserMesh(rr));
+      m = timed(st, () => riserMesh(rr, M[top], M[side]));
       st.floors.set(key, m);
     }
     b.mesh(m);

@@ -73,40 +73,40 @@ export function drawBassoonV(ctx: CanvasRenderingContext2D, W: number, H: number
         const l = (i + 1) / LEVELS;
         beam(ctx, p, heat(0.25 + 0.75 * l), 1, { alpha: Math.min(1, (0.18 + 0.82 * l) * fade), butt: true });
       });
-      beam(ctx, env, V.amber, 1, { alpha: (0.3 + 0.35 * lvl) * fade });
+      beam(ctx, env, V.sound, 1, { alpha: (0.3 + 0.35 * lvl) * fade });
     }
   }
   // ---- the wood: the joints' outlines, the rings and caps, the wing's ridge, the bell's mouth
-  beam(ctx, L.long, V.blue, lw + 0.1);
-  beam(ctx, L.boot, V.blue, lw + 0.1);
-  beam(ctx, L.wing, V.blue, lw + 0.1);
-  beam(ctx, L.ridge, V.blueDim, 1, { alpha: 0.8 });
-  beam(ctx, L.bootRing, V.blueMid, 1, { alpha: 0.9 });
-  beam(ctx, L.cap, V.blueMid, 1, { alpha: 0.9 });
-  beam(ctx, L.bellRing, V.blueMid, 1, { alpha: 0.9 });
-  beam(ctx, L.wingCap, V.blueMid, 1, { alpha: 0.9 });
-  beam(ctx, L.lip, V.blue, lw);
-  beam(ctx, L.seams, V.blueMid, 1, { alpha: 0.6, butt: true });
-  beam(ctx, L.mouth, V.blue, lw, { hot: !small });
-  beam(ctx, L.mouthIn, V.blueMid, 1);
-  beam(ctx, L.rest, V.blueMid, 1);
-  beam(ctx, L.restStem, V.blueDim, 1);
-  if (!small) beam(ctx, L.chimneys, V.blueDim, 1, { alpha: 0.6, dash: [2, 3], butt: true });
+  beam(ctx, L.long, V.line, lw + 0.1);
+  beam(ctx, L.boot, V.line, lw + 0.1);
+  beam(ctx, L.wing, V.line, lw + 0.1);
+  beam(ctx, L.ridge, V.lineDim, 1, { alpha: 0.8 });
+  beam(ctx, L.bootRing, V.lineMid, 1, { alpha: 0.9 });
+  beam(ctx, L.cap, V.lineMid, 1, { alpha: 0.9 });
+  beam(ctx, L.bellRing, V.lineMid, 1, { alpha: 0.9 });
+  beam(ctx, L.wingCap, V.lineMid, 1, { alpha: 0.9 });
+  beam(ctx, L.lip, V.line, lw);
+  beam(ctx, L.seams, V.lineMid, 1, { alpha: 0.6, butt: true });
+  beam(ctx, L.mouth, V.line, lw, { hot: !small });
+  beam(ctx, L.mouthIn, V.lineMid, 1);
+  beam(ctx, L.rest, V.lineMid, 1);
+  beam(ctx, L.restStem, V.lineDim, 1);
+  if (!small) beam(ctx, L.chimneys, V.lineDim, 1, { alpha: 0.6, dash: [2, 3], butt: true });
   // ---- the bocal and the reed: its blades, the wires, the thread
-  beam(ctx, L.bocal, V.blue, lw);
-  beam(ctx, L.nipple, V.blueMid, 1);
-  beam(ctx, L.blades, V.blue, lw);
-  beam(ctx, L.wires, V.blueMid, 1, { butt: true });
-  beam(ctx, L.thread, V.blueMid, 1);
-  if (!small) beam(ctx, L.spine, V.blueDim, 0.8, { alpha: 0.7 });
+  beam(ctx, L.bocal, V.line, lw);
+  beam(ctx, L.nipple, V.lineMid, 1);
+  beam(ctx, L.blades, V.line, lw);
+  beam(ctx, L.wires, V.lineMid, 1, { butt: true });
+  beam(ctx, L.thread, V.lineMid, 1);
+  if (!small) beam(ctx, L.spine, V.lineDim, 0.8, { alpha: 0.7 });
   // ---- the mechanism: rods, hinge tubes, the touches (the back's dashed), the pillars
-  beam(ctx, L.rods, V.blueMid, 1);
-  beam(ctx, L.hinges, V.blueDim, 1);
+  beam(ctx, L.rods, V.lineMid, 1);
+  beam(ctx, L.hinges, V.lineDim, 1);
   BS_TOUCHES.forEach((t, i) => {
     const q = lv.touchPress[i];
-    beam(ctx, L.touches[i], mix(t.fixed || t.back ? V.blueDim : V.blueMid, V.blue, q), lw * (t.back ? 0.8 : 1) + 0.5 * q, { alpha: (t.back ? 0.6 : 0.9) + 0.1 * q, hot: q > 0.5, dash: t.back && q < 0.5 ? [3, 3] : undefined });
+    beam(ctx, L.touches[i], mix(t.fixed || t.back ? V.lineDim : V.lineMid, V.line, q), lw * (t.back ? 0.8 : 1) + 0.5 * q, { alpha: (t.back ? 0.6 : 0.9) + 0.1 * q, hot: q > 0.5, dash: t.back && q < 0.5 ? [3, 3] : undefined });
   });
-  beam(ctx, L.posts, V.blueMid, 1);
+  beam(ctx, L.posts, V.lineMid, 1);
   // ---- the keys: each a circle (a side pad a narrow ellipse) on a hairline arm from its hinge; shut,
   // bright and crossed (the back's dashed, bright while their key moves them)
   const arms = new Path2D();
@@ -125,7 +125,7 @@ export function drawBassoonV(ctx: CanvasRenderingContext2D, W: number, H: number
       const moved = k.closed ? p : 1 - p;
       ctx.beginPath();
       ctx.arc(cx, cy, rx, 0, 2 * Math.PI);
-      beam(ctx, null, mix(V.blueDim, V.blue, moved), 1 + 0.5 * moved, { alpha: 0.55 + 0.45 * moved, dash: moved < 0.5 ? [3, 3] : undefined, hot: moved > 0.5 });
+      beam(ctx, null, mix(V.lineDim, V.line, moved), 1 + 0.5 * moved, { alpha: 0.55 + 0.45 * moved, dash: moved < 0.5 ? [3, 3] : undefined, hot: moved > 0.5 });
       return;
     }
     if (k.rod && k.style !== 'side') {
@@ -140,13 +140,13 @@ export function drawBassoonV(ctx: CanvasRenderingContext2D, W: number, H: number
     ry *= s;
     ctx.beginPath();
     ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
-    beam(ctx, null, mix(V.blueMid, V.blue, shut), lw + 0.5 * shut, { alpha: 0.75 + 0.25 * shut, hot: shut > 0.5 && (k.style === 'hole' || k.style === 'ring') });
+    beam(ctx, null, mix(V.lineMid, V.line, shut), lw + 0.5 * shut, { alpha: 0.75 + 0.25 * shut, hot: shut > 0.5 && (k.style === 'hole' || k.style === 'ring') });
     if (k.style === 'hole' || k.style === 'ring') {
       const hr = k.hole * sc;
-      ring(ctx, cx, cy, Math.max(0.6, hr), mix(V.blueMid, V.blue, shut), 1, { alpha: 0.8 + 0.2 * shut });
+      ring(ctx, cx, cy, Math.max(0.6, hr), mix(V.lineMid, V.line, shut), 1, { alpha: 0.8 + 0.2 * shut });
       // (L1 rolled down for the half-hole: its upper half left open)
       const q = lv.keyPress[i];
-      if (q > 0.05) dot(ctx, cx - (k.id === 'l1' ? lv.half * hr * 0.5 : 0), cy, Math.max(0.6, hr * 0.7 * (k.id === 'l1' ? 1 - 0.4 * lv.half : 1)), V.blue, 0.8 * q);
+      if (q > 0.05) dot(ctx, cx - (k.id === 'l1' ? lv.half * hr * 0.5 : 0), cy, Math.max(0.6, hr * 0.7 * (k.id === 'l1' ? 1 - 0.4 * lv.half : 1)), V.line, 0.8 * q);
     }
     if (shut > 0.05 && rx > 1.5 && ry > 1.5) {
       const kx = 0.5 * Math.SQRT1_2;
@@ -155,12 +155,12 @@ export function drawBassoonV(ctx: CanvasRenderingContext2D, W: number, H: number
       ctx.lineTo(cx + rx * kx, cy + ry * kx);
       ctx.moveTo(cx + rx * kx, cy - ry * kx);
       ctx.lineTo(cx - rx * kx, cy + ry * kx);
-      beam(ctx, null, V.blue, lw, { alpha: shut * (k.style === 'cup' ? 0.75 : 1), hot: true });
+      beam(ctx, null, V.line, lw, { alpha: shut * (k.style === 'cup' ? 0.75 : 1), hot: true });
     }
   });
-  beam(ctx, arms, V.blueDim, 1);
+  beam(ctx, arms, V.lineDim, 1);
   // ---- the reed's tip: the opening between the blades, an eye (exaggerated), shut once a cycle when loud
-  beam(ctx, reedEyePath(L, Math.max(0, lv.open) * 0.001 * sc), V.blue, lw, { hot: true });
+  beam(ctx, reedEyePath(L, Math.max(0, lv.open) * 0.001 * sc), V.line, lw, { hot: true });
   // ---- the slots at the reed, each where its knob acts
   const hr = clamp(0.0034 * sc, 2.6, 6);
   const live = Math.min(1, 0.45 + 2 * lv.blow);
@@ -181,26 +181,26 @@ export function drawBassoonV(ctx: CanvasRenderingContext2D, W: number, H: number
     const nd = small ? 4 : 7;
     for (let i = 0; i < nd; i++) {
       const [px, py] = out(-0.0006 - hash(frame * 13 + i * 7.3) * 0.008, (hash(frame * 5 + i * 3.1 + 40) * 2 - 1) * 0.004);
-      dot(ctx, px, py, small ? 0.9 : 1.2, V.pink, Math.min(1, 0.35 + lv.blow) * (0.5 + 0.5 * hash(frame + i)));
+      dot(ctx, px, py, small ? 0.9 : 1.2, V.slot3, Math.min(1, 0.35 + lv.blow) * (0.5 + 0.5 * hash(frame + i)));
     }
   }
   // the lips' handle (green: the breath) past the tip, and round it the vibrato's ring (white)
   const [hx, hy] = out(aH, 0);
   const [bx, by] = out(xb, 0);
-  seg(ctx, hx - L.tdx * hr, hy - L.tdy * hr, bx, by, V.green, 1, { alpha: 0.5 * live });
-  handle(ctx, hx, hy, V.green, hr, live);
-  ring(ctx, hx, hy, hr + 3.5 + clamp(lv.vib * 60, -2.5, 6), V.white, 1, { alpha: 0.5 + 0.5 * Math.min(1, Math.abs(lv.vib) * 30 + lv.blow) });
+  seg(ctx, hx - L.tdx * hr, hy - L.tdy * hr, bx, by, V.slot1, 1, { alpha: 0.5 * live });
+  handle(ctx, hx, hy, V.slot1, hr, live);
+  ring(ctx, hx, hy, hr + 3.5 + clamp(lv.vib * 60, -2.5, 6), V.slot4, 1, { alpha: 0.5 + 0.5 * Math.min(1, Math.abs(lv.vib) * 30 + lv.blow) });
   // the embouchure (red): the lips on both blades a little from the tip, its handle beside
   const pinch = new Path2D();
   for (const sg of [-1, 1]) {
     pinch.moveTo(...out(-0.004, sg * 0.0084));
     pinch.lineTo(...out(-0.014, sg * 0.0082));
   }
-  beam(ctx, pinch, V.red, 1, { alpha: 0.85 * live });
+  beam(ctx, pinch, V.slot2, 1, { alpha: 0.85 * live });
   const [ex, ey] = out(-0.009, 0.0084);
   const [rx, ry] = out(-0.009, 0.0084 + Math.max(0.0085, (hr + 6) / sc));
-  seg(ctx, ex, ey, rx, ry, V.red, 1, { alpha: 0.5 * live });
-  handle(ctx, rx, ry, V.red, hr, live);
+  seg(ctx, ex, ey, rx, ry, V.slot2, 1, { alpha: 0.5 * live });
+  handle(ctx, rx, ry, V.slot2, hr, live);
   // ---- the wave's line along the bore, over everything (its nodes stand still, marked)
   if (lv.sounding) {
     const axis = new Path2D();
@@ -213,7 +213,7 @@ export function drawBassoonV(ctx: CanvasRenderingContext2D, W: number, H: number
       if (i) axis.lineTo(b.px + b.nx * v, b.py + b.ny * v);
       else axis.moveTo(b.px + b.nx * v, b.py + b.ny * v);
     }
-    beam(ctx, axis, V.amber, small ? 1.2 : 1.5, { alpha: Math.min(1, 3 * lvl), hot: true });
+    beam(ctx, axis, V.sound, small ? 1.2 : 1.5, { alpha: Math.min(1, 3 * lvl), hot: true });
     const ticks = new Path2D();
     for (const x of lv.nodes) {
       const b = borePx(L, x);
@@ -221,11 +221,11 @@ export function drawBassoonV(ctx: CanvasRenderingContext2D, W: number, H: number
       ticks.moveTo(b.px - b.nx * w, b.py - b.ny * w);
       ticks.lineTo(b.px + b.nx * w, b.py + b.ny * w);
     }
-    beam(ctx, ticks, V.amber, 1, { alpha: 0.6 * Math.min(1, 3 * lvl), butt: true });
+    beam(ctx, ticks, V.sound, 1, { alpha: 0.6 * Math.min(1, 3 * lvl), butt: true });
     // (the sounding length's far end: where the wave leaves the bore, past the first open hole)
     if (!small && !L.vertical) {
       const b = borePx(L, e);
-      label(ctx, `${Math.round(end * 1000)} mm`, b.px + 6, e > X_ASC ? Y(0.064) : Y(-0.052), { size: 10, color: V.amber, alpha: 0.75 * Math.min(1, 3 * lvl) });
+      label(ctx, `${Math.round(end * 1000)} mm`, b.px + 6, e > X_ASC ? Y(0.064) : Y(-0.052), { size: 10, color: V.sound, alpha: 0.75 * Math.min(1, 3 * lvl) });
     }
   }
   ctx.restore();

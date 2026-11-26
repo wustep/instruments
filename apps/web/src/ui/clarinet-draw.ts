@@ -34,6 +34,7 @@
 import type { VisualFrame } from '@piano-model/engine';
 import { L1, L2, L3, LA, LCS, LE, LFS, LGS, R1, R2, R3, RAB, RB, RE, REG, RF, SEB, T, clarinetFingersFor, clarinetRegister } from './clarinet-fingering.ts';
 import { AutoScale, INK, boreAt, breathStream, newBoreWave, rgba, slowPhase, spring01, trackBoreWave, type BoreWave } from './stage-draw.ts';
+import { ownDrawer } from '../themes/drawers.ts';
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 export interface ClarinetState {
@@ -679,8 +680,8 @@ const silver = (a: number) => rgba('230,232,236', a);
 const SILVER_BODY = 'rgb(62,64,68)';
 /** the grenadilla's fill: dark wood, lifted just enough to read against the stage (contrast over 1.3:1, test) */
 export const WOOD = '#332820';
-const waveInk = (v: number) => (v >= 0 ? INK.vermilion : INK.steel);
-const D2R = Math.PI / 180;
+export const waveInk = (v: number) => (v >= 0 ? INK.sound : INK.cool);
+export const D2R = Math.PI / 180;
 
 /** The clarinet from the front: the mouthpiece's beak with its ligature and the reed's tip opening and
  *  shutting with the engine's reed (drawn slowed), the grenadilla joints with their silver rings and
@@ -689,6 +690,8 @@ const D2R = Math.PI / 180;
  *  reed to where it leaves the tube, its envelope either side. `top`: the file player's px over the box's
  *  top. */
 export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: ClarinetState, top = 0): void {
+  const own = ownDrawer('clarinet');
+  if (own) return own(ctx, W, H, fr, st, top);
   const L = clarinetLayout(W, H, top);
   const { sc, c, Hm } = L;
   const X = (x: number) => L.x0 + x * sc;
@@ -721,9 +724,9 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
       }
       ctx.lineTo(X(end), Y(sgn * clLobeBase(Math.min(CL_LEN, end))));
       ctx.closePath();
-      ctx.fillStyle = rgba(INK.vermilion, 0.07 * lvl + 0.03);
+      ctx.fillStyle = rgba(INK.sound, 0.07 * lvl + 0.03);
       ctx.fill();
-      ctx.strokeStyle = rgba(INK.vermilion, 0.16 + 0.22 * lvl);
+      ctx.strokeStyle = rgba(INK.sound, 0.16 + 0.22 * lvl);
       ctx.lineWidth = 1;
       ctx.stroke();
     }
@@ -741,7 +744,7 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
   ctx.fill(L.mp);
   ctx.fillStyle = 'rgba(225,228,236,0.14)';
   ctx.fill(L.mpRidge);
-  ctx.strokeStyle = rgba(INK.ivory, 0.26);
+  ctx.strokeStyle = rgba(INK.line, 0.26);
   ctx.lineWidth = 1;
   ctx.stroke(L.mp);
   // ---- the wood: grenadilla, near black, polished, lit from above the player's left
@@ -764,19 +767,19 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
   ctx.strokeStyle = 'rgba(0,0,0,0.55)';
   ctx.lineWidth = 1;
   ctx.stroke(L.seams);
-  ctx.strokeStyle = rgba(INK.ivory, 0.4);
+  ctx.strokeStyle = rgba(INK.line, 0.4);
   ctx.lineWidth = 1;
   ctx.stroke(L.body);
-  ctx.strokeStyle = rgba(INK.ivory, 0.32);
+  ctx.strokeStyle = rgba(INK.line, 0.32);
   ctx.stroke(L.rimUp);
   // the bell's mouth: its rim's face, the inner lip, the dark of the bore
   ctx.fillStyle = '#41342a';
   ctx.fill(L.mouth);
-  ctx.strokeStyle = rgba(INK.ivory, 0.3);
+  ctx.strokeStyle = rgba(INK.line, 0.3);
   ctx.stroke(L.mouth);
   ctx.fillStyle = '#050403';
   ctx.fill(L.mouthIn);
-  ctx.strokeStyle = rgba(INK.ivory, 0.14);
+  ctx.strokeStyle = rgba(INK.line, 0.14);
   ctx.stroke(L.mouthIn);
   // ---- the tone holes in the wood: L3's raised chimney, the rings' holes, a pad's hole as it lifts
   CL_KEYS.forEach((k, i) => {
@@ -811,7 +814,7 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
     const N = 56;
     for (let i = 0; i <= N; i++) {
       const A = lv.ampAt((end * i) / N);
-      ge.addColorStop(i / N, rgba(INK.vermilion, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
+      ge.addColorStop(i / N, rgba(INK.sound, 0.3 * Math.min(1, Math.pow(Math.abs(A), 1.5))));
       gw.addColorStop(i / N, rgba(waveInk(A * ph), 0.46 * Math.min(1, Math.pow(Math.abs(A * ph), 1.15))));
     }
     ctx.save();
@@ -863,12 +866,12 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
     if (!t.back) return;
     const q = lv.touchPress[i];
     if (q > 0.01) {
-      ctx.fillStyle = rgba(INK.amber, 0.16 * q);
+      ctx.fillStyle = rgba(INK.warm, 0.16 * q);
       ctx.fill(L.touches[i]);
     }
     ctx.save();
     ctx.setLineDash([0.0016 * sc, 0.0012 * sc]);
-    ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.35 + 0.35 * q) : rgba(INK.ivory, 0.2);
+    ctx.strokeStyle = q > 0.5 ? rgba(INK.warm, 0.35 + 0.35 * q) : rgba(INK.line, 0.2);
     ctx.lineWidth = 1;
     ctx.stroke(L.touches[i]);
     ctx.restore();
@@ -927,10 +930,10 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
     ctx.fillStyle = g;
     ctx.fill(path);
     if (q > 0.01) {
-      ctx.fillStyle = rgba(INK.amber, 0.5 * q);
+      ctx.fillStyle = rgba(INK.warm, 0.5 * q);
       ctx.fill(path);
     }
-    ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.55 + 0.35 * q) : rgba(INK.ivory, t.fixed ? 0.32 : 0.45);
+    ctx.strokeStyle = q > 0.5 ? rgba(INK.warm, 0.55 + 0.35 * q) : rgba(INK.line, t.fixed ? 0.32 : 0.45);
     ctx.lineWidth = 1 + 0.4 * q;
     ctx.stroke(path);
   });
@@ -967,7 +970,7 @@ export function drawClarinet(ctx: CanvasRenderingContext2D, W: number, H: number
       if (i) ctx.lineTo(X(x), Y(-v));
       else ctx.moveTo(X(x), Y(-v));
     }
-    ctx.strokeStyle = rgba(INK.ivory, 0.75 * Math.min(1, 3 * lvl));
+    ctx.strokeStyle = rgba(INK.line, 0.75 * Math.min(1, 3 * lvl));
     ctx.lineWidth = 1.2;
     ctx.stroke();
   }
@@ -997,7 +1000,7 @@ function clArm(ctx: CanvasRenderingContext2D, x: number, y0: number, y1: number,
   ctx.closePath();
   ctx.fillStyle = '#282623';
   ctx.fill();
-  ctx.strokeStyle = rgba(INK.ivory, 0.4);
+  ctx.strokeStyle = rgba(INK.line, 0.4);
   ctx.lineWidth = 0.9;
   ctx.stroke();
 }
@@ -1026,10 +1029,10 @@ function clCup(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number
   ctx.fillStyle = g;
   ctx.fill();
   if (moved > 0.01) {
-    ctx.fillStyle = rgba(INK.amber, 0.14 * moved);
+    ctx.fillStyle = rgba(INK.warm, 0.14 * moved);
     ctx.fill();
   }
-  ctx.strokeStyle = moved > 0.5 ? rgba(INK.amber, 0.45 + 0.35 * moved) : rgba(INK.ivory, 0.5);
+  ctx.strokeStyle = moved > 0.5 ? rgba(INK.warm, 0.45 + 0.35 * moved) : rgba(INK.line, 0.5);
   ctx.lineWidth = 1 + 0.4 * moved;
   ctx.stroke();
   if (p > 0.05) {
@@ -1041,7 +1044,7 @@ function clCup(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number
   if (ry > 2.5) {
     ctx.beginPath();
     ctx.ellipse(cx, cy, rx * 0.74, Math.max(0.4, ry * 0.74), 0, 0, 2 * Math.PI);
-    ctx.strokeStyle = rgba(INK.ivory, 0.16);
+    ctx.strokeStyle = rgba(INK.line, 0.16);
     ctx.lineWidth = 1;
     ctx.stroke();
     // the dome's highlight
@@ -1079,24 +1082,24 @@ function clRing(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number
   g.addColorStop(1, silver(0.12));
   ctx.fillStyle = g;
   ctx.fill('evenodd');
-  ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.5 + 0.35 * q) : rgba(INK.ivory, 0.5);
+  ctx.strokeStyle = q > 0.5 ? rgba(INK.warm, 0.5 + 0.35 * q) : rgba(INK.line, 0.5);
   ctx.lineWidth = 1 + 0.4 * q;
   ctx.beginPath();
   ctx.arc(cx, cy, ro, 0, 2 * Math.PI);
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(cx, cy, ri, 0, 2 * Math.PI);
-  ctx.strokeStyle = rgba(INK.ivory, 0.32);
+  ctx.strokeStyle = rgba(INK.line, 0.32);
   ctx.lineWidth = 0.8;
   ctx.stroke();
   if (q > 0.01) {
     ctx.beginPath();
     ctx.arc(cx, cy, ro * 0.95, 0, 2 * Math.PI);
-    ctx.fillStyle = rgba(INK.amber, 0.16 * q);
+    ctx.fillStyle = rgba(INK.warm, 0.16 * q);
     ctx.fill();
     ctx.beginPath();
     ctx.arc(cx, cy, ri * 1.02, 0, 2 * Math.PI);
-    ctx.fillStyle = rgba(INK.amber, 0.72 * q);
+    ctx.fillStyle = rgba(INK.warm, 0.72 * q);
     ctx.fill();
   }
 }
@@ -1105,9 +1108,9 @@ function clPlain(ctx: CanvasRenderingContext2D, cx: number, cy: number, hole: nu
   if (q <= 0.01) return;
   ctx.beginPath();
   ctx.arc(cx, cy, hole * 1.35, 0, 2 * Math.PI);
-  ctx.fillStyle = rgba(INK.amber, 0.72 * q);
+  ctx.fillStyle = rgba(INK.warm, 0.72 * q);
   ctx.fill();
-  ctx.strokeStyle = rgba(INK.amber, 0.5 + 0.35 * q);
+  ctx.strokeStyle = rgba(INK.warm, 0.5 + 0.35 * q);
   ctx.lineWidth = 1 + 0.4 * q;
   ctx.stroke();
 }
@@ -1119,16 +1122,16 @@ function ghostKey(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: numb
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, 2 * Math.PI);
   if (q > 0.01) {
-    ctx.fillStyle = rgba(INK.amber, 0.2 * q);
+    ctx.fillStyle = rgba(INK.warm, 0.2 * q);
     ctx.fill();
   }
-  ctx.strokeStyle = q > 0.5 ? rgba(INK.amber, 0.4 + 0.35 * q) : rgba(INK.ivory, 0.22);
+  ctx.strokeStyle = q > 0.5 ? rgba(INK.warm, 0.4 + 0.35 * q) : rgba(INK.line, 0.22);
   ctx.lineWidth = 1;
   ctx.stroke();
   if (hole > 0) {
     ctx.beginPath();
     ctx.arc(cx, cy, hole, 0, 2 * Math.PI);
-    ctx.strokeStyle = rgba(INK.ivory, 0.14);
+    ctx.strokeStyle = rgba(INK.line, 0.14);
     ctx.stroke();
   }
   ctx.restore();

@@ -2,6 +2,8 @@
 // assistive tech), pedals you can hold, and line-drawn instrument glyphs.
 
 import type { InstrumentId } from '@piano-model/engine';
+import { onTheme, theme } from '../themes/index.ts';
+import type { Pointer } from '../themes/types.ts';
 import { h } from './dom.ts';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -40,6 +42,16 @@ const arc = (r: number, a0: number, a1: number) => {
 const A0 = (-135 * Math.PI) / 180;
 const A1 = (135 * Math.PI) / 180;
 
+/** Turn a dial's pointer to the angle `a` on its 40 px face: the theme's own (themes/types.ts `Pointer`),
+ *  a hand from the cap's middle or a mark at its rim. */
+export function pointTo(ptr: SVGElement, a: number, [from, to]: Pointer): void {
+  const at = (r: number, f: number) => (r ? (20 + f * r).toFixed(2) : '20');
+  ptr.setAttribute('x1', at(from, Math.sin(a)));
+  ptr.setAttribute('y1', at(from, -Math.cos(a)));
+  ptr.setAttribute('x2', at(to, Math.sin(a)));
+  ptr.setAttribute('y2', at(to, -Math.cos(a)));
+}
+
 export function knob(c: KnobSpec, v0: number, onChange: (v: number) => void): { el: HTMLElement; set(v: number): void } {
   const track = svg('path', { d: arc(15, A0, A1), class: 'k-track' });
   const val = svg('path', { d: arc(15, A0, A0 + 0.01), class: 'k-val-arc' });
@@ -60,8 +72,7 @@ export function knob(c: KnobSpec, v0: number, onChange: (v: number) => void): { 
   const paint = () => {
     const a = A0 + (A1 - A0) * unit;
     val.setAttribute('d', arc(15, A0, Math.max(A0 + 0.01, a)));
-    ptr.setAttribute('x2', (20 + 9 * Math.sin(a)).toFixed(2));
-    ptr.setAttribute('y2', (20 - 9 * Math.cos(a)).toFixed(2));
+    pointTo(ptr, a, theme().chrome.knobPointer);
     const v = Math.round(fromUnit(c, unit) / c.step) * c.step;
     readout.textContent = c.fmt(v);
     input.value = String(unit);
@@ -109,6 +120,9 @@ export function knob(c: KnobSpec, v0: number, onChange: (v: number) => void): { 
     { passive: false },
   );
   paint();
+  // (another theme's pointer is another line; a knob no longer on the page, another instrument's, stops
+  // listening)
+  const off = onTheme(() => (el.isConnected ? paint() : off()));
   return {
     el,
     set(v: number) {

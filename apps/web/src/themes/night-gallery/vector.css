@@ -1,0 +1,533 @@
+/* The vector lines: the 2D stage's other style (ui/vector/kit.ts has the drawing and the colour roles).
+   Everything here is scoped to :root[data-style='vector'], which the stage sets only while that style
+   shows (2D, the stage's route): with the attribute absent nothing below applies.
+
+   In the Night Gallery it is a drawing in light on the same wall, turned down: the wall a step darker and
+   bare (no wash from the rail: the drawing is the only light), one hairline for the floor. Chrome follows
+   the drawing: lines instead of filled panels, argon blue for the instrument's furniture, tungsten amber
+   for what sounds, and each knob in its slot colour (--slot, set per knob by the stage). Type is Hershey
+   Simplex, single-stroke capitals. */
+@font-face {
+  /* AVHershey Simplex by Stewart C. Russell (CC0 / WTFPL), from A. V. Hershey's public-domain
+     vector fonts (US Naval Weapons Laboratory, 1967) */
+  font-family: 'Hershey';
+  src: url('/fonts/AVHersheySimplexLight.otf') format('opentype');
+  font-weight: 300;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Hershey';
+  src: url('/fonts/AVHersheySimplexMedium.otf') format('opentype');
+  font-weight: 500;
+  font-display: swap;
+}
+
+:root[data-style='vector'] {
+  --v-blue: #86bdea;
+  --v-blue-mid: #5a8fbf;
+  --v-blue-dim: #3a6289;
+  --v-frame: #1d3147;
+  --v-amber: #ffc56e;
+  --v-text: #e3f0fa;
+  --v-ground: #08090b;
+  --ground: #08090b;
+  --wall-rgb: 8 9 11;
+  --wall-0: #040506;
+  --wall-0-rgb: 4 5 6;
+  --wall-2: #08090b;
+  --ink: var(--v-text);
+  --ink-rgb: 227 240 250;
+  --ink-2: var(--v-blue);
+  --muted: var(--v-blue-mid);
+  --rule: var(--v-frame);
+  --rule-2: var(--v-blue-dim);
+  --light: var(--v-text);
+  --light-rgb: 227 240 250;
+  --tungsten: var(--v-amber);
+  --steel: var(--v-blue);
+  --accent: var(--v-amber);
+  --ref: var(--v-blue);
+  --focus: var(--v-amber);
+  --hershey: 'Hershey', ui-monospace, 'SF Mono', Menlo, monospace;
+  --face: var(--hershey);
+  --code: var(--hershey);
+  --radius: 0px;
+  /* a fixture here is a line of the drawing: no pool of light under it */
+  --spot: none;
+  --fixture: inset 0 1px 0 var(--v-blue);
+}
+:root[data-style='vector'] body {
+  background-image: none;
+  font-weight: 500;
+}
+
+:root[data-style='vector'] .lamp {
+  border-color: var(--v-amber);
+}
+:root[data-style='vector'][data-audio='running'] .lamp {
+  background: var(--v-amber);
+}
+:root[data-style='vector'] .midi::before {
+  border-color: var(--v-amber);
+}
+:root[data-style='vector'] .midi.blink::before {
+  background: var(--v-amber);
+}
+
+/* ------------------------------------------------------------ the stage: the wall turned down, a floor line */
+:root[data-style='vector'] .stage {
+  background: var(--v-ground);
+}
+:root[data-style='vector'] .stage::before {
+  background: none;
+}
+:root[data-style='vector'] .stage::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 14px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--v-blue-dim), var(--v-frame) 45%, rgb(29 49 71 / 0.4));
+  pointer-events: none;
+  z-index: 1;
+}
+:root[data-style='vector'][data-nokeys] .stage:not(.is-3d)::after {
+  bottom: 26px;
+}
+
+/* ------------------------------------------------------------ the rail and the label, in the display's lines */
+:root[data-style='vector'] .top {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+:root[data-style='vector'] .top::after {
+  background: linear-gradient(90deg, var(--v-blue-dim), var(--v-frame) 45%, rgb(29 49 71 / 0.4));
+}
+:root[data-style='vector'] .pick,
+:root[data-style='vector'] .ens-toggle {
+  text-transform: uppercase;
+  color: var(--v-blue-mid);
+}
+:root[data-style='vector'] .pick:hover,
+:root[data-style='vector'] .ens-toggle:hover {
+  color: var(--v-blue);
+}
+:root[data-style='vector'] .pick[aria-pressed='true'],
+:root[data-style='vector'] .ens-toggle[aria-pressed='true'] {
+  color: var(--v-text);
+  background: none;
+}
+:root[data-style='vector'] .pick-name {
+  letter-spacing: 0.02em;
+}
+:root[data-style='vector'] .pick[aria-pressed='true'] .glyph,
+:root[data-style='vector'] .pick-open .glyph,
+:root[data-style='vector'] .part[data-on] .glyph {
+  stroke: var(--v-blue);
+}
+:root[data-style='vector'] .ens-toggle[aria-pressed='true'] .ens-icon {
+  color: var(--v-blue);
+}
+:root[data-style='vector'] .pick-n,
+:root[data-style='vector'] .part-n {
+  color: var(--v-amber);
+}
+:root[data-style='vector'] .view-seg button,
+:root[data-style='vector'] .presets button {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--v-blue-mid);
+}
+:root[data-style='vector'] .view-seg button[aria-pressed='true'],
+:root[data-style='vector'] .presets button[aria-pressed='true'],
+:root[data-style='vector'] .case-toggle[aria-pressed='true'] {
+  color: var(--v-text);
+  background: none;
+}
+:root[data-style='vector'] .pick-open {
+  color: var(--v-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+:root[data-style='vector'] .links a[aria-current='page'] {
+  background: none;
+  box-shadow: inset 0 1px 0 var(--v-amber);
+}
+/* the notes are the sound: amber */
+:root[data-style='vector'] .r-note {
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  color: var(--v-amber);
+}
+:root[data-style='vector'] .r-hz {
+  color: var(--v-amber);
+  opacity: 0.8;
+  text-transform: uppercase;
+}
+:root[data-style='vector'] .part {
+  color: var(--v-blue-dim);
+}
+:root[data-style='vector'] .part[data-on] {
+  color: var(--v-amber);
+}
+:root[data-style='vector'] .part-notes {
+  color: var(--v-amber);
+}
+@media (max-width: 1340px), (max-height: 500px) and (orientation: landscape) {
+  :root[data-style='vector'] .picker-pop {
+    background: var(--v-ground);
+    border-color: var(--v-blue-dim);
+  }
+  :root[data-style='vector'] .pick[aria-pressed='true'],
+  :root[data-style='vector'][data-ensemble] .pick[aria-pressed='true'] {
+    background: none;
+    box-shadow: inset 0 0 0 1px var(--v-blue-dim);
+  }
+  :root[data-style='vector'] .picker[data-open] .pick-open {
+    background-color: transparent;
+  }
+}
+
+/* the picker's glyphs lose their fills: outlines only */
+:root[data-style='vector'] .glyph .g-body,
+:root[data-style='vector'] .glyph .g-ebony,
+:root[data-style='vector'] .glyph .g-keys,
+:root[data-style='vector'] .glyph .g-tube-body,
+:root[data-style='vector'] .glyph .g-key {
+  fill: none;
+}
+
+:root[data-style='vector'] .scope-cap {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+:root[data-style='vector'] .sk-bg {
+  fill: rgb(4 5 6 / 0.8);
+  stroke: var(--v-blue-dim);
+}
+:root[data-style='vector'] .stage-knob .k-ticks line {
+  stroke: var(--v-blue-dim);
+}
+:root[data-style='vector'] .stage-knob .k-ticks .sk-notch {
+  stroke: var(--v-blue-mid);
+}
+:root[data-style='vector'] .sk-glyph {
+  stroke: var(--v-blue-mid);
+}
+:root[data-style='vector'] .stage-knob .k-val-arc {
+  stroke: var(--v-blue);
+}
+:root[data-style='vector'] .stage-knob:hover .sk-bg,
+:root[data-style='vector'] .stage-knob.dragging .sk-bg,
+:root[data-style='vector'] .stage-knob:focus-visible .sk-bg,
+:root[data-style='vector'] .stage-knob:hover .sk-glyph,
+:root[data-style='vector'] .stage-knob.dragging .sk-glyph,
+:root[data-style='vector'] .stage-knob:focus-visible .sk-glyph {
+  stroke: var(--v-blue);
+}
+:root[data-style='vector'] body > .tip {
+  font: 500 11px/1.3 var(--hershey);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--v-ground);
+  border-color: var(--v-blue-dim);
+  box-shadow: none;
+}
+:root[data-style='vector'] .player {
+  background: rgb(4 5 6 / 0.8);
+  border: 1px solid var(--v-frame);
+}
+:root[data-style='vector'] .pl-btn {
+  color: var(--v-blue);
+}
+:root[data-style='vector'] .pl-btn:hover,
+:root[data-style='vector'] .pl-expr[aria-pressed='true'],
+:root[data-style='vector'] .pl-route[aria-expanded='true'],
+:root[data-style='vector'] .pl-pieces[aria-expanded='true'],
+:root[data-style='vector'] .pl-sheet[aria-pressed='true'] {
+  color: var(--v-amber);
+  background: none;
+}
+:root[data-style='vector'] .pl-fill {
+  background: var(--v-amber);
+}
+:root[data-style='vector'] .pl-line.on,
+:root[data-style='vector'] .pg-row.on {
+  color: var(--v-amber);
+}
+:root[data-style='vector'] .pg-cell[aria-pressed='true']::before {
+  border-color: var(--v-amber);
+  background: var(--v-amber);
+}
+:root[data-style='vector'] .pg-all[aria-pressed='true']::before {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--v-amber);
+}
+:root[data-style='vector'] .pl-ln[aria-checked='true'] {
+  background: var(--v-amber);
+}
+:root[data-style='vector'] .score-menu,
+:root[data-style='vector'] .pl-menu,
+:root[data-style='vector'] .pl-grid {
+  background: var(--v-ground);
+  border-color: var(--v-blue-dim);
+  box-shadow: none;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* the sheet music: the score in the display's lines, the wall for ground, a hairline frame; what sounds in amber */
+:root[data-style='vector'] .sheet {
+  --sheet-paper: var(--v-ground);
+  --sheet-ink: var(--v-blue);
+  --sheet-rule: var(--v-blue-dim);
+  --sheet-dim: var(--v-blue-mid);
+  --sheet-on: var(--v-amber);
+}
+:root[data-style='vector'] .sheet-paper {
+  border: 1px solid var(--v-frame);
+  background: var(--v-ground);
+  box-shadow: none;
+}
+:root[data-style='vector'] .sheet-part,
+:root[data-style='vector'] .sheet-part-name,
+:root[data-style='vector'] .sheet-title {
+  font-style: normal;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+:root[data-style='vector'] .sheet-part,
+:root[data-style='vector'] .sheet-part-name {
+  color: var(--v-text);
+}
+:root[data-style='vector'] .sheet-part:hover,
+:root[data-style='vector'] .sheet-part[aria-expanded='true'] {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--v-blue-dim);
+}
+:root[data-style='vector'] .sheet-menu {
+  background: var(--v-ground);
+  border-color: var(--v-blue-dim);
+  box-shadow: none;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+:root[data-style='vector'] .sheet-pick[aria-checked='true'] {
+  color: var(--v-amber);
+}
+
+/* ------------------------------------------------------------ the plinth: pedals, octave, encoders */
+:root[data-style='vector'] .fallboard {
+  background: var(--wall-0);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+:root[data-style='vector'] .fallboard::before {
+  background: linear-gradient(90deg, var(--v-blue-dim), var(--v-frame) 45%, rgb(29 49 71 / 0.4));
+}
+:root[data-style='vector'] .pedal,
+:root[data-style='vector'] .knob-toggle {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+:root[data-style='vector'] .p-foot {
+  fill: none;
+  stroke: var(--v-blue-mid);
+  stroke-width: 1.1;
+}
+:root[data-style='vector'] .p-shine {
+  stroke: var(--v-blue-dim);
+}
+:root[data-style='vector'] .pedal[aria-pressed='true'] .p-foot {
+  fill: rgb(134 189 234 / 0.16);
+  stroke: var(--v-text);
+}
+:root[data-style='vector'] .pedal[aria-pressed='true'] .p-shine {
+  stroke: var(--v-blue);
+}
+:root[data-style='vector'] .pedal[aria-pressed='true'] .p-name {
+  color: var(--v-text);
+}
+:root[data-style='vector'] .oct-btn {
+  color: var(--v-blue);
+}
+:root[data-style='vector'] .oct-label {
+  color: var(--v-text);
+}
+/* a knob is an encoder in its slot colour: ring, pointer and reading */
+:root[data-style='vector'] .k-ticks line {
+  stroke: var(--v-blue-dim);
+}
+:root[data-style='vector'] .k-track {
+  stroke: var(--v-frame);
+  stroke-width: 1.2;
+}
+:root[data-style='vector'] .k-val-arc {
+  stroke: var(--slot, var(--v-blue));
+  stroke-width: 1.6;
+}
+:root[data-style='vector'] .k-cap,
+:root[data-style='vector'] .knob:hover .k-cap,
+:root[data-style='vector'] .knob.turning .k-cap,
+:root[data-style='vector'] .knob:focus-within .k-cap {
+  fill: none;
+  stroke: var(--v-blue-dim);
+}
+:root[data-style='vector'] .knob:hover .k-cap,
+:root[data-style='vector'] .knob.turning .k-cap,
+:root[data-style='vector'] .knob:focus-within .k-cap {
+  stroke: var(--slot, var(--v-blue));
+}
+:root[data-style='vector'] .k-ptr {
+  stroke: var(--slot, var(--v-blue));
+  stroke-width: 1.4;
+}
+:root[data-style='vector'] .k-name {
+  color: var(--slot, var(--v-blue));
+  opacity: 0.85;
+}
+:root[data-style='vector'] .k-read {
+  color: var(--slot, var(--v-blue));
+}
+:root[data-style='vector'] .k-reset {
+  color: var(--v-blue-mid);
+}
+
+/* ------------------------------------------------------------ keyboard: keys in outline */
+:root[data-style='vector'] .keyboard {
+  box-shadow:
+    inset 1px 0 0 var(--v-blue-dim),
+    inset 0 1px 0 var(--v-blue-dim);
+}
+:root[data-style='vector'] .key.white {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow:
+    inset -1px 0 0 var(--v-blue-dim),
+    inset 0 -1px 0 var(--v-blue-dim);
+  transition: none;
+}
+/* the black keys: an outline, hatched so they read as the raised row */
+:root[data-style='vector'] .key.black {
+  background:
+    repeating-linear-gradient(135deg, rgb(134 189 234 / 0.34) 0 1px, transparent 1px 5px),
+    var(--wall-0);
+  border-radius: 0;
+  box-shadow: inset 0 0 0 1px var(--v-blue-mid);
+  transition: none;
+}
+/* pressed: the outline brightens; sounding (the engine's own allocation): amber */
+:root[data-style='vector'] .key.down.white {
+  transform: none;
+  background: rgb(134 189 234 / 0.14);
+  box-shadow: inset 0 0 0 1px var(--v-text);
+}
+:root[data-style='vector'] .key.down.black {
+  transform: none;
+  box-shadow: inset 0 0 0 1px var(--v-text);
+}
+:root[data-style='vector'] .key.sounding.white {
+  background: rgb(255 197 110 / 0.18);
+  box-shadow: inset 0 0 0 1px var(--v-amber);
+}
+:root[data-style='vector'] .key.sounding.black {
+  background:
+    repeating-linear-gradient(135deg, rgb(255 197 110 / 0.75) 0 1px, transparent 1px 5px),
+    var(--wall-0);
+  box-shadow: inset 0 0 0 1px var(--v-amber);
+}
+:root[data-style='vector'] .key.out.white {
+  background: none;
+  box-shadow:
+    inset -1px 0 0 var(--v-frame),
+    inset 0 -1px 0 var(--v-frame);
+}
+:root[data-style='vector'] .key.out.black {
+  background: var(--wall-0);
+  box-shadow: inset 0 0 0 1px var(--v-frame);
+}
+:root[data-style='vector'] .key .lbl,
+:root[data-style='vector'] .key.black .lbl,
+:root[data-style='vector'] .key .cname {
+  color: var(--v-blue);
+  font-weight: 500;
+}
+:root[data-style='vector'] .key.out .lbl,
+:root[data-style='vector'] .key.out .cname {
+  color: var(--v-blue-dim);
+}
+
+/* the keys' position strip: the same lines */
+:root[data-style='vector'] .km-w {
+  fill: var(--v-blue-dim);
+}
+:root[data-style='vector'] .km-b {
+  fill: var(--wall-0);
+}
+:root[data-style='vector'] .km-w.out {
+  fill: var(--v-frame);
+}
+:root[data-style='vector'] .km-k.on {
+  fill: var(--v-amber);
+}
+:root[data-style='vector'] .km-win,
+:root[data-style='vector'] .keymap.dragging .km-win {
+  border-color: var(--v-blue);
+}
+
+/* the pianos' action close-up: a framed panel of the wall (ui/vector/pen.ts draws the section in lines) */
+:root[data-style='vector'] .av-panel {
+  background: var(--v-ground);
+  border-color: var(--v-blue-dim);
+  box-shadow: none;
+}
+:root[data-style='vector'] .av-name {
+  font: 300 24px/1.1 var(--hershey);
+  letter-spacing: 0.04em;
+  color: var(--v-amber);
+}
+:root[data-style='vector'] .av-speed {
+  font-family: var(--hershey);
+  color: var(--v-blue);
+}
+:root[data-style='vector'] .av-close {
+  color: var(--v-blue);
+}
+:root[data-style='vector'] .av-close:hover,
+:root[data-style='vector'] .av-close:focus-visible {
+  color: var(--v-text);
+}
+
+@media (max-width: 760px) {
+  :root[data-style='vector'] .knobs {
+    background: var(--v-ground);
+    border-top-color: var(--v-blue-dim);
+  }
+}
+
+/* ------------------------------------------------------------ an ensemble: what the keys play */
+:root[data-style='vector'] .kf-toggle {
+  color: var(--v-blue);
+}
+:root[data-style='vector'] .kf-toggle .glyph {
+  stroke: var(--v-blue);
+}
+:root[data-style='vector'] .kf-part[aria-pressed='true'],
+:root[data-style='vector'] .kf-split[aria-pressed='true'] {
+  color: var(--v-text);
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--v-blue-dim);
+}
+:root[data-style='vector'] .kf-part[aria-pressed='mixed'] {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--v-frame);
+}
+@media (max-width: 760px), (max-height: 500px) and (orientation: landscape) {
+  :root[data-style='vector'][data-ensemble] .kf {
+    background: var(--v-ground);
+  }
+}

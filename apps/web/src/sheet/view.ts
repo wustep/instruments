@@ -9,6 +9,7 @@
 import { Accidental, BarlineType, Beam, Dot, Formatter, Fraction, Renderer, Stave, StaveConnector, StaveNote, StaveTie, Tuplet, Voice, VoiceMode } from 'vexflow/bravura';
 import type { MidiSong } from '../midi-file.ts';
 import type { Plan, Voice as Instrument } from '../orchestra/assign.ts';
+import { onTheme } from '../themes/index.ts';
 import { voiceGlyph } from '../ui/controls.ts';
 import { h } from '../ui/dom.ts';
 import { barAt, beatsOf, buildScore, soundingAt, type Bar, type Entry, type Score, type StaffPlan } from './score.ts';
@@ -513,6 +514,13 @@ export function createSheet(el: HTMLElement, host: SheetHost): Sheet {
   };
   document.addEventListener('pointerdown', onDoc);
   document.addEventListener('keydown', onKey, true);
+  // another theme: the list of parts was set under its button where that stood, and the paper may be a
+  // few px wider or narrower (too few for the window's observer below): shut, and set out again if so
+  let gone = false;
+  const offTheme = onTheme(() => {
+    closeMenu();
+    requestAnimationFrame(() => !gone && refresh());
+  });
 
   // the window: set out again for another width
   let lastW = 0;
@@ -533,6 +541,8 @@ export function createSheet(el: HTMLElement, host: SheetHost): Sheet {
       seen.disconnect();
       document.removeEventListener('pointerdown', onDoc);
       document.removeEventListener('keydown', onKey, true);
+      gone = true;
+      offTheme();
       closeMenu();
       page.remove();
     },

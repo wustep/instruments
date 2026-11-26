@@ -90,8 +90,8 @@ test('the address: each tab its own path; back and forward walk the tabs; a link
   // the back link from a page goes to the stage as it is
   await page.locator('nav.links').getByRole('link', { name: 'measurements' }).click();
   await expect.poll(() => path(page)).toBe('/measurements');
-  await expect(page.locator('a.back')).toHaveAttribute('href', '/piano');
-  await page.locator('a.back').click();
+  await expect(page.locator('a.to-stage')).toHaveAttribute('href', '/piano');
+  await page.locator('a.to-stage').click();
   await expect.poll(() => path(page)).toBe('/piano');
   // a link to a tab, and a reload, open it
   await page.goto('/viola');

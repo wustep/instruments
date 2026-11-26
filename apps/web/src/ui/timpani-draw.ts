@@ -16,6 +16,7 @@
 import type { VisualFrame, TimpaniVisual } from '@piano-model/engine';
 import { TIMPANI_DRUMS, besselJ } from '@piano-model/engine';
 import { AutoScale, INK, rgba } from './stage-draw.ts';
+import { ownDrawer } from '../themes/drawers.ts';
 import {
   BALL_R, COS_E, EXT, FOOT_R, FOOT_Z, GAUGE_HALF, GAUGE_OUT, GAUGE_Z0, GAUGE_Z1, HOOP_H, HOOP_W, HUB_Z, PAINT_ORDER, PEDAL_AT, PEDAL_HALF,
   PEDAL_LEN, PEDAL_TILT, PEDAL_Z, REST_LIFT, ROD_OUT, SET, SHAFT_R, SIN_E, STRUT_AZ, STRUT_W, T_HALF, T_UP, around, bowlR, malletLift, malletPose, type DrumPlan,
@@ -606,6 +607,8 @@ const COPPER_STOPS: [number, string][] = [
 /** The set of four drums, far to near, then the mallets over them. `top`: the file player's px over the box's
  *  top. */
 export function drawTimpani(ctx: CanvasRenderingContext2D, W: number, H: number, fr: VisualFrame | null, st: TimpaniState, top = 0): void {
+  const own = ownDrawer('timpani');
+  if (own) return own(ctx, W, H, fr, st, top);
   const L = timpaniLayout(W, H, top);
   const now = performance.now();
   const lv = timpaniLive(fr, st, now);
@@ -796,11 +799,11 @@ function drawGauge(ctx: CanvasRenderingContext2D, L: TpLayout, d: DrumPx, p: num
   ctx.strokeStyle = chrome(0.7);
   ctx.lineWidth = Math.max(0.8, 0.003 * sc);
   ctx.stroke(d.plate);
-  ctx.strokeStyle = rgba(INK.ivory, 0.6);
+  ctx.strokeStyle = rgba(INK.line, 0.6);
   ctx.lineWidth = Math.max(0.6, 0.0022 * sc);
   ctx.stroke(d.ticks);
   const [tx, ty, bx, by] = pointerAt(d, p);
-  ctx.strokeStyle = rgba(INK.amber, 0.85 + 0.15 * lvl);
+  ctx.strokeStyle = rgba(INK.warm, 0.85 + 0.15 * lvl);
   ctx.lineWidth = Math.max(1, 0.004 * sc);
   ctx.beginPath();
   ctx.moveTo(bx, by);
@@ -917,7 +920,7 @@ function drawMallets(ctx: CanvasRenderingContext2D, L: TpLayout, lv: TpLive, st:
       const r = br * (1.2 + 5 * m.ago);
       ctx.beginPath();
       ctx.ellipse(sx, sy, r, r * SIN_E, 0, 0, 2 * Math.PI);
-      ctx.strokeStyle = rgba(INK.vermilion, 0.55 * a * Math.min(1, m.vel / 90));
+      ctx.strokeStyle = rgba(INK.sound, 0.55 * a * Math.min(1, m.vel / 90));
       ctx.lineWidth = Math.max(1, 0.004 * sc);
       ctx.stroke();
     }
@@ -953,7 +956,7 @@ function drawMallets(ctx: CanvasRenderingContext2D, L: TpLayout, lv: TpLive, st:
     ctx.arc(bx, by, br, 0, 2 * Math.PI);
     ctx.fillStyle = g;
     ctx.fill();
-    ctx.strokeStyle = m.on ? rgba(INK.vermilion, 0.9) : 'rgba(60,50,40,0.7)';
+    ctx.strokeStyle = m.on ? rgba(INK.sound, 0.9) : 'rgba(60,50,40,0.7)';
     ctx.lineWidth = m.on ? 1.4 : 0.8;
     ctx.stroke();
     ctx.strokeStyle = 'rgba(120,110,96,0.5)';

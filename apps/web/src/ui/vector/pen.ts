@@ -32,7 +32,7 @@ export function linePen(ctx: CanvasRenderingContext2D, roles: PenRoles = {}): Ca
     const a = p[3] ?? 1;
     const role = roles[`${p[0]},${p[1]},${p[2]}`];
     const dark = !role && (p[0] + p[1] + p[2]) / 3 < 50;
-    const hex = role ?? (dark ? V.blueDim : V.blue);
+    const hex = role ?? (dark ? V.lineDim : V.line);
     ink = { css: `rgba(${hexRgb(hex)},${(role ? 0.5 + 0.5 * a : dark ? 0.9 : 0.3 + 0.6 * a).toFixed(3)})`, solid: a >= 0.5, dark };
     // (live colours vary in opacity from frame to frame: the table stays small)
     if (inks.size < 400) inks.set(key, ink);
@@ -49,7 +49,7 @@ export function linePen(ctx: CanvasRenderingContext2D, roles: PenRoles = {}): Ca
     },
     fill: () => {
       if (fillInk.solid) {
-        ctx.fillStyle = '#000';
+        ctx.fillStyle = V.ground;
         ctx.fill();
       }
       const lw = ctx.lineWidth;

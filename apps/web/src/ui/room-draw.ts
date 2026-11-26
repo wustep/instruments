@@ -5,6 +5,7 @@
 // closed, they stay dim and short. Driven by the real output level.
 
 import { INK, rgba } from './stage-draw.ts';
+import { ownDrawer } from '../themes/drawers.ts';
 
 export interface Wave {
   t0: number;
@@ -44,6 +45,8 @@ export function drawRoom(
   now: number,
   lid: { open: number; dir: number } | null,
 ): RoomGeom {
+  const own = ownDrawer('room');
+  if (own) return own(ctx, W, H, st, src, room, rms, now, lid);
   const g = roomRect(W, H, room);
   const t60 = 0.7 + 1.7 * room;
   // spawn: on onsets (a jump in level), and steadily while sound continues
@@ -56,7 +59,7 @@ export function drawRoom(
   st.lastRms = rms * 0.9 + st.lastRms * 0.1;
   // the walls, faint
   ctx.save();
-  ctx.strokeStyle = rgba(INK.ivory, 0.1);
+  ctx.strokeStyle = rgba(INK.line, 0.1);
   ctx.setLineDash([2, 6]);
   ctx.lineWidth = 1;
   ctx.strokeRect(g.x0, g.y0, g.x1 - g.x0, g.y1 - g.y0);
@@ -99,7 +102,7 @@ export function drawRoom(
 function arc(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, a: number, lid: { open: number; dir: number } | null): void {
   if (r < 2) return;
   if (!lid) {
-    ctx.strokeStyle = rgba(INK.ivory, 0.26 * a);
+    ctx.strokeStyle = rgba(INK.line, 0.26 * a);
     ctx.lineWidth = 1.2;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -113,7 +116,7 @@ function arc(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, a: 
     const th1 = ((i + 1) / n) * Math.PI * 2;
     const c = Math.cos((th0 + th1) / 2 - lid.dir);
     const k = 0.35 + 0.65 * lid.open * Math.max(0, c) + 0.2 * (1 - lid.open);
-    ctx.strokeStyle = rgba(c > 0 ? INK.amber : INK.ivory, 0.3 * a * k);
+    ctx.strokeStyle = rgba(c > 0 ? INK.warm : INK.line, 0.3 * a * k);
     ctx.lineWidth = 1 + 1.2 * lid.open * Math.max(0, c);
     ctx.beginPath();
     ctx.arc(x, y, r, th0, th1);

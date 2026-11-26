@@ -19,6 +19,7 @@
 // at every key's boundary, drawn as that face a millimetre behind the cut (piano3d.ts `webs`).
 import * as THREE from 'three';
 import { MAT_LIST, type Mat, type PaintSpec } from './mesh.ts';
+import type { MatLook, MatOver } from './world.ts';
 
 
 type Phys = THREE.MeshPhysicalMaterialParameters & {
@@ -118,6 +119,10 @@ const P: Record<string, Phys> = {
   stringSteel: { color: '#c9ccd2', metalness: 1, roughness: 0.24, anisotropy: 0.7, tex: 8 },
   stringWound: { color: '#a7a9ad', metalness: 1, roughness: 0.3, anisotropy: 0.8, tex: 8 },
   floor: { color: '#13110e', roughness: 0.7 },
+  // a daylight studio's risers (its world's `riser`): birch ply under a matt seal (its grain along the
+  // row), and painted fascias
+  stageDeck: { color: '#d4ccbc', roughness: 0.6, clearcoat: 0.12, clearcoatRoughness: 0.55, tex: 3, axis: [1, 0, 0], texScale: 3 },
+  stagePaint: { color: '#e8eaec', roughness: 0.9 },
   // winds3d: polished sterling silver and nickel silver read in a dark studio through their
   // reflections, so the environment counts for more (a product shot's big white cards); the lacquer
   // is a clear coat over polished yellow brass (no texture: a polished part shows no grain)
@@ -264,6 +269,55 @@ const cache = new Map<Mat, THREE.Material>();
 let envTex: THREE.Texture | null = null;
 export function setEnvironment(t: THREE.Texture | null): void {
   envTex = t;
+  // (another room: the materials already made that have the environment as their own map take the new one)
+  for (const m of cache.values()) {
+    const pm = m as THREE.MeshPhysicalMaterial;
+    if (pm.envMap) pm.envMap = t;
+  }
+}
+/** How the world in use takes the materials (world.ts `MatLook`): the share of the room a material that
+ *  sets its own takes, and what it changes of a material by name. The numbers in `P` are a dark
+ *  studio's; with no look they stand as they are. */
+let look: MatLook = {};
+/** what of a material in use follows the look: its name in `P`, and its cut face's colour (a uniform all
+ *  its programs share), which is the part's own colour darkened unless `P` names one */
+const dressed = new Map<THREE.Material, { m: Mat; name: string; cut: { value: THREE.Color }; own: number | null }>();
+/** a material's values under the look in use, for the keys a look may change */
+function lookOf(name: string, key: keyof MatOver, by: MatLook): string | number | undefined {
+  return by.over?.[name]?.[key] ?? (P[name] as MatOver | undefined)?.[key];
+}
+/** Another world's look: every material in use takes its values under it, in place (they are uniforms,
+ *  so no program is made again). */
+export function setLook(l: MatLook): void {
+  const was = look;
+  look = l;
+  if (was === l) return;
+  for (const [mat, d] of dressed) {
+    const pm = mat as THREE.MeshPhysicalMaterial;
+    const keys = new Set<keyof MatOver>([...(Object.keys(was.over?.[d.name] ?? {}) as (keyof MatOver)[]), ...(Object.keys(l.over?.[d.name] ?? {}) as (keyof MatOver)[])]);
+    for (const k of keys) {
+      const v = lookOf(d.name, k, l);
+      if (v === undefined) continue;
+      if (k === 'color') {
+        // (a tinted or a painted part keeps its own colour)
+        if (d.m.tint || pm.map) continue;
+        pm.color.set(v as string);
+        if (d.own !== null) d.cut.value.copy(pm.color).multiplyScalar(d.own);
+      } else if (k !== 'envMapIntensity') pm[k] = v as number;
+    }
+    const e = lookOf(d.name, 'envMapIntensity', l) as number | undefined;
+    if (pm.envMap && e !== undefined) pm.envMapIntensity = l.env ? l.env(e) : e;
+  }
+}
+/** the room turned about the instrument (rad, about y): a material that has the environment as its own
+ *  map is turned with it (the scene's own is turned by the renderer), those made later too */
+let envTurn = 0;
+export function turnEnvironment(y: number): void {
+  envTurn = y;
+  for (const m of cache.values()) {
+    const pm = m as THREE.MeshPhysicalMaterial;
+    if (pm.envMap) pm.envMapRotation.set(0, y, 0);
+  }
 }
 const textures: THREE.Texture[] = [];
 
@@ -272,13 +326,20 @@ export function materialFor(m: Mat, lite: boolean): THREE.Material {
   if (mat) return mat;
   const name = m.name ?? 'plain';
   const base = P[name] ?? { color: new THREE.Color().setRGB(m.col[0], m.col[1], m.col[2], THREE.SRGBColorSpace), roughness: m.rough, metalness: m.metal };
-  const { tex = 0, axis = [1, 0, 0], texScale: texScale0 = 1, cap: cap0, cut, ...params } = base;
+  const { tex = 0, axis = [1, 0, 0], texScale: texScale0 = 1, cap: cap0, cut, ...params0 } = base;
+  // (the world in use may change a few of its numbers: world.ts `MatLook`)
+  const over = look.over?.[name];
+  const params = over ? { ...params0, ...over } : params0;
   // (a part may scale its family's texture: a double bass's flame is broader than a violin's)
   const texScale = m.texScale ?? texScale0;
   const metal = (params.metalness ?? 0) >= 0.5;
   const cap = cap0 ?? (WOODS.includes(tex) ? 1 : tex === 6 || tex === 12 ? 2 : metal ? 3 : 0);
   const pm = new THREE.MeshPhysicalMaterial({ side: THREE.DoubleSide, ...params });
-  if (params.envMapIntensity !== undefined && envTex) pm.envMap = envTex;
+  if (params.envMapIntensity !== undefined && envTex) {
+    pm.envMap = envTex;
+    if (look.env) pm.envMapIntensity = look.env(params.envMapIntensity);
+    if (envTurn) pm.envMapRotation.set(0, envTurn, 0);
+  }
   if (m.tint) pm.color.setRGB(m.col[0], m.col[1], m.col[2], THREE.SRGBColorSpace);
   if (pm.anisotropy) pm.anisotropyRotation = 0;
   const kind = m.kind ?? 0;
@@ -299,11 +360,14 @@ export function materialFor(m: Mat, lite: boolean): THREE.Material {
     }
     pm.color.set('#ffffff');
   }
+  // (the cut face: its own colour, or the part's, a little darker as sawn wood and sheared felt are)
+  const own = cut ? null : cap === 3 ? 1 : 0.85;
+  const uCut = { value: cut ? new THREE.Color(cut) : pm.color.clone().multiplyScalar(own!) };
+  if (P[name]) dressed.set(pm, { m, name, cut: uCut, own });
   pm.onBeforeCompile = (sh) => {
     sh.uniforms.uAxis = { value: new THREE.Vector3(...axis).normalize() };
     sh.uniforms.uTexScale = { value: texScale };
-    // (the cut face: its own colour, or the part's, a little darker as sawn wood and sheared felt are)
-    sh.uniforms.uCut = { value: cut ? new THREE.Color(cut) : pm.color.clone().multiplyScalar(cap === 3 ? 1 : 0.85) };
+    sh.uniforms.uCut = uCut;
     sh.uniforms.uCapLight = SECTION.light;
     // (each wood its own rings on a cut face: where its pith lies, and how close they are)
     let hsh = 0;
@@ -693,6 +757,7 @@ export function disposeMaterials(): void {
   for (const m of cache.values()) m.dispose();
   for (const t of textures) t.dispose();
   cache.clear();
+  dressed.clear();
   textures.length = 0;
 }
 

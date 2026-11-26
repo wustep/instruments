@@ -10,9 +10,9 @@
 
 import type { VisualFrame } from '@piano-model/engine';
 import { BASS_MACH, BOWED_PLAN, HEAD_EAR, HEAD_PROJ, MM, PEG_A, PEG_OF, PEG_SIDE, bassAdjusters, bassHead, bassPinParts, bassTailWire, bowFit, bowLift, bowedDrawn, bowedLayout, bowedShapes, bwBridge, bwClamp, bwForce, bwHeadParts, bwPegboxW, bwPlace, bwPoly, bwSstep, bwTailpiece, type BowedDrawn, type BowedGeom, type BowedLayout, type BowedState } from '../stage-draw.ts';
-import { SLOTS, V, beam, dot, handle, label, ring, seg, type Contours, type Pt } from './kit.ts';
+import { V, beam, dot, handle, label, ring, seg, type Contours, type Pt } from './kit.ts';
+import { theme } from '../../themes/index.ts';
 
-const [GREEN, RED, PINK, WHITE] = SLOTS;
 
 /** the still parts as paths (px, in the local frame bwPlace sets: x along the strings from the body's
  *  neck end, y towards the bass side) */
@@ -302,18 +302,18 @@ export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, 
     ctx.restore();
   }
   // the bass bar and soundpost (white: the body's damping), warming with the body's level
-  if (!small) beam(ctx, s.inside, WHITE, 0.9, { alpha: 0.22 + 0.5 * lvl, dash: [2, 3] });
+  if (!small) beam(ctx, s.inside, V.slot4, 0.9, { alpha: 0.22 + 0.5 * lvl, dash: [2, 3] });
 
   // ---- the instrument
-  beam(ctx, s.board, V.blueMid, 0.9 * lw, { alpha: 0.75 });
-  beam(ctx, s.tail, V.blueMid, 0.9 * lw, { alpha: 0.85 });
-  beam(ctx, s.pegs, V.blueMid, 0.9 * lw, { alpha: 0.9 });
-  if (!small) beam(ctx, s.scroll, V.blueMid, 0.8, { alpha: 0.8 });
-  beam(ctx, s.head, V.blue, 1.3 * lw);
-  beam(ctx, s.holes, V.blue, 1.1 * lw);
-  beam(ctx, s.body, V.blue, 1.7 * lw, { hot: true });
-  beam(ctx, s.strings, V.blueMid, 0.8 * lw, { alpha: 0.8 });
-  beam(ctx, s.bridge, V.blue, 1.4 * lw, { hot: true });
+  beam(ctx, s.board, V.lineMid, 0.9 * lw, { alpha: 0.75 });
+  beam(ctx, s.tail, V.lineMid, 0.9 * lw, { alpha: 0.85 });
+  beam(ctx, s.pegs, V.lineMid, 0.9 * lw, { alpha: 0.9 });
+  if (!small) beam(ctx, s.scroll, V.lineMid, 0.8, { alpha: 0.8 });
+  beam(ctx, s.head, V.line, 1.3 * lw);
+  beam(ctx, s.holes, V.line, 1.1 * lw);
+  beam(ctx, s.body, V.line, 1.7 * lw, { hot: true });
+  beam(ctx, s.strings, V.lineMid, 0.8 * lw, { alpha: 0.8 });
+  beam(ctx, s.bridge, V.line, 1.4 * lw, { hot: true });
 
   // ---- the strings as they sound, the fingers, the bowed string's shape
   const strs = fr?.strings;
@@ -343,7 +343,7 @@ export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, 
     // a ringing string, lit between its finger and the bridge (the bowed one shows its shape instead)
     if (l > 0.03 && !(focus && i === bowedIdx)) {
       const x0 = Math.max(xn, fingerX[i]);
-      seg(ctx, X(x0), X(zAt(i, x0)), X(xb), X(zAt(i, xb)), V.amber, 1.5 * lw, { alpha: 0.25 + 0.75 * l, hot: l > 0.6 });
+      seg(ctx, X(x0), X(zAt(i, x0)), X(xb), X(zAt(i, xb)), V.sound, 1.5 * lw, { alpha: 0.25 + 0.75 * l, hot: l > 0.6 });
     }
   }
   // the fingers (pink: the vibrato rocks them): a handle on the string, the range it rocks over
@@ -355,10 +355,10 @@ export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, 
     const z = zAt(i, x);
     if (lv.vhi[i] - lv.vlo[i] > 0.0004) {
       const zr = X(z) + (small ? 7 : 11);
-      seg(ctx, X(lv.fx[i] + lv.vlo[i]), zr, X(lv.fx[i] + lv.vhi[i]), zr, PINK, 1.2, { alpha: 0.8 * a * lit });
-      for (const e of [lv.vlo[i], lv.vhi[i]]) seg(ctx, X(lv.fx[i] + e), zr - 3, X(lv.fx[i] + e), zr + 3, PINK, 1.2, { alpha: 0.8 * a * lit });
+      seg(ctx, X(lv.fx[i] + lv.vlo[i]), zr, X(lv.fx[i] + lv.vhi[i]), zr, V.slot3, 1.2, { alpha: 0.8 * a * lit });
+      for (const e of [lv.vlo[i], lv.vhi[i]]) seg(ctx, X(lv.fx[i] + e), zr - 3, X(lv.fx[i] + e), zr + 3, V.slot3, 1.2, { alpha: 0.8 * a * lit });
     }
-    handle(ctx, X(x), X(z), PINK, small ? 3.5 : 5.5, a * lit);
+    handle(ctx, X(x), X(z), V.slot3, small ? 3.5 : 5.5, a * lit);
   }
   // the bowed string's Helmholtz motion (sideways, in the bowing direction): the envelope it has
   // swept lately, its shape now, and the travelling corner
@@ -378,7 +378,7 @@ export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, 
     for (let k = 0; k < n; k++) ctx.lineTo(X(xk(k)), X(zAt(bowedIdx, xk(k)) - lv.env[k] * 0.9 * p.spreadB));
     for (let k = n - 1; k >= 0; k--) ctx.lineTo(X(xk(k)), X(zAt(bowedIdx, xk(k)) + lv.env[k] * 0.9 * p.spreadB));
     ctx.closePath();
-    beam(ctx, null, V.amber, 0.8, { alpha: 0.45 });
+    beam(ctx, null, V.sound, 0.8, { alpha: 0.45 });
     let kc = 1;
     let best = -1;
     ctx.beginPath();
@@ -392,11 +392,11 @@ export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, 
       }
       ctx.lineTo(X(xk(k)), X(zAt(bowedIdx, xk(k)) - shp[k] * amp));
     }
-    beam(ctx, null, V.amber, 1.8 * lw, { hot: true });
+    beam(ctx, null, V.sound, 1.8 * lw, { hot: true });
     const cxk = xk(kc);
     const czk = zAt(bowedIdx, cxk) - shp[kc] * amp;
-    ring(ctx, X(cxk), X(czk), small ? 3 : 4.5, V.amber, 1.1);
-    dot(ctx, X(cxk), X(czk), 1.8, '#fff8ec');
+    ring(ctx, X(cxk), X(czk), small ? 3 : 4.5, V.sound, 1.1);
+    dot(ctx, X(cxk), X(czk), 1.8, theme().vector.corner);
   }
 
   // ---- the bow (its pose as the stage's own drawing: stage-draw.ts has the sources)
@@ -448,7 +448,7 @@ export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, 
     for (const sg of [-1, 1]) {
       ctx.beginPath();
       for (const q of [s0, ac, s1]) ctx.lineTo(Xh(q, 0) + sg * X(hw), X(Zs(q)));
-      beam(ctx, null, playing ? RED : V.blueMid, 0.9 * lw, { alpha: (playing ? 0.85 : 0.7) * up });
+      beam(ctx, null, playing ? V.slot2 : V.lineMid, 0.9 * lw, { alpha: (playing ? 0.85 : 0.7) * up });
     }
     // the stick, round and tapering (Tourte's taper), seen beside the hair as the player tilts it
     const sBack = -0.085 * S2;
@@ -470,14 +470,14 @@ export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, 
       ctx.lineTo(X(lv.cx - hgt(q) * tilt) + X(dia(q) / 2), X(Zs(q)));
     }
     ctx.closePath();
-    beam(ctx, null, V.blue, 1.1 * lw, { alpha: up });
+    beam(ctx, null, V.line, 1.1 * lw, { alpha: up });
     // the head and the frog: their side profiles (s along the bow, h above the hair), seen from above
     const proj = (pts: Pt[]) => pts.map(([q, h]): Pt => [X(lv.cx - h * tilt), X(Zs(q))]);
     const outline = (pts: Pt[]) => {
       ctx.beginPath();
       proj(pts).forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
       ctx.closePath();
-      beam(ctx, null, V.blue, 1 * lw, { alpha: up });
+      beam(ctx, null, V.line, 1 * lw, { alpha: up });
     };
     const hTop = hgt(Hh + 0.006 * S2) + 0.003 * S2;
     outline([[Hh - 0.004 * S2, 0.0035 * S2], [Hh, -0.0012], [Hh + 0.0085 * S2, -0.0015], [Hh + 0.0105 * S2, 0.004 * S2], [Hh + 0.0095 * S2, 0.0125 * S2], [Hh + 0.006 * S2, hTop], [Hh - 0.006 * S2, hgt(Hh - 0.006 * S2) + 0.4 * p.stick[1]]]);
@@ -489,12 +489,12 @@ export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, 
     //      by the bow's force (red), and which way the bow goes
     const gx = X(lv.cx);
     const gz = X(lv.cz);
-    handle(ctx, gx, gz, GREEN, small ? 4 : 7, up);
+    handle(ctx, gx, gz, V.slot1, small ? 4 : 7, up);
     let rc = 0;
     if (playing && bow) {
       const v = Math.abs(bow.speed);
       rc = Math.max(small ? 6 : 10, X(p.spreadB) * (0.5 + 0.7 * Math.min(1.5, Math.sqrt(F / 0.5)))) + 4;
-      ring(ctx, gx, gz, rc, RED, 1.2, { alpha: 0.9 });
+      ring(ctx, gx, gz, rc, V.slot2, 1.2, { alpha: 0.9 });
       if (!bow.changing && v > 0.02) {
         // down-bow draws the frog away from the strings (towards the player)
         const d = bow.dir > 0 ? 1 : -1;
@@ -503,7 +503,7 @@ export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, 
         ctx.moveTo(gx - 4.5, zc - d * 4);
         ctx.lineTo(gx, zc);
         ctx.lineTo(gx + 4.5, zc - d * 4);
-        beam(ctx, null, V.blue, 1.5, { alpha: Math.min(1, 0.4 + v), hot: true });
+        beam(ctx, null, V.line, 1.5, { alpha: Math.min(1, 0.4 + v), hot: true });
       }
     }
     // ---- the two readings beside the contact, upright on the stage: where on the string (β, the
@@ -515,8 +515,8 @@ export function drawBowedV(ctx: CanvasRenderingContext2D, W: number, H: number, 
       // (never off the top of the stage; in an ensemble, its box the instrument's own, in the aisle its
       // bow keeps clear of the next instrument)
       const [x, y] = vertical ? [bowLater && !scale ? Math.min(sx + 10, W - 30) : sx + 10, sy - 10] : [sx + 12, scale ? sy - 12 : Math.max(34, sy - 12)];
-      label(ctx, lv.beta.toFixed(3), x, y, { color: GREEN, size: 11 });
-      label(ctx, `${F.toFixed(2)} N`, x, y - 15, { color: RED, size: 11 });
+      label(ctx, lv.beta.toFixed(3), x, y, { color: V.slot1, size: 11 });
+      label(ctx, `${F.toFixed(2)} N`, x, y - 15, { color: V.slot2, size: 11 });
     }
   };
   if (!bowLater) {

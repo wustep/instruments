@@ -12,11 +12,9 @@
 import type { VisualFrame } from '@piano-model/engine';
 import { GZ, Layer, SYM_VISIBLE, catmull, grandDepth, grandPlate, layout, path, type GStr, type Layout, type Plate } from '../grand-plan.ts';
 import { levelsOf, stepAction, upLayout, upPlate, type PianoGeom, type PianoState, type Pt, type UpLayout, type UpString } from '../piano-draw.ts';
-import { SLOTS, V, beam, handle, ring, seg, type Contours } from './kit.ts';
+import { V, beam, handle, ring, seg, type Contours } from './kit.ts';
+import { theme } from '../../themes/index.ts';
 
-const HAMMER = SLOTS[0];
-const DETUNE = SLOTS[2];
-const BOARD = SLOTS[3];
 
 /** each piano's still lines (strings at rest, bridges), repainted when its layout changes; one per
  *  drawing state, so an ensemble's pianos keep their own */
@@ -42,20 +40,20 @@ function plateV(c: CanvasRenderingContext2D, pl: Plate): void {
       c.moveTo(a[0], a[1]);
       c.lineTo(b[0], b[1]);
     }
-    beam(c, null, V.blueDim, 0.6, { alpha: 0.42, butt: true });
+    beam(c, null, V.lineDim, 0.6, { alpha: 0.42, butt: true });
   }
-  for (const r of pl.rails) beam(c, path(r, false), V.blueMid, 1, { alpha: 0.7 });
+  for (const r of pl.rails) beam(c, path(r, false), V.lineMid, 1, { alpha: 0.7 });
   c.beginPath();
   for (const s of pl.struts)
     for (const d of [-0.5, 0.5]) {
       c.moveTo(s.a[0] + d * s.wa, s.a[1]);
       c.lineTo(s.b[0] + d * s.wb, s.b[1]);
     }
-  beam(c, null, V.blueDim, 0.8, { alpha: 0.6, butt: true });
+  beam(c, null, V.lineDim, 0.8, { alpha: 0.6, butt: true });
   if (!pl.detail) return;
   c.save();
-  c.globalCompositeOperation = 'lighter';
-  c.fillStyle = V.blueMid;
+  c.globalCompositeOperation = theme().vector.blend;
+  c.fillStyle = V.lineMid;
   c.globalAlpha = 0.9;
   c.beginPath();
   for (const ps of [pl.pins, pl.hitch])
@@ -76,7 +74,7 @@ function restStrings(c: CanvasRenderingContext2D, parts: { wound: boolean; lines
         c.moveTo(s.x0 + o, s.y0);
         c.lineTo(s.x1 + o, s.y1);
       }
-    beam(c, null, V.blueDim, part.wound ? 0.9 : 0.6, { alpha: part.wound ? 0.62 : 0.6, butt: true });
+    beam(c, null, V.lineDim, part.wound ? 0.9 : 0.6, { alpha: part.wound ? 0.62 : 0.6, butt: true });
   }
 }
 
@@ -90,8 +88,8 @@ function lightStringV(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1:
     ctx.moveTo(x0 + o, y0);
     ctx.lineTo(x1 + o, y1);
   }
-  if (struck) beam(ctx, null, V.amber, 0.8 + 0.5 * l, { alpha: 0.15 + 0.8 * l, hot: l > 0.9, butt: true });
-  else beam(ctx, null, V.amber, 0.8, { alpha: 0.1 + 0.45 * sym, butt: true });
+  if (struck) beam(ctx, null, V.sound, 0.8 + 0.5 * l, { alpha: 0.15 + 0.8 * l, hot: l > 0.9, butt: true });
+  else beam(ctx, null, V.sound, 0.8, { alpha: 0.1 + 0.45 * sym, butt: true });
 }
 
 /** a string's shape from (x0,y0) to (x1,y1): `at(i)` its displacement in px at point i of n */
@@ -137,7 +135,7 @@ function shapesV(ctx: CanvasRenderingContext2D, fr: VisualFrame | null, pts: Pt[
         alpha = Math.min(0.5, 0.1 + 0.6 * rel);
       }
       shapePath(ctx, ends(p), P, (i) => ps.shapes[j * P + i] * amp);
-      beam(ctx, null, V.amber, sym ? 0.9 : 1.4, { alpha, hot: !sym });
+      beam(ctx, null, V.sound, sym ? 0.9 : 1.4, { alpha, hot: !sym });
     }
   }
   if (!focus) return;
@@ -153,7 +151,7 @@ function shapesV(ctx: CanvasRenderingContext2D, fr: VisualFrame | null, pts: Pt[
     const s = focus.shapes[j];
     const o = off[Math.min(off.length - 1, j)] ?? 0;
     shapePath(ctx, [x0 + o, y0, x1 + o, y1], s.length, (i) => s[i] * amp);
-    beam(ctx, null, j === 0 ? V.amber : DETUNE, j === 0 ? 1.7 : 1.3, { alpha: j === 0 ? 1 : 0.9, hot: j === 0 });
+    beam(ctx, null, j === 0 ? V.sound : V.slot3, j === 0 ? 1.7 : 1.3, { alpha: j === 0 ? 1 : 0.9, hot: j === 0 });
   }
 }
 
@@ -171,7 +169,7 @@ function actionV(ctx: CanvasRenderingContext2D, marks: { i: number; damper: bool
     ctx.lineTo(k.dx + dw, k.dy);
     any = true;
   }
-  if (any) beam(ctx, null, V.blueMid, 1.4, { alpha: 0.5, butt: true });
+  if (any) beam(ctx, null, V.lineMid, 1.4, { alpha: 0.5, butt: true });
   ctx.beginPath();
   any = false;
   for (const k of marks) {
@@ -180,14 +178,14 @@ function actionV(ctx: CanvasRenderingContext2D, marks: { i: number; damper: bool
     ctx.lineTo(k.hx + hw, k.hy);
     any = true;
   }
-  if (any) beam(ctx, null, HAMMER, 1.4, { alpha: 0.32, butt: true });
+  if (any) beam(ctx, null, V.slot1, 1.4, { alpha: 0.32, butt: true });
   for (const k of marks) {
     const d = st.damper[k.i];
-    if (k.damper && d > 0.03) seg(ctx, k.dx - dw + 2 * d, k.dy - 4 * d, k.dx + dw + 2 * d, k.dy - 4 * d, V.blue, 1.4, { alpha: 0.55 + 0.4 * d, butt: true });
+    if (k.damper && d > 0.03) seg(ctx, k.dx - dw + 2 * d, k.dy - 4 * d, k.dx + dw + 2 * d, k.dy - 4 * d, V.line, 1.4, { alpha: 0.55 + 0.4 * d, butt: true });
     const h = st.hammer[k.i];
     if (h > 0.03) {
       const w = hw * (1 + 0.3 * h);
-      seg(ctx, k.hx - w, k.hy, k.hx + w, k.hy, HAMMER, 1.6 + 1.6 * h, { alpha: 0.5 + 0.5 * h, hot: h > 0.6, butt: true });
+      seg(ctx, k.hx - w, k.hy, k.hx + w, k.hy, V.slot1, 1.6 + 1.6 * h, { alpha: 0.5 + 0.5 * h, hot: h > 0.6, butt: true });
     }
   }
 }
@@ -202,8 +200,8 @@ function strikesV(ctx: CanvasRenderingContext2D, at: (midi: number) => { x: numb
     if (!q) continue;
     const v = (st.vels.get(midi) ?? 64) / 127;
     const a = (1 - age) ** 2 * (0.4 + 0.6 * v);
-    ring(ctx, q.x, q.y, Math.max(3, (0.5 + 0.9 * v) * pitch * (0.5 + 1.1 * age)), HAMMER, 1.2, { alpha: a, hot: age < 0.3 });
-    if (midi === focus) handle(ctx, q.x, q.y, HAMMER, Math.max(4, Math.min(7, pitch * 0.45)), 1 - age);
+    ring(ctx, q.x, q.y, Math.max(3, (0.5 + 0.9 * v) * pitch * (0.5 + 1.1 * age)), V.slot1, 1.2, { alpha: a, hot: age < 0.3 });
+    if (midi === focus) handle(ctx, q.x, q.y, V.slot1, Math.max(4, Math.min(7, pitch * 0.45)), 1 - age);
   }
 }
 
@@ -250,23 +248,23 @@ function grandV(ctx: CanvasRenderingContext2D, W: number, H: number, pts: Pt[], 
       [treb, bass].map((part) => ({ wound: part === bass, lines: part.map((s) => ({ x0: s.a[0], y0: s.a[1], x1: s.b[0], y1: s.b[1], off: s.off })) })),
     );
     // where the speaking lengths begin (agraffes, the capo bar)
-    for (const part of [treb, bass]) if (part.length > 1) beam(c, path(part.map((s) => s.a), false), V.blueMid, 1, { alpha: 0.8 });
+    for (const part of [treb, bass]) if (part.length > 1) beam(c, path(part.map((s) => s.a), false), V.lineMid, 1, { alpha: 0.8 });
     // the bridges, which carry the strings into the board
     for (const part of [treb, bass]) {
       if (part.length < 2) continue;
-      beam(c, path(catmull(part.filter((_, k) => k % 3 === 0 || k === part.length - 1).map((s) => s.b), 4), false), BOARD, 1.3, { alpha: 0.42 });
+      beam(c, path(catmull(part.filter((_, k) => k % 3 === 0 || k === part.length - 1).map((s) => s.b), 4), false), V.slot4, 1.3, { alpha: 0.42 });
     }
     c.restore();
   });
   // (a closed lid covers them: they dim under it)
   ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalCompositeOperation = theme().vector.blend;
   ctx.globalAlpha = 0.3 + 0.7 * lidOpen;
   ctx.drawImage(layer.canvas, 0, 0, W, H);
   ctx.restore();
   // ---- the rim: its outer face, and the inner face a hairline
-  beam(ctx, lay.inner, V.blueDim, 0.9, { alpha: 0.7 });
-  beam(ctx, lay.outline, V.blue, 1.4, { alpha: 0.95 });
+  beam(ctx, lay.inner, V.lineDim, 0.9, { alpha: 0.7 });
+  beam(ctx, lay.outline, V.line, 1.4, { alpha: 0.95 });
 
   // ---- the board's live modes, across the whole case
   field.update(fr?.modes ?? null, now / 1000);
@@ -328,7 +326,7 @@ function grandV(ctx: CanvasRenderingContext2D, W: number, H: number, pts: Pt[], 
   const cphi = Math.cos(lidOpen * (Math.PI / 2.4));
   ctx.beginPath();
   lay.outer.forEach(([x, y], k) => (k ? ctx.lineTo(xL + (x - xL) * cphi, y) : ctx.moveTo(xL + (x - xL) * cphi, y)));
-  beam(ctx, null, V.blueMid, 1, { alpha: 0.45 + 0.4 * (1 - lidOpen), dash: [5, 4] });
+  beam(ctx, null, V.lineMid, 1, { alpha: 0.45 + 0.4 * (1 - lidOpen), dash: [5, 4] });
   if (lidOpen < 0.98) {
     ctx.save();
     const base = ctx.getTransform();
@@ -344,11 +342,11 @@ function grandV(ctx: CanvasRenderingContext2D, W: number, H: number, pts: Pt[], 
       ctx.moveTo(x, yKey);
       ctx.lineTo(x + hh, y0);
     }
-    beam(ctx, null, V.blueDim, 0.8, { alpha: 0.55 * (1 - lidOpen), butt: true });
+    beam(ctx, null, V.lineDim, 0.8, { alpha: 0.55 * (1 - lidOpen), butt: true });
     ctx.restore();
   }
   const edgeX = xL + (xR - xL) * cphi;
-  seg(ctx, edgeX, yTop + (yKey - yTop) * 0.25, edgeX, yKey - 6, V.blueMid, 1, { alpha: 0.35 + 0.2 * lidOpen, dash: [2, 5] });
+  seg(ctx, edgeX, yTop + (yKey - yTop) * 0.25, edgeX, yKey - 6, V.lineMid, 1, { alpha: 0.35 + 0.2 * lidOpen, dash: [2, 5] });
   st.lidEdge = { x: edgeX, y: yTop + (yKey - yTop) * 0.55 };
 }
 
@@ -381,19 +379,19 @@ function uprightV(ctx: CanvasRenderingContext2D, W: number, H: number, pts: Pt[]
       [treb, bass].map((part) => ({ wound: part === bass, lines: part })),
     );
     // the pressure bar, slanting up to the bass
-    for (const part of [treb, bass]) if (part.length > 1) beam(c, path(part.map((s): [number, number] => [s.x0, s.y0]), false), V.blueMid, 1.2, { alpha: 0.9 });
+    for (const part of [treb, bass]) if (part.length > 1) beam(c, path(part.map((s): [number, number] => [s.x0, s.y0]), false), V.lineMid, 1.2, { alpha: 0.9 });
     for (const part of [treb, bass]) {
       if (part.length < 2) continue;
-      beam(c, path(part.map((s): [number, number] => [s.x1, s.y1]), false), BOARD, 1.3, { alpha: 0.42 });
+      beam(c, path(part.map((s): [number, number] => [s.x1, s.y1]), false), V.slot4, 1.3, { alpha: 0.42 });
     }
     c.restore();
   });
   ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalCompositeOperation = theme().vector.blend;
   ctx.drawImage(layer.canvas, 0, 0, W, H);
   ctx.restore();
-  beam(ctx, lay.inner, V.blueDim, 0.9, { alpha: 0.7 });
-  beam(ctx, lay.box, V.blue, 1.4, { alpha: 0.95 });
+  beam(ctx, lay.inner, V.lineDim, 0.9, { alpha: 0.7 });
+  beam(ctx, lay.box, V.line, 1.4, { alpha: 0.95 });
   ctx.save();
   ctx.clip(lay.inner);
   // ---- the board's live modes, across the whole case
@@ -417,7 +415,7 @@ function uprightV(ctx: CanvasRenderingContext2D, W: number, H: number, pts: Pt[]
   }
   actionV(ctx, marks, pitch, st);
   // ---- the practice muffler: a felt strip let down between the hammers and the strings
-  if (st.middle > 0.02) beam(ctx, path(strings.map((s): [number, number] => [s.hx, s.hy]), false), V.white, 2.2, { alpha: 0.6 * st.middle });
+  if (st.middle > 0.02) beam(ctx, path(strings.map((s): [number, number] => [s.hx, s.hy]), false), V.slot4, 2.2, { alpha: 0.6 * st.middle });
   const i0 = strings[0].p.i;
   const of = (p: Pt): UpString => strings[p.i - i0];
   strikesV(
