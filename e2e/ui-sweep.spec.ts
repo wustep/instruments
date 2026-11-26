@@ -178,8 +178,9 @@ test('Measurements and Notes have no keys: the lamp, its “tap a key” and the
   await player().click();
   await expect(page.locator('html')).toHaveAttribute('data-route', 'stage');
   await expect.poll(() => page.evaluate(() => location.pathname)).toBe('/cello');
+  // (the taps that walked the pages have started the sound: the lamp is lit, its hint done with)
   await expect(page.locator('.lamp')).toBeVisible();
-  await expect(hint()).toHaveText('tap a key');
+  await expect(page.locator('.status')).toBeVisible();
   await expect(player()).toBeHidden();
   expect(errors).toEqual([]);
 });

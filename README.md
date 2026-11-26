@@ -78,6 +78,9 @@ page.
 * **Three views** of every instrument: the filled 2D drawing, a vector-line 2D style (after Chimera; see
   [Credits](#credits)) and a WebGL2 3D stage (drag to turn, pinch or scroll to zoom). Without WebGL2 there
   is no 3D button.
+* **Four themes**, chosen with the four dots at the end of the top bar and remembered on the device:
+  Night Bench (the look the app was built in), Evening Hall, Day Studio and Night Gallery. Each is a whole
+  look: its type and chrome, its 2D drawing and vector lines, and its own room and lights in 3D.
 * **On-screen keys.** On a phone or tablet, slide the strip above the keys to move along them. Dragging
   across the keys plays a glissando.
 * **Computer keyboard.** `A S D F G H J K L ; '` are the white keys from C, and `W E T Y U O P` are the

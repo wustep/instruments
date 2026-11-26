@@ -49,10 +49,11 @@ export function themeScope() {
 // The device's theme is on <html> before anything is painted: the first thing in the head of both pages
 // (the app, and the 404) is this script, written here from the registry (src/themes/index.ts), so the
 // sheet that applies from the first paint is that theme's and nothing flashes. A first visit, or a
-// choice it does not know, is the default's; the browser's own chrome (theme-color) follows.
+// choice it does not know, is the default's; the browser's own chrome (theme-color) follows (under the
+// default it is left as each page has it written: the app's bar, the 404's ground).
 export function bootScript(): string {
   const bars = Object.fromEntries(THEMES.map((t) => [t.id, t.bar]));
-  return `(function(){var b=${JSON.stringify(bars)},t=${JSON.stringify(DEFAULT_THEME)};try{var s=localStorage.getItem(${JSON.stringify(THEME_KEY)});if(s&&b.hasOwnProperty(s))t=s}catch(e){}document.documentElement.dataset.theme=t;document.addEventListener('DOMContentLoaded',function(){var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',b[t])})})();`;
+  return `(function(){var b=${JSON.stringify(bars)},t=${JSON.stringify(DEFAULT_THEME)};try{var s=localStorage.getItem(${JSON.stringify(THEME_KEY)});if(s&&b.hasOwnProperty(s))t=s}catch(e){}document.documentElement.dataset.theme=t;if(t!==${JSON.stringify(DEFAULT_THEME)})document.addEventListener('DOMContentLoaded',function(){var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',b[t])})})();`;
 }
 export function themeBoot(): Plugin {
   return {

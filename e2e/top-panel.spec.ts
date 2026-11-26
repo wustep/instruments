@@ -320,8 +320,11 @@ test('the bar on a phone: the button, the orchestra, the lamp and the two pages 
       expect(b.y, where).toBeGreaterThanOrEqual(bar.y - 0.5);
       expect(b.y + b.height, where).toBeLessThanOrEqual(bar.y + bar.height + 0.5);
       expect(b.x + b.width, where).toBeLessThanOrEqual(vp.width);
-      if (i) expect(b.x, `${where}: #${i} clear of #${i - 1}`).toBeGreaterThanOrEqual(row[i - 1].x + row[i - 1].width);
+      // (the theme's sign, the last, is the bar's corner: its box is the margin past the links, over the last
+      // link's own padding by a pixel or two; its dots are held clear of the link's word below)
+      if (i && i < 5) expect(b.x, `${where}: #${i} clear of #${i - 1}`).toBeGreaterThanOrEqual(row[i - 1].x + row[i - 1].width);
     }
+    expect(row[5].x, `${where}: the sign past the middle of “notes”`).toBeGreaterThan(row[4].x + row[4].width - 4);
     // the pages' links: a finger's height; the theme's sign: the bar's own height, in its corner, and its
     // dots clear of the last link's word
     expect(row[3].height).toBeGreaterThanOrEqual(28);

@@ -149,7 +149,8 @@ describe('each theme’s sheets are scoped to it by the build', () => {
 describe('the boot script (the first thing in the page’s head)', () => {
   const run = (stored: string | null | Error) => {
     const dataset: Record<string, string> = {};
-    const meta = { content: '', setAttribute(_k: string, v: string) {
+    // (the page's own theme-color, as it is written in its head)
+    const meta = { content: 'written', setAttribute(_k: string, v: string) {
       this.content = v;
     } };
     let ready: (() => void) | null = null;
@@ -166,16 +167,19 @@ describe('the boot script (the first thing in the page’s head)', () => {
     return { theme: before, bar: meta.content };
   };
   it('puts the device’s theme on <html> at once, and its colour on the browser’s chrome', () => {
-    for (const t of THEMES) expect(run(t.id), t.id).toEqual({ theme: t.id, bar: t.bar });
+    // (under the default the page's own theme-color stands: the app's bar, the 404's ground)
+    for (const t of THEMES) expect(run(t.id), t.id).toEqual({ theme: t.id, bar: t.id === DEFAULT_THEME ? 'written' : t.bar });
   });
   it('a first visit, a choice it does not know, or no storage at all: the default', () => {
-    const d = { theme: DEFAULT_THEME, bar: themeOf(DEFAULT_THEME).bar };
+    const d = { theme: DEFAULT_THEME, bar: 'written' };
     expect(run(null)).toEqual(d);
     expect(run('sepia')).toEqual(d);
     expect(run('__proto__')).toEqual(d);
     expect(run(new Error('denied'))).toEqual(d);
   });
-  it('is in both pages’ heads when they are built: the app’s and the 404’s have a theme-color to set', () => {
-    for (const f of ['../index.html', '../404.html']) expect(readFileSync(here(f), 'utf8'), f).toMatch(/<meta name="theme-color" content="#141312" \/>/);
+  it('both pages have one theme-color for it to set, written as the default theme’s: the app’s bar, the 404’s ground', () => {
+    const metas = (f: string) => [...readFileSync(here(f), 'utf8').matchAll(/<meta name="theme-color" content="(#[0-9a-f]{6})"[^>]*>/g)].map((m) => m[1]);
+    expect(metas('../index.html')).toEqual([themeOf(DEFAULT_THEME).bar]);
+    expect(metas('../404.html')).toEqual([themeOf(DEFAULT_THEME).ink.ground]);
   });
 });
